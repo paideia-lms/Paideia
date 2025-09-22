@@ -1,0 +1,17 @@
+diff --git a/dist/vite.js b/dist/vite.js
+index 166dcb23e014c9a1e7e3fc70393fcdd3025b6941..2024de35b686c925ac5d74f7d4be2f3316209706 100644
+--- a/dist/vite.js
++++ b/dist/vite.js
+@@ -69,9 +69,9 @@ var import_node_child_process = require("child_process");
+ var import_package_json = __toESM(require("@npmcli/package-json"));
+ 
+ // vite/vite-node.ts
+-var import_server = require("vite-node/server");
+-var import_client = require("vite-node/client");
+-var import_source_map = require("vite-node/source-map");
++var import_server = require("vite-node/dist/server.mjs");
++var import_client = require("vite-node/dist/client.mjs");
++var import_source_map = require("vite-node/dist/source-map.mjs");
+ 
+ // vite/vite.ts
+ var import_pathe2 = __toESM(require("pathe"));
