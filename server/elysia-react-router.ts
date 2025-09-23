@@ -1,11 +1,12 @@
-import { join } from "node:path";
 import type { AnyElysia, Context } from "elysia";
 import { type AppLoadContext, createRequestHandler, ServerBuild } from "react-router";
 
-import { staticPlugin } from "@elysiajs/static";
+import { staticPlugin } from "./static/static-plugin";
 import type { ViteDevServer } from "vite";
 import type { PluginOptions } from "./types";
+// @ts-ignore
 import * as _serverBuild from "../build/server/index.js";
+import vfs from "./vfs";
 
 /**
  * Initializes and configures an Elysia server with React Router integration.
@@ -32,14 +33,14 @@ export async function reactRouter(
 ): Promise<AnyElysia> {
     const cwd = process.env.REMIX_ROOT ?? process.cwd();
     const mode = options?.mode ?? process.env.NODE_ENV ?? "development";
-    const buildDirectory = join(cwd, options?.buildDirectory ?? "build");
+    // const buildDirectory = join(cwd, options?.buildDirectory ?? "build");
     // const serverBuildPath = join(
     //     buildDirectory,
     //     "server",
     //     options?.serverBuildFile ?? "index.js",
     // );
 
-    console.log(buildDirectory);
+    // console.log(buildDirectory);
 
     let vite: ViteDevServer | undefined;
 
@@ -62,8 +63,8 @@ export async function reactRouter(
     } else if (options?.production?.assets !== false) {
         elysia.use(
             staticPlugin({
+                vfs,
                 prefix: "/",
-                assets: join(options?.buildDirectory ?? "build", "client"),
                 maxAge: 31536000,
                 ...options?.production?.assets,
             }),

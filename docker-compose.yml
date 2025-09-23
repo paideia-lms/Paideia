@@ -7,3 +7,27 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+    networks:
+      paideia_net:
+        ipv4_address: 172.28.0.2
+
+  postgres:
+    image: postgres:latest
+    container_name: paideia_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: paideia
+      POSTGRES_PASSWORD: paideia_password
+      POSTGRES_DB: paideia_db
+    ports:
+      - "5432:5432"
+    networks:
+      paideia_net:
+        ipv4_address: 172.28.0.3
+
+networks:
+  paideia_net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
