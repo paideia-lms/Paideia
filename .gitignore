@@ -6,3 +6,4 @@ node_modules
 
 vite.config.ts.*.mjs
 .react-router/
+dist

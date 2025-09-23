@@ -1,10 +1,14 @@
 {
   "name": "paideia",
   "private": true,
+  "version": "0.0.1",
   "sideEffects": false,
   "type": "module",
   "scripts": {
-    "build": "react-router build",
+    "build": "react-router build && bun build --asset-naming=\"[name].[ext]\" --compile --minify --sourcemap --target=bun-linux-arm64 --outfile dist/paideia ./server/index.ts",
+    "docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
+    "docker:run": "docker run -p 3000:3000 paideia:$(node -p \"require('./package.json').version\")",
+    "docker:compose": "VERSION=$(node -p \"require('./package.json').version\") docker-compose up",
     "dev": "bun --watch ./server/index.ts",
     "typecheck": "react-router typegen && tsc --noEmit",
     "format": "prettier --ignore-path .gitignore --ignore-unknown --cache --cache-location node_modules/.cache/prettiercache --write .",
@@ -14,14 +18,12 @@
   "dependencies": {
     "@elysiajs/static": "^1.4.0",
     "@react-router/fs-routes": "^7.6.2",
-    "@tailwindcss/vite": "^4.1.10",
     "elysia": "^1.3.5",
     "elysia-connect-middleware": "^0.0.6",
     "isbot": "^5.1.28",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
-    "react-router": "^7.6.2",
-    "tailwindcss": "^4.1.10"
+    "react-router": "^7.6.2"
   },
   "devDependencies": {
     "@react-router/dev": "^7.6.2",

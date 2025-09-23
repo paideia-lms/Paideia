@@ -1,0 +1,9 @@
+services:
+  paideia:
+    image: paideia:${VERSION}
+    container_name: paideia
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production

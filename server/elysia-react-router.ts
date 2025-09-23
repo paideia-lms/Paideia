@@ -1,10 +1,11 @@
 import { join } from "node:path";
-import { type AnyElysia, Elysia } from "elysia";
-import { type AppLoadContext, createRequestHandler } from "react-router";
+import type { AnyElysia, Context } from "elysia";
+import { type AppLoadContext, createRequestHandler, ServerBuild } from "react-router";
 
 import { staticPlugin } from "@elysiajs/static";
 import type { ViteDevServer } from "vite";
 import type { PluginOptions } from "./types";
+import * as _serverBuild from "../build/server/index.js";
 
 /**
  * Initializes and configures an Elysia server with React Router integration.
@@ -26,25 +27,23 @@ import type { PluginOptions } from "./types";
  * ```
  */
 export async function reactRouter(
+    elysia: AnyElysia,
     options?: PluginOptions<AppLoadContext>,
 ): Promise<AnyElysia> {
     const cwd = process.env.REMIX_ROOT ?? process.cwd();
     const mode = options?.mode ?? process.env.NODE_ENV ?? "development";
     const buildDirectory = join(cwd, options?.buildDirectory ?? "build");
-    const serverBuildPath = join(
-        buildDirectory,
-        "server",
-        options?.serverBuildFile ?? "index.js",
-    );
+    // const serverBuildPath = join(
+    //     buildDirectory,
+    //     "server",
+    //     options?.serverBuildFile ?? "index.js",
+    // );
 
-    const elysia = new Elysia({
-        name: "elysia-react-router",
-        seed: options,
-    });
+    console.log(buildDirectory);
 
     let vite: ViteDevServer | undefined;
 
-    if (mode !== "production") {
+    if (import.meta.env.DEV) {
         vite = await import("vite").then((vite) => {
             return vite.createServer({
                 ...options?.vite,
@@ -56,7 +55,7 @@ export async function reactRouter(
         });
     }
 
-    if (vite) {
+    if (vite && import.meta.env.DEV) {
         elysia.use(
             (await import("elysia-connect-middleware")).connect(vite.middlewares),
         );
@@ -71,22 +70,35 @@ export async function reactRouter(
         );
     }
 
-    elysia.all(
+
+    async function processReactRouterSSR(context: Context) {
+        const serverBuild = vite
+            ? await vite.ssrLoadModule("virtual:react-router/server-build")
+            : _serverBuild as ServerBuild;
+        const handler = createRequestHandler(
+            // @ts-ignore
+            serverBuild,
+            mode,
+        );
+
+        const loadContext = await options?.getLoadContext?.(context);
+
+        return handler(context.request, loadContext);
+    }
+
+    // ! 'all' does not works in binary
+    elysia.get(
         "*",
-        async function processReactRouterSSR(context) {
-            const handler = createRequestHandler(
-                vite
-                    ? await vite.ssrLoadModule("virtual:react-router/server-build")
-                    : await import(serverBuildPath),
-                mode,
-            );
-
-            const loadContext = await options?.getLoadContext?.(context);
-
-            return handler(context.request, loadContext);
-        },
+        processReactRouterSSR,
         { parse: "none" },
     );
+    elysia.delete("*", processReactRouterSSR, { parse: "none" });
+    elysia.post("*", processReactRouterSSR, { parse: "none" });
+    elysia.put("*", processReactRouterSSR, { parse: "none" });
+    elysia.patch("*", processReactRouterSSR, { parse: "none" });
+    elysia.head("*", processReactRouterSSR, { parse: "none" });
+    elysia.options("*", processReactRouterSSR, { parse: "none" });
+    elysia.connect("*", processReactRouterSSR, { parse: "none" });
 
     return elysia;
 }
