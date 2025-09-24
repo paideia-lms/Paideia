@@ -10,3 +10,4 @@ dist
 server/vfs.ts
 
 .env*
+.DS_Store
