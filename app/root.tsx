@@ -6,14 +6,7 @@ import reactRouterLogo from "./assets/rr_lockup_light.png";
 import { dbContextKey } from "server/db-context";
 
 export function loader({ request, context }: Route.LoaderArgs) {
-  // console.log(context.get(dbContext))
-  console.log(request)
-  console.log(context)
-  try {
-    return context.get(dbContextKey)
-  } catch (error) {
-    console.log(error)
-  }
+
 }
 
 export const meta: Route.MetaFunction = () => {
@@ -34,18 +27,9 @@ export default function App({ loaderData }: Route.ComponentProps) {
         <Links />
       </head>
       <body>
-        <main className="mx-auto max-w-screen-md mt-10 space-y-6">
-          <div className="flex items-center gap-2">
-            <img src={elysiaLogo} alt="Elysia" className="w-48" />
-            <span className="text-2xl font-medium text-gray-600">+</span>
-            <img src={reactRouterLogo} alt="React Router" className="h-12" />
-          </div>
-          {loaderData?.text ?? "No data"}
-
-
+        <main>
           <Outlet />
         </main>
-
         <ScrollRestoration />
         <Scripts />
       </body>

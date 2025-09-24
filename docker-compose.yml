@@ -1,18 +1,18 @@
 services:
-  paideia:
-    image: paideia:${VERSION}
-    container_name: paideia
-    ports:
-      - "3000:3000"
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
-    networks:
-      paideia_net:
-        ipv4_address: 172.28.0.2
+  # paideia:
+  #   image: paideia:${VERSION}
+  #   container_name: paideia
+  #   ports:
+  #     - "3000:3000"
+  #   restart: unless-stopped
+  #   environment:
+  #     - NODE_ENV=production
+  #   networks:
+  #     paideia_net:
+  #       ipv4_address: 172.28.0.2
 
   postgres:
-    image: postgres:latest
+    image: postgres:15
     container_name: paideia_postgres
     restart: unless-stopped
     environment:

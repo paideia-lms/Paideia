@@ -11,7 +11,6 @@ new Elysia()
 			getLoadContext: (context) => {
 				const c = new RouterContextProvider();
 				c.set(dbContextKey, { text: "Hello" });
-				console.log(c.get(dbContextKey))
 				return c
 			}
 		}),

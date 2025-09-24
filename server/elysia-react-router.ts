@@ -117,8 +117,6 @@ export async function reactRouter(
             throw new Error("Load context is required");
         }
 
-
-        console.log(loadContext.get(dbContextKey))
         // context.request.loadContext = loadContext
         return handler(context.request, loadContext);
     }
