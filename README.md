@@ -29,12 +29,32 @@ Paideia LMS aims to be the modern alternative to traditional LMS platforms like 
 
 ## Development
 
-Run the development server:
+### Full Stack Development (Recommended)
+
+Spin up the complete development environment with PostgreSQL and MinIO:
 
 ```sh
-# spin up docker compose 
+docker-compose up -d
+```
+
+This starts:
+- **App**: http://localhost:3000
+- **PostgreSQL**: localhost:5432 (paideia/paideia_password)
+- **MinIO**: http://localhost:9000 (API) / http://localhost:9001 (Web UI)
+  - Access Key: paideia_minio
+  - Secret Key: paideia_minio_secret
+
+### App Only Development
+
+Run just the development server (requires external database and MinIO):
+
+```sh
 bun dev
-# only server 
+```
+
+Or run only the server component:
+
+```sh
 bun dev:local
 ```
 
