@@ -8,3 +8,5 @@ vite.config.ts.*.mjs
 .react-router/
 dist
 server/vfs.ts
+
+.env*

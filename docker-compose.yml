@@ -1,15 +1,23 @@
 services:
-  # paideia:
-  #   image: paideia:${VERSION}
-  #   container_name: paideia
-  #   ports:
-  #     - "3000:3000"
-  #   restart: unless-stopped
-  #   environment:
-  #     - NODE_ENV=production
-  #   networks:
-  #     paideia_net:
-  #       ipv4_address: 172.28.0.2
+  paideia:
+    image: oven/bun:latest
+    container_name: paideia
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    volumes:
+      - .:/home/app
+      - ./node_modules:/home/app/node_modules
+      - .react-router:/home/app/.react-router
+    working_dir: /home/app
+    environment:
+      - NODE_ENV=development
+    command: sh -c "bun install && bun --watch ./server/index.ts"
+    networks:
+      paideia_net:
+        ipv4_address: 172.28.0.2
+    depends_on:
+      - postgres
 
   postgres:
     image: postgres:15
