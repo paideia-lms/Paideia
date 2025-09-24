@@ -6,10 +6,10 @@ services:
       - "3000:3000"
     restart: unless-stopped
     volumes:
-      - .:/home/app
-      - ./node_modules:/home/app/node_modules
-      - .react-router:/home/app/.react-router
-    working_dir: /home/app
+      - .:/home/bun/app
+      - ./node_modules:/home/bun/app/node_modules
+      - .react-router:/home/bun/app/.react-router
+    working_dir: /home/bun/app
     environment:
       - NODE_ENV=development
     command: sh -c "bun install && bun --watch ./server/index.ts"

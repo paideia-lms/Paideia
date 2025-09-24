@@ -3,6 +3,7 @@ import { type LoaderFunctionArgs, useLoaderData } from "react-router";
 import "bknd/dist/styles.css";
 import { dbContextKey } from "server/db-context";
 import type { App } from "bknd";
+import { Route } from "./+types/admin";
 
 
 export async function getApi(
@@ -30,8 +31,8 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
     };
 };
 
-export default function AdminPage() {
-    const { user } = useLoaderData<typeof loader>();
+export default function AdminPage({ loaderData }: Route.ComponentProps) {
+    const { user } = loaderData;
     // derived from https://github.com/sergiodxa/remix-utils
     const hydrated = useSyncExternalStore(
         // @ts-ignore
