@@ -49,7 +49,7 @@ export async function reactRouter(
 
     let vite: ViteDevServer | undefined;
 
-    console.log(process.env.ENV)
+    // console.log(process.env.ENV)
 
     if (process.env.ENV !== "production") {
         vite = await import("vite").then((vite) => {

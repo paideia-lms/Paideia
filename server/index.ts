@@ -8,19 +8,34 @@ import { createApp, type CreateAppConfig, } from "bknd";
 // 	getApp as getBkndApp,
 //   } from "bknd/adapter/react-router";
 import { postgresJs } from "@bknd/postgres";
+import { envVars } from "./env";
 
-
-if (!process.env.DATABASE_URL) {
-	throw new Error("DATABASE_URL is not set");
+for (const [key, value] of Object.entries(envVars)) {
+	if (value.required && !value.value) {
+		throw new Error(`${key} is not set`);
+	}
 }
-
 
 // create the app
 const config = {
-	"connection": postgresJs(process.env.DATABASE_URL),
+	"connection": postgresJs(envVars.DATABASE_URL.value),
 	options: {
 		async seed(ctx) {
 
+		},
+
+	},
+	"initialConfig": {
+		media: {
+			enabled: true,
+			adapter: {
+				type: "s3",
+				config: {
+					access_key: envVars.S3_ACCESS_KEY.value,
+					secret_access_key: envVars.S3_SECRET_KEY.value,
+					url: envVars.S3_URL.value,
+				},
+			},
 		},
 	}
 } satisfies CreateAppConfig;

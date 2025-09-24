@@ -41,7 +41,7 @@ await Bun.build({
   minify: true,
   sourcemap: true,
   "define": {
-    // for txt based files, we read them as utf-8 strings and put them in the env
+    // ! we need this value for tree shaking
     "process.env.ENV": '"production"',
   },
   "naming": {
