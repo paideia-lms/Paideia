@@ -4,6 +4,13 @@
   "version": "0.0.1",
   "sideEffects": false,
   "type": "module",
+  "author": "Paideia",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hananoshikayomaru/paideia"
+  },
+  "homepage": "https://github.com/hananoshikayomaru/paideia",
   "scripts": {
     "build": "bun scripts/build.ts",
     "start": "./dist/paideia",
