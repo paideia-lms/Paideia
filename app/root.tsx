@@ -7,7 +7,7 @@ import { dbContextKey } from "server/db-context";
 
 export function loader({ request, context }: Route.LoaderArgs) {
   const app = context.get(dbContextKey).app;
-  console.log(app);
+
 }
 
 export const meta: Route.MetaFunction = () => {

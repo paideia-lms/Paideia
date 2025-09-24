@@ -4,6 +4,7 @@ import "bknd/dist/styles.css";
 import { dbContextKey } from "server/db-context";
 import type { App } from "bknd";
 import { Route } from "./+types/admin";
+import { Admin } from "bknd/ui"
 
 
 export async function getApi(
@@ -19,9 +20,6 @@ export async function getApi(
     return app.getApi();
 }
 
-const Admin = lazy(() =>
-    import("bknd/ui").then((mod) => ({ default: mod.Admin })),
-);
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
     const { app } = context.get(dbContextKey);
@@ -33,14 +31,6 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 export default function AdminPage({ loaderData }: Route.ComponentProps) {
     const { user } = loaderData;
-    // derived from https://github.com/sergiodxa/remix-utils
-    const hydrated = useSyncExternalStore(
-        // @ts-ignore
-        () => { },
-        () => true,
-        () => false,
-    );
-    if (!hydrated) return null;
 
     return (
         <Suspense>
