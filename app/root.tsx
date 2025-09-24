@@ -4,6 +4,12 @@ import "./app.css";
 import elysiaLogo from "./assets/elysia_v.webp";
 import reactRouterLogo from "./assets/rr_lockup_light.png";
 import { dbContextKey } from "server/db-context";
+import '@mantine/core/styles.css';
+import { MantineProvider } from "@mantine/core";
+import { ColorSchemeScript } from '@mantine/core';
+import { ClientProvider } from "bknd/client"
+
+
 
 export function loader({ request, context }: Route.LoaderArgs) {
   const app = context.get(dbContextKey).app;
@@ -26,11 +32,18 @@ export default function App({ loaderData }: Route.ComponentProps) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <Meta />
         <Links />
+        <ColorSchemeScript />
+
       </head>
       <body>
-        <main>
-          <Outlet />
-        </main>
+        <ClientProvider>
+
+          <MantineProvider >
+            <main>
+              <Outlet />
+            </main>
+          </MantineProvider>
+        </ClientProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

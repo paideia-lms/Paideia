@@ -1,0 +1,9 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+Should use mantine component all the time. we should use design token from mantine. 
+
+We should not use tailwind classes. Strictly prohibited.

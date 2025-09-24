@@ -18,8 +18,6 @@ for (const [key, value] of Object.entries(envVars)) {
 	}
 }
 
-console.log(Object.entries(envVars).map(([key, value]) => `${key}: ${value.value}`))
-
 // create the app
 const config = {
 	"connection": postgresJs(envVars.DATABASE_URL.value),
@@ -32,6 +30,7 @@ const config = {
 		]
 	},
 	"initialConfig": {
+
 		auth: {
 			'enabled': true,
 			"allow_register": true,
@@ -61,23 +60,6 @@ const app = createApp(config);
 await app.build({
 	"sync": true,
 })
-
-const mediaConfig = app.mutateConfig("media")
-
-// @ts-ignore
-mediaConfig.set({
-	enabled: true,
-	adapter: {
-		type: "s3",
-		config: {
-			access_key: envVars.R2_ACCESS_KEY.value ?? envVars.S3_ACCESS_KEY.value,
-			secret_access_key: envVars.R2_SECRET_KEY.value ?? envVars.S3_SECRET_KEY.value,
-			url: envVars.R2_URL.value ?? envVars.S3_URL.value,
-		},
-	}
-})
-
-
 
 
 const port = Number(process.env.PORT) || 3000;
