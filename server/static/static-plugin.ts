@@ -168,7 +168,7 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
 
         const m = mime.getType(relativePath)
 
-        console.log('Static route: File found in VFS:', relativePath, "with content type:", m)
+        // console.log('Static route: File found in VFS:', relativePath, "with content type:", m)
 
         const etag = await generateETagFromBuffer(fileBuffer)
 

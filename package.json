@@ -14,8 +14,7 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "start": "./dist/paideia",
-    "dev:local": "bun --watch ./server/index.ts",
-    "dev": "VERSION=$(node -p \"require('./package.json').version\") docker-compose up",
+    "dev": "VERSION=$(node -p \"require('./package.json').version\") docker-compose up -d && bun --watch ./server/index.ts",
     "docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
     "docker:run": "docker run -p 3000:3000 paideia:$(node -p \"require('./package.json').version\")",
     "typecheck": "react-router typegen && tsc --noEmit"

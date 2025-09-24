@@ -37,7 +37,7 @@ export async function reactRouter(
     elysia: AnyElysia,
     options?: PluginOptions<RouterContextProvider>,
 ): Promise<AnyElysia> {
-    const cwd = process.env.REMIX_ROOT ?? process.cwd();
+    // const cwd = process.env.REMIX_ROOT ?? process.cwd();
     // const buildDirectory = join(cwd, options?.buildDirectory ?? "build");
     // const serverBuildPath = join(
     //     buildDirectory,
@@ -60,7 +60,7 @@ export async function reactRouter(
                     middlewareMode: true,
                 },
             });
-        });
+        })
         console.log(`vite is running as middleware`)
     }
 
