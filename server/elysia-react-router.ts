@@ -75,6 +75,8 @@ export async function reactRouter(
                 prefix: "/",
                 assets: ".",
                 maxAge: 31536000,
+                // ! in development, we want to disable cache
+                noCache: true,
                 ...options?.production?.assets,
             }
         ))

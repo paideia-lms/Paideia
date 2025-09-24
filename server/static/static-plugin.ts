@@ -2,6 +2,7 @@
 import { Elysia, NotFoundError } from 'elysia'
 
 import { generateETag, isCached } from './cache'
+import mime from 'mime'
 
 type VfsMap = Record<string, string>
 
@@ -165,7 +166,9 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
             continue
         }
 
-        // console.log('Static route: File found in VFS:', relativePath)
+        const m = mime.getType(relativePath)
+
+        console.log('Static route: File found in VFS:', relativePath, "with content type:", m)
 
         const etag = await generateETagFromBuffer(fileBuffer)
 
@@ -174,12 +177,20 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
         app.get(
             pathName,
             noCache
-                ? new Response(responseBody, { headers })
+                ? new Response(responseBody, {
+                    headers: {
+                        ...headers,
+                        'Content-Type': m ?? 'application/octet-stream'
+                    }
+                })
                 : async ({ headers: reqHeaders }) => {
                     if (await isCached(reqHeaders, etag, relativePath)) {
                         return new Response(null, {
                             status: 304,
-                            headers
+                            headers: {
+                                ...headers,
+                                'Content-Type': m ?? 'application/octet-stream'
+                            }
                         })
                     }
 
@@ -188,7 +199,12 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
                     if (maxAge !== null)
                         headers['Cache-Control'] += `, max-age=${maxAge}`
 
-                    return new Response(responseBody, { headers })
+                    return new Response(responseBody, {
+                        headers: {
+                            ...headers,
+                            'Content-Type': m ?? 'application/octet-stream'
+                        }
+                    })
                 }
         )
 
@@ -196,12 +212,20 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
             app.get(
                 pathName.replace('/index.html', ''),
                 noCache
-                    ? new Response(responseBody, { headers })
+                    ? new Response(responseBody, {
+                        headers: {
+                            ...headers,
+                            'Content-Type': m ?? 'application/octet-stream'
+                        }
+                    })
                     : async ({ headers: reqHeaders }) => {
                         if (await isCached(reqHeaders, etag, pathName)) {
                             return new Response(null, {
                                 status: 304,
-                                headers
+                                headers: {
+                                    ...headers,
+                                    'Content-Type': m ?? 'application/octet-stream'
+                                }
                             })
                         }
 
@@ -211,7 +235,12 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
                             headers['Cache-Control'] +=
                                 `, max-age=${maxAge}`
 
-                        return new Response(responseBody, { headers })
+                        return new Response(responseBody, {
+                            headers: {
+                                ...headers,
+                                'Content-Type': m ?? 'application/octet-stream'
+                            }
+                        })
                     }
             )
     }

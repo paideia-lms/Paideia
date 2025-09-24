@@ -70,7 +70,7 @@ new Elysia()
 				const c = new RouterContextProvider();
 				c.set(dbContextKey, { app: app });
 				return c
-			}
+			},
 		}),
 	)
 	.get("/some", "Hello")

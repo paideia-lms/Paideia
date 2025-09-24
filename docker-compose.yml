@@ -56,9 +56,29 @@ services:
       paideia_net:
         ipv4_address: 172.28.0.4
 
+  drizzle-gateway:
+    image: ghcr.io/drizzle-team/gateway:latest
+    container_name: drizzle-gateway
+    restart: unless-stopped
+    ports:
+      - "4983:4983"
+    environment:
+      PORT: 4983
+      STORE_PATH: ./app
+      MASTERPASS: your_master_password
+      DATABASE_URL: postgresql://paideia:paideia_password@postgres:5432/paideia_db
+    volumes:
+      - drizzle-gateway:/app
+    networks:
+      paideia_net:
+        ipv4_address: 172.28.0.5
+    depends_on:
+      - postgres
+
 volumes:
   minio_data:
   postgres_data:
+  drizzle-gateway:
 
 networks:
   paideia_net:

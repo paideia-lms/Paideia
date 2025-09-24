@@ -40,6 +40,8 @@ export default function AdminPage({ loaderData }: Route.ComponentProps) {
         return <div>Loading...</div>;
     }
 
+    console.log(user);
+
     return (
         <Suspense>
             <Admin
