@@ -5,6 +5,8 @@ import { dbContextKey } from "server/db-context";
 import type { App } from "bknd";
 import { Route } from "./+types/admin";
 import { Admin } from "bknd/ui"
+import { useHydrated } from "remix-utils/use-hydrated";
+
 
 
 export async function getApi(
@@ -31,6 +33,12 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 export default function AdminPage({ loaderData }: Route.ComponentProps) {
     const { user } = loaderData;
+
+    const hydrated = useHydrated();
+
+    if (!hydrated) {
+        return <div>Loading...</div>;
+    }
 
     return (
         <Suspense>

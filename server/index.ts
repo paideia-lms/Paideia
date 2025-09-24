@@ -9,6 +9,8 @@ import { createApp, type CreateAppConfig, } from "bknd";
 //   } from "bknd/adapter/react-router";
 import { postgresJs } from "@bknd/postgres";
 import { envVars } from "./env";
+import { showRoutes } from "bknd/plugins";
+
 
 for (const [key, value] of Object.entries(envVars)) {
 	if (value.required && !value.value) {
@@ -23,9 +25,21 @@ const config = {
 		async seed(ctx) {
 
 		},
-
+		"plugins": [
+			showRoutes({ once: true })
+		]
 	},
 	"initialConfig": {
+		auth: {
+			'enabled': true,
+			"allow_register": true,
+			"strategies": {
+				"password": {
+					"enabled": true,
+					"type": "password",
+				},
+			}
+		},
 		media: {
 			enabled: true,
 			adapter: {
@@ -41,7 +55,9 @@ const config = {
 } satisfies CreateAppConfig;
 const app = createApp(config);
 
-await app.build()
+await app.build({
+	"sync": true,
+})
 
 
 
