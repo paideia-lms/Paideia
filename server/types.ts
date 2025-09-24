@@ -1,18 +1,13 @@
 import type { staticPlugin } from "@elysiajs/static";
 import type { Context } from "elysia/context";
 import type { InlineConfig } from "vite";
+import { RouterContextProvider } from "react-router"
 
 export type GetLoadContext<T> = (context: Context) => T | Promise<T>;
 
 type MaybePromise<T> = T | Promise<T>;
 
 export interface PluginOptions<T> {
-    /**
-     * in `development` mode it starts `vite` and in `production` it just served like static.
-     *
-     * @default process.env.NODE_ENV || "development"
-     */
-    mode?: "development" | "production";
     /**
      * The base path for the Remix app.
      * This should match the `basename` in your `vite` config.

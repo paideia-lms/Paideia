@@ -42,14 +42,10 @@ await Bun.build({
   sourcemap: true,
   "define": {
     // for txt based files, we read them as utf-8 strings and put them in the env
-    // TEST: jsFilesEnv[Object.keys(jsFilesEnv)[0]]
-    "ENV": "production",
+    "process.env.ENV": '"production"',
   },
   "naming": {
     "asset": "[dir]/[name].[ext]",
-  },
-  "loader": {
-    ".dummy": "file"
   },
   compile: {
     target: "bun-darwin-arm64",
@@ -58,3 +54,5 @@ await Bun.build({
   }
 });
 
+
+await $`rm -rf ./build`

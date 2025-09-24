@@ -169,10 +169,12 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
 
         const etag = await generateETagFromBuffer(fileBuffer)
 
+        const responseBody = new Uint8Array(fileBuffer)
+
         app.get(
             pathName,
             noCache
-                ? new Response(fileBuffer, { headers })
+                ? new Response(responseBody, { headers })
                 : async ({ headers: reqHeaders }) => {
                     if (await isCached(reqHeaders, etag, relativePath)) {
                         return new Response(null, {
@@ -186,7 +188,7 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
                     if (maxAge !== null)
                         headers['Cache-Control'] += `, max-age=${maxAge}`
 
-                    return new Response(fileBuffer, { headers })
+                    return new Response(responseBody, { headers })
                 }
         )
 
@@ -194,7 +196,7 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
             app.get(
                 pathName.replace('/index.html', ''),
                 noCache
-                    ? new Response(fileBuffer, { headers })
+                    ? new Response(responseBody, { headers })
                     : async ({ headers: reqHeaders }) => {
                         if (await isCached(reqHeaders, etag, pathName)) {
                             return new Response(null, {
@@ -209,7 +211,7 @@ export const staticPlugin = async <Prefix extends string = '/prefix'>(
                             headers['Cache-Control'] +=
                                 `, max-age=${maxAge}`
 
-                        return new Response(fileBuffer, { headers })
+                        return new Response(responseBody, { headers })
                     }
             )
     }

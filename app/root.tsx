@@ -3,7 +3,18 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import elysiaLogo from "./assets/elysia_v.webp";
 import reactRouterLogo from "./assets/rr_lockup_light.png";
-import { ExternalLink } from "./components/link";
+import { dbContextKey } from "server/db-context";
+
+export function loader({ request, context }: Route.LoaderArgs) {
+  // console.log(context.get(dbContext))
+  console.log(request)
+  console.log(context)
+  try {
+    return context.get(dbContextKey)
+  } catch (error) {
+    console.log(error)
+  }
+}
 
 export const meta: Route.MetaFunction = () => {
   return [
@@ -12,7 +23,8 @@ export const meta: Route.MetaFunction = () => {
   ];
 };
 
-export default function App() {
+export default function App({ loaderData }: Route.ComponentProps) {
+
   return (
     <html lang="en">
       <head>
@@ -28,14 +40,8 @@ export default function App() {
             <span className="text-2xl font-medium text-gray-600">+</span>
             <img src={reactRouterLogo} alt="React Router" className="h-12" />
           </div>
+          {loaderData?.text ?? "No data"}
 
-          <p>
-            This app uses the unofficial{" "}
-            <ExternalLink href="https://github.com/kravetsone/elysia-react-router">
-              elysia-react-router
-            </ExternalLink>{" "}
-            adapter to connect Elysia with React Router seamlessly.
-          </p>
 
           <Outlet />
         </main>

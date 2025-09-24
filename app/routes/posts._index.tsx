@@ -1,10 +1,10 @@
-import { useLoaderData } from "react-router";
+
 import Link from "~/components/link";
 import type { Route } from "./+types/posts._index";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
   return {
-    ...context,
+    hotPostName: "My First Post",
     posts: [
       {
         slug: "my-first-post",
@@ -18,8 +18,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
   };
 };
 
-export default function Posts() {
-  const { posts, hotPostName } = useLoaderData<typeof loader>();
+export default function Posts({ loaderData }: Route.ComponentProps) {
+  const { hotPostName, posts } = loaderData;
 
   return (
     <>

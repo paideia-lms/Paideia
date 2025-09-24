@@ -1,12 +1,18 @@
 import type { AnyElysia, Context } from "elysia";
-import { type AppLoadContext, createRequestHandler, ServerBuild } from "react-router";
+import { type AppLoadContext, createRequestHandler, ServerBuild, RouterContextProvider } from "react-router";
+import { staticPlugin as _staticPlugin } from "@elysiajs/static";
 
 import { staticPlugin } from "./static/static-plugin";
 import type { ViteDevServer } from "vite";
 import type { PluginOptions } from "./types";
 // @ts-ignore
-import * as _serverBuild from "../build/server/index.js";
+// import * as _serverBuild from "../build/server/index.js";
 import vfs from "./vfs";
+import { dbContext, dbContextKey } from "./db-context";
+
+function isContext(c: any): c is Context {
+    return "request" in c && "route" in c && "server" in c
+}
 
 /**
  * Initializes and configures an Elysia server with React Router integration.
@@ -29,10 +35,9 @@ import vfs from "./vfs";
  */
 export async function reactRouter(
     elysia: AnyElysia,
-    options?: PluginOptions<AppLoadContext>,
+    options?: PluginOptions<RouterContextProvider>,
 ): Promise<AnyElysia> {
     const cwd = process.env.REMIX_ROOT ?? process.cwd();
-    const mode = options?.mode ?? process.env.NODE_ENV ?? "development";
     // const buildDirectory = join(cwd, options?.buildDirectory ?? "build");
     // const serverBuildPath = join(
     //     buildDirectory,
@@ -44,7 +49,9 @@ export async function reactRouter(
 
     let vite: ViteDevServer | undefined;
 
-    if (import.meta.env.DEV) {
+    console.log(process.env.ENV)
+
+    if (process.env.ENV !== "production") {
         vite = await import("vite").then((vite) => {
             return vite.createServer({
                 ...options?.vite,
@@ -54,13 +61,26 @@ export async function reactRouter(
                 },
             });
         });
+        console.log(`vite is running as middleware`)
     }
 
-    if (vite && import.meta.env.DEV) {
+    if (process.env.ENV !== "production" && vite) {
         elysia.use(
             (await import("elysia-connect-middleware")).connect(vite.middlewares),
         );
+        console.log(`attaching vite as middleware`)
+
+        elysia.use(_staticPlugin(
+            {
+                prefix: "/",
+                assets: ".",
+                maxAge: 31536000,
+                ...options?.production?.assets,
+            }
+        ))
+        console.log(`attaching static as middleware`)
     } else if (options?.production?.assets !== false) {
+
         elysia.use(
             staticPlugin({
                 vfs,
@@ -69,28 +89,44 @@ export async function reactRouter(
                 ...options?.production?.assets,
             }),
         );
+
     }
 
 
-    async function processReactRouterSSR(context: Context) {
-        const serverBuild = vite
-            ? await vite.ssrLoadModule("virtual:react-router/server-build")
-            : _serverBuild as ServerBuild;
+    async function processReactRouterSSR(context: any) {
+        // if c is not context, throw an error
+        if (!isContext(context)) {
+            throw new Error("Context is required");
+        }
+
+
+        const serverBuild = vite ?
+            await vite.ssrLoadModule("virtual:react-router/server-build")
+            // @ts-ignore
+            // ! this will appear when we run build
+            : await import("../build/server/index.js") as ServerBuild;
         const handler = createRequestHandler(
             // @ts-ignore
             serverBuild,
-            mode,
+            process.env.ENV !== "production" ? "development" : "production",
         );
 
         const loadContext = await options?.getLoadContext?.(context);
 
+        if (!loadContext) {
+            throw new Error("Load context is required");
+        }
+
+
+        console.log(loadContext.get(dbContextKey))
+        // context.request.loadContext = loadContext
         return handler(context.request, loadContext);
     }
 
     // ! 'all' does not works in binary
     elysia.get(
         "*",
-        processReactRouterSSR,
+        (c) => processReactRouterSSR(c),
         { parse: "none" },
     );
     elysia.delete("*", processReactRouterSSR, { parse: "none" });
@@ -102,4 +138,8 @@ export async function reactRouter(
     elysia.connect("*", processReactRouterSSR, { parse: "none" });
 
     return elysia;
+}
+
+function join(arg0: string, arg1: string): string | undefined {
+    throw new Error("Function not implemented.");
 }

@@ -10,31 +10,35 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 // https://github.com/facebook/react/issues/33612
 import { renderToPipeableStream } from "react-dom/server.node";
-import type { AppLoadContext, EntryContext } from "react-router";
+import type { AppLoadContext, EntryContext, RouterContextProvider } from "react-router";
 import { ServerRouter } from "react-router";
+import { dbContext } from "server/db-context";
 
 const ABORT_DELAY = 5_000;
+
 
 export default function handleRequest(
   request: Request,
   responseStatusCode: number,
   responseHeaders: Headers,
   reactRouterContext: EntryContext,
-  loadContext: AppLoadContext,
+  loadContext: RouterContextProvider,
 ) {
   return isbot(request.headers.get("user-agent") ?? "")
     ? handleBotRequest(
-        request,
-        responseStatusCode,
-        responseHeaders,
-        reactRouterContext,
-      )
+      request,
+      responseStatusCode,
+      responseHeaders,
+      reactRouterContext,
+      loadContext,
+    )
     : handleBrowserRequest(
-        request,
-        responseStatusCode,
-        responseHeaders,
-        reactRouterContext,
-      );
+      request,
+      responseStatusCode,
+      responseHeaders,
+      reactRouterContext,
+      loadContext,
+    );
 }
 
 function handleBotRequest(
@@ -42,14 +46,16 @@ function handleBotRequest(
   responseStatusCode: number,
   responseHeaders: Headers,
   reactRouterContext: EntryContext,
+  loadContext: RouterContextProvider,
 ) {
+  // loadContext.get(dbContext)
   return new Promise((resolve, reject) => {
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={reactRouterContext}
         url={request.url}
-        // abortDelay={ABORT_DELAY}
+      // abortDelay={ABORT_DELAY}
       />,
       {
         onAllReady() {
@@ -92,14 +98,17 @@ function handleBrowserRequest(
   responseStatusCode: number,
   responseHeaders: Headers,
   reactRouterContext: EntryContext,
+  loadContext: RouterContextProvider,
 ) {
+  // console.log(loadContext.get(dbContext))
   return new Promise((resolve, reject) => {
     let shellRendered = false;
     const { pipe, abort } = renderToPipeableStream(
       <ServerRouter
         context={reactRouterContext}
         url={request.url}
-        // abortDelay={ABORT_DELAY}
+
+      // abortDelay={ABORT_DELAY}
       />,
       {
         onShellReady() {
