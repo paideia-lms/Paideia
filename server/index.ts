@@ -26,6 +26,8 @@ const config = {
 } satisfies CreateAppConfig;
 const app = createApp(config);
 
+await app.build()
+
 
 
 const port = Number(process.env.PORT) || 3000;

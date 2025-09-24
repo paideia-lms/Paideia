@@ -32,7 +32,10 @@ Paideia LMS aims to be the modern alternative to traditional LMS platforms like 
 Run the development server:
 
 ```sh
+# spin up docker compose 
 bun dev
+# only server 
+bun dev:local
 ```
 
 ## Production
@@ -57,21 +60,12 @@ bun start
 - **[TypeScript](https://typescriptlang.org/)** - Type-safe JavaScript
 - **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
 
-## Deployment
-
-### Docker
-
-```sh
-docker build -t paideia-lms .
-docker run -p 3000:3000 paideia-lms
-```
-
 ### Single Executable
 
 Build and package as a standalone binary:
 
 ```sh
-bun run build:exe
+bun run build
 ```
 
 ## Contributing
