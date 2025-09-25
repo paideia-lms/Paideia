@@ -1,7 +1,7 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import sanitizedConfig from "./payload.config";
+import sanitizedConfig from "../payload.config";
 import { checkFirstUser, getUserCount, validateFirstUserState } from "./check-first-user";
 
 describe("First User Check Functions", () => {
@@ -41,7 +41,7 @@ describe("First User Check Functions", () => {
                 where: {},
             });
 
-            const result = await checkFirstUser();
+            const result = await checkFirstUser(payload);
             expect(result).toBe(true);
         });
 
@@ -58,14 +58,14 @@ describe("First User Check Functions", () => {
                 },
             });
 
-            const result = await checkFirstUser();
+            const result = await checkFirstUser(payload);
             expect(result).toBe(false);
         });
     });
 
     describe("getUserCount", () => {
         test("should return correct user count", async () => {
-            const count = await getUserCount();
+            const count = await getUserCount(payload);
             expect(typeof count).toBe("number");
             expect(count).toBeGreaterThanOrEqual(0);
         });
@@ -77,14 +77,14 @@ describe("First User Check Functions", () => {
                 where: {},
             });
 
-            const count = await getUserCount();
+            const count = await getUserCount(payload);
             expect(count).toBe(0);
         });
     });
 
     describe("validateFirstUserState", () => {
         test("should return valid state with correct structure", async () => {
-            const result = await validateFirstUserState();
+            const result = await validateFirstUserState(payload);
 
             expect(result).toHaveProperty("needsFirstUser");
             expect(result).toHaveProperty("userCount");
@@ -95,7 +95,7 @@ describe("First User Check Functions", () => {
         });
 
         test("should return isValid=true when database is accessible", async () => {
-            const result = await validateFirstUserState();
+            const result = await validateFirstUserState(payload);
             expect(result.isValid).toBe(true);
         });
 
@@ -106,7 +106,7 @@ describe("First User Check Functions", () => {
                 where: {},
             });
 
-            const result = await validateFirstUserState();
+            const result = await validateFirstUserState(payload);
             expect(result.userCount).toBe(0);
 
             // Add a user
@@ -121,15 +121,15 @@ describe("First User Check Functions", () => {
                 },
             });
 
-            const resultAfterCreate = await validateFirstUserState();
+            const resultAfterCreate = await validateFirstUserState(payload);
             expect(resultAfterCreate.userCount).toBe(1);
         });
     });
 
     describe("Integration Tests", () => {
         test("checkFirstUser and getUserCount should be consistent", async () => {
-            const needsFirstUser = await checkFirstUser();
-            const userCount = await getUserCount();
+            const needsFirstUser = await checkFirstUser(payload);
+            const userCount = await getUserCount(payload);
 
             if (needsFirstUser) {
                 expect(userCount).toBe(0);
@@ -139,9 +139,9 @@ describe("First User Check Functions", () => {
         });
 
         test("validateFirstUserState should match individual function results", async () => {
-            const validationState = await validateFirstUserState();
-            const needsFirstUser = await checkFirstUser();
-            const userCount = await getUserCount();
+            const validationState = await validateFirstUserState(payload);
+            const needsFirstUser = await checkFirstUser(payload);
+            const userCount = await getUserCount(payload);
 
             expect(validationState.needsFirstUser).toBe(needsFirstUser);
             expect(validationState.userCount).toBe(userCount);

@@ -5,9 +5,12 @@ import elysiaLogo from "./assets/elysia_v.webp";
 import reactRouterLogo from "./assets/rr_lockup_light.png";
 import { dbContextKey } from "server/global-context";
 import '@mantine/core/styles.css';
+import '@mantine/notifications/styles.css';
+import { Notifications } from '@mantine/notifications';
 import { Button, MantineProvider } from "@mantine/core";
 import { ColorSchemeScript } from '@mantine/core';
 import { useState } from "react";
+import { getUserCount } from "server/internal/check-first-user";
 
 
 
@@ -17,10 +20,35 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const api = context.get(dbContextKey).api;
   // ! we can get elysia from context!!!
   // console.log(payload, elysia);
-  const users = await api.some.get()
+  const users = await getUserCount(payload)
+
+  // Check if we need to redirect to first-user creation
+  const url = new URL(request.url);
+  const currentPath = url.pathname;
+
+  // Skip redirect check for essential routes
+  if (currentPath === '/first-user' || currentPath === '/login' || currentPath.startsWith('/api/')) {
+    return {
+      users: users
+    };
+  }
+
+  // Check if database has any users
+  const userCount = await payload.find({
+    collection: "users",
+    limit: 1,
+  });
+
+  // If no users exist, redirect to first-user creation
+  if (userCount.docs.length === 0) {
+    throw new Response(null, {
+      status: 302,
+      headers: { Location: "/first-user" },
+    });
+  }
 
   return {
-    users: users.data
+    users: users
   }
 }
 
@@ -44,9 +72,9 @@ export default function App({ loaderData }: Route.ComponentProps) {
       <body>
         <MantineProvider >
           <main>
-            <pre>{JSON.stringify(loaderData, null, 2)}</pre>
             <Outlet />
           </main>
+          <Notifications />
         </MantineProvider>
         <ScrollRestoration />
         <Scripts />

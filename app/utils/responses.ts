@@ -15,6 +15,7 @@ export const StatusCode = {
   BadRequest: 400 as const,
   Unauthorized: 401 as const,
   Redirect: 302 as const,
+  NotFound: 404 as const,
 };
 
 export function ok<T>(value: T, init?: ResponseInitWithoutStatus) {
@@ -55,4 +56,17 @@ export function unauthorized<T>(value: T, init?: ResponseInitWithoutStatus) {
     { ...value, status: StatusCode.Unauthorized },
     { ...init, status: StatusCode.Unauthorized }
   );
+}
+
+export function notFound<T>(value: T, init?: ResponseInitWithoutStatus) {
+  return data(
+    { ...value, status: StatusCode.NotFound },
+    { ...init, status: StatusCode.NotFound }
+  );
+}
+
+export class NotFoundResponse extends Response {
+  constructor(message: string) {
+    super(message, { status: StatusCode.NotFound, statusText: "Not Found" });
+  }
 }

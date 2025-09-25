@@ -1,15 +1,12 @@
-import { getPayload } from "payload";
-import sanitizedConfig from "./payload.config";
+import { Payload } from "payload";
+import sanitizedConfig from "../payload.config";
 
 /**
  * Checks if the database has any users
  * @returns Promise<boolean> - true if no users exist (first user needed), false if users exist
  */
-export async function checkFirstUser(): Promise<boolean> {
+export async function checkFirstUser(payload: Payload): Promise<boolean> {
     try {
-        const payload = await getPayload({
-            config: sanitizedConfig,
-        });
 
         const users = await payload.find({
             collection: "users",
@@ -27,11 +24,8 @@ export async function checkFirstUser(): Promise<boolean> {
  * Gets the total count of users in the database
  * @returns Promise<number> - number of users in the database
  */
-export async function getUserCount(): Promise<number> {
+export async function getUserCount(payload: Payload): Promise<number> {
     try {
-        const payload = await getPayload({
-            config: sanitizedConfig,
-        });
 
         const users = await payload.find({
             collection: "users",
@@ -50,15 +44,12 @@ export async function getUserCount(): Promise<number> {
  * the database connection and payload configuration
  * @returns Promise<{ needsFirstUser: boolean; userCount: number; isValid: boolean }>
  */
-export async function validateFirstUserState(): Promise<{
+export async function validateFirstUserState(payload: Payload): Promise<{
     needsFirstUser: boolean;
     userCount: number;
     isValid: boolean;
 }> {
     try {
-        const payload = await getPayload({
-            config: sanitizedConfig,
-        });
 
         if (!payload.db.connect) throw new Error("Database connection not established");
 

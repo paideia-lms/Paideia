@@ -2,10 +2,23 @@ import { useState } from "react";
 import { isRouteErrorResponse, type LoaderFunctionArgs } from "react-router";
 import { Route } from "./+types/admin";
 import { Box, Text, Title, TextInput, Tabs, Group, Stack } from "@mantine/core";
+import { dbContextKey } from "server/global-context";
+import { UnauthorizedResponse } from "~/utils/responses";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
-    // Add any loader logic here if needed
-    return {};
+    const payload = context.get(dbContextKey).payload;
+    const { user, responseHeaders, permissions } = await payload.auth({ headers: request.headers, canSetHeaders: true })
+
+    console.log(responseHeaders, permissions, user)
+
+
+    if (!user || user.role !== "admin") {
+        throw new UnauthorizedResponse("Unauthorized")
+    }
+
+    return {
+        user
+    };
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {

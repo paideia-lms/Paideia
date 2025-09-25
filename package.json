@@ -33,6 +33,7 @@
     "@mantine/core": "^8.3.2",
     "@mantine/form": "^8.3.2",
     "@mantine/hooks": "^8.3.2",
+    "@mantine/notifications": "^8.3.2",
     "@payloadcms/db-postgres": "^3.56.0",
     "@react-router/fs-routes": "^7.9.1",
     "@scalar/api-reference-react": "^0.7.51",
@@ -47,6 +48,8 @@
     "react-dom": "^19.1.1",
     "react-router": "^7.9.1",
     "remix-utils": "^9.0.0",
+    "request-ip": "^3.3.0",
+    "ua-parser-js": "^2.0.5",
     "zod": "^4.1.11"
   },
   "devDependencies": {
@@ -54,6 +57,7 @@
     "@types/bun": "^1.2.22",
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
+    "@types/request-ip": "^0.0.41",
     "postcss": "^8.5.6",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",

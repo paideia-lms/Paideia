@@ -1,33 +1,112 @@
-import { type LoaderFunctionArgs, type ActionFunctionArgs, useLoaderData, Form, redirect } from "react-router";
+import { type LoaderFunctionArgs, type ActionFunctionArgs, useLoaderData, Form, redirect, href, useActionData, useFetcher } from "react-router";
 import { dbContextKey } from "server/global-context";
 import { Route } from "./+types/login";
 import { Container, Title, TextInput, PasswordInput, Button, Text, Alert, Paper } from "@mantine/core";
 import { useForm, isEmail } from "@mantine/form";
 import { useState } from "react";
+import { z } from "zod";
+import { notifications } from '@mantine/notifications';
+import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { ok } from "~/utils/responses";
 
 
 
-
-export const loader = async ({ context }: LoaderFunctionArgs) => {
+export const loader = async ({ context, request }: LoaderFunctionArgs) => {
     // Mock loader - just return some basic data
+
+    const payload = context.get(dbContextKey).payload;
+    const { user, responseHeaders, permissions } = await payload.auth({ headers: request.headers, canSetHeaders: true })
+
+    if (user) {
+        throw redirect(href("/admin/*", { "*": "" }))
+    }
+
     return {
         user: null,
         message: "Welcome to login page",
     };
 };
 
-export const action = async ({ request }: ActionFunctionArgs) => {
-    // Action is now handled by the component using useAuth
-    // This can remain for server-side validation if needed
-    return null;
+const loginSchema = z.object({
+    email: z.email(),
+    password: z.string().min(6),
+})
+
+export const action = async ({ request, context }: ActionFunctionArgs) => {
+    const payload = context.get(dbContextKey).payload;
+    const requestInfo = context.get(dbContextKey).requestInfo;
+    const { user, responseHeaders, permissions } = await payload.auth({ headers: request.headers, canSetHeaders: true })
+    console.log("action")
+    console.log(responseHeaders, permissions, user)
+
+    if (user) {
+        throw redirect(href("/admin/*", { "*": "" }))
+    }
+
+
+    const { contentType, data, } = await getDataAndContentTypeFromRequest(request)
+
+    console.log(contentType, data)
+    try {
+        const parsedData = loginSchema.parse(data);
+
+        const { exp, token, user } = await payload.login({
+            collection: "users",
+            req: request,
+            data: parsedData,
+        })
+
+        if (!exp || !token) {
+            return {
+                success: false,
+                error: "Invalid credentials"
+            }
+        }
+
+        console.log(exp, token, user)
+
+        // set the cookie 
+
+
+        return ok({
+            success: true,
+            message: "Login successful",
+        }, {
+            headers: {
+                'Set-Cookie': `payload-token=${token}; Path=/; ${requestInfo.domainUrl}; HttpOnly; SameSite=Lax; Max-Age=${exp}`,
+            },
+
+        })
+    } catch (error) {
+        return {
+            success: false,
+            error: error instanceof Error ? error.message : "Login failed"
+        }
+    }
 };
 
-export default function LoginPage({ loaderData }: Route.ComponentProps) {
+export async function clientAction({ request, serverAction }: Route.ClientActionArgs) {
+
+
+    const actionData = await serverAction()
+
+    if (actionData?.success) {
+        notifications.show({
+            title: "Login successful",
+            message: "You are now logged in",
+        })
+    } else if ("error" in actionData) {
+        notifications.show({
+            title: "Login failed",
+            message: actionData?.error,
+        })
+    }
+    return actionData
+}
+
+export default function LoginPage({ loaderData, actionData }: Route.ComponentProps) {
     const { user, message } = loaderData;
-
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
+    const fetcher = useFetcher<typeof action>();
     const form = useForm({
         mode: 'uncontrolled',
         initialValues: {
@@ -47,13 +126,13 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
                 <Title order={1} ta="center" mb="md">Login</Title>
                 <Text ta="center" mb="lg">{message}</Text>
 
-                {error && (
-                    <Alert color="red" mb="lg">
-                        {error}
-                    </Alert>
-                )}
 
-                <form onSubmit={(e) => { e.preventDefault(); }}>
+                <fetcher.Form method="POST" onSubmit={form.onSubmit((values) => {
+                    fetcher.submit(values, {
+                        method: "POST",
+                        encType: "application/json",
+                    })
+                })}>
                     <TextInput
                         {...form.getInputProps('email')}
                         key={form.key('email')}
@@ -73,10 +152,10 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
                         mb="lg"
                     />
 
-                    <Button type="submit" fullWidth size="lg" loading={loading}>
-                        {loading ? 'Logging in...' : 'Login'}
+                    <Button type="submit" fullWidth size="lg">
+                        Login
                     </Button>
-                </form>
+                </fetcher.Form>
             </Paper>
         </Container>
     );

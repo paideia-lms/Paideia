@@ -3,6 +3,7 @@ import { type Config, sanitizeConfig, type CollectionConfig } from "payload";
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import path from "node:path";
 import { EnhancedQueryLogger } from 'drizzle-query-logger';
+import { migrations } from "src/migrations";
 
 
 // Courses collection - core LMS content
@@ -75,7 +76,9 @@ export const Courses = {
 
 // Enhanced Users collection with LMS fields
 export const Users = {
-    auth: true,
+    auth: {
+        verify: true
+    },
     admin: {
         useAsTitle: "email",
         defaultColumns: ["email", "firstName", "lastName", "role"],
@@ -116,7 +119,8 @@ const pg = postgresAdapter({
     pool: {
         connectionString: envVars.DATABASE_URL.value,
     },
-    logger: process.env.NODE_ENV !== "production" ? new EnhancedQueryLogger() : undefined
+    "prodMigrations": migrations,
+    // logger: process.env.NODE_ENV !== "production" ? new EnhancedQueryLogger() : undefined
 })
 
 const __dirname = import.meta.dirname;
