@@ -13,3 +13,7 @@ We should not use any external css framework. Strictly prohibited.
 every features on the backend should be tested using `bun:test`.
 
 we should only use payload local api. we should not use anything related to nextjs.
+
+testing should be simple and easy to read. for complex test, we better just skip and and test manually instead.
+
+each test files should only have one describe block. each test file related to database, s3, redis orpayload should have do a refresh using beforeAll. 
