@@ -8,6 +8,12 @@ export const envVars = {
         required: false,
         sensitive: true,
         value: process.env.PORT,
+        default: 3001
+    },
+    FRONTEND_PORT: {
+        required: false,
+        sensitive: true,
+        value: process.env.FRONTEND_PORT,
         default: 3000
     },
     S3_URL: {

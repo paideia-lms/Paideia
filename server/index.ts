@@ -2,13 +2,17 @@ import { envVars, validateEnvVars } from "./env";
 validateEnvVars();
 
 
-import { Elysia } from "elysia";
+import { Elysia, t } from "elysia";
+import { Treaty, treaty } from '@elysiajs/eden'
+
 import { reactRouter } from "./elysia-react-router";
 import { RouterContextProvider } from "react-router";
-import { dbContextKey } from "./db-context";
+import { dbContextKey } from "./global-context";
 import { getPayload } from "payload";
 import sanitizedConfig from "./payload.config";
 import { checkFirstUser, getUserCount, validateFirstUserState } from "./check-first-user";
+import { z } from "zod";
+import { openapi } from "@elysiajs/openapi";
 
 
 console.log("Mode: ", process.env.NODE_ENV)
@@ -21,18 +25,11 @@ const payload = await getPayload({
 
 
 const port = Number(envVars.PORT.value) || envVars.PORT.default;
+const frontendPort = Number(envVars.FRONTEND_PORT.value) || envVars.FRONTEND_PORT.default;
 
-const app = new Elysia()
-	.use(async (e) =>
-		await reactRouter(e, {
-			getLoadContext: (context) => {
-				const c = new RouterContextProvider();
-				c.set(dbContextKey, { payload: payload, elysia: app });
-				return c
-			},
-		}),
-	)
-	// API endpoints for first user checks
+const backend = new Elysia()
+	.use(openapi())
+	.get("/some", "Hello, world!")
 	.get("/api/check-first-user", async () => {
 		try {
 			const needsFirstUser = await checkFirstUser();
@@ -46,8 +43,10 @@ const app = new Elysia()
 				error: error instanceof Error ? error.message : "Unknown error",
 			};
 		}
+	}, {
+		body: z.object({})
 	})
-	.get("/api/user-count", async () => {
+	.get("/api/user-count", async ({ body }) => {
 		try {
 			const count = await getUserCount();
 			return {
@@ -60,7 +59,7 @@ const app = new Elysia()
 				error: error instanceof Error ? error.message : "Unknown error",
 			};
 		}
-	})
+	},)
 	.get("/api/validate-first-user-state", async () => {
 		try {
 			const state = await validateFirstUserState();
@@ -75,11 +74,28 @@ const app = new Elysia()
 			};
 		}
 	})
+
 	.listen(port, () => {
 		console.log(
-			`🚀 Paideia is running at http://localhost:${port}`,
+			`🚀 Paideia backend is running at http://localhost:${port}`,
 		);
 	});
 
 
-export type App = typeof app;
+const frontend = new Elysia().use(async (e) => await reactRouter(e, {
+	getLoadContext: (context) => {
+		const c = new RouterContextProvider();
+		c.set(dbContextKey, { payload: payload, elysia: backend, api: treaty(backend) });
+		return c
+	},
+}),
+).listen(frontendPort, () => {
+	console.log(
+		`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
+	);
+});
+
+
+export type Backend = typeof backend;
+export type Api = Treaty.Create<Backend>
+export type Frontend = typeof frontend;

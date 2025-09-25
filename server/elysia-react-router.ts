@@ -1,4 +1,4 @@
-import type { AnyElysia, Context } from "elysia";
+import { Elysia, type AnyElysia, type Context } from "elysia";
 import { type AppLoadContext, createRequestHandler, ServerBuild, RouterContextProvider } from "react-router";
 import { staticPlugin as _staticPlugin } from "@elysiajs/static";
 
@@ -8,7 +8,6 @@ import type { PluginOptions } from "./types";
 // @ts-ignore
 // import * as _serverBuild from "../build/server/index.js";
 import vfs from "./vfs";
-import { globalContext, dbContextKey } from "./db-context";
 
 function isContext(c: any): c is Context {
     return "request" in c && "route" in c && "server" in c
@@ -34,6 +33,7 @@ function isContext(c: any): c is Context {
  * ```
  */
 export async function reactRouter(
+    // ! we are not using this but some elysia eneds this props to work??? 
     elysia: AnyElysia,
     options?: PluginOptions<RouterContextProvider>,
 ): Promise<AnyElysia> {
@@ -49,6 +49,11 @@ export async function reactRouter(
 
     let vite: ViteDevServer | undefined;
 
+    // ! we have to use this rather than passing in the elysia instance
+    // const elysia = new Elysia({
+    //     name: "elysia-react-router",
+    //     seed: options
+    // })
 
 
 
@@ -118,8 +123,6 @@ export async function reactRouter(
         if (!loadContext) {
             throw new Error("Load context is required");
         }
-
-        // context.request.loadContext = loadContext
         return handler(context.request, loadContext);
     }
 
@@ -140,6 +143,3 @@ export async function reactRouter(
     return elysia;
 }
 
-function join(arg0: string, arg1: string): string | undefined {
-    throw new Error("Function not implemented.");
-}

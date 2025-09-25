@@ -1,5 +1,5 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, useLoaderData, Form, redirect } from "react-router";
-import { dbContextKey } from "server/db-context";
+import { dbContextKey } from "server/global-context";
 import { Route } from "./+types/login";
 import { Container, Title, TextInput, PasswordInput, Button, Text, Alert, Paper } from "@mantine/core";
 import { useForm, isEmail } from "@mantine/form";

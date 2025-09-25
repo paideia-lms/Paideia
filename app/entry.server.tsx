@@ -12,7 +12,7 @@ import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server.node";
 import type { AppLoadContext, EntryContext, RouterContextProvider } from "react-router";
 import { ServerRouter } from "react-router";
-import { globalContext } from "server/db-context";
+import { globalContext } from "server/global-context";
 
 const ABORT_DELAY = 5_000;
 

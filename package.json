@@ -14,7 +14,7 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "start": "./dist/paideia",
-    "dev": "kill -9 $(lsof -t -i:3000); docker-compose up -d && rm -rf node_modules/.vite node_modules/.cache node_modules/.vite-temp  && bun --watch ./server/index.ts",
+    "dev": "kill -9 $(lsof -t -i:3000); kill -9 $(lsof -t -i:3001); docker-compose up -d && rm -rf node_modules/.vite node_modules/.cache node_modules/.vite-temp  && bun --watch ./server/index.ts",
     "migrate:create": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:create",
     "migrate:status": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:status",
     "migrate:up": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:up",
@@ -27,6 +27,8 @@
     "typecheck": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && react-router typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@elysiajs/eden": "^1.4.1",
+    "@elysiajs/openapi": "^1.4.11",
     "@elysiajs/static": "^1.4.0",
     "@mantine/core": "^8.3.2",
     "@mantine/form": "^8.3.2",
@@ -44,7 +46,8 @@
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "react-router": "^7.9.1",
-    "remix-utils": "^9.0.0"
+    "remix-utils": "^9.0.0",
+    "zod": "^4.1.11"
   },
   "devDependencies": {
     "@react-router/dev": "^7.9.1",

@@ -116,7 +116,7 @@ const pg = postgresAdapter({
     pool: {
         connectionString: envVars.DATABASE_URL.value,
     },
-    logger: new EnhancedQueryLogger()
+    logger: process.env.NODE_ENV !== "production" ? new EnhancedQueryLogger() : undefined
 })
 
 const __dirname = import.meta.dirname;
