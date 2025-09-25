@@ -14,7 +14,7 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "start": "./dist/paideia",
-    "dev": "VERSION=$(node -p \"require('./package.json').version\") docker-compose up -d && rm -rf node_modules/.vite node_modules/.cache node_modules/.vite-temp  && bun --watch ./server/index.ts",
+    "dev": "VERSION=$(node -p \"require('./package.json').version\") kill -9 $(lsof -t -i:3000) && docker-compose up -d && rm -rf node_modules/.vite node_modules/.cache node_modules/.vite-temp  && bun --watch ./server/index.ts",
     "docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
     "docker:run": "docker run -p 3000:3000 paideia:$(node -p \"require('./package.json').version\")",
     "typecheck": "react-router typegen && tsc --noEmit"
