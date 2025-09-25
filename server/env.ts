@@ -4,6 +4,12 @@ export const envVars = {
         sensitive: true,
         value: process.env.DATABASE_URL!
     },
+    PORT: {
+        required: false,
+        sensitive: true,
+        value: process.env.PORT,
+        default: 3000
+    },
     S3_URL: {
         required: true,
         sensitive: true,
@@ -19,6 +25,11 @@ export const envVars = {
         sensitive: true,
         value: process.env.S3_SECRET_KEY!
     },
+    PAYLOAD_SECRET: {
+        required: true,
+        sensitive: true,
+        value: process.env.PAYLOAD_SECRET!
+    }
     // R2_URL: {
     //     required: false,
     //     sensitive: true,
