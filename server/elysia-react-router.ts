@@ -8,7 +8,7 @@ import type { PluginOptions } from "./types";
 // @ts-ignore
 // import * as _serverBuild from "../build/server/index.js";
 import vfs from "./vfs";
-import { dbContext, dbContextKey } from "./db-context";
+import { globalContext, dbContextKey } from "./db-context";
 
 function isContext(c: any): c is Context {
     return "request" in c && "route" in c && "server" in c

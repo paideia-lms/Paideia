@@ -2,6 +2,7 @@ import { envVars } from "./env";
 import { type Config, sanitizeConfig, type CollectionConfig } from "payload";
 import { postgresAdapter } from '@payloadcms/db-postgres'
 import path from "node:path";
+import { EnhancedQueryLogger } from 'drizzle-query-logger';
 
 
 // Courses collection - core LMS content
@@ -115,6 +116,7 @@ const pg = postgresAdapter({
     pool: {
         connectionString: envVars.DATABASE_URL.value,
     },
+    logger: new EnhancedQueryLogger()
 })
 
 const __dirname = import.meta.dirname;

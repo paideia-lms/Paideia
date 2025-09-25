@@ -11,8 +11,10 @@ import { ColorSchemeScript } from '@mantine/core';
 
 
 export function loader({ request, context }: Route.LoaderArgs) {
-  const app = context.get(dbContextKey).app;
-
+  const payload = context.get(dbContextKey).payload;
+  const elysia = context.get(dbContextKey).elysia;
+  // ! we can get elysia from context!!!
+  // console.log(payload, elysia);
 }
 
 export const meta: Route.MetaFunction = () => {
