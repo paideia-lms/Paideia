@@ -1,25 +1,11 @@
 import { type LoaderFunctionArgs, type ActionFunctionArgs, useLoaderData, Form, redirect } from "react-router";
 import { dbContextKey } from "server/db-context";
-import type { App } from "bknd";
 import { Route } from "./+types/login";
 import { Container, Title, TextInput, PasswordInput, Button, Text, Alert, Paper } from "@mantine/core";
-import { useAuth } from "bknd/client";
 import { useForm, isEmail } from "@mantine/form";
 import { useState } from "react";
 
 
-export async function getApi(
-    app: App,
-    args?: { request: Request },
-    opts?: { verify?: boolean },
-) {
-    if (opts?.verify) {
-        const api = app.getApi({ headers: args?.request.headers });
-        await api.verifyAuth();
-        return api;
-    }
-    return app.getApi();
-}
 
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
@@ -38,7 +24,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 export default function LoginPage({ loaderData }: Route.ComponentProps) {
     const { user, message } = loaderData;
-    const { login } = useAuth();
+
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -54,29 +40,6 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
         },
     });
 
-    const handleSubmit = async (values: typeof form.values) => {
-        setLoading(true);
-        setError(null);
-
-        try {
-            const response = await login({
-                email: values.email,
-                password: values.password,
-            });
-
-
-
-            console.log(response.user)
-            if (response.user.role === "admin")
-                // If login succeeds, redirect to admin
-                window.location.href = '/admin';
-        } catch (err: any) {
-            // Login failed
-            setError(err?.message || 'Invalid email or password');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     return (
         <Container size="sm" py="xl" style={{ height: '100vh', flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center' }} >
@@ -90,7 +53,7 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
                     </Alert>
                 )}
 
-                <form onSubmit={form.onSubmit(handleSubmit)}>
+                <form onSubmit={(e) => { e.preventDefault(); }}>
                     <TextInput
                         {...form.getInputProps('email')}
                         key={form.key('email')}

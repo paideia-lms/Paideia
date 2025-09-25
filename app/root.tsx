@@ -7,7 +7,6 @@ import { dbContextKey } from "server/db-context";
 import '@mantine/core/styles.css';
 import { MantineProvider } from "@mantine/core";
 import { ColorSchemeScript } from '@mantine/core';
-import { ClientProvider } from "bknd/client"
 
 
 
@@ -36,14 +35,11 @@ export default function App({ loaderData }: Route.ComponentProps) {
 
       </head>
       <body>
-        <ClientProvider>
-
-          <MantineProvider >
-            <main>
-              <Outlet />
-            </main>
-          </MantineProvider>
-        </ClientProvider>
+        <MantineProvider >
+          <main>
+            <Outlet />
+          </main>
+        </MantineProvider>
         <ScrollRestoration />
         <Scripts />
       </body>

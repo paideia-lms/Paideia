@@ -14,20 +14,18 @@
   "scripts": {
     "build": "bun scripts/build.ts",
     "start": "./dist/paideia",
-    "dev": "VERSION=$(node -p \"require('./package.json').version\") docker-compose up -d && bun --watch ./server/index.ts",
+    "dev": "VERSION=$(node -p \"require('./package.json').version\") docker-compose up -d && rm -rf node_modules/.vite node_modules/.cache node_modules/.vite-temp  && bun --watch ./server/index.ts",
     "docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
     "docker:run": "docker run -p 3000:3000 paideia:$(node -p \"require('./package.json').version\")",
     "typecheck": "react-router typegen && tsc --noEmit"
   },
   "dependencies": {
-    "@bknd/postgres": "^0.2.0",
     "@elysiajs/static": "^1.4.0",
     "@mantine/core": "^8.3.2",
     "@mantine/form": "^8.3.2",
     "@mantine/hooks": "^8.3.2",
     "@react-router/fs-routes": "^7.9.1",
     "@scalar/api-reference-react": "^0.7.51",
-    "bknd": "^0.17.2",
     "elysia": "^1.4.7",
     "elysia-connect-middleware": "^0.0.6",
     "isbot": "^5.1.31",

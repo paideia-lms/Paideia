@@ -49,7 +49,8 @@ export async function reactRouter(
 
     let vite: ViteDevServer | undefined;
 
-    // console.log(process.env.ENV)
+
+
 
     if (process.env.ENV !== "production") {
         vite = await import("vite").then((vite) => {
@@ -100,7 +101,6 @@ export async function reactRouter(
         if (!isContext(context)) {
             throw new Error("Context is required");
         }
-
 
         const serverBuild = vite ?
             await vite.ssrLoadModule("virtual:react-router/server-build")
