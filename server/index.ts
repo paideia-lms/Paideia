@@ -6,10 +6,13 @@ import { envVars } from "./env";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 
+console.log("Mode: ", process.env.NODE_ENV)
 
 const payload = await getPayload({
 	config: sanitizedConfig,
 })
+
+console.log("Payload: ", payload)
 
 
 const port = Number(envVars.PORT.value) || envVars.PORT.default;

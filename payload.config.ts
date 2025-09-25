@@ -1,5 +1,5 @@
 import { envVars } from "./server/env";
-import { Config, sanitizeConfig, CollectionConfig } from "payload";
+import { type Config, sanitizeConfig, type CollectionConfig } from "payload";
 import { postgresAdapter } from '@payloadcms/db-postgres'
 
 for (const [key, value] of Object.entries(envVars)) {
@@ -130,7 +130,7 @@ const config = {
     // ? shall we use localhost or the domain of the server
     "serverURL": `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
     collections: [Users, Courses],
-
+    telemetry: false,
 } satisfies Config;
 
 const sanitizedConfig = await sanitizeConfig(config);
