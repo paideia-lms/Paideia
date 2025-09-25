@@ -17,8 +17,8 @@ export function loader({ request, context }: Route.LoaderArgs) {
 
 export const meta: Route.MetaFunction = () => {
   return [
-    { title: "Elysia + React Router Example" },
-    { name: "description", content: "Elysia + React Router example" },
+    { title: "Paideia LMS" },
+    { name: "description", content: "Paideia LMS" },
   ];
 };
 

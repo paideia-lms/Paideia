@@ -29,34 +29,24 @@ Paideia LMS aims to be the modern alternative to traditional LMS platforms like 
 
 ## Development
 
-### Full Stack Development (Recommended)
-
-Spin up the complete development environment with PostgreSQL and MinIO:
-
-```sh
-docker-compose up -d
-```
-
-This starts:
-- **App**: http://localhost:3000
-- **PostgreSQL**: localhost:5432 (paideia/paideia_password)
-- **MinIO**: http://localhost:9000 (API) / http://localhost:9001 (Web UI)
-  - Access Key: paideia_minio
-  - Secret Key: paideia_minio_secret
-
 ### App Only Development
 
 Run just the development server (requires external database and MinIO):
+
 
 ```sh
 bun dev
 ```
 
-Or run only the server component:
-
-```sh
-bun dev:local
-```
+This starts:
+- **PostgreSQL**: localhost:5432 (paideia/paideia_password)
+- **MinIO**: http://localhost:9000 (API) / http://localhost:9001 (Web UI)
+  - Access Key: paideia_minio
+  - Secret Key: paideia_minio_secret
+- **Drizzle Gateway**: localhost:4983
+  - Master Password: your_master_password
+  - Database URL: postgresql://paideia:paideia_password@postgres:5432/paideia_db
+- **App**: http://localhost:3000
 
 ## Production
 
@@ -78,7 +68,7 @@ bun start
 - **[React Router v7](https://reactrouter.com/)** - Modern React framework
 - **[Elysia](https://elysiajs.com)** - High-performance web framework
 - **[TypeScript](https://typescriptlang.org/)** - Type-safe JavaScript
-- **[Tailwind CSS](https://tailwindcss.com/)** - Utility-first CSS framework
+- **[Payload CMS](https://payloadcms.com/)** - Headless CMS
 
 ### Single Executable
 

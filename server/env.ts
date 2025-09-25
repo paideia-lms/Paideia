@@ -46,3 +46,13 @@ export const envVars = {
     //     value: process.env.R2_SECRET_KEY,
     // }
 } as const;
+
+
+
+export function validateEnvVars() {
+    for (const [key, value] of Object.entries(envVars)) {
+        if (value.required && !value.value) {
+            throw new Error(`${key} is not set`);
+        }
+    }
+}

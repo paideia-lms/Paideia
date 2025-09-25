@@ -1,12 +1,7 @@
-import { envVars } from "./server/env";
+import { envVars } from "./env";
 import { type Config, sanitizeConfig, type CollectionConfig } from "payload";
 import { postgresAdapter } from '@payloadcms/db-postgres'
-
-for (const [key, value] of Object.entries(envVars)) {
-    if (value.required && !value.value) {
-        throw new Error(`${key} is not set`);
-    }
-}
+import path from "node:path";
 
 
 // Courses collection - core LMS content
@@ -117,12 +112,12 @@ export const Users = {
 } satisfies CollectionConfig;
 
 const pg = postgresAdapter({
-    // Postgres-specific arguments go here.
-    // `pool` is required.
     pool: {
         connectionString: envVars.DATABASE_URL.value,
     },
 })
+
+const __dirname = import.meta.dirname;
 
 const config = {
     "db": pg,
@@ -130,6 +125,9 @@ const config = {
     // ? shall we use localhost or the domain of the server
     "serverURL": `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
     collections: [Users, Courses],
+    typescript: {
+        outputFile: path.resolve(__dirname, './payload-types.ts'),
+    },
     telemetry: false,
 } satisfies Config;
 
