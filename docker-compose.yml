@@ -65,7 +65,6 @@ services:
     environment:
       PORT: 4983
       STORE_PATH: ./app
-      MASTERPASS: your_master_password
       DATABASE_URL: postgresql://paideia:paideia_password@postgres:5432/paideia_db
     volumes:
       - drizzle-gateway:/app

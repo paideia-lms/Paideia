@@ -4,20 +4,14 @@ import { Route } from "./+types/index";
 import { Box, Text, Title, TextInput, Tabs, Group, Stack } from "@mantine/core";
 import { dbContextKey } from "server/global-context";
 import { UnauthorizedResponse } from "~/utils/responses";
+import { useQueryState } from 'nuqs'
+
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
     const payload = context.get(dbContextKey).payload;
-    const { user, responseHeaders, permissions } = await payload.auth({ headers: request.headers, canSetHeaders: true })
 
-    console.log(responseHeaders, permissions, user)
-
-
-    if (!user || user.role !== "admin") {
-        throw new UnauthorizedResponse("Unauthorized")
-    }
 
     return {
-        user
     };
 }
 
@@ -662,21 +656,26 @@ const adminTabs: { [key: string]: AdminTab } = {
     }
 };
 
+const SearchInput = () => {
+    const [searchQuery, setSearchQuery] = useQueryState("search");
+
+    return <TextInput
+        placeholder="Search"
+        w={300}
+        value={searchQuery ?? ""}
+        onChange={(event) => setSearchQuery(event.currentTarget.value)}
+    />
+}
+
 export default function AdminPage() {
-    const [activeTab, setActiveTab] = useState("general");
-    const [searchQuery, setSearchQuery] = useState("");
+    const [activeTab, setActiveTab] = useQueryState("tab", { defaultValue: "general" });
 
     return (
         <Box className="admin-dashboard">
             {/* Header */}
             <Group justify="space-between" mb="xl">
                 <Title order={1}>Site administration</Title>
-                <TextInput
-                    placeholder="Search"
-                    w={300}
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.currentTarget.value)}
-                />
+                <SearchInput />
             </Group>
 
             {/* Main Tabs */}

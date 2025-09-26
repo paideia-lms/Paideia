@@ -11,6 +11,8 @@ import { Button, MantineProvider } from "@mantine/core";
 import { ColorSchemeScript } from '@mantine/core';
 import { useState } from "react";
 import { getUserCount } from "server/internal/check-first-user";
+import { NuqsAdapter } from 'nuqs/adapters/react-router/v7'
+
 
 
 
@@ -75,10 +77,10 @@ export default function App({ loaderData }: Route.ComponentProps) {
       </head>
       <body>
         <MantineProvider >
-          <main>
+          <NuqsAdapter>
             <Outlet />
-          </main>
-          <Notifications />
+            <Notifications />
+          </NuqsAdapter>
         </MantineProvider>
         <ScrollRestoration />
         <Scripts />
