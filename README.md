@@ -69,6 +69,7 @@ bun start
 - **[Elysia](https://elysiajs.com)** - High-performance web framework
 - **[TypeScript](https://typescriptlang.org/)** - Type-safe JavaScript
 - **[Payload CMS](https://payloadcms.com/)** - Headless CMS
+- **[Mantine](https://mantine.dev/)** - Modern React components
 
 ### Single Executable
 

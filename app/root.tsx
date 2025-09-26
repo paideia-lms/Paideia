@@ -15,9 +15,7 @@ import { getUserCount } from "server/internal/check-first-user";
 
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const payload = context.get(dbContextKey).payload;
-  const elysia = context.get(dbContextKey).elysia;
-  const api = context.get(dbContextKey).api;
+  const { payload, requestInfo } = context.get(dbContextKey);
   // ! we can get elysia from context!!!
   // console.log(payload, elysia);
   const users = await getUserCount(payload)
@@ -47,8 +45,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     });
   }
 
+  const timestamp = new Date().toISOString();
+
   return {
-    users: users
+    users: users,
+    domainUrl: requestInfo.domainUrl,
+    timestamp: timestamp
   }
 }
 
@@ -65,6 +67,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
+        {/* ! this will force the browser to reload the favicon, see https://stackoverflow.com/questions/2208933/how-do-i-force-a-favicon-refresh */}
+        <link rel="icon" href={`/favicon.ico?timestamp=${loaderData.timestamp}`} />
         <Meta />
         <Links />
         <ColorSchemeScript />

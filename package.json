@@ -37,6 +37,7 @@
     "@payloadcms/db-postgres": "^3.56.0",
     "@react-router/fs-routes": "^7.9.1",
     "@scalar/api-reference-react": "^0.7.51",
+    "@tabler/icons-react": "^3.35.0",
     "drizzle-query-logger": "^1.1.0",
     "elysia": "^1.4.7",
     "elysia-connect-middleware": "^0.0.6",

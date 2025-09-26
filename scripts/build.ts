@@ -8,6 +8,8 @@ await $`react-router build`;
 // read all files in build
 const buildFiles = await readdir("./build/client", { withFileTypes: true, recursive: true }).then(files => files.filter(f => f.isFile()).map(f => `./${f.parentPath}/${f.name}`));
 
+console.log(buildFiles)
+
 // generate vfs.ts
 async function generateVfs() {
   const relativeFiles = buildFiles.map(f => f.replace('./build/', ''));

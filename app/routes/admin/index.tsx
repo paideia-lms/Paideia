@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { isRouteErrorResponse, type LoaderFunctionArgs } from "react-router";
-import { Route } from "./+types/admin";
+import { Route } from "./+types/index";
 import { Box, Text, Title, TextInput, Tabs, Group, Stack } from "@mantine/core";
 import { dbContextKey } from "server/global-context";
 import { UnauthorizedResponse } from "~/utils/responses";
