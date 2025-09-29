@@ -85,6 +85,11 @@ bun start
 - **[Payload CMS](https://payloadcms.com/)** - Headless CMS
 - **[Mantine](https://mantine.dev/)** - Modern React components
 
+Development tools:
+- **[Biome](https://biomejs.dev/)** - Linter and formatter
+- **[Lefthook](https://lefthook.dev/)** - Git hooks
+- **[Playwright](https://playwright.dev/)** - Browser automation
+
 ### Single Executable
 
 Build and package as a standalone binary:
