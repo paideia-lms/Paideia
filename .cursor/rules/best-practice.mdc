@@ -17,3 +17,7 @@ we should only use payload local api. we should not use anything related to next
 testing should be simple and easy to read. for complex test, we better just skip and and test manually instead.
 
 each test files should only have one describe block. each test file related to database, s3, redis orpayload should have do a refresh using beforeAll. 
+
+we should not use try catch. we should use typescript result to handle the error, using `Result.wrap`. When a function return a result, function should be named with `try` prefix like `tryFunction` or `trySomething`.
+
+in the loader of react router, we should throw ErrorResponse rather than just error. 

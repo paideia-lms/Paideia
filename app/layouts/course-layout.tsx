@@ -3,7 +3,6 @@ import { Route } from "./+types/course-layout";
 
 export function loader({ params }: Route.LoaderArgs) {
     return {
-        course: params.course
     }
 }
 

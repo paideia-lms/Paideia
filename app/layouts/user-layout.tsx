@@ -1,5 +1,5 @@
 import { Outlet } from "react-router";
-import { dbContextKey } from "server/global-context";
+import { dbContextKey } from "server/contexts/global-context";
 import { UnauthorizedResponse } from "~/utils/responses";
 import { Route } from "./+types/user-layout";
 

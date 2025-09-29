@@ -42,6 +42,7 @@
     "drizzle-query-logger": "^1.1.0",
     "elysia": "^1.4.7",
     "elysia-connect-middleware": "^0.0.6",
+    "es-toolkit": "^1.39.10",
     "isbot": "^5.1.31",
     "mime": "^4.1.0",
     "node-cache": "^5.1.2",
@@ -52,6 +53,7 @@
     "react-router": "^7.9.1",
     "remix-utils": "^9.0.0",
     "request-ip": "^3.3.0",
+    "typescript-result": "^3.5.2",
     "ua-parser-js": "^2.0.5",
     "zod": "^4.1.11"
   },

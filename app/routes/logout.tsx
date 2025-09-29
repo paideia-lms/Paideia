@@ -1,5 +1,5 @@
 import { LoaderFunctionArgs } from "react-router";
-import { dbContextKey } from "server/global-context";
+import { dbContextKey } from "server/contexts/global-context";
 import { ok, UnauthorizedResponse } from "~/utils/responses";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {

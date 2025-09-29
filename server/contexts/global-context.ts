@@ -1,9 +1,12 @@
-import type { Backend, Api } from "./index";
+import type { Backend, Api } from "../index";
 import type { BasePayload, } from "payload";
 import { createContext } from "react-router";
-import type { RequestInfo } from "./utils/get-request-info";
+import type { RequestInfo } from "../utils/get-request-info";
 
-
+/** 
+ * global context for all the routes. it must exist in all the routes.
+ * it cannot be null.
+ */
 export const globalContext = createContext<{
     payload: BasePayload
     elysia: Backend

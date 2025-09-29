@@ -3,7 +3,7 @@ import type { Route } from "./+types/root";
 import "./app.css";
 import elysiaLogo from "./assets/elysia_v.webp";
 import reactRouterLogo from "./assets/rr_lockup_light.png";
-import { dbContextKey } from "server/global-context";
+import { dbContextKey } from "server/contexts/global-context";
 import '@mantine/core/styles.css';
 import '@mantine/notifications/styles.css';
 import { Notifications } from '@mantine/notifications';

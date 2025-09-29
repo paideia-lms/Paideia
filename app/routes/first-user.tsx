@@ -1,5 +1,5 @@
 import type { Route } from "./+types/first-user";
-import { dbContextKey } from "server/global-context";
+import { dbContextKey } from "server/contexts/global-context";
 import { href, redirect } from "react-router"
 import { registerFirstUser } from "server/internal/register-first-user";
 import { z } from "zod";

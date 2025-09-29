@@ -7,7 +7,7 @@ import { Treaty, treaty } from '@elysiajs/eden'
 
 import { reactRouter } from "./elysia-react-router";
 import { RouterContextProvider } from "react-router";
-import { dbContextKey } from "./global-context";
+import { dbContextKey } from "./contexts/global-context";
 import { getPayload } from "payload";
 import sanitizedConfig from "./payload.config";
 import { openapi } from "@elysiajs/openapi";
