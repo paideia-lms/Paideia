@@ -1,6 +1,6 @@
 import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
-import { EnhancedQueryLogger } from "drizzle-query-logger";
+// import { EnhancedQueryLogger } from "drizzle-query-logger";
 import { type CollectionConfig, type Config, sanitizeConfig } from "payload";
 import { migrations } from "src/migrations";
 import { envVars } from "./env";
@@ -9,10 +9,6 @@ import { envVars } from "./env";
 export const Courses = {
 	slug: "courses",
 	defaultSort: "-createdAt",
-	admin: {
-		useAsTitle: "title",
-		defaultColumns: ["title", "instructor", "difficulty", "status"],
-	},
 	fields: [
 		{
 			name: "title",
@@ -73,14 +69,67 @@ export const Courses = {
 	],
 } satisfies CollectionConfig;
 
+// Enrollments collection - links users to courses with specific roles
+export const Enrollments = {
+	slug: "enrollments",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "user",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+		},
+		{
+			name: "course",
+			type: "relationship",
+			relationTo: "courses",
+			required: true,
+		},
+		{
+			name: "role",
+			type: "select",
+			options: [
+				{ label: "Student", value: "student" },
+				{ label: "Teacher", value: "teacher" },
+				{ label: "Teaching Assistant", value: "ta" },
+				{ label: "Manager", value: "manager" },
+			],
+			required: true,
+		},
+		{
+			name: "status",
+			type: "select",
+			options: [
+				{ label: "Active", value: "active" },
+				{ label: "Inactive", value: "inactive" },
+				{ label: "Completed", value: "completed" },
+				{ label: "Dropped", value: "dropped" },
+			],
+			defaultValue: "active",
+		},
+		{
+			name: "enrolledAt",
+			type: "date",
+		},
+		{
+			name: "completedAt",
+			type: "date",
+		},
+	],
+	// Ensure unique user-course combinations
+	indexes: [
+		{
+			fields: ["user", "course"],
+			unique: true,
+		},
+	],
+} satisfies CollectionConfig;
+
 // Enhanced Users collection with LMS fields
 export const Users = {
 	auth: {
 		verify: true,
-	},
-	admin: {
-		useAsTitle: "email",
-		defaultColumns: ["email", "firstName", "lastName", "role"],
 	},
 	fields: [
 		{
@@ -131,7 +180,7 @@ const config = {
 	secret: envVars.PAYLOAD_SECRET.value,
 	// ? shall we use localhost or the domain of the server
 	serverURL: `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
-	collections: [Users, Courses],
+	collections: [Users, Courses, Enrollments],
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),
 	},

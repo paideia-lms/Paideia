@@ -23,6 +23,7 @@ import {
 } from "react-router";
 import { dbContextKey } from "server/contexts/global-context";
 import { z } from "zod";
+import { setCookie } from "~/utils/auth";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { ok } from "~/utils/responses";
 import type { Route } from "./+types/login";
@@ -95,7 +96,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 			},
 			{
 				headers: {
-					"Set-Cookie": `payload-token=${token}; Path=/; ${requestInfo.domainUrl}; HttpOnly; SameSite=Lax; Max-Age=${exp}`,
+					"Set-Cookie": setCookie(token, exp, requestInfo.domainUrl),
 				},
 			},
 		);

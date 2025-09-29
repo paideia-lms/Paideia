@@ -40,7 +40,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 		const result = await registerFirstUser(payload, request, { ...parsedData });
 
-		console.log(result.exp, result.token);
+		if (!result.token || !result.exp) {
+			return {
+				success: false,
+				error: "Registration failed, no token or exp",
+			};
+		}
 
 		// set the cookie
 		return ok(
@@ -50,7 +55,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 			},
 			{
 				headers: {
-					"Set-Cookie": `payload-token=${result.token}; Path=/; ${requestInfo.domainUrl}; HttpOnly; SameSite=Lax; Max-Age=${result.exp}`,
+					"Set-Cookie": setCookie(
+						result.token,
+						result.exp,
+						requestInfo.domainUrl,
+					),
 				},
 			},
 		);
@@ -99,6 +108,7 @@ export default function CreateFirstUserView({
 import { Button, PasswordInput, TextInput } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { useFetcher } from "react-router";
+import { setCookie } from "~/utils/auth";
 import { NotFoundResponse } from "~/utils/responses";
 
 export function CreateFirstUserClient() {

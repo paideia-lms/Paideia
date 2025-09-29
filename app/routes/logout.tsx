@@ -1,5 +1,6 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { dbContextKey } from "server/contexts/global-context";
+import { removeCookie } from "~/utils/auth";
 import { ok, UnauthorizedResponse } from "~/utils/responses";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
@@ -23,7 +24,7 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 		},
 		{
 			headers: {
-				"Set-Cookie": `payload-token=; Path=/; ${requestInfo.domainUrl}; HttpOnly; SameSite=Lax; Max-Age=0`,
+				"Set-Cookie": removeCookie(requestInfo.domainUrl),
 			},
 		},
 	);
