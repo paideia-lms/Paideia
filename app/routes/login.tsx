@@ -23,7 +23,7 @@ import {
 } from "react-router";
 import { dbContextKey } from "server/contexts/global-context";
 import { z } from "zod";
-import { setCookie } from "~/utils/auth";
+import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { ok } from "~/utils/responses";
 import type { Route } from "./+types/login";

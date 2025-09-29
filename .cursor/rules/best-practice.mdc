@@ -4,11 +4,17 @@ globs:
 alwaysApply: true
 ---
 
+## frontend
+
 Should use mantine component all the time. we should use design token from mantine. 
 
 We should not use tailwind classes. Strictly prohibited.
 
 We should not use any external css framework. Strictly prohibited.
+
+when working with jsx array, we should not use index as key. we should use the id of the item if available.
+
+## testing 
 
 every features on the backend should be tested using `bun:test`.
 
@@ -18,8 +24,14 @@ testing should be simple and easy to read. for complex test, we better just skip
 
 each test files should only have one describe block. each test file related to database, s3, redis orpayload should have do a refresh using beforeAll. 
 
+## error handling
+
 we should not use try catch. we should use typescript result to handle the error, using `Result.wrap`. When a function return a result, function should be named with `try` prefix like `tryFunction` or `trySomething`.
 
 in the loader of react router, we should throw ErrorResponse rather than just error. 
 
-when working with jsx array, we should not use index as key. we should use the id of the item if available.
+## Database 
+
+when an operation is doing multiple mutation to the database, we should **always** use transaction.
+
+database migration should always be non breaking and backward compatible.

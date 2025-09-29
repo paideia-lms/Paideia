@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { dbContextKey } from "server/contexts/global-context";
-import { removeCookie } from "~/utils/auth";
+import { removeCookie } from "~/utils/cookie";
 import { ok, UnauthorizedResponse } from "~/utils/responses";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {

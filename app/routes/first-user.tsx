@@ -108,7 +108,7 @@ export default function CreateFirstUserView({
 import { Button, PasswordInput, TextInput } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { useFetcher } from "react-router";
-import { setCookie } from "~/utils/auth";
+import { setCookie } from "~/utils/cookie";
 import { NotFoundResponse } from "~/utils/responses";
 
 export function CreateFirstUserClient() {
