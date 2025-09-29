@@ -37,8 +37,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 
     const { contentType, data, } = await getDataAndContentTypeFromRequest(request)
 
-    console.log(contentType, data)
-
     try {
         const parsedData = formSchema.parse(data);
 

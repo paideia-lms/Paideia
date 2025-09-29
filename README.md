@@ -1,4 +1,10 @@
-# Paideia LMS
+# 🌿 Paideia LMS
+
+> [!IMPORTANT] NOT READY FOR PRODUCTION
+> This project is in active development and is not yet ready for production use.
+
+> [!NOTE] Looking for contributors and sponsors
+> We're actively looking for **contributors** and **sponsors** to help build and maintain Paideia LMS. Whether you're a developer, educator, or organization interested in supporting open-source education technology, we'd love to hear from you.
 
 A modern, lightweight Learning Management System (LMS) built with [Bun](https://bun.sh) and [React Router v7](https://reactrouter.com/). Designed for extreme ease of management and deployment as a single executable.
 
@@ -26,6 +32,14 @@ Paideia LMS aims to be the modern alternative to traditional LMS platforms like 
 - **🛡️ No Dynamic Plugins**: Built-in functionality without complex plugin management
 - **🏢 Organization-Hosted**: Designed for server-based deployments, not serverless
 - **⚡ Modern Stack**: Bun runtime + React Router v7 + TypeScript
+
+## 💝 Free and Non-Profit
+
+Paideia LMS will remain **free and non-profit forever** to benefit all organizations, educational institutions, and communities worldwide. We welcome sponsors and donations to support ongoing development and maintenance.
+
+## 📚 Documentation
+
+Complete documentation is available at [docs.paideialms.com](https://docs.paideialms.com)
 
 ## Development
 
