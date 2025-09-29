@@ -44,7 +44,7 @@ Direct database operations are also supported within the transaction, as shown i
 
 ## Migration Commands
 
-Payload CMS provides several commands to manage migrations, accessible via the `npm run payload` command, assuming an npm script is defined in `package.json` as follows:
+Payload CMS provides several commands to manage migrations, accessible via the `bun run payload` command, assuming an npm script is defined in `package.json` as follows:
 
 ```json
 {
@@ -58,12 +58,12 @@ Key migration commands for PostgreSQL include:
 
 - **Migrate**: Executes all unapplied migrations to update the database schema.
   ```bash
-  npm run payload migrate
+  bun run payload migrate
   ```
 
 - **Create**: Generates a new migration file, optionally with a specified name. Payload uses Drizzle ORM to detect schema changes and generate the necessary SQL.
   ```bash
-  npm run payload migrate:create optional-name-here
+  bun run payload migrate:create optional-name-here
   ```
   Flags:
   - `--skip-empty`: Skips the prompt for creating a blank migration file when no schema changes are detected, useful for CI pipelines.
@@ -71,27 +71,27 @@ Key migration commands for PostgreSQL include:
 
 - **Status**: Displays a table showing which migrations have been applied and which are pending.
   ```bash
-  npm run payload migrate:status
+  bun run payload migrate:status
   ```
 
 - **Down**: Rolls back the last batch of migrations.
   ```bash
-  npm run payload migrate:down
+  bun run payload migrate:down
   ```
 
 - **Refresh**: Rolls back all applied migrations and re-runs them.
   ```bash
-  npm run payload migrate:refresh
+  bun run payload migrate:refresh
   ```
 
 - **Reset**: Rolls back all migrations.
   ```bash
-  npm run payload migrate:reset
+  bun run payload migrate:reset
   ```
 
 - **Fresh**: Drops all database entities and re-runs all migrations from scratch.
   ```bash
-  npm run payload migrate:fresh
+  bun run payload migrate:fresh
   ```
 
 ## PostgreSQL Migration Workflow
@@ -108,7 +108,7 @@ To disable `push` mode, set `push: false` in the PostgreSQL adapter configuratio
 
 Once development is complete or a feature is finalized, create a migration to capture schema changes:
 
-- Run `npm run payload migrate:create` to generate a migration file.
+- Run `bun run payload migrate:create` to generate a migration file.
 - Payload compares the current schema with the Payload configuration and generates SQL to bridge the gap.
 - The migration file is stored in the default directory (`./src/migrations`) or a custom directory specified via the `migrationDir` property in the database adapter configuration.
 

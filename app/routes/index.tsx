@@ -1,10 +1,8 @@
-
-
 export default function Index() {
-  return (
-    <>
-      <h1>Index</h1>
-      dev
-    </>
-  );
+	return (
+		<>
+			<h1>Index</h1>
+			dev
+		</>
+	);
 }

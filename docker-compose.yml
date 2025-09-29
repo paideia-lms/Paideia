@@ -24,7 +24,7 @@ services:
   #       - minio
 
   postgres:
-    image: postgres:15
+    image: postgres:18
     container_name: paideia_postgres
     restart: unless-stopped
     environment:

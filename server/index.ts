@@ -1,58 +1,61 @@
 import { envVars, validateEnvVars } from "./env";
+
 validateEnvVars();
 
-
+import { type Treaty, treaty } from "@elysiajs/eden";
+import { openapi } from "@elysiajs/openapi";
 import { Elysia, t } from "elysia";
-import { Treaty, treaty } from '@elysiajs/eden'
-
-import { reactRouter } from "./elysia-react-router";
+import { getPayload } from "payload";
 import { RouterContextProvider } from "react-router";
 import { dbContextKey } from "./contexts/global-context";
-import { getPayload } from "payload";
+import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
-import { openapi } from "@elysiajs/openapi";
 import { getRequestInfo } from "./utils/get-request-info";
 
-
-console.log("Mode: ", process.env.NODE_ENV)
+console.log("Mode: ", process.env.NODE_ENV);
 
 const payload = await getPayload({
 	config: sanitizedConfig,
-})
+});
 
 // console.log("Payload: ", payload)
 
-
 const port = Number(envVars.PORT.value) || envVars.PORT.default;
-const frontendPort = Number(envVars.FRONTEND_PORT.value) || envVars.FRONTEND_PORT.default;
+const frontendPort =
+	Number(envVars.FRONTEND_PORT.value) || envVars.FRONTEND_PORT.default;
 
 const backend = new Elysia()
 	.state("payload", payload)
 	.use(openapi())
 	.listen(port, () => {
+		console.log(`🚀 Paideia backend is running at http://localhost:${port}`);
+	});
+
+const frontend = new Elysia()
+	.use(
+		async (e) =>
+			await reactRouter(e, {
+				getLoadContext: ({ request }) => {
+					const c = new RouterContextProvider();
+					const requestInfo = getRequestInfo(request);
+					c.set(dbContextKey, {
+						payload: payload,
+						elysia: backend,
+						api,
+						requestInfo,
+					});
+					return c;
+				},
+			}),
+	)
+	.listen(frontendPort, () => {
 		console.log(
-			`🚀 Paideia backend is running at http://localhost:${port}`,
+			`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
 		);
 	});
 
-
-const frontend = new Elysia().use(async (e) => await reactRouter(e, {
-	getLoadContext: ({ request }) => {
-		const c = new RouterContextProvider();
-		const requestInfo = getRequestInfo(request);
-		c.set(dbContextKey, { payload: payload, elysia: backend, api, requestInfo });
-		return c
-	},
-}),
-).listen(frontendPort, () => {
-	console.log(
-		`🚀 Paideia frontend is running at http://localhost:${frontendPort}`,
-	);
-});
-
-const api = treaty(backend)
-
+const api = treaty(backend);
 
 export type Backend = typeof backend;
-export type Api = Treaty.Create<Backend>
+export type Api = Treaty.Create<Backend>;
 export type Frontend = typeof frontend;

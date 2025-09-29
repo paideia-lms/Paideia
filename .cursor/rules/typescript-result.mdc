@@ -18,14 +18,10 @@ Technically Typescript with version `4.8.0` or higher should work, but we recomm
 Also it is important that you have `strict` or `strictNullChecks` enabled in your `tsconfig.json`:
 
 ```json
-json{
-
+{
   "compilerOptions": {
-
     "strict": true
-
   }
-
 }
 ```
 
@@ -55,12 +51,9 @@ sh$ bun add typescript-result
 Let's start by refactoring a function that reads a file and parses its content:
 
 ```typescript
-typescriptfunction readConfig(filePath: string): Config {
-
+function readConfig(filePath: string): Config {
   const contents = fs.readFileSync(filePath, "utf-8");
-
   return JSON.parse(contents);
-
 }
 ```
 
@@ -71,22 +64,16 @@ Let's refactor this code using a `Result` type to make these potential failures 
 First, we need to define some errors so that we can distinguish between different error cases:
 
 ```ts
-tsclass IOError extends Error {
-
+class IOError extends Error {
   readonly type = "io-error";
-
 }
 
 class ParseError extends Error {
-
   readonly type = "parse-error";
-
 }
 
 class ValidationError extends Error {
-
   readonly type = "validation-error";
-
 }
 ```
 
@@ -99,73 +86,44 @@ Please disregard the `readonly type` property in the error classes for now. It's
 With these error classes in place, we can now express the *outcome* of the `readConfig` function as a `Result` type. In case of a caught error, we will return a `Result.error()` with the appropriate error. In case of success, we will return a `Result.ok()` with the parsed configuration object.
 
 ```typescript
-typescripttype  = {
-
-  : string;
-
-  : number;
-
+type Config = {
+  name: string;
+  version: number;
 }
 
-function (: string) {
-
-  let : string;
-
+function readConfig(filePath: string) {
+  let contents: string;
   try {
-
-     = fs.(, "utf-8");
-
-  } catch () {
-
-    return .(
-
-      new (\`Unable to read file: ${}\`, { :  })
-
+    contents = fs.readFileSync(filePath, "utf-8");
+  } catch (error) {
+    return Result.error(
+      new IOError(`Unable to read file: ${filePath}`, { cause: error })
     );
-
   }
 
-  let : unknown;
-
+  let json: unknown;
   try {
-
-     = .();
-
-  } catch () {
-
-    return .(
-
-      new (\`Unable to parse JSON from file: ${}\`)
-
+    json = JSON.parse(contents);
+  } catch (error) {
+    return Result.error(
+      new ParseError(`Unable to parse JSON from file: ${filePath}`)
     );
-
   }
 
   try {
-
-    const  = ();
-
-    return .();
-
-  } catch () {
-
-    return .(
-
-      new (
-
-        \`Invalid configuration in file: ${}\`, 
-
-        { :  }
-
+    const config = parseConfig(json);
+    return Result.ok(config);
+  } catch (error) {
+    return Result.error(
+      new ValidationError(
+        `Invalid configuration in file: ${filePath}`, 
+        { cause: error }
       )
-
     );
-
   }
-
 }
 
-const  = ("config.json");
+const result = readConfig("config.json");
 ```
 
 If you look at the final `result`, you'll see exactly what the outcome of the function can be. And while technically the above code is correct, it is very verbose. Luckily, the library provides a way to make this code more concise.
@@ -175,54 +133,32 @@ If you look at the final `result`, you'll see exactly what the outcome of the fu
 First, we will introduce the `Result.try` helper function. This function is basically a wrapper around the `try/catch` block that allows us to handle errors in a more concise way. It tries to execute the provided function and wrap the returned value in a `Result.ok()`, or catch any errors and wrap them in a `Result.error()`. Optionally, you can provide a second callback function that allows you to transform the error before wrapping it in a `Result.error()`. Let's see how this looks:
 
 ```typescript
-typescriptfunction (: string) {
-
-  const  = .(
-
-    () => fs.(, "utf-8"),
-
-    () => new (\`Unable to read file: ${}\`, { :  })
-
+function readConfig(filePath: string) {
+  const contentResult = Result.try(
+    () => fs.readFileSync(filePath, "utf-8"),
+    (error) => new IOError(`Unable to read file: ${filePath}`, { cause: error })
   );
-
-  if (!.) {
-
-    return ;
-
+  if (!contentResult.ok) {
+    return contentResult;
   }
 
-  const  = .(
-
-    () => .(.),
-
-    () => new (\`Unable to parse JSON from file: ${}\`)
-
+  const jsonResult = Result.try(
+    () => JSON.parse(contentResult.value),
+    () => new ParseError(`Unable to parse JSON from file: ${filePath}`)
   );
-
-  if (!.) {
-
-    return ;
-
+  if (!jsonResult.ok) {
+    return jsonResult;
   }
-
   
-
-  const  = .(
-
-    () => (.),
-
-    () => new (
-
-      \`Invalid configuration in file: ${}\`, 
-
-      { :  }
-
+  const configResult = Result.try(
+    () => parseConfig(jsonResult.value),
+    (error) => new ValidationError(
+      `Invalid configuration in file: ${filePath}`, 
+      { cause: error }
     )
-
   );
 
-  return ;
-
+  return configResult;
 }
 ```
 
@@ -231,58 +167,36 @@ typescriptfunction (: string) {
 Ok, no more `try/catch` blocks, but the code is still very verbose. To improve readability, we can extract each step into a separate function. This will allow us to focus on the main logic of the `readConfig` function without getting lost in the details of error handling. This is where `Result.wrap` comes in handy. This is very similar to `Result.try`, but instead of executing a function directly, it returns a function instead:
 
 ```typescript
-typescriptconst  = .(
-
-  (: string) => fs.(, "utf-8"),
-
-  () => new (\`Unable to read file\`, { :  }),
-
+const readFile = Result.wrap(
+  (filePath: string) => fs.readFileSync(filePath, "utf-8"),
+  (error) => new IOError(`Unable to read file`, { cause: error }),
 );
 
-const  = .(
-
-  (: string) => .() as unknown,
-
-  () => new (\`Unable to parse JSON\`)
-
+const parseJSON = Result.wrap(
+  (data: string) => JSON.parse(data) as unknown,
+  () => new ParseError(`Unable to parse JSON`)
 );
 
-const  = .(
-
-  (: unknown) => {
-
+const parseConfig = Result.wrap(
+  (data: unknown) => {
     /* skipped for brevity */
-
-    return  as ;
-
+    return data as Config;
   },
-
-  () => new (\`Invalid configuration\`, { :  }),
-
+  (error) => new ValidationError(`Invalid configuration`, { cause: error }),
 );
 
-function (: string) {
-
-  const  = ();
-
-  if (!.) {
-
-    return ;
-
+function readConfig(filePath: string) {
+  const contentResult = readFile(filePath);
+  if (!contentResult.ok) {
+    return contentResult;
   }
 
-  const  = (.);
-
-  if (!.) {
-
-    return ;
-
+  const jsonResult = parseJSON(contentResult.value);
+  if (!jsonResult.ok) {
+    return jsonResult;
   }
-
   
-
-  return (.);
-
+  return parseConfig(jsonResult.value);
 }
 ```
 
@@ -291,14 +205,10 @@ function (: string) {
 This is a step in the right direction, but we can still improve the code further. Did you notice how we check for errors after each step? This is a pattern both loved and hated in languages like Go. While it makes things explicit, it can also lead to a lot of boilerplate code. To make our code more ergonomic, we can introduce *chaining*: performing multiple operations on a `Result` instance in a more concise way. In 90% of the cases `Result.map()` is the method you want to use. Let's see how this works in practice:
 
 ```typescript
-typescriptfunction (: string) {
-
-  return ()
-
-    .(() => ())
-
-    .(() => ());
-
+function readConfig(filePath: string) {
+  return readFile(filePath)
+    .map((contents) => parseJSON(contents))
+    .map((json) => parseConfig(json));
 }
 ```
 
@@ -313,20 +223,13 @@ If you have worked with `typescript-result` for a while, you'll notice that ofte
 To illustrate this point, we could have 'inlined' the json parsing using `mapCatching` for instance, instead of extracting it into a separate function:
 
 ```typescript
-typescriptfunction readConfig(filePath: string) {
-
+function readConfig(filePath: string) {
   return readFile(filePath)
-
     .mapCatching(
-
       (contents) => JSON.parse(contents),
-
-      () => new ParseError(\`Unable to parse JSON\`)
-
+      () => new ParseError(`Unable to parse JSON`)
     )
-
     .map((json) => parseConfig(json));
-
 }
 ```
 
@@ -335,12 +238,9 @@ typescriptfunction readConfig(filePath: string) {
 Remember this pattern from a few examples back?
 
 ```typescript
-typescriptconst result = operation();
-
+const result = operation();
 if (!result.ok) {
-
   return result;
-
 }
 ```
 
@@ -349,19 +249,13 @@ With Rust you can use the [`?` operator](https://doc.rust-lang.org/rust-by-examp
 Here's a quick example of how this works:
 
 ```typescript
-typescriptfunction* (: string) {
-
-  const  = yield* ();
-
-  const  = yield* ();
-
-  const  = yield* ();
-
-  return ;
-
+function* readConfig(filePath: string) {
+  const contents = yield* readFile(filePath);
+  const json = yield* parseJSON(contents);
+  const config = yield* parseConfig(json);
+  return config;
 }
 
-const  = .(("config.json"));
-```
+const result = Result.gen(readConfig("config.json"));
 
-Hopefully this gives you a good idea of how to get started with `typescript-result`. For more information on how to use this library, please continue with the [guide](https://www.typescript-result.dev/a-note-on-errors). If you want to see more examples, check out the [examples](https://www.typescript-result.dev/examples/). Ready to give it a spin? Try it out for yourself in our [playground](https://www.typescript-result.dev/playground).
+```

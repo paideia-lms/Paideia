@@ -1,16 +1,15 @@
 import { Outlet } from "react-router";
-import { Route } from "./+types/course-layout";
+import type { Route } from "./+types/course-layout";
 
 export function loader({ params }: Route.LoaderArgs) {
-    return {
-    }
+	return {};
 }
 
 export default function CourseLayout() {
-    return (
-        <div>
-            <div>Course Layout</div>
-            <Outlet />
-        </div>
-    )
+	return (
+		<div>
+			<div>Course Layout</div>
+			<Outlet />
+		</div>
+	);
 }

@@ -21,3 +21,5 @@ each test files should only have one describe block. each test file related to d
 we should not use try catch. we should use typescript result to handle the error, using `Result.wrap`. When a function return a result, function should be named with `try` prefix like `tryFunction` or `trySomething`.
 
 in the loader of react router, we should throw ErrorResponse rather than just error. 
+
+when working with jsx array, we should not use index as key. we should use the id of the item if available.

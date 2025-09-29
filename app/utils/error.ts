@@ -1,3 +1,3 @@
 export class ContextNotFoundError extends Error {
-    readonly type = "ContextNotFoundError";
+	readonly type = "ContextNotFoundError";
 }

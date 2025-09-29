@@ -1,4 +1,4 @@
-import { Payload } from "payload";
+import type { Payload } from "payload";
 import sanitizedConfig from "../payload.config";
 
 /**
@@ -6,18 +6,17 @@ import sanitizedConfig from "../payload.config";
  * @returns Promise<boolean> - true if no users exist (first user needed), false if users exist
  */
 export async function checkFirstUser(payload: Payload): Promise<boolean> {
-    try {
+	try {
+		const users = await payload.find({
+			collection: "users",
+			limit: 1,
+		});
 
-        const users = await payload.find({
-            collection: "users",
-            limit: 1,
-        });
-
-        return users.docs.length === 0;
-    } catch (error) {
-        console.error("Error checking for first user:", error);
-        throw new Error("Failed to check if first user exists");
-    }
+		return users.docs.length === 0;
+	} catch (error) {
+		console.error("Error checking for first user:", error);
+		throw new Error("Failed to check if first user exists");
+	}
 }
 
 /**
@@ -25,17 +24,16 @@ export async function checkFirstUser(payload: Payload): Promise<boolean> {
  * @returns Promise<number> - number of users in the database
  */
 export async function getUserCount(payload: Payload): Promise<number> {
-    try {
+	try {
+		const users = await payload.find({
+			collection: "users",
+		});
 
-        const users = await payload.find({
-            collection: "users",
-        });
-
-        return users.docs.length;
-    } catch (error) {
-        console.error("Error getting user count:", error);
-        throw new Error("Failed to get user count");
-    }
+		return users.docs.length;
+	} catch (error) {
+		console.error("Error getting user count:", error);
+		throw new Error("Failed to get user count");
+	}
 }
 
 /**
@@ -45,35 +43,35 @@ export async function getUserCount(payload: Payload): Promise<number> {
  * @returns Promise<{ needsFirstUser: boolean; userCount: number; isValid: boolean }>
  */
 export async function validateFirstUserState(payload: Payload): Promise<{
-    needsFirstUser: boolean;
-    userCount: number;
-    isValid: boolean;
+	needsFirstUser: boolean;
+	userCount: number;
+	isValid: boolean;
 }> {
-    try {
+	try {
+		if (!payload.db.connect)
+			throw new Error("Database connection not established");
 
-        if (!payload.db.connect) throw new Error("Database connection not established");
+		// Test database connection
+		await payload.db.connect();
 
-        // Test database connection
-        await payload.db.connect();
+		const users = await payload.find({
+			collection: "users",
+		});
 
-        const users = await payload.find({
-            collection: "users",
-        });
+		const userCount = users.docs.length;
+		const needsFirstUser = userCount === 0;
 
-        const userCount = users.docs.length;
-        const needsFirstUser = userCount === 0;
-
-        return {
-            needsFirstUser,
-            userCount,
-            isValid: true,
-        };
-    } catch (error) {
-        console.error("Error validating first user state:", error);
-        return {
-            needsFirstUser: true, // Assume we need first user if we can't check
-            userCount: 0,
-            isValid: false,
-        };
-    }
+		return {
+			needsFirstUser,
+			userCount,
+			isValid: true,
+		};
+	} catch (error) {
+		console.error("Error validating first user state:", error);
+		return {
+			needsFirstUser: true, // Assume we need first user if we can't check
+			userCount: 0,
+			isValid: false,
+		};
+	}
 }

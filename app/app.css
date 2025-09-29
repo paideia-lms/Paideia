@@ -1,9 +1,9 @@
 :root {
-  --color-primary: #3498db;
-  --color-secondary: #2ecc71;
-  --color-background: #f5f5f5;
-  --color-text: #333333;
-  --font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-  --font-size-base: 16px;
-  --spacing-base: 1rem;
+	--color-primary: #3498db;
+	--color-secondary: #2ecc71;
+	--color-background: #f5f5f5;
+	--color-text: #333333;
+	--font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+	--font-size-base: 16px;
+	--spacing-base: 1rem;
 }

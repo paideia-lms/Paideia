@@ -11,3 +11,5 @@ server/vfs.ts
 
 .env*
 .DS_Store
+
+references/

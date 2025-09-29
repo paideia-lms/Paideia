@@ -10,138 +10,141 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 // https://github.com/facebook/react/issues/33612
 import { renderToPipeableStream } from "react-dom/server.node";
-import type { AppLoadContext, EntryContext, RouterContextProvider } from "react-router";
+import type {
+	AppLoadContext,
+	EntryContext,
+	RouterContextProvider,
+} from "react-router";
 import { ServerRouter } from "react-router";
 import { globalContext } from "server/contexts/global-context";
 
 const ABORT_DELAY = 5_000;
 
-
 export default function handleRequest(
-  request: Request,
-  responseStatusCode: number,
-  responseHeaders: Headers,
-  reactRouterContext: EntryContext,
-  loadContext: RouterContextProvider,
+	request: Request,
+	responseStatusCode: number,
+	responseHeaders: Headers,
+	reactRouterContext: EntryContext,
+	loadContext: RouterContextProvider,
 ) {
-  return isbot(request.headers.get("user-agent") ?? "")
-    ? handleBotRequest(
-      request,
-      responseStatusCode,
-      responseHeaders,
-      reactRouterContext,
-      loadContext,
-    )
-    : handleBrowserRequest(
-      request,
-      responseStatusCode,
-      responseHeaders,
-      reactRouterContext,
-      loadContext,
-    );
+	return isbot(request.headers.get("user-agent") ?? "")
+		? handleBotRequest(
+				request,
+				responseStatusCode,
+				responseHeaders,
+				reactRouterContext,
+				loadContext,
+			)
+		: handleBrowserRequest(
+				request,
+				responseStatusCode,
+				responseHeaders,
+				reactRouterContext,
+				loadContext,
+			);
 }
 
 function handleBotRequest(
-  request: Request,
-  responseStatusCode: number,
-  responseHeaders: Headers,
-  reactRouterContext: EntryContext,
-  loadContext: RouterContextProvider,
+	request: Request,
+	responseStatusCode: number,
+	responseHeaders: Headers,
+	reactRouterContext: EntryContext,
+	loadContext: RouterContextProvider,
 ) {
-  // loadContext.get(dbContext)
-  return new Promise((resolve, reject) => {
-    let shellRendered = false;
-    const { pipe, abort } = renderToPipeableStream(
-      <ServerRouter
-        context={reactRouterContext}
-        url={request.url}
-      // abortDelay={ABORT_DELAY}
-      />,
-      {
-        onAllReady() {
-          shellRendered = true;
-          const body = new PassThrough();
-          const stream = createReadableStreamFromReadable(body);
+	// loadContext.get(dbContext)
+	return new Promise((resolve, reject) => {
+		let shellRendered = false;
+		const { pipe, abort } = renderToPipeableStream(
+			<ServerRouter
+				context={reactRouterContext}
+				url={request.url}
+				// abortDelay={ABORT_DELAY}
+			/>,
+			{
+				onAllReady() {
+					shellRendered = true;
+					const body = new PassThrough();
+					const stream = createReadableStreamFromReadable(body);
 
-          responseHeaders.set("Content-Type", "text/html");
+					responseHeaders.set("Content-Type", "text/html");
 
-          resolve(
-            new Response(stream, {
-              headers: responseHeaders,
-              status: responseStatusCode,
-            }),
-          );
+					resolve(
+						new Response(stream, {
+							headers: responseHeaders,
+							status: responseStatusCode,
+						}),
+					);
 
-          pipe(body);
-        },
-        onShellError(error: unknown) {
-          reject(error);
-        },
-        onError(error: unknown) {
-          responseStatusCode = 500;
-          // Log streaming rendering errors from inside the shell.  Don't log
-          // errors encountered during initial shell rendering since they'll
-          // reject and get logged in handleDocumentRequest.
-          if (shellRendered) {
-            console.error(error);
-          }
-        },
-      },
-    );
+					pipe(body);
+				},
+				onShellError(error: unknown) {
+					reject(error);
+				},
+				onError(error: unknown) {
+					responseStatusCode = 500;
+					// Log streaming rendering errors from inside the shell.  Don't log
+					// errors encountered during initial shell rendering since they'll
+					// reject and get logged in handleDocumentRequest.
+					if (shellRendered) {
+						console.error(error);
+					}
+				},
+			},
+		);
 
-    setTimeout(abort, ABORT_DELAY);
-  });
+		setTimeout(abort, ABORT_DELAY);
+	});
 }
 
 function handleBrowserRequest(
-  request: Request,
-  responseStatusCode: number,
-  responseHeaders: Headers,
-  reactRouterContext: EntryContext,
-  loadContext: RouterContextProvider,
+	request: Request,
+	responseStatusCode: number,
+	responseHeaders: Headers,
+	reactRouterContext: EntryContext,
+	loadContext: RouterContextProvider,
 ) {
-  // console.log(loadContext.get(dbContext))
-  return new Promise((resolve, reject) => {
-    let shellRendered = false;
-    const { pipe, abort } = renderToPipeableStream(
-      <ServerRouter
-        context={reactRouterContext}
-        url={request.url}
+	// console.log(loadContext.get(dbContext))
+	return new Promise((resolve, reject) => {
+		let shellRendered = false;
+		const { pipe, abort } = renderToPipeableStream(
+			<ServerRouter
+				context={reactRouterContext}
+				url={request.url}
 
-      // abortDelay={ABORT_DELAY}
-      />,
-      {
-        onShellReady() {
-          shellRendered = true;
-          const body = new PassThrough();
-          const stream = createReadableStreamFromReadable(body);
+				// abortDelay={ABORT_DELAY}
+			/>,
+			{
+				onShellReady() {
+					shellRendered = true;
+					const body = new PassThrough();
+					const stream = createReadableStreamFromReadable(body);
 
-          responseHeaders.set("Content-Type", "text/html");
+					responseHeaders.set("Content-Type", "text/html");
 
-          resolve(
-            new Response(stream, {
-              headers: responseHeaders,
-              status: responseStatusCode,
-            }),
-          );
+					resolve(
+						new Response(stream, {
+							headers: responseHeaders,
+							status: responseStatusCode,
+						}),
+					);
 
-          pipe(body);
-        },
-        onShellError(error: unknown) {
-          reject(error);
-        },
-        onError(error: unknown) {
-          responseStatusCode = 500;
-          // Log streaming rendering errors from inside the shell.  Don't log
-          // errors encountered during initial shell rendering since they'll
-          // reject and get logged in handleDocumentRequest.
-          if (shellRendered) {
-            console.error(error);
-          }
-        },
-      },
-    );
+					pipe(body);
+				},
+				onShellError(error: unknown) {
+					reject(error);
+				},
+				onError(error: unknown) {
+					responseStatusCode = 500;
+					// Log streaming rendering errors from inside the shell.  Don't log
+					// errors encountered during initial shell rendering since they'll
+					// reject and get logged in handleDocumentRequest.
+					if (shellRendered) {
+						console.error(error);
+					}
+				},
+			},
+		);
 
-    setTimeout(abort, ABORT_DELAY);
-  });
+		setTimeout(abort, ABORT_DELAY);
+	});
 }
