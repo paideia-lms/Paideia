@@ -1,3 +1,5 @@
+import type { Result } from "typescript-result";
+
 export class ContextNotFoundError extends Error {
 	readonly type = "ContextNotFoundError";
 }
@@ -10,8 +12,24 @@ export class DuplicateBranchError extends Error {
 	readonly type = "DuplicateBranchError";
 }
 
+export class DuplicateActivityModuleError extends Error {
+	readonly type = "DuplicateActivityModuleError";
+}
+
+export class InvalidArgumentError extends Error {
+	readonly type = "InvalidArgumentError";
+}
+
 export class NonExistingSourceError extends Error {
 	readonly type = "NonExistingSourceError";
+}
+
+export class TransactionIdNotFoundError extends Error {
+	readonly type = "TransactionIdNotFoundError";
+}
+
+export class NonExistingActivityModuleError extends Error {
+	readonly type = "NonExistingActivityModuleError";
 }
 
 export class UnknownError extends Error {

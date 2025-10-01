@@ -26,7 +26,7 @@ each test files should only have one describe block. each test file related to d
 
 ## error handling
 
-we should not use try catch. we should use typescript result to handle the error, using `Result.wrap`. When a function return a result, function should be named with `try` prefix like `tryFunction` or `trySomething`.
+we **should not** use try catch, especially not in internal functions which we use typescript result, it will be confusing and hard to manage. we should use typescript result to handle the error, using `Result.wrap`. When a function return a result, function should be named with `try` prefix like `tryFunction` or `trySomething`.
 
 in the loader of react router, we should throw ErrorResponse rather than just error. 
 
@@ -39,3 +39,5 @@ when an operation is doing multiple mutation to the database, we should **always
 database migration should always be non breaking and backward compatible.
 
 payload local api return document with unknown depth. we should handle both case when depth is 0 and 1, value is either object or id (string). 
+
+Avoid using `as` operator in internal functions.

@@ -8,12 +8,16 @@ import {
 	type CreateActivityModuleArgs,
 	type CreateBranchArgs,
 	type GetActivityModuleArgs,
+	type MergeBranchArgs,
 	type SearchActivityModulesArgs,
 	SHA256,
 	tryCreateActivityModule,
 	tryCreateBranch,
 	tryDeleteActivityModule,
+	tryDeleteBranch,
 	tryGetActivityModule,
+	tryGetBranchesForModule,
+	tryMergeBranch,
 	trySearchActivityModules,
 	tryUpdateActivityModule,
 	type UpdateActivityModuleArgs,
@@ -459,5 +463,266 @@ describe("Activity Module Management Functions", () => {
 		if (!result.ok) {
 			expect(result.error.message).toContain("Failed to get activity module");
 		}
+	});
+
+	test("comprehensive branch merge workflow", async () => {
+		// Step 1: Create an activity module, check it is main branch
+		const createArgs: CreateActivityModuleArgs = {
+			slug: "merge-test-module",
+			title: "Merge Test Module",
+			description: "A module for testing merge functionality",
+			type: "page",
+			status: "draft",
+			content: {
+				html: "<h1>Initial content</h1>",
+				css: "h1 { color: black; }",
+			},
+			commitMessage: "Initial commit",
+			branchName: "main",
+			userId: instructorId,
+		};
+
+		const createResult = await tryCreateActivityModule(
+			payload,
+			mockRequest,
+			createArgs,
+		);
+		expect(createResult.ok).toBe(true);
+		if (!createResult.ok) return;
+
+		// Verify it's on main branch
+		const mainResult = await tryGetActivityModule(payload, {
+			slug: "merge-test-module",
+			branchName: "main",
+		});
+		expect(mainResult.ok).toBe(true);
+		if (!mainResult.ok) return;
+		expect(mainResult.value.branch.name).toBe("main");
+
+		// Step 2: Create branch1, create a new commit, check it has 2 commits
+		const branch1Args: CreateBranchArgs = {
+			branchName: "branch1",
+			description: "First feature branch",
+			fromBranch: "main",
+			userId: instructorId,
+		};
+
+		const branch1Result = await tryCreateBranch(payload, branch1Args);
+		expect(branch1Result.ok).toBe(true);
+		if (!branch1Result.ok) return;
+
+		// Create new commit in branch1
+		const updateBranch1Args: UpdateActivityModuleArgs = {
+			content: {
+				html: "<h1>Updated in branch1</h1>",
+				css: "h1 { color: blue; }",
+			},
+			commitMessage: "Update in branch1",
+			branchName: "branch1",
+			userId: instructorId,
+		};
+
+		const updateBranch1Result = await tryUpdateActivityModule(
+			payload,
+			mockRequest,
+			"merge-test-module",
+			updateBranch1Args,
+		);
+		expect(updateBranch1Result.ok).toBe(true);
+
+		// Check branch1 has 2 commits
+		const branch1Versions = await payload.find({
+			collection: "activity-module-versions",
+			where: {
+				and: [
+					{ activityModule: { equals: createResult.value.activityModule.id } },
+					{ branch: { equals: branch1Result.value.branch.id } },
+				],
+			},
+		});
+		expect(branch1Versions.docs.length).toBe(2);
+
+		// Step 3: Create branch2 from branch1, create a new commit, check it has 2 commits
+		const branch2Args: CreateBranchArgs = {
+			branchName: "branch2",
+			description: "Second feature branch",
+			fromBranch: "branch1",
+			userId: instructorId,
+		};
+
+		const branch2Result = await tryCreateBranch(payload, branch2Args);
+		expect(branch2Result.ok).toBe(true);
+		if (!branch2Result.ok) return;
+
+		// Create new commit in branch2
+		const updateBranch2Args: UpdateActivityModuleArgs = {
+			content: {
+				html: "<h1>Updated in branch2</h1>",
+				css: "h1 { color: red; }",
+				js: "console.log('branch2');",
+			},
+			commitMessage: "Update in branch2",
+			branchName: "branch2",
+			userId: instructorId,
+		};
+
+		const updateBranch2Result = await tryUpdateActivityModule(
+			payload,
+			mockRequest,
+			"merge-test-module",
+			updateBranch2Args,
+		);
+		expect(updateBranch2Result.ok).toBe(true);
+
+		// Check branch2 has 2 commits (initial + branch1 update + branch2 update = 2 versions, but branch2 was created from branch1 so it inherits the commits)
+		const branch2Versions = await payload.find({
+			collection: "activity-module-versions",
+			where: {
+				and: [
+					{ activityModule: { equals: createResult.value.activityModule.id } },
+					{ branch: { equals: branch2Result.value.branch.id } },
+				],
+			},
+		});
+		expect(branch2Versions.docs.length).toBe(2); // branch2 has 2 versions: copied from branch1 + new update
+
+		// Step 4: Merge branch2 back to branch1, check branch1 has 3 commits
+		const mergeBranch2ToBranch1Args: MergeBranchArgs = {
+			sourceBranch: "branch2",
+			targetBranch: "branch1",
+			mergeMessage: "Merge branch2 into branch1",
+			userId: instructorId,
+		};
+
+		const merge1Result = await tryMergeBranch(
+			payload,
+			mergeBranch2ToBranch1Args,
+		);
+		if (!merge1Result.ok) {
+			console.error("Merge failed:", merge1Result.error.message);
+			console.error("Error details:", merge1Result.error);
+		}
+		expect(merge1Result.ok).toBe(true);
+		if (!merge1Result.ok) return;
+		expect(merge1Result.value.mergedVersionsCount).toBeGreaterThan(0);
+
+		// Check branch1 now has 3 commits (original + branch1 update + merge commit)
+		const branch1VersionsAfterMerge = await payload.find({
+			collection: "activity-module-versions",
+			where: {
+				and: [
+					{ activityModule: { equals: createResult.value.activityModule.id } },
+					{ branch: { equals: branch1Result.value.branch.id } },
+				],
+			},
+		});
+		expect(branch1VersionsAfterMerge.docs.length).toBe(3);
+
+		// Verify branch1 has the latest content from branch2
+		const branch1AfterMerge = await tryGetActivityModule(payload, {
+			slug: "merge-test-module",
+			branchName: "branch1",
+		});
+		expect(branch1AfterMerge.ok).toBe(true);
+		if (!branch1AfterMerge.ok) return;
+		expect(branch1AfterMerge.value.version.content).toEqual({
+			html: "<h1>Updated in branch2</h1>",
+			css: "h1 { color: red; }",
+			js: "console.log('branch2');",
+		});
+
+		// Step 5: Merge branch2 back to main branch, check main branch has 3 commits
+		const mergeBranch2ToMainArgs: MergeBranchArgs = {
+			sourceBranch: "branch2",
+			targetBranch: "main",
+			mergeMessage: "Merge branch2 into main",
+			userId: instructorId,
+		};
+
+		const merge2Result = await tryMergeBranch(payload, mergeBranch2ToMainArgs);
+		if (!merge2Result.ok) {
+			console.error("Merge2 failed:", merge2Result.error.message);
+			console.error("Error details:", merge2Result.error);
+		}
+		expect(merge2Result.ok).toBe(true);
+		if (!merge2Result.ok) return;
+
+		// Check main now has 2 commits (original + merge commit)
+		const mainVersionsAfterMerge = await payload.find({
+			collection: "activity-module-versions",
+			where: {
+				and: [
+					{ activityModule: { equals: createResult.value.activityModule.id } },
+					{ branch: { equals: createResult.value.branch.id } },
+				],
+			},
+		});
+		expect(mainVersionsAfterMerge.docs.length).toBe(2);
+
+		// Step 6: Merge branch1 to main branch, nothing should happen (already up to date)
+		const mergeBranch1ToMainArgs: MergeBranchArgs = {
+			sourceBranch: "branch1",
+			targetBranch: "main",
+			mergeMessage: "Merge branch1 into main",
+			userId: instructorId,
+		};
+
+		const merge3Result = await tryMergeBranch(payload, mergeBranch1ToMainArgs);
+		if (!merge3Result.ok) {
+			console.error("Merge3 failed:", merge3Result.error.message);
+			console.error("Error details:", merge3Result.error);
+		}
+		expect(merge3Result.ok).toBe(true);
+		if (!merge3Result.ok) return;
+		// Should be 0 because main already has the latest content
+		expect(merge3Result.value.mergedVersionsCount).toBe(0);
+
+		// Step 7: Select branches of this module, should have 3 branches
+		const branchesResult = await tryGetBranchesForModule(payload, {
+			moduleSlug: "merge-test-module",
+		});
+		expect(branchesResult.ok).toBe(true);
+		if (!branchesResult.ok) return;
+		expect(branchesResult.value.branches.length).toBe(3);
+
+		const branchNames = branchesResult.value.branches.map((b) => b.name).sort();
+		expect(branchNames).toEqual(["branch1", "branch2", "main"]);
+
+		// Step 8: Delete branch1 and branch2, select branches again, should only have main
+		const deleteBranch1Result = await tryDeleteBranch(
+			payload,
+			"branch1",
+			instructorId,
+		);
+		expect(deleteBranch1Result.ok).toBe(true);
+
+		const deleteBranch2Result = await tryDeleteBranch(
+			payload,
+			"branch2",
+			instructorId,
+		);
+		expect(deleteBranch2Result.ok).toBe(true);
+
+		// Check branches again
+		const finalBranchesResult = await tryGetBranchesForModule(payload, {
+			moduleSlug: "merge-test-module",
+		});
+		expect(finalBranchesResult.ok).toBe(true);
+		if (!finalBranchesResult.ok) return;
+		expect(finalBranchesResult.value.branches.length).toBe(1);
+		expect(finalBranchesResult.value.branches[0].name).toBe("main");
+
+		// Verify main branch still has the merged content
+		const finalMainResult = await tryGetActivityModule(payload, {
+			slug: "merge-test-module",
+			branchName: "main",
+		});
+		expect(finalMainResult.ok).toBe(true);
+		if (!finalMainResult.ok) return;
+		expect(finalMainResult.value.version.content).toEqual({
+			html: "<h1>Updated in branch2</h1>",
+			css: "h1 { color: red; }",
+			js: "console.log('branch2');",
+		});
 	});
 });

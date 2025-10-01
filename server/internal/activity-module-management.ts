@@ -64,6 +64,18 @@ export interface CreateBranchArgs {
 	userId: number;
 }
 
+export interface MergeBranchArgs {
+	sourceBranch: string;
+	targetBranch: string;
+	mergeMessage?: string;
+	userId: number;
+}
+
+export interface GetBranchesForModuleArgs {
+	moduleSlug?: string;
+	moduleId?: number;
+}
+
 /**
  * Generate content hash using MerkleTree
  */
@@ -772,6 +784,355 @@ export const trySearchActivityModules = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError(`Failed to search activity modules:`, {
+			cause: error,
+		}),
+);
+
+/**
+ * Merges a source branch into a target branch
+ */
+export const tryMergeBranch = Result.wrap(
+	async (payload: Payload, args: MergeBranchArgs) => {
+		const {
+			sourceBranch: sourceBranchName,
+			targetBranch: targetBranchName,
+			mergeMessage = `Merge ${sourceBranchName} into ${targetBranchName}`,
+			userId,
+		} = args;
+
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new Error("Transaction ID not found");
+		}
+
+		try {
+			// Get source and target branches
+			const sourceBranchResult = await tryGetBranchByName(
+				payload,
+				sourceBranchName,
+				transactionID,
+			);
+			const targetBranchResult = await tryGetBranchByName(
+				payload,
+				targetBranchName,
+				transactionID,
+			);
+
+			if (!sourceBranchResult.ok) {
+				throw sourceBranchResult.error;
+			}
+			if (!targetBranchResult.ok) {
+				throw targetBranchResult.error;
+			}
+
+			const sourceBranch = sourceBranchResult.value;
+			const targetBranch = targetBranchResult.value;
+
+			// Get all current head versions from source branch
+			const sourceVersions = await payload.find({
+				collection: "activity-module-versions",
+				where: {
+					and: [
+						{ branch: { equals: sourceBranch.id } },
+						{ isCurrentHead: { equals: true } },
+					],
+				},
+				req: { transactionID },
+			});
+
+			// Get all current head versions from target branch
+			const targetVersions = await payload.find({
+				collection: "activity-module-versions",
+				where: {
+					and: [
+						{ branch: { equals: targetBranch.id } },
+						{ isCurrentHead: { equals: true } },
+					],
+				},
+				req: { transactionID },
+			});
+
+			// Create a map of target branch activity modules for quick lookup
+			const targetModuleMap = new Map();
+			for (const version of targetVersions.docs) {
+				const v = version as ActivityModuleVersion;
+				targetModuleMap.set(v.activityModule as number, v);
+			}
+
+			const mergedVersions = [];
+			const newCommits = [];
+
+			// Process each source version
+			for (const sourceVersion of sourceVersions.docs) {
+				const sourceV = sourceVersion as ActivityModuleVersion;
+				const moduleId = sourceV.activityModule as number;
+				const targetV = targetModuleMap.get(moduleId);
+
+				if (!targetV) {
+					// Module doesn't exist in target branch - copy it over
+					const newVersion = await payload.create({
+						collection: "activity-module-versions",
+						data: {
+							activityModule: sourceV.activityModule as number,
+							commit: sourceV.commit as number,
+							branch: targetBranch.id as number,
+							content: sourceV.content,
+							title: sourceV.title,
+							description: sourceV.description,
+							isCurrentHead: true,
+							contentHash: sourceV.contentHash,
+						},
+						req: { transactionID },
+					});
+					mergedVersions.push(newVersion);
+				} else {
+					// Module exists in both branches - check if source is newer
+					const sourceCommit = await payload.findByID({
+						collection: "commits",
+						id: sourceV.commit as number,
+						req: { transactionID },
+					});
+					const targetCommit = await payload.findByID({
+						collection: "commits",
+						id: targetV.commit as number,
+						req: { transactionID },
+					});
+
+					if (!sourceCommit || !targetCommit) {
+						throw new Error("Failed to find commit information");
+					}
+
+					const sourceDate = new Date(sourceCommit.commitDate);
+					const targetDate = new Date(targetCommit.commitDate);
+
+					// If source is newer, create a merge commit
+					if (sourceDate > targetDate) {
+						// Generate merge commit hash
+						const mergeCommitHash = generateCommitHash(
+							(sourceV.content as Record<string, unknown>) || {},
+							mergeMessage,
+							userId,
+							new Date(),
+						);
+
+						// Create merge commit with both parents
+						const mergeCommit = await payload.create({
+							collection: "commits",
+							data: {
+								hash: mergeCommitHash,
+								message: mergeMessage,
+								author: userId,
+								committer: userId,
+								parentCommit: targetV.commit as number,
+								isMergeCommit: true,
+								commitDate: new Date().toISOString(),
+							},
+							req: { transactionID },
+						});
+
+						// Create commit parent relationship for the source commit
+						await payload.create({
+							collection: "commit-parents",
+							data: {
+								commit: mergeCommit.id as number,
+								parentCommit: sourceV.commit as number,
+								parentOrder: 1, // Second parent (first parent is already set in the commit record)
+							},
+							req: { transactionID },
+						});
+
+						// Mark current target version as not head
+						await payload.update({
+							collection: "activity-module-versions",
+							id: targetV.id as number,
+							data: {
+								isCurrentHead: false,
+							},
+							req: { transactionID },
+						});
+
+						// Create new version in target branch
+						const newVersion = await payload.create({
+							collection: "activity-module-versions",
+							data: {
+								activityModule: sourceV.activityModule as number,
+								commit: mergeCommit.id as number,
+								branch: targetBranch.id as number,
+								content: sourceV.content,
+								title: sourceV.title,
+								description: sourceV.description,
+								isCurrentHead: true,
+								contentHash: sourceV.contentHash,
+							},
+							req: { transactionID },
+						});
+
+						mergedVersions.push(newVersion);
+						newCommits.push(mergeCommit);
+					}
+					// If target is newer or equal, no merge needed for this module
+				}
+			}
+
+			await payload.db.commitTransaction(transactionID);
+
+			return {
+				sourceBranch,
+				targetBranch,
+				mergedVersionsCount: mergedVersions.length,
+				newCommitsCount: newCommits.length,
+			};
+		} catch (error) {
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError(`Failed to merge branch`, {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets all branches that contain versions of a specific activity module
+ */
+export const tryGetBranchesForModule = Result.wrap(
+	async (payload: Payload, args: GetBranchesForModuleArgs) => {
+		const { moduleSlug, moduleId } = args;
+
+		if (!moduleSlug && !moduleId) {
+			throw new Error("Either moduleSlug or moduleId must be provided");
+		}
+
+		// Find activity module
+		let activityModule: ActivityModule;
+		if (moduleSlug) {
+			const modules = await payload.find({
+				collection: "activity-modules",
+				where: {
+					slug: { equals: moduleSlug },
+				},
+			});
+
+			if (modules.docs.length === 0) {
+				throw new Error(`Activity module with slug '${moduleSlug}' not found`);
+			}
+			activityModule = modules.docs[0] as ActivityModule;
+		} else {
+			const module = await payload.findByID({
+				collection: "activity-modules",
+				id: moduleId as number,
+			});
+			if (!module) {
+				throw new Error(`Activity module with id '${moduleId}' not found`);
+			}
+			activityModule = module as ActivityModule;
+		}
+
+		// Find all versions of this module
+		const versions = await payload.find({
+			collection: "activity-module-versions",
+			where: {
+				activityModule: { equals: activityModule.id },
+			},
+			populate: {
+				branches: {
+					name: true,
+					description: true,
+					isDefault: true,
+					createdBy: true,
+				},
+			},
+		});
+
+		// Extract unique branches
+		const branchMap = new Map();
+		for (const version of versions.docs) {
+			const v = version as ActivityModuleVersion;
+			const branch = v.branch;
+			if (typeof branch === "object" && branch !== null && "name" in branch) {
+				branchMap.set(branch.id, branch);
+			}
+		}
+
+		return {
+			activityModule,
+			branches: Array.from(branchMap.values()) as Branch[],
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError(`Failed to get branches for module`, {
+			cause: error,
+		}),
+);
+
+/**
+ * Deletes a branch and all its versions
+ */
+export const tryDeleteBranch = Result.wrap(
+	async (payload: Payload, branchName: string, userId: number) => {
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new Error("Transaction ID not found");
+		}
+
+		try {
+			// Get branch
+			const branchResult = await tryGetBranchByName(
+				payload,
+				branchName,
+				transactionID,
+			);
+			if (!branchResult.ok) {
+				throw branchResult.error;
+			}
+			const branch = branchResult.value;
+
+			// Cannot delete main branch
+			if (branch.isDefault) {
+				throw new Error("Cannot delete the default branch");
+			}
+
+			// Find all versions in this branch
+			const versions = await payload.find({
+				collection: "activity-module-versions",
+				where: {
+					branch: { equals: branch.id },
+				},
+				req: { transactionID },
+			});
+
+			// Delete all versions
+			for (const version of versions.docs) {
+				await payload.delete({
+					collection: "activity-module-versions",
+					id: version.id as number,
+					req: { transactionID },
+				});
+			}
+
+			// Delete branch
+			const deletedBranch = await payload.delete({
+				collection: "branches",
+				id: branch.id as number,
+				req: { transactionID },
+			});
+
+			await payload.db.commitTransaction(transactionID);
+
+			return deletedBranch as Branch;
+		} catch (error) {
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError(`Failed to delete branch`, {
 			cause: error,
 		}),
 );
