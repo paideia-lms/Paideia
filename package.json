@@ -26,7 +26,7 @@
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:fresh",
 		"docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
 		"docker:run": "docker run -p 3000:3000 paideia:$(node -p \"require('./package.json').version\")",
-		"typecheck": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && react-router typegen && tsc --noEmit",
+		"typecheck": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:db-schema && react-router typegen && tsc --noEmit",
 		"lefthook:install": "lefthook install"
 	},
 	"dependencies": {
@@ -48,6 +48,7 @@
 		"es-toolkit": "^1.39.10",
 		"isbot": "^5.1.31",
 		"lefthook": "^1.13.4",
+		"merkletreejs": "^0.6.0",
 		"mime": "^4.1.0",
 		"node-cache": "^5.1.2",
 		"nuqs": "^2.6.0",

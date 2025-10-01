@@ -1,0 +1,31 @@
+---
+alwaysApply: true
+---
+
+## Depth
+
+Documents in Payload can have relationships to other Documents. This is true for both Collections as well as Globals. When you query a Document, you can specify the depth at which to populate any of its related Documents either as full objects, or only their IDs.
+
+Since Documents can be infinitely nested or recursively related, it's important to be able to control how deep your API populates. Depth can impact the performance of your queries by affecting the load on the database and the size of the response.
+
+For example, when you specify a depth of 0, the API response might look like this:
+
+```json
+{
+  "id": "5ae8f9bde69e394e717c8832",
+  "title": "This is a great post",
+  "author": "5f7dd05cd50d4005f8bcab17"
+}
+```
+But with a depth of 1, the response might look like this:
+
+```json
+{
+  "id": "5ae8f9bde69e394e717c8832",
+  "title": "This is a great post",
+  "author": {
+    "id": "5f7dd05cd50d4005f8bcab17",
+    "name": "John Doe"
+  }
+}
+```
