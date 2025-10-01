@@ -90,18 +90,21 @@ export const generateContentHash = (
 
 /**
  * Generate unique commit hash using MerkleTree
+ * Includes parent commit hash (like Git) to ensure uniqueness
  */
 export const generateCommitHash = (
 	content: Record<string, unknown>,
 	message: string,
 	authorId: number,
 	timestamp: Date,
+	parentCommitHash?: string,
 ): string => {
 	const data = {
 		content: JSON.stringify(content, Object.keys(content).sort()),
 		message,
 		authorId,
 		timestamp: timestamp.toISOString(),
+		parentCommit: parentCommitHash || null,
 	};
 	const dataString = JSON.stringify(data);
 	const leaves = [dataString].map((x) => SHA256(x));
@@ -124,7 +127,7 @@ const tryGetOrCreateMainBranch = Result.wrap(
 		});
 
 		if (existingBranches.docs.length > 0) {
-			return existingBranches.docs[0] as Branch;
+			return existingBranches.docs[0];
 		}
 
 		// Create main branch
@@ -139,7 +142,7 @@ const tryGetOrCreateMainBranch = Result.wrap(
 			req: { transactionID },
 		});
 
-		return mainBranch as Branch;
+		return mainBranch;
 	},
 	(error) =>
 		transformError(error) ??
@@ -169,7 +172,7 @@ const tryGetBranchByName = Result.wrap(
 			throw new NonExistingSourceError(`Branch '${branchName}' not found`);
 		}
 
-		return branches.docs[0] as Branch;
+		return branches.docs[0];
 	},
 	(error) =>
 		transformError(error) ??
@@ -243,14 +246,14 @@ export const tryCreateBranch = Result.wrap(
 			// Copy all current head versions to the new branch
 			const copiedVersions = [];
 			for (const sourceVersion of sourceVersions.docs) {
-				const version = sourceVersion as ActivityModuleVersion;
+				const version = sourceVersion;
 
 				const newVersion = await payload.create({
 					collection: "activity-module-versions",
 					data: {
-						activityModule: version.activityModule as number,
-						commit: version.commit as number,
-						branch: newBranch.id as number,
+						activityModule: version.activityModule,
+						commit: version.commit,
+						branch: newBranch.id,
 						content: version.content,
 						title: version.title,
 						description: version.description,
@@ -266,7 +269,7 @@ export const tryCreateBranch = Result.wrap(
 			await payload.db.commitTransaction(transactionID);
 
 			return {
-				branch: newBranch as Branch,
+				branch: newBranch,
 				sourceBranch: sourceBranch,
 				copiedVersionsCount: copiedVersions.length,
 			};
@@ -375,9 +378,9 @@ export const tryCreateActivityModule = Result.wrap(
 			const version = await payload.create({
 				collection: "activity-module-versions",
 				data: {
-					activityModule: activityModule.id as number,
-					commit: commit.id as number,
-					branch: branch.id as number,
+					activityModule: activityModule.id,
+					commit: commit.id,
+					branch: branch.id,
 					content,
 					title,
 					description,
@@ -390,10 +393,10 @@ export const tryCreateActivityModule = Result.wrap(
 			await payload.db.commitTransaction(transactionID);
 
 			return {
-				activityModule: activityModule as ActivityModule,
-				version: version as ActivityModuleVersion,
-				commit: commit as Commit,
-				branch: branch as Branch,
+				activityModule: activityModule,
+				version: version,
+				commit: commit,
+				branch: branch,
 			};
 		} catch (error) {
 			await payload.db.rollbackTransaction(transactionID);
@@ -478,7 +481,7 @@ export const tryUpdateActivityModule = Result.wrap(
 			let currentDescription = activityModule.description;
 
 			if (currentVersions.docs.length > 0) {
-				const currentVersion = currentVersions.docs[0] as ActivityModuleVersion;
+				const currentVersion = currentVersions.docs[0];
 				currentContent = currentVersion.content || {};
 				currentTitle = currentVersion.title;
 				currentDescription = currentVersion.description;
@@ -496,7 +499,7 @@ export const tryUpdateActivityModule = Result.wrap(
 			if (title || description !== undefined || status) {
 				const updatedModule = await payload.update({
 					collection: "activity-modules",
-					id: activityModule.id as number,
+					id: activityModule.id,
 					data: {
 						...(title && { title }),
 						...(description !== undefined && { description }),
@@ -520,8 +523,8 @@ export const tryUpdateActivityModule = Result.wrap(
 			// Get parent commit (current head)
 			let parentCommitId = null;
 			if (currentVersions.docs.length > 0) {
-				const currentVersion = currentVersions.docs[0] as ActivityModuleVersion;
-				parentCommitId = currentVersion.commit as number;
+				const currentVersion = currentVersions.docs[0];
+				parentCommitId = currentVersion.commit;
 			}
 
 			// Create new commit
@@ -543,7 +546,7 @@ export const tryUpdateActivityModule = Result.wrap(
 			if (currentVersions.docs.length > 0) {
 				await payload.update({
 					collection: "activity-module-versions",
-					id: currentVersions.docs[0].id as number,
+					id: currentVersions.docs[0].id,
 					data: {
 						isCurrentHead: false,
 					},
@@ -555,9 +558,9 @@ export const tryUpdateActivityModule = Result.wrap(
 			const version = await payload.create({
 				collection: "activity-module-versions",
 				data: {
-					activityModule: activityModule.id as number,
-					commit: commit.id as number,
-					branch: branch.id as number,
+					activityModule: activityModule.id,
+					commit: commit.id,
+					branch: branch.id,
 					content: newContent,
 					title: newTitle,
 					description: newDescription,
@@ -570,10 +573,10 @@ export const tryUpdateActivityModule = Result.wrap(
 			await payload.db.commitTransaction(transactionID);
 
 			return {
-				activityModule: activityModule as ActivityModule,
-				version: version as ActivityModuleVersion,
-				commit: commit as Commit,
-				branch: branch as Branch,
+				activityModule: activityModule,
+				version: version,
+				commit: commit,
+				branch: branch,
 			};
 		} catch (error) {
 			await payload.db.rollbackTransaction(transactionID);
@@ -593,11 +596,6 @@ export const tryUpdateActivityModule = Result.wrap(
 export const tryGetActivityModule = Result.wrap(
 	async (payload: Payload, args: GetActivityModuleArgs) => {
 		const { slug, id, branchName = "main", commitHash } = args;
-
-		if (!slug && !id) {
-			throw new Error("Either slug or id must be provided");
-		}
-
 		// Find activity module
 		let activityModule: ActivityModule;
 		if (slug) {
@@ -611,16 +609,18 @@ export const tryGetActivityModule = Result.wrap(
 			if (modules.docs.length === 0) {
 				throw new Error(`Activity module with slug '${slug}' not found`);
 			}
-			activityModule = modules.docs[0] as ActivityModule;
-		} else {
+			activityModule = modules.docs[0];
+		} else if (id) {
 			const module = await payload.findByID({
 				collection: "activity-modules",
-				id: id as number,
+				id: id,
 			});
 			if (!module) {
 				throw new Error(`Activity module with id '${id}' not found`);
 			}
-			activityModule = module as ActivityModule;
+			activityModule = module;
+		} else {
+			throw new Error("Either slug or id must be provided");
 		}
 
 		// Get branch
@@ -677,7 +677,7 @@ export const tryGetActivityModule = Result.wrap(
 			);
 		}
 
-		const version = versions.docs[0] as ActivityModuleVersion;
+		const version = versions.docs[0];
 
 		return {
 			activityModule,
@@ -765,8 +765,8 @@ export const trySearchActivityModules = Result.wrap(
 				});
 
 				return {
-					activityModule: module as ActivityModule,
-					version: (versions.docs[0] as ActivityModuleVersion) || null,
+					activityModule: module,
+					version: versions.docs[0] || null,
 				};
 			}),
 		);
@@ -856,8 +856,8 @@ export const tryMergeBranch = Result.wrap(
 			// Create a map of target branch activity modules for quick lookup
 			const targetModuleMap = new Map();
 			for (const version of targetVersions.docs) {
-				const v = version as ActivityModuleVersion;
-				targetModuleMap.set(v.activityModule as number, v);
+				const v = version;
+				targetModuleMap.set(v.activityModule, v);
 			}
 
 			const mergedVersions = [];
@@ -865,18 +865,48 @@ export const tryMergeBranch = Result.wrap(
 
 			// Process each source version
 			for (const sourceVersion of sourceVersions.docs) {
-				const sourceV = sourceVersion as ActivityModuleVersion;
-				const moduleId = sourceV.activityModule as number;
+				const sourceV = sourceVersion;
+				const moduleId = sourceV.activityModule;
 				const targetV = targetModuleMap.get(moduleId);
 
 				if (!targetV) {
+					if (
+						!(
+							typeof sourceV.content === "object" &&
+							!Array.isArray(sourceV.content)
+						)
+					) {
+						throw new Error("Source content is not an object");
+					}
 					// Module doesn't exist in target branch - copy it over
+					// Create a new commit for this copy to avoid unique constraint violation
+					const copyCommitHash = generateCommitHash(
+						sourceV.content || {},
+						`Copy from ${sourceBranchName}`,
+						userId,
+						new Date(),
+					);
+
+					const copyCommit = await payload.create({
+						collection: "commits",
+						data: {
+							hash: copyCommitHash,
+							message: `Copy from ${sourceBranchName}`,
+							author: userId,
+							committer: userId,
+							parentCommit: sourceV.commit,
+							isMergeCommit: false,
+							commitDate: new Date().toISOString(),
+						},
+						req: { transactionID },
+					});
+
 					const newVersion = await payload.create({
 						collection: "activity-module-versions",
 						data: {
-							activityModule: sourceV.activityModule as number,
-							commit: sourceV.commit as number,
-							branch: targetBranch.id as number,
+							activityModule: sourceV.activityModule,
+							commit: copyCommit.id,
+							branch: targetBranch.id,
 							content: sourceV.content,
 							title: sourceV.title,
 							description: sourceV.description,
@@ -886,16 +916,20 @@ export const tryMergeBranch = Result.wrap(
 						req: { transactionID },
 					});
 					mergedVersions.push(newVersion);
+					newCommits.push(copyCommit);
 				} else {
 					// Module exists in both branches - check if source is newer
 					const sourceCommit = await payload.findByID({
 						collection: "commits",
-						id: sourceV.commit as number,
+						id:
+							typeof sourceV.commit === "number"
+								? sourceV.commit
+								: sourceV.commit.id,
 						req: { transactionID },
 					});
 					const targetCommit = await payload.findByID({
 						collection: "commits",
-						id: targetV.commit as number,
+						id: targetV.commit,
 						req: { transactionID },
 					});
 
@@ -908,9 +942,19 @@ export const tryMergeBranch = Result.wrap(
 
 					// If source is newer, create a merge commit
 					if (sourceDate > targetDate) {
+						// is object and not array
+						if (
+							!(
+								typeof sourceV.content === "object" &&
+								!Array.isArray(sourceV.content)
+							)
+						) {
+							throw new Error("Source content is not an object");
+						}
+
 						// Generate merge commit hash
 						const mergeCommitHash = generateCommitHash(
-							(sourceV.content as Record<string, unknown>) || {},
+							sourceV.content || {},
 							mergeMessage,
 							userId,
 							new Date(),
@@ -924,7 +968,7 @@ export const tryMergeBranch = Result.wrap(
 								message: mergeMessage,
 								author: userId,
 								committer: userId,
-								parentCommit: targetV.commit as number,
+								parentCommit: targetV.commit,
 								isMergeCommit: true,
 								commitDate: new Date().toISOString(),
 							},
@@ -935,8 +979,8 @@ export const tryMergeBranch = Result.wrap(
 						await payload.create({
 							collection: "commit-parents",
 							data: {
-								commit: mergeCommit.id as number,
-								parentCommit: sourceV.commit as number,
+								commit: mergeCommit.id,
+								parentCommit: sourceV.commit,
 								parentOrder: 1, // Second parent (first parent is already set in the commit record)
 							},
 							req: { transactionID },
@@ -945,7 +989,7 @@ export const tryMergeBranch = Result.wrap(
 						// Mark current target version as not head
 						await payload.update({
 							collection: "activity-module-versions",
-							id: targetV.id as number,
+							id: targetV.id,
 							data: {
 								isCurrentHead: false,
 							},
@@ -956,9 +1000,9 @@ export const tryMergeBranch = Result.wrap(
 						const newVersion = await payload.create({
 							collection: "activity-module-versions",
 							data: {
-								activityModule: sourceV.activityModule as number,
-								commit: mergeCommit.id as number,
-								branch: targetBranch.id as number,
+								activityModule: sourceV.activityModule,
+								commit: mergeCommit.id,
+								branch: targetBranch.id,
 								content: sourceV.content,
 								title: sourceV.title,
 								description: sourceV.description,
@@ -988,11 +1032,15 @@ export const tryMergeBranch = Result.wrap(
 			throw error;
 		}
 	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to merge branch`, {
-			cause: error,
-		}),
+	(error) => {
+		console.error(JSON.stringify(error, null, 2));
+		return (
+			transformError(error) ??
+			new UnknownError(`Failed to merge branch`, {
+				cause: error,
+			})
+		);
+	},
 );
 
 /**
@@ -1001,10 +1049,6 @@ export const tryMergeBranch = Result.wrap(
 export const tryGetBranchesForModule = Result.wrap(
 	async (payload: Payload, args: GetBranchesForModuleArgs) => {
 		const { moduleSlug, moduleId } = args;
-
-		if (!moduleSlug && !moduleId) {
-			throw new Error("Either moduleSlug or moduleId must be provided");
-		}
 
 		// Find activity module
 		let activityModule: ActivityModule;
@@ -1019,16 +1063,18 @@ export const tryGetBranchesForModule = Result.wrap(
 			if (modules.docs.length === 0) {
 				throw new Error(`Activity module with slug '${moduleSlug}' not found`);
 			}
-			activityModule = modules.docs[0] as ActivityModule;
-		} else {
+			activityModule = modules.docs[0];
+		} else if (moduleId) {
 			const module = await payload.findByID({
 				collection: "activity-modules",
-				id: moduleId as number,
+				id: moduleId,
 			});
 			if (!module) {
 				throw new Error(`Activity module with id '${moduleId}' not found`);
 			}
-			activityModule = module as ActivityModule;
+			activityModule = module;
+		} else {
+			throw new Error("Either moduleSlug or moduleId must be provided");
 		}
 
 		// Find all versions of this module
@@ -1048,9 +1094,9 @@ export const tryGetBranchesForModule = Result.wrap(
 		});
 
 		// Extract unique branches
-		const branchMap = new Map();
+		const branchMap = new Map<number, Branch>();
 		for (const version of versions.docs) {
-			const v = version as ActivityModuleVersion;
+			const v = version;
 			const branch = v.branch;
 			if (typeof branch === "object" && branch !== null && "name" in branch) {
 				branchMap.set(branch.id, branch);
@@ -1059,7 +1105,7 @@ export const tryGetBranchesForModule = Result.wrap(
 
 		return {
 			activityModule,
-			branches: Array.from(branchMap.values()) as Branch[],
+			branches: Array.from(branchMap.values()),
 		};
 	},
 	(error) =>
@@ -1110,7 +1156,7 @@ export const tryDeleteBranch = Result.wrap(
 			for (const version of versions.docs) {
 				await payload.delete({
 					collection: "activity-module-versions",
-					id: version.id as number,
+					id: version.id,
 					req: { transactionID },
 				});
 			}
@@ -1118,13 +1164,13 @@ export const tryDeleteBranch = Result.wrap(
 			// Delete branch
 			const deletedBranch = await payload.delete({
 				collection: "branches",
-				id: branch.id as number,
+				id: branch.id,
 				req: { transactionID },
 			});
 
 			await payload.db.commitTransaction(transactionID);
 
-			return deletedBranch as Branch;
+			return deletedBranch;
 		} catch (error) {
 			await payload.db.rollbackTransaction(transactionID);
 			throw error;
@@ -1167,7 +1213,7 @@ export const tryDeleteActivityModule = Result.wrap(
 				throw new Error(`Activity module with slug '${moduleSlug}' not found`);
 			}
 
-			const activityModule = modules.docs[0] as ActivityModule;
+			const activityModule = modules.docs[0];
 
 			// Find all versions
 			const versions = await payload.find({
@@ -1182,7 +1228,7 @@ export const tryDeleteActivityModule = Result.wrap(
 			for (const version of versions.docs) {
 				await payload.delete({
 					collection: "activity-module-versions",
-					id: version.id as number,
+					id: version.id,
 					req: { transactionID },
 				});
 			}
@@ -1190,13 +1236,13 @@ export const tryDeleteActivityModule = Result.wrap(
 			// Delete activity module
 			const deletedModule = await payload.delete({
 				collection: "activity-modules",
-				id: activityModule.id as number,
+				id: activityModule.id,
 				req: { transactionID },
 			});
 
 			await payload.db.commitTransaction(transactionID);
 
-			return deletedModule as ActivityModule;
+			return deletedModule;
 		} catch (error) {
 			await payload.db.rollbackTransaction(transactionID);
 			throw error;

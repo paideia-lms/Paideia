@@ -465,7 +465,19 @@ describe("Activity Module Management Functions", () => {
 		}
 	});
 
-	test("comprehensive branch merge workflow", async () => {
+	/** 
+	 * now we can branch from main branch. let us create function to merge branch. the test case is like this: 
+
+1. create an activity module, check it is main branch
+2. create a branch 1, create a new commit, check it has 2 commits 
+3. create a branch 2 from branch 1, create a new commit, check it has 3 commits
+4. merge branch 2 back to branch 1, check branch 1 has 3 commits 
+5. merge branch 2 back to main branch, check main branch has 3 commits
+6. merge branch 1 to main branch, nothing should happens 
+7. select branches of this module, should have 3 branches
+8. delete branch 1 and 2, select branches again, should only have main 
+	 */
+	test.only("comprehensive branch merge workflow", async () => {
 		// Step 1: Create an activity module, check it is main branch
 		const createArgs: CreateActivityModuleArgs = {
 			slug: "merge-test-module",
