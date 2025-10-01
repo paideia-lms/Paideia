@@ -46,5 +46,7 @@ pre-commit:
   jobs:
     - name: typecheck
       run: bun typecheck
+      stage_fixed: true
     - name: lint
       run: bun lint
+      stage_fixed: true

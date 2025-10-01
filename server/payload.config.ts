@@ -3,8 +3,8 @@ import { postgresAdapter } from "@payloadcms/db-postgres";
 // import { EnhancedQueryLogger } from "drizzle-query-logger";
 import { type CollectionConfig, type Config, sanitizeConfig } from "payload";
 import { migrations } from "src/migrations";
-import { envVars } from "./env";
 import { UnauthorizedError } from "~/utils/error";
+import { envVars } from "./env";
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -119,15 +119,13 @@ export const Enrollments = {
 		},
 	],
 	hooks: {
-		beforeOperation: [({
-			collection,
-			operation,
-			req
-		}) => {
-			const user = req.user;
-			console.log("beforeOperation", collection, operation, user)
-			if (!user) throw new UnauthorizedError("Unauthorized")
-		}]
+		beforeOperation: [
+			({ collection, operation, req }) => {
+				const user = req.user;
+				console.log("beforeOperation", collection, operation, user);
+				if (!user) throw new UnauthorizedError("Unauthorized");
+			},
+		],
 	},
 	// Ensure unique user-course combinations
 	indexes: [
@@ -478,7 +476,7 @@ const config = {
 		Commits,
 		CommitParents,
 		ActivityModuleVersions,
-		Tags
+		Tags,
 	] as CollectionConfig[],
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),
