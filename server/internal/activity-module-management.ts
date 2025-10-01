@@ -2,7 +2,12 @@ import { createHash } from "node:crypto";
 import { MerkleTree } from "merkletreejs";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
-
+import {
+	DuplicateBranchError,
+	NonExistingSourceError,
+	transformError,
+	UnknownError,
+} from "~/utils/error";
 import type {
 	ActivityModule,
 	ActivityModuleVersion,
@@ -50,6 +55,13 @@ export interface GetActivityModuleArgs {
 	id?: number;
 	branchName?: string; // defaults to "main"
 	commitHash?: string; // get specific version
+}
+
+export interface CreateBranchArgs {
+	branchName: string;
+	description?: string;
+	fromBranch?: string; // defaults to "main"
+	userId: number;
 }
 
 /**
@@ -118,9 +130,10 @@ const tryGetOrCreateMainBranch = Result.wrap(
 		return mainBranch as Branch;
 	},
 	(error) =>
-		new Error(
-			`Failed to get or create main branch: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError(`Failed to get or create main branch`, {
+			cause: error,
+		}),
 );
 
 /**
@@ -141,15 +154,120 @@ const tryGetBranchByName = Result.wrap(
 		});
 
 		if (branches.docs.length === 0) {
-			throw new Error(`Branch '${branchName}' not found`);
+			throw new NonExistingSourceError(`Branch '${branchName}' not found`);
 		}
 
 		return branches.docs[0] as Branch;
 	},
 	(error) =>
-		new Error(
-			`Failed to get branch: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError(`Failed to get branch`, {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new branch from an existing branch
+ */
+export const tryCreateBranch = Result.wrap(
+	async (payload: Payload, args: CreateBranchArgs) => {
+		const { branchName, description, fromBranch = "main", userId } = args;
+
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new Error("Transaction ID not found");
+		}
+
+		try {
+			// Check if branch already exists
+			const existingBranches = await payload.find({
+				collection: "branches",
+				where: {
+					name: { equals: branchName },
+				},
+				req: { transactionID },
+			});
+
+			if (existingBranches.docs.length > 0) {
+				throw new DuplicateBranchError(`Branch '${branchName}' already exists`);
+			}
+
+			// Get the source branch
+			const sourceBranchResult = await tryGetBranchByName(
+				payload,
+				fromBranch,
+				transactionID,
+			);
+			if (!sourceBranchResult.ok) {
+				throw sourceBranchResult.error;
+			}
+			const sourceBranch = sourceBranchResult.value;
+
+			// Create new branch
+			const newBranch = await payload.create({
+				collection: "branches",
+				data: {
+					name: branchName,
+					description: description || `Branch created from ${fromBranch}`,
+					isDefault: false,
+					createdBy: userId,
+				},
+				req: { transactionID },
+			});
+
+			// Get all current head versions from the source branch
+			const sourceVersions = await payload.find({
+				collection: "activity-module-versions",
+				where: {
+					and: [
+						{ branch: { equals: sourceBranch.id } },
+						{ isCurrentHead: { equals: true } },
+					],
+				},
+				req: { transactionID },
+			});
+
+			// Copy all current head versions to the new branch
+			const copiedVersions = [];
+			for (const sourceVersion of sourceVersions.docs) {
+				const version = sourceVersion as ActivityModuleVersion;
+
+				const newVersion = await payload.create({
+					collection: "activity-module-versions",
+					data: {
+						activityModule: version.activityModule as number,
+						commit: version.commit as number,
+						branch: newBranch.id as number,
+						content: version.content,
+						title: version.title,
+						description: version.description,
+						isCurrentHead: true,
+						contentHash: version.contentHash,
+					},
+					req: { transactionID },
+				});
+
+				copiedVersions.push(newVersion);
+			}
+
+			await payload.db.commitTransaction(transactionID);
+
+			return {
+				branch: newBranch as Branch,
+				sourceBranch: sourceBranch,
+				copiedVersionsCount: copiedVersions.length,
+			};
+		} catch (error) {
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError(`Failed to create branch`, {
+			cause: error,
+		}),
 );
 
 /**
@@ -271,9 +389,10 @@ export const tryCreateActivityModule = Result.wrap(
 		}
 	},
 	(error) =>
-		new Error(
-			`Failed to create activity module: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError(`Failed to create activity module`, {
+			cause: error,
+		}),
 );
 
 /**
@@ -450,9 +569,10 @@ export const tryUpdateActivityModule = Result.wrap(
 		}
 	},
 	(error) =>
-		new Error(
-			`Failed to update activity module: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError(`Failed to update activity module`, {
+			cause: error,
+		}),
 );
 
 /**
@@ -554,9 +674,10 @@ export const tryGetActivityModule = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
-			`Failed to get activity module: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError(`Failed to get activity module`, {
+			cause: error,
+		}),
 );
 
 /**
@@ -649,9 +770,10 @@ export const trySearchActivityModules = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
-			`Failed to search activity modules: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError(`Failed to search activity modules:`, {
+			cause: error,
+		}),
 );
 
 /**
@@ -720,7 +842,8 @@ export const tryDeleteActivityModule = Result.wrap(
 		}
 	},
 	(error) =>
-		new Error(
-			`Failed to delete activity module: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError(`Failed to delete activity module:`, {
+			cause: error,
+		}),
 );

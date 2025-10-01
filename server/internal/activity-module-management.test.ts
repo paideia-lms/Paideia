@@ -1,16 +1,17 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { createHash } from "node:crypto";
 import { $ } from "bun";
 import { MerkleTree } from "merkletreejs";
 import { getPayload } from "payload";
+import { DuplicateBranchError, NonExistingSourceError } from "~/utils/error";
 import sanitizedConfig from "../payload.config";
-
 import {
 	type CreateActivityModuleArgs,
+	type CreateBranchArgs,
 	type GetActivityModuleArgs,
 	type SearchActivityModulesArgs,
 	SHA256,
 	tryCreateActivityModule,
+	tryCreateBranch,
 	tryDeleteActivityModule,
 	tryGetActivityModule,
 	trySearchActivityModules,
@@ -237,7 +238,7 @@ describe("Activity Module Management Functions", () => {
 				),
 				message: "Initial creation of test page module",
 				authorId: instructorId,
-				timestamp: commits[1].commitDate,
+				timestamp: new Date(commits[1].commitDate).toISOString(),
 			};
 			const initialDataString = JSON.stringify(initialCommitData);
 			const initialLeaves = [initialDataString].map((x) => SHA256(x));
@@ -259,7 +260,7 @@ describe("Activity Module Management Functions", () => {
 				),
 				message: "Updated content and styling",
 				authorId: instructorId,
-				timestamp: commits[0].commitDate,
+				timestamp: new Date(commits[0].commitDate).toISOString(),
 			};
 			const updatedDataString = JSON.stringify(updatedCommitData);
 			const updatedLeaves = [updatedDataString].map((x) => SHA256(x));
@@ -283,6 +284,81 @@ describe("Activity Module Management Functions", () => {
 				updatedExpectedHash,
 			);
 			expect(isBadValid).toBe(false);
+		}
+	});
+
+	test("should create a branch from main with existing activity modules", async () => {
+		const createBranchArgs: CreateBranchArgs = {
+			branchName: "feature-branch",
+			description: "Feature branch for testing",
+			fromBranch: "main",
+			userId: instructorId,
+		};
+
+		const result = await tryCreateBranch(payload, createBranchArgs);
+
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.value.branch.name).toBe("feature-branch");
+			expect(result.value.branch.description).toBe(
+				"Feature branch for testing",
+			);
+			expect(result.value.branch.isDefault).toBe(false);
+			expect(result.value.sourceBranch.name).toBe("main");
+			expect(result.value.copiedVersionsCount).toBe(1); // Should have copied the test-page-module
+
+			// Verify the activity module exists in the new branch
+			const getResult = await tryGetActivityModule(payload, {
+				slug: "test-page-module",
+				branchName: "feature-branch",
+			});
+
+			expect(getResult.ok).toBe(true);
+			if (getResult.ok) {
+				expect(getResult.value.activityModule.slug).toBe("test-page-module");
+				expect(getResult.value.branch.name).toBe("feature-branch");
+				expect(getResult.value.version.title).toBe("Updated Test Page Module"); // Should have the updated version
+				expect(getResult.value.version.content).toEqual({
+					html: "<h1>Updated welcome message</h1>",
+					css: "h1 { color: red; }",
+					js: "console.log('Updated!');",
+				});
+				expect(getResult.value.version.isCurrentHead).toBe(true);
+			}
+		}
+	});
+
+	test("should fail to create branch with duplicate name", async () => {
+		const createBranchArgs: CreateBranchArgs = {
+			branchName: "feature-branch", // This branch already exists
+			description: "Duplicate branch",
+			fromBranch: "main",
+			userId: instructorId,
+		};
+
+		const result = await tryCreateBranch(payload, createBranchArgs);
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toBeInstanceOf(DuplicateBranchError);
+			expect(result.error.message).toContain("already exists");
+		}
+	});
+
+	test("should fail to create branch from non-existent source branch", async () => {
+		const createBranchArgs: CreateBranchArgs = {
+			branchName: "another-branch",
+			description: "Branch from non-existent source",
+			fromBranch: "non-existent-branch",
+			userId: instructorId,
+		};
+
+		const result = await tryCreateBranch(payload, createBranchArgs);
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error).toBeInstanceOf(NonExistingSourceError);
+			expect(result.error.message).toContain("not found");
 		}
 	});
 
@@ -345,7 +421,9 @@ describe("Activity Module Management Functions", () => {
 
 		expect(getResult.ok).toBe(false);
 		if (!getResult.ok) {
-			expect(getResult.error.message).toContain("not found");
+			expect(getResult.error.message).toContain(
+				"Failed to get activity module",
+			);
 		}
 	});
 
@@ -366,7 +444,9 @@ describe("Activity Module Management Functions", () => {
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
-			expect(result.error.message).toContain("already exists");
+			expect(result.error.message).toContain(
+				"Failed to create activity module",
+			);
 		}
 	});
 
@@ -377,7 +457,7 @@ describe("Activity Module Management Functions", () => {
 
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
-			expect(result.error.message).toContain("not found");
+			expect(result.error.message).toContain("Failed to get activity module");
 		}
 	});
 });

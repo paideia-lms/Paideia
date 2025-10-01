@@ -37,6 +37,7 @@
 		"@mantine/form": "^8.3.2",
 		"@mantine/hooks": "^8.3.2",
 		"@mantine/notifications": "^8.3.2",
+		"@mermaid-js/mermaid-cli": "^11.12.0",
 		"@payloadcms/db-postgres": "^3.56.0",
 		"@react-router/fs-routes": "^7.9.1",
 		"@scalar/api-reference-react": "^0.7.51",

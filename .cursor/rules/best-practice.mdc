@@ -30,6 +30,8 @@ we should not use try catch. we should use typescript result to handle the error
 
 in the loader of react router, we should throw ErrorResponse rather than just error. 
 
+when throwing error using typescript result, we should first create the error in `app/utils/error.ts` first. The error class should be used in the `transformError` in `Result.wrap` or `Result.try`.
+
 ## Database 
 
 when an operation is doing multiple mutation to the database, we should **always** use transaction.
