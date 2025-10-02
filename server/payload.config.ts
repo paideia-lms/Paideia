@@ -377,6 +377,12 @@ export const Tags = {
 			required: true,
 		},
 		{
+			name: "origin",
+			type: "relationship",
+			relationTo: "origins",
+			required: true,
+		},
+		{
 			name: "tagType",
 			type: "select",
 			options: [
@@ -391,6 +397,13 @@ export const Tags = {
 			type: "relationship",
 			relationTo: "users",
 			required: true,
+		},
+	],
+	indexes: [
+		{
+			// tags will be unique by origin
+			fields: ["name", "origin"],
+			unique: true,
 		},
 	],
 } satisfies CollectionConfig;

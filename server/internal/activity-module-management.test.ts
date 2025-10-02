@@ -56,25 +56,14 @@ describe("Activity Module Management", () => {
 		}
 	});
 
-	// afterAll(async () => {
-	// 	// Clean up any test data
-	// 	try {
-	// 		await payload.delete({
-	// 			collection: "commits",
-	// 			where: {},
-	// 		});
-	// 		await payload.delete({
-	// 			collection: "activity-modules",
-	// 			where: {},
-	// 		});
-	// 		await payload.delete({
-	// 			collection: "users",
-	// 			where: {},
-	// 		});
-	// 	} catch (error) {
-	// 		console.warn("Cleanup failed:", error);
-	// 	}
-	// });
+	afterAll(async () => {
+		// Clean up any test data
+		try {
+			await $`bun run migrate:fresh --force-accept-warning`;
+		} catch (error) {
+			console.warn("Cleanup failed:", error);
+		}
+	});
 
 	test("should create an activity module with initial commit", async () => {
 		const args: CreateActivityModuleArgs = {

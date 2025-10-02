@@ -5,7 +5,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Commit } from "../payload-types";
+import type { Commit, Tag } from "../payload-types";
 import {
 	generateCommitHash,
 	generateContentHash,
@@ -199,6 +199,263 @@ export const tryGetCommitHistory = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get commit history", {
+			cause: error,
+		}),
+);
+
+export interface CreateTagArgs {
+	name: string;
+	description?: string;
+	commitId: number;
+	originId: number;
+	userId: number;
+	tagType?: "release" | "milestone" | "snapshot";
+}
+
+/**
+ * Creates a tag for a commit within an origin
+ */
+export const tryCreateTag = Result.wrap(
+	async (
+		payload: Payload,
+		args: CreateTagArgs,
+		transactionID?: string | number,
+	): Promise<Tag> => {
+		const {
+			name,
+			description,
+			commitId,
+			originId,
+			userId,
+			tagType = "snapshot",
+		} = args;
+
+		// Validate required fields
+		if (!name || name.trim() === "") {
+			throw new InvalidArgumentError("Tag name is required");
+		}
+
+		if (!commitId) {
+			throw new InvalidArgumentError("Commit ID is required");
+		}
+
+		if (!originId) {
+			throw new InvalidArgumentError("Origin ID is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Verify commit exists
+		const commit = await payload.findByID({
+			collection: "commits",
+			id: commitId,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		if (!commit) {
+			throw new InvalidArgumentError(`Commit with id '${commitId}' not found`);
+		}
+
+		// Verify origin exists
+		const origin = await payload.findByID({
+			collection: "origins",
+			id: originId,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		if (!origin) {
+			throw new InvalidArgumentError(`Origin with id '${originId}' not found`);
+		}
+
+		// Verify user exists
+		const user = await payload.findByID({
+			collection: "users",
+			id: userId,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		if (!user) {
+			throw new InvalidArgumentError(`User with id '${userId}' not found`);
+		}
+
+		// Create tag
+		const tag = await payload.create({
+			collection: "tags",
+			data: {
+				name,
+				description: description || null,
+				commit: commitId,
+				origin: originId,
+				tagType,
+				createdBy: userId,
+			},
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		return tag;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create tag", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets a tag by name within an origin
+ */
+export const tryGetTagByName = Result.wrap(
+	async (
+		payload: Payload,
+		name: string,
+		originId: number,
+		transactionID?: string | number,
+	): Promise<Tag> => {
+		if (!name || name.trim() === "") {
+			throw new InvalidArgumentError("Tag name is required");
+		}
+
+		if (!originId) {
+			throw new InvalidArgumentError("Origin ID is required");
+		}
+
+		const tags = await payload.find({
+			collection: "tags",
+			where: {
+				and: [{ name: { equals: name } }, { origin: { equals: originId } }],
+			},
+			pagination: false,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		if (tags.docs.length === 0) {
+			throw new InvalidArgumentError(
+				`Tag with name '${name}' not found in origin ${originId}`,
+			);
+		}
+
+		return tags.docs[0];
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get tag by name", {
+			cause: error,
+		}),
+);
+
+export interface GetTagsByCommitArgs {
+	commitId: number;
+}
+
+/**
+ * Gets all tags for a commit
+ */
+export const tryGetTagsByCommit = Result.wrap(
+	async (
+		payload: Payload,
+		args: GetTagsByCommitArgs,
+		transactionID?: string | number,
+	): Promise<Tag[]> => {
+		const { commitId } = args;
+
+		if (!commitId) {
+			throw new InvalidArgumentError("Commit ID is required");
+		}
+
+		const result = await payload.find({
+			collection: "tags",
+			where: {
+				commit: { equals: commitId },
+			},
+			sort: "-createdAt",
+			pagination: false,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		return result.docs;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get tags by commit", {
+			cause: error,
+		}),
+);
+
+export interface GetTagsByOriginArgs {
+	originId: number;
+}
+
+/**
+ * Gets all tags for an origin
+ */
+export const tryGetTagsByOrigin = Result.wrap(
+	async (
+		payload: Payload,
+		args: GetTagsByOriginArgs,
+		transactionID?: string | number,
+	): Promise<Tag[]> => {
+		const { originId } = args;
+
+		if (!originId) {
+			throw new InvalidArgumentError("Origin ID is required");
+		}
+
+		const result = await payload.find({
+			collection: "tags",
+			where: {
+				origin: { equals: originId },
+			},
+			sort: "-createdAt",
+			pagination: false,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		return result.docs;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get tags by origin", {
+			cause: error,
+		}),
+);
+
+/**
+ * Deletes a tag by ID
+ */
+export const tryDeleteTag = Result.wrap(
+	async (
+		payload: Payload,
+		tagId: number,
+		transactionID?: string | number,
+	): Promise<Tag> => {
+		if (!tagId) {
+			throw new InvalidArgumentError("Tag ID is required");
+		}
+
+		// Fetch the tag first to return it
+		const tag = await payload.findByID({
+			collection: "tags",
+			id: tagId,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		if (!tag) {
+			throw new InvalidArgumentError(`Tag with id '${tagId}' not found`);
+		}
+
+		await payload.delete({
+			collection: "tags",
+			id: tagId,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		return tag;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to delete tag", {
 			cause: error,
 		}),
 );

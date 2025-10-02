@@ -29,10 +29,7 @@ describe("Authentication Functions", () => {
 	afterAll(async () => {
 		// Clean up test data
 		try {
-			await payload.delete({
-				collection: "users",
-				where: {},
-			});
+			await $`bun run migrate:fresh --force-accept-warning`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

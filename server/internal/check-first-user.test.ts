@@ -28,10 +28,7 @@ describe("First User Check Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data if needed
 		try {
-			await payload.delete({
-				collection: "users",
-				where: {},
-			});
+			await $`bun run migrate:fresh --force-accept-warning`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

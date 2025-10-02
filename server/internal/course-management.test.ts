@@ -77,14 +77,7 @@ describe("Course Management Functions", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await payload.delete({
-				collection: "courses",
-				where: {},
-			});
-			await payload.delete({
-				collection: "users",
-				where: {},
-			});
+			await $`bun run migrate:fresh --force-accept-warning`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

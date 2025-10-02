@@ -268,6 +268,7 @@ export interface Tag {
   name: string;
   description?: string | null;
   commit: number | Commit;
+  origin: number | Origin;
   tagType?: ('release' | 'milestone' | 'snapshot') | null;
   createdBy: number | User;
   updatedAt: string;
@@ -464,6 +465,7 @@ export interface TagsSelect<T extends boolean = true> {
   name?: T;
   description?: T;
   commit?: T;
+  origin?: T;
   tagType?: T;
   createdBy?: T;
   updatedAt?: T;

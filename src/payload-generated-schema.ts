@@ -447,6 +447,11 @@ export const tags = pgTable(
       .references(() => commits.id, {
         onDelete: "set null",
       }),
+    origin: integer("origin_id")
+      .notNull()
+      .references(() => origins.id, {
+        onDelete: "set null",
+      }),
     tagType: enum_tags_tag_type("tag_type").default("snapshot"),
     createdBy: integer("created_by_id")
       .notNull()
@@ -471,9 +476,14 @@ export const tags = pgTable(
   (columns) => ({
     tags_name_idx: uniqueIndex("tags_name_idx").on(columns.name),
     tags_commit_idx: index("tags_commit_idx").on(columns.commit),
+    tags_origin_idx: index("tags_origin_idx").on(columns.origin),
     tags_created_by_idx: index("tags_created_by_idx").on(columns.createdBy),
     tags_updated_at_idx: index("tags_updated_at_idx").on(columns.updatedAt),
     tags_created_at_idx: index("tags_created_at_idx").on(columns.createdAt),
+    name_origin_idx: uniqueIndex("name_origin_idx").on(
+      columns.name,
+      columns.origin,
+    ),
   }),
 );
 
@@ -787,6 +797,11 @@ export const relations_tags = relations(tags, ({ one }) => ({
     fields: [tags.commit],
     references: [commits.id],
     relationName: "commit",
+  }),
+  origin: one(origins, {
+    fields: [tags.origin],
+    references: [origins.id],
+    relationName: "origin",
   }),
   createdBy: one(users, {
     fields: [tags.createdBy],

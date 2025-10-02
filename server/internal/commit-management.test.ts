@@ -6,6 +6,7 @@ import type { ActivityModule, User } from "../payload-types";
 import { tryCreateActivityModule } from "./activity-module-management";
 import {
 	tryCreateCommit,
+	tryCreateTag,
 	tryGetCommitByHash,
 	tryGetCommitHistory,
 } from "./commit-management";
@@ -76,22 +77,7 @@ describe("Commit Management", () => {
 	afterAll(async () => {
 		// Clean up any test data
 		try {
-			await payload.delete({
-				collection: "commits",
-				where: {},
-			});
-			await payload.delete({
-				collection: "activity-modules",
-				where: {},
-			});
-			await payload.delete({
-				collection: "origins",
-				where: {},
-			});
-			await payload.delete({
-				collection: "users",
-				where: {},
-			});
+			await $`bun run migrate:fresh --force-accept-warning`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
@@ -143,6 +129,24 @@ describe("Commit Management", () => {
 		} else {
 			expect(commit.parentCommit?.id).toBe(initialCommitId);
 		}
+
+		// tag the commit
+		const tagResult = await tryCreateTag(payload, {
+			commitId: commit.id,
+			originId:
+				typeof testActivityModule.origin === "object"
+					? testActivityModule.origin.id
+					: testActivityModule.origin,
+			userId: testUserId,
+			name: "Test Tag",
+			description: "Test tag description",
+		});
+		expect(tagResult.ok).toBe(true);
+		if (!tagResult.ok) return;
+
+		const tag = tagResult.value;
+		expect(tag.name).toBe("Test Tag");
+		expect(tag.description).toBe("Test tag description");
 	});
 
 	test("should create a commit with parent commit", async () => {
