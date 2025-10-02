@@ -56,25 +56,25 @@ describe("Activity Module Management", () => {
 		}
 	});
 
-	afterAll(async () => {
-		// Clean up any test data
-		try {
-			await payload.delete({
-				collection: "commits",
-				where: {},
-			});
-			await payload.delete({
-				collection: "activity-modules",
-				where: {},
-			});
-			await payload.delete({
-				collection: "users",
-				where: {},
-			});
-		} catch (error) {
-			console.warn("Cleanup failed:", error);
-		}
-	});
+	// afterAll(async () => {
+	// 	// Clean up any test data
+	// 	try {
+	// 		await payload.delete({
+	// 			collection: "commits",
+	// 			where: {},
+	// 		});
+	// 		await payload.delete({
+	// 			collection: "activity-modules",
+	// 			where: {},
+	// 		});
+	// 		await payload.delete({
+	// 			collection: "users",
+	// 			where: {},
+	// 		});
+	// 	} catch (error) {
+	// 		console.warn("Cleanup failed:", error);
+	// 	}
+	// });
 
 	test("should create an activity module with initial commit", async () => {
 		const args: CreateActivityModuleArgs = {
@@ -183,7 +183,7 @@ describe("Activity Module Management", () => {
 				"Test Error: New commit activity module item is not an object",
 			);
 		expect(newCommitActivityModule.id).toBe(activityModule.id);
-		console.log(newCommit.activityModule);
+		// console.log(newCommit.activityModule);
 		// should have 2 commits
 		expect(newCommitActivityModule.commits?.docs?.length).toBe(2);
 
@@ -338,8 +338,9 @@ describe("Activity Module Management", () => {
 		const initialCommit = originalModule.commits?.docs?.[0];
 		// @ts-expect-error
 		let initialCommitId = initialCommit?.id;
+		const commitCounts = 10;
 		// create 99 more commits on this branch
-		for (let i = 0; i < 9; i++) {
+		for (let i = 0; i < commitCounts - 1; i++) {
 			const commitArgs: CreateCommitArgs = {
 				activityModule: originalModule.id,
 				message: `Commit ${i + 1}`,
@@ -363,7 +364,21 @@ describe("Activity Module Management", () => {
 			},
 			pagination: false,
 		});
-		expect(commits.docs?.length).toBe(10);
+		expect(commits.docs?.length).toBe(commitCounts);
+
+		// get the activity module by id
+		const originalModuleResult = await tryGetActivityModuleById(payload, {
+			id: originalModule.id,
+		});
+		expect(originalModuleResult.ok).toBe(true);
+		if (!originalModuleResult.ok)
+			throw new Error("Failed to get original module");
+
+		// console.log(originalModuleResult.value)
+		// check if original module has 100 commits
+		expect(originalModuleResult.value?.commits?.docs?.length).toBe(
+			commitCounts,
+		);
 
 		// Create a branch from the original module
 		const branchArgs: CreateBranchArgs = {
@@ -429,14 +444,14 @@ describe("Activity Module Management", () => {
 		expect(mainBranchModule.branches).not.toBeNull();
 		expect(mainBranchModule.branches?.docs?.length).toBe(2);
 
-		console.log(JSON.stringify(mainBranchModule, null, 2));
+		// console.log(JSON.stringify(mainBranchModule, null, 2));
+
+		// check if main branch has 100 commits
+		expect(mainBranchModule.commits?.docs?.length).toBe(commitCounts);
 
 		// get the feature-branch
 		const featureBranchResult = await tryGetActivityModuleById(payload, {
 			id: branchModule.id,
-			options: {
-				branch: "feature-branch",
-			},
 		});
 		expect(featureBranchResult.ok).toBe(true);
 		if (!featureBranchResult.ok) return;
@@ -454,13 +469,12 @@ describe("Activity Module Management", () => {
 		// ! branches will not have branches, only main branch will have branches
 		expect(featureBranchModule.branches?.docs?.length).toBe(0);
 		expect(featureBranchModule.origin.branches?.docs?.length).toBe(2);
+		// feature branch should have 100 commits
+		expect(featureBranchModule.commits?.docs?.length).toBe(commitCounts);
 
 		// get the sub-feature-branch
 		const subFeatureBranchResult = await tryGetActivityModuleById(payload, {
 			id: subBranchModule.id,
-			options: {
-				branch: "sub-feature-branch",
-			},
 		});
 
 		expect(subFeatureBranchResult.ok).toBe(true);
@@ -480,7 +494,9 @@ describe("Activity Module Management", () => {
 		// ! branches will not have branches, only main branch will have branches
 		expect(subFeatureBranchModule.branches?.docs?.length).toBe(0);
 		expect(subFeatureBranchModule.origin.branches?.docs?.length).toBe(2);
-	}, 10000);
+		// subbranch should have 100 commits
+		expect(subFeatureBranchModule.commits?.docs?.length).toBe(commitCounts);
+	});
 
 	test("should delete an activity module and all branches", async () => {
 		// delete the subbranch
@@ -525,5 +541,5 @@ describe("Activity Module Management", () => {
 		});
 		// should not be found
 		expect(getMainBranchResult.ok).toBe(false);
-	}, 10000);
+	});
 });

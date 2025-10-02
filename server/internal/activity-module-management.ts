@@ -1,6 +1,9 @@
+import "@total-typescript/ts-reset";
 import { createHash } from "node:crypto";
 import { MerkleTree } from "merkletreejs";
 import type { Payload } from "payload";
+import { getTx } from "server/utils/get-tx";
+import { commits_rels } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -10,6 +13,8 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { ActivityModule, Commit } from "../payload-types";
+
+const MOCK_INFINITY = 999999999999999;
 
 export function SHA256(data: string): string {
 	return createHash("sha256").update(data).digest("hex");
@@ -196,13 +201,11 @@ export const tryCreateActivityModule = Result.wrap(
 export interface GetActivityModuleByIdArgs {
 	id: number | string;
 	depth?: number;
-	options?: {
-		branch?: string;
-	};
+	transactionID?: string | number;
 }
 
 /**
- * Get an activity module by ID
+ * Get an activity module by ID. You can also use this function to get a branch by its ID.
  *
  * This function fetches an activity module by its ID with optional depth control
  * for relationships (e.g., commits, createdBy)
@@ -212,7 +215,7 @@ export const tryGetActivityModuleById = Result.wrap(
 		payload: Payload,
 		args: GetActivityModuleByIdArgs,
 	): Promise<ActivityModule> => {
-		const { id, depth = 1, options } = args;
+		const { id, depth = 1 } = args;
 
 		// Validate ID
 		if (!id) {
@@ -220,16 +223,27 @@ export const tryGetActivityModuleById = Result.wrap(
 		}
 
 		// Fetch the activity module
-		const activityModule = await payload.findByID({
+		const activityModuleResult = await payload.find({
 			collection: "activity-modules",
-			id,
+			where: {
+				and: [
+					{
+						id: { equals: id },
+					},
+				],
+			},
 			depth,
-			...(options && {
-				where: {
-					branch: { equals: options.branch },
+			joins: {
+				branches: {
+					limit: MOCK_INFINITY,
 				},
-			}),
+				commits: {
+					limit: MOCK_INFINITY,
+				},
+			},
 		});
+
+		const activityModule = activityModuleResult.docs[0];
 
 		if (!activityModule) {
 			throw new NonExistingActivityModuleError(
@@ -316,30 +330,27 @@ export const tryCreateBranch = Result.wrap(
 					? sourceModule.origin.id
 					: sourceModule.origin || sourceModule.id;
 
-			// Get the origin module to fetch all commits
-			const originModule = await payload.findByID({
-				collection: "activity-modules",
+			const originModuleResult = await tryGetActivityModuleById(payload, {
 				id: origin,
-				depth: 1,
-				req: { transactionID },
+				transactionID,
 			});
 
-			if (!originModule) {
+			if (!originModuleResult.ok) {
 				throw new NonExistingActivityModuleError(
 					`Origin activity module with id '${origin}' not found`,
 				);
 			}
 
+			const originModule = originModuleResult.value;
+
 			// Create new branch
-			const newBranch = await payload.create({
+			const newBranch = await payload.duplicate({
 				collection: "activity-modules",
+				id: sourceModule.id,
 				data: {
-					title: sourceModule.title,
-					description: sourceModule.description ?? null,
 					branch: branchName,
 					origin: origin,
-					type: sourceModule.type,
-					status: sourceModule.status,
+					status: "draft",
 					createdBy: userId,
 				},
 				req: { transactionID },
@@ -347,43 +358,32 @@ export const tryCreateBranch = Result.wrap(
 
 			// Link all commits from origin to the new branch
 			const commits = originModule.commits?.docs ?? [];
-			for (const commitRef of commits) {
-				const commitId =
-					typeof commitRef === "number" ? commitRef : commitRef.id;
+			const commitIds = commits.map((commit) =>
+				typeof commit === "number" ? commit : commit.id,
+			);
 
-				// Fetch the commit to get its current activityModule array
-				const commit = await payload.findByID({
-					collection: "commits",
-					id: commitId,
-					req: { transactionID },
-				});
+			const tx = getTx(payload, transactionID);
 
-				if (commit && commit.activityModule) {
-					// Get current activity module IDs
-					const currentModules = Array.isArray(commit.activityModule)
-						? commit.activityModule.map((m) =>
-								typeof m === "number" ? m : m.id,
-							)
-						: [];
+			if (!newBranch.id) throw new Error("New branch ID not found");
 
-					// Add the new branch if not already included
-					if (!currentModules.includes(newBranch.id)) {
-						await payload.update({
-							collection: "commits",
-							id: commitId,
-							data: {
-								activityModule: [...currentModules, newBranch.id],
-							},
-							req: { transactionID },
-						});
-					}
-				}
-			}
+			// ? does this works with transactions?
+			// batch insertion
+			await tx.insert(commits_rels).values(
+				commitIds.map((id) => ({
+					parent: id,
+					// ? order is 1, I don't know why
+					order: 1,
+					// ! the path is the name of the activity module
+					path: "activityModule",
+					"activity-modulesID": newBranch.id,
+				})),
+			);
 
 			await payload.db.commitTransaction(transactionID);
 
 			return newBranch;
 		} catch (error) {
+			console.error(error);
 			await payload.db.rollbackTransaction(transactionID);
 			throw error;
 		}
@@ -471,22 +471,23 @@ export const tryDeleteActivityModule = Result.wrap(
 					activityModule.branches?.docs?.map((branch) =>
 						typeof branch === "number" ? branch : branch.id,
 					) ?? [];
-				// delete the activty and all branches
-				const promises = branchIds.map((branchId) =>
-					payload.delete({
-						collection: "activity-modules",
-						id: branchId,
-						req: { transactionID },
-					}),
-				);
-				await Promise.all([
-					...promises,
-					payload.delete({
-						collection: "activity-modules",
-						id,
-						req: { transactionID },
-					}),
-				]);
+
+				await payload.delete({
+					collection: "activity-modules",
+					where: {
+						or: [
+							{
+								id: {
+									in: branchIds,
+								},
+							},
+							{
+								id: { equals: activityModule.id },
+							},
+						],
+					},
+					req: { transactionID },
+				});
 			}
 
 			await payload.db.commitTransaction(transactionID);

@@ -1,6 +1,6 @@
 import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
-// import { EnhancedQueryLogger } from "drizzle-query-logger";
+import { EnhancedQueryLogger } from "drizzle-query-logger";
 import { type CollectionConfig, type Config, sanitizeConfig } from "payload";
 import { migrations } from "src/migrations";
 import { UnauthorizedError } from "~/utils/error";
@@ -377,7 +377,13 @@ const pg = postgresAdapter({
 	},
 
 	prodMigrations: migrations,
-	// logger: process.env.NODE_ENV !== "production" ? new EnhancedQueryLogger() : undefined
+	// disable logger in different environments
+	logger:
+		process.env.NODE_ENV !== "test" &&
+		process.env.NODE_ENV !== "production" &&
+		process.env.NODE_ENV !== "development"
+			? new EnhancedQueryLogger()
+			: undefined,
 	push:
 		process.env.NODE_ENV !== "test" && process.env.NODE_ENV !== "production",
 });
