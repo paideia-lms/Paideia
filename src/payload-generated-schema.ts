@@ -262,6 +262,43 @@ export const enrollments = pgTable(
   }),
 );
 
+export const origins = pgTable(
+  "origins",
+  {
+    id: serial("id").primaryKey(),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    origins_created_by_idx: index("origins_created_by_idx").on(
+      columns.createdBy,
+    ),
+    origins_updated_at_idx: index("origins_updated_at_idx").on(
+      columns.updatedAt,
+    ),
+    origins_created_at_idx: index("origins_created_at_idx").on(
+      columns.createdAt,
+    ),
+  }),
+);
+
 export const activity_modules = pgTable(
   "activity_modules",
   {
@@ -269,12 +306,11 @@ export const activity_modules = pgTable(
     title: varchar("title").notNull(),
     description: varchar("description"),
     branch: varchar("branch").notNull().default("main"),
-    origin: integer("origin_id").references(
-      (): AnyPgColumn => activity_modules.id,
-      {
+    origin: integer("origin_id")
+      .notNull()
+      .references(() => origins.id, {
         onDelete: "set null",
-      },
-    ),
+      }),
     type: enum_activity_modules_type("type").notNull(),
     status: enum_activity_modules_status("status").default("draft"),
     createdBy: integer("created_by_id")
@@ -310,6 +346,10 @@ export const activity_modules = pgTable(
     activity_modules_created_at_idx: index(
       "activity_modules_created_at_idx",
     ).on(columns.createdAt),
+    branch_origin_idx: uniqueIndex("branch_origin_idx").on(
+      columns.branch,
+      columns.origin,
+    ),
   }),
 );
 
@@ -480,6 +520,7 @@ export const payload_locked_documents_rels = pgTable(
     usersID: integer("users_id"),
     coursesID: integer("courses_id"),
     enrollmentsID: integer("enrollments_id"),
+    originsID: integer("origins_id"),
     "activity-modulesID": integer("activity_modules_id"),
     commitsID: integer("commits_id"),
     tagsID: integer("tags_id"),
@@ -499,6 +540,9 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_enrollments_id_idx: index(
       "payload_locked_documents_rels_enrollments_id_idx",
     ).on(columns.enrollmentsID),
+    payload_locked_documents_rels_origins_id_idx: index(
+      "payload_locked_documents_rels_origins_id_idx",
+    ).on(columns.originsID),
     payload_locked_documents_rels_activity_modules_id_idx: index(
       "payload_locked_documents_rels_activity_modules_id_idx",
     ).on(columns["activity-modulesID"]),
@@ -527,6 +571,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["enrollmentsID"]],
       foreignColumns: [enrollments.id],
       name: "payload_locked_documents_rels_enrollments_fk",
+    }).onDelete("cascade"),
+    originsIdFk: foreignKey({
+      columns: [columns["originsID"]],
+      foreignColumns: [origins.id],
+      name: "payload_locked_documents_rels_origins_fk",
     }).onDelete("cascade"),
     "activity-modulesIdFk": foreignKey({
       columns: [columns["activity-modulesID"]],
@@ -684,12 +733,19 @@ export const relations_enrollments = relations(enrollments, ({ one }) => ({
     relationName: "course",
   }),
 }));
+export const relations_origins = relations(origins, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [origins.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
 export const relations_activity_modules = relations(
   activity_modules,
   ({ one }) => ({
-    origin: one(activity_modules, {
+    origin: one(origins, {
       fields: [activity_modules.origin],
-      references: [activity_modules.id],
+      references: [origins.id],
       relationName: "origin",
     }),
     createdBy: one(users, {
@@ -761,6 +817,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [enrollments.id],
       relationName: "enrollments",
     }),
+    originsID: one(origins, {
+      fields: [payload_locked_documents_rels.originsID],
+      references: [origins.id],
+      relationName: "origins",
+    }),
     "activity-modulesID": one(activity_modules, {
       fields: [payload_locked_documents_rels["activity-modulesID"]],
       references: [activity_modules.id],
@@ -828,6 +889,7 @@ type DatabaseSchema = {
   courses_tags: typeof courses_tags;
   courses: typeof courses;
   enrollments: typeof enrollments;
+  origins: typeof origins;
   activity_modules: typeof activity_modules;
   commits: typeof commits;
   commits_rels: typeof commits_rels;
@@ -842,6 +904,7 @@ type DatabaseSchema = {
   relations_courses_tags: typeof relations_courses_tags;
   relations_courses: typeof relations_courses;
   relations_enrollments: typeof relations_enrollments;
+  relations_origins: typeof relations_origins;
   relations_activity_modules: typeof relations_activity_modules;
   relations_commits_rels: typeof relations_commits_rels;
   relations_commits: typeof relations_commits;

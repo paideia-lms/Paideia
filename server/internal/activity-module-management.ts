@@ -75,9 +75,10 @@ export const generateCommitHash = (
  * Creates a new activity module with initial commit
  *
  * This function:
- * 1. Creates an activity module
- * 2. Creates an initial commit for the activity module
- * 3. Uses transactions to ensure atomicity
+ * 1. Creates an origin (root of all branches)
+ * 2. Creates an activity module with the origin
+ * 3. Creates an initial commit for the activity module
+ * 4. Uses transactions to ensure atomicity
  */
 export const tryCreateActivityModule = Result.wrap(
 	async (
@@ -130,7 +131,16 @@ export const tryCreateActivityModule = Result.wrap(
 				throw new InvalidArgumentError(`User with id '${userId}' not found`);
 			}
 
-			// Create activity module
+			// Create origin first (root of all branches)
+			const origin = await payload.create({
+				collection: "origins",
+				data: {
+					createdBy: userId,
+				},
+				req: { transactionID },
+			});
+
+			// Create activity module with the origin
 			const activityModule = await payload.create({
 				collection: "activity-modules",
 				data: {
@@ -139,18 +149,9 @@ export const tryCreateActivityModule = Result.wrap(
 					branch: "main", // Default branch
 					type,
 					status,
+					origin: origin.id,
 					createdBy: userId,
 				} as never,
-				req: { transactionID },
-			});
-
-			// set the origin to itself
-			await payload.update({
-				collection: "activity-modules",
-				id: activityModule.id,
-				data: {
-					origin: activityModule.id,
-				},
 				req: { transactionID },
 			});
 
@@ -218,7 +219,7 @@ export interface GetActivityModuleByIdArgs {
  * Get an activity module by ID. You can also use this function to get a branch by its ID.
  *
  * This function fetches an activity module by its ID with optional depth control
- * for relationships (e.g., commits, createdBy)
+ * for relationships (e.g., commits, createdBy, origin)
  */
 export const tryGetActivityModuleById = Result.wrap(
 	async (
@@ -244,9 +245,6 @@ export const tryGetActivityModuleById = Result.wrap(
 			},
 			depth,
 			joins: {
-				branches: {
-					limit: MOCK_INFINITY,
-				},
 				commits: {
 					limit: MOCK_INFINITY,
 				},
@@ -281,9 +279,9 @@ export interface CreateBranchArgs {
  *
  * This function:
  * 1. Fetches the source activity module
- * 2. Creates a new activity module with the same properties but different branch name
- * 3. Sets the origin to point to the source module (or source's origin if it exists)
- * 4. No commits are duplicated - the new branch conceptually inherits commits from origin
+ * 2. Gets the origin ID from the source module
+ * 3. Creates a new activity module with the same properties but different branch name
+ * 4. Links all commits from the source module to the new branch
  */
 export const tryCreateBranch = Result.wrap(
 	async (payload: Payload, args: CreateBranchArgs): Promise<ActivityModule> => {
@@ -309,19 +307,20 @@ export const tryCreateBranch = Result.wrap(
 		}
 
 		try {
-			// Fetch source activity module
-			const sourceModule = await payload.findByID({
-				collection: "activity-modules",
+			// Fetch source activity module with commits
+			const sourceModuleResult = await tryGetActivityModuleById(payload, {
 				id: sourceActivityModuleId,
 				depth: 1,
-				req: { transactionID },
+				transactionID,
 			});
 
-			if (!sourceModule) {
+			if (!sourceModuleResult.ok) {
 				throw new NonExistingActivityModuleError(
 					`Source activity module with id '${sourceActivityModuleId}' not found`,
 				);
 			}
+
+			const sourceModule = sourceModuleResult.value;
 
 			// Verify user exists
 			const user = await payload.findByID({
@@ -334,24 +333,17 @@ export const tryCreateBranch = Result.wrap(
 				throw new InvalidArgumentError(`User with id '${userId}' not found`);
 			}
 
-			// Determine the origin (if source has origin, use that; otherwise use source)
-			const origin =
-				sourceModule.origin && typeof sourceModule.origin === "object"
+			// Get the origin ID from the source module
+			const originId =
+				typeof sourceModule.origin === "object"
 					? sourceModule.origin.id
-					: sourceModule.origin || sourceModule.id;
+					: sourceModule.origin;
 
-			const originModuleResult = await tryGetActivityModuleById(payload, {
-				id: origin,
-				transactionID,
-			});
-
-			if (!originModuleResult.ok) {
-				throw new NonExistingActivityModuleError(
-					`Origin activity module with id '${origin}' not found`,
+			if (!originId) {
+				throw new InvalidArgumentError(
+					"Source module does not have a valid origin",
 				);
 			}
-
-			const originModule = originModuleResult.value;
 
 			// Create new branch
 			const newBranch = await payload.duplicate({
@@ -359,15 +351,15 @@ export const tryCreateBranch = Result.wrap(
 				id: sourceModule.id,
 				data: {
 					branch: branchName,
-					origin: origin,
 					status: "draft",
 					createdBy: userId,
+					origin: originId,
 				},
 				req: { transactionID },
 			});
 
-			// Link all commits from origin to the new branch
-			const commits = originModule.commits?.docs ?? [];
+			// Link all commits from source module to the new branch
+			const commits = sourceModule.commits?.docs ?? [];
 			const commitIds = commits.map((commit) =>
 				typeof commit === "number" ? commit : commit.id,
 			);
@@ -376,18 +368,19 @@ export const tryCreateBranch = Result.wrap(
 
 			if (!newBranch.id) throw new Error("New branch ID not found");
 
-			// ? does this works with transactions?
-			// batch insertion
-			await tx.insert(commits_rels).values(
-				commitIds.map((id) => ({
-					parent: id,
-					// ? order is 1, I don't know why
-					order: 1,
-					// ! the path is the name of the activity module
-					path: "activityModule",
-					"activity-modulesID": newBranch.id,
-				})),
-			);
+			// Batch insertion of commit relationships
+			if (commitIds.length > 0) {
+				await tx.insert(commits_rels).values(
+					commitIds.map((id) => ({
+						parent: id,
+						// ? order is 1, I don't know why
+						order: 1,
+						// ! the path is the name of the activity module
+						path: "activityModule",
+						"activity-modulesID": newBranch.id,
+					})),
+				);
+			}
 
 			await payload.db.commitTransaction(transactionID);
 
@@ -411,18 +404,20 @@ type CompareBranchesArgs = {
 };
 
 export const tryCompareBranches = Result.wrap(
-	async (payload: Payload, args: CompareBranchesArgs) => {
+	async (_payload: Payload, args: CompareBranchesArgs) => {
 		const { branch1, branch2 } = args;
 
-		const haveSameOrigin = branch1.origin === branch2.origin;
-		const eitherOneIsOrigin =
-			branch1.origin === branch1.id || branch2.origin === branch2.id;
+		// Get origin IDs from both branches
+		const origin1Id =
+			typeof branch1.origin === "object" ? branch1.origin.id : branch1.origin;
+		const origin2Id =
+			typeof branch2.origin === "object" ? branch2.origin.id : branch2.origin;
 
-		if (!haveSameOrigin && !eitherOneIsOrigin) {
+		if (origin1Id !== origin2Id) {
 			throw new InvalidArgumentError("Branches do not have the same origin");
 		}
 
-		// now we confirm that branches has the origin
+		// now we confirm that branches have the same origin
 
 		// TODO: compare the commits
 
@@ -437,16 +432,25 @@ export const tryCompareBranches = Result.wrap(
 
 type DeleteActivityModuleArgs = {
 	id: number;
+	/**
+	 * If true, deletes all branches (activity modules) associated with the same origin
+	 * If false, only deletes the specified activity module
+	 */
+	deleteAllBranches?: boolean;
 };
 
 /**
- * you can use this functions to delete an activity module or a branch
+ * Deletes an activity module (branch)
  *
- * ! deleting a branch will not delete the commits, the activity module will be set null .
+ * By default, only deletes the specified activity module.
+ * Set deleteAllBranches to true to delete all branches of the same origin.
+ *
+ * Note: Deleting an activity module does not delete the commits,
+ * as commits may be referenced by other branches.
  */
 export const tryDeleteActivityModule = Result.wrap(
 	async (payload: Payload, args: DeleteActivityModuleArgs) => {
-		const { id } = args;
+		const { id, deleteAllBranches = false } = args;
 
 		const transactionID = await payload.db.beginTransaction();
 
@@ -455,10 +459,11 @@ export const tryDeleteActivityModule = Result.wrap(
 		}
 
 		try {
-			// fetch the activity module
+			// Fetch the activity module
 			const activityModule = await payload.findByID({
 				collection: "activity-modules",
 				id,
+				req: { transactionID },
 			});
 
 			if (!activityModule) {
@@ -467,35 +472,37 @@ export const tryDeleteActivityModule = Result.wrap(
 				);
 			}
 
-			const isMainBranch = activityModule.origin === null;
+			if (deleteAllBranches) {
+				// Get the origin ID
+				const originId =
+					typeof activityModule.origin === "object"
+						? activityModule.origin.id
+						: activityModule.origin;
 
-			// delete the activity module
-			if (!isMainBranch) {
-				await payload.delete({
-					collection: "activity-modules",
-					id,
-					req: { transactionID },
-				});
-			} else {
-				const branchIds =
-					activityModule.branches?.docs?.map((branch) =>
-						typeof branch === "number" ? branch : branch.id,
-					) ?? [];
+				if (!originId) {
+					throw new InvalidArgumentError("Activity module has no valid origin");
+				}
 
+				// Delete all activity modules with this origin
 				await payload.delete({
 					collection: "activity-modules",
 					where: {
-						or: [
-							{
-								id: {
-									in: branchIds,
-								},
-							},
-							{
-								id: { equals: activityModule.id },
-							},
-						],
+						origin: { equals: originId },
 					},
+					req: { transactionID },
+				});
+
+				// Optionally delete the origin itself
+				await payload.delete({
+					collection: "origins",
+					id: originId,
+					req: { transactionID },
+				});
+			} else {
+				// Delete only the specified activity module
+				await payload.delete({
+					collection: "activity-modules",
+					id,
 					req: { transactionID },
 				});
 			}

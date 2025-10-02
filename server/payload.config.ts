@@ -177,6 +177,32 @@ export const Users = {
 	slug: "users",
 } satisfies CollectionConfig;
 
+// Origins collection - tracks the root of activity module branches
+export const Origins = {
+	slug: "origins",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "branches",
+			type: "join",
+			on: "origin",
+			collection: "activity-modules",
+			label: "Activity Module Branches",
+			hasMany: true,
+			defaultSort: "-createdAt",
+			defaultLimit: 999999,
+			maxDepth: 2,
+		},
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+			maxDepth: 2,
+		},
+	],
+} satisfies CollectionConfig;
+
 // Activity Modules collection - core learning activities
 export const ActivityModules = {
 	slug: "activity-modules",
@@ -202,22 +228,13 @@ export const ActivityModules = {
 			label: "Branch Name",
 		},
 		{
-			name: "branches",
-			type: "join",
-			on: "origin",
-			collection: "activity-modules",
-			label: "Branches",
-			hasMany: true,
-			defaultSort: "-createdAt",
-			maxDepth: 2,
-		},
-		{
-			// ! this is the activity module that this activity module is based on
-			// ! this is optional, if this is null, it is the origin itself
+			// ! this is the origin that this activity module belongs to
+			// ! all branches of the same activity module share the same origin
 			name: "origin",
 			type: "relationship",
-			relationTo: "activity-modules",
+			relationTo: "origins",
 			label: "Origin",
+			required: true,
 		},
 		{
 			name: "commits",
@@ -257,6 +274,13 @@ export const ActivityModules = {
 			relationTo: "users",
 			required: true,
 			maxDepth: 2,
+		},
+	],
+	indexes: [
+		{
+			// branches will be unique by origin
+			fields: ["branch", "origin"],
+			unique: true,
 		},
 	],
 } satisfies CollectionConfig;
@@ -399,6 +423,7 @@ const config = {
 		Users,
 		Courses,
 		Enrollments,
+		Origins,
 		ActivityModules,
 		Commits,
 		Tags,

@@ -70,6 +70,7 @@ export interface Config {
     users: User;
     courses: Course;
     enrollments: Enrollment;
+    origins: Origin;
     'activity-modules': ActivityModule;
     commits: Commit;
     tags: Tag;
@@ -78,8 +79,10 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
-    'activity-modules': {
+    origins: {
       branches: 'activity-modules';
+    };
+    'activity-modules': {
       commits: 'commits';
     };
   };
@@ -87,6 +90,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
+    origins: OriginsSelect<false> | OriginsSelect<true>;
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
     commits: CommitsSelect<false> | CommitsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
@@ -196,6 +200,21 @@ export interface Enrollment {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "origins".
+ */
+export interface Origin {
+  id: number;
+  branches?: {
+    docs?: (number | ActivityModule)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "activity-modules".
  */
 export interface ActivityModule {
@@ -203,12 +222,7 @@ export interface ActivityModule {
   title: string;
   description?: string | null;
   branch: string;
-  branches?: {
-    docs?: (number | ActivityModule)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  origin?: (number | null) | ActivityModule;
+  origin: number | Origin;
   commits?: {
     docs?: (number | Commit)[];
     hasNextPage?: boolean;
@@ -277,6 +291,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'enrollments';
         value: number | Enrollment;
+      } | null)
+    | ({
+        relationTo: 'origins';
+        value: number | Origin;
       } | null)
     | ({
         relationTo: 'activity-modules';
@@ -398,13 +416,22 @@ export interface EnrollmentsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "origins_select".
+ */
+export interface OriginsSelect<T extends boolean = true> {
+  branches?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "activity-modules_select".
  */
 export interface ActivityModulesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   branch?: T;
-  branches?: T;
   origin?: T;
   commits?: T;
   type?: T;

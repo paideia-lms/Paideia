@@ -85,6 +85,10 @@ describe("Commit Management", () => {
 				where: {},
 			});
 			await payload.delete({
+				collection: "origins",
+				where: {},
+			});
+			await payload.delete({
 				collection: "users",
 				where: {},
 			});

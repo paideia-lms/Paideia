@@ -439,10 +439,13 @@ describe("Activity Module Management", () => {
 		if (!mainBranchResult.ok) return;
 		const mainBranchModule = mainBranchResult.value;
 
+		// origin should be object
+		if (!mainBranchModule.origin || typeof mainBranchModule.origin !== "object")
+			throw new Error("Test Error: Main branch module origin is not an object");
 		// main branch should have 2 branches
-		expect(mainBranchModule.branches).toBeDefined();
-		expect(mainBranchModule.branches).not.toBeNull();
-		expect(mainBranchModule.branches?.docs?.length).toBe(3);
+		expect(mainBranchModule.origin).toBeDefined();
+		expect(mainBranchModule.origin.branches).not.toBeNull();
+		expect(mainBranchModule.origin.branches?.docs?.length).toBe(3);
 
 		// console.log(JSON.stringify(mainBranchModule, null, 2));
 
@@ -466,8 +469,6 @@ describe("Activity Module Management", () => {
 				"Test Error: Feature branch module origin is not an object",
 			);
 		expect(featureBranchModule.origin.id).toBe(originalModule.id);
-		// ! branches will not have branches, only main branch will have branches
-		expect(featureBranchModule.branches?.docs?.length).toBe(0);
 		expect(featureBranchModule.origin.branches?.docs?.length).toBe(3);
 		// feature branch should have 100 commits
 		expect(featureBranchModule.commits?.docs?.length).toBe(commitCounts);
@@ -491,8 +492,6 @@ describe("Activity Module Management", () => {
 				"Test Error: Feature branch module origin is not an object",
 			);
 		expect(subFeatureBranchModule.origin.id).toBe(originalModule.id);
-		// ! branches will not have branches, only main branch will have branches
-		expect(subFeatureBranchModule.branches?.docs?.length).toBe(0);
 		expect(subFeatureBranchModule.origin.branches?.docs?.length).toBe(3);
 		// subbranch should have 100 commits
 		expect(subFeatureBranchModule.commits?.docs?.length).toBe(commitCounts);
@@ -512,8 +511,10 @@ describe("Activity Module Management", () => {
 		});
 		expect(getResult.ok).toBe(true);
 		if (!getResult.ok) throw new Error("Failed to get activity module");
+		if (!getResult.value.origin || typeof getResult.value.origin !== "object")
+			throw new Error("Test Error: Activity module origin is not an object");
 		// there should be only 2 branch
-		expect(getResult.value.branches?.docs?.length).toBe(2);
+		expect(getResult.value.origin.branches?.docs?.length).toBe(2);
 
 		// try get the commit of the main branch
 		const mainBranchCommit = getResult.value.commits?.docs?.[0];
