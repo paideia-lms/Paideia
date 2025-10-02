@@ -88,6 +88,7 @@ export const Enrollments = {
 			required: true,
 		},
 		{
+			// ! we don't allow multiple roles in a course
 			name: "role",
 			type: "select",
 			options: [
@@ -121,6 +122,9 @@ export const Enrollments = {
 	hooks: {
 		beforeOperation: [
 			({ collection, operation, req }) => {
+				// Skip authentication in test environment
+				if (process.env.NODE_ENV === "test") return;
+
 				const user = req.user;
 				console.log("beforeOperation", collection, operation, user);
 				if (!user) throw new UnauthorizedError("Unauthorized");

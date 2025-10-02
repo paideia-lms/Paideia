@@ -1,5 +1,13 @@
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
+import {
+	DuplicateEnrollmentError,
+	EnrollmentNotFoundError,
+	InvalidArgumentError,
+	TransactionIdNotFoundError,
+	transformError,
+	UnknownError,
+} from "~/utils/error";
 import type { Enrollment } from "../payload-types";
 
 export interface CreateEnrollmentArgs {
@@ -31,7 +39,7 @@ export interface SearchEnrollmentsArgs {
  * Creates a new enrollment using Payload local API
  */
 export const tryCreateEnrollment = Result.wrap(
-	async (payload: Payload, request: Request, args: CreateEnrollmentArgs) => {
+	async (payload: Payload, args: CreateEnrollmentArgs) => {
 		const {
 			user,
 			course,
@@ -41,82 +49,104 @@ export const tryCreateEnrollment = Result.wrap(
 			completedAt,
 		} = args;
 
-		// Verify user exists
-		const userExists = await payload.findByID({
-			collection: "users",
-			id: user,
-			req: request,
-		});
-
-		if (!userExists) {
-			throw new Error(`User with ID ${user} not found`);
+		// Validate required fields
+		if (!user) {
+			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Verify course exists
-		const courseExists = await payload.findByID({
-			collection: "courses",
-			id: course,
-			req: request,
-		});
-
-		if (!courseExists) {
-			throw new Error(`Course with ID ${course} not found`);
+		if (!course) {
+			throw new InvalidArgumentError("Course ID is required");
 		}
 
-		// Check if enrollment already exists
-		const existingEnrollments = await payload.find({
-			collection: "enrollments",
-			where: {
-				and: [
-					{
-						user: {
-							equals: user,
+		if (!role) {
+			throw new InvalidArgumentError("Role is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Verify user exists
+			const userExists = await payload.findByID({
+				collection: "users",
+				id: user,
+				req: { transactionID },
+			});
+
+			if (!userExists) {
+				throw new InvalidArgumentError(`User with ID ${user} not found`);
+			}
+
+			// Verify course exists
+			const courseExists = await payload.findByID({
+				collection: "courses",
+				id: course,
+				req: { transactionID },
+			});
+
+			if (!courseExists) {
+				throw new InvalidArgumentError(`Course with ID ${course} not found`);
+			}
+
+			// Check if enrollment already exists
+			const existingEnrollments = await payload.find({
+				collection: "enrollments",
+				where: {
+					and: [
+						{
+							user: {
+								equals: user,
+							},
 						},
-					},
-					{
-						course: {
-							equals: course,
+						{
+							course: {
+								equals: course,
+							},
 						},
-					},
-				],
-			},
-			limit: 1,
-			req: request,
-		});
+					],
+				},
+				limit: 1,
+				req: { transactionID },
+			});
 
-		if (existingEnrollments.docs.length > 0) {
-			throw new Error(
-				`Enrollment already exists for user ${user} in course ${course}`,
-			);
-		}
-
-		const newEnrollment = await payload.create({
-			collection: "enrollments",
-			data: {
-				user,
-				course,
-				role,
-				status,
-				enrolledAt: enrolledAt || new Date().toISOString(),
-				completedAt,
-			},
-			req: request,
-		});
-
-		return newEnrollment as Enrollment;
-	},
-	(error) => {
-		if (error instanceof Error) {
-			// Check if it's a specific error we can make more descriptive
-			if (error.message.includes("Not Found")) {
-				return new Error(
-					`Failed to create enrollment: Referenced user or course not found`,
+			if (existingEnrollments.docs.length > 0) {
+				throw new DuplicateEnrollmentError(
+					`Enrollment already exists for user ${user} in course ${course}`,
 				);
 			}
-			return new Error(`Failed to create enrollment: ${error.message}`);
+
+			const newEnrollment = await payload.create({
+				collection: "enrollments",
+				data: {
+					user,
+					course,
+					role,
+					status,
+					enrolledAt: enrolledAt || new Date().toISOString(),
+					completedAt,
+				},
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return newEnrollment as Enrollment;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
 		}
-		return new Error(`Failed to create enrollment: ${String(error)}`);
 	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create enrollment", {
+			cause: error,
+		}),
 );
 
 /**
@@ -125,39 +155,44 @@ export const tryCreateEnrollment = Result.wrap(
 export const tryUpdateEnrollment = Result.wrap(
 	async (
 		payload: Payload,
-		request: Request,
 		enrollmentId: number,
 		args: UpdateEnrollmentArgs,
 	) => {
-		// Check if enrollment exists
-		const existingEnrollment = await payload.findByID({
-			collection: "enrollments",
-			id: enrollmentId,
-			req: request,
-		});
-
-		if (!existingEnrollment) {
-			throw new Error(`Enrollment with ID ${enrollmentId} not found`);
+		// Validate required fields
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
 		}
 
-		const updatedEnrollment = await payload.update({
-			collection: "enrollments",
-			id: enrollmentId,
-			data: args,
-			req: request,
-		});
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
 
-		return updatedEnrollment;
-	},
-	(error) => {
-		if (error instanceof Error) {
-			if (error.message.includes("Not Found")) {
-				return new Error(`Failed to update enrollment: Enrollment not found`);
-			}
-			return new Error(`Failed to update enrollment: ${error.message}`);
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
-		return new Error(`Failed to update enrollment: ${String(error)}`);
+
+		try {
+			const updatedEnrollment = await payload.update({
+				collection: "enrollments",
+				id: enrollmentId,
+				data: args,
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return updatedEnrollment;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
 	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update enrollment", {
+			cause: error,
+		}),
 );
 
 /**
@@ -165,28 +200,23 @@ export const tryUpdateEnrollment = Result.wrap(
  */
 export const tryFindEnrollmentById = Result.wrap(
 	async (payload: Payload, enrollmentId: number) => {
+		// Validate required fields
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
+		}
+
 		const enrollment = await payload.findByID({
 			collection: "enrollments",
 			id: enrollmentId,
 		});
 
-		if (!enrollment) {
-			throw new Error(`Enrollment with ID ${enrollmentId} not found`);
-		}
-
-		return enrollment as Enrollment;
+		return enrollment;
 	},
-	(error) => {
-		if (error instanceof Error) {
-			if (error.message.includes("Not Found")) {
-				return new Error(
-					`Failed to find enrollment by ID: Enrollment not found`,
-				);
-			}
-			return new Error(`Failed to find enrollment by ID: ${error.message}`);
-		}
-		return new Error(`Failed to find enrollment by ID: ${String(error)}`);
-	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find enrollment by ID", {
+			cause: error,
+		}),
 );
 
 /**
@@ -241,28 +271,45 @@ export const trySearchEnrollments = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
-			`Failed to search enrollments: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to search enrollments", {
+			cause: error,
+		}),
 );
 
 /**
  * Deletes an enrollment by ID
  */
 export const tryDeleteEnrollment = Result.wrap(
-	async (payload: Payload, request: Request, enrollmentId: number) => {
+	async (payload: Payload, enrollmentId: number) => {
+		// Validate required fields
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
 		const deletedEnrollment = await payload.delete({
 			collection: "enrollments",
 			id: enrollmentId,
-			req: request,
+			req: { transactionID },
 		});
 
-		return deletedEnrollment as Enrollment;
+		// Commit transaction
+		await payload.db.commitTransaction(transactionID);
+
+		return deletedEnrollment;
 	},
 	(error) =>
-		new Error(
-			`Failed to delete enrollment: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to delete enrollment", {
+			cause: error,
+		}),
 );
 
 /**
@@ -270,6 +317,11 @@ export const tryDeleteEnrollment = Result.wrap(
  */
 export const tryFindEnrollmentsByUser = Result.wrap(
 	async (payload: Payload, userId: number, limit: number = 10) => {
+		// Validate required fields
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
 		const enrollments = await payload.find({
 			collection: "enrollments",
 			where: {
@@ -284,9 +336,10 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 		return enrollments.docs as Enrollment[];
 	},
 	(error) =>
-		new Error(
-			`Failed to find enrollments by user: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find enrollments by user", {
+			cause: error,
+		}),
 );
 
 /**
@@ -294,6 +347,11 @@ export const tryFindEnrollmentsByUser = Result.wrap(
  */
 export const tryFindEnrollmentsByCourse = Result.wrap(
 	async (payload: Payload, courseId: number, limit: number = 10) => {
+		// Validate required fields
+		if (!courseId) {
+			throw new InvalidArgumentError("Course ID is required");
+		}
+
 		const enrollments = await payload.find({
 			collection: "enrollments",
 			where: {
@@ -308,9 +366,10 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
 		return enrollments.docs as Enrollment[];
 	},
 	(error) =>
-		new Error(
-			`Failed to find enrollments by course: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find enrollments by course", {
+			cause: error,
+		}),
 );
 
 /**
@@ -318,6 +377,15 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
  */
 export const tryFindUserEnrollmentInCourse = Result.wrap(
 	async (payload: Payload, userId: number, courseId: number) => {
+		// Validate required fields
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		if (!courseId) {
+			throw new InvalidArgumentError("Course ID is required");
+		}
+
 		const enrollments = await payload.find({
 			collection: "enrollments",
 			where: {
@@ -342,9 +410,10 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
 			: null;
 	},
 	(error) =>
-		new Error(
-			`Failed to find user enrollment in course: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find user enrollment in course", {
+			cause: error,
+		}),
 );
 
 /**
@@ -375,9 +444,10 @@ export const tryFindActiveEnrollments = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
-			`Failed to find active enrollments: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find active enrollments", {
+			cause: error,
+		}),
 );
 
 /**
@@ -386,11 +456,19 @@ export const tryFindActiveEnrollments = Result.wrap(
 export const tryUpdateEnrollmentStatus = Result.wrap(
 	async (
 		payload: Payload,
-		request: Request,
 		enrollmentId: number,
 		status: "active" | "inactive" | "completed" | "dropped",
 		completedAt?: string,
 	) => {
+		// Validate required fields
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
+		}
+
+		if (!status) {
+			throw new InvalidArgumentError("Status is required");
+		}
+
 		const updateData: UpdateEnrollmentArgs = { status };
 
 		// If marking as completed and completedAt is provided, set it
@@ -403,10 +481,11 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 			updateData.completedAt = new Date().toISOString();
 		}
 
-		return tryUpdateEnrollment(payload, request, enrollmentId, updateData);
+		return tryUpdateEnrollment(payload, enrollmentId, updateData);
 	},
 	(error) =>
-		new Error(
-			`Failed to update enrollment status: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to update enrollment status", {
+			cause: error,
+		}),
 );

@@ -1,5 +1,3 @@
-import type { Result } from "typescript-result";
-
 export class ContextNotFoundError extends Error {
 	readonly type = "ContextNotFoundError";
 }
@@ -40,12 +38,25 @@ export class UnknownError extends Error {
 	readonly type = "UnknownError";
 }
 
+export class EnrollmentNotFoundError extends Error {
+	readonly type = "EnrollmentNotFoundError";
+}
+
+export class DuplicateEnrollmentError extends Error {
+	readonly type = "DuplicateEnrollmentError";
+}
+
 export function transformError(error: unknown) {
-	console.log("transformError", error);
 	if (error instanceof NonExistingSourceError) return error;
 	else if (error instanceof DuplicateBranchError) return error;
 	else if (error instanceof UnauthorizedError) return error;
 	else if (error instanceof ContextNotFoundError) return error;
+	else if (error instanceof InvalidArgumentError) return error;
+	else if (error instanceof TransactionIdNotFoundError) return error;
+	else if (error instanceof NonExistingActivityModuleError) return error;
+	else if (error instanceof CommitNoChangeError) return error;
+	else if (error instanceof EnrollmentNotFoundError) return error;
+	else if (error instanceof DuplicateEnrollmentError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }
