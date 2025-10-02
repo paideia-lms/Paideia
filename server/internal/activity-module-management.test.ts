@@ -442,7 +442,7 @@ describe("Activity Module Management", () => {
 		// main branch should have 2 branches
 		expect(mainBranchModule.branches).toBeDefined();
 		expect(mainBranchModule.branches).not.toBeNull();
-		expect(mainBranchModule.branches?.docs?.length).toBe(2);
+		expect(mainBranchModule.branches?.docs?.length).toBe(3);
 
 		// console.log(JSON.stringify(mainBranchModule, null, 2));
 
@@ -468,7 +468,7 @@ describe("Activity Module Management", () => {
 		expect(featureBranchModule.origin.id).toBe(originalModule.id);
 		// ! branches will not have branches, only main branch will have branches
 		expect(featureBranchModule.branches?.docs?.length).toBe(0);
-		expect(featureBranchModule.origin.branches?.docs?.length).toBe(2);
+		expect(featureBranchModule.origin.branches?.docs?.length).toBe(3);
 		// feature branch should have 100 commits
 		expect(featureBranchModule.commits?.docs?.length).toBe(commitCounts);
 
@@ -493,7 +493,7 @@ describe("Activity Module Management", () => {
 		expect(subFeatureBranchModule.origin.id).toBe(originalModule.id);
 		// ! branches will not have branches, only main branch will have branches
 		expect(subFeatureBranchModule.branches?.docs?.length).toBe(0);
-		expect(subFeatureBranchModule.origin.branches?.docs?.length).toBe(2);
+		expect(subFeatureBranchModule.origin.branches?.docs?.length).toBe(3);
 		// subbranch should have 100 commits
 		expect(subFeatureBranchModule.commits?.docs?.length).toBe(commitCounts);
 	});
@@ -512,8 +512,8 @@ describe("Activity Module Management", () => {
 		});
 		expect(getResult.ok).toBe(true);
 		if (!getResult.ok) throw new Error("Failed to get activity module");
-		// there should be only one branch
-		expect(getResult.value.branches?.docs?.length).toBe(1);
+		// there should be only 2 branch
+		expect(getResult.value.branches?.docs?.length).toBe(2);
 
 		// try get the commit of the main branch
 		const mainBranchCommit = getResult.value.commits?.docs?.[0];

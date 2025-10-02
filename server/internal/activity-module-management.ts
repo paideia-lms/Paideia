@@ -144,6 +144,16 @@ export const tryCreateActivityModule = Result.wrap(
 				req: { transactionID },
 			});
 
+			// set the origin to itself
+			await payload.update({
+				collection: "activity-modules",
+				id: activityModule.id,
+				data: {
+					origin: activityModule.id,
+				},
+				req: { transactionID },
+			});
+
 			// Generate hashes for the initial commit
 			const contentHash = generateContentHash(content);
 			const commitDate = new Date();
