@@ -159,42 +159,37 @@ export const tryGetCommitByHash = Result.wrap(
 		}),
 );
 
+export interface GetCommitHistoryArgs {
+	activityModuleId: number | string;
+	limit?: number;
+}
+
 /**
- * Gets commit history starting from a specific commit
+ * Gets commit history for an activity module
  */
 export const tryGetCommitHistory = Result.wrap(
 	async (
 		payload: Payload,
-		startCommitId: number,
-		limit = 50,
+		args: GetCommitHistoryArgs,
 		transactionID?: string | number,
 	): Promise<Commit[]> => {
-		const history: Commit[] = [];
-		let currentCommitId: number | null = startCommitId;
+		const { activityModuleId, limit = 50 } = args;
 
-		while (currentCommitId && history.length < limit) {
-			const commit: Commit | null = await payload.findByID({
-				collection: "commits",
-				id: currentCommitId,
-				depth: 0,
-				...(transactionID && { req: { transactionID } }),
-			});
-
-			if (!commit) {
-				break;
-			}
-
-			history.push(commit);
-
-			// Get parent commit
-			if (commit.parentCommit && typeof commit.parentCommit === "number") {
-				currentCommitId = commit.parentCommit;
-			} else {
-				currentCommitId = null;
-			}
+		if (!activityModuleId) {
+			throw new InvalidArgumentError("Activity module ID is required");
 		}
 
-		return history;
+		const result = await payload.find({
+			collection: "commits",
+			where: {
+				activityModule: { equals: activityModuleId },
+			},
+			sort: "-commitDate",
+			limit,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		return result.docs;
 	},
 	(error) =>
 		transformError(error) ??

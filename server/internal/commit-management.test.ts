@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
+import { tryCreateActivityModule } from "./activity-module-management";
 import {
 	tryCreateCommit,
 	tryGetCommitByHash,
@@ -196,82 +197,57 @@ describe("Commit Management", () => {
 	});
 
 	test("should get commit history", async () => {
-		// Create a chain of commits
-		const firstResult = await tryCreateCommit(payload, {
-			activityModule: testActivityModuleId,
-			message: "First in chain",
+		// create an activity module
+		const activityModuleResult = await tryCreateActivityModule(payload, {
+			title: "Test Activity Module",
+			description: "Test module for commit tests",
+			type: "page",
+			userId: testUserId,
+			content: { test: "data" },
+		});
+		expect(activityModuleResult.ok).toBe(true);
+		if (!activityModuleResult.ok) return;
+		const activityModule = activityModuleResult.value.activityModule;
+
+		expect(activityModule.id).toBeDefined();
+
+		// Create a commit
+		const createResult = await tryCreateCommit(payload, {
+			activityModule: activityModule.id,
+			message: "Test commit for history lookup",
 			author: testUserId,
-			content: { version: 1 },
+			content: { test: "data1" },
+		});
+		expect(createResult.ok).toBe(true);
+		if (!createResult.ok) throw new Error("Test Error: Create commit 1 failed");
+
+		// create another commit
+		const createResult2 = await tryCreateCommit(payload, {
+			activityModule: activityModule.id,
+			message: "Test commit for history lookup",
+			author: testUserId,
+			content: { test: "data2" },
+		});
+		expect(createResult2.ok).toBe(true);
+		if (!createResult2.ok)
+			throw new Error("Test Error: Create commit 2 failed");
+
+		// get commit history
+		const getResult = await tryGetCommitHistory(payload, {
+			activityModuleId: activityModule.id,
 		});
 
-		expect(firstResult.ok).toBe(true);
-		if (!firstResult.ok) return;
-
-		const secondResult = await tryCreateCommit(payload, {
-			activityModule: testActivityModuleId,
-			message: "Second in chain",
-			author: testUserId,
-			content: { version: 2 },
-			parentCommit: firstResult.value.id,
-		});
-
-		expect(secondResult.ok).toBe(true);
-		if (!secondResult.ok) return;
-
-		const thirdResult = await tryCreateCommit(payload, {
-			activityModule: testActivityModuleId,
-			message: "Third in chain",
-			author: testUserId,
-			content: { version: 3 },
-			parentCommit: secondResult.value.id,
-		});
-
-		expect(thirdResult.ok).toBe(true);
-		if (!thirdResult.ok) return;
-
-		// Get history starting from the latest commit
-		const historyResult = await tryGetCommitHistory(
-			payload,
-			thirdResult.value.id,
-			10,
-		);
-
-		expect(historyResult.ok).toBe(true);
-		if (!historyResult.ok) return;
-
-		const history = historyResult.value;
-		expect(history.length).toBe(3);
-		expect(history[0].id).toBe(thirdResult.value.id);
-		expect(history[1].id).toBe(secondResult.value.id);
-		expect(history[2].id).toBe(firstResult.value.id);
-	});
-
-	test("should respect limit in commit history", async () => {
-		// Create a chain of 5 commits
-		let previousId: number | undefined;
-		for (let i = 1; i <= 5; i++) {
-			const result = await tryCreateCommit(payload, {
-				activityModule: testActivityModuleId,
-				message: `Commit ${i}`,
-				author: testUserId,
-				content: { count: i },
-				parentCommit: previousId,
-			});
-
-			expect(result.ok).toBe(true);
-			if (!result.ok) return;
-
-			previousId = result.value.id;
-		}
-
-		// Get history with limit of 3
-		if (!previousId) return;
-		const historyResult = await tryGetCommitHistory(payload, previousId, 3);
-
-		expect(historyResult.ok).toBe(true);
-		if (!historyResult.ok) return;
-
-		const history = historyResult.value;
-		expect(history.length).toBe(3);
+		expect(getResult.ok).toBe(true);
+		if (!getResult.ok) return;
+		expect(getResult.value.length).toBe(3);
+		expect([
+			getResult.value[2].hash,
+			getResult.value[1].hash,
+			getResult.value[0].hash,
+		]).toEqual([
+			activityModuleResult.value.commit.hash,
+			createResult.value.hash,
+			createResult2.value.hash,
+		]);
 	});
 });

@@ -4,6 +4,7 @@ import type { Payload } from "payload";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
+	NonExistingActivityModuleError,
 	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
@@ -188,6 +189,51 @@ export const tryCreateActivityModule = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to create activity module", {
+			cause: error,
+		}),
+);
+
+export interface GetActivityModuleByIdArgs {
+	id: number | string;
+	depth?: number;
+}
+
+/**
+ * Get an activity module by ID
+ *
+ * This function fetches an activity module by its ID with optional depth control
+ * for relationships (e.g., commits, createdBy)
+ */
+export const tryGetActivityModuleById = Result.wrap(
+	async (
+		payload: Payload,
+		args: GetActivityModuleByIdArgs,
+	): Promise<ActivityModule> => {
+		const { id, depth = 1 } = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Activity module ID is required");
+		}
+
+		// Fetch the activity module
+		const activityModule = await payload.findByID({
+			collection: "activity-modules",
+			id,
+			depth,
+		});
+
+		if (!activityModule) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${id}' not found`,
+			);
+		}
+
+		return activityModule;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get activity module", {
 			cause: error,
 		}),
 );

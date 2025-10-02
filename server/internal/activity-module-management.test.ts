@@ -5,7 +5,9 @@ import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
 	tryCreateActivityModule,
+	tryGetActivityModuleById,
 } from "./activity-module-management";
+import { type CreateCommitArgs, tryCreateCommit } from "./commit-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 describe("Activity Module Management", () => {
@@ -93,32 +95,79 @@ describe("Activity Module Management", () => {
 		expect(activityModule.type).toBe(args.type);
 		expect(activityModule.status).toBe(args.status);
 		expect(activityModule.branch).toBe("main");
-		if (typeof activityModule.createdBy === "number") {
-			expect(activityModule.createdBy).toBe(testUserId);
-		} else {
-			expect(activityModule.createdBy.id).toBe(testUserId);
-		}
+		if (
+			!activityModule.createdBy ||
+			typeof activityModule.createdBy !== "object"
+		)
+			throw new Error(
+				"Test Error: Activity module created by is not an object",
+			);
+		expect(activityModule.createdBy.id).toBe(testUserId);
 
 		// Verify commit
 		expect(commit.message).toBe("Initial commit");
-		if (typeof commit.author === "number") {
-			expect(commit.author).toBe(testUserId);
-		} else {
-			expect(commit.author.id).toBe(testUserId);
-		}
+		if (!commit.author || typeof commit.author !== "object")
+			throw new Error("Test Error: Commit author is not an object");
+		expect(commit.author.id).toBe(testUserId);
 		expect(commit.activityModule).toBeDefined();
 		expect(commit.activityModule).not.toBeNull();
-		if (!commit.activityModule)
-			throw new Error("Test Error: Commit activity module is null");
-		if (typeof commit.activityModule === "number") {
-			expect(commit.activityModule).toBe(activityModule.id);
-		} else {
-			expect(commit.activityModule.id).toBe(activityModule.id);
-		}
+		if (!commit.activityModule || typeof commit.activityModule !== "object")
+			throw new Error("Test Error: Commit activity module is not an object");
+		expect(commit.activityModule.id).toBe(activityModule.id);
 		expect(commit.content).toEqual(args.content);
 		expect(commit.hash).toBeDefined();
 		expect(commit.contentHash).toBeDefined();
 		expect(commit.parentCommit).toBeNull();
+
+		// get activity module by id
+		const getResult = await tryGetActivityModuleById(payload, {
+			id: activityModule.id,
+		});
+		expect(getResult.ok).toBe(true);
+		if (!getResult.ok) return;
+		const retrievedActivityModule = getResult.value;
+		expect(retrievedActivityModule.id).toBe(activityModule.id);
+		expect(retrievedActivityModule.title).toBe(activityModule.title);
+		expect(retrievedActivityModule.description).toBe(
+			activityModule.description,
+		);
+		expect(retrievedActivityModule.type).toBe(activityModule.type);
+		expect(retrievedActivityModule.status).toBe(activityModule.status);
+		expect(retrievedActivityModule.branch).toBe(activityModule.branch);
+		expect(retrievedActivityModule.createdBy).toEqual(activityModule.createdBy);
+		expect(retrievedActivityModule.commits).toBeDefined();
+		expect(retrievedActivityModule.commits?.docs?.length).toBe(1);
+
+		// create a new commit
+		const newCommitArgs: CreateCommitArgs = {
+			activityModule: activityModule.id,
+			message: "New commit",
+			author: testUserId,
+			content: {
+				body: "New content",
+			},
+		};
+		const newCommitResult = await tryCreateCommit(payload, newCommitArgs);
+		expect(newCommitResult.ok).toBe(true);
+		if (!newCommitResult.ok) return;
+		const newCommit = newCommitResult.value;
+		expect(newCommit.message).toBe("New commit");
+		expect(newCommit.activityModule).not.toBeNull();
+		expect(newCommit.activityModule).toBeDefined();
+		expect(newCommit.activityModule).toBeObject();
+		if (
+			!newCommit.activityModule ||
+			typeof newCommit.activityModule !== "object"
+		)
+			throw new Error(
+				"Test Error: New commit activity module is not an object",
+			);
+		expect(newCommit.activityModule.id).toBe(activityModule.id);
+		console.log(newCommit.activityModule);
+		// should have 2 commits
+		expect(newCommit.activityModule.commits?.docs?.length).toBe(2);
+
+		expect(newCommit.content).toEqual(newCommitArgs.content);
 	});
 
 	test("should create activity module with default status", async () => {
