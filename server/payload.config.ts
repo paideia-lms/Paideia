@@ -543,7 +543,7 @@ export const Media = {
 		},
 	],
 	upload: {
-		staticDir: "media",
+		disableLocalStorage: true,
 		imageSizes: [
 			{
 				name: "thumbnail",
@@ -565,7 +565,6 @@ export const Media = {
 			},
 		],
 		adminThumbnail: "thumbnail",
-		mimeTypes: ["image/*"],
 	},
 } satisfies CollectionConfig;
 
@@ -608,8 +607,17 @@ const config = {
 	] as CollectionConfig[],
 	plugins: [
 		s3Storage({
+			enabled: false,
+			disableLocalStorage: true,
 			collections: {
-				media: true,
+				media: {
+					signedDownloads: {
+						shouldUseSignedURL: () => {
+							console.log("shouldUseSignedURL");
+							return true;
+						},
+					},
+				},
 			},
 			bucket: "paideia-bucket",
 			config: {
@@ -617,7 +625,7 @@ const config = {
 					accessKeyId: envVars.S3_ACCESS_KEY.value,
 					secretAccessKey: envVars.S3_SECRET_KEY.value,
 				},
-				endpoint: envVars.S3_URL.value,
+				endpoint: "http://localhost:9000",
 				region: envVars.S3_REGION.value ?? envVars.S3_REGION.default, // MinIO default region
 				forcePathStyle: true, // Required for MinIO
 			},
