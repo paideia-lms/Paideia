@@ -66,6 +66,12 @@ export const enum_tags_tag_type = pgEnum("enum_tags_tag_type", [
   "milestone",
   "snapshot",
 ]);
+export const enum_merge_requests_status = pgEnum("enum_merge_requests_status", [
+  "open",
+  "merged",
+  "rejected",
+  "closed",
+]);
 
 export const users_sessions = pgTable(
   "users_sessions",
@@ -487,6 +493,128 @@ export const tags = pgTable(
   }),
 );
 
+export const merge_requests = pgTable(
+  "merge_requests",
+  {
+    id: serial("id").primaryKey(),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
+    from: integer("from_id")
+      .notNull()
+      .references(() => activity_modules.id, {
+        onDelete: "set null",
+      }),
+    to: integer("to_id")
+      .notNull()
+      .references(() => activity_modules.id, {
+        onDelete: "set null",
+      }),
+    status: enum_merge_requests_status("status").default("open"),
+    rejectedAt: timestamp("rejected_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    rejectedBy: integer("rejected_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    mergedAt: timestamp("merged_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    mergedBy: integer("merged_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    merge_requests_from_idx: index("merge_requests_from_idx").on(columns.from),
+    merge_requests_to_idx: index("merge_requests_to_idx").on(columns.to),
+    merge_requests_rejected_by_idx: index("merge_requests_rejected_by_idx").on(
+      columns.rejectedBy,
+    ),
+    merge_requests_merged_by_idx: index("merge_requests_merged_by_idx").on(
+      columns.mergedBy,
+    ),
+    merge_requests_created_by_idx: index("merge_requests_created_by_idx").on(
+      columns.createdBy,
+    ),
+    merge_requests_updated_at_idx: index("merge_requests_updated_at_idx").on(
+      columns.updatedAt,
+    ),
+    merge_requests_created_at_idx: index("merge_requests_created_at_idx").on(
+      columns.createdAt,
+    ),
+    from_to_idx: uniqueIndex("from_to_idx").on(columns.from, columns.to),
+  }),
+);
+
+export const merge_request_comments = pgTable(
+  "merge_request_comments",
+  {
+    id: serial("id").primaryKey(),
+    comment: varchar("comment").notNull(),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    mergeRequest: integer("merge_request_id")
+      .notNull()
+      .references(() => merge_requests.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    merge_request_comments_created_by_idx: index(
+      "merge_request_comments_created_by_idx",
+    ).on(columns.createdBy),
+    merge_request_comments_merge_request_idx: index(
+      "merge_request_comments_merge_request_idx",
+    ).on(columns.mergeRequest),
+    merge_request_comments_updated_at_idx: index(
+      "merge_request_comments_updated_at_idx",
+    ).on(columns.updatedAt),
+    merge_request_comments_created_at_idx: index(
+      "merge_request_comments_created_at_idx",
+    ).on(columns.createdAt),
+    mergeRequest_idx: uniqueIndex("mergeRequest_idx").on(columns.mergeRequest),
+  }),
+);
+
 export const payload_locked_documents = pgTable(
   "payload_locked_documents",
   {
@@ -534,6 +662,8 @@ export const payload_locked_documents_rels = pgTable(
     "activity-modulesID": integer("activity_modules_id"),
     commitsID: integer("commits_id"),
     tagsID: integer("tags_id"),
+    "merge-requestsID": integer("merge_requests_id"),
+    "merge-request-commentsID": integer("merge_request_comments_id"),
   },
   (columns) => ({
     order: index("payload_locked_documents_rels_order_idx").on(columns.order),
@@ -562,6 +692,12 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_tags_id_idx: index(
       "payload_locked_documents_rels_tags_id_idx",
     ).on(columns.tagsID),
+    payload_locked_documents_rels_merge_requests_id_idx: index(
+      "payload_locked_documents_rels_merge_requests_id_idx",
+    ).on(columns["merge-requestsID"]),
+    payload_locked_documents_rels_merge_request_comments_id_idx: index(
+      "payload_locked_documents_rels_merge_request_comments_id_idx",
+    ).on(columns["merge-request-commentsID"]),
     parentFk: foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [payload_locked_documents.id],
@@ -601,6 +737,16 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["tagsID"]],
       foreignColumns: [tags.id],
       name: "payload_locked_documents_rels_tags_fk",
+    }).onDelete("cascade"),
+    "merge-requestsIdFk": foreignKey({
+      columns: [columns["merge-requestsID"]],
+      foreignColumns: [merge_requests.id],
+      name: "payload_locked_documents_rels_merge_requests_fk",
+    }).onDelete("cascade"),
+    "merge-request-commentsIdFk": foreignKey({
+      columns: [columns["merge-request-commentsID"]],
+      foreignColumns: [merge_request_comments.id],
+      name: "payload_locked_documents_rels_merge_request_comments_fk",
     }).onDelete("cascade"),
   }),
 );
@@ -809,6 +955,51 @@ export const relations_tags = relations(tags, ({ one }) => ({
     relationName: "createdBy",
   }),
 }));
+export const relations_merge_requests = relations(
+  merge_requests,
+  ({ one }) => ({
+    from: one(activity_modules, {
+      fields: [merge_requests.from],
+      references: [activity_modules.id],
+      relationName: "from",
+    }),
+    to: one(activity_modules, {
+      fields: [merge_requests.to],
+      references: [activity_modules.id],
+      relationName: "to",
+    }),
+    rejectedBy: one(users, {
+      fields: [merge_requests.rejectedBy],
+      references: [users.id],
+      relationName: "rejectedBy",
+    }),
+    mergedBy: one(users, {
+      fields: [merge_requests.mergedBy],
+      references: [users.id],
+      relationName: "mergedBy",
+    }),
+    createdBy: one(users, {
+      fields: [merge_requests.createdBy],
+      references: [users.id],
+      relationName: "createdBy",
+    }),
+  }),
+);
+export const relations_merge_request_comments = relations(
+  merge_request_comments,
+  ({ one }) => ({
+    createdBy: one(users, {
+      fields: [merge_request_comments.createdBy],
+      references: [users.id],
+      relationName: "createdBy",
+    }),
+    mergeRequest: one(merge_requests, {
+      fields: [merge_request_comments.mergeRequest],
+      references: [merge_requests.id],
+      relationName: "mergeRequest",
+    }),
+  }),
+);
 export const relations_payload_locked_documents_rels = relations(
   payload_locked_documents_rels,
   ({ one }) => ({
@@ -851,6 +1042,16 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels.tagsID],
       references: [tags.id],
       relationName: "tags",
+    }),
+    "merge-requestsID": one(merge_requests, {
+      fields: [payload_locked_documents_rels["merge-requestsID"]],
+      references: [merge_requests.id],
+      relationName: "merge-requests",
+    }),
+    "merge-request-commentsID": one(merge_request_comments, {
+      fields: [payload_locked_documents_rels["merge-request-commentsID"]],
+      references: [merge_request_comments.id],
+      relationName: "merge-request-comments",
     }),
   }),
 );
@@ -899,6 +1100,7 @@ type DatabaseSchema = {
   enum_activity_modules_type: typeof enum_activity_modules_type;
   enum_activity_modules_status: typeof enum_activity_modules_status;
   enum_tags_tag_type: typeof enum_tags_tag_type;
+  enum_merge_requests_status: typeof enum_merge_requests_status;
   users_sessions: typeof users_sessions;
   users: typeof users;
   courses_tags: typeof courses_tags;
@@ -909,6 +1111,8 @@ type DatabaseSchema = {
   commits: typeof commits;
   commits_rels: typeof commits_rels;
   tags: typeof tags;
+  merge_requests: typeof merge_requests;
+  merge_request_comments: typeof merge_request_comments;
   payload_locked_documents: typeof payload_locked_documents;
   payload_locked_documents_rels: typeof payload_locked_documents_rels;
   payload_preferences: typeof payload_preferences;
@@ -924,6 +1128,8 @@ type DatabaseSchema = {
   relations_commits_rels: typeof relations_commits_rels;
   relations_commits: typeof relations_commits;
   relations_tags: typeof relations_tags;
+  relations_merge_requests: typeof relations_merge_requests;
+  relations_merge_request_comments: typeof relations_merge_request_comments;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;
   relations_payload_locked_documents: typeof relations_payload_locked_documents;
   relations_payload_preferences_rels: typeof relations_payload_preferences_rels;

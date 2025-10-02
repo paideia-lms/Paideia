@@ -74,6 +74,8 @@ export interface Config {
     'activity-modules': ActivityModule;
     commits: Commit;
     tags: Tag;
+    'merge-requests': MergeRequest;
+    'merge-request-comments': MergeRequestComment;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
@@ -85,6 +87,9 @@ export interface Config {
     'activity-modules': {
       commits: 'commits';
     };
+    'merge-requests': {
+      comments: 'merge-request-comments';
+    };
   };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
@@ -94,6 +99,8 @@ export interface Config {
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
     commits: CommitsSelect<false> | CommitsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
+    'merge-requests': MergeRequestsSelect<false> | MergeRequestsSelect<true>;
+    'merge-request-comments': MergeRequestCommentsSelect<false> | MergeRequestCommentsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
     'payload-migrations': PayloadMigrationsSelect<false> | PayloadMigrationsSelect<true>;
@@ -276,6 +283,42 @@ export interface Tag {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "merge-requests".
+ */
+export interface MergeRequest {
+  id: number;
+  title: string;
+  description?: string | null;
+  from: number | ActivityModule;
+  to: number | ActivityModule;
+  status?: ('open' | 'merged' | 'rejected' | 'closed') | null;
+  comments?: {
+    docs?: (number | MergeRequestComment)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  rejectedAt?: string | null;
+  rejectedBy?: (number | null) | User;
+  mergedAt?: string | null;
+  mergedBy?: (number | null) | User;
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "merge-request-comments".
+ */
+export interface MergeRequestComment {
+  id: number;
+  comment: string;
+  createdBy: number | User;
+  mergeRequest: number | MergeRequest;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-locked-documents".
  */
 export interface PayloadLockedDocument {
@@ -308,6 +351,14 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'tags';
         value: number | Tag;
+      } | null)
+    | ({
+        relationTo: 'merge-requests';
+        value: number | MergeRequest;
+      } | null)
+    | ({
+        relationTo: 'merge-request-comments';
+        value: number | MergeRequestComment;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -468,6 +519,36 @@ export interface TagsSelect<T extends boolean = true> {
   origin?: T;
   tagType?: T;
   createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "merge-requests_select".
+ */
+export interface MergeRequestsSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
+  from?: T;
+  to?: T;
+  status?: T;
+  comments?: T;
+  rejectedAt?: T;
+  rejectedBy?: T;
+  mergedAt?: T;
+  mergedBy?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "merge-request-comments_select".
+ */
+export interface MergeRequestCommentsSelect<T extends boolean = true> {
+  comment?: T;
+  createdBy?: T;
+  mergeRequest?: T;
   updatedAt?: T;
   createdAt?: T;
 }

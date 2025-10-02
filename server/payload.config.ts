@@ -412,6 +412,116 @@ export const Tags = {
 	],
 } satisfies CollectionConfig;
 
+export const MergeRequests = {
+	slug: "merge-requests",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "title",
+			type: "text",
+			required: true,
+		},
+		{
+			name: "description",
+			type: "textarea",
+		},
+		{
+			name: "from",
+			type: "relationship",
+			relationTo: "activity-modules",
+			required: true,
+		},
+		{
+			name: "to",
+			type: "relationship",
+			relationTo: "activity-modules",
+			required: true,
+		},
+		{
+			name: "status",
+			type: "select",
+			options: [
+				{ label: "Open", value: "open" },
+				{ label: "Merged", value: "merged" },
+				{ label: "Rejected", value: "rejected" },
+				// ! closed by user
+				{ label: "Closed", value: "closed" },
+			],
+			defaultValue: "open",
+		},
+		{
+			name: "comments",
+			type: "join",
+			on: "mergeRequest",
+			collection: "merge-request-comments",
+			label: "Comments",
+			hasMany: true,
+			maxDepth: 2,
+		},
+		{
+			name: "rejectedAt",
+			type: "date",
+		},
+		{
+			name: "rejectedBy",
+			type: "relationship",
+			relationTo: "users",
+		},
+		{
+			name: "mergedAt",
+			type: "date",
+		},
+		{
+			name: "mergedBy",
+			type: "relationship",
+			relationTo: "users",
+		},
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+		},
+	],
+	indexes: [
+		{
+			// ! the pair needs to be unique
+			fields: ["from", "to"],
+			unique: true,
+		},
+	],
+} satisfies CollectionConfig;
+
+export const MergeRequestComments = {
+	slug: "merge-request-comments",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "comment",
+			type: "textarea",
+			required: true,
+		},
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+		},
+		{
+			name: "mergeRequest",
+			type: "relationship",
+			relationTo: "merge-requests",
+			required: true,
+		},
+	],
+	indexes: [
+		{
+			fields: ["mergeRequest"],
+			unique: true,
+		},
+	],
+} satisfies CollectionConfig;
+
 const pg = postgresAdapter({
 	pool: {
 		connectionString: envVars.DATABASE_URL.value,
@@ -444,6 +554,8 @@ const config = {
 		ActivityModules,
 		Commits,
 		Tags,
+		MergeRequests,
+		MergeRequestComments,
 	] as CollectionConfig[],
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),

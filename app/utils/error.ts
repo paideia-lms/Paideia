@@ -46,7 +46,14 @@ export class DuplicateEnrollmentError extends Error {
 	readonly type = "DuplicateEnrollmentError";
 }
 
+export class NonExistingMergeRequestError extends Error {
+	readonly type = "NonExistingMergeRequestError";
+}
+
 export function transformError(error: unknown) {
+	if (process.env.NODE_ENV === "test") {
+		console.log("transformError", error);
+	}
 	if (error instanceof NonExistingSourceError) return error;
 	else if (error instanceof DuplicateBranchError) return error;
 	else if (error instanceof UnauthorizedError) return error;
@@ -57,6 +64,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof CommitNoChangeError) return error;
 	else if (error instanceof EnrollmentNotFoundError) return error;
 	else if (error instanceof DuplicateEnrollmentError) return error;
+	else if (error instanceof NonExistingMergeRequestError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }
