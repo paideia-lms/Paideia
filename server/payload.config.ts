@@ -2,11 +2,13 @@ import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
-import { type CollectionConfig, type Config, sanitizeConfig } from "payload";
+import { type CollectionConfig, type Config, sanitizeConfig, buildConfig } from "payload";
 import sharp from "sharp";
 import { migrations } from "src/migrations";
 import { UnauthorizedError } from "~/utils/error";
 import { envVars } from "./env";
+import { searchPlugin } from '@payloadcms/plugin-search'
+
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -577,8 +579,8 @@ const pg = postgresAdapter({
 	// disable logger in different environments
 	logger:
 		process.env.NODE_ENV !== "test" &&
-		process.env.NODE_ENV !== "production" &&
-		process.env.NODE_ENV !== "development"
+			process.env.NODE_ENV !== "production" &&
+			process.env.NODE_ENV !== "development"
 			? new EnhancedQueryLogger()
 			: undefined,
 	push:
@@ -587,7 +589,7 @@ const pg = postgresAdapter({
 
 const __dirname = import.meta.dirname;
 
-const config = {
+const sanitizedConfig = await buildConfig({
 	db: pg,
 	secret: envVars.PAYLOAD_SECRET.value,
 	// ? shall we use localhost or the domain of the server
@@ -606,18 +608,15 @@ const config = {
 		Media,
 	] as CollectionConfig[],
 	plugins: [
+		searchPlugin({
+			collections: [
+				'users',
+				'courses',
+			],
+		}),
 		s3Storage({
-			enabled: false,
-			disableLocalStorage: true,
 			collections: {
-				media: {
-					signedDownloads: {
-						shouldUseSignedURL: () => {
-							console.log("shouldUseSignedURL");
-							return true;
-						},
-					},
-				},
+				media: true,
 			},
 			bucket: "paideia-bucket",
 			config: {
@@ -635,8 +634,7 @@ const config = {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),
 	},
 	telemetry: false,
-} satisfies Config;
-
-const sanitizedConfig = await sanitizeConfig(config);
+});
+;
 
 export default sanitizedConfig;
