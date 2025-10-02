@@ -16,13 +16,19 @@ export interface CreateCommitArgs {
 	message: string;
 	author: number;
 	content: Record<string, unknown>;
-	parentCommit?: number | null;
+	/**
+	 *  this must be provided
+	 */
+	parentCommit: number;
 	commitDate?: Date;
 }
 
 /**
  * Creates a new commit with content hash and commit hash
  * Note: Activity module must exist before creating commits
+ *
+ * ! since parent commit is created during the activity module creation, we require it to be provided here
+ *
  */
 export const tryCreateCommit = Result.wrap(
 	async (
@@ -74,21 +80,19 @@ export const tryCreateCommit = Result.wrap(
 
 		// Get parent commit hash if parentCommit is provided
 		let parentCommitHash: string | undefined;
-		if (parentCommit) {
-			const parentCommitDoc = await payload.findByID({
-				collection: "commits",
-				id: parentCommit,
-				...(transactionID && { req: { transactionID } }),
-			});
+		const parentCommitDoc = await payload.findByID({
+			collection: "commits",
+			id: parentCommit,
+			...(transactionID && { req: { transactionID } }),
+		});
 
-			if (!parentCommitDoc) {
-				throw new InvalidArgumentError(
-					`Parent commit with id '${parentCommit}' not found`,
-				);
-			}
-
-			parentCommitHash = parentCommitDoc.hash;
+		if (!parentCommitDoc) {
+			throw new InvalidArgumentError(
+				`Parent commit with id '${parentCommit}' not found`,
+			);
 		}
+
+		parentCommitHash = parentCommitDoc.hash;
 
 		// Generate commit hash
 		const commitHash = generateCommitHash(

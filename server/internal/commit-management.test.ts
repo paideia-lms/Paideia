@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
+import type { ActivityModule, User } from "../payload-types";
 import { tryCreateActivityModule } from "./activity-module-management";
 import {
 	tryCreateCommit,
@@ -14,7 +15,10 @@ describe("Commit Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
 	let testUserId: number;
+	let testUser: User;
 	let testActivityModuleId: number;
+	let testActivityModule: ActivityModule;
+	let initialCommitId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -46,22 +50,26 @@ describe("Commit Management", () => {
 
 		if (userResult.ok) {
 			testUserId = userResult.value.id;
+			testUser = userResult.value;
 
-			// Create a test activity module
-			// Note: commits field is a join field and will be auto-populated
-			const activityModule = await payload.create({
-				collection: "activity-modules",
-				data: {
-					title: "Test Activity Module",
-					description: "Test module for commit tests",
-					branch: "main",
-					type: "page",
-					status: "draft",
-					createdBy: testUserId,
-				} as never,
+			// Create a test activity module with initial commit using tryCreateActivityModule
+			const activityModuleResult = await tryCreateActivityModule(payload, {
+				title: "Test Activity Module",
+				description: "Test module for commit tests",
+				type: "page",
+				status: "draft",
+				content: { initial: "content" },
+				commitMessage: "Initial commit",
+				userId: testUserId,
 			});
 
-			testActivityModuleId = activityModule.id;
+			expect(activityModuleResult.ok).toBe(true);
+
+			if (activityModuleResult.ok) {
+				testActivityModule = activityModuleResult.value.activityModule;
+				testActivityModuleId = testActivityModule.id;
+				initialCommitId = activityModuleResult.value.commit.id;
+			}
 		}
 	});
 
@@ -94,16 +102,17 @@ describe("Commit Management", () => {
 
 		const result = await tryCreateCommit(payload, {
 			activityModule: testActivityModuleId,
-			message: "Initial commit",
+			message: "Second commit",
 			author: testUserId,
 			content,
+			parentCommit: initialCommitId,
 		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
 		const commit = result.value;
-		expect(commit.message).toBe("Initial commit");
+		expect(commit.message).toBe("Second commit");
 		if (typeof commit.author === "number") {
 			expect(commit.author).toBe(testUserId);
 		} else {
@@ -121,11 +130,16 @@ describe("Commit Management", () => {
 		expect(commit.content).toEqual(content);
 		expect(commit.hash).toBeDefined();
 		expect(commit.contentHash).toBeDefined();
-		expect(commit.parentCommit).toBeNull();
+		// Parent commit should be the initial commit
+		if (typeof commit.parentCommit === "number") {
+			expect(commit.parentCommit).toBe(initialCommitId);
+		} else {
+			expect(commit.parentCommit?.id).toBe(initialCommitId);
+		}
 	});
 
 	test("should create a commit with parent commit", async () => {
-		// Create parent commit
+		// Create parent commit using initialCommitId as parent
 		const parentContent = {
 			title: "Test Page v1",
 			body: "Original content",
@@ -133,9 +147,10 @@ describe("Commit Management", () => {
 
 		const parentResult = await tryCreateCommit(payload, {
 			activityModule: testActivityModuleId,
-			message: "First commit",
+			message: "Third commit",
 			author: testUserId,
 			content: parentContent,
+			parentCommit: initialCommitId,
 		});
 
 		expect(parentResult.ok).toBe(true);
@@ -151,7 +166,7 @@ describe("Commit Management", () => {
 
 		const childResult = await tryCreateCommit(payload, {
 			activityModule: testActivityModuleId,
-			message: "Second commit",
+			message: "Fourth commit",
 			author: testUserId,
 			content: childContent,
 			parentCommit: parentCommit.id,
@@ -178,6 +193,7 @@ describe("Commit Management", () => {
 			message: "Test commit for hash lookup",
 			author: testUserId,
 			content: { test: "data" },
+			parentCommit: initialCommitId,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -197,42 +213,46 @@ describe("Commit Management", () => {
 	});
 
 	test("should get commit history", async () => {
-		// create an activity module
+		// create an activity module with initial commit
 		const activityModuleResult = await tryCreateActivityModule(payload, {
-			title: "Test Activity Module",
-			description: "Test module for commit tests",
+			title: "Test Activity Module for History",
+			description: "Test module for commit history tests",
 			type: "page",
 			userId: testUserId,
-			content: { test: "data" },
+			content: { test: "initial data" },
 		});
 		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok) return;
+
 		const activityModule = activityModuleResult.value.activityModule;
+		const initialCommit = activityModuleResult.value.commit;
 
 		expect(activityModule.id).toBeDefined();
 
-		// Create a commit
+		// Create a second commit
 		const createResult = await tryCreateCommit(payload, {
 			activityModule: activityModule.id,
-			message: "Test commit for history lookup",
+			message: "Second commit for history",
 			author: testUserId,
 			content: { test: "data1" },
+			parentCommit: initialCommit.id,
 		});
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) throw new Error("Test Error: Create commit 1 failed");
 
-		// create another commit
+		// create a third commit
 		const createResult2 = await tryCreateCommit(payload, {
 			activityModule: activityModule.id,
-			message: "Test commit for history lookup",
+			message: "Third commit for history",
 			author: testUserId,
 			content: { test: "data2" },
+			parentCommit: createResult.value.id,
 		});
 		expect(createResult2.ok).toBe(true);
 		if (!createResult2.ok)
 			throw new Error("Test Error: Create commit 2 failed");
 
-		// get commit history
+		// get commit history - should return all 3 commits (initial + 2 new ones)
 		const getResult = await tryGetCommitHistory(payload, {
 			activityModuleId: activityModule.id,
 		});
@@ -240,12 +260,13 @@ describe("Commit Management", () => {
 		expect(getResult.ok).toBe(true);
 		if (!getResult.ok) return;
 		expect(getResult.value.length).toBe(3);
+		// Commits should be sorted by date (newest first)
 		expect([
 			getResult.value[2].hash,
 			getResult.value[1].hash,
 			getResult.value[0].hash,
 		]).toEqual([
-			activityModuleResult.value.commit.hash,
+			initialCommit.hash,
 			createResult.value.hash,
 			createResult2.value.hash,
 		]);
