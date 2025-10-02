@@ -9,7 +9,7 @@ export interface CreateCourseArgs {
 	difficulty?: "beginner" | "intermediate" | "advanced";
 	duration?: number;
 	status?: "draft" | "published" | "archived";
-	thumbnail?: string;
+	thumbnail?: number;
 	tags?: { tag?: string }[];
 }
 
@@ -20,7 +20,7 @@ export interface UpdateCourseArgs {
 	difficulty?: "beginner" | "intermediate" | "advanced";
 	duration?: number;
 	status?: "draft" | "published" | "archived";
-	thumbnail?: string;
+	thumbnail?: number;
 	tags?: { tag?: string }[];
 }
 

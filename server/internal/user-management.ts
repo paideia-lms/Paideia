@@ -9,7 +9,7 @@ export interface CreateUserArgs {
 	lastName?: string;
 	role?: "student" | "instructor" | "admin";
 	bio?: string;
-	avatar?: string;
+	avatar?: number;
 }
 
 export interface UpdateUserArgs {
@@ -17,7 +17,7 @@ export interface UpdateUserArgs {
 	lastName?: string;
 	role?: "student" | "instructor" | "admin";
 	bio?: string;
-	avatar?: string;
+	avatar?: number;
 	_verified?: boolean;
 }
 
@@ -102,7 +102,7 @@ export const tryUpdateUser = Result.wrap(
 			req: request,
 		});
 
-		return updatedUser as User;
+		return updatedUser;
 	},
 	(error) =>
 		new Error(

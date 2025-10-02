@@ -109,7 +109,9 @@ export const users = pgTable(
     lastName: varchar("last_name"),
     role: enum_users_role("role").default("student"),
     bio: varchar("bio"),
-    avatar: varchar("avatar"),
+    avatar: integer("avatar_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -143,6 +145,7 @@ export const users = pgTable(
     }),
   },
   (columns) => ({
+    users_avatar_idx: index("users_avatar_idx").on(columns.avatar),
     users_updated_at_idx: index("users_updated_at_idx").on(columns.updatedAt),
     users_created_at_idx: index("users_created_at_idx").on(columns.createdAt),
     users_email_idx: uniqueIndex("users_email_idx").on(columns.email),
@@ -182,7 +185,9 @@ export const courses = pgTable(
     difficulty: enum_courses_difficulty("difficulty").default("beginner"),
     duration: numeric("duration"),
     status: enum_courses_status("status").default("draft"),
-    thumbnail: varchar("thumbnail"),
+    thumbnail: integer("thumbnail_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -202,6 +207,7 @@ export const courses = pgTable(
     courses_instructor_idx: index("courses_instructor_idx").on(
       columns.instructor,
     ),
+    courses_thumbnail_idx: index("courses_thumbnail_idx").on(columns.thumbnail),
     courses_updated_at_idx: index("courses_updated_at_idx").on(
       columns.updatedAt,
     ),
@@ -615,6 +621,70 @@ export const merge_request_comments = pgTable(
   }),
 );
 
+export const media = pgTable(
+  "media",
+  {
+    id: serial("id").primaryKey(),
+    alt: varchar("alt"),
+    caption: varchar("caption"),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    url: varchar("url"),
+    thumbnailURL: varchar("thumbnail_u_r_l"),
+    filename: varchar("filename"),
+    mimeType: varchar("mime_type"),
+    filesize: numeric("filesize"),
+    width: numeric("width"),
+    height: numeric("height"),
+    focalX: numeric("focal_x"),
+    focalY: numeric("focal_y"),
+    sizes_thumbnail_url: varchar("sizes_thumbnail_url"),
+    sizes_thumbnail_width: numeric("sizes_thumbnail_width"),
+    sizes_thumbnail_height: numeric("sizes_thumbnail_height"),
+    sizes_thumbnail_mimeType: varchar("sizes_thumbnail_mime_type"),
+    sizes_thumbnail_filesize: numeric("sizes_thumbnail_filesize"),
+    sizes_thumbnail_filename: varchar("sizes_thumbnail_filename"),
+    sizes_card_url: varchar("sizes_card_url"),
+    sizes_card_width: numeric("sizes_card_width"),
+    sizes_card_height: numeric("sizes_card_height"),
+    sizes_card_mimeType: varchar("sizes_card_mime_type"),
+    sizes_card_filesize: numeric("sizes_card_filesize"),
+    sizes_card_filename: varchar("sizes_card_filename"),
+    sizes_tablet_url: varchar("sizes_tablet_url"),
+    sizes_tablet_width: numeric("sizes_tablet_width"),
+    sizes_tablet_height: numeric("sizes_tablet_height"),
+    sizes_tablet_mimeType: varchar("sizes_tablet_mime_type"),
+    sizes_tablet_filesize: numeric("sizes_tablet_filesize"),
+    sizes_tablet_filename: varchar("sizes_tablet_filename"),
+  },
+  (columns) => ({
+    media_updated_at_idx: index("media_updated_at_idx").on(columns.updatedAt),
+    media_created_at_idx: index("media_created_at_idx").on(columns.createdAt),
+    media_filename_idx: uniqueIndex("media_filename_idx").on(columns.filename),
+    media_sizes_thumbnail_sizes_thumbnail_filename_idx: index(
+      "media_sizes_thumbnail_sizes_thumbnail_filename_idx",
+    ).on(columns.sizes_thumbnail_filename),
+    media_sizes_card_sizes_card_filename_idx: index(
+      "media_sizes_card_sizes_card_filename_idx",
+    ).on(columns.sizes_card_filename),
+    media_sizes_tablet_sizes_tablet_filename_idx: index(
+      "media_sizes_tablet_sizes_tablet_filename_idx",
+    ).on(columns.sizes_tablet_filename),
+  }),
+);
+
 export const payload_locked_documents = pgTable(
   "payload_locked_documents",
   {
@@ -664,6 +734,7 @@ export const payload_locked_documents_rels = pgTable(
     tagsID: integer("tags_id"),
     "merge-requestsID": integer("merge_requests_id"),
     "merge-request-commentsID": integer("merge_request_comments_id"),
+    mediaID: integer("media_id"),
   },
   (columns) => ({
     order: index("payload_locked_documents_rels_order_idx").on(columns.order),
@@ -698,6 +769,9 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_merge_request_comments_id_idx: index(
       "payload_locked_documents_rels_merge_request_comments_id_idx",
     ).on(columns["merge-request-commentsID"]),
+    payload_locked_documents_rels_media_id_idx: index(
+      "payload_locked_documents_rels_media_id_idx",
+    ).on(columns.mediaID),
     parentFk: foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [payload_locked_documents.id],
@@ -747,6 +821,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["merge-request-commentsID"]],
       foreignColumns: [merge_request_comments.id],
       name: "payload_locked_documents_rels_merge_request_comments_fk",
+    }).onDelete("cascade"),
+    mediaIdFk: foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "payload_locked_documents_rels_media_fk",
     }).onDelete("cascade"),
   }),
 );
@@ -855,7 +934,12 @@ export const relations_users_sessions = relations(
     }),
   }),
 );
-export const relations_users = relations(users, ({ many }) => ({
+export const relations_users = relations(users, ({ one, many }) => ({
+  avatar: one(media, {
+    fields: [users.avatar],
+    references: [media.id],
+    relationName: "avatar",
+  }),
   sessions: many(users_sessions, {
     relationName: "sessions",
   }),
@@ -872,6 +956,11 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
     fields: [courses.instructor],
     references: [users.id],
     relationName: "instructor",
+  }),
+  thumbnail: one(media, {
+    fields: [courses.thumbnail],
+    references: [media.id],
+    relationName: "thumbnail",
   }),
   tags: many(courses_tags, {
     relationName: "tags",
@@ -1000,6 +1089,7 @@ export const relations_merge_request_comments = relations(
     }),
   }),
 );
+export const relations_media = relations(media, () => ({}));
 export const relations_payload_locked_documents_rels = relations(
   payload_locked_documents_rels,
   ({ one }) => ({
@@ -1052,6 +1142,11 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels["merge-request-commentsID"]],
       references: [merge_request_comments.id],
       relationName: "merge-request-comments",
+    }),
+    mediaID: one(media, {
+      fields: [payload_locked_documents_rels.mediaID],
+      references: [media.id],
+      relationName: "media",
     }),
   }),
 );
@@ -1113,6 +1208,7 @@ type DatabaseSchema = {
   tags: typeof tags;
   merge_requests: typeof merge_requests;
   merge_request_comments: typeof merge_request_comments;
+  media: typeof media;
   payload_locked_documents: typeof payload_locked_documents;
   payload_locked_documents_rels: typeof payload_locked_documents_rels;
   payload_preferences: typeof payload_preferences;
@@ -1130,6 +1226,7 @@ type DatabaseSchema = {
   relations_tags: typeof relations_tags;
   relations_merge_requests: typeof relations_merge_requests;
   relations_merge_request_comments: typeof relations_merge_request_comments;
+  relations_media: typeof relations_media;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;
   relations_payload_locked_documents: typeof relations_payload_locked_documents;
   relations_payload_preferences_rels: typeof relations_payload_preferences_rels;

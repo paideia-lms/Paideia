@@ -1,7 +1,9 @@
 import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
+import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
 import { type CollectionConfig, type Config, sanitizeConfig } from "payload";
+import sharp from "sharp";
 import { migrations } from "src/migrations";
 import { UnauthorizedError } from "~/utils/error";
 import { envVars } from "./env";
@@ -54,8 +56,9 @@ export const Courses = {
 		},
 		{
 			name: "thumbnail",
-			type: "text",
-			label: "Thumbnail URL",
+			type: "relationship",
+			relationTo: "media",
+			label: "Thumbnail",
 		},
 		{
 			name: "tags",
@@ -174,8 +177,9 @@ export const Users = {
 		{
 			saveToJWT: true,
 			name: "avatar",
-			type: "text",
-			label: "Avatar URL",
+			type: "relationship",
+			relationTo: "media",
+			label: "Avatar",
 		},
 	],
 	slug: "users",
@@ -522,6 +526,49 @@ export const MergeRequestComments = {
 	],
 } satisfies CollectionConfig;
 
+// Media collection for file uploads with S3 storage
+export const Media = {
+	slug: "media",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "alt",
+			type: "text",
+			label: "Alt Text",
+		},
+		{
+			name: "caption",
+			type: "textarea",
+			label: "Caption",
+		},
+	],
+	upload: {
+		staticDir: "media",
+		imageSizes: [
+			{
+				name: "thumbnail",
+				width: 400,
+				height: 300,
+				position: "centre",
+			},
+			{
+				name: "card",
+				width: 768,
+				height: 1024,
+				position: "centre",
+			},
+			{
+				name: "tablet",
+				width: 1024,
+				height: undefined,
+				position: "centre",
+			},
+		],
+		adminThumbnail: "thumbnail",
+		mimeTypes: ["image/*"],
+	},
+} satisfies CollectionConfig;
+
 const pg = postgresAdapter({
 	pool: {
 		connectionString: envVars.DATABASE_URL.value,
@@ -546,6 +593,7 @@ const config = {
 	secret: envVars.PAYLOAD_SECRET.value,
 	// ? shall we use localhost or the domain of the server
 	serverURL: `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
+	sharp,
 	collections: [
 		Users,
 		Courses,
@@ -556,7 +604,25 @@ const config = {
 		Tags,
 		MergeRequests,
 		MergeRequestComments,
+		Media,
 	] as CollectionConfig[],
+	plugins: [
+		s3Storage({
+			collections: {
+				media: true,
+			},
+			bucket: "paideia-bucket",
+			config: {
+				credentials: {
+					accessKeyId: envVars.S3_ACCESS_KEY.value,
+					secretAccessKey: envVars.S3_SECRET_KEY.value,
+				},
+				endpoint: envVars.S3_URL.value,
+				region: envVars.S3_REGION.value ?? envVars.S3_REGION.default, // MinIO default region
+				forcePathStyle: true, // Required for MinIO
+			},
+		}),
+	],
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),
 	},

@@ -31,6 +31,12 @@ export const envVars = {
 		sensitive: true,
 		value: process.env.S3_SECRET_KEY!,
 	},
+	S3_REGION: {
+		required: false,
+		sensitive: true,
+		value: process.env.S3_REGION,
+		default: "us-east-1",
+	},
 	PAYLOAD_SECRET: {
 		required: true,
 		sensitive: true,
