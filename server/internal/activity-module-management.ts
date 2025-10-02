@@ -3,77 +3,30 @@ import { MerkleTree } from "merkletreejs";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
 import {
-	DuplicateBranchError,
-	NonExistingSourceError,
+	InvalidArgumentError,
+	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type {
-	ActivityModule,
-	ActivityModuleVersion,
-	Branch,
-	Commit,
-} from "../payload-types";
+import type { ActivityModule, Commit } from "../payload-types";
 
 export function SHA256(data: string): string {
 	return createHash("sha256").update(data).digest("hex");
 }
+
 export interface CreateActivityModuleArgs {
-	slug: string;
 	title: string;
 	description?: string;
 	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
 	status?: "draft" | "published" | "archived";
-	content: Record<string, unknown>; // JSON/YAML content
+	content: Record<string, unknown>; // JSON content
 	commitMessage?: string;
-	branchName?: string; // defaults to "main"
 	userId: number;
 }
 
-export interface UpdateActivityModuleArgs {
-	title?: string;
-	description?: string;
-	status?: "draft" | "published" | "archived";
-	content?: Record<string, unknown>;
-	commitMessage?: string;
-	branchName?: string; // defaults to current branch or "main"
-	userId: number;
-}
-
-export interface SearchActivityModulesArgs {
-	title?: string;
-	type?: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
-	status?: "draft" | "published" | "archived";
-	createdBy?: number;
-	branchName?: string; // defaults to "main"
-	limit?: number;
-	page?: number;
-}
-
-export interface GetActivityModuleArgs {
-	slug?: string;
-	id?: number;
-	branchName?: string; // defaults to "main"
-	commitHash?: string; // get specific version
-}
-
-export interface CreateBranchArgs {
-	branchName: string;
-	description?: string;
-	fromBranch?: string; // defaults to "main"
-	userId: number;
-}
-
-export interface MergeBranchArgs {
-	sourceBranch: string;
-	targetBranch: string;
-	mergeMessage?: string;
-	userId: number;
-}
-
-export interface GetBranchesForModuleArgs {
-	moduleSlug?: string;
-	moduleId?: number;
+export interface CreateActivityModuleResult {
+	activityModule: ActivityModule;
+	commit: Commit;
 }
 
 /**
@@ -113,1144 +66,128 @@ export const generateCommitHash = (
 };
 
 /**
- * Get or create the main branch
- */
-const tryGetOrCreateMainBranch = Result.wrap(
-	async (payload: Payload, userId: number, transactionID: string | number) => {
-		// Try to find main branch
-		const existingBranches = await payload.find({
-			collection: "branches",
-			where: {
-				name: { equals: "main" },
-			},
-			req: { transactionID },
-		});
-
-		if (existingBranches.docs.length > 0) {
-			return existingBranches.docs[0];
-		}
-
-		// Create main branch
-		const mainBranch = await payload.create({
-			collection: "branches",
-			data: {
-				name: "main",
-				description: "Main branch",
-				isDefault: true,
-				createdBy: userId,
-			},
-			req: { transactionID },
-		});
-
-		return mainBranch;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to get or create main branch`, {
-			cause: error,
-		}),
-);
-
-/**
- * Get branch by name
- */
-const tryGetBranchByName = Result.wrap(
-	async (
-		payload: Payload,
-		branchName: string,
-		transactionID?: string | number,
-	) => {
-		const branches = await payload.find({
-			collection: "branches",
-			where: {
-				name: { equals: branchName },
-			},
-			req: transactionID ? { transactionID } : undefined,
-		});
-
-		if (branches.docs.length === 0) {
-			throw new NonExistingSourceError(`Branch '${branchName}' not found`);
-		}
-
-		return branches.docs[0];
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to get branch`, {
-			cause: error,
-		}),
-);
-
-/**
- * Creates a new branch from an existing branch
- */
-export const tryCreateBranch = Result.wrap(
-	async (payload: Payload, args: CreateBranchArgs) => {
-		const { branchName, description, fromBranch = "main", userId } = args;
-
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new Error("Transaction ID not found");
-		}
-
-		try {
-			// Check if branch already exists
-			const existingBranches = await payload.find({
-				collection: "branches",
-				where: {
-					name: { equals: branchName },
-				},
-				req: { transactionID },
-			});
-
-			if (existingBranches.docs.length > 0) {
-				throw new DuplicateBranchError(`Branch '${branchName}' already exists`);
-			}
-
-			// Get the source branch
-			const sourceBranchResult = await tryGetBranchByName(
-				payload,
-				fromBranch,
-				transactionID,
-			);
-			if (!sourceBranchResult.ok) {
-				throw sourceBranchResult.error;
-			}
-			const sourceBranch = sourceBranchResult.value;
-
-			// Create new branch
-			const newBranch = await payload.create({
-				collection: "branches",
-				data: {
-					name: branchName,
-					description: description || `Branch created from ${fromBranch}`,
-					isDefault: false,
-					createdBy: userId,
-				},
-				req: { transactionID },
-			});
-
-			// Get all current head versions from the source branch
-			const sourceVersions = await payload.find({
-				collection: "activity-module-versions",
-				where: {
-					and: [
-						{ branch: { equals: sourceBranch.id } },
-						{ isCurrentHead: { equals: true } },
-					],
-				},
-				req: { transactionID },
-			});
-
-			// Copy all current head versions to the new branch
-			const copiedVersions = [];
-			for (const sourceVersion of sourceVersions.docs) {
-				const version = sourceVersion;
-
-				const newVersion = await payload.create({
-					collection: "activity-module-versions",
-					data: {
-						activityModule: version.activityModule,
-						commit: version.commit,
-						branch: newBranch.id,
-						content: version.content,
-						title: version.title,
-						description: version.description,
-						isCurrentHead: true,
-						contentHash: version.contentHash,
-					},
-					req: { transactionID },
-				});
-
-				copiedVersions.push(newVersion);
-			}
-
-			await payload.db.commitTransaction(transactionID);
-
-			return {
-				branch: newBranch,
-				sourceBranch: sourceBranch,
-				copiedVersionsCount: copiedVersions.length,
-			};
-		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to create branch`, {
-			cause: error,
-		}),
-);
-
-/**
- * Creates a new activity module with initial version
+ * Creates a new activity module with initial commit
+ *
+ * This function:
+ * 1. Creates an activity module
+ * 2. Creates an initial commit for the activity module
+ * 3. Uses transactions to ensure atomicity
  */
 export const tryCreateActivityModule = Result.wrap(
 	async (
 		payload: Payload,
-		request: Request,
 		args: CreateActivityModuleArgs,
-	) => {
+	): Promise<CreateActivityModuleResult> => {
 		const {
-			slug,
 			title,
 			description,
 			type,
 			status = "draft",
 			content,
 			commitMessage = "Initial commit",
-			branchName = "main",
 			userId,
 		} = args;
 
+		// Validate required fields
+		if (!title || title.trim() === "") {
+			throw new InvalidArgumentError("Title is required");
+		}
+
+		if (!type) {
+			throw new InvalidArgumentError("Type is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		if (!content || typeof content !== "object" || Array.isArray(content)) {
+			throw new InvalidArgumentError("Content must be a valid object");
+		}
+
+		// Begin transaction
 		const transactionID = await payload.db.beginTransaction();
 
 		if (!transactionID) {
-			throw new Error("Transaction ID not found");
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
 		try {
-			// Check if activity module with slug already exists
-			const existingModules = await payload.find({
-				collection: "activity-modules",
-				where: {
-					slug: { equals: slug },
-				},
+			// Verify user exists
+			const user = await payload.findByID({
+				collection: "users",
+				id: userId,
 				req: { transactionID },
 			});
 
-			if (existingModules.docs.length > 0) {
-				throw new Error(`Activity module with slug '${slug}' already exists`);
+			if (!user) {
+				throw new InvalidArgumentError(`User with id '${userId}' not found`);
 			}
-
-			// Get or create branch
-			const branchResult =
-				branchName === "main"
-					? await tryGetOrCreateMainBranch(payload, userId, transactionID)
-					: await tryGetBranchByName(payload, branchName, transactionID);
-
-			if (!branchResult.ok) {
-				throw branchResult.error;
-			}
-			const branch = branchResult.value;
 
 			// Create activity module
 			const activityModule = await payload.create({
 				collection: "activity-modules",
 				data: {
-					slug,
 					title,
-					description,
+					description: description || null,
+					branch: "main", // Default branch
 					type,
 					status,
 					createdBy: userId,
-				},
+				} as never,
 				req: { transactionID },
 			});
 
-			// Generate hashes
+			// Generate hashes for the initial commit
 			const contentHash = generateContentHash(content);
+			const commitDate = new Date();
 			const commitHash = generateCommitHash(
 				content,
 				commitMessage,
 				userId,
-				new Date(),
+				commitDate,
 			);
 
-			// Create commit
+			// Create initial commit
 			const commit = await payload.create({
 				collection: "commits",
 				data: {
+					activityModule: activityModule.id,
 					hash: commitHash,
 					message: commitMessage,
 					author: userId,
-					committer: userId,
-					isMergeCommit: false,
-					commitDate: new Date().toISOString(),
-				},
-				req: { transactionID },
-			});
-
-			// Create activity module version
-			const version = await payload.create({
-				collection: "activity-module-versions",
-				data: {
-					activityModule: activityModule.id,
-					commit: commit.id,
-					branch: branch.id,
+					parentCommit: null, // First commit has no parent
+					commitDate: commitDate.toISOString(),
 					content,
-					title,
-					description,
-					isCurrentHead: true,
 					contentHash,
 				},
 				req: { transactionID },
 			});
 
+			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
 
 			return {
-				activityModule: activityModule,
-				version: version,
-				commit: commit,
-				branch: branch,
+				// ! we need to manually add the commit to the activity module
+				activityModule: {
+					...activityModule,
+					commits: {
+						docs: [commit],
+						hasNextPage: false,
+						totalDocs: 1,
+					},
+				},
+				commit,
 			};
 		} catch (error) {
+			// Rollback transaction on error
 			await payload.db.rollbackTransaction(transactionID);
 			throw error;
 		}
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError(`Failed to create activity module`, {
-			cause: error,
-		}),
-);
-
-/**
- * Updates an activity module by creating a new version
- */
-export const tryUpdateActivityModule = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		moduleSlug: string,
-		args: UpdateActivityModuleArgs,
-	) => {
-		const {
-			title,
-			description,
-			status,
-			content,
-			commitMessage = "Update activity module",
-			branchName = "main",
-			userId,
-		} = args;
-
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new Error("Transaction ID not found");
-		}
-
-		try {
-			// Find activity module
-			const modules = await payload.find({
-				collection: "activity-modules",
-				where: {
-					slug: { equals: moduleSlug },
-				},
-				req: { transactionID },
-			});
-
-			if (modules.docs.length === 0) {
-				throw new Error(`Activity module with slug '${moduleSlug}' not found`);
-			}
-
-			let activityModule = modules.docs[0];
-
-			// Get branch
-			const branchResult = await tryGetBranchByName(
-				payload,
-				branchName,
-				transactionID,
-			);
-			if (!branchResult.ok) {
-				throw branchResult.error;
-			}
-			const branch = branchResult.value;
-
-			// Get current version to merge with updates
-			const currentVersions = await payload.find({
-				collection: "activity-module-versions",
-				where: {
-					and: [
-						{ activityModule: { equals: activityModule.id } },
-						{ branch: { equals: branch.id } },
-						{ isCurrentHead: { equals: true } },
-					],
-				},
-				req: { transactionID },
-			});
-
-			let currentContent = {};
-			let currentTitle = activityModule.title;
-			let currentDescription = activityModule.description;
-
-			if (currentVersions.docs.length > 0) {
-				const currentVersion = currentVersions.docs[0];
-				currentContent = currentVersion.content || {};
-				currentTitle = currentVersion.title;
-				currentDescription = currentVersion.description;
-			}
-
-			// Merge updates
-			const newContent = content
-				? { ...currentContent, ...content }
-				: currentContent;
-			const newTitle = title || currentTitle;
-			const newDescription =
-				description !== undefined ? description : currentDescription;
-
-			// Update activity module metadata if provided
-			if (title || description !== undefined || status) {
-				const updatedModule = await payload.update({
-					collection: "activity-modules",
-					id: activityModule.id,
-					data: {
-						...(title && { title }),
-						...(description !== undefined && { description }),
-						...(status && { status }),
-					},
-					req: { transactionID },
-				});
-				// Update the local reference
-				activityModule = updatedModule;
-			}
-
-			// Generate hashes
-			const contentHash = generateContentHash(newContent);
-			const commitHash = generateCommitHash(
-				newContent,
-				commitMessage,
-				userId,
-				new Date(),
-			);
-
-			// Get parent commit (current head)
-			let parentCommitId = null;
-			if (currentVersions.docs.length > 0) {
-				const currentVersion = currentVersions.docs[0];
-				parentCommitId = currentVersion.commit;
-			}
-
-			// Create new commit
-			const commit = await payload.create({
-				collection: "commits",
-				data: {
-					hash: commitHash,
-					message: commitMessage,
-					author: userId,
-					committer: userId,
-					parentCommit: parentCommitId,
-					isMergeCommit: false,
-					commitDate: new Date().toISOString(),
-				},
-				req: { transactionID },
-			});
-
-			// Mark previous version as not current head
-			if (currentVersions.docs.length > 0) {
-				await payload.update({
-					collection: "activity-module-versions",
-					id: currentVersions.docs[0].id,
-					data: {
-						isCurrentHead: false,
-					},
-					req: { transactionID },
-				});
-			}
-
-			// Create new version
-			const version = await payload.create({
-				collection: "activity-module-versions",
-				data: {
-					activityModule: activityModule.id,
-					commit: commit.id,
-					branch: branch.id,
-					content: newContent,
-					title: newTitle,
-					description: newDescription,
-					isCurrentHead: true,
-					contentHash,
-				},
-				req: { transactionID },
-			});
-
-			await payload.db.commitTransaction(transactionID);
-
-			return {
-				activityModule: activityModule,
-				version: version,
-				commit: commit,
-				branch: branch,
-			};
-		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to update activity module`, {
-			cause: error,
-		}),
-);
-
-/**
- * Gets an activity module with its latest version (or specific version)
- */
-export const tryGetActivityModule = Result.wrap(
-	async (payload: Payload, args: GetActivityModuleArgs) => {
-		const { slug, id, branchName = "main", commitHash } = args;
-		// Find activity module
-		let activityModule: ActivityModule;
-		if (slug) {
-			const modules = await payload.find({
-				collection: "activity-modules",
-				where: {
-					slug: { equals: slug },
-				},
-			});
-
-			if (modules.docs.length === 0) {
-				throw new Error(`Activity module with slug '${slug}' not found`);
-			}
-			activityModule = modules.docs[0];
-		} else if (id) {
-			const module = await payload.findByID({
-				collection: "activity-modules",
-				id: id,
-			});
-			if (!module) {
-				throw new Error(`Activity module with id '${id}' not found`);
-			}
-			activityModule = module;
-		} else {
-			throw new Error("Either slug or id must be provided");
-		}
-
-		// Get branch
-		const branchResult = await tryGetBranchByName(payload, branchName);
-		if (!branchResult.ok) {
-			throw branchResult.error;
-		}
-		const branch = branchResult.value;
-
-		// Build version query
-		const versionWhere: any = {
-			and: [
-				{ activityModule: { equals: activityModule.id } },
-				{ branch: { equals: branch.id } },
-			],
-		};
-
-		if (commitHash) {
-			// Find specific commit
-			const commits = await payload.find({
-				collection: "commits",
-				where: {
-					hash: { equals: commitHash },
-				},
-			});
-
-			if (commits.docs.length === 0) {
-				throw new Error(`Commit with hash '${commitHash}' not found`);
-			}
-
-			versionWhere.and.push({ commit: { equals: commits.docs[0].id } });
-		} else {
-			// Get current head
-			versionWhere.and.push({ isCurrentHead: { equals: true } });
-		}
-
-		// Find version
-		const versions = await payload.find({
-			collection: "activity-module-versions",
-			where: versionWhere,
-			populate: {
-				commits: {
-					hash: true,
-					message: true,
-					author: true,
-					commitDate: true,
-				},
-			},
-		});
-
-		if (versions.docs.length === 0) {
-			throw new Error(
-				`No version found for activity module on branch '${branchName}'`,
-			);
-		}
-
-		const version = versions.docs[0];
-
-		return {
-			activityModule,
-			version,
-			branch,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to get activity module`, {
-			cause: error,
-		}),
-);
-
-/**
- * Searches activity modules with filters
- */
-export const trySearchActivityModules = Result.wrap(
-	async (payload: Payload, args: SearchActivityModulesArgs = {}) => {
-		const {
-			title,
-			type,
-			status,
-			createdBy,
-			branchName = "main",
-			limit = 10,
-			page = 1,
-		} = args;
-
-		// Get branch
-		const branchResult = await tryGetBranchByName(payload, branchName);
-		if (!branchResult.ok) {
-			throw branchResult.error;
-		}
-		const branch = branchResult.value;
-
-		// Build activity module query
-		const moduleWhere: any = {};
-
-		if (title) {
-			moduleWhere.title = { contains: title };
-		}
-
-		if (type) {
-			moduleWhere.type = { equals: type };
-		}
-
-		if (status) {
-			moduleWhere.status = { equals: status };
-		}
-
-		if (createdBy) {
-			moduleWhere.createdBy = { equals: createdBy };
-		}
-
-		// Find activity modules
-		const modules = await payload.find({
-			collection: "activity-modules",
-			where: moduleWhere,
-			limit,
-			page,
-			sort: "-createdAt",
-		});
-
-		// Get current versions for each module
-		const modulesWithVersions = await Promise.all(
-			modules.docs.map(async (module) => {
-				const versions = await payload.find({
-					collection: "activity-module-versions",
-					where: {
-						and: [
-							{ activityModule: { equals: module.id } },
-							{ branch: { equals: branch.id } },
-							{ isCurrentHead: { equals: true } },
-						],
-					},
-					populate: {
-						commits: {
-							hash: true,
-							message: true,
-							author: true,
-							commitDate: true,
-						},
-					},
-				});
-
-				return {
-					activityModule: module,
-					version: versions.docs[0] || null,
-				};
-			}),
-		);
-
-		return {
-			docs: modulesWithVersions,
-			totalDocs: modules.totalDocs,
-			totalPages: modules.totalPages,
-			page: modules.page,
-			limit: modules.limit,
-			hasNextPage: modules.hasNextPage,
-			hasPrevPage: modules.hasPrevPage,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to search activity modules:`, {
-			cause: error,
-		}),
-);
-
-/**
- * Merges a source branch into a target branch
- */
-export const tryMergeBranch = Result.wrap(
-	async (payload: Payload, args: MergeBranchArgs) => {
-		const {
-			sourceBranch: sourceBranchName,
-			targetBranch: targetBranchName,
-			mergeMessage = `Merge ${sourceBranchName} into ${targetBranchName}`,
-			userId,
-		} = args;
-
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new Error("Transaction ID not found");
-		}
-
-		try {
-			// Get source and target branches
-			const sourceBranchResult = await tryGetBranchByName(
-				payload,
-				sourceBranchName,
-				transactionID,
-			);
-			const targetBranchResult = await tryGetBranchByName(
-				payload,
-				targetBranchName,
-				transactionID,
-			);
-
-			if (!sourceBranchResult.ok) {
-				throw sourceBranchResult.error;
-			}
-			if (!targetBranchResult.ok) {
-				throw targetBranchResult.error;
-			}
-
-			const sourceBranch = sourceBranchResult.value;
-			const targetBranch = targetBranchResult.value;
-
-			// Get all current head versions from source branch
-			const sourceVersions = await payload.find({
-				collection: "activity-module-versions",
-				where: {
-					and: [
-						{ branch: { equals: sourceBranch.id } },
-						{ isCurrentHead: { equals: true } },
-					],
-				},
-				req: { transactionID },
-			});
-
-			// Get all current head versions from target branch
-			const targetVersions = await payload.find({
-				collection: "activity-module-versions",
-				where: {
-					and: [
-						{ branch: { equals: targetBranch.id } },
-						{ isCurrentHead: { equals: true } },
-					],
-				},
-				req: { transactionID },
-			});
-
-			// Create a map of target branch activity modules for quick lookup
-			const targetModuleMap = new Map();
-			for (const version of targetVersions.docs) {
-				const v = version;
-				targetModuleMap.set(v.activityModule, v);
-			}
-
-			const mergedVersions = [];
-			const newCommits = [];
-
-			// Process each source version
-			for (const sourceVersion of sourceVersions.docs) {
-				const sourceV = sourceVersion;
-				const moduleId = sourceV.activityModule;
-				const targetV = targetModuleMap.get(moduleId);
-
-				if (!targetV) {
-					if (
-						!(
-							typeof sourceV.content === "object" &&
-							!Array.isArray(sourceV.content)
-						)
-					) {
-						throw new Error("Source content is not an object");
-					}
-					// Module doesn't exist in target branch - copy it over
-					// Create a new commit for this copy to avoid unique constraint violation
-					const copyCommitHash = generateCommitHash(
-						sourceV.content || {},
-						`Copy from ${sourceBranchName}`,
-						userId,
-						new Date(),
-					);
-
-					const copyCommit = await payload.create({
-						collection: "commits",
-						data: {
-							hash: copyCommitHash,
-							message: `Copy from ${sourceBranchName}`,
-							author: userId,
-							committer: userId,
-							parentCommit: sourceV.commit,
-							isMergeCommit: false,
-							commitDate: new Date().toISOString(),
-						},
-						req: { transactionID },
-					});
-
-					const newVersion = await payload.create({
-						collection: "activity-module-versions",
-						data: {
-							activityModule: sourceV.activityModule,
-							commit: copyCommit.id,
-							branch: targetBranch.id,
-							content: sourceV.content,
-							title: sourceV.title,
-							description: sourceV.description,
-							isCurrentHead: true,
-							contentHash: sourceV.contentHash,
-						},
-						req: { transactionID },
-					});
-					mergedVersions.push(newVersion);
-					newCommits.push(copyCommit);
-				} else {
-					// Module exists in both branches - check if source is newer
-					const sourceCommit = await payload.findByID({
-						collection: "commits",
-						id:
-							typeof sourceV.commit === "number"
-								? sourceV.commit
-								: sourceV.commit.id,
-						req: { transactionID },
-					});
-					const targetCommit = await payload.findByID({
-						collection: "commits",
-						id: targetV.commit,
-						req: { transactionID },
-					});
-
-					if (!sourceCommit || !targetCommit) {
-						throw new Error("Failed to find commit information");
-					}
-
-					const sourceDate = new Date(sourceCommit.commitDate);
-					const targetDate = new Date(targetCommit.commitDate);
-
-					// If source is newer, create a merge commit
-					if (sourceDate > targetDate) {
-						// is object and not array
-						if (
-							!(
-								typeof sourceV.content === "object" &&
-								!Array.isArray(sourceV.content)
-							)
-						) {
-							throw new Error("Source content is not an object");
-						}
-
-						// Generate merge commit hash
-						const mergeCommitHash = generateCommitHash(
-							sourceV.content || {},
-							mergeMessage,
-							userId,
-							new Date(),
-						);
-
-						// Create merge commit with both parents
-						const mergeCommit = await payload.create({
-							collection: "commits",
-							data: {
-								hash: mergeCommitHash,
-								message: mergeMessage,
-								author: userId,
-								committer: userId,
-								parentCommit: targetV.commit,
-								isMergeCommit: true,
-								commitDate: new Date().toISOString(),
-							},
-							req: { transactionID },
-						});
-
-						// Create commit parent relationship for the source commit
-						await payload.create({
-							collection: "commit-parents",
-							data: {
-								commit: mergeCommit.id,
-								parentCommit: sourceV.commit,
-								parentOrder: 1, // Second parent (first parent is already set in the commit record)
-							},
-							req: { transactionID },
-						});
-
-						// Mark current target version as not head
-						await payload.update({
-							collection: "activity-module-versions",
-							id: targetV.id,
-							data: {
-								isCurrentHead: false,
-							},
-							req: { transactionID },
-						});
-
-						// Create new version in target branch
-						const newVersion = await payload.create({
-							collection: "activity-module-versions",
-							data: {
-								activityModule: sourceV.activityModule,
-								commit: mergeCommit.id,
-								branch: targetBranch.id,
-								content: sourceV.content,
-								title: sourceV.title,
-								description: sourceV.description,
-								isCurrentHead: true,
-								contentHash: sourceV.contentHash,
-							},
-							req: { transactionID },
-						});
-
-						mergedVersions.push(newVersion);
-						newCommits.push(mergeCommit);
-					}
-					// If target is newer or equal, no merge needed for this module
-				}
-			}
-
-			await payload.db.commitTransaction(transactionID);
-
-			return {
-				sourceBranch,
-				targetBranch,
-				mergedVersionsCount: mergedVersions.length,
-				newCommitsCount: newCommits.length,
-			};
-		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
-	},
-	(error) => {
-		console.error(JSON.stringify(error, null, 2));
-		return (
-			transformError(error) ??
-			new UnknownError(`Failed to merge branch`, {
-				cause: error,
-			})
-		);
-	},
-);
-
-/**
- * Gets all branches that contain versions of a specific activity module
- */
-export const tryGetBranchesForModule = Result.wrap(
-	async (payload: Payload, args: GetBranchesForModuleArgs) => {
-		const { moduleSlug, moduleId } = args;
-
-		// Find activity module
-		let activityModule: ActivityModule;
-		if (moduleSlug) {
-			const modules = await payload.find({
-				collection: "activity-modules",
-				where: {
-					slug: { equals: moduleSlug },
-				},
-			});
-
-			if (modules.docs.length === 0) {
-				throw new Error(`Activity module with slug '${moduleSlug}' not found`);
-			}
-			activityModule = modules.docs[0];
-		} else if (moduleId) {
-			const module = await payload.findByID({
-				collection: "activity-modules",
-				id: moduleId,
-			});
-			if (!module) {
-				throw new Error(`Activity module with id '${moduleId}' not found`);
-			}
-			activityModule = module;
-		} else {
-			throw new Error("Either moduleSlug or moduleId must be provided");
-		}
-
-		// Find all versions of this module
-		const versions = await payload.find({
-			collection: "activity-module-versions",
-			where: {
-				activityModule: { equals: activityModule.id },
-			},
-			populate: {
-				branches: {
-					name: true,
-					description: true,
-					isDefault: true,
-					createdBy: true,
-				},
-			},
-		});
-
-		// Extract unique branches
-		const branchMap = new Map<number, Branch>();
-		for (const version of versions.docs) {
-			const v = version;
-			const branch = v.branch;
-			if (typeof branch === "object" && branch !== null && "name" in branch) {
-				branchMap.set(branch.id, branch);
-			}
-		}
-
-		return {
-			activityModule,
-			branches: Array.from(branchMap.values()),
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to get branches for module`, {
-			cause: error,
-		}),
-);
-
-/**
- * Deletes a branch and all its versions
- */
-export const tryDeleteBranch = Result.wrap(
-	async (payload: Payload, branchName: string, userId: number) => {
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new Error("Transaction ID not found");
-		}
-
-		try {
-			// Get branch
-			const branchResult = await tryGetBranchByName(
-				payload,
-				branchName,
-				transactionID,
-			);
-			if (!branchResult.ok) {
-				throw branchResult.error;
-			}
-			const branch = branchResult.value;
-
-			// Cannot delete main branch
-			if (branch.isDefault) {
-				throw new Error("Cannot delete the default branch");
-			}
-
-			// Find all versions in this branch
-			const versions = await payload.find({
-				collection: "activity-module-versions",
-				where: {
-					branch: { equals: branch.id },
-				},
-				req: { transactionID },
-			});
-
-			// Delete all versions
-			for (const version of versions.docs) {
-				await payload.delete({
-					collection: "activity-module-versions",
-					id: version.id,
-					req: { transactionID },
-				});
-			}
-
-			// Delete branch
-			const deletedBranch = await payload.delete({
-				collection: "branches",
-				id: branch.id,
-				req: { transactionID },
-			});
-
-			await payload.db.commitTransaction(transactionID);
-
-			return deletedBranch;
-		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to delete branch`, {
-			cause: error,
-		}),
-);
-
-/**
- * Deletes an activity module and all its versions
- */
-export const tryDeleteActivityModule = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		moduleSlug: string,
-		userId: number,
-	) => {
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new Error("Transaction ID not found");
-		}
-
-		try {
-			// Find activity module
-			const modules = await payload.find({
-				collection: "activity-modules",
-				where: {
-					slug: { equals: moduleSlug },
-				},
-				req: { transactionID },
-			});
-
-			if (modules.docs.length === 0) {
-				throw new Error(`Activity module with slug '${moduleSlug}' not found`);
-			}
-
-			const activityModule = modules.docs[0];
-
-			// Find all versions
-			const versions = await payload.find({
-				collection: "activity-module-versions",
-				where: {
-					activityModule: { equals: activityModule.id },
-				},
-				req: { transactionID },
-			});
-
-			// Delete all versions
-			for (const version of versions.docs) {
-				await payload.delete({
-					collection: "activity-module-versions",
-					id: version.id,
-					req: { transactionID },
-				});
-			}
-
-			// Delete activity module
-			const deletedModule = await payload.delete({
-				collection: "activity-modules",
-				id: activityModule.id,
-				req: { transactionID },
-			});
-
-			await payload.db.commitTransaction(transactionID);
-
-			return deletedModule;
-		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError(`Failed to delete activity module:`, {
+		new UnknownError("Failed to create activity module", {
 			cause: error,
 		}),
 );

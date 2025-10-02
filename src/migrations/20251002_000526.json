@@ -1,5 +1,5 @@
 {
-  "id": "0f7dbf21-e2c9-4899-8dfc-f30f21abd984",
+  "id": "33f3a416-7766-4a52-b55e-fe3607c65009",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -670,12 +670,6 @@
           "primaryKey": true,
           "notNull": true
         },
-        "slug": {
-          "name": "slug",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
         "title": {
           "name": "title",
           "type": "varchar",
@@ -685,6 +679,19 @@
         "description": {
           "name": "description",
           "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "branch": {
+          "name": "branch",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'main'"
+        },
+        "origin_id": {
+          "name": "origin_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -725,17 +732,17 @@
         }
       },
       "indexes": {
-        "activity_modules_slug_idx": {
-          "name": "activity_modules_slug_idx",
+        "activity_modules_origin_idx": {
+          "name": "activity_modules_origin_idx",
           "columns": [
             {
-              "expression": "slug",
+              "expression": "origin_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
             }
           ],
-          "isUnique": true,
+          "isUnique": false,
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -787,142 +794,22 @@
         }
       },
       "foreignKeys": {
-        "activity_modules_created_by_id_users_id_fk": {
-          "name": "activity_modules_created_by_id_users_id_fk",
+        "activity_modules_origin_id_activity_modules_id_fk": {
+          "name": "activity_modules_origin_id_activity_modules_id_fk",
           "tableFrom": "activity_modules",
-          "tableTo": "users",
+          "tableTo": "activity_modules",
           "columnsFrom": [
-            "created_by_id"
+            "origin_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "set null",
           "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.branches": {
-      "name": "branches",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_default": {
-          "name": "is_default",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "branches_name_idx": {
-          "name": "branches_name_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "branches_created_by_idx": {
-          "name": "branches_created_by_idx",
-          "columns": [
-            {
-              "expression": "created_by_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "branches_updated_at_idx": {
-          "name": "branches_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "branches_created_at_idx": {
-          "name": "branches_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "branches_created_by_id_users_id_fk": {
-          "name": "branches_created_by_id_users_id_fk",
-          "tableFrom": "branches",
+        "activity_modules_created_by_id_users_id_fk": {
+          "name": "activity_modules_created_by_id_users_id_fk",
+          "tableFrom": "activity_modules",
           "tableTo": "users",
           "columnsFrom": [
             "created_by_id"
@@ -956,6 +843,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "activity_module_id": {
+          "name": "activity_module_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "message": {
           "name": "message",
           "type": "varchar",
@@ -968,28 +861,27 @@
           "primaryKey": false,
           "notNull": true
         },
-        "committer_id": {
-          "name": "committer_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
         "parent_commit_id": {
           "name": "parent_commit_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "is_merge_commit": {
-          "name": "is_merge_commit",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "commit_date": {
           "name": "commit_date",
           "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "content_hash": {
+          "name": "content_hash",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": true
         },
@@ -1024,11 +916,11 @@
           "method": "btree",
           "with": {}
         },
-        "commits_author_idx": {
-          "name": "commits_author_idx",
+        "commits_activity_module_idx": {
+          "name": "commits_activity_module_idx",
           "columns": [
             {
-              "expression": "author_id",
+              "expression": "activity_module_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1039,11 +931,11 @@
           "method": "btree",
           "with": {}
         },
-        "commits_committer_idx": {
-          "name": "commits_committer_idx",
+        "commits_author_idx": {
+          "name": "commits_author_idx",
           "columns": [
             {
-              "expression": "committer_id",
+              "expression": "author_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1098,9 +990,43 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "activityModule_hash_idx": {
+          "name": "activityModule_hash_idx",
+          "columns": [
+            {
+              "expression": "activity_module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
+        "commits_activity_module_id_activity_modules_id_fk": {
+          "name": "commits_activity_module_id_activity_modules_id_fk",
+          "tableFrom": "commits",
+          "tableTo": "activity_modules",
+          "columnsFrom": [
+            "activity_module_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "commits_author_id_users_id_fk": {
           "name": "commits_author_id_users_id_fk",
           "tableFrom": "commits",
@@ -1114,437 +1040,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "commits_committer_id_users_id_fk": {
-          "name": "commits_committer_id_users_id_fk",
-          "tableFrom": "commits",
-          "tableTo": "users",
-          "columnsFrom": [
-            "committer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "commits_parent_commit_id_commits_id_fk": {
           "name": "commits_parent_commit_id_commits_id_fk",
           "tableFrom": "commits",
           "tableTo": "commits",
           "columnsFrom": [
             "parent_commit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.commit_parents": {
-      "name": "commit_parents",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "commit_id": {
-          "name": "commit_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "parent_commit_id": {
-          "name": "parent_commit_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "parent_order": {
-          "name": "parent_order",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "commit_parents_commit_idx": {
-          "name": "commit_parents_commit_idx",
-          "columns": [
-            {
-              "expression": "commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commit_parents_parent_commit_idx": {
-          "name": "commit_parents_parent_commit_idx",
-          "columns": [
-            {
-              "expression": "parent_commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commit_parents_updated_at_idx": {
-          "name": "commit_parents_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commit_parents_created_at_idx": {
-          "name": "commit_parents_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commit_parentCommit_idx": {
-          "name": "commit_parentCommit_idx",
-          "columns": [
-            {
-              "expression": "commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "parent_commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "commit_parents_commit_id_commits_id_fk": {
-          "name": "commit_parents_commit_id_commits_id_fk",
-          "tableFrom": "commit_parents",
-          "tableTo": "commits",
-          "columnsFrom": [
-            "commit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "commit_parents_parent_commit_id_commits_id_fk": {
-          "name": "commit_parents_parent_commit_id_commits_id_fk",
-          "tableFrom": "commit_parents",
-          "tableTo": "commits",
-          "columnsFrom": [
-            "parent_commit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.activity_module_versions": {
-      "name": "activity_module_versions",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "activity_module_id": {
-          "name": "activity_module_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "commit_id": {
-          "name": "commit_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "branch_id": {
-          "name": "branch_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content": {
-          "name": "content",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "title": {
-          "name": "title",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_current_head": {
-          "name": "is_current_head",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
-        "content_hash": {
-          "name": "content_hash",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "activity_module_versions_activity_module_idx": {
-          "name": "activity_module_versions_activity_module_idx",
-          "columns": [
-            {
-              "expression": "activity_module_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "activity_module_versions_commit_idx": {
-          "name": "activity_module_versions_commit_idx",
-          "columns": [
-            {
-              "expression": "commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "activity_module_versions_branch_idx": {
-          "name": "activity_module_versions_branch_idx",
-          "columns": [
-            {
-              "expression": "branch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "activity_module_versions_updated_at_idx": {
-          "name": "activity_module_versions_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "activity_module_versions_created_at_idx": {
-          "name": "activity_module_versions_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "activityModule_commit_branch_idx": {
-          "name": "activityModule_commit_branch_idx",
-          "columns": [
-            {
-              "expression": "activity_module_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "branch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "activityModule_branch_isCurrentHead_idx": {
-          "name": "activityModule_branch_isCurrentHead_idx",
-          "columns": [
-            {
-              "expression": "activity_module_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "branch_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "is_current_head",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "activity_module_versions_activity_module_id_activity_modules_id_fk": {
-          "name": "activity_module_versions_activity_module_id_activity_modules_id_fk",
-          "tableFrom": "activity_module_versions",
-          "tableTo": "activity_modules",
-          "columnsFrom": [
-            "activity_module_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "activity_module_versions_commit_id_commits_id_fk": {
-          "name": "activity_module_versions_commit_id_commits_id_fk",
-          "tableFrom": "activity_module_versions",
-          "tableTo": "commits",
-          "columnsFrom": [
-            "commit_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "activity_module_versions_branch_id_branches_id_fk": {
-          "name": "activity_module_versions_branch_id_branches_id_fk",
-          "tableFrom": "activity_module_versions",
-          "tableTo": "branches",
-          "columnsFrom": [
-            "branch_id"
           ],
           "columnsTo": [
             "id"
@@ -1864,26 +1365,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "branches_id": {
-          "name": "branches_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "commits_id": {
           "name": "commits_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "commit_parents_id": {
-          "name": "commit_parents_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "activity_module_versions_id": {
-          "name": "activity_module_versions_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -2001,56 +1484,11 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_branches_id_idx": {
-          "name": "payload_locked_documents_rels_branches_id_idx",
-          "columns": [
-            {
-              "expression": "branches_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payload_locked_documents_rels_commits_id_idx": {
           "name": "payload_locked_documents_rels_commits_id_idx",
           "columns": [
             {
               "expression": "commits_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payload_locked_documents_rels_commit_parents_id_idx": {
-          "name": "payload_locked_documents_rels_commit_parents_id_idx",
-          "columns": [
-            {
-              "expression": "commit_parents_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "payload_locked_documents_rels_activity_module_versions_i_idx": {
-          "name": "payload_locked_documents_rels_activity_module_versions_i_idx",
-          "columns": [
-            {
-              "expression": "activity_module_versions_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -2143,51 +1581,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_branches_fk": {
-          "name": "payload_locked_documents_rels_branches_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "branches",
-          "columnsFrom": [
-            "branches_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "payload_locked_documents_rels_commits_fk": {
           "name": "payload_locked_documents_rels_commits_fk",
           "tableFrom": "payload_locked_documents_rels",
           "tableTo": "commits",
           "columnsFrom": [
             "commits_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "payload_locked_documents_rels_commit_parents_fk": {
-          "name": "payload_locked_documents_rels_commit_parents_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "commit_parents",
-          "columnsFrom": [
-            "commit_parents_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "payload_locked_documents_rels_activity_module_versions_fk": {
-          "name": "payload_locked_documents_rels_activity_module_versions_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "activity_module_versions",
-          "columnsFrom": [
-            "activity_module_versions_id"
           ],
           "columnsTo": [
             "id"

@@ -71,25 +71,23 @@ export interface Config {
     courses: Course;
     enrollments: Enrollment;
     'activity-modules': ActivityModule;
-    branches: Branch;
     commits: Commit;
-    'commit-parents': CommitParent;
-    'activity-module-versions': ActivityModuleVersion;
     tags: Tag;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
-  collectionsJoins: {};
+  collectionsJoins: {
+    'activity-modules': {
+      commits: 'commits';
+    };
+  };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
-    branches: BranchesSelect<false> | BranchesSelect<true>;
     commits: CommitsSelect<false> | CommitsSelect<true>;
-    'commit-parents': CommitParentsSelect<false> | CommitParentsSelect<true>;
-    'activity-module-versions': ActivityModuleVersionsSelect<false> | ActivityModuleVersionsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -201,24 +199,17 @@ export interface Enrollment {
  */
 export interface ActivityModule {
   id: number;
-  slug: string;
   title: string;
   description?: string | null;
+  branch: string;
+  origin?: (number | null) | ActivityModule;
+  commits?: {
+    docs?: (number | Commit)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
   status?: ('draft' | 'published' | 'archived') | null;
-  createdBy: number | User;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "branches".
- */
-export interface Branch {
-  id: number;
-  name: string;
-  description?: string | null;
-  isDefault?: boolean | null;
   createdBy: number | User;
   updatedAt: string;
   createdAt: string;
@@ -230,36 +221,11 @@ export interface Branch {
 export interface Commit {
   id: number;
   hash: string;
+  activityModule?: (number | null) | ActivityModule;
   message: string;
   author: number | User;
-  committer: number | User;
   parentCommit?: (number | null) | Commit;
-  isMergeCommit?: boolean | null;
   commitDate: string;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "commit-parents".
- */
-export interface CommitParent {
-  id: number;
-  commit: number | Commit;
-  parentCommit: number | Commit;
-  parentOrder: number;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "activity-module-versions".
- */
-export interface ActivityModuleVersion {
-  id: number;
-  activityModule: number | ActivityModule;
-  commit: number | Commit;
-  branch: number | Branch;
   content:
     | {
         [k: string]: unknown;
@@ -269,10 +235,7 @@ export interface ActivityModuleVersion {
     | number
     | boolean
     | null;
-  title: string;
-  description?: string | null;
-  isCurrentHead?: boolean | null;
-  contentHash?: string | null;
+  contentHash: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -314,20 +277,8 @@ export interface PayloadLockedDocument {
         value: number | ActivityModule;
       } | null)
     | ({
-        relationTo: 'branches';
-        value: number | Branch;
-      } | null)
-    | ({
         relationTo: 'commits';
         value: number | Commit;
-      } | null)
-    | ({
-        relationTo: 'commit-parents';
-        value: number | CommitParent;
-      } | null)
-    | ({
-        relationTo: 'activity-module-versions';
-        value: number | ActivityModuleVersion;
       } | null)
     | ({
         relationTo: 'tags';
@@ -444,23 +395,13 @@ export interface EnrollmentsSelect<T extends boolean = true> {
  * via the `definition` "activity-modules_select".
  */
 export interface ActivityModulesSelect<T extends boolean = true> {
-  slug?: T;
   title?: T;
   description?: T;
+  branch?: T;
+  origin?: T;
+  commits?: T;
   type?: T;
   status?: T;
-  createdBy?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "branches_select".
- */
-export interface BranchesSelect<T extends boolean = true> {
-  name?: T;
-  description?: T;
-  isDefault?: T;
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -471,38 +412,12 @@ export interface BranchesSelect<T extends boolean = true> {
  */
 export interface CommitsSelect<T extends boolean = true> {
   hash?: T;
+  activityModule?: T;
   message?: T;
   author?: T;
-  committer?: T;
   parentCommit?: T;
-  isMergeCommit?: T;
   commitDate?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "commit-parents_select".
- */
-export interface CommitParentsSelect<T extends boolean = true> {
-  commit?: T;
-  parentCommit?: T;
-  parentOrder?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "activity-module-versions_select".
- */
-export interface ActivityModuleVersionsSelect<T extends boolean = true> {
-  activityModule?: T;
-  commit?: T;
-  branch?: T;
   content?: T;
-  title?: T;
-  description?: T;
-  isCurrentHead?: T;
   contentHash?: T;
   updatedAt?: T;
   createdAt?: T;

@@ -183,13 +183,6 @@ export const ActivityModules = {
 	defaultSort: "-createdAt",
 	fields: [
 		{
-			name: "slug",
-			type: "text",
-			required: true,
-			unique: true,
-			label: "Unique Identifier",
-		},
-		{
 			name: "title",
 			type: "text",
 			required: true,
@@ -197,6 +190,30 @@ export const ActivityModules = {
 		{
 			name: "description",
 			type: "textarea",
+		},
+		{
+			name: "branch",
+			type: "text",
+			required: true,
+			defaultValue: "main",
+			label: "Branch Name",
+		},
+		{
+			// ! this is the activity module that this activity module is based on
+			// ! this is optional, if this is null, it is the origin itself
+			name: "origin",
+			type: "relationship",
+			relationTo: "activity-modules",
+			label: "Origin",
+		},
+		{
+			name: "commits",
+			type: "join",
+			on: "activityModule",
+			collection: "commits",
+			label: "Commits",
+			hasMany: true,
+			defaultSort: "-createdAt",
 		},
 		{
 			name: "type",
@@ -229,49 +246,28 @@ export const ActivityModules = {
 	],
 } satisfies CollectionConfig;
 
-// Version Control: Branches collection
-export const Branches = {
-	slug: "branches",
-	defaultSort: "-createdAt",
-	fields: [
-		{
-			name: "name",
-			type: "text",
-			required: true,
-			unique: true,
-			label: "Branch Name",
-		},
-		{
-			name: "description",
-			type: "textarea",
-			label: "Branch Description",
-		},
-		{
-			name: "isDefault",
-			type: "checkbox",
-			defaultValue: false,
-			label: "Default Branch",
-		},
-		{
-			name: "createdBy",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-		},
-	],
-} satisfies CollectionConfig;
-
-// Version Control: Commits collection
+/**
+ * a commit is arbitrary content with a hash to previous commit and some other commit details
+ */
 export const Commits = {
 	slug: "commits",
 	defaultSort: "-createdAt",
 	fields: [
 		{
+			/**
+			 * this is the hash of the content
+			 */
 			name: "hash",
 			type: "text",
 			required: true,
 			unique: true,
 			label: "Commit Hash",
+		},
+		{
+			name: "activityModule",
+			type: "relationship",
+			relationTo: "activity-modules",
+			label: "Activity Module",
 		},
 		{
 			name: "message",
@@ -280,6 +276,7 @@ export const Commits = {
 			label: "Commit Message",
 		},
 		{
+			// ! we don't need to store the committer because auther and committer are the same
 			name: "author",
 			type: "relationship",
 			relationTo: "users",
@@ -287,23 +284,11 @@ export const Commits = {
 			label: "Author",
 		},
 		{
-			name: "committer",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-			label: "Committer",
-		},
-		{
+			// ! if this is null, this is the first commit of the branch
 			name: "parentCommit",
 			type: "relationship",
 			relationTo: "commits",
 			label: "Parent Commit",
-		},
-		{
-			name: "isMergeCommit",
-			type: "checkbox",
-			defaultValue: false,
-			label: "Is Merge Commit",
 		},
 		{
 			name: "commitDate",
@@ -311,99 +296,23 @@ export const Commits = {
 			required: true,
 			label: "Commit Date",
 		},
-	],
-} satisfies CollectionConfig;
-
-// Version Control: Commit Parents (for merge commits with multiple parents)
-export const CommitParents = {
-	slug: "commit-parents",
-	fields: [
-		{
-			name: "commit",
-			type: "relationship",
-			relationTo: "commits",
-			required: true,
-		},
-		{
-			name: "parentCommit",
-			type: "relationship",
-			relationTo: "commits",
-			required: true,
-		},
-		{
-			name: "parentOrder",
-			type: "number",
-			required: true,
-			label: "Parent Order (0 for first parent, 1 for second, etc.)",
-		},
-	],
-	indexes: [
-		{
-			fields: ["commit", "parentCommit"],
-			unique: true,
-		},
-	],
-} satisfies CollectionConfig;
-
-// Version Control: Activity Module Versions
-export const ActivityModuleVersions = {
-	slug: "activity-module-versions",
-	defaultSort: "-createdAt",
-	fields: [
-		{
-			name: "activityModule",
-			type: "relationship",
-			relationTo: "activity-modules",
-			required: true,
-		},
-		{
-			name: "commit",
-			type: "relationship",
-			relationTo: "commits",
-			required: true,
-		},
-		{
-			name: "branch",
-			type: "relationship",
-			relationTo: "branches",
-			required: true,
-		},
 		{
 			name: "content",
 			type: "json",
 			required: true,
-			label: "Content (JSON/YAML)",
-		},
-		{
-			name: "title",
-			type: "text",
-			required: true,
-			label: "Version Title",
-		},
-		{
-			name: "description",
-			type: "textarea",
-			label: "Version Description",
-		},
-		{
-			name: "isCurrentHead",
-			type: "checkbox",
-			defaultValue: false,
-			label: "Is Current Head",
+			label: "Content (JSON)",
 		},
 		{
 			name: "contentHash",
 			type: "text",
+			required: true,
 			label: "Content Hash (for integrity)",
 		},
 	],
 	indexes: [
 		{
-			fields: ["activityModule", "commit", "branch"],
+			fields: ["activityModule", "hash"],
 			unique: true,
-		},
-		{
-			fields: ["activityModule", "branch", "isCurrentHead"],
 		},
 	],
 } satisfies CollectionConfig;
@@ -472,10 +381,7 @@ const config = {
 		Courses,
 		Enrollments,
 		ActivityModules,
-		Branches,
 		Commits,
-		CommitParents,
-		ActivityModuleVersions,
 		Tags,
 	] as CollectionConfig[],
 	typescript: {

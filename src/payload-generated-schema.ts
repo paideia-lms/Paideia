@@ -266,9 +266,15 @@ export const activity_modules = pgTable(
   "activity_modules",
   {
     id: serial("id").primaryKey(),
-    slug: varchar("slug").notNull(),
     title: varchar("title").notNull(),
     description: varchar("description"),
+    branch: varchar("branch").notNull().default("main"),
+    origin: integer("origin_id").references(
+      (): AnyPgColumn => activity_modules.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     type: enum_activity_modules_type("type").notNull(),
     status: enum_activity_modules_status("status").default("draft"),
     createdBy: integer("created_by_id")
@@ -292,8 +298,8 @@ export const activity_modules = pgTable(
       .notNull(),
   },
   (columns) => ({
-    activity_modules_slug_idx: uniqueIndex("activity_modules_slug_idx").on(
-      columns.slug,
+    activity_modules_origin_idx: index("activity_modules_origin_idx").on(
+      columns.origin,
     ),
     activity_modules_created_by_idx: index(
       "activity_modules_created_by_idx",
@@ -307,59 +313,19 @@ export const activity_modules = pgTable(
   }),
 );
 
-export const branches = pgTable(
-  "branches",
-  {
-    id: serial("id").primaryKey(),
-    name: varchar("name").notNull(),
-    description: varchar("description"),
-    isDefault: boolean("is_default").default(false),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => ({
-    branches_name_idx: uniqueIndex("branches_name_idx").on(columns.name),
-    branches_created_by_idx: index("branches_created_by_idx").on(
-      columns.createdBy,
-    ),
-    branches_updated_at_idx: index("branches_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    branches_created_at_idx: index("branches_created_at_idx").on(
-      columns.createdAt,
-    ),
-  }),
-);
-
 export const commits = pgTable(
   "commits",
   {
     id: serial("id").primaryKey(),
     hash: varchar("hash").notNull(),
+    activityModule: integer("activity_module_id").references(
+      () => activity_modules.id,
+      {
+        onDelete: "set null",
+      },
+    ),
     message: varchar("message").notNull(),
     author: integer("author_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    committer: integer("committer_id")
       .notNull()
       .references(() => users.id, {
         onDelete: "set null",
@@ -370,12 +336,13 @@ export const commits = pgTable(
         onDelete: "set null",
       },
     ),
-    isMergeCommit: boolean("is_merge_commit").default(false),
     commitDate: timestamp("commit_date", {
       mode: "string",
       withTimezone: true,
       precision: 3,
     }).notNull(),
+    content: jsonb("content").notNull(),
+    contentHash: varchar("content_hash").notNull(),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -393,8 +360,10 @@ export const commits = pgTable(
   },
   (columns) => ({
     commits_hash_idx: uniqueIndex("commits_hash_idx").on(columns.hash),
+    commits_activity_module_idx: index("commits_activity_module_idx").on(
+      columns.activityModule,
+    ),
     commits_author_idx: index("commits_author_idx").on(columns.author),
-    commits_committer_idx: index("commits_committer_idx").on(columns.committer),
     commits_parent_commit_idx: index("commits_parent_commit_idx").on(
       columns.parentCommit,
     ),
@@ -404,120 +373,10 @@ export const commits = pgTable(
     commits_created_at_idx: index("commits_created_at_idx").on(
       columns.createdAt,
     ),
-  }),
-);
-
-export const commit_parents = pgTable(
-  "commit_parents",
-  {
-    id: serial("id").primaryKey(),
-    commit: integer("commit_id")
-      .notNull()
-      .references(() => commits.id, {
-        onDelete: "set null",
-      }),
-    parentCommit: integer("parent_commit_id")
-      .notNull()
-      .references(() => commits.id, {
-        onDelete: "set null",
-      }),
-    parentOrder: numeric("parent_order").notNull(),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => ({
-    commit_parents_commit_idx: index("commit_parents_commit_idx").on(
-      columns.commit,
+    activityModule_hash_idx: uniqueIndex("activityModule_hash_idx").on(
+      columns.activityModule,
+      columns.hash,
     ),
-    commit_parents_parent_commit_idx: index(
-      "commit_parents_parent_commit_idx",
-    ).on(columns.parentCommit),
-    commit_parents_updated_at_idx: index("commit_parents_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    commit_parents_created_at_idx: index("commit_parents_created_at_idx").on(
-      columns.createdAt,
-    ),
-    commit_parentCommit_idx: uniqueIndex("commit_parentCommit_idx").on(
-      columns.commit,
-      columns.parentCommit,
-    ),
-  }),
-);
-
-export const activity_module_versions = pgTable(
-  "activity_module_versions",
-  {
-    id: serial("id").primaryKey(),
-    activityModule: integer("activity_module_id")
-      .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    commit: integer("commit_id")
-      .notNull()
-      .references(() => commits.id, {
-        onDelete: "set null",
-      }),
-    branch: integer("branch_id")
-      .notNull()
-      .references(() => branches.id, {
-        onDelete: "set null",
-      }),
-    content: jsonb("content").notNull(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    isCurrentHead: boolean("is_current_head").default(false),
-    contentHash: varchar("content_hash"),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => ({
-    activity_module_versions_activity_module_idx: index(
-      "activity_module_versions_activity_module_idx",
-    ).on(columns.activityModule),
-    activity_module_versions_commit_idx: index(
-      "activity_module_versions_commit_idx",
-    ).on(columns.commit),
-    activity_module_versions_branch_idx: index(
-      "activity_module_versions_branch_idx",
-    ).on(columns.branch),
-    activity_module_versions_updated_at_idx: index(
-      "activity_module_versions_updated_at_idx",
-    ).on(columns.updatedAt),
-    activity_module_versions_created_at_idx: index(
-      "activity_module_versions_created_at_idx",
-    ).on(columns.createdAt),
-    activityModule_commit_branch_idx: uniqueIndex(
-      "activityModule_commit_branch_idx",
-    ).on(columns.activityModule, columns.commit, columns.branch),
-    activityModule_branch_isCurrentHead_idx: index(
-      "activityModule_branch_isCurrentHead_idx",
-    ).on(columns.activityModule, columns.branch, columns.isCurrentHead),
   }),
 );
 
@@ -606,10 +465,7 @@ export const payload_locked_documents_rels = pgTable(
     coursesID: integer("courses_id"),
     enrollmentsID: integer("enrollments_id"),
     "activity-modulesID": integer("activity_modules_id"),
-    branchesID: integer("branches_id"),
     commitsID: integer("commits_id"),
-    "commit-parentsID": integer("commit_parents_id"),
-    "activity-module-versionsID": integer("activity_module_versions_id"),
     tagsID: integer("tags_id"),
   },
   (columns) => ({
@@ -630,18 +486,9 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_activity_modules_id_idx: index(
       "payload_locked_documents_rels_activity_modules_id_idx",
     ).on(columns["activity-modulesID"]),
-    payload_locked_documents_rels_branches_id_idx: index(
-      "payload_locked_documents_rels_branches_id_idx",
-    ).on(columns.branchesID),
     payload_locked_documents_rels_commits_id_idx: index(
       "payload_locked_documents_rels_commits_id_idx",
     ).on(columns.commitsID),
-    payload_locked_documents_rels_commit_parents_id_idx: index(
-      "payload_locked_documents_rels_commit_parents_id_idx",
-    ).on(columns["commit-parentsID"]),
-    payload_locked_documents_rels_activity_module_versions_i_idx: index(
-      "payload_locked_documents_rels_activity_module_versions_i_idx",
-    ).on(columns["activity-module-versionsID"]),
     payload_locked_documents_rels_tags_id_idx: index(
       "payload_locked_documents_rels_tags_id_idx",
     ).on(columns.tagsID),
@@ -670,25 +517,10 @@ export const payload_locked_documents_rels = pgTable(
       foreignColumns: [activity_modules.id],
       name: "payload_locked_documents_rels_activity_modules_fk",
     }).onDelete("cascade"),
-    branchesIdFk: foreignKey({
-      columns: [columns["branchesID"]],
-      foreignColumns: [branches.id],
-      name: "payload_locked_documents_rels_branches_fk",
-    }).onDelete("cascade"),
     commitsIdFk: foreignKey({
       columns: [columns["commitsID"]],
       foreignColumns: [commits.id],
       name: "payload_locked_documents_rels_commits_fk",
-    }).onDelete("cascade"),
-    "commit-parentsIdFk": foreignKey({
-      columns: [columns["commit-parentsID"]],
-      foreignColumns: [commit_parents.id],
-      name: "payload_locked_documents_rels_commit_parents_fk",
-    }).onDelete("cascade"),
-    "activity-module-versionsIdFk": foreignKey({
-      columns: [columns["activity-module-versionsID"]],
-      foreignColumns: [activity_module_versions.id],
-      name: "payload_locked_documents_rels_activity_module_versions_fk",
     }).onDelete("cascade"),
     tagsIdFk: foreignKey({
       columns: [columns["tagsID"]],
@@ -839,6 +671,11 @@ export const relations_enrollments = relations(enrollments, ({ one }) => ({
 export const relations_activity_modules = relations(
   activity_modules,
   ({ one }) => ({
+    origin: one(activity_modules, {
+      fields: [activity_modules.origin],
+      references: [activity_modules.id],
+      relationName: "origin",
+    }),
     createdBy: one(users, {
       fields: [activity_modules.createdBy],
       references: [users.id],
@@ -846,23 +683,16 @@ export const relations_activity_modules = relations(
     }),
   }),
 );
-export const relations_branches = relations(branches, ({ one }) => ({
-  createdBy: one(users, {
-    fields: [branches.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-}));
 export const relations_commits = relations(commits, ({ one }) => ({
+  activityModule: one(activity_modules, {
+    fields: [commits.activityModule],
+    references: [activity_modules.id],
+    relationName: "activityModule",
+  }),
   author: one(users, {
     fields: [commits.author],
     references: [users.id],
     relationName: "author",
-  }),
-  committer: one(users, {
-    fields: [commits.committer],
-    references: [users.id],
-    relationName: "committer",
   }),
   parentCommit: one(commits, {
     fields: [commits.parentCommit],
@@ -870,41 +700,6 @@ export const relations_commits = relations(commits, ({ one }) => ({
     relationName: "parentCommit",
   }),
 }));
-export const relations_commit_parents = relations(
-  commit_parents,
-  ({ one }) => ({
-    commit: one(commits, {
-      fields: [commit_parents.commit],
-      references: [commits.id],
-      relationName: "commit",
-    }),
-    parentCommit: one(commits, {
-      fields: [commit_parents.parentCommit],
-      references: [commits.id],
-      relationName: "parentCommit",
-    }),
-  }),
-);
-export const relations_activity_module_versions = relations(
-  activity_module_versions,
-  ({ one }) => ({
-    activityModule: one(activity_modules, {
-      fields: [activity_module_versions.activityModule],
-      references: [activity_modules.id],
-      relationName: "activityModule",
-    }),
-    commit: one(commits, {
-      fields: [activity_module_versions.commit],
-      references: [commits.id],
-      relationName: "commit",
-    }),
-    branch: one(branches, {
-      fields: [activity_module_versions.branch],
-      references: [branches.id],
-      relationName: "branch",
-    }),
-  }),
-);
 export const relations_tags = relations(tags, ({ one }) => ({
   commit: one(commits, {
     fields: [tags.commit],
@@ -945,25 +740,10 @@ export const relations_payload_locked_documents_rels = relations(
       references: [activity_modules.id],
       relationName: "activity-modules",
     }),
-    branchesID: one(branches, {
-      fields: [payload_locked_documents_rels.branchesID],
-      references: [branches.id],
-      relationName: "branches",
-    }),
     commitsID: one(commits, {
       fields: [payload_locked_documents_rels.commitsID],
       references: [commits.id],
       relationName: "commits",
-    }),
-    "commit-parentsID": one(commit_parents, {
-      fields: [payload_locked_documents_rels["commit-parentsID"]],
-      references: [commit_parents.id],
-      relationName: "commit-parents",
-    }),
-    "activity-module-versionsID": one(activity_module_versions, {
-      fields: [payload_locked_documents_rels["activity-module-versionsID"]],
-      references: [activity_module_versions.id],
-      relationName: "activity-module-versions",
     }),
     tagsID: one(tags, {
       fields: [payload_locked_documents_rels.tagsID],
@@ -1023,10 +803,7 @@ type DatabaseSchema = {
   courses: typeof courses;
   enrollments: typeof enrollments;
   activity_modules: typeof activity_modules;
-  branches: typeof branches;
   commits: typeof commits;
-  commit_parents: typeof commit_parents;
-  activity_module_versions: typeof activity_module_versions;
   tags: typeof tags;
   payload_locked_documents: typeof payload_locked_documents;
   payload_locked_documents_rels: typeof payload_locked_documents_rels;
@@ -1039,10 +816,7 @@ type DatabaseSchema = {
   relations_courses: typeof relations_courses;
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;
-  relations_branches: typeof relations_branches;
   relations_commits: typeof relations_commits;
-  relations_commit_parents: typeof relations_commit_parents;
-  relations_activity_module_versions: typeof relations_activity_module_versions;
   relations_tags: typeof relations_tags;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;
   relations_payload_locked_documents: typeof relations_payload_locked_documents;

@@ -32,11 +32,16 @@ export class NonExistingActivityModuleError extends Error {
 	readonly type = "NonExistingActivityModuleError";
 }
 
+export class CommitNoChangeError extends Error {
+	readonly type = "CommitNoChangeError";
+}
+
 export class UnknownError extends Error {
 	readonly type = "UnknownError";
 }
 
 export function transformError(error: unknown) {
+	console.log(error);
 	if (error instanceof NonExistingSourceError) return error;
 	else if (error instanceof DuplicateBranchError) return error;
 	else if (error instanceof UnauthorizedError) return error;

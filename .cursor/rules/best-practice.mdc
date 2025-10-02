@@ -40,4 +40,4 @@ database migration should always be non breaking and backward compatible.
 
 payload local api return document with unknown depth. we should handle both case when depth is 0 and 1, value is either object or id (string). 
 
-Avoid using `as` operator in internal functions.
+**strictly avoid** using `as` operator in internal functions. **No type casting allowed**.
