@@ -41,7 +41,6 @@ export class UnknownError extends Error {
 }
 
 export function transformError(error: unknown) {
-	console.log(error);
 	if (error instanceof NonExistingSourceError) return error;
 	else if (error instanceof DuplicateBranchError) return error;
 	else if (error instanceof UnauthorizedError) return error;

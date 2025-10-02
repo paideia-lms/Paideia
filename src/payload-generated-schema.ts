@@ -318,12 +318,6 @@ export const commits = pgTable(
   {
     id: serial("id").primaryKey(),
     hash: varchar("hash").notNull(),
-    activityModule: integer("activity_module_id").references(
-      () => activity_modules.id,
-      {
-        onDelete: "set null",
-      },
-    ),
     message: varchar("message").notNull(),
     author: integer("author_id")
       .notNull()
@@ -360,9 +354,6 @@ export const commits = pgTable(
   },
   (columns) => ({
     commits_hash_idx: uniqueIndex("commits_hash_idx").on(columns.hash),
-    commits_activity_module_idx: index("commits_activity_module_idx").on(
-      columns.activityModule,
-    ),
     commits_author_idx: index("commits_author_idx").on(columns.author),
     commits_parent_commit_idx: index("commits_parent_commit_idx").on(
       columns.parentCommit,
@@ -373,10 +364,35 @@ export const commits = pgTable(
     commits_created_at_idx: index("commits_created_at_idx").on(
       columns.createdAt,
     ),
-    activityModule_hash_idx: uniqueIndex("activityModule_hash_idx").on(
-      columns.activityModule,
-      columns.hash,
-    ),
+  }),
+);
+
+export const commits_rels = pgTable(
+  "commits_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    "activity-modulesID": integer("activity_modules_id"),
+  },
+  (columns) => ({
+    order: index("commits_rels_order_idx").on(columns.order),
+    parentIdx: index("commits_rels_parent_idx").on(columns.parent),
+    pathIdx: index("commits_rels_path_idx").on(columns.path),
+    commits_rels_activity_modules_id_idx: index(
+      "commits_rels_activity_modules_id_idx",
+    ).on(columns["activity-modulesID"]),
+    parentFk: foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [commits.id],
+      name: "commits_rels_parent_fk",
+    }).onDelete("cascade"),
+    "activity-modulesIdFk": foreignKey({
+      columns: [columns["activity-modulesID"]],
+      foreignColumns: [activity_modules.id],
+      name: "commits_rels_activity_modules_fk",
+    }).onDelete("cascade"),
   }),
 );
 
@@ -683,12 +699,19 @@ export const relations_activity_modules = relations(
     }),
   }),
 );
-export const relations_commits = relations(commits, ({ one }) => ({
-  activityModule: one(activity_modules, {
-    fields: [commits.activityModule],
-    references: [activity_modules.id],
-    relationName: "activityModule",
+export const relations_commits_rels = relations(commits_rels, ({ one }) => ({
+  parent: one(commits, {
+    fields: [commits_rels.parent],
+    references: [commits.id],
+    relationName: "_rels",
   }),
+  "activity-modulesID": one(activity_modules, {
+    fields: [commits_rels["activity-modulesID"]],
+    references: [activity_modules.id],
+    relationName: "activity-modules",
+  }),
+}));
+export const relations_commits = relations(commits, ({ one, many }) => ({
   author: one(users, {
     fields: [commits.author],
     references: [users.id],
@@ -698,6 +721,9 @@ export const relations_commits = relations(commits, ({ one }) => ({
     fields: [commits.parentCommit],
     references: [commits.id],
     relationName: "parentCommit",
+  }),
+  _rels: many(commits_rels, {
+    relationName: "_rels",
   }),
 }));
 export const relations_tags = relations(tags, ({ one }) => ({
@@ -804,6 +830,7 @@ type DatabaseSchema = {
   enrollments: typeof enrollments;
   activity_modules: typeof activity_modules;
   commits: typeof commits;
+  commits_rels: typeof commits_rels;
   tags: typeof tags;
   payload_locked_documents: typeof payload_locked_documents;
   payload_locked_documents_rels: typeof payload_locked_documents_rels;
@@ -816,6 +843,7 @@ type DatabaseSchema = {
   relations_courses: typeof relations_courses;
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;
+  relations_commits_rels: typeof relations_commits_rels;
   relations_commits: typeof relations_commits;
   relations_tags: typeof relations_tags;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;

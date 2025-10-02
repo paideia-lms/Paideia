@@ -122,10 +122,13 @@ describe("Commit Management", () => {
 		expect(commit.activityModule).not.toBeNull();
 		if (!commit.activityModule)
 			throw new Error("Test Error: Commit activity module is null");
-		if (typeof commit.activityModule === "number") {
-			expect(commit.activityModule).toBe(testActivityModuleId);
+		expect(Array.isArray(commit.activityModule)).toBe(true);
+		expect(commit.activityModule.length).toBe(1);
+		const activityModuleRef = commit.activityModule[0];
+		if (typeof activityModuleRef === "number") {
+			expect(activityModuleRef).toBe(testActivityModuleId);
 		} else {
-			expect(commit.activityModule.id).toBe(testActivityModuleId);
+			expect(activityModuleRef.id).toBe(testActivityModuleId);
 		}
 		expect(commit.content).toEqual(content);
 		expect(commit.hash).toBeDefined();

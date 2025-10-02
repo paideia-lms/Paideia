@@ -227,7 +227,7 @@ export interface ActivityModule {
 export interface Commit {
   id: number;
   hash: string;
-  activityModule?: (number | null) | ActivityModule;
+  activityModule?: (number | ActivityModule)[] | null;
   message: string;
   author: number | User;
   parentCommit?: (number | null) | Commit;

@@ -209,6 +209,7 @@ export const ActivityModules = {
 			label: "Branches",
 			hasMany: true,
 			defaultSort: "-createdAt",
+			maxDepth: 2,
 		},
 		{
 			// ! this is the activity module that this activity module is based on
@@ -226,6 +227,7 @@ export const ActivityModules = {
 			label: "Commits",
 			hasMany: true,
 			defaultSort: "-createdAt",
+			maxDepth: 2,
 		},
 		{
 			name: "type",
@@ -254,6 +256,7 @@ export const ActivityModules = {
 			type: "relationship",
 			relationTo: "users",
 			required: true,
+			maxDepth: 2,
 		},
 	],
 } satisfies CollectionConfig;
@@ -280,6 +283,8 @@ export const Commits = {
 			type: "relationship",
 			relationTo: "activity-modules",
 			label: "Activity Module",
+			hasMany: true,
+			maxDepth: 2,
 		},
 		{
 			name: "message",
@@ -321,12 +326,7 @@ export const Commits = {
 			label: "Content Hash (for integrity)",
 		},
 	],
-	indexes: [
-		{
-			fields: ["activityModule", "hash"],
-			unique: true,
-		},
-	],
+	indexes: [],
 } satisfies CollectionConfig;
 
 // Version Control: Tags (for marking specific versions)
@@ -375,6 +375,7 @@ const pg = postgresAdapter({
 	pool: {
 		connectionString: envVars.DATABASE_URL.value,
 	},
+
 	prodMigrations: migrations,
 	// logger: process.env.NODE_ENV !== "production" ? new EnhancedQueryLogger() : undefined
 	push:

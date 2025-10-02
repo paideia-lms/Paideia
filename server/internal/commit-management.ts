@@ -103,11 +103,11 @@ export const tryCreateCommit = Result.wrap(
 			parentCommitHash,
 		);
 
-		// Create commit
+		// Create commit with activityModule as array
 		const commit = await payload.create({
 			collection: "commits",
 			data: {
-				activityModule,
+				activityModule: [activityModule],
 				hash: commitHash,
 				message,
 				author,
@@ -146,7 +146,8 @@ export const tryGetCommitByHash = Result.wrap(
 			where: {
 				hash: { equals: hash },
 			},
-			limit: 1,
+			// ! for now, we are getting every thing
+			pagination: false,
 			...(transactionID && { req: { transactionID } }),
 		});
 
@@ -189,7 +190,7 @@ export const tryGetCommitHistory = Result.wrap(
 				activityModule: { equals: activityModuleId },
 			},
 			sort: "-commitDate",
-			limit,
+			pagination: false,
 			...(transactionID && { req: { transactionID } }),
 		});
 
