@@ -4,7 +4,9 @@ import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
+	type CreateBranchArgs,
 	tryCreateActivityModule,
+	tryCreateBranch,
 	tryGetActivityModuleById,
 } from "./activity-module-management";
 import { type CreateCommitArgs, tryCreateCommit } from "./commit-management";
@@ -292,5 +294,136 @@ describe("Activity Module Management", () => {
 
 		expect(moduleExists).toBeDefined();
 		expect(commitExists).toBeDefined();
+	});
+
+	test("should create a branch from an existing activity module", async () => {
+		// First create an activity module with initial commit
+		const originalArgs: CreateActivityModuleArgs = {
+			title: "Original Module",
+			description: "Original description",
+			type: "page",
+			content: { body: "Original content" },
+			commitMessage: "Initial commit",
+			userId: testUserId,
+		};
+
+		const originalResult = await tryCreateActivityModule(payload, originalArgs);
+		expect(originalResult.ok).toBe(true);
+		if (!originalResult.ok) return;
+
+		const originalModule = originalResult.value.activityModule;
+
+		// Create a branch from the original module
+		const branchArgs: CreateBranchArgs = {
+			sourceActivityModuleId: originalModule.id,
+			branchName: "feature-branch",
+			userId: testUserId,
+		};
+
+		const branchResult = await tryCreateBranch(payload, branchArgs);
+		expect(branchResult.ok).toBe(true);
+		if (!branchResult.ok) return;
+
+		const branchModule = branchResult.value;
+
+		// Verify branch properties
+		expect(branchModule.id).not.toBe(originalModule.id);
+		expect(branchModule.title).toBe(originalModule.title);
+		expect(branchModule.description).toBe(originalModule.description);
+		expect(branchModule.type).toBe(originalModule.type);
+		expect(branchModule.status).toBe(originalModule.status);
+		expect(branchModule.branch).toBe("feature-branch");
+
+		// Verify origin points to the original module
+		if (!branchModule.origin || typeof branchModule.origin !== "object")
+			throw new Error("Test Error: Branch module origin is not an object");
+		expect(branchModule.origin.id).toBe(originalModule.id);
+
+		// Verify createdBy is set correctly
+		if (!branchModule.createdBy || typeof branchModule.createdBy !== "object")
+			throw new Error("Test Error: Branch module created by is not an object");
+		expect(branchModule.createdBy.id).toBe(testUserId);
+
+		// Create another branch from the feature-branch
+		// This should point to the same origin (original module)
+		const subBranchArgs: CreateBranchArgs = {
+			sourceActivityModuleId: branchModule.id,
+			branchName: "sub-feature-branch",
+			userId: testUserId,
+		};
+
+		const subBranchResult = await tryCreateBranch(payload, subBranchArgs);
+		expect(subBranchResult.ok).toBe(true);
+		if (!subBranchResult.ok) return;
+
+		const subBranchModule = subBranchResult.value;
+
+		// Sub-branch should point to the same origin as the feature-branch
+		if (!subBranchModule.origin || typeof subBranchModule.origin !== "object")
+			throw new Error("Test Error: Sub-branch module origin is not an object");
+		expect(subBranchModule.origin.id).toBe(originalModule.id);
+		expect(subBranchModule.branch).toBe("sub-feature-branch");
+
+		// get the main branch
+		const mainBranchResult = await tryGetActivityModuleById(payload, {
+			id: originalModule.id,
+		});
+		expect(mainBranchResult.ok).toBe(true);
+		if (!mainBranchResult.ok) return;
+		const mainBranchModule = mainBranchResult.value;
+
+		// main branch should have 2 branches
+		expect(mainBranchModule.branches).toBeDefined();
+		expect(mainBranchModule.branches).not.toBeNull();
+		expect(mainBranchModule.branches?.docs?.length).toBe(2);
+
+		// get the feature-branch
+		const featureBranchResult = await tryGetActivityModuleById(payload, {
+			id: branchModule.id,
+			options: {
+				branch: "feature-branch",
+			},
+		});
+		expect(featureBranchResult.ok).toBe(true);
+		if (!featureBranchResult.ok) return;
+		const featureBranchModule = featureBranchResult.value;
+		expect(featureBranchModule.id).toBe(branchModule.id);
+		expect(featureBranchModule.branch).toBe("feature-branch");
+		if (
+			!featureBranchModule.origin ||
+			typeof featureBranchModule.origin !== "object"
+		)
+			throw new Error(
+				"Test Error: Feature branch module origin is not an object",
+			);
+		expect(featureBranchModule.origin.id).toBe(originalModule.id);
+		// ! branches will not have branches, only main branch will have branches
+		expect(featureBranchModule.branches?.docs?.length).toBe(0);
+		expect(featureBranchModule.origin.branches?.docs?.length).toBe(2);
+
+		// get the sub-feature-branch
+		const subFeatureBranchResult = await tryGetActivityModuleById(payload, {
+			id: subBranchModule.id,
+			options: {
+				branch: "sub-feature-branch",
+			},
+		});
+
+		expect(subFeatureBranchResult.ok).toBe(true);
+		if (!subFeatureBranchResult.ok) return;
+		const subFeatureBranchModule = subFeatureBranchResult.value;
+		expect(subFeatureBranchModule.id).toBe(subBranchModule.id);
+		expect(subFeatureBranchModule.branch).toBe("sub-feature-branch");
+		if (
+			!subFeatureBranchModule.origin ||
+			typeof subFeatureBranchModule.origin !== "object"
+		)
+			throw new Error(
+				"Test Error: Feature branch module origin is not an object",
+			);
+		expect(subFeatureBranchModule.origin.id).toBe(originalModule.id);
+		// ! branches will not have branches, only main branch will have branches
+		expect(subFeatureBranchModule.branches?.docs?.length).toBe(0);
+		expect(subFeatureBranchModule.origin.branches?.docs?.length).toBe(2);
 	});
 });

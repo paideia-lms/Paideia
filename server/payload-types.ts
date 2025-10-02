@@ -79,6 +79,7 @@ export interface Config {
   };
   collectionsJoins: {
     'activity-modules': {
+      branches: 'activity-modules';
       commits: 'commits';
     };
   };
@@ -202,6 +203,11 @@ export interface ActivityModule {
   title: string;
   description?: string | null;
   branch: string;
+  branches?: {
+    docs?: (number | ActivityModule)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   origin?: (number | null) | ActivityModule;
   commits?: {
     docs?: (number | Commit)[];
@@ -398,6 +404,7 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   branch?: T;
+  branches?: T;
   origin?: T;
   commits?: T;
   type?: T;

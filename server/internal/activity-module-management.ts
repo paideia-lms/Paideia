@@ -196,6 +196,9 @@ export const tryCreateActivityModule = Result.wrap(
 export interface GetActivityModuleByIdArgs {
 	id: number | string;
 	depth?: number;
+	options?: {
+		branch?: string;
+	};
 }
 
 /**
@@ -209,7 +212,7 @@ export const tryGetActivityModuleById = Result.wrap(
 		payload: Payload,
 		args: GetActivityModuleByIdArgs,
 	): Promise<ActivityModule> => {
-		const { id, depth = 1 } = args;
+		const { id, depth = 1, options } = args;
 
 		// Validate ID
 		if (!id) {
@@ -221,6 +224,11 @@ export const tryGetActivityModuleById = Result.wrap(
 			collection: "activity-modules",
 			id,
 			depth,
+			...(options && {
+				where: {
+					branch: { equals: options.branch },
+				},
+			}),
 		});
 
 		if (!activityModule) {
@@ -234,6 +242,90 @@ export const tryGetActivityModuleById = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get activity module", {
+			cause: error,
+		}),
+);
+
+export interface CreateBranchArgs {
+	sourceActivityModuleId: number;
+	branchName: string;
+	userId: number;
+}
+
+/**
+ * Creates a new branch from an existing activity module
+ *
+ * This function:
+ * 1. Fetches the source activity module
+ * 2. Creates a new activity module with the same properties but different branch name
+ * 3. Sets the origin to point to the source module (or source's origin if it exists)
+ * 4. No commits are duplicated - the new branch conceptually inherits commits from origin
+ */
+export const tryCreateBranch = Result.wrap(
+	async (payload: Payload, args: CreateBranchArgs): Promise<ActivityModule> => {
+		const { sourceActivityModuleId, branchName, userId } = args;
+
+		// Validate inputs
+		if (!sourceActivityModuleId) {
+			throw new InvalidArgumentError("Source activity module ID is required");
+		}
+
+		if (!branchName || branchName.trim() === "") {
+			throw new InvalidArgumentError("Branch name is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Fetch source activity module
+		const sourceModule = await payload.findByID({
+			collection: "activity-modules",
+			id: sourceActivityModuleId,
+			depth: 1,
+		});
+
+		if (!sourceModule) {
+			throw new NonExistingActivityModuleError(
+				`Source activity module with id '${sourceActivityModuleId}' not found`,
+			);
+		}
+
+		// Verify user exists
+		const user = await payload.findByID({
+			collection: "users",
+			id: userId,
+		});
+
+		if (!user) {
+			throw new InvalidArgumentError(`User with id '${userId}' not found`);
+		}
+
+		// Determine the origin (if source has origin, use that; otherwise use source)
+		const origin =
+			sourceModule.origin && typeof sourceModule.origin === "object"
+				? sourceModule.origin.id
+				: sourceModule.origin || sourceModule.id;
+
+		// Create new branch
+		const newBranch = await payload.create({
+			collection: "activity-modules",
+			data: {
+				title: sourceModule.title,
+				description: sourceModule.description ?? null,
+				branch: branchName,
+				origin: origin,
+				type: sourceModule.type,
+				status: sourceModule.status,
+				createdBy: userId,
+			},
+		});
+
+		return newBranch;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create branch", {
 			cause: error,
 		}),
 );

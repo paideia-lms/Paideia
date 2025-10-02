@@ -192,11 +192,23 @@ export const ActivityModules = {
 			type: "textarea",
 		},
 		{
+			/**
+			 * the current branch name
+			 */
 			name: "branch",
 			type: "text",
 			required: true,
 			defaultValue: "main",
 			label: "Branch Name",
+		},
+		{
+			name: "branches",
+			type: "join",
+			on: "origin",
+			collection: "activity-modules",
+			label: "Branches",
+			hasMany: true,
+			defaultSort: "-createdAt",
 		},
 		{
 			// ! this is the activity module that this activity module is based on
