@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
+import { NonExistingMergeRequestError } from "~/utils/error";
 import config from "../payload.config";
 import type { ActivityModule, User } from "../payload-types";
 import {
@@ -471,7 +472,7 @@ describe("Merge Request Management", () => {
 
 		expect(getResult.ok).toBe(false);
 		if (!getResult.ok) {
-			expect(getResult.error.type).toBe("NonExistingMergeRequestError");
+			expect(getResult.error.type).toBe(NonExistingMergeRequestError.type);
 		}
 	});
 

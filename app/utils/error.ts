@@ -1,61 +1,106 @@
 export class ContextNotFoundError extends Error {
-	readonly type = "ContextNotFoundError";
+	static readonly type = "ContextNotFoundError";
+	get type() {
+		return ContextNotFoundError.type;
+	}
 }
 
 export class UnauthorizedError extends Error {
-	readonly type = "UnauthorizedError";
+	static readonly type = "UnauthorizedError";
+	get type() {
+		return UnauthorizedError.type;
+	}
 }
 
 export class DuplicateBranchError extends Error {
-	readonly type = "DuplicateBranchError";
+	static readonly type = "DuplicateBranchError";
+	get type() {
+		return DuplicateBranchError.type;
+	}
 }
 
 export class DuplicateActivityModuleError extends Error {
-	readonly type = "DuplicateActivityModuleError";
+	static readonly type = "DuplicateActivityModuleError";
+	get type() {
+		return DuplicateActivityModuleError.type;
+	}
 }
 
 export class InvalidArgumentError extends Error {
-	readonly type = "InvalidArgumentError";
+	static readonly type = "InvalidArgumentError";
+	get type() {
+		return InvalidArgumentError.type;
+	}
 }
 
 export class NonExistingSourceError extends Error {
-	readonly type = "NonExistingSourceError";
+	static readonly type = "NonExistingSourceError";
+	get type() {
+		return NonExistingSourceError.type;
+	}
 }
 
 export class TransactionIdNotFoundError extends Error {
-	readonly type = "TransactionIdNotFoundError";
+	static readonly type = "TransactionIdNotFoundError";
+	get type() {
+		return TransactionIdNotFoundError.type;
+	}
 }
 
 export class NonExistingActivityModuleError extends Error {
-	readonly type = "NonExistingActivityModuleError";
+	static readonly type = "NonExistingActivityModuleError";
+	get type() {
+		return NonExistingActivityModuleError.type;
+	}
 }
 
 export class CommitNoChangeError extends Error {
-	readonly type = "CommitNoChangeError";
+	static readonly type = "CommitNoChangeError";
+	get type() {
+		return CommitNoChangeError.type;
+	}
 }
 
 export class UnknownError extends Error {
-	readonly type = "UnknownError";
+	static readonly type = "UnknownError";
+	get type() {
+		return UnknownError.type;
+	}
 }
 
 export class EnrollmentNotFoundError extends Error {
-	readonly type = "EnrollmentNotFoundError";
+	static readonly type = "EnrollmentNotFoundError";
+	get type() {
+		return EnrollmentNotFoundError.type;
+	}
 }
 
 export class DuplicateEnrollmentError extends Error {
-	readonly type = "DuplicateEnrollmentError";
+	static readonly type = "DuplicateEnrollmentError";
+	get type() {
+		return DuplicateEnrollmentError.type;
+	}
 }
 
 export class NonExistingMergeRequestError extends Error {
-	readonly type = "NonExistingMergeRequestError";
+	static readonly type = "NonExistingMergeRequestError";
+	get type() {
+		return NonExistingMergeRequestError.type;
+	}
 }
 
 export class NonExistingMediaError extends Error {
-	readonly type = "NonExistingMediaError";
+	static readonly type = "NonExistingMediaError";
+	get type() {
+		return NonExistingMediaError.type;
+	}
 }
 
 export class DevelopmentError extends Error {
-	readonly type = "DevelopmentError";
+	static readonly type = "DevelopmentError";
+	get type() {
+		return DevelopmentError.type;
+	}
 }
 
 export function transformError(error: unknown) {

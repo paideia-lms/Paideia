@@ -1,13 +1,13 @@
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
-import { type Course, User } from "../payload-types";
+import type { Course } from "../payload-types";
 
 export interface CreateCourseArgs {
 	title: string;
 	description: string;
-	instructor: number; // User ID
-	difficulty?: "beginner" | "intermediate" | "advanced";
-	duration?: number;
+	slug: string;
+	structure?: Course["structure"];
+	createdBy: number;
 	status?: "draft" | "published" | "archived";
 	thumbnail?: number;
 	tags?: { tag?: string }[];
@@ -16,9 +16,7 @@ export interface CreateCourseArgs {
 export interface UpdateCourseArgs {
 	title?: string;
 	description?: string;
-	instructor?: number; // User ID
-	difficulty?: "beginner" | "intermediate" | "advanced";
-	duration?: number;
+	createdBy?: number; // User ID
 	status?: "draft" | "published" | "archived";
 	thumbnail?: number;
 	tags?: { tag?: string }[];
@@ -26,8 +24,7 @@ export interface UpdateCourseArgs {
 
 export interface SearchCoursesArgs {
 	title?: string;
-	instructor?: number;
-	difficulty?: "beginner" | "intermediate" | "advanced";
+	createdBy?: number;
 	status?: "draft" | "published" | "archived";
 	limit?: number;
 	page?: number;
@@ -41,33 +38,37 @@ export const tryCreateCourse = Result.wrap(
 		const {
 			title,
 			description,
-			instructor,
-			difficulty = "beginner",
-			duration,
+			slug,
+			structure,
+			createdBy,
 			status = "draft",
 			thumbnail,
 			tags,
 		} = args;
-
-		// Verify instructor exists
-		const instructorUser = await payload.findByID({
-			collection: "users",
-			id: instructor,
-			req: request,
-		});
-
-		if (!instructorUser) {
-			throw new Error(`Instructor with ID ${instructor} not found`);
-		}
 
 		const newCourse = await payload.create({
 			collection: "courses",
 			data: {
 				title,
 				description,
-				instructor,
-				difficulty,
-				duration,
+				structure:
+					structure ??
+					({
+						sections: [
+							{
+								title: "Introduction",
+								description: "Introduction to the course",
+								lessons: [
+									{
+										title: "Introduction to the course",
+										description: "Introduction to the course",
+									},
+								],
+							},
+						],
+					} as Course["structure"]),
+				slug,
+				createdBy,
 				status,
 				thumbnail,
 				tags,
@@ -104,16 +105,16 @@ export const tryUpdateCourse = Result.wrap(
 			throw new Error(`Course with ID ${courseId} not found`);
 		}
 
-		// If instructor is being updated, verify new instructor exists
-		if (args.instructor) {
-			const instructorUser = await payload.findByID({
+		// If createdBy is being updated, verify new user exists
+		if (args.createdBy) {
+			const user = await payload.findByID({
 				collection: "users",
-				id: args.instructor,
+				id: args.createdBy,
 				req: request,
 			});
 
-			if (!instructorUser) {
-				throw new Error(`Instructor with ID ${args.instructor} not found`);
+			if (!user) {
+				throw new Error(`User with ID ${args.createdBy} not found`);
 			}
 		}
 
@@ -159,14 +160,7 @@ export const tryFindCourseById = Result.wrap(
  */
 export const trySearchCourses = Result.wrap(
 	async (payload: Payload, args: SearchCoursesArgs = {}) => {
-		const {
-			title,
-			instructor,
-			difficulty,
-			status,
-			limit = 10,
-			page = 1,
-		} = args;
+		const { title, createdBy, status, limit = 10, page = 1 } = args;
 
 		const where: any = {};
 
@@ -176,15 +170,9 @@ export const trySearchCourses = Result.wrap(
 			};
 		}
 
-		if (instructor) {
-			where.instructor = {
-				equals: instructor,
-			};
-		}
-
-		if (difficulty) {
-			where.difficulty = {
-				equals: difficulty,
+		if (createdBy) {
+			where.createdBy = {
+				equals: createdBy,
 			};
 		}
 
@@ -245,7 +233,7 @@ export const tryFindCoursesByInstructor = Result.wrap(
 		const courses = await payload.find({
 			collection: "courses",
 			where: {
-				instructor: {
+				createdBy: {
 					equals: instructorId,
 				},
 			},

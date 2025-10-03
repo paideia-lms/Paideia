@@ -51,7 +51,22 @@ describe("Enrollment Management Functions", () => {
 			data: {
 				title: "Test Course",
 				description: "A test course for enrollment testing",
-				instructor: testUserId,
+				createdBy: testUserId,
+				slug: "test-course",
+				structure: {
+					sections: [
+						{
+							title: "Test Section",
+							description: "A test section for enrollment testing",
+							lessons: [
+								{
+									title: "Test Lesson",
+									description: "A test lesson for enrollment testing",
+								},
+							],
+						},
+					],
+				},
 				status: "published",
 			},
 		});

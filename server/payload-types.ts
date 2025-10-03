@@ -77,6 +77,7 @@ export interface Config {
     'merge-requests': MergeRequest;
     'merge-request-comments': MergeRequestComment;
     media: Media;
+    notes: Note;
     search: Search;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -104,6 +105,7 @@ export interface Config {
     'merge-requests': MergeRequestsSelect<false> | MergeRequestsSelect<true>;
     'merge-request-comments': MergeRequestCommentsSelect<false> | MergeRequestCommentsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    notes: NotesSelect<false> | NotesSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -225,10 +227,18 @@ export interface Media {
 export interface Course {
   id: number;
   title: string;
+  slug: string;
   description: string;
-  instructor: number | User;
-  difficulty?: ('beginner' | 'intermediate' | 'advanced') | null;
-  duration?: number | null;
+  structure: {
+    sections: {
+      title: string;
+      description: string;
+      lessons: {
+        title: string;
+        description: string;
+      }[];
+    }[];
+  };
   status?: ('draft' | 'published' | 'archived') | null;
   thumbnail?: (number | null) | Media;
   tags?:
@@ -237,6 +247,7 @@ export interface Course {
         id?: string | null;
       }[]
     | null;
+  createdBy: number | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -369,6 +380,17 @@ export interface MergeRequestComment {
   createdAt: string;
 }
 /**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes".
+ */
+export interface Note {
+  id: number;
+  createdBy: number | User;
+  content: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
  * This is a collection of automatically created search results. These results are used by the global site search and will be updated automatically as documents in the CMS are created or updated.
  *
  * This interface was referenced by `Config`'s JSON-Schema
@@ -436,6 +458,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: number | Media;
+      } | null)
+    | ({
+        relationTo: 'notes';
+        value: number | Note;
       } | null)
     | ({
         relationTo: 'search';
@@ -518,10 +544,9 @@ export interface UsersSelect<T extends boolean = true> {
  */
 export interface CoursesSelect<T extends boolean = true> {
   title?: T;
+  slug?: T;
   description?: T;
-  instructor?: T;
-  difficulty?: T;
-  duration?: T;
+  structure?: T;
   status?: T;
   thumbnail?: T;
   tags?:
@@ -530,6 +555,7 @@ export interface CoursesSelect<T extends boolean = true> {
         tag?: T;
         id?: T;
       };
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -686,6 +712,16 @@ export interface MediaSelect<T extends boolean = true> {
               filename?: T;
             };
       };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "notes_select".
+ */
+export interface NotesSelect<T extends boolean = true> {
+  createdBy?: T;
+  content?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema

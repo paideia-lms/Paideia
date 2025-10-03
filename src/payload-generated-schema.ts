@@ -18,8 +18,8 @@ import {
   serial,
   boolean,
   numeric,
-  type AnyPgColumn,
   jsonb,
+  type AnyPgColumn,
   pgEnum,
 } from "@payloadcms/db-postgres/drizzle/pg-core";
 import { sql, relations } from "@payloadcms/db-postgres/drizzle";
@@ -27,11 +27,6 @@ export const enum_users_role = pgEnum("enum_users_role", [
   "student",
   "instructor",
   "admin",
-]);
-export const enum_courses_difficulty = pgEnum("enum_courses_difficulty", [
-  "beginner",
-  "intermediate",
-  "advanced",
 ]);
 export const enum_courses_status = pgEnum("enum_courses_status", [
   "draft",
@@ -176,18 +171,18 @@ export const courses = pgTable(
   {
     id: serial("id").primaryKey(),
     title: varchar("title").notNull(),
+    slug: varchar("slug").notNull(),
     description: varchar("description").notNull(),
-    instructor: integer("instructor_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    difficulty: enum_courses_difficulty("difficulty").default("beginner"),
-    duration: numeric("duration"),
+    structure: jsonb("structure").notNull(),
     status: enum_courses_status("status").default("draft"),
     thumbnail: integer("thumbnail_id").references(() => media.id, {
       onDelete: "set null",
     }),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -204,10 +199,11 @@ export const courses = pgTable(
       .notNull(),
   },
   (columns) => ({
-    courses_instructor_idx: index("courses_instructor_idx").on(
-      columns.instructor,
-    ),
+    courses_slug_idx: uniqueIndex("courses_slug_idx").on(columns.slug),
     courses_thumbnail_idx: index("courses_thumbnail_idx").on(columns.thumbnail),
+    courses_created_by_idx: index("courses_created_by_idx").on(
+      columns.createdBy,
+    ),
     courses_updated_at_idx: index("courses_updated_at_idx").on(
       columns.updatedAt,
     ),
@@ -676,6 +672,38 @@ export const media = pgTable(
   }),
 );
 
+export const notes = pgTable(
+  "notes",
+  {
+    id: serial("id").primaryKey(),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    content: varchar("content").notNull(),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    notes_created_by_idx: index("notes_created_by_idx").on(columns.createdBy),
+    notes_updated_at_idx: index("notes_updated_at_idx").on(columns.updatedAt),
+    notes_created_at_idx: index("notes_created_at_idx").on(columns.createdAt),
+  }),
+);
+
 export const search = pgTable(
   "search",
   {
@@ -791,6 +819,7 @@ export const payload_locked_documents_rels = pgTable(
     "merge-requestsID": integer("merge_requests_id"),
     "merge-request-commentsID": integer("merge_request_comments_id"),
     mediaID: integer("media_id"),
+    notesID: integer("notes_id"),
     searchID: integer("search_id"),
   },
   (columns) => ({
@@ -829,6 +858,9 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_media_id_idx: index(
       "payload_locked_documents_rels_media_id_idx",
     ).on(columns.mediaID),
+    payload_locked_documents_rels_notes_id_idx: index(
+      "payload_locked_documents_rels_notes_id_idx",
+    ).on(columns.notesID),
     payload_locked_documents_rels_search_id_idx: index(
       "payload_locked_documents_rels_search_id_idx",
     ).on(columns.searchID),
@@ -886,6 +918,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["mediaID"]],
       foreignColumns: [media.id],
       name: "payload_locked_documents_rels_media_fk",
+    }).onDelete("cascade"),
+    notesIdFk: foreignKey({
+      columns: [columns["notesID"]],
+      foreignColumns: [notes.id],
+      name: "payload_locked_documents_rels_notes_fk",
     }).onDelete("cascade"),
     searchIdFk: foreignKey({
       columns: [columns["searchID"]],
@@ -1017,11 +1054,6 @@ export const relations_courses_tags = relations(courses_tags, ({ one }) => ({
   }),
 }));
 export const relations_courses = relations(courses, ({ one, many }) => ({
-  instructor: one(users, {
-    fields: [courses.instructor],
-    references: [users.id],
-    relationName: "instructor",
-  }),
   thumbnail: one(media, {
     fields: [courses.thumbnail],
     references: [media.id],
@@ -1029,6 +1061,11 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
   }),
   tags: many(courses_tags, {
     relationName: "tags",
+  }),
+  createdBy: one(users, {
+    fields: [courses.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
   }),
 }));
 export const relations_enrollments = relations(enrollments, ({ one }) => ({
@@ -1160,6 +1197,13 @@ export const relations_merge_request_comments = relations(
   }),
 );
 export const relations_media = relations(media, () => ({}));
+export const relations_notes = relations(notes, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [notes.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
 export const relations_search_rels = relations(search_rels, ({ one }) => ({
   parent: one(search, {
     fields: [search_rels.parent],
@@ -1240,6 +1284,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [media.id],
       relationName: "media",
     }),
+    notesID: one(notes, {
+      fields: [payload_locked_documents_rels.notesID],
+      references: [notes.id],
+      relationName: "notes",
+    }),
     searchID: one(search, {
       fields: [payload_locked_documents_rels.searchID],
       references: [search.id],
@@ -1285,7 +1334,6 @@ export const relations_payload_migrations = relations(
 
 type DatabaseSchema = {
   enum_users_role: typeof enum_users_role;
-  enum_courses_difficulty: typeof enum_courses_difficulty;
   enum_courses_status: typeof enum_courses_status;
   enum_enrollments_role: typeof enum_enrollments_role;
   enum_enrollments_status: typeof enum_enrollments_status;
@@ -1306,6 +1354,7 @@ type DatabaseSchema = {
   merge_requests: typeof merge_requests;
   merge_request_comments: typeof merge_request_comments;
   media: typeof media;
+  notes: typeof notes;
   search: typeof search;
   search_rels: typeof search_rels;
   payload_locked_documents: typeof payload_locked_documents;
@@ -1326,6 +1375,7 @@ type DatabaseSchema = {
   relations_merge_requests: typeof relations_merge_requests;
   relations_merge_request_comments: typeof relations_merge_request_comments;
   relations_media: typeof relations_media;
+  relations_notes: typeof relations_notes;
   relations_search_rels: typeof relations_search_rels;
   relations_search: typeof relations_search;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;

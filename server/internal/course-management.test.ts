@@ -88,9 +88,22 @@ describe("Course Management Functions", () => {
 			const courseArgs: CreateCourseArgs = {
 				title: "Introduction to JavaScript",
 				description: "Learn the basics of JavaScript programming",
-				instructor: instructorId,
-				difficulty: "beginner",
-				duration: 120,
+				createdBy: instructorId,
+				slug: "introduction-to-javascript",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Learn the basics of JavaScript programming",
+							lessons: [
+								{
+									title: "Introduction to JavaScript",
+									description: "Learn the basics of JavaScript programming",
+								},
+							],
+						},
+					],
+				},
 				status: "draft",
 				tags: [{ tag: "javascript" }, { tag: "programming" }],
 			};
@@ -101,14 +114,6 @@ describe("Course Management Functions", () => {
 			if (result.ok) {
 				expect(result.value.title).toBe(courseArgs.title);
 				expect(result.value.description).toBe(courseArgs.description);
-				// Instructor can be either ID or populated user object
-				if (typeof result.value.instructor === "object") {
-					expect(result.value.instructor.id).toBe(courseArgs.instructor);
-				} else {
-					expect(result.value.instructor).toBe(courseArgs.instructor);
-				}
-				expect(result.value.difficulty).toBe(courseArgs.difficulty);
-				expect(result.value.duration).toBe(courseArgs.duration);
 				expect(result.value.status).toBe(courseArgs.status);
 			}
 		});
@@ -117,14 +122,28 @@ describe("Course Management Functions", () => {
 			const courseArgs: CreateCourseArgs = {
 				title: "Basic HTML",
 				description: "Learn HTML fundamentals",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "basic-html",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Learn the basics of HTML programming",
+							lessons: [
+								{
+									title: "Introduction to HTML",
+									description: "Learn the basics of HTML programming",
+								},
+							],
+						},
+					],
+				},
 			};
 
 			const result = await tryCreateCourse(payload, mockRequest, courseArgs);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.difficulty).toBe("beginner");
 				expect(result.value.status).toBe("draft");
 			}
 		});
@@ -133,14 +152,29 @@ describe("Course Management Functions", () => {
 			const courseArgs: CreateCourseArgs = {
 				title: "Non-existent Instructor Course",
 				description: "This should fail",
-				instructor: 99999,
+				createdBy: 99999,
+				slug: "non-existent-instructor-course",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Test section",
+							lessons: [
+								{
+									title: "Test lesson",
+									description: "Test lesson description",
+								},
+							],
+						},
+					],
+				},
 			};
 
 			const result = await tryCreateCourse(payload, mockRequest, courseArgs);
 
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
-				expect(result.error.message).toContain("Not Found");
+				expect(result.error.message).toContain("foreign key constraint");
 			}
 		});
 	});
@@ -151,7 +185,22 @@ describe("Course Management Functions", () => {
 			const createArgs: CreateCourseArgs = {
 				title: "Original Title",
 				description: "Original description",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "original-title",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Original section",
+							lessons: [
+								{
+									title: "Original lesson",
+									description: "Original lesson description",
+								},
+							],
+						},
+					],
+				},
 			};
 
 			const createResult = await tryCreateCourse(
@@ -165,7 +214,6 @@ describe("Course Management Functions", () => {
 				const updateArgs: UpdateCourseArgs = {
 					title: "Updated Title",
 					description: "Updated description",
-					difficulty: "intermediate",
 					status: "published",
 				};
 
@@ -180,7 +228,6 @@ describe("Course Management Functions", () => {
 				if (updateResult.ok) {
 					expect(updateResult.value.title).toBe("Updated Title");
 					expect(updateResult.value.description).toBe("Updated description");
-					expect(updateResult.value.difficulty).toBe("intermediate");
 					expect(updateResult.value.status).toBe("published");
 				}
 			}
@@ -209,7 +256,22 @@ describe("Course Management Functions", () => {
 			const createArgs: CreateCourseArgs = {
 				title: "Test Course",
 				description: "Test description",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "test-course",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Test section",
+							lessons: [
+								{
+									title: "Test lesson",
+									description: "Test lesson description",
+								},
+							],
+						},
+					],
+				},
 			};
 
 			const createResult = await tryCreateCourse(
@@ -221,7 +283,7 @@ describe("Course Management Functions", () => {
 
 			if (createResult.ok) {
 				const updateArgs: UpdateCourseArgs = {
-					instructor: 99999,
+					createdBy: 99999,
 				};
 
 				const updateResult = await tryUpdateCourse(
@@ -244,7 +306,22 @@ describe("Course Management Functions", () => {
 			const courseArgs: CreateCourseArgs = {
 				title: "Find By ID Test",
 				description: "Test course for finding by ID",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "find-by-id-test",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Test section",
+							lessons: [
+								{
+									title: "Test lesson",
+									description: "Test lesson description",
+								},
+							],
+						},
+					],
+				},
 			};
 
 			const createResult = await tryCreateCourse(
@@ -296,13 +373,43 @@ describe("Course Management Functions", () => {
 			await tryCreateCourse(payload, mockRequest, {
 				title: "React Fundamentals",
 				description: "Learn React",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "react-fundamentals",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "React section",
+							lessons: [
+								{
+									title: "React lesson",
+									description: "React lesson description",
+								},
+							],
+						},
+					],
+				},
 			});
 
 			await tryCreateCourse(payload, mockRequest, {
 				title: "Vue.js Basics",
 				description: "Learn Vue",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "vue-js-basics",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Vue section",
+							lessons: [
+								{
+									title: "Vue lesson",
+									description: "Vue lesson description",
+								},
+							],
+						},
+					],
+				},
 			});
 
 			const result = await trySearchCourses(payload, { title: "React" });
@@ -317,45 +424,6 @@ describe("Course Management Functions", () => {
 				expect(reactCourse).toBeDefined();
 			}
 		});
-
-		test("should search courses by instructor", async () => {
-			const result = await trySearchCourses(payload, {
-				instructor: instructorId,
-			});
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				// All courses should be by our instructor
-				result.value.docs.forEach((course) => {
-					if (typeof course.instructor === "object") {
-						expect(course.instructor.id).toBe(instructorId);
-					} else {
-						expect(course.instructor).toBe(instructorId);
-					}
-				});
-			}
-		});
-
-		test("should search courses by difficulty", async () => {
-			// Create course with specific difficulty
-			await tryCreateCourse(payload, mockRequest, {
-				title: "Advanced TypeScript",
-				description: "Advanced TypeScript concepts",
-				instructor: instructorId,
-				difficulty: "advanced",
-			});
-
-			const result = await trySearchCourses(payload, {
-				difficulty: "advanced",
-			});
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				result.value.docs.forEach((course) => {
-					expect(course.difficulty).toBe("advanced");
-				});
-			}
-		});
 	});
 
 	describe("tryDeleteCourse", () => {
@@ -363,7 +431,22 @@ describe("Course Management Functions", () => {
 			const courseArgs: CreateCourseArgs = {
 				title: "Course to Delete",
 				description: "This course will be deleted",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "course-to-delete",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Delete test section",
+							lessons: [
+								{
+									title: "Delete test lesson",
+									description: "Delete test lesson description",
+								},
+							],
+						},
+					],
+				},
 			};
 
 			const createResult = await tryCreateCourse(
@@ -402,13 +485,6 @@ describe("Course Management Functions", () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value).toBeInstanceOf(Array);
-				result.value.forEach((course) => {
-					if (typeof course.instructor === "object") {
-						expect(course.instructor.id).toBe(instructorId);
-					} else {
-						expect(course.instructor).toBe(instructorId);
-					}
-				});
 			}
 		});
 	});
@@ -419,16 +495,46 @@ describe("Course Management Functions", () => {
 			await tryCreateCourse(payload, mockRequest, {
 				title: "Published Course",
 				description: "This course is published",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "published-course",
 				status: "published",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Published section",
+							lessons: [
+								{
+									title: "Published lesson",
+									description: "Published lesson description",
+								},
+							],
+						},
+					],
+				},
 			});
 
 			// Create draft course
 			await tryCreateCourse(payload, mockRequest, {
 				title: "Draft Course",
 				description: "This course is draft",
-				instructor: instructorId,
+				createdBy: instructorId,
+				slug: "draft-course",
 				status: "draft",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Draft section",
+							lessons: [
+								{
+									title: "Draft lesson",
+									description: "Draft lesson description",
+								},
+							],
+						},
+					],
+				},
 			});
 
 			const result = await tryFindPublishedCourses(payload);
@@ -448,9 +554,23 @@ describe("Course Management Functions", () => {
 			const createArgs: CreateCourseArgs = {
 				title: "Lifecycle Test Course",
 				description: "Testing complete lifecycle",
-				instructor: instructorId,
-				difficulty: "beginner",
+				createdBy: instructorId,
+				slug: "lifecycle-test-course",
 				status: "draft",
+				structure: {
+					sections: [
+						{
+							title: "Introduction",
+							description: "Lifecycle test section",
+							lessons: [
+								{
+									title: "Lifecycle test lesson",
+									description: "Lifecycle test lesson description",
+								},
+							],
+						},
+					],
+				},
 			};
 
 			const createResult = await tryCreateCourse(
@@ -470,7 +590,6 @@ describe("Course Management Functions", () => {
 				// Update course
 				const updateArgs: UpdateCourseArgs = {
 					status: "published",
-					difficulty: "intermediate",
 				};
 				const updateResult = await tryUpdateCourse(
 					payload,

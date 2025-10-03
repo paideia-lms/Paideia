@@ -20,8 +20,6 @@ const payload = await getPayload({
 	key: "paideia",
 });
 
-payload.jobs.handleSchedules;
-
 // console.log("Payload: ", payload)
 
 const port = Number(envVars.PORT.value) || envVars.PORT.default;

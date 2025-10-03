@@ -4,11 +4,28 @@ import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
 import { searchPlugin } from "@payloadcms/plugin-search";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
-import { buildConfig, type CollectionConfig, TaskConfig } from "payload";
+import type { JSONSchema4 } from "json-schema";
+import { buildConfig, type CollectionConfig } from "payload";
 import sharp from "sharp";
 import { migrations } from "src/migrations";
+import z from "zod";
 import { UnauthorizedError } from "~/utils/error";
 import { envVars } from "./env";
+
+const courseStructureSchema = z.object({
+	sections: z.array(
+		z.object({
+			title: z.string(),
+			description: z.string(),
+			lessons: z.array(
+				z.object({
+					title: z.string(),
+					description: z.string(),
+				}),
+			),
+		}),
+	),
+});
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -21,30 +38,34 @@ export const Courses = {
 			required: true,
 		},
 		{
+			// ! e.g. 'math-101-a-fa-2025'
+			name: "slug",
+			type: "text",
+			required: true,
+			unique: true,
+			label: "Slug",
+		},
+		{
 			name: "description",
 			type: "textarea",
 			required: true,
 		},
 		{
-			name: "instructor",
-			type: "relationship",
-			relationTo: "users",
+			name: "structure",
+			type: "json",
 			required: true,
-		},
-		{
-			name: "difficulty",
-			type: "select",
-			options: [
-				{ label: "Beginner", value: "beginner" },
-				{ label: "Intermediate", value: "intermediate" },
-				{ label: "Advanced", value: "advanced" },
+			label: "Structure",
+			validate: (value, { req }) => {
+				if (!req.user) return UnauthorizedError.type;
+				const result = courseStructureSchema.safeParse(value);
+				if (!result.success) {
+					return z.formatError(result.error)._errors.join(", ");
+				}
+				return true;
+			},
+			typescriptSchema: [
+				() => z.toJSONSchema(courseStructureSchema) as JSONSchema4,
 			],
-			defaultValue: "beginner",
-		},
-		{
-			name: "duration",
-			type: "number",
-			label: "Duration (minutes)",
 		},
 		{
 			name: "status",
@@ -72,8 +93,14 @@ export const Courses = {
 				},
 			],
 		},
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+		},
 	],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 // Enrollments collection - links users to courses with specific roles
 export const Enrollments = {
@@ -143,7 +170,7 @@ export const Enrollments = {
 			unique: true,
 		},
 	],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 // Enhanced Users collection with LMS fields
 export const Users = {
@@ -185,7 +212,7 @@ export const Users = {
 		},
 	],
 	slug: "users" as const,
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 // Origins collection - tracks the root of activity module branches
 export const Origins = {
@@ -211,7 +238,7 @@ export const Origins = {
 			maxDepth: 2,
 		},
 	],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 // Activity Modules collection - core learning activities
 export const ActivityModules = {
@@ -295,7 +322,7 @@ export const ActivityModules = {
 			unique: true,
 		},
 	],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 /**
  * a commit is arbitrary content with a hash to previous commit and some other commit details
@@ -365,7 +392,7 @@ export const Commits = {
 	// ! we don't need timestamps for commits because we have commit date
 	timestamps: false,
 	indexes: [],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 // Version Control: Tags (for marking specific versions)
 export const Tags = {
@@ -420,7 +447,7 @@ export const Tags = {
 			unique: true,
 		},
 	],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 export const MergeRequests = {
 	slug: "merge-requests",
@@ -518,7 +545,7 @@ export const MergeRequests = {
 		// 	unique: true,
 		// },
 	],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 export const MergeRequestComments = {
 	slug: "merge-request-comments",
@@ -548,7 +575,7 @@ export const MergeRequestComments = {
 			unique: true,
 		},
 	],
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
 
 // Media collection for file uploads with S3 storage
 export const Media = {
@@ -590,7 +617,32 @@ export const Media = {
 		],
 		adminThumbnail: "thumbnail",
 	},
-} satisfies CollectionConfig;
+} as const satisfies CollectionConfig;
+
+/**
+ * notes are like journals and tweets
+ * it is pure markdown content.
+ *
+ * ! in the future, we might version control the notes
+ */
+export const Notes = {
+	slug: "notes" as const,
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+			label: "Created By",
+		},
+		{
+			name: "content",
+			type: "textarea",
+			required: true,
+		},
+	],
+} as const satisfies CollectionConfig;
 
 const pg = postgresAdapter({
 	pool: {
@@ -670,6 +722,7 @@ const sanitizedConfig = await buildConfig({
 		MergeRequests,
 		MergeRequestComments,
 		Media,
+		Notes,
 	] as CollectionConfig[],
 	email:
 		envVars.SMTP_HOST.value &&

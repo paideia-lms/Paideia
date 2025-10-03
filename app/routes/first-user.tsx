@@ -1,5 +1,4 @@
 import { notifications } from "@mantine/notifications";
-import { href, redirect } from "react-router";
 import { dbContextKey } from "server/contexts/global-context";
 import { registerFirstUser } from "server/internal/register-first-user";
 import { z } from "zod";
