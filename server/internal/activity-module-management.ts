@@ -6,6 +6,7 @@ import { getTx } from "server/utils/get-tx";
 import { commits_rels } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
 import {
+	DevelopmentError,
 	InvalidArgumentError,
 	NonExistingActivityModuleError,
 	TransactionIdNotFoundError,
@@ -473,25 +474,12 @@ export const tryCreateBranchFromCommit = Result.wrap(
 				? activityModules[0]
 				: activityModules;
 
-			const activityModuleId =
-				typeof firstActivityModule === "object"
-					? firstActivityModule.id
-					: firstActivityModule;
-
-			// Get the full activity module with commits
-			const sourceModuleResult = await tryGetActivityModuleById(payload, {
-				id: activityModuleId,
-				depth: 2,
-				transactionID,
-			});
-
-			if (!sourceModuleResult.ok) {
-				throw new NonExistingActivityModuleError(
-					`Activity module with id '${activityModuleId}' not found`,
-				);
+			if (typeof firstActivityModule === "number") {
+				// development error
+				throw new DevelopmentError("First activity module is a number");
 			}
 
-			const sourceModule = sourceModuleResult.value;
+			const sourceModule = firstActivityModule;
 
 			// Get the origin ID from the source module
 			const originId =

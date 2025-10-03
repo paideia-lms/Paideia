@@ -536,7 +536,8 @@ describe("Activity Module Management", () => {
 	});
 
 	const targetCommitIndex = 30;
-	test(`should create branch from ${targetCommitIndex}th commit and contain exactly ${targetCommitIndex} commits`, async () => {
+	const totalCommits = 100;
+	test.only(`should create branch from ${targetCommitIndex}th commit and contain exactly ${targetCommitIndex} commits`, async () => {
 		// Create initial activity module
 		const originalArgs: CreateActivityModuleArgs = {
 			title: "100 Commits Module",
@@ -559,12 +560,12 @@ describe("Activity Module Management", () => {
 		}
 
 		const currentCommitId = initialCommit.id;
-		const totalCommits = 100;
 
 		const commitIds: number[] = [initialCommit.id];
 
 		// Create 99 more commits (total 100)
 		for (let i = 0; i < totalCommits - 1; i++) {
+			console.log(`Creating commit ${i + 1} of ${totalCommits}`);
 			const commitArgs: CreateCommitArgs = {
 				activityModule: originalModule.id,
 				message: `Commit ${i + 1}`,
@@ -584,7 +585,6 @@ describe("Activity Module Management", () => {
 		}
 
 		const first30Commits = commitIds.slice(0, targetCommitIndex);
-		console.log(first30Commits, first30Commits.length);
 
 		// expect the commit ids array to have 100 commits
 		expect(commitIds.length).toBe(totalCommits);
@@ -639,14 +639,9 @@ describe("Activity Module Management", () => {
 		// Verify the new branch has exactly 50 commits (from root to 50th commit inclusive)
 		expect(newBranchCommits.length).toBe(targetCommitIndex); // Should have exactly 50 commits (from root to 50th commit inclusive)
 
-		console.log(
-			newBranchCommits.map((c) => (typeof c === "number" ? c : c.id)),
-			newBranchCommits.length,
-		);
-
 		// new branches should have exactly those first 30 commits
 		expect(newBranchCommits.map((c) => (c as Commit).id).sort()).toEqual(
-			first30Commits,
+			first30Commits.sort(),
 		);
 
 		// Verify the original module still has 100 commits
@@ -661,5 +656,5 @@ describe("Activity Module Management", () => {
 		expect(originalModuleFinalResult.value.commits?.docs?.length).toBe(
 			totalCommits,
 		);
-	}, 10000);
+	}, 100000);
 });

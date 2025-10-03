@@ -685,6 +685,71 @@ export const media = pgTable(
   }),
 );
 
+export const search = pgTable(
+  "search",
+  {
+    id: serial("id").primaryKey(),
+    title: varchar("title"),
+    priority: numeric("priority"),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    search_updated_at_idx: index("search_updated_at_idx").on(columns.updatedAt),
+    search_created_at_idx: index("search_created_at_idx").on(columns.createdAt),
+  }),
+);
+
+export const search_rels = pgTable(
+  "search_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    usersID: integer("users_id"),
+    coursesID: integer("courses_id"),
+  },
+  (columns) => ({
+    order: index("search_rels_order_idx").on(columns.order),
+    parentIdx: index("search_rels_parent_idx").on(columns.parent),
+    pathIdx: index("search_rels_path_idx").on(columns.path),
+    search_rels_users_id_idx: index("search_rels_users_id_idx").on(
+      columns.usersID,
+    ),
+    search_rels_courses_id_idx: index("search_rels_courses_id_idx").on(
+      columns.coursesID,
+    ),
+    parentFk: foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [search.id],
+      name: "search_rels_parent_fk",
+    }).onDelete("cascade"),
+    usersIdFk: foreignKey({
+      columns: [columns["usersID"]],
+      foreignColumns: [users.id],
+      name: "search_rels_users_fk",
+    }).onDelete("cascade"),
+    coursesIdFk: foreignKey({
+      columns: [columns["coursesID"]],
+      foreignColumns: [courses.id],
+      name: "search_rels_courses_fk",
+    }).onDelete("cascade"),
+  }),
+);
+
 export const payload_locked_documents = pgTable(
   "payload_locked_documents",
   {
@@ -735,6 +800,7 @@ export const payload_locked_documents_rels = pgTable(
     "merge-requestsID": integer("merge_requests_id"),
     "merge-request-commentsID": integer("merge_request_comments_id"),
     mediaID: integer("media_id"),
+    searchID: integer("search_id"),
   },
   (columns) => ({
     order: index("payload_locked_documents_rels_order_idx").on(columns.order),
@@ -772,6 +838,9 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_media_id_idx: index(
       "payload_locked_documents_rels_media_id_idx",
     ).on(columns.mediaID),
+    payload_locked_documents_rels_search_id_idx: index(
+      "payload_locked_documents_rels_search_id_idx",
+    ).on(columns.searchID),
     parentFk: foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [payload_locked_documents.id],
@@ -826,6 +895,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["mediaID"]],
       foreignColumns: [media.id],
       name: "payload_locked_documents_rels_media_fk",
+    }).onDelete("cascade"),
+    searchIdFk: foreignKey({
+      columns: [columns["searchID"]],
+      foreignColumns: [search.id],
+      name: "payload_locked_documents_rels_search_fk",
     }).onDelete("cascade"),
   }),
 );
@@ -1090,6 +1164,28 @@ export const relations_merge_request_comments = relations(
   }),
 );
 export const relations_media = relations(media, () => ({}));
+export const relations_search_rels = relations(search_rels, ({ one }) => ({
+  parent: one(search, {
+    fields: [search_rels.parent],
+    references: [search.id],
+    relationName: "_rels",
+  }),
+  usersID: one(users, {
+    fields: [search_rels.usersID],
+    references: [users.id],
+    relationName: "users",
+  }),
+  coursesID: one(courses, {
+    fields: [search_rels.coursesID],
+    references: [courses.id],
+    relationName: "courses",
+  }),
+}));
+export const relations_search = relations(search, ({ many }) => ({
+  _rels: many(search_rels, {
+    relationName: "_rels",
+  }),
+}));
 export const relations_payload_locked_documents_rels = relations(
   payload_locked_documents_rels,
   ({ one }) => ({
@@ -1147,6 +1243,11 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels.mediaID],
       references: [media.id],
       relationName: "media",
+    }),
+    searchID: one(search, {
+      fields: [payload_locked_documents_rels.searchID],
+      references: [search.id],
+      relationName: "search",
     }),
   }),
 );
@@ -1209,6 +1310,8 @@ type DatabaseSchema = {
   merge_requests: typeof merge_requests;
   merge_request_comments: typeof merge_request_comments;
   media: typeof media;
+  search: typeof search;
+  search_rels: typeof search_rels;
   payload_locked_documents: typeof payload_locked_documents;
   payload_locked_documents_rels: typeof payload_locked_documents_rels;
   payload_preferences: typeof payload_preferences;
@@ -1227,6 +1330,8 @@ type DatabaseSchema = {
   relations_merge_requests: typeof relations_merge_requests;
   relations_merge_request_comments: typeof relations_merge_request_comments;
   relations_media: typeof relations_media;
+  relations_search_rels: typeof relations_search_rels;
+  relations_search: typeof relations_search;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;
   relations_payload_locked_documents: typeof relations_payload_locked_documents;
   relations_payload_preferences_rels: typeof relations_payload_preferences_rels;

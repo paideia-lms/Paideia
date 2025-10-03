@@ -54,6 +54,10 @@ export class NonExistingMediaError extends Error {
 	readonly type = "NonExistingMediaError";
 }
 
+export class DevelopmentError extends Error {
+	readonly type = "DevelopmentError";
+}
+
 export function transformError(error: unknown) {
 	if (process.env.NODE_ENV === "test") {
 		console.log("transformError", error);
