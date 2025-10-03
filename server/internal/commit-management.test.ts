@@ -9,6 +9,7 @@ import {
 	tryCreateTag,
 	tryGetCommitByHash,
 	tryGetCommitHistory,
+	tryGetHeadCommit,
 } from "./commit-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
@@ -281,5 +282,56 @@ describe("Commit Management", () => {
 			createResult.value.hash,
 			createResult2.value.hash,
 		]);
+	});
+
+	test("should get head commit (latest commit)", async () => {
+		// Create an activity module with initial commit
+		const activityModuleResult = await tryCreateActivityModule(payload, {
+			title: "Test Activity Module for Head Commit",
+			description: "Test module for head commit tests",
+			type: "page",
+			userId: testUserId,
+			content: { test: "initial data" },
+		});
+		expect(activityModuleResult.ok).toBe(true);
+		if (!activityModuleResult.ok) return;
+
+		const activityModule = activityModuleResult.value.activityModule;
+		const initialCommit = activityModuleResult.value.commit;
+
+		// Create a second commit
+		const secondCommitResult = await tryCreateCommit(payload, {
+			activityModule: activityModule.id,
+			message: "Second commit",
+			author: testUserId,
+			content: { test: "second data" },
+			parentCommit: initialCommit.id,
+		});
+		expect(secondCommitResult.ok).toBe(true);
+		if (!secondCommitResult.ok) return;
+
+		// Create a third commit
+		const thirdCommitResult = await tryCreateCommit(payload, {
+			activityModule: activityModule.id,
+			message: "Third commit",
+			author: testUserId,
+			content: { test: "third data" },
+			parentCommit: secondCommitResult.value.id,
+		});
+		expect(thirdCommitResult.ok).toBe(true);
+		if (!thirdCommitResult.ok) return;
+
+		// Get head commit - should be the third (latest) commit
+		const headCommitResult = await tryGetHeadCommit(payload, {
+			activityModuleId: activityModule.id,
+		});
+
+		expect(headCommitResult.ok).toBe(true);
+		if (!headCommitResult.ok) return;
+
+		const headCommit = headCommitResult.value;
+		expect(headCommit.id).toBe(thirdCommitResult.value.id);
+		expect(headCommit.message).toBe("Third commit");
+		expect(headCommit.content).toEqual({ test: "third data" });
 	});
 });

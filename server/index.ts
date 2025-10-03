@@ -16,7 +16,11 @@ console.log("Mode: ", process.env.NODE_ENV);
 
 const payload = await getPayload({
 	config: sanitizedConfig,
+	cron: true,
+	key: "paideia",
 });
+
+payload.jobs.handleSchedules;
 
 // console.log("Payload: ", payload)
 

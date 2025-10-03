@@ -313,8 +313,6 @@ export interface Commit {
     | boolean
     | null;
   contentHash: string;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -352,6 +350,9 @@ export interface MergeRequest {
   mergedAt?: string | null;
   mergedBy?: (number | null) | User;
   createdBy: number | User;
+  closedAt?: string | null;
+  closedBy?: (number | null) | User;
+  allowComments?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -585,8 +586,6 @@ export interface CommitsSelect<T extends boolean = true> {
   commitDate?: T;
   content?: T;
   contentHash?: T;
-  updatedAt?: T;
-  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -618,6 +617,9 @@ export interface MergeRequestsSelect<T extends boolean = true> {
   mergedAt?: T;
   mergedBy?: T;
   createdBy?: T;
+  closedAt?: T;
+  closedBy?: T;
+  allowComments?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -178,7 +178,7 @@ export const tryGetCommitHistory = Result.wrap(
 		args: GetCommitHistoryArgs,
 		transactionID?: string | number,
 	): Promise<Commit[]> => {
-		const { activityModuleId, limit = 50 } = args;
+		const { activityModuleId, limit } = args;
 
 		if (!activityModuleId) {
 			throw new InvalidArgumentError("Activity module ID is required");
@@ -191,6 +191,7 @@ export const tryGetCommitHistory = Result.wrap(
 			},
 			sort: "-commitDate",
 			pagination: false,
+			limit,
 			...(transactionID && { req: { transactionID } }),
 		});
 
@@ -383,9 +384,238 @@ export const tryGetTagsByCommit = Result.wrap(
 		}),
 );
 
+export interface GetHeadCommitArgs {
+	activityModuleId: number | string;
+}
+
+/**
+ * Gets the head commit (latest commit) for an activity module
+ */
+export const tryGetHeadCommit = Result.wrap(
+	async (
+		payload: Payload,
+		args: GetHeadCommitArgs,
+		transactionID?: string | number,
+	): Promise<Commit> => {
+		const { activityModuleId } = args;
+
+		if (!activityModuleId) {
+			throw new InvalidArgumentError("Activity module ID is required");
+		}
+
+		const result = await payload.find({
+			collection: "commits",
+			where: {
+				activityModule: { equals: activityModuleId },
+			},
+			sort: "-commitDate",
+			pagination: false,
+			limit: 1,
+			...(transactionID && { req: { transactionID } }),
+		});
+
+		if (result.docs.length === 0) {
+			throw new InvalidArgumentError(
+				`No commits found for activity module '${activityModuleId}'`,
+			);
+		}
+
+		return result.docs[0];
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get head commit", {
+			cause: error,
+		}),
+);
+
 export interface GetTagsByOriginArgs {
 	originId: number;
 }
+
+export interface MergeAnalysisArgs {
+	fromActivityModuleId: number;
+	toActivityModuleId: number;
+}
+
+export interface MergeAnalysisResult {
+	strategy: "fast-forward" | "three-way";
+	fromCommits: Commit[];
+	toCommits: Commit[];
+	commonAncestor?: Commit;
+	divergedCommits: Commit[];
+}
+
+/**
+ * Analyzes two activity modules to determine merge strategy
+ * Returns whether it's a fast-forward merge or three-way merge
+ */
+export const tryAnalyzeMergeStrategy = Result.wrap(
+	async (
+		payload: Payload,
+		args: MergeAnalysisArgs,
+		transactionID?: string | number,
+	): Promise<MergeAnalysisResult> => {
+		const { fromActivityModuleId, toActivityModuleId } = args;
+
+		if (!fromActivityModuleId) {
+			throw new InvalidArgumentError("From activity module ID is required");
+		}
+
+		if (!toActivityModuleId) {
+			throw new InvalidArgumentError("To activity module ID is required");
+		}
+
+		// Get commit history for both branches
+		const fromHistoryResult = await tryGetCommitHistory(
+			payload,
+			{
+				activityModuleId: fromActivityModuleId,
+			},
+			transactionID,
+		);
+
+		if (!fromHistoryResult.ok) {
+			throw new InvalidArgumentError(
+				"Failed to get from branch commit history",
+			);
+		}
+
+		const toHistoryResult = await tryGetCommitHistory(
+			payload,
+			{
+				activityModuleId: toActivityModuleId,
+			},
+			transactionID,
+		);
+
+		if (!toHistoryResult.ok) {
+			throw new InvalidArgumentError("Failed to get to branch commit history");
+		}
+
+		const fromCommits = fromHistoryResult.value;
+		const toCommits = toHistoryResult.value;
+
+		// Find common ancestor by looking for commits that exist in both branches
+		let commonAncestor: Commit | undefined;
+		const fromCommitHashes = new Set(fromCommits.map((c) => c.hash));
+
+		// Find the first commit in 'to' branch that also exists in 'from' branch
+		for (const toCommit of toCommits) {
+			if (fromCommitHashes.has(toCommit.hash)) {
+				commonAncestor = toCommit;
+				break;
+			}
+		}
+
+		// If no common ancestor found, they are completely separate branches
+		if (!commonAncestor) {
+			throw new InvalidArgumentError(
+				"No common ancestor found between branches",
+			);
+		}
+
+		// Find commits that diverged after the common ancestor
+		const divergedCommits: Commit[] = [];
+		const commonAncestorIndex = toCommits.findIndex(
+			(c) => c.hash === commonAncestor.hash,
+		);
+
+		// Get commits in 'to' branch that came after the common ancestor
+		for (let i = 0; i < commonAncestorIndex; i++) {
+			const commit = toCommits[i];
+			if (!fromCommitHashes.has(commit.hash)) {
+				divergedCommits.push(commit);
+			}
+		}
+
+		// Determine strategy
+		const strategy: "fast-forward" | "three-way" =
+			divergedCommits.length === 0 ? "fast-forward" : "three-way";
+
+		return {
+			strategy,
+			fromCommits,
+			toCommits,
+			commonAncestor,
+			divergedCommits,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to analyze merge strategy", {
+			cause: error,
+		}),
+);
+
+export interface CreateMergeCommitArgs {
+	toActivityModuleId: number;
+	mergeReport: string;
+	resolvedContent: Record<string, unknown>;
+	authorId: number;
+	commitDate?: Date;
+}
+
+/**
+ * Creates a merge commit in the target branch
+ */
+export const tryCreateMergeCommit = Result.wrap(
+	async (
+		payload: Payload,
+		args: CreateMergeCommitArgs,
+		transactionID?: string | number,
+	): Promise<Commit> => {
+		const {
+			toActivityModuleId,
+			mergeReport,
+			resolvedContent,
+			authorId,
+			commitDate = new Date(),
+		} = args;
+
+		// Get the head commit of the target branch (to branch)
+		const headCommitResult = await tryGetHeadCommit(
+			payload,
+			{
+				activityModuleId: toActivityModuleId,
+			},
+			transactionID,
+		);
+
+		if (!headCommitResult.ok) {
+			throw new InvalidArgumentError(
+				"Failed to get head commit of target branch",
+			);
+		}
+
+		const headCommit = headCommitResult.value;
+
+		// Create the merge commit
+		const mergeCommitResult = await tryCreateCommit(
+			payload,
+			{
+				activityModule: toActivityModuleId,
+				message: mergeReport,
+				author: authorId,
+				content: resolvedContent,
+				parentCommit: headCommit.id,
+				commitDate,
+			},
+			transactionID,
+		);
+
+		if (!mergeCommitResult.ok) {
+			throw new InvalidArgumentError("Failed to create merge commit");
+		}
+
+		return mergeCommitResult.value;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create merge commit", {
+			cause: error,
+		}),
+);
 
 /**
  * Gets all tags for an origin

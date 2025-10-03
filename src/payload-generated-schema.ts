@@ -389,32 +389,12 @@ export const commits = pgTable(
     }).notNull(),
     content: jsonb("content").notNull(),
     contentHash: varchar("content_hash").notNull(),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
   },
   (columns) => ({
     commits_hash_idx: uniqueIndex("commits_hash_idx").on(columns.hash),
     commits_author_idx: index("commits_author_idx").on(columns.author),
     commits_parent_commit_idx: index("commits_parent_commit_idx").on(
       columns.parentCommit,
-    ),
-    commits_updated_at_idx: index("commits_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    commits_created_at_idx: index("commits_created_at_idx").on(
-      columns.createdAt,
     ),
   }),
 );
@@ -537,6 +517,15 @@ export const merge_requests = pgTable(
       .references(() => users.id, {
         onDelete: "set null",
       }),
+    closedAt: timestamp("closed_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    closedBy: integer("closed_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    allowComments: boolean("allow_comments").default(true),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -564,13 +553,15 @@ export const merge_requests = pgTable(
     merge_requests_created_by_idx: index("merge_requests_created_by_idx").on(
       columns.createdBy,
     ),
+    merge_requests_closed_by_idx: index("merge_requests_closed_by_idx").on(
+      columns.closedBy,
+    ),
     merge_requests_updated_at_idx: index("merge_requests_updated_at_idx").on(
       columns.updatedAt,
     ),
     merge_requests_created_at_idx: index("merge_requests_created_at_idx").on(
       columns.createdAt,
     ),
-    from_to_idx: uniqueIndex("from_to_idx").on(columns.from, columns.to),
   }),
 );
 
@@ -1145,6 +1136,11 @@ export const relations_merge_requests = relations(
       fields: [merge_requests.createdBy],
       references: [users.id],
       relationName: "createdBy",
+    }),
+    closedBy: one(users, {
+      fields: [merge_requests.closedBy],
+      references: [users.id],
+      relationName: "closedBy",
     }),
   }),
 );

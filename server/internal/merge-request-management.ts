@@ -1,5 +1,7 @@
 import "@total-typescript/ts-reset";
 import type { Payload } from "payload";
+import { getTx } from "server/utils/get-tx";
+import { commits_rels } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -8,7 +10,11 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { MergeRequest } from "../payload-types";
+import type { MergeRequest, MergeRequestComment } from "../payload-types";
+import {
+	tryAnalyzeMergeStrategy,
+	tryCreateMergeCommit,
+} from "./commit-management";
 
 export interface CreateMergeRequestArgs {
 	title: string;
@@ -75,41 +81,29 @@ export const tryCreateMergeRequest = Result.wrap(
 		}
 
 		try {
-			// Verify user exists
-			const user = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: { transactionID },
-			});
-
-			if (!user) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
-
 			// Verify both activity modules exist and get their origins
-			const fromModule = await payload.findByID({
+			const modules = await payload.find({
 				collection: "activity-modules",
-				id: fromActivityModuleId,
+				where: {
+					id: {
+						in: [fromActivityModuleId, toActivityModuleId],
+					},
+				},
 				req: { transactionID },
 			});
 
-			if (!fromModule) {
+			if (modules.docs.length !== 2) {
 				throw new InvalidArgumentError(
 					`From activity module with id '${fromActivityModuleId}' not found`,
 				);
 			}
 
-			const toModule = await payload.findByID({
-				collection: "activity-modules",
-				id: toActivityModuleId,
-				req: { transactionID },
-			});
-
-			if (!toModule) {
-				throw new InvalidArgumentError(
-					`To activity module with id '${toActivityModuleId}' not found`,
-				);
-			}
+			const fromModule = modules.docs.find(
+				(module) => module.id === fromActivityModuleId,
+			)!;
+			const toModule = modules.docs.find(
+				(module) => module.id === toActivityModuleId,
+			)!;
 
 			// Get origin IDs
 			const fromOriginId =
@@ -128,13 +122,16 @@ export const tryCreateMergeRequest = Result.wrap(
 				);
 			}
 
-			// Check if merge request already exists between these modules
+			// Check if **open** merge request already exists between these modules
 			const existingMergeRequest = await payload.find({
 				collection: "merge-requests",
 				where: {
 					and: [
-						{ from: { equals: fromActivityModuleId } },
-						{ to: { equals: toActivityModuleId } },
+						{
+							from: { equals: fromActivityModuleId },
+							to: { equals: toActivityModuleId },
+							status: { equals: "open" },
+						},
 					],
 				},
 				req: { transactionID },
@@ -154,7 +151,6 @@ export const tryCreateMergeRequest = Result.wrap(
 					description: description || null,
 					from: fromActivityModuleId,
 					to: toActivityModuleId,
-					status: "open",
 					createdBy: userId,
 				},
 				req: { transactionID },
@@ -275,30 +271,6 @@ export const tryUpdateMergeRequestStatus = Result.wrap(
 		}
 
 		try {
-			// Verify user exists
-			const user = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: { transactionID },
-			});
-
-			if (!user) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
-
-			// Get the merge request
-			const mergeRequest = await payload.findByID({
-				collection: "merge-requests",
-				id,
-				req: { transactionID },
-			});
-
-			if (!mergeRequest) {
-				throw new NonExistingMergeRequestError(
-					`Merge request with id '${id}' not found`,
-				);
-			}
-
 			// Prepare update data
 			const updateData: Partial<MergeRequest> = {
 				status,
@@ -375,30 +347,6 @@ export const tryDeleteMergeRequest = Result.wrap(
 		}
 
 		try {
-			// Verify user exists
-			const user = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: { transactionID },
-			});
-
-			if (!user) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
-
-			// Get the merge request
-			const mergeRequest = await payload.findByID({
-				collection: "merge-requests",
-				id,
-				req: { transactionID },
-			});
-
-			if (!mergeRequest) {
-				throw new NonExistingMergeRequestError(
-					`Merge request with id '${id}' not found`,
-				);
-			}
-
 			// Delete all associated comments first
 			await payload.delete({
 				collection: "merge-request-comments",
@@ -409,7 +357,7 @@ export const tryDeleteMergeRequest = Result.wrap(
 			});
 
 			// Delete the merge request
-			await payload.delete({
+			const deletedMergeRequest = await payload.delete({
 				collection: "merge-requests",
 				id,
 				req: { transactionID },
@@ -418,7 +366,7 @@ export const tryDeleteMergeRequest = Result.wrap(
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
 
-			return mergeRequest;
+			return deletedMergeRequest;
 		} catch (error) {
 			// Rollback transaction on error
 			await payload.db.rollbackTransaction(transactionID);
@@ -456,25 +404,24 @@ export const tryGetMergeRequestsByActivityModule = Result.wrap(
 			throw new InvalidArgumentError("Activity module ID is required");
 		}
 
-		// Build where clause
-		let whereClause: any = {
-			or: [
-				{ from: { equals: activityModuleId } },
-				{ to: { equals: activityModuleId } },
-			],
-		};
-
-		// Add status filter if provided
-		if (status) {
-			whereClause = {
-				and: [whereClause, { status: { equals: status } }],
-			};
-		}
-
 		// Fetch merge requests
 		const mergeRequestsResult = await payload.find({
 			collection: "merge-requests",
-			where: whereClause,
+			where: {
+				and: [
+					{
+						or: [
+							{ from: { equals: activityModuleId } },
+							{ to: { equals: activityModuleId } },
+						],
+					},
+					status
+						? {
+								status: { equals: status },
+							}
+						: {},
+				],
+			},
 			depth,
 			sort: "-createdAt",
 		});
@@ -484,6 +431,479 @@ export const tryGetMergeRequestsByActivityModule = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get merge requests by activity module", {
+			cause: error,
+		}),
+);
+
+export interface CreateMergeRequestCommentArgs {
+	mergeRequestId: number;
+	comment: string;
+	userId: number;
+}
+
+/**
+ * Creates a comment on a merge request
+ *
+ * This function:
+ * 1. Validates the merge request exists and allows comments
+ * 2. Creates a comment with the provided text
+ * 3. Uses transactions to ensure atomicity
+ */
+export const tryCreateMergeRequestComment = Result.wrap(
+	async (
+		payload: Payload,
+		args: CreateMergeRequestCommentArgs,
+	): Promise<MergeRequestComment> => {
+		const { mergeRequestId, comment, userId } = args;
+
+		// Validate required fields
+		if (!mergeRequestId) {
+			throw new InvalidArgumentError("Merge request ID is required");
+		}
+
+		if (!comment || comment.trim() === "") {
+			throw new InvalidArgumentError("Comment is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Get the merge request
+			const mergeRequest = await payload.findByID({
+				collection: "merge-requests",
+				id: mergeRequestId,
+				req: { transactionID },
+			});
+
+			if (!mergeRequest) {
+				throw new NonExistingMergeRequestError(
+					`Merge request with id '${mergeRequestId}' not found`,
+				);
+			}
+
+			// Check if comments are allowed
+			if (mergeRequest.allowComments === false) {
+				throw new InvalidArgumentError(
+					"Comments are not allowed on this merge request",
+				);
+			}
+
+			// Create comment
+			const commentDoc = await payload.create({
+				collection: "merge-request-comments",
+				data: {
+					comment: comment.trim(),
+					mergeRequest: mergeRequestId,
+					createdBy: userId,
+				},
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return commentDoc;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create merge request comment", {
+			cause: error,
+		}),
+);
+
+export interface RejectMergeRequestArgs {
+	id: number;
+	reason: string;
+	userId: number;
+	stopComments?: boolean;
+	resolvedContent?: string;
+}
+
+/**
+ * Rejects a merge request with a reason
+ *
+ * This function:
+ * 1. Creates a comment with the rejection reason
+ * 2. Updates the merge request status to "rejected"
+ * 3. Sets rejectedAt and rejectedBy fields
+ * 4. Optionally disables comments
+ * 5. Uses transactions to ensure atomicity
+ */
+export const tryRejectMergeRequest = Result.wrap(
+	async (
+		payload: Payload,
+		args: RejectMergeRequestArgs,
+	): Promise<MergeRequest> => {
+		const { id, reason, userId, stopComments = false } = args;
+
+		// Validate required fields
+		if (!id) {
+			throw new InvalidArgumentError("Merge request ID is required");
+		}
+
+		if (!reason || reason.trim() === "") {
+			throw new InvalidArgumentError("Rejection reason is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Create rejection comment
+			await payload.create({
+				collection: "merge-request-comments",
+				data: {
+					comment: `Rejection reason: ${reason.trim()}`,
+					mergeRequest: id,
+					createdBy: userId,
+				},
+				req: { transactionID },
+			});
+
+			// Prepare update data
+			const updateData: Partial<MergeRequest> = {
+				status: "rejected",
+				rejectedAt: new Date().toISOString(),
+				rejectedBy: userId,
+			};
+
+			// Optionally disable comments
+			if (stopComments) {
+				updateData.allowComments = false;
+			}
+
+			// Update the merge request
+			const updatedMergeRequest = await payload.update({
+				collection: "merge-requests",
+				id,
+				data: updateData,
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return updatedMergeRequest;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to reject merge request", {
+			cause: error,
+		}),
+);
+
+export interface AcceptMergeRequestArgs {
+	id: number;
+	reason?: string;
+	userId: number;
+	stopComments?: boolean;
+	resolvedContent?: Record<string, unknown>;
+}
+
+/**
+ * Accepts a merge request with an optional reason
+ *
+ * This function:
+ * 1. Analyzes the merge strategy (Fast-Forward vs Three-Way)
+ * 2. Optionally creates a comment with the acceptance reason
+ * 3. Creates a merge commit if needed
+ * 4. Updates the merge request status to "merged"
+ * 5. Sets mergedAt and mergedBy fields
+ * 6. Optionally disables comments
+ * 7. Uses transactions to ensure atomicity
+ */
+export const tryAcceptMergeRequest = Result.wrap(
+	async (
+		payload: Payload,
+		args: AcceptMergeRequestArgs,
+	): Promise<MergeRequest> => {
+		const { id, reason, userId, stopComments = false, resolvedContent } = args;
+
+		// Validate required fields
+		if (!id) {
+			throw new InvalidArgumentError("Merge request ID is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Get the merge request to access from/to activity modules
+			const mergeRequest = await payload.findByID({
+				collection: "merge-requests",
+				id,
+				req: { transactionID },
+			});
+
+			if (!mergeRequest) {
+				throw new NonExistingMergeRequestError(
+					`Merge request with id '${id}' not found`,
+				);
+			}
+
+			// Get activity module IDs
+			const fromActivityModuleId =
+				typeof mergeRequest.from === "object"
+					? mergeRequest.from.id
+					: mergeRequest.from;
+			const toActivityModuleId =
+				typeof mergeRequest.to === "object"
+					? mergeRequest.to.id
+					: mergeRequest.to;
+
+			// Analyze merge strategy
+			const analysisResult = await tryAnalyzeMergeStrategy(
+				payload,
+				{
+					fromActivityModuleId,
+					toActivityModuleId,
+				},
+				transactionID,
+			);
+
+			if (!analysisResult.ok) {
+				throw new InvalidArgumentError("Failed to analyze merge strategy");
+			}
+
+			const analysis = analysisResult.value;
+			let mergeReport: string;
+
+			// Generate merge report and handle merge based on strategy
+			if (analysis.strategy === "fast-forward") {
+				// Fast-forward merge: link commits from source branch to target branch
+				const commitsToLink = analysis.fromCommits.filter(
+					(commit) => commit.id !== analysis.commonAncestor?.id,
+				);
+
+				mergeReport =
+					`Fast-forward merge from branch ${fromActivityModuleId} to ${toActivityModuleId}\n\n` +
+					`This merge was performed as a fast-forward because the target branch had no unique commits since the branches diverged.\n` +
+					`Common ancestor: ${analysis.commonAncestor?.hash}\n` +
+					`Linked ${commitsToLink.length} commits from source branch.`;
+
+				// Perform fast-forward merge by linking commits from source to target branch
+				if (commitsToLink.length > 0) {
+					const tx = getTx(payload, transactionID);
+					const commitIds = commitsToLink.map((commit) => commit.id);
+
+					// Batch insertion of commit relationships to link commits to target branch
+					await tx.insert(commits_rels).values(
+						commitIds.map((id) => ({
+							parent: id,
+							order: 1,
+							path: "activityModule",
+							"activity-modulesID": toActivityModuleId,
+						})),
+					);
+				}
+			} else {
+				// Three-way merge: requires resolved content and creates a merge commit
+				if (!resolvedContent) {
+					throw new InvalidArgumentError(
+						"Resolved content is required for three-way merge. The branches have diverged and conflicts need to be resolved.",
+					);
+				}
+
+				mergeReport =
+					`Three-way merge from branch ${fromActivityModuleId} to ${toActivityModuleId}\n\n` +
+					`This merge was performed as a three-way merge because both branches had unique commits since they diverged.\n` +
+					`Common ancestor: ${analysis.commonAncestor?.hash}\n` +
+					`Source branch commits: ${analysis.fromCommits.length}\n` +
+					`Target branch diverged commits: ${analysis.divergedCommits.length}\n` +
+					`Conflicts were resolved and the merged content is included in this commit.`;
+
+				// Create merge commit
+				const mergeCommitResult = await tryCreateMergeCommit(
+					payload,
+					{
+						toActivityModuleId,
+						mergeReport,
+						resolvedContent,
+						authorId: userId,
+					},
+					transactionID,
+				);
+
+				if (!mergeCommitResult.ok) {
+					throw new InvalidArgumentError("Failed to create merge commit");
+				}
+			}
+
+			// Create acceptance comment with merge report
+			const commentText =
+				reason && reason.trim() !== ""
+					? `Acceptance reason: ${reason.trim()}\n\n${mergeReport}`
+					: mergeReport;
+
+			await payload.create({
+				collection: "merge-request-comments",
+				data: {
+					comment: commentText,
+					mergeRequest: id,
+					createdBy: userId,
+				},
+				req: { transactionID },
+			});
+
+			// Prepare update data
+			const updateData: Partial<MergeRequest> = {
+				status: "merged",
+				mergedAt: new Date().toISOString(),
+				mergedBy: userId,
+			};
+
+			// Optionally disable comments
+			if (stopComments) {
+				updateData.allowComments = false;
+			}
+
+			// Update the merge request
+			const updatedMergeRequest = await payload.update({
+				collection: "merge-requests",
+				id,
+				data: updateData,
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return updatedMergeRequest;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to accept merge request", {
+			cause: error,
+		}),
+);
+
+export interface CloseMergeRequestArgs {
+	id: number;
+	reason?: string;
+	userId: number;
+	stopComments?: boolean;
+}
+
+/**
+ * Closes a merge request with an optional reason
+ *
+ * This function:
+ * 1. Optionally creates a comment with the closure reason
+ * 2. Updates the merge request status to "closed"
+ * 3. Sets closedAt and closedBy fields
+ * 4. Optionally disables comments
+ * 5. Uses transactions to ensure atomicity
+ */
+export const tryCloseMergeRequest = Result.wrap(
+	async (
+		payload: Payload,
+		args: CloseMergeRequestArgs,
+	): Promise<MergeRequest> => {
+		const { id, reason, userId, stopComments = false } = args;
+
+		// Validate required fields
+		if (!id) {
+			throw new InvalidArgumentError("Merge request ID is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Create closure comment if reason is provided
+			if (reason && reason.trim() !== "") {
+				await payload.create({
+					collection: "merge-request-comments",
+					data: {
+						comment: `Closure reason: ${reason.trim()}`,
+						mergeRequest: id,
+						createdBy: userId,
+					},
+					req: { transactionID },
+				});
+			}
+
+			// Prepare update data
+			const updateData: Partial<MergeRequest> = {
+				status: "closed",
+				closedAt: new Date().toISOString(),
+				closedBy: userId,
+			};
+
+			// Optionally disable comments
+			if (stopComments) {
+				updateData.allowComments = false;
+			}
+
+			// Update the merge request
+			const updatedMergeRequest = await payload.update({
+				collection: "merge-requests",
+				id,
+				data: updateData,
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return updatedMergeRequest;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to close merge request", {
 			cause: error,
 		}),
 );

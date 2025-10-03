@@ -37,10 +37,45 @@ export const envVars = {
 		value: process.env.S3_REGION,
 		default: "us-east-1",
 	},
+	// ! the bucket name is the same as the bucket name in the MinIO configuration
+	S3_BUCKET: {
+		required: false,
+		sensitive: true,
+		value: process.env.S3_BUCKET!,
+	},
+	// ! the endpoint url is the same as the endpoint url in the MinIO configuration
+	// ! without the bucket name
+	S3_ENDPOINT_URL: {
+		required: true,
+		sensitive: true,
+		value: process.env.S3_ENDPOINT_URL!,
+	},
 	PAYLOAD_SECRET: {
 		required: true,
 		sensitive: true,
 		value: process.env.PAYLOAD_SECRET!,
+	},
+	SMTP_HOST: {
+		required: false,
+		sensitive: true,
+		value: process.env.SMTP_HOST,
+	},
+	SMTP_USER: {
+		required: false,
+		sensitive: true,
+		value: process.env.SMTP_USER,
+	},
+	SMTP_PASS: {
+		required: false,
+		sensitive: true,
+		value: process.env.SMTP_PASS,
+	},
+	// ! when sandbox mode is not 0, the server will clean up every N minutes
+	SANDBOX_MODE: {
+		required: false,
+		sensitive: false,
+		value: process.env.SANDBOX_MODE,
+		default: "0",
 	},
 	// R2_URL: {
 	//     required: false,

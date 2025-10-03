@@ -1,14 +1,10 @@
 import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
+import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
 import { searchPlugin } from "@payloadcms/plugin-search";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
-import {
-	buildConfig,
-	type CollectionConfig,
-	type Config,
-	sanitizeConfig,
-} from "payload";
+import { buildConfig, type CollectionConfig, TaskConfig } from "payload";
 import sharp from "sharp";
 import { migrations } from "src/migrations";
 import { UnauthorizedError } from "~/utils/error";
@@ -16,7 +12,7 @@ import { envVars } from "./env";
 
 // Courses collection - core LMS content
 export const Courses = {
-	slug: "courses",
+	slug: "courses" as const,
 	defaultSort: "-createdAt",
 	fields: [
 		{
@@ -188,12 +184,12 @@ export const Users = {
 			label: "Avatar",
 		},
 	],
-	slug: "users",
+	slug: "users" as const,
 } satisfies CollectionConfig;
 
 // Origins collection - tracks the root of activity module branches
 export const Origins = {
-	slug: "origins",
+	slug: "origins" as const,
 	defaultSort: "-createdAt",
 	fields: [
 		{
@@ -257,6 +253,7 @@ export const ActivityModules = {
 			collection: "commits",
 			label: "Commits",
 			hasMany: true,
+			// ! this is sorted by commit date but not created at
 			defaultSort: "-commitDate",
 			defaultLimit: 999999,
 			maxDepth: 2,
@@ -365,6 +362,8 @@ export const Commits = {
 			label: "Content Hash (for integrity)",
 		},
 	],
+	// ! we don't need timestamps for commits because we have commit date
+	timestamps: false,
 	indexes: [],
 } satisfies CollectionConfig;
 
@@ -493,13 +492,31 @@ export const MergeRequests = {
 			relationTo: "users",
 			required: true,
 		},
+		{
+			name: "closedAt",
+			type: "date",
+			label: "Closed At",
+		},
+		{
+			name: "closedBy",
+			type: "relationship",
+			relationTo: "users",
+			label: "Closed By",
+		},
+		{
+			name: "allowComments",
+			type: "checkbox",
+			label: "Allow Comments",
+			defaultValue: true,
+		},
 	],
 	indexes: [
-		{
-			// ! the pair needs to be unique
-			fields: ["from", "to"],
-			unique: true,
-		},
+		// ! this is not a constraint because we can have mulitple closed merge requests between the same two activity modules
+		// {
+		// 	// ! the pair needs to be unique
+		// 	fields: ["from", "to"],
+		// 	unique: true,
+		// },
 	],
 } satisfies CollectionConfig;
 
@@ -579,7 +596,6 @@ const pg = postgresAdapter({
 	pool: {
 		connectionString: envVars.DATABASE_URL.value,
 	},
-
 	prodMigrations: migrations,
 	// disable logger in different environments
 	logger:
@@ -588,11 +604,54 @@ const pg = postgresAdapter({
 		process.env.NODE_ENV !== "development"
 			? new EnhancedQueryLogger()
 			: undefined,
-	push:
-		process.env.NODE_ENV !== "test" && process.env.NODE_ENV !== "production",
+	// ! we never want to push directly, always respect the the migrations files
+	push: false,
+	// process.env.NODE_ENV !== "test" && process.env.NODE_ENV !== "production" ,
 });
 
 const __dirname = import.meta.dirname;
+
+// export const MigrateDatabase: TaskConfig<'MigrateDatabase'> = {
+// 	slug: 'MigrateDatabase' as const,
+// 	schedule: [
+// 		{
+// 			cron: `* * * * * *`, // every second
+// 			queue: 'minute',
+// 			hooks: {
+// 				beforeSchedule: async ({ req }) => {
+// 					return {
+// 						shouldSchedule: (envVars.SANDBOX_MODE.value ?? envVars.SANDBOX_MODE.default) !== "0"
+// 					}
+// 				}
+// 			}
+// 		},
+// 	],
+
+// 	outputSchema: [{
+// 		name: "message",
+// 		type: "text",
+// 		required: true,
+// 	}],
+// 	handler: async ({ tasks, req, input }) => {
+// 		try {
+// 			console.log("Migrating database...");
+// 			await req.payload.db.migrateFresh({
+// 				forceAcceptWarning: true
+// 			})
+// 			return {
+// 				state: "succeeded",
+// 				output: {
+// 					message: "Migration succeeded"
+// 				},
+// 			}
+// 		} catch (error) {
+// 			return {
+// 				state: "failed",
+// 				errorMessage: error instanceof Error ? error.message : "Unknown error",
+// 			}
+// 		}
+// 	},
+// }
 
 const sanitizedConfig = await buildConfig({
 	db: pg,
@@ -612,26 +671,93 @@ const sanitizedConfig = await buildConfig({
 		MergeRequestComments,
 		Media,
 	] as CollectionConfig[],
+	email:
+		envVars.SMTP_HOST.value &&
+		envVars.SMTP_USER.value &&
+		envVars.SMTP_PASS.value
+			? nodemailerAdapter({
+					defaultFromAddress: "info@payloadcms.com",
+					defaultFromName: "Payload",
+					// Nodemailer transportOptions
+					transportOptions: {
+						host: envVars.SMTP_HOST.value,
+						port: 587,
+						auth: {
+							user: envVars.SMTP_USER.value,
+							pass: envVars.SMTP_PASS.value,
+						},
+					},
+				})
+			: undefined,
 	plugins: [
 		searchPlugin({
-			collections: ["users", "courses"],
+			collections: [Users.slug, Courses.slug],
 		}),
 		s3Storage({
 			collections: {
 				media: true,
 			},
-			bucket: "paideia-bucket",
+			bucket: envVars.S3_BUCKET.value,
 			config: {
 				credentials: {
 					accessKeyId: envVars.S3_ACCESS_KEY.value,
 					secretAccessKey: envVars.S3_SECRET_KEY.value,
 				},
-				endpoint: "http://localhost:9000",
+				endpoint: envVars.S3_ENDPOINT_URL.value,
 				region: envVars.S3_REGION.value ?? envVars.S3_REGION.default, // MinIO default region
 				forcePathStyle: true, // Required for MinIO
 			},
 		}),
 	],
+	jobs: {
+		// the cron queue
+		autoRun: [
+			{
+				//     ┌───────────── (optional) second (0 - 59)
+				//     │ ┌───────────── minute (0 - 59)
+				// 	   │ │ ┌───────────── hour (0 - 23)
+				// 	   │ │ │ ┌───────────── day of the month (1 - 31)
+				// 	   │ │ │ │ ┌───────────── month (1 - 12)
+				// 	   │ │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday)
+				// 	   │ │ │ │ │ │
+				// 	   │ │ │ │ │ │
+				//  - '* 0 * * * *' every hour at minute 0
+				//  - '* 0 0 * * *' daily at midnight
+				//  - '* 0 0 * * 0' weekly at midnight on Sundays
+				//  - '* 0 0 1 * *' monthly at midnight on the 1st day of the month
+				//  - '* 0/5 * * * *' every 5 minutes
+				//  - '* * * * * *' every second
+				cron: `0 0 * * *`, // Every day at midnight
+				queue: "nightly",
+			},
+			{
+				cron: `* * * * * *`, // every second
+				queue: "secondly",
+			},
+			{
+				cron: `* * * * *`, // every minute
+				queue: "minute",
+			},
+			{
+				cron: `0 * * * *`, // every hour
+				queue: "hourly",
+			},
+			{
+				cron: "0 */3 * * *", // every 3 hours
+				queue: "3-hourly",
+			},
+			{
+				cron: "0 */6 * * *", // every 6 hours
+				queue: "6-hourly",
+			},
+			{
+				cron: "0 */12 * * *", // every 12 hours
+				queue: "12-hourly",
+			},
+		],
+		// ! this will change the database structure so you cannot be conditional here
+		tasks: [],
+	},
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),
 	},

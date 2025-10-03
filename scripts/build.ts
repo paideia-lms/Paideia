@@ -60,4 +60,24 @@ await Bun.build({
 	},
 });
 
+await Bun.build({
+	entrypoints: ["./server/index.ts"].flat(),
+	outdir: "./dist",
+	// minify: true,
+	sourcemap: true,
+	define: {
+		// ! we need this value for tree shaking
+		"process.env.ENV": '"production"',
+		"process.env.NODE_ENV": '"production"',
+	},
+	naming: {
+		asset: "[dir]/[name].[ext]",
+	},
+	compile: {
+		target: "bun-linux-arm64",
+		outfile: "paideia-linux-arm64",
+		execArgv: ['--asset-naming="[name].[ext]"'],
+	},
+});
+
 await $`rm -rf ./build`;
