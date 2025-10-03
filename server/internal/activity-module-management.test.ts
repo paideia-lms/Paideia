@@ -1,13 +1,15 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import type { ActivityModule } from "server/payload-types";
+import type { ActivityModule, Commit } from "server/payload-types";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
 	type CreateBranchArgs,
+	type CreateBranchFromCommitArgs,
 	tryCreateActivityModule,
 	tryCreateBranch,
+	tryCreateBranchFromCommit,
 	tryDeleteActivityModule,
 	tryGetActivityModuleById,
 } from "./activity-module-management";
@@ -532,4 +534,132 @@ describe("Activity Module Management", () => {
 		// should not be found
 		expect(getMainBranchResult.ok).toBe(false);
 	});
+
+	const targetCommitIndex = 30;
+	test(`should create branch from ${targetCommitIndex}th commit and contain exactly ${targetCommitIndex} commits`, async () => {
+		// Create initial activity module
+		const originalArgs: CreateActivityModuleArgs = {
+			title: "100 Commits Module",
+			description: "Module with 100 commits for branch testing",
+			type: "page",
+			content: { body: "Initial content" },
+			commitMessage: "Initial commit",
+			userId: testUserId,
+		};
+
+		const originalResult = await tryCreateActivityModule(payload, originalArgs);
+		expect(originalResult.ok).toBe(true);
+		if (!originalResult.ok) return;
+
+		const originalModule = originalResult.value.activityModule;
+		const initialCommit = originalModule.commits?.docs?.[0];
+
+		if (!initialCommit || typeof initialCommit === "number") {
+			throw new Error("Test Error: Initial commit not found or is a number");
+		}
+
+		const currentCommitId = initialCommit.id;
+		const totalCommits = 100;
+
+		const commitIds: number[] = [initialCommit.id];
+
+		// Create 99 more commits (total 100)
+		for (let i = 0; i < totalCommits - 1; i++) {
+			const commitArgs: CreateCommitArgs = {
+				activityModule: originalModule.id,
+				message: `Commit ${i + 1}`,
+				author: testUserId,
+				content: {
+					body: `Commit ${i + 1} content`,
+					version: i + 1,
+				},
+				parentCommit: currentCommitId,
+			};
+
+			const commitResult = await tryCreateCommit(payload, commitArgs);
+			expect(commitResult.ok).toBe(true);
+			if (!commitResult.ok) throw new Error(`Failed to create commit ${i + 1}`);
+			// push the commit id to the commit ids array
+			commitIds.push(commitResult.value.id);
+		}
+
+		const first30Commits = commitIds.slice(0, targetCommitIndex);
+		console.log(first30Commits, first30Commits.length);
+
+		// expect the commit ids array to have 100 commits
+		expect(commitIds.length).toBe(totalCommits);
+
+		// get the target commit
+		const targetCommit = commitIds[targetCommitIndex - 1];
+
+		// Verify the original module has 100 commits
+		const originalModuleResult = await tryGetActivityModuleById(payload, {
+			id: originalModule.id,
+			depth: 2,
+		});
+		expect(originalModuleResult.ok).toBe(true);
+		if (!originalModuleResult.ok)
+			throw new Error("Failed to get original module");
+
+		const originalModuleWithCommits = originalModuleResult.value;
+		expect(originalModuleWithCommits.commits?.docs?.length).toBe(totalCommits);
+
+		// Create a branch from the 50th commit
+		const branchFromCommitArgs: CreateBranchFromCommitArgs = {
+			commitId: targetCommit,
+			branchName: `${targetCommitIndex}-commit-branch`,
+			userId: testUserId,
+		};
+
+		const branchResult = await tryCreateBranchFromCommit(
+			payload,
+			branchFromCommitArgs,
+		);
+		expect(branchResult.ok).toBe(true);
+		if (!branchResult.ok) return;
+
+		const newBranch = branchResult.value;
+
+		// Verify the new branch was created
+		expect(newBranch.branch).toBe(`${targetCommitIndex}-commit-branch`);
+		expect(newBranch.title).toBe(originalModule.title);
+		expect(newBranch.type).toBe(originalModule.type);
+
+		// Get the new branch with its commits
+		const newBranchResult = await tryGetActivityModuleById(payload, {
+			id: newBranch.id,
+			depth: 2,
+		});
+		expect(newBranchResult.ok).toBe(true);
+		if (!newBranchResult.ok) throw new Error("Failed to get new branch");
+
+		const newBranchWithCommits = newBranchResult.value;
+		const newBranchCommits = newBranchWithCommits.commits?.docs ?? [];
+
+		// Verify the new branch has exactly 50 commits (from root to 50th commit inclusive)
+		expect(newBranchCommits.length).toBe(targetCommitIndex); // Should have exactly 50 commits (from root to 50th commit inclusive)
+
+		console.log(
+			newBranchCommits.map((c) => (typeof c === "number" ? c : c.id)),
+			newBranchCommits.length,
+		);
+
+		// new branches should have exactly those first 30 commits
+		expect(newBranchCommits.map((c) => (c as Commit).id).sort()).toEqual(
+			first30Commits,
+		);
+
+		// Verify the original module still has 100 commits
+		const originalModuleFinalResult = await tryGetActivityModuleById(payload, {
+			id: originalModule.id,
+			depth: 2,
+		});
+		expect(originalModuleFinalResult.ok).toBe(true);
+		if (!originalModuleFinalResult.ok)
+			throw new Error("Failed to get original module final state");
+
+		expect(originalModuleFinalResult.value.commits?.docs?.length).toBe(
+			totalCommits,
+		);
+	}, 10000);
 });

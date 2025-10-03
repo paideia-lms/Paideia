@@ -1,14 +1,18 @@
 import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
+import { searchPlugin } from "@payloadcms/plugin-search";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
-import { type CollectionConfig, type Config, sanitizeConfig, buildConfig } from "payload";
+import {
+	buildConfig,
+	type CollectionConfig,
+	type Config,
+	sanitizeConfig,
+} from "payload";
 import sharp from "sharp";
 import { migrations } from "src/migrations";
 import { UnauthorizedError } from "~/utils/error";
 import { envVars } from "./env";
-import { searchPlugin } from '@payloadcms/plugin-search'
-
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -253,7 +257,8 @@ export const ActivityModules = {
 			collection: "commits",
 			label: "Commits",
 			hasMany: true,
-			defaultSort: "-createdAt",
+			defaultSort: "-commitDate",
+			defaultLimit: 999999,
 			maxDepth: 2,
 		},
 		{
@@ -579,8 +584,8 @@ const pg = postgresAdapter({
 	// disable logger in different environments
 	logger:
 		process.env.NODE_ENV !== "test" &&
-			process.env.NODE_ENV !== "production" &&
-			process.env.NODE_ENV !== "development"
+		process.env.NODE_ENV !== "production" &&
+		process.env.NODE_ENV !== "development"
 			? new EnhancedQueryLogger()
 			: undefined,
 	push:
@@ -609,10 +614,7 @@ const sanitizedConfig = await buildConfig({
 	] as CollectionConfig[],
 	plugins: [
 		searchPlugin({
-			collections: [
-				'users',
-				'courses',
-			],
+			collections: ["users", "courses"],
 		}),
 		s3Storage({
 			collections: {
@@ -635,6 +637,5 @@ const sanitizedConfig = await buildConfig({
 	},
 	telemetry: false,
 });
-;
 
 export default sanitizedConfig;

@@ -274,6 +274,13 @@ export interface CreateBranchArgs {
 	userId: number;
 }
 
+export interface CreateBranchFromCommitArgs {
+	commitId?: number | string;
+	hash?: string;
+	branchName: string;
+	userId: number;
+}
+
 /**
  * Creates a new branch from an existing activity module
  *
@@ -394,6 +401,176 @@ export const tryCreateBranch = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to create branch", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new branch from a specific commit
+ *
+ * This function:
+ * 1. Finds a commit by ID or hash
+ * 2. Gets any activity module associated with that commit
+ * 3. Creates a new branch from that activity module
+ * 4. Copies all commits from the root up to the target commit
+ * 5. Uses transactions to ensure atomicity
+ */
+export const tryCreateBranchFromCommit = Result.wrap(
+	async (
+		payload: Payload,
+		args: CreateBranchFromCommitArgs,
+	): Promise<ActivityModule> => {
+		const { commitId, branchName, userId, hash } = args;
+
+		const transactionID = await payload.db.beginTransaction();
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		// Validate inputs
+		if (!commitId && !hash) {
+			throw new InvalidArgumentError("Commit ID or hash is required");
+		}
+
+		if (!branchName || branchName.trim() === "") {
+			throw new InvalidArgumentError("Branch name is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		try {
+			// Find the commit by ID or hash
+			const commitResult = await payload.find({
+				collection: "commits",
+				where: {
+					or: [{ id: { equals: commitId } }, { hash: { equals: hash } }],
+				},
+				depth: 2, // Get activity modules
+				req: { transactionID },
+			});
+
+			if (commitResult.docs.length === 0) {
+				throw new InvalidArgumentError(
+					`Commit with id/hash '${commitId || hash}' not found`,
+				);
+			}
+
+			const commit = commitResult.docs[0];
+
+			// Get the first activity module associated with this commit
+			const activityModules = commit.activityModule;
+			if (!activityModules || activityModules.length === 0) {
+				throw new InvalidArgumentError(
+					"Commit is not associated with any activity module",
+				);
+			}
+
+			// Get the first activity module (they should all have the same origin)
+			const firstActivityModule = Array.isArray(activityModules)
+				? activityModules[0]
+				: activityModules;
+
+			const activityModuleId =
+				typeof firstActivityModule === "object"
+					? firstActivityModule.id
+					: firstActivityModule;
+
+			// Get the full activity module with commits
+			const sourceModuleResult = await tryGetActivityModuleById(payload, {
+				id: activityModuleId,
+				depth: 2,
+				transactionID,
+			});
+
+			if (!sourceModuleResult.ok) {
+				throw new NonExistingActivityModuleError(
+					`Activity module with id '${activityModuleId}' not found`,
+				);
+			}
+
+			const sourceModule = sourceModuleResult.value;
+
+			// Get the origin ID from the source module
+			const originId =
+				typeof sourceModule.origin === "object"
+					? sourceModule.origin.id
+					: sourceModule.origin;
+
+			if (!originId) {
+				throw new InvalidArgumentError(
+					"Source module does not have a valid origin",
+				);
+			}
+
+			// Create new branch
+			const newBranch = await payload.duplicate({
+				collection: "activity-modules",
+				id: sourceModule.id,
+				data: {
+					branch: branchName,
+					status: "draft",
+					createdBy: userId,
+					origin: originId,
+				},
+				req: { transactionID },
+			});
+
+			// Get all commits from the source module
+			const allCommits = (sourceModule.commits?.docs ?? []) as Commit[];
+
+			// Sort commits by commitDate (oldest first)
+			allCommits.sort((a, b) => {
+				return (
+					new Date(a.commitDate).getTime() - new Date(b.commitDate).getTime()
+				);
+			});
+
+			// Find the target commit index
+			const targetCommitIndex = allCommits.findIndex(
+				(c) => c.hash === hash || c.id === commitId,
+			);
+
+			if (targetCommitIndex === -1) {
+				throw new InvalidArgumentError(
+					`Commit with id/hash '${commitId || hash}' not found`,
+				);
+			}
+
+			// Get commits from root to target commit (inclusive) - first N commits
+			const commitsToCopy = allCommits.slice(0, targetCommitIndex + 1);
+			const commitIds = commitsToCopy.map((commit) => commit.id);
+
+			const tx = getTx(payload, transactionID);
+
+			if (!newBranch.id) throw new Error("New branch ID not found");
+
+			// Batch insertion of commit relationships
+			if (commitIds.length > 0) {
+				await tx.insert(commits_rels).values(
+					commitIds.map((id) => ({
+						parent: id,
+						order: 1,
+						path: "activityModule",
+						"activity-modulesID": newBranch.id,
+					})),
+				);
+			}
+
+			await payload.db.commitTransaction(transactionID);
+
+			return newBranch;
+		} catch (error) {
+			console.error(error);
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create branch from commit", {
 			cause: error,
 		}),
 );
