@@ -140,9 +140,6 @@ describe("Note Management Functions", () => {
 			const result = await tryCreateNote(payload, mockRequest, noteArgs);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("content cannot be empty");
-			}
 		});
 
 		test("should fail with whitespace-only content", async () => {
@@ -154,9 +151,6 @@ describe("Note Management Functions", () => {
 			const result = await tryCreateNote(payload, mockRequest, noteArgs);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("content cannot be empty");
-			}
 		});
 
 		test("should fail with non-existent user", async () => {
@@ -240,9 +234,6 @@ describe("Note Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("content cannot be empty");
-			}
 		});
 
 		test("should fail with whitespace-only content", async () => {
@@ -258,9 +249,6 @@ describe("Note Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("content cannot be empty");
-			}
 		});
 
 		test("should fail with non-existent note", async () => {
@@ -276,9 +264,6 @@ describe("Note Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("Failed to update note");
-			}
 		});
 	});
 

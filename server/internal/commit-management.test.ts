@@ -3,7 +3,6 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
-import type { ActivityModule, User } from "../payload-types";
 import { tryCreateActivityModule } from "./activity-module-management";
 import {
 	tryCreateCommit,
@@ -18,7 +17,6 @@ describe("Commit Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
 	let testUserId: number;
-	let testUser: User;
 	let testActivityModuleId: number;
 	let testActivityModule: TryResultValue<
 		typeof tryCreateActivityModule
@@ -55,7 +53,6 @@ describe("Commit Management", () => {
 
 		if (userResult.ok) {
 			testUserId = userResult.value.id;
-			testUser = userResult.value;
 
 			// Create a test activity module with initial commit using tryCreateActivityModule
 			const activityModuleResult = await tryCreateActivityModule(payload, {

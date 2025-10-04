@@ -103,6 +103,62 @@ export class DevelopmentError extends Error {
 	}
 }
 
+export class GradebookNotFoundError extends Error {
+	static readonly type = "GradebookNotFoundError";
+	get type() {
+		return GradebookNotFoundError.type;
+	}
+}
+
+export class GradebookCategoryNotFoundError extends Error {
+	static readonly type = "GradebookCategoryNotFoundError";
+	get type() {
+		return GradebookCategoryNotFoundError.type;
+	}
+}
+
+export class GradebookItemNotFoundError extends Error {
+	static readonly type = "GradebookItemNotFoundError";
+	get type() {
+		return GradebookItemNotFoundError.type;
+	}
+}
+
+export class UserGradeNotFoundError extends Error {
+	static readonly type = "UserGradeNotFoundError";
+	get type() {
+		return UserGradeNotFoundError.type;
+	}
+}
+
+export class DuplicateGradebookError extends Error {
+	static readonly type = "DuplicateGradebookError";
+	get type() {
+		return DuplicateGradebookError.type;
+	}
+}
+
+export class InvalidGradeValueError extends Error {
+	static readonly type = "InvalidGradeValueError";
+	get type() {
+		return InvalidGradeValueError.type;
+	}
+}
+
+export class InvalidSortOrderError extends Error {
+	static readonly type = "InvalidSortOrderError";
+	get type() {
+		return InvalidSortOrderError.type;
+	}
+}
+
+export class WeightExceedsLimitError extends Error {
+	static readonly type = "WeightExceedsLimitError";
+	get type() {
+		return WeightExceedsLimitError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (process.env.NODE_ENV === "test") {
 		console.log("transformError", error);
@@ -119,6 +175,14 @@ export function transformError(error: unknown) {
 	else if (error instanceof DuplicateEnrollmentError) return error;
 	else if (error instanceof NonExistingMergeRequestError) return error;
 	else if (error instanceof NonExistingMediaError) return error;
+	else if (error instanceof GradebookNotFoundError) return error;
+	else if (error instanceof GradebookCategoryNotFoundError) return error;
+	else if (error instanceof GradebookItemNotFoundError) return error;
+	else if (error instanceof UserGradeNotFoundError) return error;
+	else if (error instanceof DuplicateGradebookError) return error;
+	else if (error instanceof InvalidGradeValueError) return error;
+	else if (error instanceof InvalidSortOrderError) return error;
+	else if (error instanceof WeightExceedsLimitError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

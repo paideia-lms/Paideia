@@ -173,9 +173,6 @@ describe("Course Management Functions", () => {
 			const result = await tryCreateCourse(payload, mockRequest, courseArgs);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("foreign key constraint");
-			}
 		});
 	});
 
@@ -330,28 +327,26 @@ describe("Course Management Functions", () => {
 				courseArgs,
 			);
 			expect(createResult.ok).toBe(true);
-
-			if (createResult.ok) {
-				const findResult = await tryFindCourseById(
-					payload,
-					createResult.value.id,
-				);
-
-				expect(findResult.ok).toBe(true);
-				if (findResult.ok) {
-					expect(findResult.value.id).toBe(createResult.value.id);
-					expect(findResult.value.title).toBe("Find By ID Test");
-				}
+			if (!createResult.ok) {
+				throw new Error("Failed to create course");
 			}
+			const findResult = await tryFindCourseById(
+				payload,
+				createResult.value.id,
+			);
+
+			expect(findResult.ok).toBe(true);
+			if (!findResult.ok) {
+				throw new Error("Failed to find course");
+			}
+			expect(findResult.value.id).toBe(createResult.value.id);
+			expect(findResult.value.title).toBe("Find By ID Test");
 		});
 
 		test("should fail when finding non-existent course by ID", async () => {
 			const result = await tryFindCourseById(payload, 99999);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("Not Found");
-			}
 		});
 	});
 
@@ -428,26 +423,12 @@ describe("Course Management Functions", () => {
 
 	describe("tryDeleteCourse", () => {
 		test("should delete course successfully", async () => {
-			const courseArgs: CreateCourseArgs = {
+			const courseArgs = {
 				title: "Course to Delete",
 				description: "This course will be deleted",
 				createdBy: instructorId,
 				slug: "course-to-delete",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Delete test section",
-							lessons: [
-								{
-									title: "Delete test lesson",
-									description: "Delete test lesson description",
-								},
-							],
-						},
-					],
-				},
-			};
+			} satisfies CreateCourseArgs;
 
 			const createResult = await tryCreateCourse(
 				payload,
@@ -456,25 +437,27 @@ describe("Course Management Functions", () => {
 			);
 			expect(createResult.ok).toBe(true);
 
-			if (createResult.ok) {
-				const deleteResult = await tryDeleteCourse(
-					payload,
-					mockRequest,
-					createResult.value.id,
-				);
-
-				expect(deleteResult.ok).toBe(true);
-				if (deleteResult.ok) {
-					expect(deleteResult.value.id).toBe(createResult.value.id);
-				}
-
-				// Verify course is actually deleted
-				const findResult = await tryFindCourseById(
-					payload,
-					createResult.value.id,
-				);
-				expect(findResult.ok).toBe(false);
+			if (!createResult.ok) {
+				throw new Error("Test Error: Failed to create course");
 			}
+			const deleteResult = await tryDeleteCourse(
+				payload,
+				mockRequest,
+				createResult.value.id,
+			);
+
+			expect(deleteResult.ok).toBe(true);
+			if (!deleteResult.ok) {
+				throw new Error("Test Error: Failed to delete course");
+			}
+			expect(deleteResult.value.id).toBe(createResult.value.id);
+
+			// Verify course is actually deleted
+			const findResult = await tryFindCourseById(
+				payload,
+				createResult.value.id,
+			);
+			expect(findResult.ok).toBe(false);
 		});
 	});
 

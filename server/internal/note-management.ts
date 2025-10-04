@@ -1,6 +1,7 @@
 import type { Payload } from "payload";
 import { Note } from "server/payload-types";
 import { Result } from "typescript-result";
+import { transformError, UnknownError } from "~/utils/error";
 
 export interface CreateNoteArgs {
 	content: string;
@@ -53,9 +54,10 @@ export const tryCreateNote = Result.wrap(
 		return newNote;
 	},
 	(error) =>
-		new Error(
-			`Failed to create note: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to create note", {
+			cause: error,
+		}),
 );
 
 /**
@@ -99,9 +101,10 @@ export const tryUpdateNote = Result.wrap(
 		return updatedNote;
 	},
 	(error) =>
-		new Error(
-			`Failed to update note: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to update note", {
+			cause: error,
+		}),
 );
 
 /**
@@ -121,9 +124,10 @@ export const tryFindNoteById = Result.wrap(
 		return note;
 	},
 	(error) =>
-		new Error(
-			`Failed to find note by ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find note by ID", {
+			cause: error,
+		}),
 );
 
 /**
@@ -166,9 +170,10 @@ export const trySearchNotes = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
-			`Failed to search notes: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to search notes", {
+			cause: error,
+		}),
 );
 
 /**
@@ -185,9 +190,10 @@ export const tryDeleteNote = Result.wrap(
 		return deletedNote;
 	},
 	(error) =>
-		new Error(
-			`Failed to delete note: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to delete note", {
+			cause: error,
+		}),
 );
 
 /**
@@ -209,7 +215,8 @@ export const tryFindNotesByUser = Result.wrap(
 		return notes.docs;
 	},
 	(error) =>
-		new Error(
-			`Failed to find notes by user: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find notes by user", {
+			cause: error,
+		}),
 );

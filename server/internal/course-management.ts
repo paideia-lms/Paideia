@@ -1,5 +1,13 @@
 import type { Payload } from "payload";
+import { Courses, Gradebooks } from "server/payload.config";
+import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
+import { z } from "zod";
+import {
+	TransactionIdNotFoundError,
+	transformError,
+	UnknownError,
+} from "~/utils/error";
 import type { Course } from "../payload-types";
 
 export interface CreateCourseArgs {
@@ -46,42 +54,96 @@ export const tryCreateCourse = Result.wrap(
 			tags,
 		} = args;
 
-		const newCourse = await payload.create({
-			collection: "courses",
-			data: {
-				title,
-				description,
-				structure:
-					structure ??
-					({
-						sections: [
-							{
-								title: "Introduction",
-								description: "Introduction to the course",
-								lessons: [
-									{
-										title: "Introduction to the course",
-										description: "Introduction to the course",
-									},
-								],
-							},
-						],
-					} as Course["structure"]),
-				slug,
-				createdBy,
-				status,
-				thumbnail,
-				tags,
-			},
-			req: request,
-		});
+		const transactionID = await payload.db.beginTransaction();
 
-		return newCourse as Course;
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			const newCourse = await payload.create({
+				collection: Courses.slug,
+				data: {
+					title,
+					description,
+					structure:
+						structure ??
+						({
+							sections: [
+								{
+									title: "Introduction",
+									description: "Introduction to the course",
+									lessons: [
+										{
+											title: "Introduction to the course",
+											description: "Introduction to the course",
+										},
+									],
+								},
+							],
+						} as Course["structure"]),
+					slug,
+					createdBy,
+					status,
+					thumbnail,
+					tags,
+				},
+				req: { ...request, transactionID },
+			});
+
+			// create the gradebook as well
+			const gradebookResult = await payload.create({
+				collection: Gradebooks.slug,
+				data: {
+					course: newCourse.id,
+				},
+				depth: 0,
+				req: { ...request, transactionID },
+			});
+
+			////////////////////////////////////////////////////
+			// type narrowing
+			////////////////////////////////////////////////////
+
+			const createdByUser = newCourse.createdBy;
+			assertZod(
+				createdByUser,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const newCourseThumbnail = newCourse.thumbnail;
+			assertZod(
+				newCourseThumbnail,
+				z
+					.object({
+						id: z.number(),
+					})
+					.nullish(),
+			);
+
+			// commit the transaction
+			await payload.db.commitTransaction(transactionID);
+
+			const result = {
+				...newCourse,
+				createdBy: createdByUser,
+				gradebook: gradebookResult,
+				thumbnail: newCourseThumbnail,
+			};
+			return result;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
 	},
 	(error) =>
-		new Error(
-			`Failed to create course: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to create course", {
+			cause: error,
+		}),
 );
 
 /**
@@ -139,20 +201,32 @@ export const tryUpdateCourse = Result.wrap(
 export const tryFindCourseById = Result.wrap(
 	async (payload: Payload, courseId: number) => {
 		const course = await payload.findByID({
-			collection: "courses",
+			collection: Courses.slug,
 			id: courseId,
 		});
 
-		if (!course) {
-			throw new Error(`Course with ID ${courseId} not found`);
-		}
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
 
-		return course as Course;
+		const courseCreatedBy = course.createdBy;
+		assertZod(
+			courseCreatedBy,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		return {
+			...course,
+			createdBy: courseCreatedBy,
+		};
 	},
 	(error) =>
-		new Error(
-			`Failed to find course by ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find course by ID", {
+			cause: error,
+		}),
 );
 
 /**
@@ -211,18 +285,41 @@ export const trySearchCourses = Result.wrap(
  */
 export const tryDeleteCourse = Result.wrap(
 	async (payload: Payload, request: Request, courseId: number) => {
-		const deletedCourse = await payload.delete({
-			collection: "courses",
-			id: courseId,
-			req: request,
-		});
+		const transactionID = await payload.db.beginTransaction();
 
-		return deletedCourse as Course;
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+		try {
+			// first we need to delete the gradebook
+			await payload.delete({
+				collection: Gradebooks.slug,
+				where: {
+					course: { equals: courseId },
+				},
+				req: { ...request, transactionID },
+			});
+
+			const deletedCourse = await payload.delete({
+				collection: Courses.slug,
+				id: courseId,
+				req: { ...request, transactionID },
+			});
+
+			// commit the transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return deletedCourse;
+		} catch (error) {
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
 	},
 	(error) =>
-		new Error(
-			`Failed to delete course: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to delete course", {
+			cause: error,
+		}),
 );
 
 /**

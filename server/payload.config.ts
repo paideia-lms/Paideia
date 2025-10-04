@@ -111,14 +111,6 @@ export const Courses = {
 			relationTo: "users",
 			required: true,
 		},
-		{
-			name: "gradebook",
-			type: "join",
-			on: "course",
-			collection: "gradebooks",
-			label: "Gradebook",
-			hasMany: false,
-		},
 	],
 } as const satisfies CollectionConfig;
 
@@ -536,6 +528,11 @@ export const CourseActivityModuleCommitLinks = {
 			hasMany: true,
 			virtual: `commit.${Commits.fields[1].name}.${ActivityModules.fields[1].name}.${Origins.fields[0].name}`,
 		},
+		{
+			name: "activityModuleType",
+			type: "text",
+			virtual: `commit.${Commits.fields[1].name}.${ActivityModules.fields[5].name}`,
+		},
 	],
 } as const satisfies CollectionConfig;
 
@@ -745,6 +742,7 @@ export const Gradebooks = {
 			relationTo: "courses",
 			required: true,
 			label: "Course",
+			hasMany: false,
 		},
 		{
 			name: "courseTitle",
@@ -903,8 +901,14 @@ export const GradebookItems = {
 		{
 			name: "activityModuleName",
 			type: "text",
-			virtual: `activityModule.${CourseActivityModuleCommitLinks.fields[4].name}`,
+			virtual: `activityModule.commit.activityModule.title`,
 			label: "Activity Module Name",
+		},
+		{
+			name: "activityModuleType",
+			type: "text",
+			virtual: `activityModule.commit.activityModule.type`,
+			label: "Activity Module Type",
 		},
 		{
 			name: "maxGrade",
