@@ -213,27 +213,3 @@ export const tryFindNotesByUser = Result.wrap(
 			`Failed to find notes by user: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );
-
-/**
- * Finds notes containing course links ([[course-slug]] syntax)
- */
-export const tryFindNotesWithCourseLinks = Result.wrap(
-	async (payload: Payload, limit: number = 10) => {
-		const notes = await payload.find({
-			collection: "notes",
-			where: {
-				content: {
-					contains: "[[",
-				},
-			},
-			limit,
-			sort: "-createdAt",
-		});
-
-		return notes.docs;
-	},
-	(error) =>
-		new Error(
-			`Failed to find notes with course links: ${error instanceof Error ? error.message : String(error)}`,
-		),
-);

@@ -8,7 +8,6 @@ import {
 	tryDeleteNote,
 	tryFindNoteById,
 	tryFindNotesByUser,
-	tryFindNotesWithCourseLinks,
 	trySearchNotes,
 	tryUpdateNote,
 	type UpdateNoteArgs,
@@ -471,29 +470,6 @@ describe("Note Management Functions", () => {
 				if (result.ok) {
 					expect(result.value.length).toBe(0);
 				}
-			}
-		});
-	});
-
-	describe("tryFindNotesWithCourseLinks", () => {
-		test("should find notes containing course links", async () => {
-			const result = await tryFindNotesWithCourseLinks(payload, 10);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.length).toBeGreaterThan(0);
-				result.value.forEach((note) => {
-					expect(note.content).toContain("[[");
-				});
-			}
-		});
-
-		test("should respect limit parameter", async () => {
-			const result = await tryFindNotesWithCourseLinks(payload, 1);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.length).toBeLessThanOrEqual(1);
 			}
 		});
 	});

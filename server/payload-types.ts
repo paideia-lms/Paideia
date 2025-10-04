@@ -74,6 +74,7 @@ export interface Config {
     'activity-modules': ActivityModule;
     commits: Commit;
     tags: Tag;
+    'course-activity-module-commit-links': CourseActivityModuleCommitLink;
     'merge-requests': MergeRequest;
     'merge-request-comments': MergeRequestComment;
     media: Media;
@@ -102,6 +103,7 @@ export interface Config {
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
     commits: CommitsSelect<false> | CommitsSelect<true>;
     tags: TagsSelect<false> | TagsSelect<true>;
+    'course-activity-module-commit-links': CourseActivityModuleCommitLinksSelect<false> | CourseActivityModuleCommitLinksSelect<true>;
     'merge-requests': MergeRequestsSelect<false> | MergeRequestsSelect<true>;
     'merge-request-comments': MergeRequestCommentsSelect<false> | MergeRequestCommentsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
@@ -258,7 +260,10 @@ export interface Course {
 export interface Enrollment {
   id: number;
   user: number | User;
+  userEmail?: string | null;
   course: number | Course;
+  courseSlug?: string | null;
+  courseTitle?: string | null;
   role: 'student' | 'teacher' | 'ta' | 'manager';
   status?: ('active' | 'inactive' | 'completed' | 'dropped') | null;
   enrolledAt?: string | null;
@@ -337,6 +342,17 @@ export interface Tag {
   origin: number | Origin;
   tagType?: ('release' | 'milestone' | 'snapshot') | null;
   createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-activity-module-commit-links".
+ */
+export interface CourseActivityModuleCommitLink {
+  id: number;
+  course?: (number | null) | Course;
+  commit?: (number | null) | Commit;
   updatedAt: string;
   createdAt: string;
 }
@@ -446,6 +462,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'tags';
         value: number | Tag;
+      } | null)
+    | ({
+        relationTo: 'course-activity-module-commit-links';
+        value: number | CourseActivityModuleCommitLink;
       } | null)
     | ({
         relationTo: 'merge-requests';
@@ -565,7 +585,10 @@ export interface CoursesSelect<T extends boolean = true> {
  */
 export interface EnrollmentsSelect<T extends boolean = true> {
   user?: T;
+  userEmail?: T;
   course?: T;
+  courseSlug?: T;
+  courseTitle?: T;
   role?: T;
   status?: T;
   enrolledAt?: T;
@@ -624,6 +647,16 @@ export interface TagsSelect<T extends boolean = true> {
   origin?: T;
   tagType?: T;
   createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-activity-module-commit-links_select".
+ */
+export interface CourseActivityModuleCommitLinksSelect<T extends boolean = true> {
+  course?: T;
+  commit?: T;
   updatedAt?: T;
   createdAt?: T;
 }

@@ -475,6 +475,47 @@ export const tags = pgTable(
   }),
 );
 
+export const course_activity_module_commit_links = pgTable(
+  "course_activity_module_commit_links",
+  {
+    id: serial("id").primaryKey(),
+    course: integer("course_id").references(() => courses.id, {
+      onDelete: "set null",
+    }),
+    commit: integer("commit_id").references(() => commits.id, {
+      onDelete: "set null",
+    }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    course_activity_module_commit_links_course_idx: index(
+      "course_activity_module_commit_links_course_idx",
+    ).on(columns.course),
+    course_activity_module_commit_links_commit_idx: index(
+      "course_activity_module_commit_links_commit_idx",
+    ).on(columns.commit),
+    course_activity_module_commit_links_updated_at_idx: index(
+      "course_activity_module_commit_links_updated_at_idx",
+    ).on(columns.updatedAt),
+    course_activity_module_commit_links_created_at_idx: index(
+      "course_activity_module_commit_links_created_at_idx",
+    ).on(columns.createdAt),
+  }),
+);
+
 export const merge_requests = pgTable(
   "merge_requests",
   {
@@ -816,6 +857,9 @@ export const payload_locked_documents_rels = pgTable(
     "activity-modulesID": integer("activity_modules_id"),
     commitsID: integer("commits_id"),
     tagsID: integer("tags_id"),
+    "course-activity-module-commit-linksID": integer(
+      "course_activity_module_commit_links_id",
+    ),
     "merge-requestsID": integer("merge_requests_id"),
     "merge-request-commentsID": integer("merge_request_comments_id"),
     mediaID: integer("media_id"),
@@ -849,6 +893,9 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_tags_id_idx: index(
       "payload_locked_documents_rels_tags_id_idx",
     ).on(columns.tagsID),
+    payload_locked_documents_rels_course_activity_module_com_idx: index(
+      "payload_locked_documents_rels_course_activity_module_com_idx",
+    ).on(columns["course-activity-module-commit-linksID"]),
     payload_locked_documents_rels_merge_requests_id_idx: index(
       "payload_locked_documents_rels_merge_requests_id_idx",
     ).on(columns["merge-requestsID"]),
@@ -903,6 +950,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["tagsID"]],
       foreignColumns: [tags.id],
       name: "payload_locked_documents_rels_tags_fk",
+    }).onDelete("cascade"),
+    "course-activity-module-commit-linksIdFk": foreignKey({
+      columns: [columns["course-activity-module-commit-linksID"]],
+      foreignColumns: [course_activity_module_commit_links.id],
+      name: "payload_locked_documents_rels_course_activity_module_commit_links_fk",
     }).onDelete("cascade"),
     "merge-requestsIdFk": foreignKey({
       columns: [columns["merge-requestsID"]],
@@ -1146,6 +1198,21 @@ export const relations_tags = relations(tags, ({ one }) => ({
     relationName: "createdBy",
   }),
 }));
+export const relations_course_activity_module_commit_links = relations(
+  course_activity_module_commit_links,
+  ({ one }) => ({
+    course: one(courses, {
+      fields: [course_activity_module_commit_links.course],
+      references: [courses.id],
+      relationName: "course",
+    }),
+    commit: one(commits, {
+      fields: [course_activity_module_commit_links.commit],
+      references: [commits.id],
+      relationName: "commit",
+    }),
+  }),
+);
 export const relations_merge_requests = relations(
   merge_requests,
   ({ one }) => ({
@@ -1269,6 +1336,18 @@ export const relations_payload_locked_documents_rels = relations(
       references: [tags.id],
       relationName: "tags",
     }),
+    "course-activity-module-commit-linksID": one(
+      course_activity_module_commit_links,
+      {
+        fields: [
+          payload_locked_documents_rels[
+            "course-activity-module-commit-linksID"
+          ],
+        ],
+        references: [course_activity_module_commit_links.id],
+        relationName: "course-activity-module-commit-links",
+      },
+    ),
     "merge-requestsID": one(merge_requests, {
       fields: [payload_locked_documents_rels["merge-requestsID"]],
       references: [merge_requests.id],
@@ -1351,6 +1430,7 @@ type DatabaseSchema = {
   commits: typeof commits;
   commits_rels: typeof commits_rels;
   tags: typeof tags;
+  course_activity_module_commit_links: typeof course_activity_module_commit_links;
   merge_requests: typeof merge_requests;
   merge_request_comments: typeof merge_request_comments;
   media: typeof media;
@@ -1372,6 +1452,7 @@ type DatabaseSchema = {
   relations_commits_rels: typeof relations_commits_rels;
   relations_commits: typeof relations_commits;
   relations_tags: typeof relations_tags;
+  relations_course_activity_module_commit_links: typeof relations_course_activity_module_commit_links;
   relations_merge_requests: typeof relations_merge_requests;
   relations_merge_request_comments: typeof relations_merge_request_comments;
   relations_media: typeof relations_media;

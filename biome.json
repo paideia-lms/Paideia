@@ -11,7 +11,8 @@
 			"**",
 			"!server/payload-types.ts",
 			"!server/vfs.ts",
-			"!src/migrations"
+			"!src/migrations",
+			"!**/dist"
 		]
 	},
 	"formatter": {

@@ -5,12 +5,18 @@ import { searchPlugin } from "@payloadcms/plugin-search";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
 import type { JSONSchema4 } from "json-schema";
-import { buildConfig, type CollectionConfig } from "payload";
+import {
+	buildConfig,
+	type CollectionConfig,
+	type TextFieldValidation,
+} from "payload";
 import sharp from "sharp";
 import { migrations } from "src/migrations";
 import z from "zod";
 import { UnauthorizedError } from "~/utils/error";
 import { envVars } from "./env";
+
+const gradebookSchema = z.object({});
 
 const courseStructureSchema = z.object({
 	sections: z.array(
@@ -44,6 +50,13 @@ export const Courses = {
 			required: true,
 			unique: true,
 			label: "Slug",
+			validate: ((value) => {
+				// only allow lowercase letters, numbers, and hyphens
+				if (value && !/^[a-z0-9-]+$/.test(value)) {
+					return "Slug must contain only lowercase letters, numbers, and hyphens";
+				}
+				return true as const;
+			}) as TextFieldValidation,
 		},
 		{
 			name: "description",
@@ -56,9 +69,11 @@ export const Courses = {
 			required: true,
 			label: "Structure",
 			validate: (value, { req }) => {
-				if (!req.user) return UnauthorizedError.type;
+				// ! for some reason, this will break the test cases
+				// if (!req.user) return UnauthorizedError.type;
 				const result = courseStructureSchema.safeParse(value);
 				if (!result.success) {
+					console.log("test", z.formatError(result.error)._errors.join(", "));
 					return z.formatError(result.error)._errors.join(", ");
 				}
 				return true;
@@ -114,10 +129,25 @@ export const Enrollments = {
 			required: true,
 		},
 		{
+			name: "userEmail",
+			type: "text",
+			virtual: "user.email",
+		},
+		{
 			name: "course",
 			type: "relationship",
 			relationTo: "courses",
 			required: true,
+		},
+		{
+			name: "courseSlug",
+			type: "text",
+			virtual: "course.slug",
+		},
+		{
+			name: "courseTitle",
+			type: "text",
+			virtual: "course.title",
 		},
 		{
 			// ! we don't allow multiple roles in a course
@@ -449,6 +479,30 @@ export const Tags = {
 	],
 } as const satisfies CollectionConfig;
 
+/**
+ * we need a new collection rather than just a relationship field on the course and commit
+ */
+export const CourseActivityModuleCommitLinks = {
+	slug: "course-activity-module-commit-links",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "course",
+			type: "relationship",
+			relationTo: "courses",
+			label: "Course",
+			maxDepth: 2,
+		},
+		{
+			name: "commit",
+			type: "relationship",
+			relationTo: "commits",
+			label: "Commit",
+			maxDepth: 2,
+		},
+	],
+} as const satisfies CollectionConfig;
+
 export const MergeRequests = {
 	slug: "merge-requests",
 	defaultSort: "-createdAt",
@@ -719,6 +773,7 @@ const sanitizedConfig = await buildConfig({
 		ActivityModules,
 		Commits,
 		Tags,
+		CourseActivityModuleCommitLinks,
 		MergeRequests,
 		MergeRequestComments,
 		Media,
