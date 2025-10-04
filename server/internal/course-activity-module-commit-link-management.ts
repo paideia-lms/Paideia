@@ -1,5 +1,8 @@
 import type { Payload } from "payload";
+import { CourseActivityModuleCommitLinks } from "server/payload.config";
+import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
+import z from "zod";
 
 export interface CreateCourseActivityModuleCommitLinkArgs {
 	course: number;
@@ -33,7 +36,31 @@ export const tryCreateCourseActivityModuleCommitLink = Result.wrap(
 			req: request,
 		});
 
-		return newLink;
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
+
+		const newLinkCourse = newLink.course;
+		assertZod(
+			newLinkCourse,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const newLinkCommit = newLink.commit;
+		assertZod(
+			newLinkCommit,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		return {
+			...newLink,
+			course: newLinkCourse,
+			commit: newLinkCommit,
+		};
 	},
 	(error) =>
 		new Error(
@@ -45,19 +72,45 @@ export const tryCreateCourseActivityModuleCommitLink = Result.wrap(
  * Finds course-activity-module-commit-links by course ID
  */
 export const tryFindLinksByCourse = Result.wrap(
-	async (payload: Payload, courseId: number, limit: number = 10) => {
+	async (payload: Payload, courseId: number) => {
 		const links = await payload.find({
-			collection: "course-activity-module-commit-links",
+			collection: CourseActivityModuleCommitLinks.slug,
 			where: {
 				course: {
 					equals: courseId,
 				},
 			},
-			limit,
+			pagination: false,
 			sort: "-createdAt",
 		});
 
-		return links.docs;
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
+
+		return links.docs.map((link) => {
+			const linkCourse = link.course;
+			assertZod(
+				linkCourse,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const linkCommit = link.commit;
+			assertZod(
+				linkCommit,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			return {
+				...link,
+				course: linkCourse,
+				commit: linkCommit,
+			};
+		});
 	},
 	(error) =>
 		new Error(
@@ -69,7 +122,7 @@ export const tryFindLinksByCourse = Result.wrap(
  * Finds course-activity-module-commit-links by commit ID
  */
 export const tryFindLinksByCommit = Result.wrap(
-	async (payload: Payload, commitId: number, limit: number = 10) => {
+	async (payload: Payload, commitId: number) => {
 		const links = await payload.find({
 			collection: "course-activity-module-commit-links",
 			where: {
@@ -77,7 +130,7 @@ export const tryFindLinksByCommit = Result.wrap(
 					equals: commitId,
 				},
 			},
-			limit,
+			pagination: false,
 			sort: "-createdAt",
 		});
 
@@ -166,13 +219,31 @@ export const tryFindCourseActivityModuleCommitLinkById = Result.wrap(
 			id: linkId,
 		});
 
-		if (!link) {
-			throw new Error(
-				`Course-activity-module-commit-link with ID ${linkId} not found`,
-			);
-		}
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
 
-		return link;
+		const linkCourse = link.course;
+		assertZod(
+			linkCourse,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const linkCommit = link.commit;
+		assertZod(
+			linkCommit,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		return {
+			...link,
+			course: linkCourse,
+			commit: linkCommit,
+		};
 	},
 	(error) =>
 		new Error(

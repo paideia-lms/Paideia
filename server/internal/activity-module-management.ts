@@ -1,10 +1,13 @@
 import "@total-typescript/ts-reset";
 import { createHash } from "node:crypto";
+import { asc, inArray } from "@payloadcms/db-postgres/drizzle";
 import { MerkleTree } from "merkletreejs";
 import type { Payload } from "payload";
 import { getTx } from "server/utils/get-tx";
-import { commits_rels } from "src/payload-generated-schema";
+import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { commits, commits_rels } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
+import z from "zod";
 import {
 	DevelopmentError,
 	InvalidArgumentError,
@@ -14,8 +17,6 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { ActivityModule, Commit } from "../payload-types";
-
-const MOCK_INFINITY = 999999999999999;
 
 export function SHA256(data: string): string {
 	return createHash("sha256").update(data).digest("hex");
@@ -29,11 +30,6 @@ export interface CreateActivityModuleArgs {
 	content: Record<string, unknown>; // JSON content
 	commitMessage?: string;
 	userId: number;
-}
-
-export interface CreateActivityModuleResult {
-	activityModule: ActivityModule;
-	commit: Commit;
 }
 
 /**
@@ -73,7 +69,9 @@ export const generateCommitHash = (
 };
 
 /**
- * Creates a new activity module with initial commit
+ * Creates a new activity module with initial commit.
+ *
+ * ! this function is not used for creating branches. you should use tryCreateBranch instead.
  *
  * This function:
  * 1. Creates an origin (root of all branches)
@@ -82,10 +80,7 @@ export const generateCommitHash = (
  * 4. Uses transactions to ensure atomicity
  */
 export const tryCreateActivityModule = Result.wrap(
-	async (
-		payload: Payload,
-		args: CreateActivityModuleArgs,
-	): Promise<CreateActivityModuleResult> => {
+	async (payload: Payload, args: CreateActivityModuleArgs) => {
 		const {
 			title,
 			description,
@@ -121,21 +116,12 @@ export const tryCreateActivityModule = Result.wrap(
 		}
 
 		try {
-			// Verify user exists
-			const user = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: { transactionID },
-			});
-
-			if (!user) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
-
 			// Create origin first (root of all branches)
 			const origin = await payload.create({
 				collection: "origins",
 				data: {
+					title,
+					description,
 					createdBy: userId,
 				},
 				req: { transactionID },
@@ -145,14 +131,12 @@ export const tryCreateActivityModule = Result.wrap(
 			const activityModule = await payload.create({
 				collection: "activity-modules",
 				data: {
-					title,
-					description: description || null,
 					branch: "main", // Default branch
 					type,
 					status,
 					origin: origin.id,
 					createdBy: userId,
-				} as never,
+				},
 				req: { transactionID },
 			});
 
@@ -185,17 +169,58 @@ export const tryCreateActivityModule = Result.wrap(
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
 
+			////////////////////////////////////////////////////
+			// type narrowing
+			////////////////////////////////////////////////////
+
+			const createdBy = activityModule.createdBy;
+			assertZod(
+				createdBy,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const activityModuleOrigin = activityModule.origin;
+			assertZod(
+				activityModuleOrigin,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const commitActivityModule = commit.activityModule;
+			assertZod(
+				commitActivityModule,
+				z.array(
+					z.object({
+						id: z.number(),
+					}),
+				),
+			);
+
+			const commitAuthor = commit.author;
+			assertZod(
+				commitAuthor,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
 			return {
 				// ! we need to manually add the commit to the activity module
 				activityModule: {
 					...activityModule,
-					commits: {
-						docs: [commit],
-						hasNextPage: false,
-						totalDocs: 1,
-					},
+					createdBy,
+					commits: [
+						{
+							...commit,
+							activityModule: commitActivityModule as ActivityModule[],
+							author: commitAuthor,
+						},
+					],
+					origin: activityModuleOrigin,
 				},
-				commit,
 			};
 		} catch (error) {
 			// Rollback transaction on error
@@ -212,22 +237,15 @@ export const tryCreateActivityModule = Result.wrap(
 
 export interface GetActivityModuleByIdArgs {
 	id: number | string;
-	depth?: number;
 	transactionID?: string | number;
 }
 
 /**
  * Get an activity module by ID. You can also use this function to get a branch by its ID.
- *
- * This function fetches an activity module by its ID with optional depth control
- * for relationships (e.g., commits, createdBy, origin)
  */
 export const tryGetActivityModuleById = Result.wrap(
-	async (
-		payload: Payload,
-		args: GetActivityModuleByIdArgs,
-	): Promise<ActivityModule> => {
-		const { id, depth = 1 } = args;
+	async (payload: Payload, args: GetActivityModuleByIdArgs) => {
+		const { id } = args;
 
 		// Validate ID
 		if (!id) {
@@ -244,7 +262,6 @@ export const tryGetActivityModuleById = Result.wrap(
 					},
 				],
 			},
-			depth,
 			joins: {
 				commits: {
 					limit: MOCK_INFINITY,
@@ -260,7 +277,44 @@ export const tryGetActivityModuleById = Result.wrap(
 			);
 		}
 
-		return activityModule;
+		const origin = activityModule.origin;
+
+		// assert the origin is an object
+		assertZod(
+			origin,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const commits = activityModule.commits?.docs ?? [];
+		assertZod(
+			commits,
+			z.array(
+				z.object({
+					id: z.number(),
+				}),
+			),
+		);
+
+		const createdBy = activityModule.createdBy;
+		assertZod(
+			createdBy,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		// narrow the type
+		return {
+			...activityModule,
+			origin,
+			/**
+			 * no pagination
+			 */
+			commits: commits as Commit[],
+			createdBy,
+		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -273,6 +327,7 @@ export interface CreateBranchArgs {
 	sourceActivityModuleId: number;
 	branchName: string;
 	userId: number;
+	transactionID?: string | number;
 }
 
 export interface CreateBranchFromCommitArgs {
@@ -280,6 +335,7 @@ export interface CreateBranchFromCommitArgs {
 	hash?: string;
 	branchName: string;
 	userId: number;
+	transactionID?: string | number;
 }
 
 /**
@@ -293,9 +349,15 @@ export interface CreateBranchFromCommitArgs {
  */
 export const tryCreateBranch = Result.wrap(
 	async (payload: Payload, args: CreateBranchArgs): Promise<ActivityModule> => {
-		const { sourceActivityModuleId, branchName, userId } = args;
+		const {
+			sourceActivityModuleId,
+			branchName,
+			userId,
+			transactionID: _transactionID,
+		} = args;
 
-		const transactionID = await payload.db.beginTransaction();
+		const transactionID =
+			_transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
@@ -315,10 +377,11 @@ export const tryCreateBranch = Result.wrap(
 		}
 
 		try {
+			////////////////////////////////////////////////////
 			// Fetch source activity module with commits
+			////////////////////////////////////////////////////
 			const sourceModuleResult = await tryGetActivityModuleById(payload, {
 				id: sourceActivityModuleId,
-				depth: 1,
 				transactionID,
 			});
 
@@ -330,16 +393,8 @@ export const tryCreateBranch = Result.wrap(
 
 			const sourceModule = sourceModuleResult.value;
 
-			// Verify user exists
-			const user = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: { transactionID },
-			});
-
-			if (!user) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
+			// Link all commits from source module to the new branch
+			const commits = sourceModule.commits;
 
 			// Get the origin ID from the source module
 			const originId =
@@ -353,6 +408,17 @@ export const tryCreateBranch = Result.wrap(
 				);
 			}
 
+			// Verify user exists
+			const user = await payload.findByID({
+				collection: "users",
+				id: userId,
+				req: { transactionID },
+			});
+
+			if (!user) {
+				throw new InvalidArgumentError(`User with id '${userId}' not found`);
+			}
+
 			// Create new branch
 			const newBranch = await payload.duplicate({
 				collection: "activity-modules",
@@ -363,32 +429,27 @@ export const tryCreateBranch = Result.wrap(
 					createdBy: userId,
 					origin: originId,
 				},
+				// depth 1 is ok here because we just need the id of the commits
+				depth: 1,
 				req: { transactionID },
 			});
-
-			// Link all commits from source module to the new branch
-			const commits = sourceModule.commits?.docs ?? [];
-			const commitIds = commits.map((commit) =>
-				typeof commit === "number" ? commit : commit.id,
-			);
 
 			const tx = getTx(payload, transactionID);
 
 			if (!newBranch.id) throw new Error("New branch ID not found");
 
 			// Batch insertion of commit relationships
-			if (commitIds.length > 0) {
-				await tx.insert(commits_rels).values(
-					commitIds.map((id) => ({
-						parent: id,
-						// ? order is 1, I don't know why
-						order: 1,
-						// ! the path is the name of the activity module
-						path: "activityModule",
-						"activity-modulesID": newBranch.id,
-					})),
-				);
-			}
+
+			await tx.insert(commits_rels).values(
+				commits.map((c) => ({
+					parent: c.id,
+					// ? order is 1, I don't know why
+					order: 1,
+					// ! the path is the name of the activity module
+					path: "activityModule",
+					"activity-modulesID": newBranch.id,
+				})),
+			);
 
 			await payload.db.commitTransaction(transactionID);
 
@@ -421,9 +482,16 @@ export const tryCreateBranchFromCommit = Result.wrap(
 		payload: Payload,
 		args: CreateBranchFromCommitArgs,
 	): Promise<ActivityModule> => {
-		const { commitId, branchName, userId, hash } = args;
+		const {
+			commitId,
+			branchName,
+			userId,
+			hash,
+			transactionID: _transactionID,
+		} = args;
 
-		const transactionID = await payload.db.beginTransaction();
+		const transactionID =
+			_transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
@@ -443,13 +511,14 @@ export const tryCreateBranchFromCommit = Result.wrap(
 		}
 
 		try {
+			const tx = getTx(payload, transactionID);
 			// Find the commit by ID or hash
 			const commitResult = await payload.find({
 				collection: "commits",
 				where: {
 					or: [{ id: { equals: commitId } }, { hash: { equals: hash } }],
 				},
-				depth: 2, // Get activity modules
+				depth: 1,
 				req: { transactionID },
 			});
 
@@ -482,16 +551,25 @@ export const tryCreateBranchFromCommit = Result.wrap(
 			const sourceModule = firstActivityModule;
 
 			// Get the origin ID from the source module
-			const originId =
-				typeof sourceModule.origin === "object"
-					? sourceModule.origin.id
-					: sourceModule.origin;
+			const originId = sourceModule.origin;
+			assertZod(originId, z.number());
 
-			if (!originId) {
-				throw new InvalidArgumentError(
-					"Source module does not have a valid origin",
-				);
-			}
+			// Get all commits from the source module
+			const allCommits = sourceModule.commits?.docs ?? [];
+
+			// assert the commits are nubmers[]
+			assertZod(allCommits, z.array(z.number()));
+
+			// use drizzle to select all the commits from the source module (older first)
+			const allCommitsDrizzle = await tx
+				.select({
+					id: commits.id,
+					hash: commits.hash,
+					commitDate: commits.commitDate,
+				})
+				.from(commits)
+				.where(inArray(commits.id, allCommits))
+				.orderBy(asc(commits.commitDate));
 
 			// Create new branch
 			const newBranch = await payload.duplicate({
@@ -503,21 +581,12 @@ export const tryCreateBranchFromCommit = Result.wrap(
 					createdBy: userId,
 					origin: originId,
 				},
+				depth: 1,
 				req: { transactionID },
 			});
 
-			// Get all commits from the source module
-			const allCommits = (sourceModule.commits?.docs ?? []) as Commit[];
-
-			// Sort commits by commitDate (oldest first)
-			allCommits.sort((a, b) => {
-				return (
-					new Date(a.commitDate).getTime() - new Date(b.commitDate).getTime()
-				);
-			});
-
 			// Find the target commit index
-			const targetCommitIndex = allCommits.findIndex(
+			const targetCommitIndex = allCommitsDrizzle.findIndex(
 				(c) => c.hash === hash || c.id === commitId,
 			);
 
@@ -528,10 +597,8 @@ export const tryCreateBranchFromCommit = Result.wrap(
 			}
 
 			// Get commits from root to target commit (inclusive) - first N commits
-			const commitsToCopy = allCommits.slice(0, targetCommitIndex + 1);
+			const commitsToCopy = allCommitsDrizzle.slice(0, targetCommitIndex + 1);
 			const commitIds = commitsToCopy.map((commit) => commit.id);
-
-			const tx = getTx(payload, transactionID);
 
 			if (!newBranch.id) throw new Error("New branch ID not found");
 
@@ -628,6 +695,7 @@ export const tryDeleteActivityModule = Result.wrap(
 			const activityModule = await payload.findByID({
 				collection: "activity-modules",
 				id,
+				depth: 1,
 				req: { transactionID },
 			});
 

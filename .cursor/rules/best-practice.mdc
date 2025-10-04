@@ -42,6 +42,10 @@ payload local api return document with unknown depth. we should handle both case
 
 **strictly avoid** using `as` operator in internal functions. **No type casting allowed**.
 
+use virtual field over depth. we would rather have a nested virtual field than have depth more than 2, because depth can cause infinite loop.
+
 ## internal functions 
 
 when user id provided to the internal function, we can always assume the user exists.
+
+we should not expose the depth variable to args for internal functions. The output type should be defined.

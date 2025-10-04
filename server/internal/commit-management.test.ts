@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
+import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
 import type { ActivityModule, User } from "../payload-types";
 import { tryCreateActivityModule } from "./activity-module-management";
@@ -19,7 +20,9 @@ describe("Commit Management", () => {
 	let testUserId: number;
 	let testUser: User;
 	let testActivityModuleId: number;
-	let testActivityModule: ActivityModule;
+	let testActivityModule: TryResultValue<
+		typeof tryCreateActivityModule
+	>["activityModule"];
 	let initialCommitId: number;
 
 	beforeAll(async () => {
@@ -66,12 +69,12 @@ describe("Commit Management", () => {
 			});
 
 			expect(activityModuleResult.ok).toBe(true);
+			if (!activityModuleResult.ok)
+				throw new Error("Test Error: Activity module creation failed");
 
-			if (activityModuleResult.ok) {
-				testActivityModule = activityModuleResult.value.activityModule;
-				testActivityModuleId = testActivityModule.id;
-				initialCommitId = activityModuleResult.value.commit.id;
-			}
+			testActivityModule = activityModuleResult.value.activityModule;
+			testActivityModuleId = testActivityModule.id;
+			initialCommitId = testActivityModule.commits[0].id;
 		}
 	});
 
@@ -90,7 +93,6 @@ describe("Commit Management", () => {
 			body: "Test content",
 			version: 1,
 		};
-
 		const result = await tryCreateCommit(payload, {
 			activityModule: testActivityModuleId,
 			message: "Second commit",
@@ -99,37 +101,26 @@ describe("Commit Management", () => {
 			parentCommit: initialCommitId,
 		});
 
+		console.log("commit created");
+
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
 		const commit = result.value;
 		expect(commit.message).toBe("Second commit");
-		if (typeof commit.author === "number") {
-			expect(commit.author).toBe(testUserId);
-		} else {
-			expect(commit.author.id).toBe(testUserId);
-		}
+		expect(commit.author.id).toBe(testUserId);
 		expect(commit.activityModule).toBeDefined();
 		expect(commit.activityModule).not.toBeNull();
-		if (!commit.activityModule)
-			throw new Error("Test Error: Commit activity module is null");
 		expect(Array.isArray(commit.activityModule)).toBe(true);
 		expect(commit.activityModule.length).toBe(1);
 		const activityModuleRef = commit.activityModule[0];
-		if (typeof activityModuleRef === "number") {
-			expect(activityModuleRef).toBe(testActivityModuleId);
-		} else {
-			expect(activityModuleRef.id).toBe(testActivityModuleId);
-		}
+		expect(activityModuleRef.id).toBe(testActivityModuleId);
 		expect(commit.content).toEqual(content);
 		expect(commit.hash).toBeDefined();
 		expect(commit.contentHash).toBeDefined();
 		// Parent commit should be the initial commit
-		if (typeof commit.parentCommit === "number") {
-			expect(commit.parentCommit).toBe(initialCommitId);
-		} else {
-			expect(commit.parentCommit?.id).toBe(initialCommitId);
-		}
+
+		expect(commit.parentCommit?.id).toBe(initialCommitId);
 
 		// tag the commit
 		const tagResult = await tryCreateTag(payload, {
@@ -142,6 +133,8 @@ describe("Commit Management", () => {
 			name: "Test Tag",
 			description: "Test tag description",
 		});
+
+		console.log("tag created");
 		expect(tagResult.ok).toBe(true);
 		if (!tagResult.ok) return;
 
@@ -188,14 +181,9 @@ describe("Commit Management", () => {
 		if (!childResult.ok) return;
 
 		const childCommit = childResult.value;
-		if (!childCommit.parentCommit)
-			throw new Error("Test Error: Child commit parent commit is null");
-		if (typeof childCommit.parentCommit === "number") {
-			expect(childCommit.parentCommit).toBe(parentCommit.id);
-		} else {
-			expect(childCommit.parentCommit.id).toBe(parentCommit.id);
-		}
+		expect(childCommit.parentCommit.id).toBe(parentCommit.id);
 		expect(childCommit.hash).not.toBe(parentCommit.hash);
+		expect(childCommit.parentCommit.hash).toBe(childCommit.parentCommitHash);
 	});
 
 	test("should get commit by hash", async () => {
@@ -237,7 +225,7 @@ describe("Commit Management", () => {
 		if (!activityModuleResult.ok) return;
 
 		const activityModule = activityModuleResult.value.activityModule;
-		const initialCommit = activityModuleResult.value.commit;
+		const initialCommit = activityModule.commits[0];
 
 		expect(activityModule.id).toBeDefined();
 
@@ -297,7 +285,7 @@ describe("Commit Management", () => {
 		if (!activityModuleResult.ok) return;
 
 		const activityModule = activityModuleResult.value.activityModule;
-		const initialCommit = activityModuleResult.value.commit;
+		const initialCommit = activityModule.commits[0];
 
 		// Create a second commit
 		const secondCommitResult = await tryCreateCommit(payload, {

@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
+import type { TryResultValue } from "server/utils/type-narrowing";
 import { NonExistingMergeRequestError } from "~/utils/error";
 import config from "../payload.config";
 import type { ActivityModule, User } from "../payload-types";
@@ -27,9 +28,13 @@ describe("Merge Request Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
 	let testUserId: number;
-	let activityModule1: ActivityModule;
-	let activityModule2: ActivityModule;
-	let activityModule3: ActivityModule; // Different origin
+	let activityModule1: TryResultValue<
+		typeof tryCreateActivityModule
+	>["activityModule"];
+	let activityModule2: TryResultValue<typeof tryCreateBranch>;
+	let activityModule3: TryResultValue<
+		typeof tryCreateActivityModule
+	>["activityModule"]; // Different origin
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -961,7 +966,7 @@ describe("Merge Request Management", () => {
 		}
 
 		const ffModule = ffModuleResult.value.activityModule;
-		const initialCommit = ffModuleResult.value.commit;
+		const initialCommit = ffModuleResult.value.activityModule.commits[0];
 
 		// Create branch from ff module
 		const ffBranchResult = await tryCreateBranch(payload, {
@@ -1037,7 +1042,7 @@ describe("Merge Request Management", () => {
 		expect(newFfModuleResult.ok).toBe(true);
 		if (!newFfModuleResult.ok) return;
 		const newFfModuleWithCommits = newFfModuleResult.value;
-		expect(newFfModuleWithCommits.commits?.docs?.length).toBe(3);
+		expect(newFfModuleWithCommits.commits?.length).toBe(3);
 	});
 
 	test("should perform three-way merge with resolved content", async () => {
@@ -1054,7 +1059,7 @@ describe("Merge Request Management", () => {
 		}
 
 		const threeWayModule = threeWayModuleResult.value.activityModule;
-		const initialCommit = threeWayModuleResult.value.commit;
+		const initialCommit = threeWayModuleResult.value.activityModule.commits[0];
 
 		// Create branch from three way module
 		const threeWayBranchResult = await tryCreateBranch(payload, {
@@ -1135,7 +1140,7 @@ describe("Merge Request Management", () => {
 		expect(newThreeWayModuleResult.ok).toBe(true);
 		if (!newThreeWayModuleResult.ok) return;
 		const newThreeWayModuleWithCommits = newThreeWayModuleResult.value;
-		expect(newThreeWayModuleWithCommits.commits?.docs?.length).toBe(3);
+		expect(newThreeWayModuleWithCommits.commits?.length).toBe(3);
 	});
 
 	test("should fail three-way merge without resolved content", async () => {
@@ -1152,7 +1157,7 @@ describe("Merge Request Management", () => {
 		}
 
 		const failModule = failModuleResult.value.activityModule;
-		const initialCommit = failModuleResult.value.commit;
+		const initialCommit = failModuleResult.value.activityModule.commits[0];
 
 		// Create branch from fail module
 		const failBranchResult = await tryCreateBranch(payload, {

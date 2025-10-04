@@ -79,12 +79,19 @@ export interface Config {
     'merge-request-comments': MergeRequestComment;
     media: Media;
     notes: Note;
+    gradebooks: Gradebook;
+    'gradebook-categories': GradebookCategory;
+    'gradebook-items': GradebookItem;
+    'user-grades': UserGrade;
     search: Search;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
+    courses: {
+      gradebook: 'gradebooks';
+    };
     origins: {
       branches: 'activity-modules';
     };
@@ -93,6 +100,17 @@ export interface Config {
     };
     'merge-requests': {
       comments: 'merge-request-comments';
+    };
+    gradebooks: {
+      categories: 'gradebook-categories';
+      items: 'gradebook-items';
+    };
+    'gradebook-categories': {
+      subcategories: 'gradebook-categories';
+      items: 'gradebook-items';
+    };
+    'gradebook-items': {
+      userGrades: 'user-grades';
     };
   };
   collectionsSelect: {
@@ -108,6 +126,10 @@ export interface Config {
     'merge-request-comments': MergeRequestCommentsSelect<false> | MergeRequestCommentsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     notes: NotesSelect<false> | NotesSelect<true>;
+    gradebooks: GradebooksSelect<false> | GradebooksSelect<true>;
+    'gradebook-categories': GradebookCategoriesSelect<false> | GradebookCategoriesSelect<true>;
+    'gradebook-items': GradebookItemsSelect<false> | GradebookItemsSelect<true>;
+    'user-grades': UserGradesSelect<false> | UserGradesSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -241,7 +263,7 @@ export interface Course {
       }[];
     }[];
   };
-  status?: ('draft' | 'published' | 'archived') | null;
+  status: 'draft' | 'published' | 'archived';
   thumbnail?: (number | null) | Media;
   tags?:
     | {
@@ -250,6 +272,176 @@ export interface Course {
       }[]
     | null;
   createdBy: number | User;
+  gradebook?: {
+    docs?: (number | Gradebook)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gradebooks".
+ */
+export interface Gradebook {
+  id: number;
+  course: number | Course;
+  courseTitle?: string | null;
+  enabled?: boolean | null;
+  categories?: {
+    docs?: (number | GradebookCategory)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  items?: {
+    docs?: (number | GradebookItem)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gradebook-categories".
+ */
+export interface GradebookCategory {
+  id: number;
+  gradebook: number | Gradebook;
+  parent?: (number | null) | GradebookCategory;
+  name: string;
+  description?: string | null;
+  weight?: number | null;
+  sortOrder: number;
+  subcategories?: {
+    docs?: (number | GradebookCategory)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  items?: {
+    docs?: (number | GradebookItem)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gradebook-items".
+ */
+export interface GradebookItem {
+  id: number;
+  gradebook: number | Gradebook;
+  category?: (number | null) | GradebookCategory;
+  name: string;
+  sortOrder: number;
+  description?: string | null;
+  activityModule?: (number | null) | CourseActivityModuleCommitLink;
+  activityModuleName?: string | null;
+  maxGrade: number;
+  minGrade: number;
+  weight: number;
+  extraCredit?: boolean | null;
+  userGrades?: {
+    docs?: (number | UserGrade)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-activity-module-commit-links".
+ */
+export interface CourseActivityModuleCommitLink {
+  id: number;
+  course: number | Course;
+  courseName?: string | null;
+  courseSlug?: string | null;
+  commit: number | Commit;
+  activityModuleName?: string[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "commits".
+ */
+export interface Commit {
+  id: number;
+  hash: string;
+  activityModule?: (number | ActivityModule)[] | null;
+  message: string;
+  author: number | User;
+  parentCommit?: (number | null) | Commit;
+  parentCommitHash?: string | null;
+  commitDate: string;
+  content:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
+  contentHash: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "activity-modules".
+ */
+export interface ActivityModule {
+  id: number;
+  branch: string;
+  origin: number | Origin;
+  title?: string | null;
+  description?: string | null;
+  commits?: {
+    docs?: (number | Commit)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
+  status: 'draft' | 'published' | 'archived';
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "origins".
+ */
+export interface Origin {
+  id: number;
+  title: string;
+  description?: string | null;
+  branches?: {
+    docs?: (number | ActivityModule)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-grades".
+ */
+export interface UserGrade {
+  id: number;
+  user: number | User;
+  gradebookItem: number | GradebookItem;
+  grade?: number | null;
+  feedback?: string | null;
+  status: 'not_graded' | 'graded' | 'excused' | 'missing';
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
+  submittedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -265,70 +457,11 @@ export interface Enrollment {
   courseSlug?: string | null;
   courseTitle?: string | null;
   role: 'student' | 'teacher' | 'ta' | 'manager';
-  status?: ('active' | 'inactive' | 'completed' | 'dropped') | null;
+  status: 'active' | 'inactive' | 'completed' | 'dropped';
   enrolledAt?: string | null;
   completedAt?: string | null;
   updatedAt: string;
   createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "origins".
- */
-export interface Origin {
-  id: number;
-  branches?: {
-    docs?: (number | ActivityModule)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  createdBy: number | User;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "activity-modules".
- */
-export interface ActivityModule {
-  id: number;
-  title: string;
-  description?: string | null;
-  branch: string;
-  origin: number | Origin;
-  commits?: {
-    docs?: (number | Commit)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
-  status?: ('draft' | 'published' | 'archived') | null;
-  createdBy: number | User;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "commits".
- */
-export interface Commit {
-  id: number;
-  hash: string;
-  activityModule?: (number | ActivityModule)[] | null;
-  message: string;
-  author: number | User;
-  parentCommit?: (number | null) | Commit;
-  commitDate: string;
-  content:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  contentHash: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -347,17 +480,6 @@ export interface Tag {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "course-activity-module-commit-links".
- */
-export interface CourseActivityModuleCommitLink {
-  id: number;
-  course?: (number | null) | Course;
-  commit?: (number | null) | Commit;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "merge-requests".
  */
 export interface MergeRequest {
@@ -366,7 +488,7 @@ export interface MergeRequest {
   description?: string | null;
   from: number | ActivityModule;
   to: number | ActivityModule;
-  status?: ('open' | 'merged' | 'rejected' | 'closed') | null;
+  status: 'open' | 'merged' | 'rejected' | 'closed';
   comments?: {
     docs?: (number | MergeRequestComment)[];
     hasNextPage?: boolean;
@@ -484,6 +606,22 @@ export interface PayloadLockedDocument {
         value: number | Note;
       } | null)
     | ({
+        relationTo: 'gradebooks';
+        value: number | Gradebook;
+      } | null)
+    | ({
+        relationTo: 'gradebook-categories';
+        value: number | GradebookCategory;
+      } | null)
+    | ({
+        relationTo: 'gradebook-items';
+        value: number | GradebookItem;
+      } | null)
+    | ({
+        relationTo: 'user-grades';
+        value: number | UserGrade;
+      } | null)
+    | ({
         relationTo: 'search';
         value: number | Search;
       } | null);
@@ -576,6 +714,7 @@ export interface CoursesSelect<T extends boolean = true> {
         id?: T;
       };
   createdBy?: T;
+  gradebook?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -601,6 +740,8 @@ export interface EnrollmentsSelect<T extends boolean = true> {
  * via the `definition` "origins_select".
  */
 export interface OriginsSelect<T extends boolean = true> {
+  title?: T;
+  description?: T;
   branches?: T;
   createdBy?: T;
   updatedAt?: T;
@@ -611,10 +752,10 @@ export interface OriginsSelect<T extends boolean = true> {
  * via the `definition` "activity-modules_select".
  */
 export interface ActivityModulesSelect<T extends boolean = true> {
-  title?: T;
-  description?: T;
   branch?: T;
   origin?: T;
+  title?: T;
+  description?: T;
   commits?: T;
   type?: T;
   status?: T;
@@ -632,6 +773,7 @@ export interface CommitsSelect<T extends boolean = true> {
   message?: T;
   author?: T;
   parentCommit?: T;
+  parentCommitHash?: T;
   commitDate?: T;
   content?: T;
   contentHash?: T;
@@ -656,7 +798,10 @@ export interface TagsSelect<T extends boolean = true> {
  */
 export interface CourseActivityModuleCommitLinksSelect<T extends boolean = true> {
   course?: T;
+  courseName?: T;
+  courseSlug?: T;
   commit?: T;
+  activityModuleName?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -753,6 +898,71 @@ export interface MediaSelect<T extends boolean = true> {
 export interface NotesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gradebooks_select".
+ */
+export interface GradebooksSelect<T extends boolean = true> {
+  course?: T;
+  courseTitle?: T;
+  enabled?: T;
+  categories?: T;
+  items?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gradebook-categories_select".
+ */
+export interface GradebookCategoriesSelect<T extends boolean = true> {
+  gradebook?: T;
+  parent?: T;
+  name?: T;
+  description?: T;
+  weight?: T;
+  sortOrder?: T;
+  subcategories?: T;
+  items?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "gradebook-items_select".
+ */
+export interface GradebookItemsSelect<T extends boolean = true> {
+  gradebook?: T;
+  category?: T;
+  name?: T;
+  sortOrder?: T;
+  description?: T;
+  activityModule?: T;
+  activityModuleName?: T;
+  maxGrade?: T;
+  minGrade?: T;
+  weight?: T;
+  extraCredit?: T;
+  userGrades?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "user-grades_select".
+ */
+export interface UserGradesSelect<T extends boolean = true> {
+  user?: T;
+  gradebookItem?: T;
+  grade?: T;
+  feedback?: T;
+  status?: T;
+  gradedBy?: T;
+  gradedAt?: T;
+  submittedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

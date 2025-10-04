@@ -67,6 +67,12 @@ export const enum_merge_requests_status = pgEnum("enum_merge_requests_status", [
   "rejected",
   "closed",
 ]);
+export const enum_user_grades_status = pgEnum("enum_user_grades_status", [
+  "not_graded",
+  "graded",
+  "excused",
+  "missing",
+]);
 
 export const users_sessions = pgTable(
   "users_sessions",
@@ -174,7 +180,7 @@ export const courses = pgTable(
     slug: varchar("slug").notNull(),
     description: varchar("description").notNull(),
     structure: jsonb("structure").notNull(),
-    status: enum_courses_status("status").default("draft"),
+    status: enum_courses_status("status").notNull().default("draft"),
     thumbnail: integer("thumbnail_id").references(() => media.id, {
       onDelete: "set null",
     }),
@@ -228,7 +234,7 @@ export const enrollments = pgTable(
         onDelete: "set null",
       }),
     role: enum_enrollments_role("role").notNull(),
-    status: enum_enrollments_status("status").default("active"),
+    status: enum_enrollments_status("status").notNull().default("active"),
     enrolledAt: timestamp("enrolled_at", {
       mode: "string",
       withTimezone: true,
@@ -274,6 +280,8 @@ export const origins = pgTable(
   "origins",
   {
     id: serial("id").primaryKey(),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
@@ -311,8 +319,6 @@ export const activity_modules = pgTable(
   "activity_modules",
   {
     id: serial("id").primaryKey(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
     branch: varchar("branch").notNull().default("main"),
     origin: integer("origin_id")
       .notNull()
@@ -320,7 +326,7 @@ export const activity_modules = pgTable(
         onDelete: "set null",
       }),
     type: enum_activity_modules_type("type").notNull(),
-    status: enum_activity_modules_status("status").default("draft"),
+    status: enum_activity_modules_status("status").notNull().default("draft"),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
@@ -479,12 +485,16 @@ export const course_activity_module_commit_links = pgTable(
   "course_activity_module_commit_links",
   {
     id: serial("id").primaryKey(),
-    course: integer("course_id").references(() => courses.id, {
-      onDelete: "set null",
-    }),
-    commit: integer("commit_id").references(() => commits.id, {
-      onDelete: "set null",
-    }),
+    course: integer("course_id")
+      .notNull()
+      .references(() => courses.id, {
+        onDelete: "set null",
+      }),
+    commit: integer("commit_id")
+      .notNull()
+      .references(() => commits.id, {
+        onDelete: "set null",
+      }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -532,7 +542,7 @@ export const merge_requests = pgTable(
       .references(() => activity_modules.id, {
         onDelete: "set null",
       }),
-    status: enum_merge_requests_status("status").default("open"),
+    status: enum_merge_requests_status("status").notNull().default("open"),
     rejectedAt: timestamp("rejected_at", {
       mode: "string",
       withTimezone: true,
@@ -745,6 +755,224 @@ export const notes = pgTable(
   }),
 );
 
+export const gradebooks = pgTable(
+  "gradebooks",
+  {
+    id: serial("id").primaryKey(),
+    course: integer("course_id")
+      .notNull()
+      .references(() => courses.id, {
+        onDelete: "set null",
+      }),
+    enabled: boolean("enabled").default(true),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    gradebooks_course_idx: index("gradebooks_course_idx").on(columns.course),
+    gradebooks_updated_at_idx: index("gradebooks_updated_at_idx").on(
+      columns.updatedAt,
+    ),
+    gradebooks_created_at_idx: index("gradebooks_created_at_idx").on(
+      columns.createdAt,
+    ),
+    course_idx: uniqueIndex("course_idx").on(columns.course),
+  }),
+);
+
+export const gradebook_categories = pgTable(
+  "gradebook_categories",
+  {
+    id: serial("id").primaryKey(),
+    gradebook: integer("gradebook_id")
+      .notNull()
+      .references(() => gradebooks.id, {
+        onDelete: "set null",
+      }),
+    parent: integer("parent_id").references(
+      (): AnyPgColumn => gradebook_categories.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    name: varchar("name").notNull(),
+    description: varchar("description"),
+    weight: numeric("weight").default("0"),
+    sortOrder: numeric("sort_order").notNull(),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    gradebook_categories_gradebook_idx: index(
+      "gradebook_categories_gradebook_idx",
+    ).on(columns.gradebook),
+    gradebook_categories_parent_idx: index(
+      "gradebook_categories_parent_idx",
+    ).on(columns.parent),
+    gradebook_categories_updated_at_idx: index(
+      "gradebook_categories_updated_at_idx",
+    ).on(columns.updatedAt),
+    gradebook_categories_created_at_idx: index(
+      "gradebook_categories_created_at_idx",
+    ).on(columns.createdAt),
+    gradebook_idx: index("gradebook_idx").on(columns.gradebook),
+    parent_idx: index("parent_idx").on(columns.parent),
+  }),
+);
+
+export const gradebook_items = pgTable(
+  "gradebook_items",
+  {
+    id: serial("id").primaryKey(),
+    gradebook: integer("gradebook_id")
+      .notNull()
+      .references(() => gradebooks.id, {
+        onDelete: "set null",
+      }),
+    category: integer("category_id").references(() => gradebook_categories.id, {
+      onDelete: "set null",
+    }),
+    name: varchar("name").notNull(),
+    sortOrder: numeric("sort_order").notNull(),
+    description: varchar("description"),
+    activityModule: integer("activity_module_id").references(
+      () => course_activity_module_commit_links.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    maxGrade: numeric("max_grade").notNull().default("100"),
+    minGrade: numeric("min_grade").notNull().default("0"),
+    weight: numeric("weight").notNull().default("0"),
+    extraCredit: boolean("extra_credit").default(false),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    gradebook_items_gradebook_idx: index("gradebook_items_gradebook_idx").on(
+      columns.gradebook,
+    ),
+    gradebook_items_category_idx: index("gradebook_items_category_idx").on(
+      columns.category,
+    ),
+    gradebook_items_activity_module_idx: index(
+      "gradebook_items_activity_module_idx",
+    ).on(columns.activityModule),
+    gradebook_items_updated_at_idx: index("gradebook_items_updated_at_idx").on(
+      columns.updatedAt,
+    ),
+    gradebook_items_created_at_idx: index("gradebook_items_created_at_idx").on(
+      columns.createdAt,
+    ),
+    gradebook_1_idx: index("gradebook_1_idx").on(columns.gradebook),
+    category_idx: index("category_idx").on(columns.category),
+  }),
+);
+
+export const user_grades = pgTable(
+  "user_grades",
+  {
+    id: serial("id").primaryKey(),
+    user: integer("user_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    gradebookItem: integer("gradebook_item_id")
+      .notNull()
+      .references(() => gradebook_items.id, {
+        onDelete: "set null",
+      }),
+    grade: numeric("grade"),
+    feedback: varchar("feedback"),
+    status: enum_user_grades_status("status").notNull().default("not_graded"),
+    gradedBy: integer("graded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gradedAt: timestamp("graded_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    submittedAt: timestamp("submitted_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => ({
+    user_grades_user_idx: index("user_grades_user_idx").on(columns.user),
+    user_grades_gradebook_item_idx: index("user_grades_gradebook_item_idx").on(
+      columns.gradebookItem,
+    ),
+    user_grades_graded_by_idx: index("user_grades_graded_by_idx").on(
+      columns.gradedBy,
+    ),
+    user_grades_updated_at_idx: index("user_grades_updated_at_idx").on(
+      columns.updatedAt,
+    ),
+    user_grades_created_at_idx: index("user_grades_created_at_idx").on(
+      columns.createdAt,
+    ),
+    user_gradebookItem_idx: uniqueIndex("user_gradebookItem_idx").on(
+      columns.user,
+      columns.gradebookItem,
+    ),
+    gradebookItem_idx: index("gradebookItem_idx").on(columns.gradebookItem),
+    user_idx: index("user_idx").on(columns.user),
+  }),
+);
+
 export const search = pgTable(
   "search",
   {
@@ -864,6 +1092,10 @@ export const payload_locked_documents_rels = pgTable(
     "merge-request-commentsID": integer("merge_request_comments_id"),
     mediaID: integer("media_id"),
     notesID: integer("notes_id"),
+    gradebooksID: integer("gradebooks_id"),
+    "gradebook-categoriesID": integer("gradebook_categories_id"),
+    "gradebook-itemsID": integer("gradebook_items_id"),
+    "user-gradesID": integer("user_grades_id"),
     searchID: integer("search_id"),
   },
   (columns) => ({
@@ -908,6 +1140,18 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_notes_id_idx: index(
       "payload_locked_documents_rels_notes_id_idx",
     ).on(columns.notesID),
+    payload_locked_documents_rels_gradebooks_id_idx: index(
+      "payload_locked_documents_rels_gradebooks_id_idx",
+    ).on(columns.gradebooksID),
+    payload_locked_documents_rels_gradebook_categories_id_idx: index(
+      "payload_locked_documents_rels_gradebook_categories_id_idx",
+    ).on(columns["gradebook-categoriesID"]),
+    payload_locked_documents_rels_gradebook_items_id_idx: index(
+      "payload_locked_documents_rels_gradebook_items_id_idx",
+    ).on(columns["gradebook-itemsID"]),
+    payload_locked_documents_rels_user_grades_id_idx: index(
+      "payload_locked_documents_rels_user_grades_id_idx",
+    ).on(columns["user-gradesID"]),
     payload_locked_documents_rels_search_id_idx: index(
       "payload_locked_documents_rels_search_id_idx",
     ).on(columns.searchID),
@@ -975,6 +1219,26 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["notesID"]],
       foreignColumns: [notes.id],
       name: "payload_locked_documents_rels_notes_fk",
+    }).onDelete("cascade"),
+    gradebooksIdFk: foreignKey({
+      columns: [columns["gradebooksID"]],
+      foreignColumns: [gradebooks.id],
+      name: "payload_locked_documents_rels_gradebooks_fk",
+    }).onDelete("cascade"),
+    "gradebook-categoriesIdFk": foreignKey({
+      columns: [columns["gradebook-categoriesID"]],
+      foreignColumns: [gradebook_categories.id],
+      name: "payload_locked_documents_rels_gradebook_categories_fk",
+    }).onDelete("cascade"),
+    "gradebook-itemsIdFk": foreignKey({
+      columns: [columns["gradebook-itemsID"]],
+      foreignColumns: [gradebook_items.id],
+      name: "payload_locked_documents_rels_gradebook_items_fk",
+    }).onDelete("cascade"),
+    "user-gradesIdFk": foreignKey({
+      columns: [columns["user-gradesID"]],
+      foreignColumns: [user_grades.id],
+      name: "payload_locked_documents_rels_user_grades_fk",
     }).onDelete("cascade"),
     searchIdFk: foreignKey({
       columns: [columns["searchID"]],
@@ -1271,6 +1535,65 @@ export const relations_notes = relations(notes, ({ one }) => ({
     relationName: "createdBy",
   }),
 }));
+export const relations_gradebooks = relations(gradebooks, ({ one }) => ({
+  course: one(courses, {
+    fields: [gradebooks.course],
+    references: [courses.id],
+    relationName: "course",
+  }),
+}));
+export const relations_gradebook_categories = relations(
+  gradebook_categories,
+  ({ one }) => ({
+    gradebook: one(gradebooks, {
+      fields: [gradebook_categories.gradebook],
+      references: [gradebooks.id],
+      relationName: "gradebook",
+    }),
+    parent: one(gradebook_categories, {
+      fields: [gradebook_categories.parent],
+      references: [gradebook_categories.id],
+      relationName: "parent",
+    }),
+  }),
+);
+export const relations_gradebook_items = relations(
+  gradebook_items,
+  ({ one }) => ({
+    gradebook: one(gradebooks, {
+      fields: [gradebook_items.gradebook],
+      references: [gradebooks.id],
+      relationName: "gradebook",
+    }),
+    category: one(gradebook_categories, {
+      fields: [gradebook_items.category],
+      references: [gradebook_categories.id],
+      relationName: "category",
+    }),
+    activityModule: one(course_activity_module_commit_links, {
+      fields: [gradebook_items.activityModule],
+      references: [course_activity_module_commit_links.id],
+      relationName: "activityModule",
+    }),
+  }),
+);
+export const relations_user_grades = relations(user_grades, ({ one }) => ({
+  user: one(users, {
+    fields: [user_grades.user],
+    references: [users.id],
+    relationName: "user",
+  }),
+  gradebookItem: one(gradebook_items, {
+    fields: [user_grades.gradebookItem],
+    references: [gradebook_items.id],
+    relationName: "gradebookItem",
+  }),
+  gradedBy: one(users, {
+    fields: [user_grades.gradedBy],
+    references: [users.id],
+    relationName: "gradedBy",
+  }),
+}));
 export const relations_search_rels = relations(search_rels, ({ one }) => ({
   parent: one(search, {
     fields: [search_rels.parent],
@@ -1368,6 +1691,26 @@ export const relations_payload_locked_documents_rels = relations(
       references: [notes.id],
       relationName: "notes",
     }),
+    gradebooksID: one(gradebooks, {
+      fields: [payload_locked_documents_rels.gradebooksID],
+      references: [gradebooks.id],
+      relationName: "gradebooks",
+    }),
+    "gradebook-categoriesID": one(gradebook_categories, {
+      fields: [payload_locked_documents_rels["gradebook-categoriesID"]],
+      references: [gradebook_categories.id],
+      relationName: "gradebook-categories",
+    }),
+    "gradebook-itemsID": one(gradebook_items, {
+      fields: [payload_locked_documents_rels["gradebook-itemsID"]],
+      references: [gradebook_items.id],
+      relationName: "gradebook-items",
+    }),
+    "user-gradesID": one(user_grades, {
+      fields: [payload_locked_documents_rels["user-gradesID"]],
+      references: [user_grades.id],
+      relationName: "user-grades",
+    }),
     searchID: one(search, {
       fields: [payload_locked_documents_rels.searchID],
       references: [search.id],
@@ -1420,6 +1763,7 @@ type DatabaseSchema = {
   enum_activity_modules_status: typeof enum_activity_modules_status;
   enum_tags_tag_type: typeof enum_tags_tag_type;
   enum_merge_requests_status: typeof enum_merge_requests_status;
+  enum_user_grades_status: typeof enum_user_grades_status;
   users_sessions: typeof users_sessions;
   users: typeof users;
   courses_tags: typeof courses_tags;
@@ -1435,6 +1779,10 @@ type DatabaseSchema = {
   merge_request_comments: typeof merge_request_comments;
   media: typeof media;
   notes: typeof notes;
+  gradebooks: typeof gradebooks;
+  gradebook_categories: typeof gradebook_categories;
+  gradebook_items: typeof gradebook_items;
+  user_grades: typeof user_grades;
   search: typeof search;
   search_rels: typeof search_rels;
   payload_locked_documents: typeof payload_locked_documents;
@@ -1457,6 +1805,10 @@ type DatabaseSchema = {
   relations_merge_request_comments: typeof relations_merge_request_comments;
   relations_media: typeof relations_media;
   relations_notes: typeof relations_notes;
+  relations_gradebooks: typeof relations_gradebooks;
+  relations_gradebook_categories: typeof relations_gradebook_categories;
+  relations_gradebook_items: typeof relations_gradebook_items;
+  relations_user_grades: typeof relations_user_grades;
   relations_search_rels: typeof relations_search_rels;
   relations_search: typeof relations_search;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;

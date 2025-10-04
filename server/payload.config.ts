@@ -16,8 +16,6 @@ import z from "zod";
 import { UnauthorizedError } from "~/utils/error";
 import { envVars } from "./env";
 
-const gradebookSchema = z.object({});
-
 const courseStructureSchema = z.object({
 	sections: z.array(
 		z.object({
@@ -68,9 +66,7 @@ export const Courses = {
 			type: "json",
 			required: true,
 			label: "Structure",
-			validate: (value, { req }) => {
-				// ! for some reason, this will break the test cases
-				// if (!req.user) return UnauthorizedError.type;
+			validate: (value) => {
 				const result = courseStructureSchema.safeParse(value);
 				if (!result.success) {
 					console.log("test", z.formatError(result.error)._errors.join(", "));
@@ -91,6 +87,7 @@ export const Courses = {
 				{ label: "Archived", value: "archived" },
 			],
 			defaultValue: "draft",
+			required: true,
 		},
 		{
 			name: "thumbnail",
@@ -114,6 +111,14 @@ export const Courses = {
 			relationTo: "users",
 			required: true,
 		},
+		{
+			name: "gradebook",
+			type: "join",
+			on: "course",
+			collection: "gradebooks",
+			label: "Gradebook",
+			hasMany: false,
+		},
 	],
 } as const satisfies CollectionConfig;
 
@@ -131,7 +136,7 @@ export const Enrollments = {
 		{
 			name: "userEmail",
 			type: "text",
-			virtual: "user.email",
+			virtual: `user.email`,
 		},
 		{
 			name: "course",
@@ -142,12 +147,12 @@ export const Enrollments = {
 		{
 			name: "courseSlug",
 			type: "text",
-			virtual: "course.slug",
+			virtual: `course.${Courses.fields[1].name}`,
 		},
 		{
 			name: "courseTitle",
 			type: "text",
-			virtual: "course.title",
+			virtual: `course.${Courses.fields[0].name}`,
 		},
 		{
 			// ! we don't allow multiple roles in a course
@@ -171,6 +176,7 @@ export const Enrollments = {
 				{ label: "Dropped", value: "dropped" },
 			],
 			defaultValue: "active",
+			required: true,
 		},
 		{
 			name: "enrolledAt",
@@ -250,6 +256,15 @@ export const Origins = {
 	defaultSort: "-createdAt",
 	fields: [
 		{
+			name: "title",
+			type: "text",
+			required: true,
+		},
+		{
+			name: "description",
+			type: "textarea",
+		},
+		{
 			name: "branches",
 			type: "join",
 			on: "origin",
@@ -258,14 +273,12 @@ export const Origins = {
 			hasMany: true,
 			defaultSort: "-createdAt",
 			defaultLimit: 999999,
-			maxDepth: 2,
 		},
 		{
 			name: "createdBy",
 			type: "relationship",
 			relationTo: "users",
 			required: true,
-			maxDepth: 2,
 		},
 	],
 } as const satisfies CollectionConfig;
@@ -275,15 +288,6 @@ export const ActivityModules = {
 	slug: "activity-modules",
 	defaultSort: "-createdAt",
 	fields: [
-		{
-			name: "title",
-			type: "text",
-			required: true,
-		},
-		{
-			name: "description",
-			type: "textarea",
-		},
 		{
 			/**
 			 * the current branch name
@@ -304,6 +308,16 @@ export const ActivityModules = {
 			required: true,
 		},
 		{
+			name: "title",
+			type: "text",
+			virtual: `origin.${Origins.fields[0].name}`,
+		},
+		{
+			name: "description",
+			type: "textarea",
+			virtual: `origin.${Origins.fields[1].name}`,
+		},
+		{
 			name: "commits",
 			type: "join",
 			on: "activityModule",
@@ -313,7 +327,6 @@ export const ActivityModules = {
 			// ! this is sorted by commit date but not created at
 			defaultSort: "-commitDate",
 			defaultLimit: 999999,
-			maxDepth: 2,
 		},
 		{
 			name: "type",
@@ -336,13 +349,13 @@ export const ActivityModules = {
 				{ label: "Archived", value: "archived" },
 			],
 			defaultValue: "draft",
+			required: true,
 		},
 		{
 			name: "createdBy",
 			type: "relationship",
 			relationTo: "users",
 			required: true,
-			maxDepth: 2,
 		},
 	],
 	indexes: [
@@ -377,7 +390,6 @@ export const Commits = {
 			relationTo: "activity-modules",
 			label: "Activity Module",
 			hasMany: true,
-			maxDepth: 2,
 		},
 		{
 			name: "message",
@@ -399,6 +411,12 @@ export const Commits = {
 			type: "relationship",
 			relationTo: "commits",
 			label: "Parent Commit",
+		},
+		{
+			name: "parentCommitHash",
+			type: "text",
+			label: "Parent Commit Hash",
+			virtual: `parentCommit.hash`,
 		},
 		{
 			name: "commitDate",
@@ -491,14 +509,32 @@ export const CourseActivityModuleCommitLinks = {
 			type: "relationship",
 			relationTo: "courses",
 			label: "Course",
-			maxDepth: 2,
+
+			required: true,
+		},
+		{
+			name: "courseName",
+			type: "text",
+			virtual: `course.${Courses.fields[0].name}`,
+		},
+		{
+			name: "courseSlug",
+			type: "text",
+			virtual: `course.${Courses.fields[1].name}`,
 		},
 		{
 			name: "commit",
 			type: "relationship",
 			relationTo: "commits",
 			label: "Commit",
-			maxDepth: 2,
+
+			required: true,
+		},
+		{
+			name: "activityModuleName",
+			type: "text",
+			hasMany: true,
+			virtual: `commit.${Commits.fields[1].name}.${ActivityModules.fields[1].name}.${Origins.fields[0].name}`,
 		},
 	],
 } as const satisfies CollectionConfig;
@@ -539,6 +575,7 @@ export const MergeRequests = {
 				{ label: "Closed", value: "closed" },
 			],
 			defaultValue: "open",
+			required: true,
 		},
 		{
 			name: "comments",
@@ -547,7 +584,6 @@ export const MergeRequests = {
 			collection: "merge-request-comments",
 			label: "Comments",
 			hasMany: true,
-			maxDepth: 2,
 		},
 		{
 			name: "rejectedAt",
@@ -698,6 +734,302 @@ export const Notes = {
 	],
 } as const satisfies CollectionConfig;
 
+// Gradebooks collection - manages gradebooks for courses
+export const Gradebooks = {
+	slug: "gradebooks",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "course",
+			type: "relationship",
+			relationTo: "courses",
+			required: true,
+			label: "Course",
+		},
+		{
+			name: "courseTitle",
+			type: "text",
+			virtual: `course.${Courses.fields[0].name}`,
+			label: "Course Title",
+		},
+		{
+			/**
+			 * ! we allow a gradebook to be disabled
+			 */
+			name: "enabled",
+			type: "checkbox",
+			label: "Enabled",
+			defaultValue: true,
+		},
+		{
+			name: "categories",
+			type: "join",
+			on: "gradebook",
+			collection: "gradebook-categories",
+			label: "Categories",
+			hasMany: true,
+		},
+		{
+			name: "items",
+			type: "join",
+			on: "gradebook",
+			collection: "gradebook-items",
+			label: "Grade Items",
+			hasMany: true,
+		},
+	],
+	indexes: [
+		{
+			// One gradebook per course
+			fields: ["course"],
+			unique: true,
+		},
+	],
+} as const satisfies CollectionConfig;
+
+// Gradebook Categories collection - hierarchical categories within gradebooks
+export const GradebookCategories = {
+	slug: "gradebook-categories",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "gradebook",
+			type: "relationship",
+			relationTo: "gradebooks",
+			required: true,
+			label: "Gradebook",
+		},
+		{
+			name: "parent",
+			type: "relationship",
+			relationTo: "gradebook-categories",
+			label: "Parent Category",
+		},
+		{
+			name: "name",
+			type: "text",
+			required: true,
+			label: "Category Name",
+		},
+		{
+			name: "description",
+			type: "textarea",
+			label: "Description",
+		},
+		{
+			name: "weight",
+			type: "number",
+			label: "Weight (%)",
+			defaultValue: 0,
+			min: 0,
+			max: 100,
+		},
+		// sort_order BIGINT(19) NOT NULL DEFAULT 0, -- Order within parent context
+		{
+			name: "sortOrder",
+			type: "number",
+			label: "Sort Order",
+			required: true,
+		},
+		{
+			name: "subcategories",
+			type: "join",
+			on: "parent",
+			collection: "gradebook-categories",
+			label: "Subcategories",
+			hasMany: true,
+		},
+		{
+			name: "items",
+			type: "join",
+			on: "category",
+			collection: "gradebook-items",
+			label: "Grade Items",
+			hasMany: true,
+		},
+	],
+	indexes: [
+		{
+			fields: ["gradebook"],
+		},
+		{
+			fields: ["parent"],
+		},
+	],
+} as const satisfies CollectionConfig;
+
+// Gradebook Items collection - individual gradeable items
+export const GradebookItems = {
+	slug: "gradebook-items",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "gradebook",
+			type: "relationship",
+			relationTo: "gradebooks",
+			required: true,
+			label: "Gradebook",
+		},
+		{
+			name: "category",
+			type: "relationship",
+			relationTo: "gradebook-categories",
+			label: "Category",
+		},
+		{
+			// ! this is the manual item name
+			name: "name",
+			type: "text",
+			required: true,
+			label: "Item Name",
+		},
+		{
+			name: "sortOrder",
+			type: "number",
+			required: true,
+			label: "Sort Order",
+		},
+		{
+			name: "description",
+			type: "textarea",
+			label: "Description",
+		},
+		{
+			name: "activityModule",
+			type: "relationship",
+			relationTo: "course-activity-module-commit-links",
+			label: "Active Module",
+		},
+		{
+			name: "activityModuleName",
+			type: "text",
+			virtual: `activityModule.${CourseActivityModuleCommitLinks.fields[4].name}`,
+			label: "Activity Module Name",
+		},
+		{
+			name: "maxGrade",
+			type: "number",
+			required: true,
+			defaultValue: 100,
+			label: "Maximum Grade",
+			min: 0,
+		},
+		{
+			name: "minGrade",
+			type: "number",
+			required: true,
+			defaultValue: 0,
+			label: "Minimum Grade",
+			min: 0,
+		},
+		{
+			name: "weight",
+			type: "number",
+			required: true,
+			defaultValue: 0,
+			label: "Weight (%)",
+			min: 0,
+			max: 100,
+		},
+		{
+			name: "extraCredit",
+			type: "checkbox",
+			defaultValue: false,
+			label: "Extra Credit",
+		},
+		{
+			name: "userGrades",
+			type: "join",
+			on: "gradebookItem",
+			collection: "user-grades",
+			label: "User Grades",
+			hasMany: true,
+		},
+	],
+	indexes: [
+		{
+			fields: ["gradebook"],
+		},
+		{
+			fields: ["category"],
+		},
+	],
+} as const satisfies CollectionConfig;
+
+// User Grades collection - individual grades for users
+export const UserGrades = {
+	slug: "user-grades",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "user",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+			label: "User",
+		},
+		{
+			name: "gradebookItem",
+			type: "relationship",
+			relationTo: "gradebook-items",
+			required: true,
+			label: "Gradebook Item",
+		},
+		{
+			name: "grade",
+			type: "number",
+			label: "Grade",
+			min: 0,
+		},
+		{
+			name: "feedback",
+			type: "textarea",
+			label: "Feedback",
+		},
+		{
+			name: "status",
+			type: "select",
+			options: [
+				{ label: "Not Graded", value: "not_graded" },
+				{ label: "Graded", value: "graded" },
+				{ label: "Excused", value: "excused" },
+				{ label: "Missing", value: "missing" },
+			],
+			defaultValue: "not_graded",
+			required: true,
+		},
+		{
+			name: "gradedBy",
+			type: "relationship",
+			relationTo: "users",
+			label: "Graded By",
+		},
+		{
+			name: "gradedAt",
+			type: "date",
+			label: "Graded At",
+		},
+		{
+			name: "submittedAt",
+			type: "date",
+			label: "Submitted At",
+		},
+	],
+	indexes: [
+		{
+			// One grade per user per item
+			fields: ["user", "gradebookItem"],
+			unique: true,
+		},
+		{
+			fields: ["gradebookItem"],
+		},
+		{
+			fields: ["user"],
+		},
+	],
+} as const satisfies CollectionConfig;
+
 const pg = postgresAdapter({
 	pool: {
 		connectionString: envVars.DATABASE_URL.value,
@@ -778,6 +1110,10 @@ const sanitizedConfig = await buildConfig({
 		MergeRequestComments,
 		Media,
 		Notes,
+		Gradebooks,
+		GradebookCategories,
+		GradebookItems,
+		UserGrades,
 	] as CollectionConfig[],
 	email:
 		envVars.SMTP_HOST.value &&
@@ -866,6 +1202,7 @@ const sanitizedConfig = await buildConfig({
 		// ! this will change the database structure so you cannot be conditional here
 		tasks: [],
 	},
+	defaultDepth: 1,
 	typescript: {
 		outputFile: path.resolve(__dirname, "./payload-types.ts"),
 	},

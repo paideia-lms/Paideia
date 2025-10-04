@@ -85,7 +85,7 @@ describe("Course Management Functions", () => {
 
 	describe("tryCreateCourse", () => {
 		test("should create a new course successfully", async () => {
-			const courseArgs: CreateCourseArgs = {
+			const courseArgs = {
 				title: "Introduction to JavaScript",
 				description: "Learn the basics of JavaScript programming",
 				createdBy: instructorId,
@@ -106,7 +106,7 @@ describe("Course Management Functions", () => {
 				},
 				status: "draft",
 				tags: [{ tag: "javascript" }, { tag: "programming" }],
-			};
+			} satisfies CreateCourseArgs;
 
 			const result = await tryCreateCourse(payload, mockRequest, courseArgs);
 

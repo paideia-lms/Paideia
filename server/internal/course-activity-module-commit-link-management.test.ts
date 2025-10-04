@@ -92,11 +92,11 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			activityModuleArgs,
 		);
 		expect(activityModuleResult.ok).toBe(true);
-		if (activityModuleResult.ok) {
-			testActivityModule = activityModuleResult.value.activityModule;
-			// Use the initial commit from the activity module creation
-			testCommit = activityModuleResult.value.commit;
-		}
+		if (!activityModuleResult.ok)
+			throw new Error("Test Error: Activity module creation failed");
+		testActivityModule = activityModuleResult.value.activityModule;
+		// Use the initial commit from the activity module creation
+		testCommit = activityModuleResult.value.activityModule.commits[0];
 	});
 
 	afterAll(async () => {
@@ -122,23 +122,19 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				// Handle both depth 0 (ID) and depth 1 (object) cases
-				if (typeof result.value.course === "object" && result.value.course) {
-					expect(result.value.course.id).toBe(testCourse.id);
-				} else {
-					expect(result.value.course).toBe(testCourse.id);
-				}
+			if (!result.ok)
+				throw new Error(
+					"Test Error: Failed to create course activity module commit link",
+				);
+			const activityModuleCommitLink = result.value;
+			const course = activityModuleCommitLink.course;
+			expect(course.id).toBe(testCourse.id);
 
-				if (typeof result.value.commit === "object" && result.value.commit) {
-					expect(result.value.commit.id).toBe(testCommit.id);
-				} else {
-					expect(result.value.commit).toBe(testCommit.id);
-				}
+			const commit = activityModuleCommitLink.commit;
+			expect(commit.id).toBe(testCommit.id);
 
-				expect(result.value.id).toBeDefined();
-				expect(result.value.createdAt).toBeDefined();
-			}
+			expect(activityModuleCommitLink.id).toBeDefined();
+			expect(activityModuleCommitLink.createdAt).toBeDefined();
 		});
 
 		test("should create multiple links for the same course", async () => {
@@ -162,7 +158,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 
 			const linkArgs: CreateCourseActivityModuleCommitLinkArgs = {
 				course: testCourse.id,
-				commit: activityModuleResult2.value.commit.id,
+				commit: activityModuleResult2.value.activityModule.commits[0].id,
 			};
 
 			const result = await tryCreateCourseActivityModuleCommitLink(
@@ -172,41 +168,28 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				// Handle both depth 0 (ID) and depth 1 (object) cases
-				if (typeof result.value.course === "object" && result.value.course) {
-					expect(result.value.course.id).toBe(testCourse.id);
-				} else {
-					expect(result.value.course).toBe(testCourse.id);
-				}
-			}
+			if (!result.ok)
+				throw new Error(
+					"Test Error: Failed to create course activity module commit link",
+				);
+			// Handle both depth 0 (ID) and depth 1 (object) cases
+			const course = result.value.course;
+			expect(course.id).toBe(testCourse.id);
 		});
 	});
 
 	describe("tryFindLinksByCourse", () => {
 		test("should find links by course ID", async () => {
-			const result = await tryFindLinksByCourse(payload, testCourse.id, 10);
+			const result = await tryFindLinksByCourse(payload, testCourse.id);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value.length).toBeGreaterThan(0);
 				result.value.forEach((link) => {
 					// Handle both depth 0 (ID) and depth 1 (object) cases
-					if (typeof link.course === "object" && link.course) {
-						expect(link.course.id).toBe(testCourse.id);
-					} else {
-						expect(link.course).toBe(testCourse.id);
-					}
+					const course = link.course;
+					expect(course.id).toBe(testCourse.id);
 				});
-			}
-		});
-
-		test("should respect limit parameter", async () => {
-			const result = await tryFindLinksByCourse(payload, testCourse.id, 1);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.length).toBeLessThanOrEqual(1);
 			}
 		});
 
@@ -228,7 +211,6 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 				const result = await tryFindLinksByCourse(
 					payload,
 					courseResult.value.id,
-					10,
 				);
 
 				expect(result.ok).toBe(true);
@@ -241,7 +223,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 
 	describe("tryFindLinksByCommit", () => {
 		test("should find links by commit ID", async () => {
-			const result = await tryFindLinksByCommit(payload, testCommit.id, 10);
+			const result = await tryFindLinksByCommit(payload, testCommit.id);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -254,15 +236,6 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 						expect(link.commit).toBe(testCommit.id);
 					}
 				});
-			}
-		});
-
-		test("should respect limit parameter", async () => {
-			const result = await tryFindLinksByCommit(payload, testCommit.id, 1);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.length).toBeLessThanOrEqual(1);
 			}
 		});
 	});
@@ -364,15 +337,14 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.id).toBe(testLink.id);
-				// Handle both depth 0 (ID) and depth 1 (object) cases
-				if (result.value.course && typeof result.value.course === "object") {
-					expect(result.value.course.id).toBe(testCourse.id);
-				} else {
-					expect(result.value.course).toBe(testCourse.id);
-				}
-			}
+			if (!result.ok)
+				throw new Error(
+					"Test Error: Failed to find course activity module commit link by ID",
+				);
+			expect(result.value.id).toBe(testLink.id);
+			// Handle both depth 0 (ID) and depth 1 (object) cases
+			const course = result.value.course;
+			expect(course.id).toBe(testCourse.id);
 		});
 
 		test("should fail with non-existent link", async () => {
@@ -382,11 +354,10 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain(
-					"Failed to find course-activity-module-commit-link by ID",
+			if (result.ok)
+				throw new Error(
+					"Test Error: Failed to find course activity module commit link by ID",
 				);
-			}
 		});
 	});
 
@@ -399,9 +370,11 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			);
 
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).toBe(true);
-			}
+			if (!result.ok)
+				throw new Error(
+					"Test Error: Failed to find course activity module commit link by ID",
+				);
+			expect(result.value).toBe(true);
 		});
 
 		test("should return false for non-existing link", async () => {
@@ -428,18 +401,22 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 				};
 
 				const commitResult = await tryCreateCommit(payload, commitArgs);
-				if (commitResult.ok) {
-					const result = await tryCheckCourseCommitLinkExists(
-						payload,
-						courseResult.value.id,
-						commitResult.value.id,
-					);
 
-					expect(result.ok).toBe(true);
-					if (result.ok) {
-						expect(result.value).toBe(false);
-					}
-				}
+				if (!commitResult.ok)
+					throw new Error("Test Error: Failed to create commit");
+
+				const result = await tryCheckCourseCommitLinkExists(
+					payload,
+					courseResult.value.id,
+					commitResult.value.id,
+				);
+
+				expect(result.ok).toBe(true);
+				if (!result.ok)
+					throw new Error(
+						"Test Error: Failed to check course commit link exists",
+					);
+				expect(result.value).toBe(false);
 			}
 		});
 	});

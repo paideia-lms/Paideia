@@ -16,7 +16,7 @@
 		"start": "./dist/paideia",
 		"dev": "kill -9 $(lsof -t -i:3000); kill -9 $(lsof -t -i:3001); docker-compose up -d && rm -rf node_modules/.vite node_modules/.cache node_modules/.vite-temp  && NODE_ENV=development bun concurrently \"bun --watch ./server/index.ts\" \"bun react-router --watch typegen\"",
 		"lint": "biome check . --write",
-		"test:all": "bun scripts/test-all.ts",
+		"test:all": "bun test $(find . -type f -name \"*.test.ts\" -not -path \"./node_modules/*\")",
 		"migrate:create": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:create",
 		"migrate:status": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:status",
 		"migrate:up": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:up",

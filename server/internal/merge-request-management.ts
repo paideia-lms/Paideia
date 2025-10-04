@@ -1,8 +1,10 @@
 import "@total-typescript/ts-reset";
 import type { Payload } from "payload";
 import { getTx } from "server/utils/get-tx";
+import { assertZod } from "server/utils/type-narrowing";
 import { commits_rels } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
+import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingMergeRequestError,
@@ -24,10 +26,6 @@ export interface CreateMergeRequestArgs {
 	userId: number;
 }
 
-export interface CreateMergeRequestResult {
-	mergeRequest: MergeRequest;
-}
-
 /**
  * Creates a new merge request between two activity modules
  *
@@ -38,10 +36,7 @@ export interface CreateMergeRequestResult {
  * 4. Uses transactions to ensure atomicity
  */
 export const tryCreateMergeRequest = Result.wrap(
-	async (
-		payload: Payload,
-		args: CreateMergeRequestArgs,
-	): Promise<CreateMergeRequestResult> => {
+	async (payload: Payload, args: CreateMergeRequestArgs) => {
 		const {
 			title,
 			description,
@@ -148,6 +143,7 @@ export const tryCreateMergeRequest = Result.wrap(
 				collection: "merge-requests",
 				data: {
 					title,
+					status: "open",
 					description: description || null,
 					from: fromActivityModuleId,
 					to: toActivityModuleId,
@@ -159,8 +155,41 @@ export const tryCreateMergeRequest = Result.wrap(
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
 
+			////////////////////////////////////////////////////
+			// type narrowing
+			////////////////////////////////////////////////////
+
+			const mergeRequestFrom = mergeRequest.from;
+			assertZod(
+				mergeRequestFrom,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const mergeRequestTo = mergeRequest.to;
+			assertZod(
+				mergeRequestTo,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const mergeRequestCreatedBy = mergeRequest.createdBy;
+			assertZod(
+				mergeRequestCreatedBy,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
 			return {
-				mergeRequest,
+				mergeRequest: {
+					...mergeRequest,
+					from: mergeRequestFrom,
+					to: mergeRequestTo,
+					createdBy: mergeRequestCreatedBy,
+				},
 			};
 		} catch (error) {
 			// Rollback transaction on error

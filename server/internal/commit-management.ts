@@ -1,11 +1,13 @@
 import type { Payload } from "payload";
+import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
+import z from "zod";
 import {
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Commit, Tag } from "../payload-types";
+import type { ActivityModule, Commit, Tag } from "../payload-types";
 import {
 	generateCommitHash,
 	generateContentHash,
@@ -35,7 +37,7 @@ export const tryCreateCommit = Result.wrap(
 		payload: Payload,
 		args: CreateCommitArgs,
 		transactionID?: string | number,
-	): Promise<Commit> => {
+	) => {
 		const {
 			activityModule,
 			message,
@@ -62,27 +64,15 @@ export const tryCreateCommit = Result.wrap(
 			throw new InvalidArgumentError("Content must be a valid object");
 		}
 
-		// Verify activity module exists
-		const activityModuleExists = await payload.findByID({
-			collection: "activity-modules",
-			id: activityModule,
-			...(transactionID && { req: { transactionID } }),
-		});
-
-		if (!activityModuleExists) {
-			throw new InvalidArgumentError(
-				`Activity module with id '${activityModule}' not found`,
-			);
-		}
-
 		// Generate content hash
 		const contentHash = generateContentHash(content);
 
 		// Get parent commit hash if parentCommit is provided
-		let parentCommitHash: string | undefined;
+
 		const parentCommitDoc = await payload.findByID({
 			collection: "commits",
 			id: parentCommit,
+			depth: 1,
 			...(transactionID && { req: { transactionID } }),
 		});
 
@@ -92,7 +82,7 @@ export const tryCreateCommit = Result.wrap(
 			);
 		}
 
-		parentCommitHash = parentCommitDoc.hash;
+		const parentCommitHash = parentCommitDoc.hash;
 
 		// Generate commit hash
 		const commitHash = generateCommitHash(
@@ -116,10 +106,47 @@ export const tryCreateCommit = Result.wrap(
 				content,
 				contentHash,
 			},
+			depth: 1,
 			...(transactionID && { req: { transactionID } }),
 		});
 
-		return commit;
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
+
+		const commitActivityModule = commit.activityModule;
+		assertZod(
+			commitActivityModule,
+			z.array(
+				z.object({
+					id: z.number(),
+				}),
+			),
+		);
+
+		const commitAuthor = commit.author;
+		assertZod(
+			commitAuthor,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const commitParentCommit = commit.parentCommit;
+		assertZod(
+			commitParentCommit,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		return {
+			...commit,
+			activityModule: commitActivityModule as ActivityModule[],
+			author: commitAuthor,
+			parentCommit: commitParentCommit,
+			parentCommitHash: parentCommitHash,
+		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -248,39 +275,6 @@ export const tryCreateTag = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Verify commit exists
-		const commit = await payload.findByID({
-			collection: "commits",
-			id: commitId,
-			...(transactionID && { req: { transactionID } }),
-		});
-
-		if (!commit) {
-			throw new InvalidArgumentError(`Commit with id '${commitId}' not found`);
-		}
-
-		// Verify origin exists
-		const origin = await payload.findByID({
-			collection: "origins",
-			id: originId,
-			...(transactionID && { req: { transactionID } }),
-		});
-
-		if (!origin) {
-			throw new InvalidArgumentError(`Origin with id '${originId}' not found`);
-		}
-
-		// Verify user exists
-		const user = await payload.findByID({
-			collection: "users",
-			id: userId,
-			...(transactionID && { req: { transactionID } }),
-		});
-
-		if (!user) {
-			throw new InvalidArgumentError(`User with id '${userId}' not found`);
-		}
-
 		// Create tag
 		const tag = await payload.create({
 			collection: "tags",
@@ -292,6 +286,7 @@ export const tryCreateTag = Result.wrap(
 				tagType,
 				createdBy: userId,
 			},
+			depth: 1,
 			...(transactionID && { req: { transactionID } }),
 		});
 

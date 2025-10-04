@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import type { ActivityModule, Commit } from "server/payload-types";
+import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
@@ -68,7 +69,7 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should create an activity module with initial commit", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			title: "Test Activity Module",
 			description: "This is a test activity module",
 			type: "page",
@@ -79,14 +80,16 @@ describe("Activity Module Management", () => {
 			},
 			commitMessage: "Initial commit",
 			userId: testUserId,
-		};
+		} satisfies CreateActivityModuleArgs;
 
 		const result = await tryCreateActivityModule(payload, args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
-		const { activityModule, commit } = result.value;
+		const { activityModule } = result.value;
+
+		const commit = activityModule.commits[0];
 
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
@@ -94,30 +97,14 @@ describe("Activity Module Management", () => {
 		expect(activityModule.type).toBe(args.type);
 		expect(activityModule.status).toBe(args.status);
 		expect(activityModule.branch).toBe("main");
-		if (
-			!activityModule.createdBy ||
-			typeof activityModule.createdBy !== "object"
-		)
-			throw new Error(
-				"Test Error: Activity module created by is not an object",
-			);
 		expect(activityModule.createdBy.id).toBe(testUserId);
 
 		// Verify commit
 		expect(commit.message).toBe("Initial commit");
-		if (!commit.author || typeof commit.author !== "object")
-			throw new Error("Test Error: Commit author is not an object");
 		expect(commit.author.id).toBe(testUserId);
 		expect(commit.activityModule).toBeDefined();
 		expect(commit.activityModule).not.toBeNull();
-		if (!commit.activityModule || !Array.isArray(commit.activityModule))
-			throw new Error("Test Error: Commit activity module is not an array");
-		expect(commit.activityModule.length).toBe(1);
 		const commitActivityModule = commit.activityModule[0];
-		if (typeof commitActivityModule !== "object")
-			throw new Error(
-				"Test Error: Commit activity module item is not an object",
-			);
 		expect(commitActivityModule.id).toBe(activityModule.id);
 		expect(commit.content).toEqual(args.content);
 		expect(commit.hash).toBeDefined();
@@ -141,12 +128,9 @@ describe("Activity Module Management", () => {
 		expect(retrievedActivityModule.branch).toBe(activityModule.branch);
 		expect(retrievedActivityModule.createdBy).toEqual(activityModule.createdBy);
 		expect(retrievedActivityModule.commits).toBeDefined();
-		expect(retrievedActivityModule.commits?.docs?.length).toBe(1);
+		expect(retrievedActivityModule.commits.length).toBe(1);
 
-		const initialCommit = retrievedActivityModule.commits!.docs![0]!;
-		if (typeof initialCommit === "number") {
-			throw new Error("Test Error: Initial commit is a number");
-		}
+		const initialCommit = retrievedActivityModule.commits[0]!;
 
 		// create a new commit
 		const newCommitArgs: CreateCommitArgs = {
@@ -165,14 +149,8 @@ describe("Activity Module Management", () => {
 		expect(newCommit.message).toBe("New commit");
 		expect(newCommit.activityModule).not.toBeNull();
 		expect(newCommit.activityModule).toBeDefined();
-		if (!newCommit.activityModule || !Array.isArray(newCommit.activityModule))
-			throw new Error("Test Error: New commit activity module is not an array");
 		expect(newCommit.activityModule.length).toBe(1);
 		const newCommitActivityModule = newCommit.activityModule[0];
-		if (typeof newCommitActivityModule !== "object")
-			throw new Error(
-				"Test Error: New commit activity module item is not an object",
-			);
 		expect(newCommitActivityModule.id).toBe(activityModule.id);
 		// console.log(newCommit.activityModule);
 		// should have 2 commits
@@ -215,14 +193,13 @@ describe("Activity Module Management", () => {
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
-		const { commit, activityModule } = result.value;
+		const { activityModule } = result.value;
+		const commit = activityModule.commits[0];
 		expect(commit.message).toBe("Initial commit");
 		// activity module should have a commit
 		expect(activityModule.commits).toBeDefined();
 		expect(activityModule.commits).not.toBeNull();
-		if (!activityModule.commits)
-			throw new Error("Test Error: Activity module commits is null");
-		expect(activityModule.commits.docs!.length).toBe(1);
+		expect(activityModule.commits.length).toBe(1);
 	});
 
 	test("should create multiple activity modules for same user", async () => {
@@ -251,7 +228,10 @@ describe("Activity Module Management", () => {
 		expect(result1.value.activityModule.id).not.toBe(
 			result2.value.activityModule.id,
 		);
-		expect(result1.value.commit.hash).not.toBe(result2.value.commit.hash);
+
+		const commit1 = result1.value.activityModule.commits[0];
+		const commit2 = result2.value.activityModule.commits[0];
+		expect(commit1.hash).not.toBe(commit2.hash);
 	});
 
 	test("should create activity module with all types", async () => {
@@ -296,29 +276,32 @@ describe("Activity Module Management", () => {
 			id: result.value.activityModule.id,
 		});
 
+		const commit = result.value.activityModule.commits[0];
 		const commitExists = await payload.findByID({
 			collection: "commits",
-			id: result.value.commit.id,
+			id: commit.id,
 		});
 
 		expect(moduleExists).toBeDefined();
 		expect(commitExists).toBeDefined();
 	});
 
-	let originalModule: ActivityModule;
-	let branchModule: ActivityModule;
-	let subBranchModule: ActivityModule;
+	let originalModule: TryResultValue<
+		typeof tryCreateActivityModule
+	>["activityModule"];
+	let branchModule: TryResultValue<typeof tryCreateBranch>;
+	let subBranchModule: TryResultValue<typeof tryCreateBranch>;
 
 	test("should create a branch from an existing activity module", async () => {
 		// First create an activity module with initial commit
-		const originalArgs: CreateActivityModuleArgs = {
+		const originalArgs = {
 			title: "Original Module",
 			description: "Original description",
 			type: "page",
 			content: { body: "Original content" },
 			commitMessage: "Initial commit",
 			userId: testUserId,
-		};
+		} satisfies CreateActivityModuleArgs;
 
 		const originalResult = await tryCreateActivityModule(payload, originalArgs);
 		expect(originalResult.ok).toBe(true);
@@ -326,12 +309,12 @@ describe("Activity Module Management", () => {
 
 		originalModule = originalResult.value.activityModule;
 
-		const initialCommit = originalModule.commits?.docs?.[0];
-		// @ts-expect-error
+		const initialCommit = originalModule.commits[0];
 		let initialCommitId = initialCommit?.id;
 		const commitCounts = 10;
 		// create 99 more commits on this branch
 		for (let i = 0; i < commitCounts - 1; i++) {
+			console.log(`Creating commit ${i + 1} of ${commitCounts}`);
 			const commitArgs: CreateCommitArgs = {
 				activityModule: originalModule.id,
 				message: `Commit ${i + 1}`,
@@ -365,11 +348,11 @@ describe("Activity Module Management", () => {
 		if (!originalModuleResult.ok)
 			throw new Error("Failed to get original module");
 
+		console.log("original module created");
+
 		// console.log(originalModuleResult.value)
 		// check if original module has 100 commits
-		expect(originalModuleResult.value?.commits?.docs?.length).toBe(
-			commitCounts,
-		);
+		expect(originalModuleResult.value?.commits.length).toBe(commitCounts);
 
 		// Create a branch from the original module
 		const branchArgs: CreateBranchArgs = {
@@ -441,7 +424,7 @@ describe("Activity Module Management", () => {
 		// console.log(JSON.stringify(mainBranchModule, null, 2));
 
 		// check if main branch has 100 commits
-		expect(mainBranchModule.commits?.docs?.length).toBe(commitCounts);
+		expect(mainBranchModule.commits.length).toBe(commitCounts);
 
 		// get the feature-branch
 		const featureBranchResult = await tryGetActivityModuleById(payload, {
@@ -462,7 +445,7 @@ describe("Activity Module Management", () => {
 		expect(featureBranchModule.origin.id).toBe(originalModule.id);
 		expect(featureBranchModule.origin.branches?.docs?.length).toBe(3);
 		// feature branch should have 100 commits
-		expect(featureBranchModule.commits?.docs?.length).toBe(commitCounts);
+		expect(featureBranchModule.commits.length).toBe(commitCounts);
 
 		// get the sub-feature-branch
 		const subFeatureBranchResult = await tryGetActivityModuleById(payload, {
@@ -485,10 +468,11 @@ describe("Activity Module Management", () => {
 		expect(subFeatureBranchModule.origin.id).toBe(originalModule.id);
 		expect(subFeatureBranchModule.origin.branches?.docs?.length).toBe(3);
 		// subbranch should have 100 commits
-		expect(subFeatureBranchModule.commits?.docs?.length).toBe(commitCounts);
-	});
+		expect(subFeatureBranchModule.commits.length).toBe(commitCounts);
+	}, 10000);
 
 	test("should delete an activity module and all branches", async () => {
+		console.log("deleting subbranch", subBranchModule.id);
 		// delete the subbranch
 		const deleteResult = await tryDeleteActivityModule(payload, {
 			id: subBranchModule.id,
@@ -508,10 +492,8 @@ describe("Activity Module Management", () => {
 		expect(getResult.value.origin.branches?.docs?.length).toBe(2);
 
 		// try get the commit of the main branch
-		const mainBranchCommit = getResult.value.commits?.docs?.[0];
+		const mainBranchCommit = getResult.value.commits[0];
 		if (!mainBranchCommit) throw new Error("Failed to get main branch commit");
-		if (typeof mainBranchCommit === "number")
-			throw new Error("Failed to get main branch commit");
 		const getCommitResult = await tryGetCommitByHash(
 			payload,
 			mainBranchCommit.hash,
@@ -537,7 +519,7 @@ describe("Activity Module Management", () => {
 
 	const targetCommitIndex = 30;
 	const totalCommits = 100;
-	test.only(`should create branch from ${targetCommitIndex}th commit and contain exactly ${targetCommitIndex} commits`, async () => {
+	test(`should create branch from ${targetCommitIndex}th commit and contain exactly ${targetCommitIndex} commits`, async () => {
 		// Create initial activity module
 		const originalArgs: CreateActivityModuleArgs = {
 			title: "100 Commits Module",
@@ -553,7 +535,7 @@ describe("Activity Module Management", () => {
 		if (!originalResult.ok) return;
 
 		const originalModule = originalResult.value.activityModule;
-		const initialCommit = originalModule.commits?.docs?.[0];
+		const initialCommit = originalModule.commits[0];
 
 		if (!initialCommit || typeof initialCommit === "number") {
 			throw new Error("Test Error: Initial commit not found or is a number");
@@ -564,7 +546,7 @@ describe("Activity Module Management", () => {
 		const commitIds: number[] = [initialCommit.id];
 
 		// Create 99 more commits (total 100)
-		for (let i = 0; i < totalCommits - 1; i++) {
+		for (let i = 1; i < totalCommits; i++) {
 			console.log(`Creating commit ${i + 1} of ${totalCommits}`);
 			const commitArgs: CreateCommitArgs = {
 				activityModule: originalModule.id,
@@ -595,14 +577,13 @@ describe("Activity Module Management", () => {
 		// Verify the original module has 100 commits
 		const originalModuleResult = await tryGetActivityModuleById(payload, {
 			id: originalModule.id,
-			depth: 2,
 		});
 		expect(originalModuleResult.ok).toBe(true);
 		if (!originalModuleResult.ok)
 			throw new Error("Failed to get original module");
 
 		const originalModuleWithCommits = originalModuleResult.value;
-		expect(originalModuleWithCommits.commits?.docs?.length).toBe(totalCommits);
+		expect(originalModuleWithCommits.commits.length).toBe(totalCommits);
 
 		// Create a branch from the 50th commit
 		const branchFromCommitArgs: CreateBranchFromCommitArgs = {
@@ -628,13 +609,12 @@ describe("Activity Module Management", () => {
 		// Get the new branch with its commits
 		const newBranchResult = await tryGetActivityModuleById(payload, {
 			id: newBranch.id,
-			depth: 2,
 		});
 		expect(newBranchResult.ok).toBe(true);
 		if (!newBranchResult.ok) throw new Error("Failed to get new branch");
 
 		const newBranchWithCommits = newBranchResult.value;
-		const newBranchCommits = newBranchWithCommits.commits?.docs ?? [];
+		const newBranchCommits = newBranchWithCommits.commits;
 
 		// Verify the new branch has exactly 50 commits (from root to 50th commit inclusive)
 		expect(newBranchCommits.length).toBe(targetCommitIndex); // Should have exactly 50 commits (from root to 50th commit inclusive)
@@ -647,14 +627,11 @@ describe("Activity Module Management", () => {
 		// Verify the original module still has 100 commits
 		const originalModuleFinalResult = await tryGetActivityModuleById(payload, {
 			id: originalModule.id,
-			depth: 2,
 		});
 		expect(originalModuleFinalResult.ok).toBe(true);
 		if (!originalModuleFinalResult.ok)
 			throw new Error("Failed to get original module final state");
 
-		expect(originalModuleFinalResult.value.commits?.docs?.length).toBe(
-			totalCommits,
-		);
+		expect(originalModuleFinalResult.value.commits.length).toBe(totalCommits);
 	}, 100000);
 });
