@@ -67,12 +67,6 @@ export const enum_merge_requests_status = pgEnum("enum_merge_requests_status", [
   "rejected",
   "closed",
 ]);
-export const enum_user_grades_status = pgEnum("enum_user_grades_status", [
-  "not_graded",
-  "graded",
-  "excused",
-  "missing",
-]);
 
 export const users_sessions = pgTable(
   "users_sessions",
@@ -909,9 +903,9 @@ export const user_grades = pgTable(
   "user_grades",
   {
     id: serial("id").primaryKey(),
-    user: integer("user_id")
+    enrollment: integer("enrollment_id")
       .notNull()
-      .references(() => users.id, {
+      .references(() => enrollments.id, {
         onDelete: "set null",
       }),
     gradebookItem: integer("gradebook_item_id")
@@ -921,7 +915,6 @@ export const user_grades = pgTable(
       }),
     grade: numeric("grade"),
     feedback: varchar("feedback"),
-    status: enum_user_grades_status("status").notNull().default("not_graded"),
     gradedBy: integer("graded_by_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -951,7 +944,9 @@ export const user_grades = pgTable(
       .notNull(),
   },
   (columns) => ({
-    user_grades_user_idx: index("user_grades_user_idx").on(columns.user),
+    user_grades_enrollment_idx: index("user_grades_enrollment_idx").on(
+      columns.enrollment,
+    ),
     user_grades_gradebook_item_idx: index("user_grades_gradebook_item_idx").on(
       columns.gradebookItem,
     ),
@@ -964,12 +959,11 @@ export const user_grades = pgTable(
     user_grades_created_at_idx: index("user_grades_created_at_idx").on(
       columns.createdAt,
     ),
-    user_gradebookItem_idx: uniqueIndex("user_gradebookItem_idx").on(
-      columns.user,
-      columns.gradebookItem,
-    ),
+    enrollment_gradebookItem_idx: uniqueIndex(
+      "enrollment_gradebookItem_idx",
+    ).on(columns.enrollment, columns.gradebookItem),
     gradebookItem_idx: index("gradebookItem_idx").on(columns.gradebookItem),
-    user_idx: index("user_idx").on(columns.user),
+    enrollment_idx: index("enrollment_idx").on(columns.enrollment),
   }),
 );
 
@@ -1578,10 +1572,10 @@ export const relations_gradebook_items = relations(
   }),
 );
 export const relations_user_grades = relations(user_grades, ({ one }) => ({
-  user: one(users, {
-    fields: [user_grades.user],
-    references: [users.id],
-    relationName: "user",
+  enrollment: one(enrollments, {
+    fields: [user_grades.enrollment],
+    references: [enrollments.id],
+    relationName: "enrollment",
   }),
   gradebookItem: one(gradebook_items, {
     fields: [user_grades.gradebookItem],
@@ -1763,7 +1757,6 @@ type DatabaseSchema = {
   enum_activity_modules_status: typeof enum_activity_modules_status;
   enum_tags_tag_type: typeof enum_tags_tag_type;
   enum_merge_requests_status: typeof enum_merge_requests_status;
-  enum_user_grades_status: typeof enum_user_grades_status;
   users_sessions: typeof users_sessions;
   users: typeof users;
   courses_tags: typeof courses_tags;

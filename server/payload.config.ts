@@ -966,11 +966,35 @@ export const UserGrades = {
 	defaultSort: "-createdAt",
 	fields: [
 		{
-			name: "user",
+			name: "enrollment",
 			type: "relationship",
-			relationTo: "users",
+			relationTo: "enrollments",
 			required: true,
+			label: "Enrollment",
+		},
+		{
+			name: "user",
+			type: "text",
+			virtual: `enrollment.${Enrollments.fields[0].name}`,
 			label: "User",
+		},
+		{
+			name: "userEmail",
+			type: "text",
+			virtual: `enrollment.${Enrollments.fields[1].name}`,
+			label: "User Email",
+		},
+		{
+			name: "course",
+			type: "text",
+			virtual: `enrollment.${Enrollments.fields[2].name}`,
+			label: "Course",
+		},
+		{
+			name: "courseTitle",
+			type: "text",
+			virtual: `enrollment.${Enrollments.fields[4].name}`,
+			label: "Course Title",
 		},
 		{
 			name: "gradebookItem",
@@ -991,18 +1015,6 @@ export const UserGrades = {
 			label: "Feedback",
 		},
 		{
-			name: "status",
-			type: "select",
-			options: [
-				{ label: "Not Graded", value: "not_graded" },
-				{ label: "Graded", value: "graded" },
-				{ label: "Excused", value: "excused" },
-				{ label: "Missing", value: "missing" },
-			],
-			defaultValue: "not_graded",
-			required: true,
-		},
-		{
 			name: "gradedBy",
 			type: "relationship",
 			relationTo: "users",
@@ -1021,15 +1033,15 @@ export const UserGrades = {
 	],
 	indexes: [
 		{
-			// One grade per user per item
-			fields: ["user", "gradebookItem"],
+			// One grade per enrollment per item
+			fields: ["enrollment", "gradebookItem"],
 			unique: true,
 		},
 		{
 			fields: ["gradebookItem"],
 		},
 		{
-			fields: ["user"],
+			fields: ["enrollment"],
 		},
 	],
 } as const satisfies CollectionConfig;

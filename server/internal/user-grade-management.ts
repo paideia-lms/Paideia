@@ -14,11 +14,10 @@ import {
 import type { UserGrade } from "../payload-types";
 
 export interface CreateUserGradeArgs {
-	userId: number;
+	enrollmentId: number;
 	gradebookItemId: number;
 	grade?: number | null;
 	feedback?: string;
-	status?: "not_graded" | "graded" | "excused" | "missing";
 	gradedBy?: number;
 	submittedAt?: string;
 }
@@ -26,27 +25,24 @@ export interface CreateUserGradeArgs {
 export interface UpdateUserGradeArgs {
 	grade?: number | null;
 	feedback?: string;
-	status?: "not_graded" | "graded" | "excused" | "missing";
 	gradedBy?: number;
 	submittedAt?: string;
 }
 
 export interface SearchUserGradesArgs {
-	userId?: number;
+	enrollmentId?: number;
 	gradebookItemId?: number;
-	status?: "not_graded" | "graded" | "excused" | "missing";
 	gradedBy?: number;
 	limit?: number;
 	page?: number;
 }
 
 export interface BulkGradeUpdateArgs {
-	userId: number;
+	enrollmentId: number;
 	grades: Array<{
 		gradebookItemId: number;
 		grade?: number | null;
 		feedback?: string;
-		status?: "not_graded" | "graded" | "excused" | "missing";
 		submittedAt?: string;
 	}>;
 	gradedBy: number;
@@ -58,14 +54,24 @@ export interface BulkGradeUpdateArgs {
 export const tryCreateUserGrade = Result.wrap(
 	async (payload: Payload, request: Request, args: CreateUserGradeArgs) => {
 		const {
-			userId,
+			enrollmentId,
 			gradebookItemId,
 			grade,
 			feedback,
-			status = "not_graded",
 			gradedBy,
 			submittedAt,
 		} = args;
+
+		// Check if enrollment exists
+		const enrollment = await payload.findByID({
+			collection: "enrollments",
+			id: enrollmentId,
+			req: request,
+		});
+
+		if (!enrollment) {
+			throw new Error(`Enrollment with ID ${enrollmentId} not found`);
+		}
 
 		// Check if gradebook item exists
 		const gradebookItem = await payload.findByID({
@@ -89,25 +95,14 @@ export const tryCreateUserGrade = Result.wrap(
 			}
 		}
 
-		// Check if user exists
-		const user = await payload.findByID({
-			collection: "users",
-			id: userId,
-			req: request,
-		});
-
-		if (!user) {
-			throw new Error(`User with ID ${userId} not found`);
-		}
-
-		// Check if grade already exists for this user and item
+		// Check if grade already exists for this enrollment and item
 		const existingGrade = await payload.find({
 			collection: UserGrades.slug,
 			where: {
 				and: [
 					{
-						user: {
-							equals: userId,
+						enrollment: {
+							equals: enrollmentId,
 						},
 					},
 					{
@@ -123,7 +118,7 @@ export const tryCreateUserGrade = Result.wrap(
 
 		if (existingGrade.docs.length > 0) {
 			throw new Error(
-				`Grade already exists for user ${userId} and item ${gradebookItemId}`,
+				`Grade already exists for enrollment ${enrollmentId} and item ${gradebookItemId}`,
 			);
 		}
 
@@ -138,13 +133,12 @@ export const tryCreateUserGrade = Result.wrap(
 			const newGrade = await payload.create({
 				collection: UserGrades.slug,
 				data: {
-					user: userId,
+					enrollment: enrollmentId,
 					gradebookItem: gradebookItemId,
 					grade,
 					feedback,
-					status,
-					gradedBy: gradedBy || (status === "graded" ? userId : undefined),
-					gradedAt: status === "graded" ? now : undefined,
+					gradedBy,
+					gradedAt: grade !== null && grade !== undefined ? now : undefined,
 					submittedAt,
 				},
 				req: { ...request, transactionID },
@@ -157,9 +151,9 @@ export const tryCreateUserGrade = Result.wrap(
 			// type narrowing
 			////////////////////////////////////////////////////
 
-			const gradeUser = newGrade.user;
+			const gradeEnrollment = newGrade.enrollment;
 			assertZod(
-				gradeUser,
+				gradeEnrollment,
 				z.object({
 					id: z.number(),
 				}),
@@ -185,7 +179,7 @@ export const tryCreateUserGrade = Result.wrap(
 
 			const result = {
 				...newGrade,
-				user: gradeUser,
+				enrollment: gradeEnrollment,
 				gradebookItem: gradeItem,
 				gradedBy: gradeGradedBy,
 			};
@@ -256,8 +250,8 @@ export const tryUpdateUserGrade = Result.wrap(
 		const now = new Date().toISOString();
 		const updateData: Record<string, unknown> = { ...args };
 
-		// Set gradedAt if status is being changed to 'graded'
-		if (args.status === "graded" && existingGrade.status !== "graded") {
+		// Set gradedAt if grade is being set
+		if (args.grade !== undefined && args.grade !== null) {
 			updateData.gradedAt = now;
 		}
 
@@ -305,17 +299,17 @@ export const tryFindUserGradeById = Result.wrap(
 );
 
 /**
- * Finds a user grade by user and gradebook item
+ * Finds a user grade by enrollment and gradebook item
  */
-export const tryFindUserGradeByUserAndItem = Result.wrap(
-	async (payload: Payload, userId: number, gradebookItemId: number) => {
+export const tryFindUserGradeByEnrollmentAndItem = Result.wrap(
+	async (payload: Payload, enrollmentId: number, gradebookItemId: number) => {
 		const grades = await payload.find({
 			collection: UserGrades.slug,
 			where: {
 				and: [
 					{
-						user: {
-							equals: userId,
+						enrollment: {
+							equals: enrollmentId,
 						},
 					},
 					{
@@ -330,7 +324,7 @@ export const tryFindUserGradeByUserAndItem = Result.wrap(
 
 		if (grades.docs.length === 0) {
 			throw new UserGradeNotFoundError(
-				`Grade not found for user ${userId} and item ${gradebookItemId}`,
+				`Grade not found for enrollment ${enrollmentId} and item ${gradebookItemId}`,
 			);
 		}
 
@@ -338,7 +332,7 @@ export const tryFindUserGradeByUserAndItem = Result.wrap(
 	},
 	(error) => {
 		transformError(error) ??
-			new UnknownError("Failed to find user grade by user and item", {
+			new UnknownError("Failed to find user grade by enrollment and item", {
 				cause: error,
 			});
 	},
@@ -364,10 +358,10 @@ export const tryDeleteUserGrade = Result.wrap(
 );
 
 /**
- * Gets all grades for a specific user in a gradebook
+ * Gets all grades for a specific enrollment in a gradebook
  */
 export const tryGetUserGradesForGradebook = Result.wrap(
-	async (payload: Payload, userId: number, gradebookId: number) => {
+	async (payload: Payload, enrollmentId: number, gradebookId: number) => {
 		// First get all items in the gradebook
 		const items = await payload.find({
 			collection: "gradebook-items",
@@ -381,14 +375,14 @@ export const tryGetUserGradesForGradebook = Result.wrap(
 
 		const itemIds = items.docs.map((item) => item.id);
 
-		// Then get all grades for this user and these items
+		// Then get all grades for this enrollment and these items
 		const grades = await payload.find({
 			collection: UserGrades.slug,
 			where: {
 				and: [
 					{
-						user: {
-							equals: userId,
+						enrollment: {
+							equals: enrollmentId,
 						},
 					},
 					{
@@ -441,7 +435,7 @@ export const tryGetGradesForItem = Result.wrap(
  */
 export const tryBulkUpdateUserGrades = Result.wrap(
 	async (payload: Payload, request: Request, args: BulkGradeUpdateArgs) => {
-		const { userId, grades, gradedBy } = args;
+		const { enrollmentId, grades, gradedBy } = args;
 
 		const transactionID = await payload.db.beginTransaction();
 
@@ -460,8 +454,8 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 					where: {
 						and: [
 							{
-								user: {
-									equals: userId,
+								enrollment: {
+									equals: enrollmentId,
 								},
 							},
 							{
@@ -483,7 +477,10 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 						data: {
 							...gradeData,
 							gradedBy,
-							gradedAt: gradeData.status === "graded" ? now : undefined,
+							gradedAt:
+								gradeData.grade !== null && gradeData.grade !== undefined
+									? now
+									: undefined,
 						},
 						req: { ...request, transactionID },
 					});
@@ -493,13 +490,15 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 					const newGrade = await payload.create({
 						collection: UserGrades.slug,
 						data: {
-							user: userId,
+							enrollment: enrollmentId,
 							gradebookItem: gradeData.gradebookItemId,
 							grade: gradeData.grade,
 							feedback: gradeData.feedback,
-							status: gradeData.status || "not_graded",
 							gradedBy,
-							gradedAt: gradeData.status === "graded" ? now : undefined,
+							gradedAt:
+								gradeData.grade !== null && gradeData.grade !== undefined
+									? now
+									: undefined,
 							submittedAt: gradeData.submittedAt,
 						},
 						req: { ...request, transactionID },
@@ -529,11 +528,11 @@ export const tryBulkUpdateUserGrades = Result.wrap(
  * Calculates final grade for a user in a gradebook
  */
 export const tryCalculateUserFinalGrade = Result.wrap(
-	async (payload: Payload, userId: number, gradebookId: number) => {
-		// Get all grades for the user in this gradebook
+	async (payload: Payload, enrollmentId: number, gradebookId: number) => {
+		// Get all grades for the enrollment in this gradebook
 		const grades = await tryGetUserGradesForGradebook(
 			payload,
-			userId,
+			enrollmentId,
 			gradebookId,
 		);
 
@@ -557,12 +556,7 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 						})
 					: grade.gradebookItem;
 
-			if (
-				!gradebookItem ||
-				grade.status !== "graded" ||
-				grade.grade === null ||
-				grade.grade === undefined
-			) {
+			if (!gradebookItem || grade.grade === null || grade.grade === undefined) {
 				continue;
 			}
 
@@ -581,7 +575,7 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 			finalGrade: Math.round(finalGrade * 100) / 100, // Round to 2 decimal places
 			totalWeight,
 			gradedItems: userGrades.filter(
-				(g) => g.status === "graded" && g.grade !== null,
+				(g) => g.grade !== null && g.grade !== undefined,
 			).length,
 		};
 	},

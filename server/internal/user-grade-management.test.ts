@@ -4,6 +4,7 @@ import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCourse } from "./course-management";
+import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import { tryFindGradebookByCourseId } from "./gradebook-management";
@@ -12,8 +13,8 @@ import {
 	tryCalculateUserFinalGrade,
 	tryCreateUserGrade,
 	tryDeleteUserGrade,
+	tryFindUserGradeByEnrollmentAndItem,
 	tryFindUserGradeById,
-	tryFindUserGradeByUserAndItem,
 	tryGetGradesForItem,
 	tryGetUserGradesForGradebook,
 	tryUpdateUserGrade,
@@ -27,6 +28,7 @@ describe("User Grade Management", () => {
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let student: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
+	let testEnrollment: TryResultValue<typeof tryCreateEnrollment>;
 	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testItem: TryResultValue<typeof tryCreateGradebookItem>;
@@ -99,6 +101,20 @@ describe("User Grade Management", () => {
 		}
 
 		testCourse = courseResult.value;
+
+		// Create enrollment for student in the course
+		const enrollmentResult = await tryCreateEnrollment(payload, {
+			user: student.id,
+			course: testCourse.id,
+			role: "student",
+			status: "active",
+		});
+
+		expect(enrollmentResult.ok).toBe(true);
+		if (!enrollmentResult.ok) {
+			throw new Error("Failed to create test enrollment");
+		}
+		testEnrollment = enrollmentResult.value;
 
 		// Get the gradebook created by the course
 		const gradebookResult = await tryFindGradebookByCourseId(
@@ -180,11 +196,10 @@ describe("User Grade Management", () => {
 
 	it("should create a user grade", async () => {
 		const result = await tryCreateUserGrade(payload, {} as Request, {
-			userId: student.id,
+			enrollmentId: testEnrollment.id,
 			gradebookItemId: testItem.id,
 			grade: 85,
 			feedback: "Good work!",
-			status: "graded",
 			gradedBy: instructor.id,
 		});
 
@@ -192,17 +207,15 @@ describe("User Grade Management", () => {
 		if (result.ok) {
 			expect(result.value.grade).toBe(85);
 			expect(result.value.feedback).toBe("Good work!");
-			expect(result.value.status).toBe("graded");
 			testGrade = result.value;
 		}
 	});
 
-	it("should not create duplicate grade for same user and item", async () => {
+	it("should not create duplicate grade for same enrollment and item", async () => {
 		const result = await tryCreateUserGrade(payload, {} as Request, {
-			userId: student.id,
+			enrollmentId: testEnrollment.id,
 			gradebookItemId: testItem.id,
 			grade: 90,
-			status: "graded",
 		});
 
 		expect(result.ok).toBe(false);
@@ -210,10 +223,9 @@ describe("User Grade Management", () => {
 
 	it("should not create grade with invalid value", async () => {
 		const result = await tryCreateUserGrade(payload, {} as Request, {
-			userId: student.id,
+			enrollmentId: testEnrollment.id,
 			gradebookItemId: testItem2.id,
 			grade: 150, // Invalid: > maxGrade (50)
-			status: "graded",
 		});
 
 		expect(result.ok).toBe(false);
@@ -229,10 +241,10 @@ describe("User Grade Management", () => {
 		}
 	});
 
-	it("should find grade by user and item", async () => {
-		const result = await tryFindUserGradeByUserAndItem(
+	it("should find grade by enrollment and item", async () => {
+		const result = await tryFindUserGradeByEnrollmentAndItem(
 			payload,
-			student.id,
+			testEnrollment.id,
 			testItem.id,
 		);
 
@@ -263,7 +275,7 @@ describe("User Grade Management", () => {
 	it("should get user grades for gradebook", async () => {
 		const result = await tryGetUserGradesForGradebook(
 			payload,
-			student.id,
+			testEnrollment.id,
 			testGradebook.id,
 		);
 
@@ -286,13 +298,12 @@ describe("User Grade Management", () => {
 
 	it("should bulk update user grades", async () => {
 		const result = await tryBulkUpdateUserGrades(payload, {} as Request, {
-			userId: student.id,
+			enrollmentId: testEnrollment.id,
 			grades: [
 				{
 					gradebookItemId: testItem2.id,
 					grade: 45,
 					feedback: "Good quiz performance",
-					status: "graded",
 				},
 			],
 			gradedBy: instructor.id,
@@ -308,7 +319,7 @@ describe("User Grade Management", () => {
 	it("should calculate user final grade", async () => {
 		const result = await tryCalculateUserFinalGrade(
 			payload,
-			student.id,
+			testEnrollment.id,
 			testGradebook.id,
 		);
 

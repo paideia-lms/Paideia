@@ -511,11 +511,14 @@ export interface GradebookItem {
  */
 export interface UserGrade {
   id: number;
-  user: number | User;
+  enrollment: number | Enrollment;
+  user?: string | null;
+  userEmail?: string | null;
+  course?: string | null;
+  courseTitle?: string | null;
   gradebookItem: number | GradebookItem;
   grade?: number | null;
   feedback?: string | null;
-  status: 'not_graded' | 'graded' | 'excused' | 'missing';
   gradedBy?: (number | null) | User;
   gradedAt?: string | null;
   submittedAt?: string | null;
@@ -950,11 +953,14 @@ export interface GradebookItemsSelect<T extends boolean = true> {
  * via the `definition` "user-grades_select".
  */
 export interface UserGradesSelect<T extends boolean = true> {
+  enrollment?: T;
   user?: T;
+  userEmail?: T;
+  course?: T;
+  courseTitle?: T;
   gradebookItem?: T;
   grade?: T;
   feedback?: T;
-  status?: T;
   gradedBy?: T;
   gradedAt?: T;
   submittedAt?: T;

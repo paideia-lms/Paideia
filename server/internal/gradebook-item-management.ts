@@ -12,7 +12,7 @@ import {
 	TransactionIdNotFoundError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import type { GradebookItem } from "../payload-types";
+import type { Enrollment, GradebookItem, UserGrade } from "../payload-types";
 
 export interface CreateGradebookItemArgs {
 	gradebookId: number;
@@ -459,28 +459,58 @@ export const tryReorderItems = Result.wrap(
 );
 
 /**
- * Gets items with their grades for a specific user
+ * Gets items with their grades for a specific enrollment
  */
 export const tryGetItemsWithUserGrades = Result.wrap(
-	async (payload: Payload, gradebookId: number, userId: number) => {
-		const items = await payload.find({
-			collection: GradebookItems.slug,
-			where: {
-				gradebook: {
-					equals: gradebookId,
+	async (payload: Payload, gradebookId: number, enrollmentId: number) => {
+		const items = await payload
+			.find({
+				collection: GradebookItems.slug,
+				where: {
+					gradebook: {
+						equals: gradebookId,
+					},
 				},
-			},
-			depth: 2, // Get user grades
-			limit: 999999,
-			sort: "sortOrder",
-		});
+				depth: 2, // Get user grades
+				limit: 999999,
+				pagination: false,
+				sort: "sortOrder",
+			})
+			.then((items) => {
+				////////////////////////////////////////////////////
+				// type narrowing
+				////////////////////////////////////////////////////
 
-		// Filter items to only include those with grades for the specific user
-		const itemsWithGrades = items.docs.filter((item) => {
-			const gradebookItem = item as GradebookItem;
-			return gradebookItem.userGrades?.docs?.some((grade) => {
-				const userGrade = typeof grade === "number" ? grade : grade;
-				return typeof userGrade === "object" && userGrade.user === userId;
+				return items.docs.map((item) => {
+					const userGrades = item.userGrades?.docs;
+					// user grade should be object
+					assertZod(
+						userGrades,
+						z.array(
+							z.object({
+								id: z.number(),
+								enrollment: z.object({
+									id: z.number(),
+								}),
+							}),
+						),
+					);
+
+					const result = {
+						...item,
+						userGrades: userGrades as (Omit<UserGrade, "enrollment"> & {
+							enrollment: Enrollment;
+						})[],
+					};
+					return result;
+				});
+			});
+
+		// Filter items to only include those with grades for the specific enrollment
+		const itemsWithGrades = items.filter((item) => {
+			const gradebookItem = item;
+			return gradebookItem.userGrades?.some((grade) => {
+				return grade.enrollment?.id === enrollmentId;
 			});
 		});
 
