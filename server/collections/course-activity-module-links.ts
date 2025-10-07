@@ -1,0 +1,48 @@
+import type { CollectionConfig } from "payload";
+
+/**
+ * we need a new collection rather than just a relationship field on the course and activity module
+ */
+export const CourseActivityModuleLinks = {
+	slug: "course-activity-module-links",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "course",
+			type: "relationship",
+			relationTo: "courses",
+			label: "Course",
+
+			required: true,
+		},
+		{
+			name: "courseName",
+			type: "text",
+			virtual: `course.title`,
+		},
+		{
+			name: "courseSlug",
+			type: "text",
+			virtual: `course.slug`,
+		},
+		{
+			name: "activityModule",
+			type: "relationship",
+			relationTo: "activity-modules",
+			label: "Activity Module",
+
+			required: true,
+		},
+		{
+			name: "activityModuleName",
+			type: "text",
+			hasMany: true,
+			virtual: `activityModule.title`,
+		},
+		{
+			name: "activityModuleType",
+			type: "text",
+			virtual: `activityModule.type`,
+		},
+	],
+} as const satisfies CollectionConfig;

@@ -1,5 +1,7 @@
 import type { Payload } from "payload";
-import { UserGrades } from "server/payload.config";
+import { GradebookCategories } from "server/collections/gradebook-categories";
+import { UserGrades } from "server/collections/user-grades";
+import { Users } from "server/collections/users";
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -16,17 +18,44 @@ import type { UserGrade } from "../payload-types";
 export interface CreateUserGradeArgs {
 	enrollmentId: number;
 	gradebookItemId: number;
-	grade?: number | null;
+	baseGrade?: number | null;
+	baseGradeSource?: "submission" | "manual";
+	submission?: number;
+	submissionType?: "assignment" | "quiz" | "discussion" | "manual";
 	feedback?: string;
 	gradedBy?: number;
 	submittedAt?: string;
 }
 
 export interface UpdateUserGradeArgs {
-	grade?: number | null;
+	baseGrade?: number | null;
 	feedback?: string;
 	gradedBy?: number;
 	submittedAt?: string;
+	// Override fields
+	isOverridden?: boolean;
+	overrideGrade?: number;
+	overrideReason?: string;
+	overriddenBy?: number;
+}
+
+export interface AddAdjustmentArgs {
+	gradeId: number;
+	type:
+		| "bonus"
+		| "penalty"
+		| "late_deduction"
+		| "participation"
+		| "curve"
+		| "other";
+	points: number;
+	reason: string;
+	appliedBy: number;
+}
+
+export interface RemoveAdjustmentArgs {
+	gradeId: number;
+	adjustmentId: string;
 }
 
 export interface SearchUserGradesArgs {
@@ -41,11 +70,63 @@ export interface BulkGradeUpdateArgs {
 	enrollmentId: number;
 	grades: Array<{
 		gradebookItemId: number;
-		grade?: number | null;
+		baseGrade?: number | null;
 		feedback?: string;
 		submittedAt?: string;
 	}>;
 	gradedBy: number;
+}
+
+export interface UserGradeItem {
+	item_id: number;
+	item_name: string;
+	item_type:
+		| "manual_item"
+		| "page"
+		| "whiteboard"
+		| "assignment"
+		| "quiz"
+		| "discussion";
+	category_id?: number | null;
+	category_name?: string | null;
+	weight: number;
+	max_grade: number;
+	min_grade: number;
+	base_grade?: number | null;
+	override_grade?: number | null;
+	is_overridden: boolean;
+	feedback?: string | null;
+	graded_at?: string | null;
+	submitted_at?: string | null;
+	status: "draft" | "graded" | "returned";
+	adjustments: Array<{
+		points: number;
+		reason: string;
+		is_active: boolean;
+	}>;
+}
+
+export interface UserGradeEnrollment {
+	enrollment_id: number;
+	user_id: number;
+	user_name: string;
+	user_email: string;
+	final_grade?: number | null;
+	total_weight: number;
+	graded_items: number;
+	items: UserGradeItem[];
+}
+
+export interface UserGradesJsonRepresentation {
+	course_id: number;
+	gradebook_id: number;
+	enrollments: UserGradeEnrollment[];
+}
+
+export interface SingleUserGradesJsonRepresentation {
+	course_id: number;
+	gradebook_id: number;
+	enrollment: UserGradeEnrollment;
 }
 
 /**
@@ -56,7 +137,10 @@ export const tryCreateUserGrade = Result.wrap(
 		const {
 			enrollmentId,
 			gradebookItemId,
-			grade,
+			baseGrade,
+			baseGradeSource = "manual",
+			submission,
+			submissionType = "manual",
 			feedback,
 			gradedBy,
 			submittedAt,
@@ -86,11 +170,14 @@ export const tryCreateUserGrade = Result.wrap(
 			);
 		}
 
-		// Validate grade value if provided
-		if (grade !== null && grade !== undefined) {
-			if (grade < gradebookItem.minGrade || grade > gradebookItem.maxGrade) {
+		// Validate base grade value if provided
+		if (baseGrade !== null && baseGrade !== undefined) {
+			if (
+				baseGrade < gradebookItem.minGrade ||
+				baseGrade > gradebookItem.maxGrade
+			) {
 				throw new InvalidGradeValueError(
-					`Grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					`Base grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
 				);
 			}
 		}
@@ -135,11 +222,27 @@ export const tryCreateUserGrade = Result.wrap(
 				data: {
 					enrollment: enrollmentId,
 					gradebookItem: gradebookItemId,
-					grade,
+					baseGrade,
+					baseGradeSource,
+					submission: submission
+						? {
+								relationTo:
+									submissionType === "assignment"
+										? "assignment-submissions"
+										: submissionType === "quiz"
+											? "quiz-submissions"
+											: "discussion-submissions",
+								value: submission,
+							}
+						: undefined,
+					submissionType,
 					feedback,
 					gradedBy,
-					gradedAt: grade !== null && grade !== undefined ? now : undefined,
+					gradedAt:
+						baseGrade !== null && baseGrade !== undefined ? now : undefined,
 					submittedAt,
+					status:
+						baseGrade !== null && baseGrade !== undefined ? "graded" : "draft",
 				},
 				req: { ...request, transactionID },
 			});
@@ -235,14 +338,14 @@ export const tryUpdateUserGrade = Result.wrap(
 			);
 		}
 
-		// Validate grade value if provided
-		if (args.grade !== undefined && args.grade !== null) {
+		// Validate base grade value if provided
+		if (args.baseGrade !== undefined && args.baseGrade !== null) {
 			if (
-				args.grade < gradebookItem.minGrade ||
-				args.grade > gradebookItem.maxGrade
+				args.baseGrade < gradebookItem.minGrade ||
+				args.baseGrade > gradebookItem.maxGrade
 			) {
 				throw new InvalidGradeValueError(
-					`Grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					`Base grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
 				);
 			}
 		}
@@ -250,9 +353,10 @@ export const tryUpdateUserGrade = Result.wrap(
 		const now = new Date().toISOString();
 		const updateData: Record<string, unknown> = { ...args };
 
-		// Set gradedAt if grade is being set
-		if (args.grade !== undefined && args.grade !== null) {
+		// Set gradedAt if base grade is being set
+		if (args.baseGrade !== undefined && args.baseGrade !== null) {
 			updateData.gradedAt = now;
+			updateData.status = "graded";
 		}
 
 		const updatedGrade = await payload.update({
@@ -475,12 +579,20 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 						collection: UserGrades.slug,
 						id: existingGrade.docs[0].id,
 						data: {
-							...gradeData,
+							baseGrade: gradeData.baseGrade,
+							feedback: gradeData.feedback,
 							gradedBy,
 							gradedAt:
-								gradeData.grade !== null && gradeData.grade !== undefined
+								gradeData.baseGrade !== null &&
+								gradeData.baseGrade !== undefined
 									? now
 									: undefined,
+							status:
+								gradeData.baseGrade !== null &&
+								gradeData.baseGrade !== undefined
+									? "graded"
+									: "draft",
+							submittedAt: gradeData.submittedAt,
 						},
 						req: { ...request, transactionID },
 					});
@@ -492,13 +604,21 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 						data: {
 							enrollment: enrollmentId,
 							gradebookItem: gradeData.gradebookItemId,
-							grade: gradeData.grade,
+							baseGrade: gradeData.baseGrade,
+							baseGradeSource: "manual",
+							submissionType: "manual",
 							feedback: gradeData.feedback,
 							gradedBy,
 							gradedAt:
-								gradeData.grade !== null && gradeData.grade !== undefined
+								gradeData.baseGrade !== null &&
+								gradeData.baseGrade !== undefined
 									? now
 									: undefined,
+							status:
+								gradeData.baseGrade !== null &&
+								gradeData.baseGrade !== undefined
+									? "graded"
+									: "draft",
 							submittedAt: gradeData.submittedAt,
 						},
 						req: { ...request, transactionID },
@@ -556,13 +676,57 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 						})
 					: grade.gradebookItem;
 
-			if (!gradebookItem || grade.grade === null || grade.grade === undefined) {
+			if (!gradebookItem) {
 				continue;
 			}
 
+			// Calculate final grade: use override if set, otherwise use base grade + adjustments
+			let finalGrade = grade.baseGrade || 0;
+
+			// Add adjustments if any
+			if (grade.adjustments && grade.adjustments.length > 0) {
+				const activeAdjustments = grade.adjustments
+					.filter((adj) => adj.isActive)
+					.reduce((sum, adj) => sum + (adj.points || 0), 0);
+				finalGrade += activeAdjustments;
+			}
+
+			// Use override if set
+			if (
+				grade.isOverridden &&
+				grade.overrideGrade !== null &&
+				grade.overrideGrade !== undefined
+			) {
+				finalGrade = grade.overrideGrade;
+			}
+
+			if (finalGrade === null || finalGrade === undefined) {
+				continue;
+			}
+
+			// Calculate effective weight: item weight * category weight (if item is in category)
+			let effectiveWeight = gradebookItem.weight;
+
+			if (gradebookItem.category) {
+				const categoryId =
+					typeof gradebookItem.category === "number"
+						? gradebookItem.category
+						: gradebookItem.category.id;
+
+				const category = await payload.findByID({
+					collection: "gradebook-categories",
+					id: categoryId,
+				});
+
+				if (category?.weight) {
+					// Item weight is a percentage of the category weight
+					effectiveWeight = (gradebookItem.weight / 100) * category.weight;
+				}
+			}
+
 			hasGradedItems = true;
-			totalWeight += gradebookItem.weight;
-			weightedSum += grade.grade * gradebookItem.weight;
+			totalWeight += effectiveWeight;
+			weightedSum += finalGrade * effectiveWeight;
 		}
 
 		if (!hasGradedItems || totalWeight === 0) {
@@ -575,13 +739,518 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 			finalGrade: Math.round(finalGrade * 100) / 100, // Round to 2 decimal places
 			totalWeight,
 			gradedItems: userGrades.filter(
-				(g) => g.grade !== null && g.grade !== undefined,
+				(g) => g.baseGrade !== null && g.baseGrade !== undefined,
 			).length,
 		};
 	},
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to calculate user final grade", {
+			cause: error,
+		}),
+);
+
+/**
+ * Adds an adjustment to a user grade
+ */
+export const tryAddAdjustment = Result.wrap(
+	async (payload: Payload, request: Request, args: AddAdjustmentArgs) => {
+		const { gradeId, type, points, reason, appliedBy } = args;
+
+		// Check if grade exists
+		const existingGrade = await payload.findByID({
+			collection: UserGrades.slug,
+			id: gradeId,
+			req: request,
+		});
+
+		if (!existingGrade) {
+			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
+		}
+
+		// Create new adjustment
+		const newAdjustment = {
+			type,
+			points,
+			reason,
+			appliedBy,
+			appliedAt: new Date().toISOString(),
+			isActive: true,
+			id: `adj_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+		};
+
+		// Add adjustment to existing adjustments
+		const currentAdjustments = existingGrade.adjustments || [];
+		const updatedAdjustments = [...currentAdjustments, newAdjustment];
+
+		const updatedGrade = await payload.update({
+			collection: UserGrades.slug,
+			id: gradeId,
+			data: {
+				adjustments: updatedAdjustments,
+			},
+			req: request,
+		});
+
+		return updatedGrade as UserGrade;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to add adjustment", {
+			cause: error,
+		}),
+);
+
+/**
+ * Removes an adjustment from a user grade
+ */
+export const tryRemoveAdjustment = Result.wrap(
+	async (payload: Payload, request: Request, args: RemoveAdjustmentArgs) => {
+		const { gradeId, adjustmentId } = args;
+
+		// Check if grade exists
+		const existingGrade = await payload.findByID({
+			collection: UserGrades.slug,
+			id: gradeId,
+			req: request,
+		});
+
+		if (!existingGrade) {
+			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
+		}
+
+		// Remove adjustment
+		const currentAdjustments = existingGrade.adjustments || [];
+		const updatedAdjustments = currentAdjustments.filter(
+			(adj) => adj.id !== adjustmentId,
+		);
+
+		const updatedGrade = await payload.update({
+			collection: UserGrades.slug,
+			id: gradeId,
+			data: {
+				adjustments: updatedAdjustments,
+			},
+			req: request,
+		});
+
+		return updatedGrade as UserGrade;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to remove adjustment", {
+			cause: error,
+		}),
+);
+
+/**
+ * Toggles an adjustment's active status
+ */
+export const tryToggleAdjustment = Result.wrap(
+	async (
+		payload: Payload,
+		request: Request,
+		gradeId: number,
+		adjustmentId: string,
+	) => {
+		// Check if grade exists
+		const existingGrade = await payload.findByID({
+			collection: UserGrades.slug,
+			id: gradeId,
+			req: request,
+		});
+
+		if (!existingGrade) {
+			throw new UserGradeNotFoundError(`Grade with ID ${gradeId} not found`);
+		}
+
+		// Toggle adjustment active status
+		const currentAdjustments = existingGrade.adjustments || [];
+		const updatedAdjustments = currentAdjustments.map((adj) => {
+			if (adj.id === adjustmentId) {
+				return { ...adj, isActive: !adj.isActive };
+			}
+			return adj;
+		});
+
+		const updatedGrade = await payload.update({
+			collection: UserGrades.slug,
+			id: gradeId,
+			data: {
+				adjustments: updatedAdjustments,
+			},
+			req: request,
+		});
+
+		return updatedGrade as UserGrade;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to toggle adjustment", {
+			cause: error,
+		}),
+);
+
+/**
+ * Builds a single user's grade representation
+ */
+const buildUserGradeRepresentation = async (
+	payload: Payload,
+	enrollment: {
+		id: number;
+		user:
+			| number
+			| {
+					id: number;
+					firstName?: string | null;
+					lastName?: string | null;
+					email: string;
+			  };
+	},
+	gradebookId: number,
+	gradebookItems: Array<{
+		id: number;
+		name: string;
+		weight: number;
+		maxGrade: number;
+		minGrade: number;
+		category?:
+			| number
+			| { id: number; name: string; weight?: number | null }
+			| null;
+		activityModuleType?: string | string[] | null;
+	}>,
+	gradesByEnrollment: Map<number, UserGrade[]>,
+): Promise<UserGradeEnrollment> => {
+	const enrollmentId = enrollment.id;
+	const user =
+		typeof enrollment.user === "number"
+			? await payload.findByID({ collection: Users.slug, id: enrollment.user })
+			: enrollment.user;
+
+	if (!user) {
+		throw new Error(`User not found for enrollment ${enrollmentId}`);
+	}
+
+	const grades = gradesByEnrollment.get(enrollmentId) || [];
+
+	// Calculate final grade for this enrollment
+	const finalGradeResult = await tryCalculateUserFinalGrade(
+		payload,
+		enrollmentId,
+		gradebookId,
+	);
+
+	const finalGrade = finalGradeResult.ok ? finalGradeResult.value : null;
+
+	// Build items for this enrollment
+	const items: UserGradeItem[] = [];
+
+	for (const item of gradebookItems) {
+		const grade = grades.find((g) => {
+			const gradeItemId =
+				typeof g.gradebookItem === "number"
+					? g.gradebookItem
+					: g.gradebookItem.id;
+			return gradeItemId === item.id;
+		});
+
+		const category =
+			typeof item.category === "number"
+				? await payload.findByID({
+						collection: GradebookCategories.slug,
+						id: item.category,
+					})
+				: item.category;
+
+		// Calculate effective weight
+		let effectiveWeight = item.weight;
+		if (category?.weight) {
+			effectiveWeight = (item.weight / 100) * category.weight;
+		}
+
+		const itemType = Array.isArray(item.activityModuleType)
+			? item.activityModuleType[0]
+			: item.activityModuleType;
+		const validItemType =
+			itemType &&
+			[
+				"manual_item",
+				"page",
+				"whiteboard",
+				"assignment",
+				"quiz",
+				"discussion",
+			].includes(itemType)
+				? (itemType as
+						| "manual_item"
+						| "page"
+						| "whiteboard"
+						| "assignment"
+						| "quiz"
+						| "discussion")
+				: "manual_item";
+
+		items.push({
+			item_id: item.id,
+			item_name: item.name,
+			item_type: validItemType,
+			category_id: category?.id ?? null,
+			category_name: category?.name ?? null,
+			weight: effectiveWeight,
+			max_grade: item.maxGrade,
+			min_grade: item.minGrade,
+			base_grade: grade?.baseGrade ?? null,
+			override_grade: grade?.overrideGrade ?? null,
+			is_overridden: grade?.isOverridden ?? false,
+			feedback: grade?.feedback ?? null,
+			graded_at: grade?.gradedAt ?? null,
+			submitted_at: grade?.submittedAt ?? null,
+			status: grade?.status ?? "draft",
+			adjustments:
+				grade?.adjustments?.map((adj) => ({
+					points: adj.points ?? 0,
+					reason: adj.reason ?? "",
+					is_active: adj.isActive ?? false,
+				})) ?? [],
+		});
+	}
+
+	return {
+		enrollment_id: enrollmentId,
+		user_id: user.id,
+		user_name: `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+		user_email: user.email,
+		final_grade: finalGrade?.finalGrade ?? null,
+		total_weight: finalGrade?.totalWeight ?? 0,
+		graded_items: finalGrade?.gradedItems ?? 0,
+		items,
+	};
+};
+
+/**
+ * Constructs a JSON representation of user grades for a course
+ */
+export const tryGetUserGradesJsonRepresentation = Result.wrap(
+	async (payload: Payload, courseId: number) => {
+		// Get the gradebook for the course
+		const gradebook = await payload.find({
+			collection: "gradebooks",
+			where: {
+				course: {
+					equals: courseId,
+				},
+			},
+			limit: 1,
+		});
+
+		if (gradebook.docs.length === 0) {
+			throw new Error(`No gradebook found for course ${courseId}`);
+		}
+
+		const gradebookId = gradebook.docs[0].id;
+
+		// Get all enrollments for the course
+		const enrollments = await payload.find({
+			collection: "enrollments",
+			where: {
+				course: {
+					equals: courseId,
+				},
+			},
+			depth: 1, // Get user details
+			limit: 999999,
+		});
+
+		// Get all gradebook items for the gradebook
+		const gradebookItems = await payload.find({
+			collection: "gradebook-items",
+			where: {
+				gradebook: {
+					equals: gradebookId,
+				},
+			},
+			depth: 1, // Get category details
+			limit: 999999,
+			sort: "sortOrder",
+		});
+
+		// Get all user grades for this gradebook
+		const userGrades = await payload.find({
+			collection: UserGrades.slug,
+			where: {
+				gradebookItem: {
+					in: gradebookItems.docs.map((item) => item.id),
+				},
+			},
+			depth: 2, // Get enrollment and gradebook item details
+			limit: 999999,
+		});
+
+		// Group grades by enrollment
+		const gradesByEnrollment = new Map<number, UserGrade[]>();
+		for (const grade of userGrades.docs as UserGrade[]) {
+			const enrollmentId =
+				typeof grade.enrollment === "number"
+					? grade.enrollment
+					: grade.enrollment.id;
+
+			if (!gradesByEnrollment.has(enrollmentId)) {
+				gradesByEnrollment.set(enrollmentId, []);
+			}
+			const grades = gradesByEnrollment.get(enrollmentId);
+			if (grades) {
+				grades.push(grade);
+			}
+		}
+
+		// Build the representation
+		const enrollmentRepresentations: UserGradeEnrollment[] = [];
+
+		for (const enrollment of enrollments.docs) {
+			try {
+				const enrollmentRep = await buildUserGradeRepresentation(
+					payload,
+					enrollment,
+					gradebookId,
+					gradebookItems.docs,
+					gradesByEnrollment,
+				);
+				enrollmentRepresentations.push(enrollmentRep);
+			} catch {}
+		}
+
+		const result: UserGradesJsonRepresentation = {
+			course_id: courseId,
+			gradebook_id: gradebookId,
+			enrollments: enrollmentRepresentations,
+		};
+
+		return result;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get user grades JSON representation", {
+			cause: error,
+		}),
+);
+
+/**
+ * Constructs a JSON representation of a single user's grades in a course
+ */
+export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
+	async (payload: Payload, courseId: number, enrollmentId: number) => {
+		// Get the gradebook for the course
+		const gradebook = await payload.find({
+			collection: "gradebooks",
+			where: {
+				course: {
+					equals: courseId,
+				},
+			},
+			limit: 1,
+		});
+
+		if (gradebook.docs.length === 0) {
+			throw new Error(`No gradebook found for course ${courseId}`);
+		}
+
+		const gradebookId = gradebook.docs[0].id;
+
+		// Get the specific enrollment
+		const enrollment = await payload.findByID({
+			collection: "enrollments",
+			id: enrollmentId,
+			depth: 1, // Get user details
+		});
+
+		if (!enrollment) {
+			throw new Error(`Enrollment with ID ${enrollmentId} not found`);
+		}
+
+		// Verify the enrollment belongs to the course
+		const enrollmentCourseId =
+			typeof enrollment.course === "number"
+				? enrollment.course
+				: enrollment.course.id;
+
+		if (enrollmentCourseId !== courseId) {
+			throw new Error(
+				`Enrollment ${enrollmentId} does not belong to course ${courseId}`,
+			);
+		}
+
+		// Get all gradebook items for the gradebook
+		const gradebookItems = await payload.find({
+			collection: "gradebook-items",
+			where: {
+				gradebook: {
+					equals: gradebookId,
+				},
+			},
+			depth: 1, // Get category details
+			limit: 999999,
+			sort: "sortOrder",
+		});
+
+		// Get all user grades for this enrollment
+		const userGrades = await payload.find({
+			collection: UserGrades.slug,
+			where: {
+				and: [
+					{
+						enrollment: {
+							equals: enrollmentId,
+						},
+					},
+					{
+						gradebookItem: {
+							in: gradebookItems.docs.map((item) => item.id),
+						},
+					},
+				],
+			},
+			depth: 2, // Get gradebook item details
+			limit: 999999,
+		});
+
+		// Group grades by enrollment (single enrollment in this case)
+		const gradesByEnrollment = new Map<number, UserGrade[]>();
+		for (const grade of userGrades.docs as UserGrade[]) {
+			const gradeEnrollmentId =
+				typeof grade.enrollment === "number"
+					? grade.enrollment
+					: grade.enrollment.id;
+
+			if (!gradesByEnrollment.has(gradeEnrollmentId)) {
+				gradesByEnrollment.set(gradeEnrollmentId, []);
+			}
+			const grades = gradesByEnrollment.get(gradeEnrollmentId);
+			if (grades) {
+				grades.push(grade);
+			}
+		}
+
+		// Build the single user representation
+		const enrollmentRep = await buildUserGradeRepresentation(
+			payload,
+			enrollment,
+			gradebookId,
+			gradebookItems.docs,
+			gradesByEnrollment,
+		);
+
+		const result: SingleUserGradesJsonRepresentation = {
+			course_id: courseId,
+			gradebook_id: gradebookId,
+			enrollment: enrollmentRep,
+		};
+
+		return result;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get single user grades JSON representation", {
 			cause: error,
 		}),
 );

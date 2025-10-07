@@ -1,11 +1,9 @@
 import type { Payload } from "payload";
-import {
-	CourseActivityModuleLinks,
-	GradebookItems,
-} from "server/payload.config";
+import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
+import { GradebookItems } from "server/collections/gradebook-items";
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
+import z from "zod";
 import {
 	GradebookCategoryNotFoundError,
 	GradebookItemNotFoundError,

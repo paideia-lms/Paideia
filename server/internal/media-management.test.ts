@@ -21,6 +21,7 @@ describe("Media Management", () => {
 		// Refresh environment and database for clean test state
 		try {
 			await $`bun run migrate:fresh --force-accept-warning`;
+			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
@@ -52,6 +53,7 @@ describe("Media Management", () => {
 		// Clean up any test data
 		try {
 			await $`bun run migrate:fresh --force-accept-warning`;
+			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}

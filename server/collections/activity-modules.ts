@@ -1,0 +1,127 @@
+import type { CollectionConfig } from "payload";
+
+// Activity Modules collection - generic container for all learning activities
+export const ActivityModules = {
+	slug: "activity-modules",
+	defaultSort: "-createdAt",
+	fields: [
+		{
+			name: "title",
+			type: "text",
+			required: true,
+		},
+		{
+			name: "description",
+			type: "textarea",
+		},
+		{
+			name: "type",
+			type: "select",
+			options: [
+				// read only
+				{ label: "Page", value: "page" },
+				{ label: "Whiteboard", value: "whiteboard" },
+				// these are the activity with participation
+				// assignments allow user to submit and upload their work
+				{ label: "Assignment", value: "assignment" },
+				// quiz allow user to answer questions and auto grade
+				{ label: "Quiz", value: "quiz" },
+				// discussion allow students to engage in a topic and interact with each other
+				{ label: "Discussion", value: "discussion" },
+			],
+			required: true,
+		},
+		{
+			name: "status",
+			type: "select",
+			options: [
+				{ label: "Draft", value: "draft" },
+				{ label: "Published", value: "published" },
+				{ label: "Archived", value: "archived" },
+			],
+			defaultValue: "draft",
+			required: true,
+		},
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+		},
+		{
+			name: "requirePassword",
+			type: "checkbox",
+			defaultValue: false,
+			label: "Require Password to Access",
+		},
+		{
+			name: "accessPassword",
+			type: "text",
+			label: "Access Password",
+		},
+		// Polymorphic relationship to specific activity collections
+		{
+			name: "assignment",
+			type: "relationship",
+			relationTo: "assignments" as any,
+			label: "Assignment Configuration",
+		},
+		{
+			name: "quiz",
+			type: "relationship",
+			relationTo: "quizzes" as any,
+			label: "Quiz Configuration",
+		},
+		{
+			name: "discussion",
+			type: "relationship",
+			relationTo: "discussions" as any,
+			label: "Discussion Configuration",
+		},
+		// Join fields for submissions
+		{
+			name: "submissions",
+			type: "join",
+			on: "activityModule",
+			collection: "assignment-submissions",
+			label: "Assignment Submissions",
+			hasMany: true,
+		},
+		{
+			name: "quizSubmissions",
+			type: "join",
+			on: "activityModule",
+			collection: "quiz-submissions",
+			label: "Quiz Submissions",
+			hasMany: true,
+		},
+		{
+			name: "discussionSubmissions",
+			type: "join",
+			on: "activityModule",
+			collection: "discussion-submissions",
+			label: "Discussion Submissions",
+			hasMany: true,
+		},
+	],
+	indexes: [
+		{
+			fields: ["createdBy"],
+		},
+		{
+			fields: ["type"],
+		},
+		{
+			fields: ["status"],
+		},
+		{
+			fields: ["assignment"],
+		},
+		{
+			fields: ["quiz"],
+		},
+		{
+			fields: ["discussion"],
+		},
+	],
+} as const satisfies CollectionConfig;

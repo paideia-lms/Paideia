@@ -1,5 +1,5 @@
 import type { Payload, Where } from "payload";
-import { CourseActivityModuleLinks } from "server/payload.config";
+import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";

@@ -16,6 +16,7 @@ describe("First User Check Functions", () => {
 		try {
 			// Run fresh migration to ensure clean database state
 			await $`bun run migrate:fresh --force-accept-warning`;
+			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
@@ -29,6 +30,7 @@ describe("First User Check Functions", () => {
 		// Clean up any test data if needed
 		try {
 			await $`bun run migrate:fresh --force-accept-warning`;
+			await $`bun scripts/clean-s3.ts`;
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
