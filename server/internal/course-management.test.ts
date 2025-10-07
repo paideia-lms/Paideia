@@ -299,8 +299,8 @@ describe("Course Management Functions", () => {
 	});
 
 	describe("tryFindCourseById", () => {
-		test("should find existing course by ID", async () => {
-			const courseArgs: CreateCourseArgs = {
+		test.only("should find existing course by ID", async () => {
+			const courseArgs = {
 				title: "Find By ID Test",
 				description: "Test course for finding by ID",
 				createdBy: instructorId,
@@ -319,7 +319,7 @@ describe("Course Management Functions", () => {
 						},
 					],
 				},
-			};
+			} satisfies CreateCourseArgs;
 
 			const createResult = await tryCreateCourse(
 				payload,

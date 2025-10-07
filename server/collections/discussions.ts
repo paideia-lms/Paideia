@@ -27,38 +27,6 @@ export const Discussions = {
 			label: "Due Date",
 		},
 		{
-			name: "points",
-			type: "number",
-			label: "Participation Points",
-			defaultValue: 10,
-			min: 0,
-		},
-		{
-			name: "gradingType",
-			type: "select",
-			options: [
-				{ label: "Participation", value: "participation" },
-				{ label: "Quality", value: "quality" },
-				{ label: "Quantity", value: "quantity" },
-				{ label: "Manual", value: "manual" },
-			],
-			defaultValue: "participation",
-			label: "Grading Type",
-		},
-		{
-			name: "discussionType",
-			type: "select",
-			options: [
-				{ label: "General Discussion", value: "general" },
-				{ label: "Q&A", value: "qa" },
-				{ label: "Debate", value: "debate" },
-				{ label: "Case Study", value: "case_study" },
-				{ label: "Reflection", value: "reflection" },
-			],
-			defaultValue: "general",
-			label: "Discussion Type",
-		},
-		{
 			name: "requireInitialPost",
 			type: "checkbox",
 			label: "Require Initial Post",
@@ -133,56 +101,6 @@ export const Discussions = {
 			min: 2,
 		},
 		{
-			name: "rubric",
-			type: "array",
-			fields: [
-				{
-					name: "criterion",
-					type: "text",
-					required: true,
-					label: "Criterion",
-				},
-				{
-					name: "description",
-					type: "textarea",
-					label: "Description",
-				},
-				{
-					name: "points",
-					type: "number",
-					required: true,
-					label: "Points",
-					min: 0,
-				},
-				{
-					name: "levels",
-					type: "array",
-					fields: [
-						{
-							name: "level",
-							type: "text",
-							required: true,
-							label: "Level",
-						},
-						{
-							name: "description",
-							type: "textarea",
-							label: "Description",
-						},
-						{
-							name: "points",
-							type: "number",
-							required: true,
-							label: "Points",
-							min: 0,
-						},
-					],
-					label: "Performance Levels",
-				},
-			],
-			label: "Grading Rubric",
-		},
-		{
 			name: "createdBy",
 			type: "relationship",
 			relationTo: "users",
@@ -196,9 +114,6 @@ export const Discussions = {
 		},
 		{
 			fields: ["dueDate"],
-		},
-		{
-			fields: ["discussionType"],
 		},
 	],
 } as const satisfies CollectionConfig;

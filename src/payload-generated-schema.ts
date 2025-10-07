@@ -56,10 +56,6 @@ export const enum_activity_modules_status = pgEnum(
   "enum_activity_modules_status",
   ["draft", "published", "archived"],
 );
-export const enum_assignments_grading_type = pgEnum(
-  "enum_assignments_grading_type",
-  ["manual", "peer_review"],
-);
 export const enum_quizzes_questions_question_type = pgEnum(
   "enum_quizzes_questions_question_type",
   [
@@ -76,14 +72,6 @@ export const enum_quizzes_grading_type = pgEnum("enum_quizzes_grading_type", [
   "automatic",
   "manual",
 ]);
-export const enum_discussions_grading_type = pgEnum(
-  "enum_discussions_grading_type",
-  ["participation", "quality", "quantity", "manual"],
-);
-export const enum_discussions_discussion_type = pgEnum(
-  "enum_discussions_discussion_type",
-  ["general", "qa", "debate", "case_study", "reflection"],
-);
 export const enum_assignment_submissions_status = pgEnum(
   "enum_assignment_submissions_status",
   ["draft", "submitted", "graded", "returned"],
@@ -267,6 +255,27 @@ export const courses = pgTable(
   }),
 );
 
+export const enrollments_groups = pgTable(
+  "enrollments_groups",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    groupPath: varchar("group_path").notNull(),
+  },
+  (columns) => ({
+    _orderIdx: index("enrollments_groups_order_idx").on(columns._order),
+    _parentIDIdx: index("enrollments_groups_parent_id_idx").on(
+      columns._parentID,
+    ),
+    _parentIDFk: foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [enrollments.id],
+      name: "enrollments_groups_parent_id_fk",
+    }).onDelete("cascade"),
+  }),
+);
+
 export const enrollments = pgTable(
   "enrollments",
   {
@@ -415,52 +424,6 @@ export const assignments_allowed_file_types = pgTable(
   }),
 );
 
-export const assignments_rubric_levels = pgTable(
-  "assignments_rubric_levels",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: varchar("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    level: varchar("level").notNull(),
-    description: varchar("description"),
-    points: numeric("points").notNull(),
-  },
-  (columns) => ({
-    _orderIdx: index("assignments_rubric_levels_order_idx").on(columns._order),
-    _parentIDIdx: index("assignments_rubric_levels_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [assignments_rubric.id],
-      name: "assignments_rubric_levels_parent_id_fk",
-    }).onDelete("cascade"),
-  }),
-);
-
-export const assignments_rubric = pgTable(
-  "assignments_rubric",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    criterion: varchar("criterion").notNull(),
-    description: varchar("description"),
-    points: numeric("points").notNull(),
-  },
-  (columns) => ({
-    _orderIdx: index("assignments_rubric_order_idx").on(columns._order),
-    _parentIDIdx: index("assignments_rubric_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [assignments.id],
-      name: "assignments_rubric_parent_id_fk",
-    }).onDelete("cascade"),
-  }),
-);
-
 export const assignments = pgTable(
   "assignments",
   {
@@ -475,9 +438,6 @@ export const assignments = pgTable(
     }),
     maxAttempts: numeric("max_attempts").default("1"),
     allowLateSubmissions: boolean("allow_late_submissions").default(false),
-    points: numeric("points").default("100"),
-    gradingType:
-      enum_assignments_grading_type("grading_type").default("manual"),
     maxFileSize: numeric("max_file_size").default("10"),
     maxFiles: numeric("max_files").default("1"),
     requireTextSubmission: boolean("require_text_submission").default(false),
@@ -648,52 +608,6 @@ export const quizzes = pgTable(
   }),
 );
 
-export const discussions_rubric_levels = pgTable(
-  "discussions_rubric_levels",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: varchar("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    level: varchar("level").notNull(),
-    description: varchar("description"),
-    points: numeric("points").notNull(),
-  },
-  (columns) => ({
-    _orderIdx: index("discussions_rubric_levels_order_idx").on(columns._order),
-    _parentIDIdx: index("discussions_rubric_levels_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [discussions_rubric.id],
-      name: "discussions_rubric_levels_parent_id_fk",
-    }).onDelete("cascade"),
-  }),
-);
-
-export const discussions_rubric = pgTable(
-  "discussions_rubric",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    criterion: varchar("criterion").notNull(),
-    description: varchar("description"),
-    points: numeric("points").notNull(),
-  },
-  (columns) => ({
-    _orderIdx: index("discussions_rubric_order_idx").on(columns._order),
-    _parentIDIdx: index("discussions_rubric_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [discussions.id],
-      name: "discussions_rubric_parent_id_fk",
-    }).onDelete("cascade"),
-  }),
-);
-
 export const discussions = pgTable(
   "discussions",
   {
@@ -706,11 +620,6 @@ export const discussions = pgTable(
       withTimezone: true,
       precision: 3,
     }),
-    points: numeric("points").default("10"),
-    gradingType:
-      enum_discussions_grading_type("grading_type").default("participation"),
-    discussionType:
-      enum_discussions_discussion_type("discussion_type").default("general"),
     requireInitialPost: boolean("require_initial_post").default(true),
     requireReplies: boolean("require_replies").default(true),
     minReplies: numeric("min_replies").default("2"),
@@ -755,7 +664,6 @@ export const discussions = pgTable(
     ),
     createdBy_3_idx: index("createdBy_3_idx").on(columns.createdBy),
     dueDate_2_idx: index("dueDate_2_idx").on(columns.dueDate),
-    discussionType_idx: index("discussionType_idx").on(columns.discussionType),
   }),
 );
 
@@ -2180,18 +2088,34 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
     relationName: "createdBy",
   }),
 }));
-export const relations_enrollments = relations(enrollments, ({ one }) => ({
-  user: one(users, {
-    fields: [enrollments.user],
-    references: [users.id],
-    relationName: "user",
+export const relations_enrollments_groups = relations(
+  enrollments_groups,
+  ({ one }) => ({
+    _parentID: one(enrollments, {
+      fields: [enrollments_groups._parentID],
+      references: [enrollments.id],
+      relationName: "groups",
+    }),
   }),
-  course: one(courses, {
-    fields: [enrollments.course],
-    references: [courses.id],
-    relationName: "course",
+);
+export const relations_enrollments = relations(
+  enrollments,
+  ({ one, many }) => ({
+    user: one(users, {
+      fields: [enrollments.user],
+      references: [users.id],
+      relationName: "user",
+    }),
+    course: one(courses, {
+      fields: [enrollments.course],
+      references: [courses.id],
+      relationName: "course",
+    }),
+    groups: many(enrollments_groups, {
+      relationName: "groups",
+    }),
   }),
-}));
+);
 export const relations_activity_modules = relations(
   activity_modules,
   ({ one }) => ({
@@ -2227,37 +2151,11 @@ export const relations_assignments_allowed_file_types = relations(
     }),
   }),
 );
-export const relations_assignments_rubric_levels = relations(
-  assignments_rubric_levels,
-  ({ one }) => ({
-    _parentID: one(assignments_rubric, {
-      fields: [assignments_rubric_levels._parentID],
-      references: [assignments_rubric.id],
-      relationName: "levels",
-    }),
-  }),
-);
-export const relations_assignments_rubric = relations(
-  assignments_rubric,
-  ({ one, many }) => ({
-    _parentID: one(assignments, {
-      fields: [assignments_rubric._parentID],
-      references: [assignments.id],
-      relationName: "rubric",
-    }),
-    levels: many(assignments_rubric_levels, {
-      relationName: "levels",
-    }),
-  }),
-);
 export const relations_assignments = relations(
   assignments,
   ({ one, many }) => ({
     allowedFileTypes: many(assignments_allowed_file_types, {
       relationName: "allowedFileTypes",
-    }),
-    rubric: many(assignments_rubric, {
-      relationName: "rubric",
     }),
     createdBy: one(users, {
       fields: [assignments.createdBy],
@@ -2312,42 +2210,13 @@ export const relations_quizzes = relations(quizzes, ({ one, many }) => ({
     relationName: "createdBy",
   }),
 }));
-export const relations_discussions_rubric_levels = relations(
-  discussions_rubric_levels,
-  ({ one }) => ({
-    _parentID: one(discussions_rubric, {
-      fields: [discussions_rubric_levels._parentID],
-      references: [discussions_rubric.id],
-      relationName: "levels",
-    }),
+export const relations_discussions = relations(discussions, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [discussions.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
   }),
-);
-export const relations_discussions_rubric = relations(
-  discussions_rubric,
-  ({ one, many }) => ({
-    _parentID: one(discussions, {
-      fields: [discussions_rubric._parentID],
-      references: [discussions.id],
-      relationName: "rubric",
-    }),
-    levels: many(discussions_rubric_levels, {
-      relationName: "levels",
-    }),
-  }),
-);
-export const relations_discussions = relations(
-  discussions,
-  ({ one, many }) => ({
-    rubric: many(discussions_rubric, {
-      relationName: "rubric",
-    }),
-    createdBy: one(users, {
-      fields: [discussions.createdBy],
-      references: [users.id],
-      relationName: "createdBy",
-    }),
-  }),
-);
+}));
 export const relations_course_activity_module_links = relations(
   course_activity_module_links,
   ({ one }) => ({
@@ -2856,11 +2725,8 @@ type DatabaseSchema = {
   enum_enrollments_status: typeof enum_enrollments_status;
   enum_activity_modules_type: typeof enum_activity_modules_type;
   enum_activity_modules_status: typeof enum_activity_modules_status;
-  enum_assignments_grading_type: typeof enum_assignments_grading_type;
   enum_quizzes_questions_question_type: typeof enum_quizzes_questions_question_type;
   enum_quizzes_grading_type: typeof enum_quizzes_grading_type;
-  enum_discussions_grading_type: typeof enum_discussions_grading_type;
-  enum_discussions_discussion_type: typeof enum_discussions_discussion_type;
   enum_assignment_submissions_status: typeof enum_assignment_submissions_status;
   enum_quiz_submissions_answers_question_type: typeof enum_quiz_submissions_answers_question_type;
   enum_quiz_submissions_status: typeof enum_quiz_submissions_status;
@@ -2874,18 +2740,15 @@ type DatabaseSchema = {
   users: typeof users;
   courses_tags: typeof courses_tags;
   courses: typeof courses;
+  enrollments_groups: typeof enrollments_groups;
   enrollments: typeof enrollments;
   activity_modules: typeof activity_modules;
   assignments_allowed_file_types: typeof assignments_allowed_file_types;
-  assignments_rubric_levels: typeof assignments_rubric_levels;
-  assignments_rubric: typeof assignments_rubric;
   assignments: typeof assignments;
   quizzes_questions_options: typeof quizzes_questions_options;
   quizzes_questions_hints: typeof quizzes_questions_hints;
   quizzes_questions: typeof quizzes_questions;
   quizzes: typeof quizzes;
-  discussions_rubric_levels: typeof discussions_rubric_levels;
-  discussions_rubric: typeof discussions_rubric;
   discussions: typeof discussions;
   course_activity_module_links: typeof course_activity_module_links;
   media: typeof media;
@@ -2919,18 +2782,15 @@ type DatabaseSchema = {
   relations_users: typeof relations_users;
   relations_courses_tags: typeof relations_courses_tags;
   relations_courses: typeof relations_courses;
+  relations_enrollments_groups: typeof relations_enrollments_groups;
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;
   relations_assignments_allowed_file_types: typeof relations_assignments_allowed_file_types;
-  relations_assignments_rubric_levels: typeof relations_assignments_rubric_levels;
-  relations_assignments_rubric: typeof relations_assignments_rubric;
   relations_assignments: typeof relations_assignments;
   relations_quizzes_questions_options: typeof relations_quizzes_questions_options;
   relations_quizzes_questions_hints: typeof relations_quizzes_questions_hints;
   relations_quizzes_questions: typeof relations_quizzes_questions;
   relations_quizzes: typeof relations_quizzes;
-  relations_discussions_rubric_levels: typeof relations_discussions_rubric_levels;
-  relations_discussions_rubric: typeof relations_discussions_rubric;
   relations_discussions: typeof relations_discussions;
   relations_course_activity_module_links: typeof relations_course_activity_module_links;
   relations_media: typeof relations_media;

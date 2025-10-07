@@ -65,6 +65,20 @@ export const Enrollments = {
 			name: "completedAt",
 			type: "date",
 		},
+		{
+			name: "groups",
+			type: "array",
+			fields: [
+				{
+					name: "groupPath",
+					type: "text",
+					required: true,
+					label: "Group Path",
+					// e.g., "art", "art/group-1", "econ/group-1/subgroup-1"
+				},
+			],
+			label: "Groups",
+		},
 	],
 	hooks: {
 		beforeOperation: [

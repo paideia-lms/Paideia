@@ -93,6 +93,7 @@ export interface Config {
   collectionsJoins: {
     courses: {
       gradeTable: 'course-grade-tables';
+      enrollments: 'enrollments';
     };
     'activity-modules': {
       submissions: 'assignment-submissions';
@@ -284,6 +285,12 @@ export interface Course {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  enrollments?: {
+    docs?: (number | Enrollment)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  groups?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -321,6 +328,12 @@ export interface Enrollment {
   status: 'active' | 'inactive' | 'completed' | 'dropped';
   enrolledAt?: string | null;
   completedAt?: string | null;
+  groups?:
+    | {
+        groupPath: string;
+        id?: string | null;
+      }[]
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -370,8 +383,6 @@ export interface Assignment {
   dueDate?: string | null;
   maxAttempts?: number | null;
   allowLateSubmissions?: boolean | null;
-  points?: number | null;
-  gradingType?: ('manual' | 'peer_review') | null;
   allowedFileTypes?:
     | {
         extension: string;
@@ -383,22 +394,6 @@ export interface Assignment {
   maxFiles?: number | null;
   requireTextSubmission?: boolean | null;
   requireFileSubmission?: boolean | null;
-  rubric?:
-    | {
-        criterion: string;
-        description?: string | null;
-        points: number;
-        levels?:
-          | {
-              level: string;
-              description?: string | null;
-              points: number;
-              id?: string | null;
-            }[]
-          | null;
-        id?: string | null;
-      }[]
-    | null;
   createdBy: number | User;
   updatedAt: string;
   createdAt: string;
@@ -470,9 +465,6 @@ export interface Discussion {
   description?: string | null;
   instructions?: string | null;
   dueDate?: string | null;
-  points?: number | null;
-  gradingType?: ('participation' | 'quality' | 'quantity' | 'manual') | null;
-  discussionType?: ('general' | 'qa' | 'debate' | 'case_study' | 'reflection') | null;
   requireInitialPost?: boolean | null;
   requireReplies?: boolean | null;
   minReplies?: number | null;
@@ -485,22 +477,6 @@ export interface Discussion {
   anonymousPosting?: boolean | null;
   groupDiscussion?: boolean | null;
   maxGroupSize?: number | null;
-  rubric?:
-    | {
-        criterion: string;
-        description?: string | null;
-        points: number;
-        levels?:
-          | {
-              level: string;
-              description?: string | null;
-              points: number;
-              id?: string | null;
-            }[]
-          | null;
-        id?: string | null;
-      }[]
-    | null;
   createdBy: number | User;
   updatedAt: string;
   createdAt: string;
@@ -983,6 +959,8 @@ export interface CoursesSelect<T extends boolean = true> {
       };
   createdBy?: T;
   gradeTable?: T;
+  enrollments?: T;
+  groups?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1000,6 +978,12 @@ export interface EnrollmentsSelect<T extends boolean = true> {
   status?: T;
   enrolledAt?: T;
   completedAt?: T;
+  groups?:
+    | T
+    | {
+        groupPath?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1035,8 +1019,6 @@ export interface AssignmentsSelect<T extends boolean = true> {
   dueDate?: T;
   maxAttempts?: T;
   allowLateSubmissions?: T;
-  points?: T;
-  gradingType?: T;
   allowedFileTypes?:
     | T
     | {
@@ -1048,22 +1030,6 @@ export interface AssignmentsSelect<T extends boolean = true> {
   maxFiles?: T;
   requireTextSubmission?: T;
   requireFileSubmission?: T;
-  rubric?:
-    | T
-    | {
-        criterion?: T;
-        description?: T;
-        points?: T;
-        levels?:
-          | T
-          | {
-              level?: T;
-              description?: T;
-              points?: T;
-              id?: T;
-            };
-        id?: T;
-      };
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1126,9 +1092,6 @@ export interface DiscussionsSelect<T extends boolean = true> {
   description?: T;
   instructions?: T;
   dueDate?: T;
-  points?: T;
-  gradingType?: T;
-  discussionType?: T;
   requireInitialPost?: T;
   requireReplies?: T;
   minReplies?: T;
@@ -1141,22 +1104,6 @@ export interface DiscussionsSelect<T extends boolean = true> {
   anonymousPosting?: T;
   groupDiscussion?: T;
   maxGroupSize?: T;
-  rubric?:
-    | T
-    | {
-        criterion?: T;
-        description?: T;
-        points?: T;
-        levels?:
-          | T
-          | {
-              level?: T;
-              description?: T;
-              points?: T;
-              id?: T;
-            };
-        id?: T;
-      };
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;

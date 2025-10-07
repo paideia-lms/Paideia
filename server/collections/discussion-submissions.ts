@@ -15,7 +15,7 @@ export const DiscussionSubmissions = {
 		{
 			name: "discussion",
 			type: "relationship",
-			relationTo: "discussions" as any,
+			relationTo: "discussions",
 			required: true,
 			label: "Discussion",
 		},

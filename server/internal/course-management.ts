@@ -8,7 +8,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Course } from "../payload-types";
+import type { Course, Enrollment } from "../payload-types";
 
 export interface CreateCourseArgs {
 	title: string;
@@ -217,9 +217,34 @@ export const tryFindCourseById = Result.wrap(
 			}),
 		);
 
+		const courseEnrollments = course.enrollments?.docs;
+		assertZod(
+			courseEnrollments,
+			z.array(
+				z.object({ groups: z.array(z.object({ groupPath: z.string() })) }),
+			),
+		);
+
+		const enrollments = (courseEnrollments as Enrollment[])?.flatMap(
+			(enrollment) => {
+				// type narrowing
+				const enrollmentGroups = enrollment.groups ?? [];
+				assertZod(
+					enrollmentGroups,
+					z.array(z.object({ groupPath: z.string() })),
+				);
+				return {
+					...enrollment,
+					groups: enrollmentGroups,
+				};
+			},
+		);
+
 		return {
 			...course,
 			createdBy: courseCreatedBy,
+			enrollments: enrollments,
+			groups: enrollments.flatMap((enrollment) => enrollment.groups),
 		};
 	},
 	(error) =>

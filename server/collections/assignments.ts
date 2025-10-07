@@ -40,23 +40,6 @@ export const Assignments = {
 			defaultValue: false,
 		},
 		{
-			name: "points",
-			type: "number",
-			label: "Points",
-			defaultValue: 100,
-			min: 0,
-		},
-		{
-			name: "gradingType",
-			type: "select",
-			options: [
-				{ label: "Manual", value: "manual" },
-				{ label: "Peer Review", value: "peer_review" },
-			],
-			defaultValue: "manual",
-			label: "Grading Type",
-		},
-		{
 			name: "allowedFileTypes",
 			type: "array",
 			fields: [
@@ -100,56 +83,6 @@ export const Assignments = {
 			type: "checkbox",
 			label: "Require File Submission",
 			defaultValue: false,
-		},
-		{
-			name: "rubric",
-			type: "array",
-			fields: [
-				{
-					name: "criterion",
-					type: "text",
-					required: true,
-					label: "Criterion",
-				},
-				{
-					name: "description",
-					type: "textarea",
-					label: "Description",
-				},
-				{
-					name: "points",
-					type: "number",
-					required: true,
-					label: "Points",
-					min: 0,
-				},
-				{
-					name: "levels",
-					type: "array",
-					fields: [
-						{
-							name: "level",
-							type: "text",
-							required: true,
-							label: "Level",
-						},
-						{
-							name: "description",
-							type: "textarea",
-							label: "Description",
-						},
-						{
-							name: "points",
-							type: "number",
-							required: true,
-							label: "Points",
-							min: 0,
-						},
-					],
-					label: "Performance Levels",
-				},
-			],
-			label: "Grading Rubric",
 		},
 		{
 			name: "createdBy",

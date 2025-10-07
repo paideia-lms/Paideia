@@ -10,6 +10,45 @@ import {
 } from "~/utils/error";
 import type { Enrollment } from "../payload-types";
 
+/**
+ * Helper function to expand group paths to include all parent groups
+ * e.g., "art/group-1" becomes ["art", "art/group-1"]
+ */
+const expandGroupPaths = (groupPaths: string[]): string[] => {
+	const expandedPaths = new Set<string>();
+
+	for (const path of groupPaths) {
+		// Add the full path
+		expandedPaths.add(path);
+
+		// Add all parent paths
+		const parts = path.split("/");
+		for (let i = 1; i < parts.length; i++) {
+			const parentPath = parts.slice(0, i).join("/");
+			expandedPaths.add(parentPath);
+		}
+	}
+
+	return Array.from(expandedPaths);
+};
+
+/**
+ * Helper function to check if a group path is a parent of another
+ */
+const isParentGroup = (parentPath: string, childPath: string): boolean => {
+	return childPath.startsWith(parentPath + "/") || childPath === parentPath;
+};
+
+/**
+ * Helper function to get all group paths that contain a specific group
+ */
+const getContainingGroups = (
+	targetGroup: string,
+	allGroups: string[],
+): string[] => {
+	return allGroups.filter((group) => isParentGroup(targetGroup, group));
+};
+
 export interface CreateEnrollmentArgs {
 	user: number; // User ID
 	course: number; // Course ID
@@ -17,6 +56,7 @@ export interface CreateEnrollmentArgs {
 	status?: "active" | "inactive" | "completed" | "dropped";
 	enrolledAt?: string;
 	completedAt?: string;
+	groups?: string[]; // Array of group paths
 }
 
 export interface UpdateEnrollmentArgs {
@@ -24,6 +64,7 @@ export interface UpdateEnrollmentArgs {
 	status?: "active" | "inactive" | "completed" | "dropped";
 	enrolledAt?: string;
 	completedAt?: string;
+	groups?: string[]; // Array of group paths
 }
 
 export interface SearchEnrollmentsArgs {
@@ -31,6 +72,7 @@ export interface SearchEnrollmentsArgs {
 	course?: number;
 	role?: "student" | "teacher" | "ta" | "manager";
 	status?: "active" | "inactive" | "completed" | "dropped";
+	groupPath?: string; // Filter by group path
 	limit?: number;
 	page?: number;
 }
@@ -47,6 +89,7 @@ export const tryCreateEnrollment = Result.wrap(
 			status = "active",
 			enrolledAt,
 			completedAt,
+			groups = [],
 		} = args;
 
 		// Validate required fields
@@ -119,6 +162,9 @@ export const tryCreateEnrollment = Result.wrap(
 				);
 			}
 
+			// Expand group paths to include all parent groups
+			const expandedGroups = expandGroupPaths(groups);
+
 			const newEnrollment = await payload.create({
 				collection: "enrollments",
 				data: {
@@ -128,6 +174,7 @@ export const tryCreateEnrollment = Result.wrap(
 					status,
 					enrolledAt: enrolledAt || new Date().toISOString(),
 					completedAt,
+					groups: expandedGroups.map((groupPath) => ({ groupPath })),
 				},
 				req: { transactionID },
 			});
@@ -174,7 +221,10 @@ export const tryUpdateEnrollment = Result.wrap(
 			const updatedEnrollment = await payload.update({
 				collection: "enrollments",
 				id: enrollmentId,
-				data: args,
+				data: {
+					...args,
+					groups: args.groups?.map((groupPath) => ({ groupPath })),
+				},
 				req: { transactionID },
 			});
 
@@ -224,9 +274,17 @@ export const tryFindEnrollmentById = Result.wrap(
  */
 export const trySearchEnrollments = Result.wrap(
 	async (payload: Payload, args: SearchEnrollmentsArgs = {}) => {
-		const { user, course, role, status, limit = 10, page = 1 } = args;
+		const {
+			user,
+			course,
+			role,
+			status,
+			groupPath,
+			limit = 10,
+			page = 1,
+		} = args;
 
-		const where: Record<string, { equals: number | string }> = {};
+		const where: any = {};
 
 		if (user) {
 			where.user = {
@@ -249,6 +307,12 @@ export const trySearchEnrollments = Result.wrap(
 		if (status) {
 			where.status = {
 				equals: status,
+			};
+		}
+
+		if (groupPath) {
+			where.groups = {
+				contains: groupPath,
 			};
 		}
 
@@ -486,6 +550,216 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to update enrollment status", {
+			cause: error,
+		}),
+);
+
+/**
+ * Adds groups to an enrollment
+ */
+export const tryAddGroupsToEnrollment = Result.wrap(
+	async (payload: Payload, enrollmentId: number, groups: string[]) => {
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
+		}
+
+		if (!groups || groups.length === 0) {
+			throw new InvalidArgumentError("Groups array is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Get current enrollment
+			const enrollment = await payload.findByID({
+				collection: "enrollments",
+				id: enrollmentId,
+				req: { transactionID },
+			});
+
+			if (!enrollment) {
+				throw new EnrollmentNotFoundError(
+					`Enrollment with ID ${enrollmentId} not found`,
+				);
+			}
+
+			// Get current groups
+			const currentGroups = (enrollment.groups || []).map(
+				(g: any) => g.groupPath,
+			);
+
+			// Merge with new groups and expand
+			const allGroups = [...currentGroups, ...groups];
+			const expandedGroups = expandGroupPaths(allGroups);
+
+			// Update enrollment with new groups
+			const updatedEnrollment = await payload.update({
+				collection: "enrollments",
+				id: enrollmentId,
+				data: {
+					groups: expandedGroups.map((groupPath) => ({ groupPath })),
+				},
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return updatedEnrollment;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to add groups to enrollment", {
+			cause: error,
+		}),
+);
+
+/**
+ * Removes groups from an enrollment
+ */
+export const tryRemoveGroupsFromEnrollment = Result.wrap(
+	async (payload: Payload, enrollmentId: number, groups: string[]) => {
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
+		}
+
+		if (!groups || groups.length === 0) {
+			throw new InvalidArgumentError("Groups array is required");
+		}
+
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Get current enrollment
+			const enrollment = await payload.findByID({
+				collection: "enrollments",
+				id: enrollmentId,
+				req: { transactionID },
+			});
+
+			if (!enrollment) {
+				throw new EnrollmentNotFoundError(
+					`Enrollment with ID ${enrollmentId} not found`,
+				);
+			}
+
+			// Get current groups
+			const currentGroups = (enrollment.groups || []).map(
+				(g: any) => g.groupPath,
+			);
+
+			// Remove specified groups and their children
+			const groupsToRemove = new Set<string>();
+			for (const groupToRemove of groups) {
+				groupsToRemove.add(groupToRemove);
+				// Add all child groups
+				currentGroups.forEach((group) => {
+					if (isParentGroup(groupToRemove, group)) {
+						groupsToRemove.add(group);
+					}
+				});
+			}
+
+			const remainingGroups = currentGroups.filter(
+				(group) => !groupsToRemove.has(group),
+			);
+
+			// Update enrollment with remaining groups
+			const updatedEnrollment = await payload.update({
+				collection: "enrollments",
+				id: enrollmentId,
+				data: {
+					groups: remainingGroups.map((groupPath) => ({ groupPath })),
+				},
+				req: { transactionID },
+			});
+
+			// Commit transaction
+			await payload.db.commitTransaction(transactionID);
+
+			return updatedEnrollment;
+		} catch (error) {
+			// Rollback transaction on error
+			await payload.db.rollbackTransaction(transactionID);
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to remove groups from enrollment", {
+			cause: error,
+		}),
+);
+
+/**
+ * Finds enrollments by group path
+ */
+export const tryFindEnrollmentsByGroup = Result.wrap(
+	async (payload: Payload, groupPath: string, limit: number = 10) => {
+		if (!groupPath) {
+			throw new InvalidArgumentError("Group path is required");
+		}
+
+		const enrollments = await payload.find({
+			collection: "enrollments",
+			where: {
+				"groups.groupPath": {
+					equals: groupPath,
+				},
+			},
+			limit,
+			sort: "-createdAt",
+		});
+
+		return enrollments.docs as Enrollment[];
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find enrollments by group", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets all unique group paths from enrollments
+ */
+export const tryGetAllGroupPaths = Result.wrap(
+	async (payload: Payload) => {
+		const enrollments = await payload.find({
+			collection: "enrollments",
+			limit: 1000, // Adjust as needed
+		});
+
+		const allGroupPaths = new Set<string>();
+
+		for (const enrollment of enrollments.docs) {
+			if (enrollment.groups) {
+				for (const group of enrollment.groups) {
+					if (typeof group === "object" && "groupPath" in group) {
+						allGroupPaths.add(group.groupPath);
+					}
+				}
+			}
+		}
+
+		return Array.from(allGroupPaths).sort();
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get all group paths", {
 			cause: error,
 		}),
 );

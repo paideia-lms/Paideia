@@ -104,5 +104,18 @@ export const Courses = {
 			collection: "course-grade-tables",
 			label: "Course Grade Table",
 		},
+		{
+			name: "enrollments",
+			type: "join",
+			on: "course",
+			collection: "enrollments",
+			label: "Enrollments",
+		},
+		{
+			name: "groups",
+			type: "text",
+			label: "Groups",
+			virtual: `enrollments.groups`,
+		},
 	],
 } as const satisfies CollectionConfig;
