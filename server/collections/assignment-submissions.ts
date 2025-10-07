@@ -15,7 +15,7 @@ export const AssignmentSubmissions = {
 		{
 			name: "assignment",
 			type: "relationship",
-			relationTo: "assignments" as any,
+			relationTo: "assignments",
 			required: true,
 			label: "Assignment",
 		},

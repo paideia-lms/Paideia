@@ -15,7 +15,7 @@ export const QuizSubmissions = {
 		{
 			name: "quiz",
 			type: "relationship",
-			relationTo: "quizzes" as any,
+			relationTo: "quizzes",
 			required: true,
 			label: "Quiz",
 		},
