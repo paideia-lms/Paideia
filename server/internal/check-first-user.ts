@@ -14,7 +14,7 @@ export async function checkFirstUser(payload: Payload): Promise<boolean> {
 
 		return users.docs.length === 0;
 	} catch (error) {
-		console.error("Error checking for first user:", error);
+		payload.logger.error("Error checking for first user:", error);
 		throw new Error("Failed to check if first user exists");
 	}
 }
@@ -31,7 +31,7 @@ export async function getUserCount(payload: Payload): Promise<number> {
 
 		return users.docs.length;
 	} catch (error) {
-		console.error("Error getting user count:", error);
+		payload.logger.error("Error getting user count:", error);
 		throw new Error("Failed to get user count");
 	}
 }
@@ -67,7 +67,7 @@ export async function validateFirstUserState(payload: Payload): Promise<{
 			isValid: true,
 		};
 	} catch (error) {
-		console.error("Error validating first user state:", error);
+		payload.logger.error("Error validating first user state:", error);
 		return {
 			needsFirstUser: true, // Assume we need first user if we can't check
 			userCount: 0,

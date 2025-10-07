@@ -1,6 +1,6 @@
 import type { CollectionConfig } from "payload";
 
-// Discussion Submissions collection - student posts and replies in discussions
+// Discussion Submissions collection - threads and replies in discussions
 export const DiscussionSubmissions = {
 	slug: "discussion-submissions",
 	defaultSort: "-createdAt",
@@ -64,27 +64,27 @@ export const DiscussionSubmissions = {
 			label: "Course Title",
 		},
 		{
-			name: "parentPost",
+			name: "parentThread",
 			type: "relationship",
 			relationTo: "discussion-submissions",
-			label: "Parent Post",
+			label: "Parent Thread",
 		},
 		{
 			name: "postType",
 			type: "select",
 			options: [
-				{ label: "Initial Post", value: "initial" },
+				{ label: "Thread", value: "thread" },
 				{ label: "Reply", value: "reply" },
 				{ label: "Comment", value: "comment" },
 			],
-			defaultValue: "initial",
+			defaultValue: "thread",
 			required: true,
 			label: "Post Type",
 		},
 		{
 			name: "title",
 			type: "text",
-			label: "Post Title",
+			label: "Thread/Post Title",
 		},
 		{
 			name: "content",
@@ -142,20 +142,13 @@ export const DiscussionSubmissions = {
 		{
 			name: "replies",
 			type: "join",
-			on: "parentPost",
+			on: "parentThread",
 			collection: "discussion-submissions",
 			label: "Replies",
 			hasMany: true,
 		},
 		{
-			name: "replyCount",
-			type: "number",
-			defaultValue: 0,
-			min: 0,
-			label: "Reply Count",
-		},
-		{
-			name: "likes",
+			name: "upvotes",
 			type: "array",
 			fields: [
 				{
@@ -165,49 +158,37 @@ export const DiscussionSubmissions = {
 					required: true,
 				},
 				{
-					name: "likedAt",
+					name: "upvotedAt",
 					type: "date",
 					required: true,
 				},
 			],
-			label: "Likes",
+			label: "Upvotes",
 		},
 		{
-			name: "likeCount",
-			type: "number",
-			defaultValue: 0,
-			min: 0,
-			label: "Like Count",
+			name: "lastActivityAt",
+			type: "date",
+			label: "Last Activity At",
 		},
 		{
 			name: "isPinned",
 			type: "checkbox",
 			defaultValue: false,
-			label: "Pinned Post",
+			label: "Pinned Thread",
 		},
 		{
 			name: "isLocked",
 			type: "checkbox",
 			defaultValue: false,
-			label: "Locked Post",
-		},
-		{
-			name: "participationScore",
-			type: "number",
-			label: "Participation Score",
-			min: 0,
-		},
-		{
-			name: "qualityScore",
-			type: "number",
-			label: "Quality Score",
-			min: 0,
-			max: 10,
+			label: "Locked Thread",
 		},
 	],
 	indexes: [
 		{
 			fields: ["activityModule"],
+		},
+		{
+			fields: ["discussion"],
 		},
 		{
 			fields: ["student"],
@@ -216,7 +197,7 @@ export const DiscussionSubmissions = {
 			fields: ["enrollment"],
 		},
 		{
-			fields: ["parentPost"],
+			fields: ["parentThread"],
 		},
 		{
 			fields: ["postType"],
@@ -231,10 +212,10 @@ export const DiscussionSubmissions = {
 			fields: ["isPinned"],
 		},
 		{
-			fields: ["likeCount"],
+			fields: ["lastActivityAt"],
 		},
 		{
-			fields: ["replyCount"],
+			fields: ["postType", "lastActivityAt"],
 		},
 	],
 } as const satisfies CollectionConfig;

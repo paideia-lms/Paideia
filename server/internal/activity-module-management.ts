@@ -69,18 +69,19 @@ export interface CreateActivityModuleArgs {
 		description?: string;
 		instructions?: string;
 		dueDate?: string;
-		requireInitialPost?: boolean;
+		requireThread?: boolean;
 		requireReplies?: boolean;
 		minReplies?: number;
 		minWordsPerPost?: number;
 		allowAttachments?: boolean;
-		allowLikes?: boolean;
+		allowUpvotes?: boolean;
 		allowEditing?: boolean;
 		allowDeletion?: boolean;
 		moderationRequired?: boolean;
 		anonymousPosting?: boolean;
 		groupDiscussion?: boolean;
 		maxGroupSize?: number;
+		threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
 	};
 	// Access control
 	requirePassword?: boolean;
@@ -146,18 +147,19 @@ export interface UpdateActivityModuleArgs {
 		description?: string;
 		instructions?: string;
 		dueDate?: string;
-		requireInitialPost?: boolean;
+		requireThread?: boolean;
 		requireReplies?: boolean;
 		minReplies?: number;
 		minWordsPerPost?: number;
 		allowAttachments?: boolean;
-		allowLikes?: boolean;
+		allowUpvotes?: boolean;
 		allowEditing?: boolean;
 		allowDeletion?: boolean;
 		moderationRequired?: boolean;
 		anonymousPosting?: boolean;
 		groupDiscussion?: boolean;
 		maxGroupSize?: number;
+		threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
 	};
 	// Access control
 	requirePassword?: boolean;
@@ -279,18 +281,19 @@ export const tryCreateActivityModule = Result.wrap(
 						description: discussionData.description || description,
 						instructions: discussionData.instructions,
 						dueDate: discussionData.dueDate,
-						requireInitialPost: discussionData.requireInitialPost,
+						requireThread: discussionData.requireThread,
 						requireReplies: discussionData.requireReplies,
 						minReplies: discussionData.minReplies,
 						minWordsPerPost: discussionData.minWordsPerPost,
 						allowAttachments: discussionData.allowAttachments,
-						allowLikes: discussionData.allowLikes,
+						allowUpvotes: discussionData.allowUpvotes,
 						allowEditing: discussionData.allowEditing,
 						allowDeletion: discussionData.allowDeletion,
 						moderationRequired: discussionData.moderationRequired,
 						anonymousPosting: discussionData.anonymousPosting,
 						groupDiscussion: discussionData.groupDiscussion,
 						maxGroupSize: discussionData.maxGroupSize,
+						threadSorting: discussionData.threadSorting || "recent",
 						createdBy: userId,
 					},
 					req: { transactionID },
@@ -550,18 +553,19 @@ export const tryUpdateActivityModule = Result.wrap(
 								existingModule.description,
 							instructions: discussionData.instructions,
 							dueDate: discussionData.dueDate,
-							requireInitialPost: discussionData.requireInitialPost,
+							requireThread: discussionData.requireThread,
 							requireReplies: discussionData.requireReplies,
 							minReplies: discussionData.minReplies,
 							minWordsPerPost: discussionData.minWordsPerPost,
 							allowAttachments: discussionData.allowAttachments,
-							allowLikes: discussionData.allowLikes,
+							allowUpvotes: discussionData.allowUpvotes,
 							allowEditing: discussionData.allowEditing,
 							allowDeletion: discussionData.allowDeletion,
 							moderationRequired: discussionData.moderationRequired,
 							anonymousPosting: discussionData.anonymousPosting,
 							groupDiscussion: discussionData.groupDiscussion,
 							maxGroupSize: discussionData.maxGroupSize,
+							threadSorting: discussionData.threadSorting,
 						},
 						req: { transactionID },
 					});

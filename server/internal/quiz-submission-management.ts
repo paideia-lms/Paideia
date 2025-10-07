@@ -1076,6 +1076,8 @@ export const calculateQuizGrade = Result.wrap(
 		// Generate overall feedback
 		const correctCount = questionResults.filter((q) => q.isCorrect).length;
 		const totalQuestions = questionResults.length;
+
+		// generate report
 		const overallFeedback = `Quiz completed! You scored ${totalScore}/${maxScore} points (${percentage}%). You got ${correctCount}/${totalQuestions} questions correct.`;
 
 		return {
@@ -1222,7 +1224,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 					`Failed to create gradebook entry: ${userGradeResult.error}`,
 				);
 			}
-			console.log("User grade created successfully");
+			payload.logger.info("User grade created successfully");
 
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);

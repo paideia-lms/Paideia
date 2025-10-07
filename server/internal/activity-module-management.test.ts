@@ -202,17 +202,18 @@ describe("Activity Module Management", () => {
 				description: "Discussion description",
 				instructions: "Participate in this discussion",
 				dueDate: "2024-12-31",
-				requireInitialPost: true,
+				requireThread: true,
 				requireReplies: true,
 				minReplies: 2,
 				minWordsPerPost: 50,
 				allowAttachments: true,
-				allowLikes: true,
+				allowUpvotes: true,
 				allowEditing: true,
 				allowDeletion: false,
 				moderationRequired: false,
 				anonymousPosting: false,
 				groupDiscussion: false,
+				threadSorting: "recent" as const,
 			},
 		};
 
@@ -302,6 +303,7 @@ describe("Activity Module Management", () => {
 					discussionData: {
 						instructions: "Participate in this discussion",
 						minReplies: 1,
+						threadSorting: "recent" as const,
 					},
 				},
 			},
@@ -473,6 +475,7 @@ describe("Activity Module Management", () => {
 				instructions: "Original discussion instructions",
 				minReplies: 1,
 				minWordsPerPost: 25,
+				threadSorting: "recent" as const,
 			},
 		};
 
@@ -492,6 +495,7 @@ describe("Activity Module Management", () => {
 				minReplies: 3,
 				minWordsPerPost: 100,
 				allowAttachments: true,
+				threadSorting: "upvoted" as const,
 			},
 		};
 
@@ -615,6 +619,7 @@ describe("Activity Module Management", () => {
 				instructions: "Participate in this discussion",
 				minReplies: 2,
 				minWordsPerPost: 50,
+				threadSorting: "recent" as const,
 			},
 		};
 

@@ -1,5 +1,5 @@
 {
-  "id": "080f9f1f-159c-4bd9-b5c5-0866a36deab9",
+  "id": "fa1e55a0-68d3-41fd-b092-928a9a6a0ca6",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -1946,6 +1946,156 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.discussions_pinned_threads": {
+      "name": "discussions_pinned_threads",
+      "schema": "",
+      "columns": {
+        "_order": {
+          "name": "_order",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "_parent_id": {
+          "name": "_parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "thread_id": {
+          "name": "thread_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pinned_at": {
+          "name": "pinned_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pinned_by_id": {
+          "name": "pinned_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "discussions_pinned_threads_order_idx": {
+          "name": "discussions_pinned_threads_order_idx",
+          "columns": [
+            {
+              "expression": "_order",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "discussions_pinned_threads_parent_id_idx": {
+          "name": "discussions_pinned_threads_parent_id_idx",
+          "columns": [
+            {
+              "expression": "_parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "discussions_pinned_threads_thread_idx": {
+          "name": "discussions_pinned_threads_thread_idx",
+          "columns": [
+            {
+              "expression": "thread_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "discussions_pinned_threads_pinned_by_idx": {
+          "name": "discussions_pinned_threads_pinned_by_idx",
+          "columns": [
+            {
+              "expression": "pinned_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "discussions_pinned_threads_thread_id_discussion_submissions_id_fk": {
+          "name": "discussions_pinned_threads_thread_id_discussion_submissions_id_fk",
+          "tableFrom": "discussions_pinned_threads",
+          "tableTo": "discussion_submissions",
+          "columnsFrom": [
+            "thread_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "discussions_pinned_threads_pinned_by_id_users_id_fk": {
+          "name": "discussions_pinned_threads_pinned_by_id_users_id_fk",
+          "tableFrom": "discussions_pinned_threads",
+          "tableTo": "users",
+          "columnsFrom": [
+            "pinned_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "discussions_pinned_threads_parent_id_fk": {
+          "name": "discussions_pinned_threads_parent_id_fk",
+          "tableFrom": "discussions_pinned_threads",
+          "tableTo": "discussions",
+          "columnsFrom": [
+            "_parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.discussions": {
       "name": "discussions",
       "schema": "",
@@ -1980,8 +2130,8 @@
           "primaryKey": false,
           "notNull": false
         },
-        "require_initial_post": {
-          "name": "require_initial_post",
+        "require_thread": {
+          "name": "require_thread",
           "type": "boolean",
           "primaryKey": false,
           "notNull": false,
@@ -2015,8 +2165,8 @@
           "notNull": false,
           "default": true
         },
-        "allow_likes": {
-          "name": "allow_likes",
+        "allow_upvotes": {
+          "name": "allow_upvotes",
           "type": "boolean",
           "primaryKey": false,
           "notNull": false,
@@ -2062,6 +2212,14 @@
           "type": "numeric",
           "primaryKey": false,
           "notNull": false
+        },
+        "thread_sorting": {
+          "name": "thread_sorting",
+          "type": "enum_discussions_thread_sorting",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'recent'"
         },
         "created_by_id": {
           "name": "created_by_id",
@@ -2150,6 +2308,21 @@
           "columns": [
             {
               "expression": "due_date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "threadSorting_idx": {
+          "name": "threadSorting_idx",
+          "columns": [
+            {
+              "expression": "thread_sorting",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4436,8 +4609,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.discussion_submissions_likes": {
-      "name": "discussion_submissions_likes",
+    "public.discussion_submissions_upvotes": {
+      "name": "discussion_submissions_upvotes",
       "schema": "",
       "columns": {
         "_order": {
@@ -4464,16 +4637,16 @@
           "primaryKey": false,
           "notNull": true
         },
-        "liked_at": {
-          "name": "liked_at",
+        "upvoted_at": {
+          "name": "upvoted_at",
           "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": true
         }
       },
       "indexes": {
-        "discussion_submissions_likes_order_idx": {
-          "name": "discussion_submissions_likes_order_idx",
+        "discussion_submissions_upvotes_order_idx": {
+          "name": "discussion_submissions_upvotes_order_idx",
           "columns": [
             {
               "expression": "_order",
@@ -4487,8 +4660,8 @@
           "method": "btree",
           "with": {}
         },
-        "discussion_submissions_likes_parent_id_idx": {
-          "name": "discussion_submissions_likes_parent_id_idx",
+        "discussion_submissions_upvotes_parent_id_idx": {
+          "name": "discussion_submissions_upvotes_parent_id_idx",
           "columns": [
             {
               "expression": "_parent_id",
@@ -4502,8 +4675,8 @@
           "method": "btree",
           "with": {}
         },
-        "discussion_submissions_likes_user_idx": {
-          "name": "discussion_submissions_likes_user_idx",
+        "discussion_submissions_upvotes_user_idx": {
+          "name": "discussion_submissions_upvotes_user_idx",
           "columns": [
             {
               "expression": "user_id",
@@ -4519,9 +4692,9 @@
         }
       },
       "foreignKeys": {
-        "discussion_submissions_likes_user_id_users_id_fk": {
-          "name": "discussion_submissions_likes_user_id_users_id_fk",
-          "tableFrom": "discussion_submissions_likes",
+        "discussion_submissions_upvotes_user_id_users_id_fk": {
+          "name": "discussion_submissions_upvotes_user_id_users_id_fk",
+          "tableFrom": "discussion_submissions_upvotes",
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
@@ -4532,9 +4705,9 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "discussion_submissions_likes_parent_id_fk": {
-          "name": "discussion_submissions_likes_parent_id_fk",
-          "tableFrom": "discussion_submissions_likes",
+        "discussion_submissions_upvotes_parent_id_fk": {
+          "name": "discussion_submissions_upvotes_parent_id_fk",
+          "tableFrom": "discussion_submissions_upvotes",
           "tableTo": "discussion_submissions",
           "columnsFrom": [
             "_parent_id"
@@ -4586,8 +4759,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "parent_post_id": {
-          "name": "parent_post_id",
+        "parent_thread_id": {
+          "name": "parent_thread_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -4598,7 +4771,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": true,
-          "default": "'initial'"
+          "default": "'thread'"
         },
         "title": {
           "name": "title",
@@ -4639,19 +4812,11 @@
           "notNull": false,
           "default": false
         },
-        "reply_count": {
-          "name": "reply_count",
-          "type": "numeric",
+        "last_activity_at": {
+          "name": "last_activity_at",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
-          "notNull": false,
-          "default": 0
-        },
-        "like_count": {
-          "name": "like_count",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 0
+          "notNull": false
         },
         "is_pinned": {
           "name": "is_pinned",
@@ -4666,18 +4831,6 @@
           "primaryKey": false,
           "notNull": false,
           "default": false
-        },
-        "participation_score": {
-          "name": "participation_score",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "quality_score": {
-          "name": "quality_score",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -4755,11 +4908,11 @@
           "method": "btree",
           "with": {}
         },
-        "discussion_submissions_parent_post_idx": {
-          "name": "discussion_submissions_parent_post_idx",
+        "discussion_submissions_parent_thread_idx": {
+          "name": "discussion_submissions_parent_thread_idx",
           "columns": [
             {
-              "expression": "parent_post_id",
+              "expression": "parent_thread_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4815,6 +4968,21 @@
           "method": "btree",
           "with": {}
         },
+        "discussion_1_idx": {
+          "name": "discussion_1_idx",
+          "columns": [
+            {
+              "expression": "discussion_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "student_2_idx": {
           "name": "student_2_idx",
           "columns": [
@@ -4845,11 +5013,11 @@
           "method": "btree",
           "with": {}
         },
-        "parentPost_idx": {
-          "name": "parentPost_idx",
+        "parentThread_idx": {
+          "name": "parentThread_idx",
           "columns": [
             {
-              "expression": "parent_post_id",
+              "expression": "parent_thread_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4920,11 +5088,11 @@
           "method": "btree",
           "with": {}
         },
-        "likeCount_idx": {
-          "name": "likeCount_idx",
+        "lastActivityAt_idx": {
+          "name": "lastActivityAt_idx",
           "columns": [
             {
-              "expression": "like_count",
+              "expression": "last_activity_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4935,11 +5103,17 @@
           "method": "btree",
           "with": {}
         },
-        "replyCount_idx": {
-          "name": "replyCount_idx",
+        "postType_lastActivityAt_idx": {
+          "name": "postType_lastActivityAt_idx",
           "columns": [
             {
-              "expression": "reply_count",
+              "expression": "post_type",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "last_activity_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5004,12 +5178,12 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "discussion_submissions_parent_post_id_discussion_submissions_id_fk": {
-          "name": "discussion_submissions_parent_post_id_discussion_submissions_id_fk",
+        "discussion_submissions_parent_thread_id_discussion_submissions_id_fk": {
+          "name": "discussion_submissions_parent_thread_id_discussion_submissions_id_fk",
           "tableFrom": "discussion_submissions",
           "tableTo": "discussion_submissions",
           "columnsFrom": [
-            "parent_post_id"
+            "parent_thread_id"
           ],
           "columnsTo": [
             "id"
@@ -7466,6 +7640,16 @@
         "manual"
       ]
     },
+    "public.enum_discussions_thread_sorting": {
+      "name": "enum_discussions_thread_sorting",
+      "schema": "public",
+      "values": [
+        "recent",
+        "upvoted",
+        "active",
+        "alphabetical"
+      ]
+    },
     "public.enum_assignment_submissions_status": {
       "name": "enum_assignment_submissions_status",
       "schema": "public",
@@ -7501,7 +7685,7 @@
       "name": "enum_discussion_submissions_post_type",
       "schema": "public",
       "values": [
-        "initial",
+        "thread",
         "reply",
         "comment"
       ]

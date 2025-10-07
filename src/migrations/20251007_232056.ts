@@ -10,10 +10,11 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_activity_modules_status" AS ENUM('draft', 'published', 'archived');
   CREATE TYPE "public"."enum_quizzes_questions_question_type" AS ENUM('multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_blank', 'matching', 'ordering');
   CREATE TYPE "public"."enum_quizzes_grading_type" AS ENUM('automatic', 'manual');
+  CREATE TYPE "public"."enum_discussions_thread_sorting" AS ENUM('recent', 'upvoted', 'active', 'alphabetical');
   CREATE TYPE "public"."enum_assignment_submissions_status" AS ENUM('draft', 'submitted', 'graded', 'returned');
   CREATE TYPE "public"."enum_quiz_submissions_answers_question_type" AS ENUM('multiple_choice', 'true_false', 'short_answer', 'essay', 'fill_blank');
   CREATE TYPE "public"."enum_quiz_submissions_status" AS ENUM('in_progress', 'completed', 'graded', 'returned');
-  CREATE TYPE "public"."enum_discussion_submissions_post_type" AS ENUM('initial', 'reply', 'comment');
+  CREATE TYPE "public"."enum_discussion_submissions_post_type" AS ENUM('thread', 'reply', 'comment');
   CREATE TYPE "public"."enum_discussion_submissions_status" AS ENUM('draft', 'published', 'hidden', 'deleted');
   CREATE TYPE "public"."enum_user_grades_adjustments_type" AS ENUM('bonus', 'penalty', 'late_deduction', 'participation', 'curve', 'other');
   CREATE TYPE "public"."enum_user_grades_submission_type" AS ENUM('assignment', 'quiz', 'discussion', 'manual');
@@ -177,24 +178,34 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
   );
   
+  CREATE TABLE "discussions_pinned_threads" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"thread_id" integer NOT NULL,
+  	"pinned_at" timestamp(3) with time zone NOT NULL,
+  	"pinned_by_id" integer NOT NULL
+  );
+  
   CREATE TABLE "discussions" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"title" varchar NOT NULL,
   	"description" varchar,
   	"instructions" varchar,
   	"due_date" timestamp(3) with time zone,
-  	"require_initial_post" boolean DEFAULT true,
+  	"require_thread" boolean DEFAULT true,
   	"require_replies" boolean DEFAULT true,
   	"min_replies" numeric DEFAULT 2,
   	"min_words_per_post" numeric DEFAULT 50,
   	"allow_attachments" boolean DEFAULT true,
-  	"allow_likes" boolean DEFAULT true,
+  	"allow_upvotes" boolean DEFAULT true,
   	"allow_editing" boolean DEFAULT true,
   	"allow_deletion" boolean DEFAULT false,
   	"moderation_required" boolean DEFAULT false,
   	"anonymous_posting" boolean DEFAULT false,
   	"group_discussion" boolean DEFAULT false,
   	"max_group_size" numeric,
+  	"thread_sorting" "enum_discussions_thread_sorting" DEFAULT 'recent',
   	"created_by_id" integer NOT NULL,
   	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
   	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
@@ -360,12 +371,12 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"description" varchar
   );
   
-  CREATE TABLE "discussion_submissions_likes" (
+  CREATE TABLE "discussion_submissions_upvotes" (
   	"_order" integer NOT NULL,
   	"_parent_id" integer NOT NULL,
   	"id" varchar PRIMARY KEY NOT NULL,
   	"user_id" integer NOT NULL,
-  	"liked_at" timestamp(3) with time zone NOT NULL
+  	"upvoted_at" timestamp(3) with time zone NOT NULL
   );
   
   CREATE TABLE "discussion_submissions" (
@@ -374,20 +385,17 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"discussion_id" integer NOT NULL,
   	"student_id" integer NOT NULL,
   	"enrollment_id" integer NOT NULL,
-  	"parent_post_id" integer,
-  	"post_type" "enum_discussion_submissions_post_type" DEFAULT 'initial' NOT NULL,
+  	"parent_thread_id" integer,
+  	"post_type" "enum_discussion_submissions_post_type" DEFAULT 'thread' NOT NULL,
   	"title" varchar,
   	"content" varchar NOT NULL,
   	"status" "enum_discussion_submissions_status" DEFAULT 'published' NOT NULL,
   	"published_at" timestamp(3) with time zone,
   	"edited_at" timestamp(3) with time zone,
   	"is_edited" boolean DEFAULT false,
-  	"reply_count" numeric DEFAULT 0,
-  	"like_count" numeric DEFAULT 0,
+  	"last_activity_at" timestamp(3) with time zone,
   	"is_pinned" boolean DEFAULT false,
   	"is_locked" boolean DEFAULT false,
-  	"participation_score" numeric,
-  	"quality_score" numeric,
   	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
   	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
   );
@@ -557,6 +565,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "quizzes_questions_hints" ADD CONSTRAINT "quizzes_questions_hints_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."quizzes_questions"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "quizzes_questions" ADD CONSTRAINT "quizzes_questions_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."quizzes"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "quizzes" ADD CONSTRAINT "quizzes_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "discussions_pinned_threads" ADD CONSTRAINT "discussions_pinned_threads_thread_id_discussion_submissions_id_fk" FOREIGN KEY ("thread_id") REFERENCES "public"."discussion_submissions"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "discussions_pinned_threads" ADD CONSTRAINT "discussions_pinned_threads_pinned_by_id_users_id_fk" FOREIGN KEY ("pinned_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "discussions_pinned_threads" ADD CONSTRAINT "discussions_pinned_threads_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."discussions"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "discussions" ADD CONSTRAINT "discussions_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "course_activity_module_links" ADD CONSTRAINT "course_activity_module_links_course_id_courses_id_fk" FOREIGN KEY ("course_id") REFERENCES "public"."courses"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "course_activity_module_links" ADD CONSTRAINT "course_activity_module_links_activity_module_id_activity_modules_id_fk" FOREIGN KEY ("activity_module_id") REFERENCES "public"."activity_modules"("id") ON DELETE set null ON UPDATE no action;
@@ -581,13 +592,13 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "quiz_submissions" ADD CONSTRAINT "quiz_submissions_enrollment_id_enrollments_id_fk" FOREIGN KEY ("enrollment_id") REFERENCES "public"."enrollments"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "discussion_submissions_attachments" ADD CONSTRAINT "discussion_submissions_attachments_file_id_media_id_fk" FOREIGN KEY ("file_id") REFERENCES "public"."media"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "discussion_submissions_attachments" ADD CONSTRAINT "discussion_submissions_attachments_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."discussion_submissions"("id") ON DELETE cascade ON UPDATE no action;
-  ALTER TABLE "discussion_submissions_likes" ADD CONSTRAINT "discussion_submissions_likes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
-  ALTER TABLE "discussion_submissions_likes" ADD CONSTRAINT "discussion_submissions_likes_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."discussion_submissions"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "discussion_submissions_upvotes" ADD CONSTRAINT "discussion_submissions_upvotes_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "discussion_submissions_upvotes" ADD CONSTRAINT "discussion_submissions_upvotes_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."discussion_submissions"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "discussion_submissions" ADD CONSTRAINT "discussion_submissions_activity_module_id_activity_modules_id_fk" FOREIGN KEY ("activity_module_id") REFERENCES "public"."activity_modules"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "discussion_submissions" ADD CONSTRAINT "discussion_submissions_discussion_id_discussions_id_fk" FOREIGN KEY ("discussion_id") REFERENCES "public"."discussions"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "discussion_submissions" ADD CONSTRAINT "discussion_submissions_student_id_users_id_fk" FOREIGN KEY ("student_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "discussion_submissions" ADD CONSTRAINT "discussion_submissions_enrollment_id_enrollments_id_fk" FOREIGN KEY ("enrollment_id") REFERENCES "public"."enrollments"("id") ON DELETE set null ON UPDATE no action;
-  ALTER TABLE "discussion_submissions" ADD CONSTRAINT "discussion_submissions_parent_post_id_discussion_submissions_id_fk" FOREIGN KEY ("parent_post_id") REFERENCES "public"."discussion_submissions"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "discussion_submissions" ADD CONSTRAINT "discussion_submissions_parent_thread_id_discussion_submissions_id_fk" FOREIGN KEY ("parent_thread_id") REFERENCES "public"."discussion_submissions"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "course_grade_tables_grade_letters" ADD CONSTRAINT "course_grade_tables_grade_letters_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."course_grade_tables"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "course_grade_tables" ADD CONSTRAINT "course_grade_tables_course_id_courses_id_fk" FOREIGN KEY ("course_id") REFERENCES "public"."courses"("id") ON DELETE set null ON UPDATE no action;
   ALTER TABLE "user_grades_adjustments" ADD CONSTRAINT "user_grades_adjustments_applied_by_id_users_id_fk" FOREIGN KEY ("applied_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
@@ -676,11 +687,16 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "quizzes_created_at_idx" ON "quizzes" USING btree ("created_at");
   CREATE INDEX "createdBy_2_idx" ON "quizzes" USING btree ("created_by_id");
   CREATE INDEX "dueDate_1_idx" ON "quizzes" USING btree ("due_date");
+  CREATE INDEX "discussions_pinned_threads_order_idx" ON "discussions_pinned_threads" USING btree ("_order");
+  CREATE INDEX "discussions_pinned_threads_parent_id_idx" ON "discussions_pinned_threads" USING btree ("_parent_id");
+  CREATE INDEX "discussions_pinned_threads_thread_idx" ON "discussions_pinned_threads" USING btree ("thread_id");
+  CREATE INDEX "discussions_pinned_threads_pinned_by_idx" ON "discussions_pinned_threads" USING btree ("pinned_by_id");
   CREATE INDEX "discussions_created_by_idx" ON "discussions" USING btree ("created_by_id");
   CREATE INDEX "discussions_updated_at_idx" ON "discussions" USING btree ("updated_at");
   CREATE INDEX "discussions_created_at_idx" ON "discussions" USING btree ("created_at");
   CREATE INDEX "createdBy_3_idx" ON "discussions" USING btree ("created_by_id");
   CREATE INDEX "dueDate_2_idx" ON "discussions" USING btree ("due_date");
+  CREATE INDEX "threadSorting_idx" ON "discussions" USING btree ("thread_sorting");
   CREATE INDEX "course_activity_module_links_course_idx" ON "course_activity_module_links" USING btree ("course_id");
   CREATE INDEX "course_activity_module_links_activity_module_idx" ON "course_activity_module_links" USING btree ("activity_module_id");
   CREATE INDEX "course_activity_module_links_updated_at_idx" ON "course_activity_module_links" USING btree ("updated_at");
@@ -746,26 +762,27 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "discussion_submissions_attachments_order_idx" ON "discussion_submissions_attachments" USING btree ("_order");
   CREATE INDEX "discussion_submissions_attachments_parent_id_idx" ON "discussion_submissions_attachments" USING btree ("_parent_id");
   CREATE INDEX "discussion_submissions_attachments_file_idx" ON "discussion_submissions_attachments" USING btree ("file_id");
-  CREATE INDEX "discussion_submissions_likes_order_idx" ON "discussion_submissions_likes" USING btree ("_order");
-  CREATE INDEX "discussion_submissions_likes_parent_id_idx" ON "discussion_submissions_likes" USING btree ("_parent_id");
-  CREATE INDEX "discussion_submissions_likes_user_idx" ON "discussion_submissions_likes" USING btree ("user_id");
+  CREATE INDEX "discussion_submissions_upvotes_order_idx" ON "discussion_submissions_upvotes" USING btree ("_order");
+  CREATE INDEX "discussion_submissions_upvotes_parent_id_idx" ON "discussion_submissions_upvotes" USING btree ("_parent_id");
+  CREATE INDEX "discussion_submissions_upvotes_user_idx" ON "discussion_submissions_upvotes" USING btree ("user_id");
   CREATE INDEX "discussion_submissions_activity_module_idx" ON "discussion_submissions" USING btree ("activity_module_id");
   CREATE INDEX "discussion_submissions_discussion_idx" ON "discussion_submissions" USING btree ("discussion_id");
   CREATE INDEX "discussion_submissions_student_idx" ON "discussion_submissions" USING btree ("student_id");
   CREATE INDEX "discussion_submissions_enrollment_idx" ON "discussion_submissions" USING btree ("enrollment_id");
-  CREATE INDEX "discussion_submissions_parent_post_idx" ON "discussion_submissions" USING btree ("parent_post_id");
+  CREATE INDEX "discussion_submissions_parent_thread_idx" ON "discussion_submissions" USING btree ("parent_thread_id");
   CREATE INDEX "discussion_submissions_updated_at_idx" ON "discussion_submissions" USING btree ("updated_at");
   CREATE INDEX "discussion_submissions_created_at_idx" ON "discussion_submissions" USING btree ("created_at");
   CREATE INDEX "activityModule_2_idx" ON "discussion_submissions" USING btree ("activity_module_id");
+  CREATE INDEX "discussion_1_idx" ON "discussion_submissions" USING btree ("discussion_id");
   CREATE INDEX "student_2_idx" ON "discussion_submissions" USING btree ("student_id");
   CREATE INDEX "enrollment_2_idx" ON "discussion_submissions" USING btree ("enrollment_id");
-  CREATE INDEX "parentPost_idx" ON "discussion_submissions" USING btree ("parent_post_id");
+  CREATE INDEX "parentThread_idx" ON "discussion_submissions" USING btree ("parent_thread_id");
   CREATE INDEX "postType_idx" ON "discussion_submissions" USING btree ("post_type");
   CREATE INDEX "status_3_idx" ON "discussion_submissions" USING btree ("status");
   CREATE INDEX "publishedAt_idx" ON "discussion_submissions" USING btree ("published_at");
   CREATE INDEX "isPinned_idx" ON "discussion_submissions" USING btree ("is_pinned");
-  CREATE INDEX "likeCount_idx" ON "discussion_submissions" USING btree ("like_count");
-  CREATE INDEX "replyCount_idx" ON "discussion_submissions" USING btree ("reply_count");
+  CREATE INDEX "lastActivityAt_idx" ON "discussion_submissions" USING btree ("last_activity_at");
+  CREATE INDEX "postType_lastActivityAt_idx" ON "discussion_submissions" USING btree ("post_type","last_activity_at");
   CREATE INDEX "course_grade_tables_grade_letters_order_idx" ON "course_grade_tables_grade_letters" USING btree ("_order");
   CREATE INDEX "course_grade_tables_grade_letters_parent_id_idx" ON "course_grade_tables_grade_letters" USING btree ("_parent_id");
   CREATE INDEX "course_grade_tables_course_idx" ON "course_grade_tables" USING btree ("course_id");
@@ -850,6 +867,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "quizzes_questions_hints" CASCADE;
   DROP TABLE "quizzes_questions" CASCADE;
   DROP TABLE "quizzes" CASCADE;
+  DROP TABLE "discussions_pinned_threads" CASCADE;
   DROP TABLE "discussions" CASCADE;
   DROP TABLE "course_activity_module_links" CASCADE;
   DROP TABLE "media" CASCADE;
@@ -863,7 +881,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "quiz_submissions_answers" CASCADE;
   DROP TABLE "quiz_submissions" CASCADE;
   DROP TABLE "discussion_submissions_attachments" CASCADE;
-  DROP TABLE "discussion_submissions_likes" CASCADE;
+  DROP TABLE "discussion_submissions_upvotes" CASCADE;
   DROP TABLE "discussion_submissions" CASCADE;
   DROP TABLE "course_grade_tables_grade_letters" CASCADE;
   DROP TABLE "course_grade_tables" CASCADE;
@@ -887,6 +905,7 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum_activity_modules_status";
   DROP TYPE "public"."enum_quizzes_questions_question_type";
   DROP TYPE "public"."enum_quizzes_grading_type";
+  DROP TYPE "public"."enum_discussions_thread_sorting";
   DROP TYPE "public"."enum_assignment_submissions_status";
   DROP TYPE "public"."enum_quiz_submissions_answers_question_type";
   DROP TYPE "public"."enum_quiz_submissions_status";

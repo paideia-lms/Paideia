@@ -72,6 +72,10 @@ export const enum_quizzes_grading_type = pgEnum("enum_quizzes_grading_type", [
   "automatic",
   "manual",
 ]);
+export const enum_discussions_thread_sorting = pgEnum(
+  "enum_discussions_thread_sorting",
+  ["recent", "upvoted", "active", "alphabetical"],
+);
 export const enum_assignment_submissions_status = pgEnum(
   "enum_assignment_submissions_status",
   ["draft", "submitted", "graded", "returned"],
@@ -86,7 +90,7 @@ export const enum_quiz_submissions_status = pgEnum(
 );
 export const enum_discussion_submissions_post_type = pgEnum(
   "enum_discussion_submissions_post_type",
-  ["initial", "reply", "comment"],
+  ["thread", "reply", "comment"],
 );
 export const enum_discussion_submissions_status = pgEnum(
   "enum_discussion_submissions_status",
@@ -608,6 +612,47 @@ export const quizzes = pgTable(
   }),
 );
 
+export const discussions_pinned_threads = pgTable(
+  "discussions_pinned_threads",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    thread: integer("thread_id")
+      .notNull()
+      .references(() => discussion_submissions.id, {
+        onDelete: "set null",
+      }),
+    pinnedAt: timestamp("pinned_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }).notNull(),
+    pinnedBy: integer("pinned_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+  },
+  (columns) => ({
+    _orderIdx: index("discussions_pinned_threads_order_idx").on(columns._order),
+    _parentIDIdx: index("discussions_pinned_threads_parent_id_idx").on(
+      columns._parentID,
+    ),
+    discussions_pinned_threads_thread_idx: index(
+      "discussions_pinned_threads_thread_idx",
+    ).on(columns.thread),
+    discussions_pinned_threads_pinned_by_idx: index(
+      "discussions_pinned_threads_pinned_by_idx",
+    ).on(columns.pinnedBy),
+    _parentIDFk: foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [discussions.id],
+      name: "discussions_pinned_threads_parent_id_fk",
+    }).onDelete("cascade"),
+  }),
+);
+
 export const discussions = pgTable(
   "discussions",
   {
@@ -620,18 +665,20 @@ export const discussions = pgTable(
       withTimezone: true,
       precision: 3,
     }),
-    requireInitialPost: boolean("require_initial_post").default(true),
+    requireThread: boolean("require_thread").default(true),
     requireReplies: boolean("require_replies").default(true),
     minReplies: numeric("min_replies").default("2"),
     minWordsPerPost: numeric("min_words_per_post").default("50"),
     allowAttachments: boolean("allow_attachments").default(true),
-    allowLikes: boolean("allow_likes").default(true),
+    allowUpvotes: boolean("allow_upvotes").default(true),
     allowEditing: boolean("allow_editing").default(true),
     allowDeletion: boolean("allow_deletion").default(false),
     moderationRequired: boolean("moderation_required").default(false),
     anonymousPosting: boolean("anonymous_posting").default(false),
     groupDiscussion: boolean("group_discussion").default(false),
     maxGroupSize: numeric("max_group_size"),
+    threadSorting:
+      enum_discussions_thread_sorting("thread_sorting").default("recent"),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
@@ -664,6 +711,7 @@ export const discussions = pgTable(
     ),
     createdBy_3_idx: index("createdBy_3_idx").on(columns.createdBy),
     dueDate_2_idx: index("dueDate_2_idx").on(columns.dueDate),
+    threadSorting_idx: index("threadSorting_idx").on(columns.threadSorting),
   }),
 );
 
@@ -1245,8 +1293,8 @@ export const discussion_submissions_attachments = pgTable(
   }),
 );
 
-export const discussion_submissions_likes = pgTable(
-  "discussion_submissions_likes",
+export const discussion_submissions_upvotes = pgTable(
+  "discussion_submissions_upvotes",
   {
     _order: integer("_order").notNull(),
     _parentID: integer("_parent_id").notNull(),
@@ -1256,26 +1304,26 @@ export const discussion_submissions_likes = pgTable(
       .references(() => users.id, {
         onDelete: "set null",
       }),
-    likedAt: timestamp("liked_at", {
+    upvotedAt: timestamp("upvoted_at", {
       mode: "string",
       withTimezone: true,
       precision: 3,
     }).notNull(),
   },
   (columns) => ({
-    _orderIdx: index("discussion_submissions_likes_order_idx").on(
+    _orderIdx: index("discussion_submissions_upvotes_order_idx").on(
       columns._order,
     ),
-    _parentIDIdx: index("discussion_submissions_likes_parent_id_idx").on(
+    _parentIDIdx: index("discussion_submissions_upvotes_parent_id_idx").on(
       columns._parentID,
     ),
-    discussion_submissions_likes_user_idx: index(
-      "discussion_submissions_likes_user_idx",
+    discussion_submissions_upvotes_user_idx: index(
+      "discussion_submissions_upvotes_user_idx",
     ).on(columns.user),
     _parentIDFk: foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [discussion_submissions.id],
-      name: "discussion_submissions_likes_parent_id_fk",
+      name: "discussion_submissions_upvotes_parent_id_fk",
     }).onDelete("cascade"),
   }),
 );
@@ -1304,7 +1352,7 @@ export const discussion_submissions = pgTable(
       .references(() => enrollments.id, {
         onDelete: "set null",
       }),
-    parentPost: integer("parent_post_id").references(
+    parentThread: integer("parent_thread_id").references(
       (): AnyPgColumn => discussion_submissions.id,
       {
         onDelete: "set null",
@@ -1312,7 +1360,7 @@ export const discussion_submissions = pgTable(
     ),
     postType: enum_discussion_submissions_post_type("post_type")
       .notNull()
-      .default("initial"),
+      .default("thread"),
     title: varchar("title"),
     content: varchar("content").notNull(),
     status: enum_discussion_submissions_status("status")
@@ -1329,12 +1377,13 @@ export const discussion_submissions = pgTable(
       precision: 3,
     }),
     isEdited: boolean("is_edited").default(false),
-    replyCount: numeric("reply_count").default("0"),
-    likeCount: numeric("like_count").default("0"),
+    lastActivityAt: timestamp("last_activity_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
     isPinned: boolean("is_pinned").default(false),
     isLocked: boolean("is_locked").default(false),
-    participationScore: numeric("participation_score"),
-    qualityScore: numeric("quality_score"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1363,9 +1412,9 @@ export const discussion_submissions = pgTable(
     discussion_submissions_enrollment_idx: index(
       "discussion_submissions_enrollment_idx",
     ).on(columns.enrollment),
-    discussion_submissions_parent_post_idx: index(
-      "discussion_submissions_parent_post_idx",
-    ).on(columns.parentPost),
+    discussion_submissions_parent_thread_idx: index(
+      "discussion_submissions_parent_thread_idx",
+    ).on(columns.parentThread),
     discussion_submissions_updated_at_idx: index(
       "discussion_submissions_updated_at_idx",
     ).on(columns.updatedAt),
@@ -1375,15 +1424,19 @@ export const discussion_submissions = pgTable(
     activityModule_2_idx: index("activityModule_2_idx").on(
       columns.activityModule,
     ),
+    discussion_1_idx: index("discussion_1_idx").on(columns.discussion),
     student_2_idx: index("student_2_idx").on(columns.student),
     enrollment_2_idx: index("enrollment_2_idx").on(columns.enrollment),
-    parentPost_idx: index("parentPost_idx").on(columns.parentPost),
+    parentThread_idx: index("parentThread_idx").on(columns.parentThread),
     postType_idx: index("postType_idx").on(columns.postType),
     status_3_idx: index("status_3_idx").on(columns.status),
     publishedAt_idx: index("publishedAt_idx").on(columns.publishedAt),
     isPinned_idx: index("isPinned_idx").on(columns.isPinned),
-    likeCount_idx: index("likeCount_idx").on(columns.likeCount),
-    replyCount_idx: index("replyCount_idx").on(columns.replyCount),
+    lastActivityAt_idx: index("lastActivityAt_idx").on(columns.lastActivityAt),
+    postType_lastActivityAt_idx: index("postType_lastActivityAt_idx").on(
+      columns.postType,
+      columns.lastActivityAt,
+    ),
   }),
 );
 
@@ -2210,13 +2263,39 @@ export const relations_quizzes = relations(quizzes, ({ one, many }) => ({
     relationName: "createdBy",
   }),
 }));
-export const relations_discussions = relations(discussions, ({ one }) => ({
-  createdBy: one(users, {
-    fields: [discussions.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
+export const relations_discussions_pinned_threads = relations(
+  discussions_pinned_threads,
+  ({ one }) => ({
+    _parentID: one(discussions, {
+      fields: [discussions_pinned_threads._parentID],
+      references: [discussions.id],
+      relationName: "pinnedThreads",
+    }),
+    thread: one(discussion_submissions, {
+      fields: [discussions_pinned_threads.thread],
+      references: [discussion_submissions.id],
+      relationName: "thread",
+    }),
+    pinnedBy: one(users, {
+      fields: [discussions_pinned_threads.pinnedBy],
+      references: [users.id],
+      relationName: "pinnedBy",
+    }),
   }),
-}));
+);
+export const relations_discussions = relations(
+  discussions,
+  ({ one, many }) => ({
+    pinnedThreads: many(discussions_pinned_threads, {
+      relationName: "pinnedThreads",
+    }),
+    createdBy: one(users, {
+      fields: [discussions.createdBy],
+      references: [users.id],
+      relationName: "createdBy",
+    }),
+  }),
+);
 export const relations_course_activity_module_links = relations(
   course_activity_module_links,
   ({ one }) => ({
@@ -2392,16 +2471,16 @@ export const relations_discussion_submissions_attachments = relations(
     }),
   }),
 );
-export const relations_discussion_submissions_likes = relations(
-  discussion_submissions_likes,
+export const relations_discussion_submissions_upvotes = relations(
+  discussion_submissions_upvotes,
   ({ one }) => ({
     _parentID: one(discussion_submissions, {
-      fields: [discussion_submissions_likes._parentID],
+      fields: [discussion_submissions_upvotes._parentID],
       references: [discussion_submissions.id],
-      relationName: "likes",
+      relationName: "upvotes",
     }),
     user: one(users, {
-      fields: [discussion_submissions_likes.user],
+      fields: [discussion_submissions_upvotes.user],
       references: [users.id],
       relationName: "user",
     }),
@@ -2430,16 +2509,16 @@ export const relations_discussion_submissions = relations(
       references: [enrollments.id],
       relationName: "enrollment",
     }),
-    parentPost: one(discussion_submissions, {
-      fields: [discussion_submissions.parentPost],
+    parentThread: one(discussion_submissions, {
+      fields: [discussion_submissions.parentThread],
       references: [discussion_submissions.id],
-      relationName: "parentPost",
+      relationName: "parentThread",
     }),
     attachments: many(discussion_submissions_attachments, {
       relationName: "attachments",
     }),
-    likes: many(discussion_submissions_likes, {
-      relationName: "likes",
+    upvotes: many(discussion_submissions_upvotes, {
+      relationName: "upvotes",
     }),
   }),
 );
@@ -2727,6 +2806,7 @@ type DatabaseSchema = {
   enum_activity_modules_status: typeof enum_activity_modules_status;
   enum_quizzes_questions_question_type: typeof enum_quizzes_questions_question_type;
   enum_quizzes_grading_type: typeof enum_quizzes_grading_type;
+  enum_discussions_thread_sorting: typeof enum_discussions_thread_sorting;
   enum_assignment_submissions_status: typeof enum_assignment_submissions_status;
   enum_quiz_submissions_answers_question_type: typeof enum_quiz_submissions_answers_question_type;
   enum_quiz_submissions_status: typeof enum_quiz_submissions_status;
@@ -2749,6 +2829,7 @@ type DatabaseSchema = {
   quizzes_questions_hints: typeof quizzes_questions_hints;
   quizzes_questions: typeof quizzes_questions;
   quizzes: typeof quizzes;
+  discussions_pinned_threads: typeof discussions_pinned_threads;
   discussions: typeof discussions;
   course_activity_module_links: typeof course_activity_module_links;
   media: typeof media;
@@ -2762,7 +2843,7 @@ type DatabaseSchema = {
   quiz_submissions_answers: typeof quiz_submissions_answers;
   quiz_submissions: typeof quiz_submissions;
   discussion_submissions_attachments: typeof discussion_submissions_attachments;
-  discussion_submissions_likes: typeof discussion_submissions_likes;
+  discussion_submissions_upvotes: typeof discussion_submissions_upvotes;
   discussion_submissions: typeof discussion_submissions;
   course_grade_tables_grade_letters: typeof course_grade_tables_grade_letters;
   course_grade_tables: typeof course_grade_tables;
@@ -2791,6 +2872,7 @@ type DatabaseSchema = {
   relations_quizzes_questions_hints: typeof relations_quizzes_questions_hints;
   relations_quizzes_questions: typeof relations_quizzes_questions;
   relations_quizzes: typeof relations_quizzes;
+  relations_discussions_pinned_threads: typeof relations_discussions_pinned_threads;
   relations_discussions: typeof relations_discussions;
   relations_course_activity_module_links: typeof relations_course_activity_module_links;
   relations_media: typeof relations_media;
@@ -2804,7 +2886,7 @@ type DatabaseSchema = {
   relations_quiz_submissions_answers: typeof relations_quiz_submissions_answers;
   relations_quiz_submissions: typeof relations_quiz_submissions;
   relations_discussion_submissions_attachments: typeof relations_discussion_submissions_attachments;
-  relations_discussion_submissions_likes: typeof relations_discussion_submissions_likes;
+  relations_discussion_submissions_upvotes: typeof relations_discussion_submissions_upvotes;
   relations_discussion_submissions: typeof relations_discussion_submissions;
   relations_course_grade_tables_grade_letters: typeof relations_course_grade_tables_grade_letters;
   relations_course_grade_tables: typeof relations_course_grade_tables;

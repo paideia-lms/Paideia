@@ -465,19 +465,76 @@ export interface Discussion {
   description?: string | null;
   instructions?: string | null;
   dueDate?: string | null;
-  requireInitialPost?: boolean | null;
+  requireThread?: boolean | null;
   requireReplies?: boolean | null;
   minReplies?: number | null;
   minWordsPerPost?: number | null;
   allowAttachments?: boolean | null;
-  allowLikes?: boolean | null;
+  allowUpvotes?: boolean | null;
   allowEditing?: boolean | null;
   allowDeletion?: boolean | null;
   moderationRequired?: boolean | null;
   anonymousPosting?: boolean | null;
   groupDiscussion?: boolean | null;
   maxGroupSize?: number | null;
+  threadSorting?: ('recent' | 'upvoted' | 'active' | 'alphabetical') | null;
+  pinnedThreads?:
+    | {
+        thread: number | DiscussionSubmission;
+        pinnedAt: string;
+        pinnedBy: number | User;
+        id?: string | null;
+      }[]
+    | null;
   createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "discussion-submissions".
+ */
+export interface DiscussionSubmission {
+  id: number;
+  activityModule: number | ActivityModule;
+  discussion: number | Discussion;
+  discussionTitle?: string | null;
+  student: number | User;
+  studentEmail?: string | null;
+  studentName?: string | null;
+  enrollment: number | Enrollment;
+  course?: string | null;
+  courseTitle?: string | null;
+  parentThread?: (number | null) | DiscussionSubmission;
+  postType: 'thread' | 'reply' | 'comment';
+  title?: string | null;
+  content: string;
+  attachments?:
+    | {
+        file: number | Media;
+        description?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  status: 'draft' | 'published' | 'hidden' | 'deleted';
+  publishedAt?: string | null;
+  editedAt?: string | null;
+  isEdited?: boolean | null;
+  replies?: {
+    docs?: (number | DiscussionSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  upvotes?:
+    | {
+        user: number | User;
+        upvotedAt: string;
+        id?: string | null;
+      }[]
+    | null;
+  lastActivityAt?: string | null;
+  isPinned?: boolean | null;
+  isLocked?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -558,57 +615,6 @@ export interface QuizSubmission {
   percentage?: number | null;
   isLate?: boolean | null;
   autoGraded?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "discussion-submissions".
- */
-export interface DiscussionSubmission {
-  id: number;
-  activityModule: number | ActivityModule;
-  discussion: number | Discussion;
-  discussionTitle?: string | null;
-  student: number | User;
-  studentEmail?: string | null;
-  studentName?: string | null;
-  enrollment: number | Enrollment;
-  course?: string | null;
-  courseTitle?: string | null;
-  parentPost?: (number | null) | DiscussionSubmission;
-  postType: 'initial' | 'reply' | 'comment';
-  title?: string | null;
-  content: string;
-  attachments?:
-    | {
-        file: number | Media;
-        description?: string | null;
-        id?: string | null;
-      }[]
-    | null;
-  status: 'draft' | 'published' | 'hidden' | 'deleted';
-  publishedAt?: string | null;
-  editedAt?: string | null;
-  isEdited?: boolean | null;
-  replies?: {
-    docs?: (number | DiscussionSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  replyCount?: number | null;
-  likes?:
-    | {
-        user: number | User;
-        likedAt: string;
-        id?: string | null;
-      }[]
-    | null;
-  likeCount?: number | null;
-  isPinned?: boolean | null;
-  isLocked?: boolean | null;
-  participationScore?: number | null;
-  qualityScore?: number | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1092,18 +1098,27 @@ export interface DiscussionsSelect<T extends boolean = true> {
   description?: T;
   instructions?: T;
   dueDate?: T;
-  requireInitialPost?: T;
+  requireThread?: T;
   requireReplies?: T;
   minReplies?: T;
   minWordsPerPost?: T;
   allowAttachments?: T;
-  allowLikes?: T;
+  allowUpvotes?: T;
   allowEditing?: T;
   allowDeletion?: T;
   moderationRequired?: T;
   anonymousPosting?: T;
   groupDiscussion?: T;
   maxGroupSize?: T;
+  threadSorting?: T;
+  pinnedThreads?:
+    | T
+    | {
+        thread?: T;
+        pinnedAt?: T;
+        pinnedBy?: T;
+        id?: T;
+      };
   createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1327,7 +1342,7 @@ export interface DiscussionSubmissionsSelect<T extends boolean = true> {
   enrollment?: T;
   course?: T;
   courseTitle?: T;
-  parentPost?: T;
+  parentThread?: T;
   postType?: T;
   title?: T;
   content?: T;
@@ -1343,19 +1358,16 @@ export interface DiscussionSubmissionsSelect<T extends boolean = true> {
   editedAt?: T;
   isEdited?: T;
   replies?: T;
-  replyCount?: T;
-  likes?:
+  upvotes?:
     | T
     | {
         user?: T;
-        likedAt?: T;
+        upvotedAt?: T;
         id?: T;
       };
-  likeCount?: T;
+  lastActivityAt?: T;
   isPinned?: T;
   isLocked?: T;
-  participationScore?: T;
-  qualityScore?: T;
   updatedAt?: T;
   createdAt?: T;
 }
