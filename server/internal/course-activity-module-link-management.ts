@@ -1,37 +1,37 @@
-import type { Payload } from "payload";
-import { CourseActivityModuleCommitLinks } from "server/payload.config";
-import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
+import type { Payload, Where } from "payload";
+import { CourseActivityModuleLinks } from "server/payload.config";
+import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 
-export interface CreateCourseActivityModuleCommitLinkArgs {
+export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
-	commit: number;
+	activityModule: number;
 }
 
-export interface SearchCourseActivityModuleCommitLinksArgs {
+export interface SearchCourseActivityModuleLinksArgs {
 	course?: number;
-	commit?: number;
+	activityModule?: number;
 	limit?: number;
 	page?: number;
 }
 
 /**
- * Creates a new course-activity-module-commit-link using Payload local API
+ * Creates a new course-activity-module-link using Payload local API
  */
-export const tryCreateCourseActivityModuleCommitLink = Result.wrap(
+export const tryCreateCourseActivityModuleLink = Result.wrap(
 	async (
 		payload: Payload,
 		request: Request,
-		args: CreateCourseActivityModuleCommitLinkArgs,
+		args: CreateCourseActivityModuleLinkArgs,
 	) => {
-		const { course, commit } = args;
+		const { course, activityModule } = args;
 
 		const newLink = await payload.create({
-			collection: "course-activity-module-commit-links",
+			collection: CourseActivityModuleLinks.slug,
 			data: {
 				course,
-				commit,
+				activityModule,
 			},
 			req: request,
 		});
@@ -48,9 +48,9 @@ export const tryCreateCourseActivityModuleCommitLink = Result.wrap(
 			}),
 		);
 
-		const newLinkCommit = newLink.commit;
+		const newLinkActivityModule = newLink.activityModule;
 		assertZod(
-			newLinkCommit,
+			newLinkActivityModule,
 			z.object({
 				id: z.number(),
 			}),
@@ -59,22 +59,22 @@ export const tryCreateCourseActivityModuleCommitLink = Result.wrap(
 		return {
 			...newLink,
 			course: newLinkCourse,
-			commit: newLinkCommit,
+			activityModule: newLinkActivityModule,
 		};
 	},
 	(error) =>
 		new Error(
-			`Failed to create course-activity-module-commit-link: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to create course-activity-module-link: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );
 
 /**
- * Finds course-activity-module-commit-links by course ID
+ * Finds course-activity-module-links by course ID
  */
 export const tryFindLinksByCourse = Result.wrap(
 	async (payload: Payload, courseId: number) => {
 		const links = await payload.find({
-			collection: CourseActivityModuleCommitLinks.slug,
+			collection: CourseActivityModuleLinks.slug,
 			where: {
 				course: {
 					equals: courseId,
@@ -97,9 +97,9 @@ export const tryFindLinksByCourse = Result.wrap(
 				}),
 			);
 
-			const linkCommit = link.commit;
+			const linkActivityModule = link.activityModule;
 			assertZod(
-				linkCommit,
+				linkActivityModule,
 				z.object({
 					id: z.number(),
 				}),
@@ -108,7 +108,7 @@ export const tryFindLinksByCourse = Result.wrap(
 			return {
 				...link,
 				course: linkCourse,
-				commit: linkCommit,
+				activityModule: linkActivityModule,
 			};
 		});
 	},
@@ -119,15 +119,15 @@ export const tryFindLinksByCourse = Result.wrap(
 );
 
 /**
- * Finds course-activity-module-commit-links by commit ID
+ * Finds course-activity-module-links by activity module ID
  */
-export const tryFindLinksByCommit = Result.wrap(
-	async (payload: Payload, commitId: number) => {
+export const tryFindLinksByActivityModule = Result.wrap(
+	async (payload: Payload, activityModuleId: number) => {
 		const links = await payload.find({
-			collection: "course-activity-module-commit-links",
+			collection: CourseActivityModuleLinks.slug,
 			where: {
-				commit: {
-					equals: commitId,
+				activityModule: {
+					equals: activityModuleId,
 				},
 			},
 			pagination: false,
@@ -138,21 +138,18 @@ export const tryFindLinksByCommit = Result.wrap(
 	},
 	(error) =>
 		new Error(
-			`Failed to find links by commit: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to find links by activity module: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );
 
 /**
- * Searches course-activity-module-commit-links with various filters
+ * Searches course-activity-module-links with various filters
  */
-export const trySearchCourseActivityModuleCommitLinks = Result.wrap(
-	async (
-		payload: Payload,
-		args: SearchCourseActivityModuleCommitLinksArgs = {},
-	) => {
-		const { course, commit, limit = 10, page = 1 } = args;
+export const trySearchCourseActivityModuleLinks = Result.wrap(
+	async (payload: Payload, args: SearchCourseActivityModuleLinksArgs = {}) => {
+		const { course, activityModule, limit = 10, page = 1 } = args;
 
-		const where: any = {};
+		const where: Where = {};
 
 		if (course) {
 			where.course = {
@@ -160,14 +157,14 @@ export const trySearchCourseActivityModuleCommitLinks = Result.wrap(
 			};
 		}
 
-		if (commit) {
-			where.commit = {
-				equals: commit,
+		if (activityModule) {
+			where.activityModule = {
+				equals: activityModule,
 			};
 		}
 
 		const links = await payload.find({
-			collection: "course-activity-module-commit-links",
+			collection: CourseActivityModuleLinks.slug,
 			where,
 			limit,
 			page,
@@ -186,17 +183,17 @@ export const trySearchCourseActivityModuleCommitLinks = Result.wrap(
 	},
 	(error) =>
 		new Error(
-			`Failed to search course-activity-module-commit-links: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to search course-activity-module-links: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );
 
 /**
- * Deletes a course-activity-module-commit-link by ID
+ * Deletes a course-activity-module-link by ID
  */
-export const tryDeleteCourseActivityModuleCommitLink = Result.wrap(
+export const tryDeleteCourseActivityModuleLink = Result.wrap(
 	async (payload: Payload, request: Request, linkId: number) => {
 		const deletedLink = await payload.delete({
-			collection: "course-activity-module-commit-links",
+			collection: CourseActivityModuleLinks.slug,
 			id: linkId,
 			req: request,
 		});
@@ -205,17 +202,17 @@ export const tryDeleteCourseActivityModuleCommitLink = Result.wrap(
 	},
 	(error) =>
 		new Error(
-			`Failed to delete course-activity-module-commit-link: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to delete course-activity-module-link: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );
 
 /**
- * Finds a course-activity-module-commit-link by ID
+ * Finds a course-activity-module-link by ID
  */
-export const tryFindCourseActivityModuleCommitLinkById = Result.wrap(
+export const tryFindCourseActivityModuleLinkById = Result.wrap(
 	async (payload: Payload, linkId: number) => {
 		const link = await payload.findByID({
-			collection: "course-activity-module-commit-links",
+			collection: CourseActivityModuleLinks.slug,
 			id: linkId,
 		});
 
@@ -231,9 +228,9 @@ export const tryFindCourseActivityModuleCommitLinkById = Result.wrap(
 			}),
 		);
 
-		const linkCommit = link.commit;
+		const linkActivityModule = link.activityModule;
 		assertZod(
-			linkCommit,
+			linkActivityModule,
 			z.object({
 				id: z.number(),
 			}),
@@ -242,22 +239,22 @@ export const tryFindCourseActivityModuleCommitLinkById = Result.wrap(
 		return {
 			...link,
 			course: linkCourse,
-			commit: linkCommit,
+			activityModule: linkActivityModule,
 		};
 	},
 	(error) =>
 		new Error(
-			`Failed to find course-activity-module-commit-link by ID: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to find course-activity-module-link by ID: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );
 
 /**
- * Checks if a course-commit link already exists
+ * Checks if a course-activity-module link already exists
  */
-export const tryCheckCourseCommitLinkExists = Result.wrap(
-	async (payload: Payload, courseId: number, commitId: number) => {
+export const tryCheckCourseActivityModuleLinkExists = Result.wrap(
+	async (payload: Payload, courseId: number, activityModuleId: number) => {
 		const links = await payload.find({
-			collection: "course-activity-module-commit-links",
+			collection: CourseActivityModuleLinks.slug,
 			where: {
 				and: [
 					{
@@ -266,8 +263,8 @@ export const tryCheckCourseCommitLinkExists = Result.wrap(
 						},
 					},
 					{
-						commit: {
-							equals: commitId,
+						activityModule: {
+							equals: activityModuleId,
 						},
 					},
 				],
@@ -279,6 +276,6 @@ export const tryCheckCourseCommitLinkExists = Result.wrap(
 	},
 	(error) =>
 		new Error(
-			`Failed to check course-commit link existence: ${error instanceof Error ? error.message : String(error)}`,
+			`Failed to check course-activity-module link existence: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );

@@ -56,17 +56,6 @@ export const enum_activity_modules_status = pgEnum(
   "enum_activity_modules_status",
   ["draft", "published", "archived"],
 );
-export const enum_tags_tag_type = pgEnum("enum_tags_tag_type", [
-  "release",
-  "milestone",
-  "snapshot",
-]);
-export const enum_merge_requests_status = pgEnum("enum_merge_requests_status", [
-  "open",
-  "merged",
-  "rejected",
-  "closed",
-]);
 
 export const users_sessions = pgTable(
   "users_sessions",
@@ -270,55 +259,12 @@ export const enrollments = pgTable(
   }),
 );
 
-export const origins = pgTable(
-  "origins",
-  {
-    id: serial("id").primaryKey(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => ({
-    origins_created_by_idx: index("origins_created_by_idx").on(
-      columns.createdBy,
-    ),
-    origins_updated_at_idx: index("origins_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    origins_created_at_idx: index("origins_created_at_idx").on(
-      columns.createdAt,
-    ),
-  }),
-);
-
 export const activity_modules = pgTable(
   "activity_modules",
   {
     id: serial("id").primaryKey(),
-    branch: varchar("branch").notNull().default("main"),
-    origin: integer("origin_id")
-      .notNull()
-      .references(() => origins.id, {
-        onDelete: "set null",
-      }),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
     type: enum_activity_modules_type("type").notNull(),
     status: enum_activity_modules_status("status").notNull().default("draft"),
     createdBy: integer("created_by_id")
@@ -342,9 +288,6 @@ export const activity_modules = pgTable(
       .notNull(),
   },
   (columns) => ({
-    activity_modules_origin_idx: index("activity_modules_origin_idx").on(
-      columns.origin,
-    ),
     activity_modules_created_by_idx: index(
       "activity_modules_created_by_idx",
     ).on(columns.createdBy),
@@ -354,129 +297,11 @@ export const activity_modules = pgTable(
     activity_modules_created_at_idx: index(
       "activity_modules_created_at_idx",
     ).on(columns.createdAt),
-    branch_origin_idx: uniqueIndex("branch_origin_idx").on(
-      columns.branch,
-      columns.origin,
-    ),
   }),
 );
 
-export const commits = pgTable(
-  "commits",
-  {
-    id: serial("id").primaryKey(),
-    hash: varchar("hash").notNull(),
-    message: varchar("message").notNull(),
-    author: integer("author_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    parentCommit: integer("parent_commit_id").references(
-      (): AnyPgColumn => commits.id,
-      {
-        onDelete: "set null",
-      },
-    ),
-    commitDate: timestamp("commit_date", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }).notNull(),
-    content: jsonb("content").notNull(),
-    contentHash: varchar("content_hash").notNull(),
-  },
-  (columns) => ({
-    commits_hash_idx: uniqueIndex("commits_hash_idx").on(columns.hash),
-    commits_author_idx: index("commits_author_idx").on(columns.author),
-    commits_parent_commit_idx: index("commits_parent_commit_idx").on(
-      columns.parentCommit,
-    ),
-  }),
-);
-
-export const commits_rels = pgTable(
-  "commits_rels",
-  {
-    id: serial("id").primaryKey(),
-    order: integer("order"),
-    parent: integer("parent_id").notNull(),
-    path: varchar("path").notNull(),
-    "activity-modulesID": integer("activity_modules_id"),
-  },
-  (columns) => ({
-    order: index("commits_rels_order_idx").on(columns.order),
-    parentIdx: index("commits_rels_parent_idx").on(columns.parent),
-    pathIdx: index("commits_rels_path_idx").on(columns.path),
-    commits_rels_activity_modules_id_idx: index(
-      "commits_rels_activity_modules_id_idx",
-    ).on(columns["activity-modulesID"]),
-    parentFk: foreignKey({
-      columns: [columns["parent"]],
-      foreignColumns: [commits.id],
-      name: "commits_rels_parent_fk",
-    }).onDelete("cascade"),
-    "activity-modulesIdFk": foreignKey({
-      columns: [columns["activity-modulesID"]],
-      foreignColumns: [activity_modules.id],
-      name: "commits_rels_activity_modules_fk",
-    }).onDelete("cascade"),
-  }),
-);
-
-export const tags = pgTable(
-  "tags",
-  {
-    id: serial("id").primaryKey(),
-    name: varchar("name").notNull(),
-    description: varchar("description"),
-    commit: integer("commit_id")
-      .notNull()
-      .references(() => commits.id, {
-        onDelete: "set null",
-      }),
-    origin: integer("origin_id")
-      .notNull()
-      .references(() => origins.id, {
-        onDelete: "set null",
-      }),
-    tagType: enum_tags_tag_type("tag_type").default("snapshot"),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => ({
-    tags_name_idx: uniqueIndex("tags_name_idx").on(columns.name),
-    tags_commit_idx: index("tags_commit_idx").on(columns.commit),
-    tags_origin_idx: index("tags_origin_idx").on(columns.origin),
-    tags_created_by_idx: index("tags_created_by_idx").on(columns.createdBy),
-    tags_updated_at_idx: index("tags_updated_at_idx").on(columns.updatedAt),
-    tags_created_at_idx: index("tags_created_at_idx").on(columns.createdAt),
-    name_origin_idx: uniqueIndex("name_origin_idx").on(
-      columns.name,
-      columns.origin,
-    ),
-  }),
-);
-
-export const course_activity_module_commit_links = pgTable(
-  "course_activity_module_commit_links",
+export const course_activity_module_links = pgTable(
+  "course_activity_module_links",
   {
     id: serial("id").primaryKey(),
     course: integer("course_id")
@@ -484,9 +309,9 @@ export const course_activity_module_commit_links = pgTable(
       .references(() => courses.id, {
         onDelete: "set null",
       }),
-    commit: integer("commit_id")
+    activityModule: integer("activity_module_id")
       .notNull()
-      .references(() => commits.id, {
+      .references(() => activity_modules.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {
@@ -505,151 +330,18 @@ export const course_activity_module_commit_links = pgTable(
       .notNull(),
   },
   (columns) => ({
-    course_activity_module_commit_links_course_idx: index(
-      "course_activity_module_commit_links_course_idx",
+    course_activity_module_links_course_idx: index(
+      "course_activity_module_links_course_idx",
     ).on(columns.course),
-    course_activity_module_commit_links_commit_idx: index(
-      "course_activity_module_commit_links_commit_idx",
-    ).on(columns.commit),
-    course_activity_module_commit_links_updated_at_idx: index(
-      "course_activity_module_commit_links_updated_at_idx",
+    course_activity_module_links_activity_module_idx: index(
+      "course_activity_module_links_activity_module_idx",
+    ).on(columns.activityModule),
+    course_activity_module_links_updated_at_idx: index(
+      "course_activity_module_links_updated_at_idx",
     ).on(columns.updatedAt),
-    course_activity_module_commit_links_created_at_idx: index(
-      "course_activity_module_commit_links_created_at_idx",
+    course_activity_module_links_created_at_idx: index(
+      "course_activity_module_links_created_at_idx",
     ).on(columns.createdAt),
-  }),
-);
-
-export const merge_requests = pgTable(
-  "merge_requests",
-  {
-    id: serial("id").primaryKey(),
-    title: varchar("title").notNull(),
-    description: varchar("description"),
-    from: integer("from_id")
-      .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    to: integer("to_id")
-      .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    status: enum_merge_requests_status("status").notNull().default("open"),
-    rejectedAt: timestamp("rejected_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    rejectedBy: integer("rejected_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    mergedAt: timestamp("merged_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    mergedBy: integer("merged_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    closedAt: timestamp("closed_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    closedBy: integer("closed_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    allowComments: boolean("allow_comments").default(true),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => ({
-    merge_requests_from_idx: index("merge_requests_from_idx").on(columns.from),
-    merge_requests_to_idx: index("merge_requests_to_idx").on(columns.to),
-    merge_requests_rejected_by_idx: index("merge_requests_rejected_by_idx").on(
-      columns.rejectedBy,
-    ),
-    merge_requests_merged_by_idx: index("merge_requests_merged_by_idx").on(
-      columns.mergedBy,
-    ),
-    merge_requests_created_by_idx: index("merge_requests_created_by_idx").on(
-      columns.createdBy,
-    ),
-    merge_requests_closed_by_idx: index("merge_requests_closed_by_idx").on(
-      columns.closedBy,
-    ),
-    merge_requests_updated_at_idx: index("merge_requests_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    merge_requests_created_at_idx: index("merge_requests_created_at_idx").on(
-      columns.createdAt,
-    ),
-  }),
-);
-
-export const merge_request_comments = pgTable(
-  "merge_request_comments",
-  {
-    id: serial("id").primaryKey(),
-    comment: varchar("comment").notNull(),
-    createdBy: integer("created_by_id")
-      .notNull()
-      .references(() => users.id, {
-        onDelete: "set null",
-      }),
-    mergeRequest: integer("merge_request_id")
-      .notNull()
-      .references(() => merge_requests.id, {
-        onDelete: "set null",
-      }),
-    updatedAt: timestamp("updated_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-    createdAt: timestamp("created_at", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    })
-      .defaultNow()
-      .notNull(),
-  },
-  (columns) => ({
-    merge_request_comments_created_by_idx: index(
-      "merge_request_comments_created_by_idx",
-    ).on(columns.createdBy),
-    merge_request_comments_merge_request_idx: index(
-      "merge_request_comments_merge_request_idx",
-    ).on(columns.mergeRequest),
-    merge_request_comments_updated_at_idx: index(
-      "merge_request_comments_updated_at_idx",
-    ).on(columns.updatedAt),
-    merge_request_comments_created_at_idx: index(
-      "merge_request_comments_created_at_idx",
-    ).on(columns.createdAt),
-    mergeRequest_idx: uniqueIndex("mergeRequest_idx").on(columns.mergeRequest),
   }),
 );
 
@@ -854,7 +546,7 @@ export const gradebook_items = pgTable(
     sortOrder: numeric("sort_order").notNull(),
     description: varchar("description"),
     activityModule: integer("activity_module_id").references(
-      () => course_activity_module_commit_links.id,
+      () => course_activity_module_links.id,
       {
         onDelete: "set null",
       },
@@ -1075,15 +767,10 @@ export const payload_locked_documents_rels = pgTable(
     usersID: integer("users_id"),
     coursesID: integer("courses_id"),
     enrollmentsID: integer("enrollments_id"),
-    originsID: integer("origins_id"),
     "activity-modulesID": integer("activity_modules_id"),
-    commitsID: integer("commits_id"),
-    tagsID: integer("tags_id"),
-    "course-activity-module-commit-linksID": integer(
-      "course_activity_module_commit_links_id",
+    "course-activity-module-linksID": integer(
+      "course_activity_module_links_id",
     ),
-    "merge-requestsID": integer("merge_requests_id"),
-    "merge-request-commentsID": integer("merge_request_comments_id"),
     mediaID: integer("media_id"),
     notesID: integer("notes_id"),
     gradebooksID: integer("gradebooks_id"),
@@ -1107,27 +794,12 @@ export const payload_locked_documents_rels = pgTable(
     payload_locked_documents_rels_enrollments_id_idx: index(
       "payload_locked_documents_rels_enrollments_id_idx",
     ).on(columns.enrollmentsID),
-    payload_locked_documents_rels_origins_id_idx: index(
-      "payload_locked_documents_rels_origins_id_idx",
-    ).on(columns.originsID),
     payload_locked_documents_rels_activity_modules_id_idx: index(
       "payload_locked_documents_rels_activity_modules_id_idx",
     ).on(columns["activity-modulesID"]),
-    payload_locked_documents_rels_commits_id_idx: index(
-      "payload_locked_documents_rels_commits_id_idx",
-    ).on(columns.commitsID),
-    payload_locked_documents_rels_tags_id_idx: index(
-      "payload_locked_documents_rels_tags_id_idx",
-    ).on(columns.tagsID),
-    payload_locked_documents_rels_course_activity_module_com_idx: index(
-      "payload_locked_documents_rels_course_activity_module_com_idx",
-    ).on(columns["course-activity-module-commit-linksID"]),
-    payload_locked_documents_rels_merge_requests_id_idx: index(
-      "payload_locked_documents_rels_merge_requests_id_idx",
-    ).on(columns["merge-requestsID"]),
-    payload_locked_documents_rels_merge_request_comments_id_idx: index(
-      "payload_locked_documents_rels_merge_request_comments_id_idx",
-    ).on(columns["merge-request-commentsID"]),
+    payload_locked_documents_rels_course_activity_module_lin_idx: index(
+      "payload_locked_documents_rels_course_activity_module_lin_idx",
+    ).on(columns["course-activity-module-linksID"]),
     payload_locked_documents_rels_media_id_idx: index(
       "payload_locked_documents_rels_media_id_idx",
     ).on(columns.mediaID),
@@ -1169,40 +841,15 @@ export const payload_locked_documents_rels = pgTable(
       foreignColumns: [enrollments.id],
       name: "payload_locked_documents_rels_enrollments_fk",
     }).onDelete("cascade"),
-    originsIdFk: foreignKey({
-      columns: [columns["originsID"]],
-      foreignColumns: [origins.id],
-      name: "payload_locked_documents_rels_origins_fk",
-    }).onDelete("cascade"),
     "activity-modulesIdFk": foreignKey({
       columns: [columns["activity-modulesID"]],
       foreignColumns: [activity_modules.id],
       name: "payload_locked_documents_rels_activity_modules_fk",
     }).onDelete("cascade"),
-    commitsIdFk: foreignKey({
-      columns: [columns["commitsID"]],
-      foreignColumns: [commits.id],
-      name: "payload_locked_documents_rels_commits_fk",
-    }).onDelete("cascade"),
-    tagsIdFk: foreignKey({
-      columns: [columns["tagsID"]],
-      foreignColumns: [tags.id],
-      name: "payload_locked_documents_rels_tags_fk",
-    }).onDelete("cascade"),
-    "course-activity-module-commit-linksIdFk": foreignKey({
-      columns: [columns["course-activity-module-commit-linksID"]],
-      foreignColumns: [course_activity_module_commit_links.id],
-      name: "payload_locked_documents_rels_course_activity_module_commit_links_fk",
-    }).onDelete("cascade"),
-    "merge-requestsIdFk": foreignKey({
-      columns: [columns["merge-requestsID"]],
-      foreignColumns: [merge_requests.id],
-      name: "payload_locked_documents_rels_merge_requests_fk",
-    }).onDelete("cascade"),
-    "merge-request-commentsIdFk": foreignKey({
-      columns: [columns["merge-request-commentsID"]],
-      foreignColumns: [merge_request_comments.id],
-      name: "payload_locked_documents_rels_merge_request_comments_fk",
+    "course-activity-module-linksIdFk": foreignKey({
+      columns: [columns["course-activity-module-linksID"]],
+      foreignColumns: [course_activity_module_links.id],
+      name: "payload_locked_documents_rels_course_activity_module_links_fk",
     }).onDelete("cascade"),
     mediaIdFk: foreignKey({
       columns: [columns["mediaID"]],
@@ -1390,21 +1037,9 @@ export const relations_enrollments = relations(enrollments, ({ one }) => ({
     relationName: "course",
   }),
 }));
-export const relations_origins = relations(origins, ({ one }) => ({
-  createdBy: one(users, {
-    fields: [origins.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-}));
 export const relations_activity_modules = relations(
   activity_modules,
   ({ one }) => ({
-    origin: one(origins, {
-      fields: [activity_modules.origin],
-      references: [origins.id],
-      relationName: "origin",
-    }),
     createdBy: one(users, {
       fields: [activity_modules.createdBy],
       references: [users.id],
@@ -1412,112 +1047,18 @@ export const relations_activity_modules = relations(
     }),
   }),
 );
-export const relations_commits_rels = relations(commits_rels, ({ one }) => ({
-  parent: one(commits, {
-    fields: [commits_rels.parent],
-    references: [commits.id],
-    relationName: "_rels",
-  }),
-  "activity-modulesID": one(activity_modules, {
-    fields: [commits_rels["activity-modulesID"]],
-    references: [activity_modules.id],
-    relationName: "activity-modules",
-  }),
-}));
-export const relations_commits = relations(commits, ({ one, many }) => ({
-  author: one(users, {
-    fields: [commits.author],
-    references: [users.id],
-    relationName: "author",
-  }),
-  parentCommit: one(commits, {
-    fields: [commits.parentCommit],
-    references: [commits.id],
-    relationName: "parentCommit",
-  }),
-  _rels: many(commits_rels, {
-    relationName: "_rels",
-  }),
-}));
-export const relations_tags = relations(tags, ({ one }) => ({
-  commit: one(commits, {
-    fields: [tags.commit],
-    references: [commits.id],
-    relationName: "commit",
-  }),
-  origin: one(origins, {
-    fields: [tags.origin],
-    references: [origins.id],
-    relationName: "origin",
-  }),
-  createdBy: one(users, {
-    fields: [tags.createdBy],
-    references: [users.id],
-    relationName: "createdBy",
-  }),
-}));
-export const relations_course_activity_module_commit_links = relations(
-  course_activity_module_commit_links,
+export const relations_course_activity_module_links = relations(
+  course_activity_module_links,
   ({ one }) => ({
     course: one(courses, {
-      fields: [course_activity_module_commit_links.course],
+      fields: [course_activity_module_links.course],
       references: [courses.id],
       relationName: "course",
     }),
-    commit: one(commits, {
-      fields: [course_activity_module_commit_links.commit],
-      references: [commits.id],
-      relationName: "commit",
-    }),
-  }),
-);
-export const relations_merge_requests = relations(
-  merge_requests,
-  ({ one }) => ({
-    from: one(activity_modules, {
-      fields: [merge_requests.from],
+    activityModule: one(activity_modules, {
+      fields: [course_activity_module_links.activityModule],
       references: [activity_modules.id],
-      relationName: "from",
-    }),
-    to: one(activity_modules, {
-      fields: [merge_requests.to],
-      references: [activity_modules.id],
-      relationName: "to",
-    }),
-    rejectedBy: one(users, {
-      fields: [merge_requests.rejectedBy],
-      references: [users.id],
-      relationName: "rejectedBy",
-    }),
-    mergedBy: one(users, {
-      fields: [merge_requests.mergedBy],
-      references: [users.id],
-      relationName: "mergedBy",
-    }),
-    createdBy: one(users, {
-      fields: [merge_requests.createdBy],
-      references: [users.id],
-      relationName: "createdBy",
-    }),
-    closedBy: one(users, {
-      fields: [merge_requests.closedBy],
-      references: [users.id],
-      relationName: "closedBy",
-    }),
-  }),
-);
-export const relations_merge_request_comments = relations(
-  merge_request_comments,
-  ({ one }) => ({
-    createdBy: one(users, {
-      fields: [merge_request_comments.createdBy],
-      references: [users.id],
-      relationName: "createdBy",
-    }),
-    mergeRequest: one(merge_requests, {
-      fields: [merge_request_comments.mergeRequest],
-      references: [merge_requests.id],
-      relationName: "mergeRequest",
+      relationName: "activityModule",
     }),
   }),
 );
@@ -1564,9 +1105,9 @@ export const relations_gradebook_items = relations(
       references: [gradebook_categories.id],
       relationName: "category",
     }),
-    activityModule: one(course_activity_module_commit_links, {
+    activityModule: one(course_activity_module_links, {
       fields: [gradebook_items.activityModule],
-      references: [course_activity_module_commit_links.id],
+      references: [course_activity_module_links.id],
       relationName: "activityModule",
     }),
   }),
@@ -1633,47 +1174,15 @@ export const relations_payload_locked_documents_rels = relations(
       references: [enrollments.id],
       relationName: "enrollments",
     }),
-    originsID: one(origins, {
-      fields: [payload_locked_documents_rels.originsID],
-      references: [origins.id],
-      relationName: "origins",
-    }),
     "activity-modulesID": one(activity_modules, {
       fields: [payload_locked_documents_rels["activity-modulesID"]],
       references: [activity_modules.id],
       relationName: "activity-modules",
     }),
-    commitsID: one(commits, {
-      fields: [payload_locked_documents_rels.commitsID],
-      references: [commits.id],
-      relationName: "commits",
-    }),
-    tagsID: one(tags, {
-      fields: [payload_locked_documents_rels.tagsID],
-      references: [tags.id],
-      relationName: "tags",
-    }),
-    "course-activity-module-commit-linksID": one(
-      course_activity_module_commit_links,
-      {
-        fields: [
-          payload_locked_documents_rels[
-            "course-activity-module-commit-linksID"
-          ],
-        ],
-        references: [course_activity_module_commit_links.id],
-        relationName: "course-activity-module-commit-links",
-      },
-    ),
-    "merge-requestsID": one(merge_requests, {
-      fields: [payload_locked_documents_rels["merge-requestsID"]],
-      references: [merge_requests.id],
-      relationName: "merge-requests",
-    }),
-    "merge-request-commentsID": one(merge_request_comments, {
-      fields: [payload_locked_documents_rels["merge-request-commentsID"]],
-      references: [merge_request_comments.id],
-      relationName: "merge-request-comments",
+    "course-activity-module-linksID": one(course_activity_module_links, {
+      fields: [payload_locked_documents_rels["course-activity-module-linksID"]],
+      references: [course_activity_module_links.id],
+      relationName: "course-activity-module-links",
     }),
     mediaID: one(media, {
       fields: [payload_locked_documents_rels.mediaID],
@@ -1755,21 +1264,13 @@ type DatabaseSchema = {
   enum_enrollments_status: typeof enum_enrollments_status;
   enum_activity_modules_type: typeof enum_activity_modules_type;
   enum_activity_modules_status: typeof enum_activity_modules_status;
-  enum_tags_tag_type: typeof enum_tags_tag_type;
-  enum_merge_requests_status: typeof enum_merge_requests_status;
   users_sessions: typeof users_sessions;
   users: typeof users;
   courses_tags: typeof courses_tags;
   courses: typeof courses;
   enrollments: typeof enrollments;
-  origins: typeof origins;
   activity_modules: typeof activity_modules;
-  commits: typeof commits;
-  commits_rels: typeof commits_rels;
-  tags: typeof tags;
-  course_activity_module_commit_links: typeof course_activity_module_commit_links;
-  merge_requests: typeof merge_requests;
-  merge_request_comments: typeof merge_request_comments;
+  course_activity_module_links: typeof course_activity_module_links;
   media: typeof media;
   notes: typeof notes;
   gradebooks: typeof gradebooks;
@@ -1788,14 +1289,8 @@ type DatabaseSchema = {
   relations_courses_tags: typeof relations_courses_tags;
   relations_courses: typeof relations_courses;
   relations_enrollments: typeof relations_enrollments;
-  relations_origins: typeof relations_origins;
   relations_activity_modules: typeof relations_activity_modules;
-  relations_commits_rels: typeof relations_commits_rels;
-  relations_commits: typeof relations_commits;
-  relations_tags: typeof relations_tags;
-  relations_course_activity_module_commit_links: typeof relations_course_activity_module_commit_links;
-  relations_merge_requests: typeof relations_merge_requests;
-  relations_merge_request_comments: typeof relations_merge_request_comments;
+  relations_course_activity_module_links: typeof relations_course_activity_module_links;
   relations_media: typeof relations_media;
   relations_notes: typeof relations_notes;
   relations_gradebooks: typeof relations_gradebooks;

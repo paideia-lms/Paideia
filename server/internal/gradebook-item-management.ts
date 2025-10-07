@@ -1,5 +1,8 @@
 import type { Payload } from "payload";
-import { GradebookItems } from "server/payload.config";
+import {
+	CourseActivityModuleLinks,
+	GradebookItems,
+} from "server/payload.config";
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -121,7 +124,7 @@ export const tryCreateGradebookItem = Result.wrap(
 		// Check if activity module exists (if provided)
 		if (activityModuleId) {
 			const activityModule = await payload.findByID({
-				collection: "course-activity-module-commit-links",
+				collection: CourseActivityModuleLinks.slug,
 				id: activityModuleId,
 				req: request,
 			});
@@ -259,7 +262,7 @@ export const tryUpdateGradebookItem = Result.wrap(
 		// Check if activity module exists (if being updated)
 		if (args.activityModuleId !== undefined && args.activityModuleId !== null) {
 			const activityModule = await payload.findByID({
-				collection: "course-activity-module-commit-links",
+				collection: CourseActivityModuleLinks.slug,
 				id: args.activityModuleId,
 				req: request,
 			});

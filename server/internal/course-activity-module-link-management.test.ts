@@ -6,27 +6,25 @@ import {
 	type CreateActivityModuleArgs,
 	tryCreateActivityModule,
 } from "./activity-module-management";
-import { type CreateCommitArgs, tryCreateCommit } from "./commit-management";
 import {
-	type CreateCourseActivityModuleCommitLinkArgs,
-	tryCheckCourseCommitLinkExists,
-	tryCreateCourseActivityModuleCommitLink,
-	tryDeleteCourseActivityModuleCommitLink,
-	tryFindCourseActivityModuleCommitLinkById,
-	tryFindLinksByCommit,
+	type CreateCourseActivityModuleLinkArgs,
+	tryCheckCourseActivityModuleLinkExists,
+	tryCreateCourseActivityModuleLink,
+	tryDeleteCourseActivityModuleLink,
+	tryFindCourseActivityModuleLinkById,
+	tryFindLinksByActivityModule,
 	tryFindLinksByCourse,
-	trySearchCourseActivityModuleCommitLinks,
-} from "./course-activity-module-commit-link-management";
+	trySearchCourseActivityModuleLinks,
+} from "./course-activity-module-link-management";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
-describe("Course Activity Module Commit Link Management Functions", () => {
+describe("Course Activity Module Link Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
 	let testUser: { id: number };
 	let testCourse: { id: number };
 	let testActivityModule: { id: number };
-	let testCommit: { id: number };
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -82,8 +80,6 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			description: "A test activity module for link management",
 			type: "page",
 			status: "draft",
-			content: { body: "Test activity module content" },
-			commitMessage: "Initial commit for test activity module",
 			userId: testUser.id,
 		};
 
@@ -94,9 +90,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok)
 			throw new Error("Test Error: Activity module creation failed");
-		testActivityModule = activityModuleResult.value.activityModule;
-		// Use the initial commit from the activity module creation
-		testCommit = activityModuleResult.value.activityModule.commits[0];
+		testActivityModule = activityModuleResult.value;
 	});
 
 	afterAll(async () => {
@@ -108,14 +102,14 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		}
 	});
 
-	describe("tryCreateCourseActivityModuleCommitLink", () => {
+	describe("tryCreateCourseActivityModuleLink", () => {
 		test("should create a new link successfully", async () => {
-			const linkArgs: CreateCourseActivityModuleCommitLinkArgs = {
+			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
-				commit: testCommit.id,
+				activityModule: testActivityModule.id,
 			};
 
-			const result = await tryCreateCourseActivityModuleCommitLink(
+			const result = await tryCreateCourseActivityModuleLink(
 				payload,
 				mockRequest,
 				linkArgs,
@@ -124,28 +118,26 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			expect(result.ok).toBe(true);
 			if (!result.ok)
 				throw new Error(
-					"Test Error: Failed to create course activity module commit link",
+					"Test Error: Failed to create course activity module link",
 				);
-			const activityModuleCommitLink = result.value;
-			const course = activityModuleCommitLink.course;
+			const activityModuleLink = result.value;
+			const course = activityModuleLink.course;
 			expect(course.id).toBe(testCourse.id);
 
-			const commit = activityModuleCommitLink.commit;
-			expect(commit.id).toBe(testCommit.id);
+			const activityModule = activityModuleLink.activityModule;
+			expect(activityModule.id).toBe(testActivityModule.id);
 
-			expect(activityModuleCommitLink.id).toBeDefined();
-			expect(activityModuleCommitLink.createdAt).toBeDefined();
+			expect(activityModuleLink.id).toBeDefined();
+			expect(activityModuleLink.createdAt).toBeDefined();
 		});
 
 		test("should create multiple links for the same course", async () => {
-			// Create another activity module with its own commit for testing
+			// Create another activity module for testing
 			const activityModuleArgs2: CreateActivityModuleArgs = {
 				title: "Second Test Activity Module",
 				description: "A second test activity module for link management",
 				type: "assignment",
 				status: "draft",
-				content: { body: "Second test activity module content" },
-				commitMessage: "Initial commit for second test activity module",
 				userId: testUser.id,
 			};
 
@@ -156,12 +148,12 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			expect(activityModuleResult2.ok).toBe(true);
 			if (!activityModuleResult2.ok) return;
 
-			const linkArgs: CreateCourseActivityModuleCommitLinkArgs = {
+			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
-				commit: activityModuleResult2.value.activityModule.commits[0].id,
+				activityModule: activityModuleResult2.value.id,
 			};
 
-			const result = await tryCreateCourseActivityModuleCommitLink(
+			const result = await tryCreateCourseActivityModuleLink(
 				payload,
 				mockRequest,
 				linkArgs,
@@ -170,7 +162,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			expect(result.ok).toBe(true);
 			if (!result.ok)
 				throw new Error(
-					"Test Error: Failed to create course activity module commit link",
+					"Test Error: Failed to create course activity module link",
 				);
 			// Handle both depth 0 (ID) and depth 1 (object) cases
 			const course = result.value.course;
@@ -221,28 +213,31 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		});
 	});
 
-	describe("tryFindLinksByCommit", () => {
-		test("should find links by commit ID", async () => {
-			const result = await tryFindLinksByCommit(payload, testCommit.id);
+	describe("tryFindLinksByActivityModule", () => {
+		test("should find links by activity module ID", async () => {
+			const result = await tryFindLinksByActivityModule(
+				payload,
+				testActivityModule.id,
+			);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value.length).toBeGreaterThan(0);
 				result.value.forEach((link) => {
 					// Handle both depth 0 (ID) and depth 1 (object) cases
-					if (link.commit && typeof link.commit === "object") {
-						expect(link.commit.id).toBe(testCommit.id);
+					if (link.activityModule && typeof link.activityModule === "object") {
+						expect(link.activityModule.id).toBe(testActivityModule.id);
 					} else {
-						expect(link.commit).toBe(testCommit.id);
+						expect(link.activityModule).toBe(testActivityModule.id);
 					}
 				});
 			}
 		});
 	});
 
-	describe("trySearchCourseActivityModuleCommitLinks", () => {
+	describe("trySearchCourseActivityModuleLinks", () => {
 		test("should search links by course", async () => {
-			const result = await trySearchCourseActivityModuleCommitLinks(payload, {
+			const result = await trySearchCourseActivityModuleLinks(payload, {
 				course: testCourse.id,
 				limit: 10,
 			});
@@ -261,9 +256,9 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			}
 		});
 
-		test("should search links by commit", async () => {
-			const result = await trySearchCourseActivityModuleCommitLinks(payload, {
-				commit: testCommit.id,
+		test("should search links by activity module", async () => {
+			const result = await trySearchCourseActivityModuleLinks(payload, {
+				activityModule: testActivityModule.id,
 				limit: 10,
 			});
 
@@ -272,17 +267,17 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 				expect(result.value.docs.length).toBeGreaterThan(0);
 				result.value.docs.forEach((link) => {
 					// Handle both depth 0 (ID) and depth 1 (object) cases
-					if (link.commit && typeof link.commit === "object") {
-						expect(link.commit.id).toBe(testCommit.id);
+					if (link.activityModule && typeof link.activityModule === "object") {
+						expect(link.activityModule.id).toBe(testActivityModule.id);
 					} else {
-						expect(link.commit).toBe(testCommit.id);
+						expect(link.activityModule).toBe(testActivityModule.id);
 					}
 				});
 			}
 		});
 
 		test("should return paginated results", async () => {
-			const result = await trySearchCourseActivityModuleCommitLinks(payload, {
+			const result = await trySearchCourseActivityModuleLinks(payload, {
 				limit: 2,
 				page: 1,
 			});
@@ -298,7 +293,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		});
 
 		test("should return empty results for non-matching search", async () => {
-			const result = await trySearchCourseActivityModuleCommitLinks(payload, {
+			const result = await trySearchCourseActivityModuleLinks(payload, {
 				course: 99999, // Non-existent course
 				limit: 10,
 			});
@@ -310,17 +305,17 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		});
 	});
 
-	describe("tryFindCourseActivityModuleCommitLinkById", () => {
+	describe("tryFindCourseActivityModuleLinkById", () => {
 		let testLink: { id: number };
 
 		beforeAll(async () => {
 			// Create a test link for find tests
-			const linkArgs: CreateCourseActivityModuleCommitLinkArgs = {
+			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
-				commit: testCommit.id,
+				activityModule: testActivityModule.id,
 			};
 
-			const result = await tryCreateCourseActivityModuleCommitLink(
+			const result = await tryCreateCourseActivityModuleLink(
 				payload,
 				mockRequest,
 				linkArgs,
@@ -331,7 +326,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		});
 
 		test("should find link by ID successfully", async () => {
-			const result = await tryFindCourseActivityModuleCommitLinkById(
+			const result = await tryFindCourseActivityModuleLinkById(
 				payload,
 				testLink.id,
 			);
@@ -339,7 +334,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			expect(result.ok).toBe(true);
 			if (!result.ok)
 				throw new Error(
-					"Test Error: Failed to find course activity module commit link by ID",
+					"Test Error: Failed to find course activity module link by ID",
 				);
 			expect(result.value.id).toBe(testLink.id);
 			// Handle both depth 0 (ID) and depth 1 (object) cases
@@ -348,37 +343,34 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		});
 
 		test("should fail with non-existent link", async () => {
-			const result = await tryFindCourseActivityModuleCommitLinkById(
-				payload,
-				99999,
-			);
+			const result = await tryFindCourseActivityModuleLinkById(payload, 99999);
 
 			expect(result.ok).toBe(false);
 			if (result.ok)
 				throw new Error(
-					"Test Error: Failed to find course activity module commit link by ID",
+					"Test Error: Failed to find course activity module link by ID",
 				);
 		});
 	});
 
-	describe("tryCheckCourseCommitLinkExists", () => {
+	describe("tryCheckCourseActivityModuleLinkExists", () => {
 		test("should return true for existing link", async () => {
-			const result = await tryCheckCourseCommitLinkExists(
+			const result = await tryCheckCourseActivityModuleLinkExists(
 				payload,
 				testCourse.id,
-				testCommit.id,
+				testActivityModule.id,
 			);
 
 			expect(result.ok).toBe(true);
 			if (!result.ok)
 				throw new Error(
-					"Test Error: Failed to find course activity module commit link by ID",
+					"Test Error: Failed to check course activity module link exists",
 				);
 			expect(result.value).toBe(true);
 		});
 
 		test("should return false for non-existing link", async () => {
-			// Create a new course and commit that don't have a link
+			// Create a new course and activity module that don't have a link
 			const courseArgs: CreateCourseArgs = {
 				title: "Unlinked Course",
 				description: "A course with no links",
@@ -392,44 +384,47 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 				courseArgs,
 			);
 			if (courseResult.ok) {
-				const commitArgs: CreateCommitArgs = {
-					activityModule: testActivityModule.id,
-					parentCommit: testCommit.id,
-					message: "Unlinked commit",
-					author: testUser.id,
-					content: { body: "Unlinked content" },
+				const activityModuleArgs: CreateActivityModuleArgs = {
+					title: "Unlinked Activity Module",
+					description: "An activity module with no links",
+					type: "page",
+					status: "draft",
+					userId: testUser.id,
 				};
 
-				const commitResult = await tryCreateCommit(payload, commitArgs);
+				const activityModuleResult = await tryCreateActivityModule(
+					payload,
+					activityModuleArgs,
+				);
 
-				if (!commitResult.ok)
-					throw new Error("Test Error: Failed to create commit");
+				if (!activityModuleResult.ok)
+					throw new Error("Test Error: Failed to create activity module");
 
-				const result = await tryCheckCourseCommitLinkExists(
+				const result = await tryCheckCourseActivityModuleLinkExists(
 					payload,
 					courseResult.value.id,
-					commitResult.value.id,
+					activityModuleResult.value.id,
 				);
 
 				expect(result.ok).toBe(true);
 				if (!result.ok)
 					throw new Error(
-						"Test Error: Failed to check course commit link exists",
+						"Test Error: Failed to check course activity module link exists",
 					);
 				expect(result.value).toBe(false);
 			}
 		});
 	});
 
-	describe("tryDeleteCourseActivityModuleCommitLink", () => {
+	describe("tryDeleteCourseActivityModuleLink", () => {
 		test("should delete link successfully", async () => {
 			// Create a link to delete
-			const linkArgs: CreateCourseActivityModuleCommitLinkArgs = {
+			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
-				commit: testCommit.id,
+				activityModule: testActivityModule.id,
 			};
 
-			const createResult = await tryCreateCourseActivityModuleCommitLink(
+			const createResult = await tryCreateCourseActivityModuleLink(
 				payload,
 				mockRequest,
 				linkArgs,
@@ -437,7 +432,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
-				const deleteResult = await tryDeleteCourseActivityModuleCommitLink(
+				const deleteResult = await tryDeleteCourseActivityModuleLink(
 					payload,
 					mockRequest,
 					createResult.value.id,
@@ -449,7 +444,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 				}
 
 				// Verify link is actually deleted
-				const findResult = await tryFindCourseActivityModuleCommitLinkById(
+				const findResult = await tryFindCourseActivityModuleLinkById(
 					payload,
 					createResult.value.id,
 				);
@@ -458,7 +453,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 		});
 
 		test("should fail with non-existent link", async () => {
-			const result = await tryDeleteCourseActivityModuleCommitLink(
+			const result = await tryDeleteCourseActivityModuleLink(
 				payload,
 				mockRequest,
 				99999,
@@ -467,7 +462,7 @@ describe("Course Activity Module Commit Link Management Functions", () => {
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
 				expect(result.error.message).toContain(
-					"Failed to delete course-activity-module-commit-link",
+					"Failed to delete course-activity-module-link",
 				);
 			}
 		});

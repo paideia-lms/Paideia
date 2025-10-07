@@ -1,5 +1,5 @@
 {
-  "id": "cb686d59-ba47-4be3-aae5-04742bee1efb",
+  "id": "0d8b53cf-a131-45f7-b896-5287c53b66a1",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -128,9 +128,9 @@
           "primaryKey": false,
           "notNull": false
         },
-        "avatar": {
-          "name": "avatar",
-          "type": "varchar",
+        "avatar_id": {
+          "name": "avatar_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -205,6 +205,21 @@
         }
       },
       "indexes": {
+        "users_avatar_idx": {
+          "name": "users_avatar_idx",
+          "columns": [
+            {
+              "expression": "avatar_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "users_updated_at_idx": {
           "name": "users_updated_at_idx",
           "columns": [
@@ -251,7 +266,21 @@
           "with": {}
         }
       },
-      "foreignKeys": {},
+      "foreignKeys": {
+        "users_avatar_id_media_id_fk": {
+          "name": "users_avatar_id_media_id_fk",
+          "tableFrom": "users",
+          "tableTo": "media",
+          "columnsFrom": [
+            "avatar_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
@@ -356,45 +385,43 @@
           "primaryKey": false,
           "notNull": true
         },
+        "slug": {
+          "name": "slug",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
         "description": {
           "name": "description",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
         },
-        "instructor_id": {
-          "name": "instructor_id",
-          "type": "integer",
+        "structure": {
+          "name": "structure",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": true
-        },
-        "difficulty": {
-          "name": "difficulty",
-          "type": "enum_courses_difficulty",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'beginner'"
-        },
-        "duration": {
-          "name": "duration",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false
         },
         "status": {
           "name": "status",
           "type": "enum_courses_status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "'draft'"
         },
-        "thumbnail": {
-          "name": "thumbnail",
-          "type": "varchar",
+        "thumbnail_id": {
+          "name": "thumbnail_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
         },
         "updated_at": {
           "name": "updated_at",
@@ -412,11 +439,41 @@
         }
       },
       "indexes": {
-        "courses_instructor_idx": {
-          "name": "courses_instructor_idx",
+        "courses_slug_idx": {
+          "name": "courses_slug_idx",
           "columns": [
             {
-              "expression": "instructor_id",
+              "expression": "slug",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "courses_thumbnail_idx": {
+          "name": "courses_thumbnail_idx",
+          "columns": [
+            {
+              "expression": "thumbnail_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "courses_created_by_idx": {
+          "name": "courses_created_by_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -459,12 +516,25 @@
         }
       },
       "foreignKeys": {
-        "courses_instructor_id_users_id_fk": {
-          "name": "courses_instructor_id_users_id_fk",
+        "courses_thumbnail_id_media_id_fk": {
+          "name": "courses_thumbnail_id_media_id_fk",
+          "tableFrom": "courses",
+          "tableTo": "media",
+          "columnsFrom": [
+            "thumbnail_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "courses_created_by_id_users_id_fk": {
+          "name": "courses_created_by_id_users_id_fk",
           "tableFrom": "courses",
           "tableTo": "users",
           "columnsFrom": [
-            "instructor_id"
+            "created_by_id"
           ],
           "columnsTo": [
             "id"
@@ -513,7 +583,7 @@
           "type": "enum_enrollments_status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "'active'"
         },
         "enrolled_at": {
@@ -660,105 +730,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.origins": {
-      "name": "origins",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "origins_created_by_idx": {
-          "name": "origins_created_by_idx",
-          "columns": [
-            {
-              "expression": "created_by_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "origins_updated_at_idx": {
-          "name": "origins_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "origins_created_at_idx": {
-          "name": "origins_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "origins_created_by_id_users_id_fk": {
-          "name": "origins_created_by_id_users_id_fk",
-          "tableFrom": "origins",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.activity_modules": {
       "name": "activity_modules",
       "schema": "",
@@ -781,19 +752,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "branch": {
-          "name": "branch",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'main'"
-        },
-        "origin_id": {
-          "name": "origin_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
         "type": {
           "name": "type",
           "type": "enum_activity_modules_type",
@@ -806,7 +764,7 @@
           "type": "enum_activity_modules_status",
           "typeSchema": "public",
           "primaryKey": false,
-          "notNull": false,
+          "notNull": true,
           "default": "'draft'"
         },
         "created_by_id": {
@@ -831,21 +789,6 @@
         }
       },
       "indexes": {
-        "activity_modules_origin_idx": {
-          "name": "activity_modules_origin_idx",
-          "columns": [
-            {
-              "expression": "origin_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "activity_modules_created_by_idx": {
           "name": "activity_modules_created_by_idx",
           "columns": [
@@ -890,43 +833,9 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
-        },
-        "branch_origin_idx": {
-          "name": "branch_origin_idx",
-          "columns": [
-            {
-              "expression": "branch",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "origin_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
         }
       },
       "foreignKeys": {
-        "activity_modules_origin_id_origins_id_fk": {
-          "name": "activity_modules_origin_id_origins_id_fk",
-          "tableFrom": "activity_modules",
-          "tableTo": "origins",
-          "columnsFrom": [
-            "origin_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "activity_modules_created_by_id_users_id_fk": {
           "name": "activity_modules_created_by_id_users_id_fk",
           "tableFrom": "activity_modules",
@@ -947,8 +856,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.commits": {
-      "name": "commits",
+    "public.course_activity_module_links": {
+      "name": "course_activity_module_links",
       "schema": "",
       "columns": {
         "id": {
@@ -957,44 +866,445 @@
           "primaryKey": true,
           "notNull": true
         },
-        "hash": {
-          "name": "hash",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "message": {
-          "name": "message",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "author_id": {
-          "name": "author_id",
+        "course_id": {
+          "name": "course_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "parent_commit_id": {
-          "name": "parent_commit_id",
+        "activity_module_id": {
+          "name": "activity_module_id",
           "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "course_activity_module_links_course_idx": {
+          "name": "course_activity_module_links_course_idx",
+          "columns": [
+            {
+              "expression": "course_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "course_activity_module_links_activity_module_idx": {
+          "name": "course_activity_module_links_activity_module_idx",
+          "columns": [
+            {
+              "expression": "activity_module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "course_activity_module_links_updated_at_idx": {
+          "name": "course_activity_module_links_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "course_activity_module_links_created_at_idx": {
+          "name": "course_activity_module_links_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "course_activity_module_links_course_id_courses_id_fk": {
+          "name": "course_activity_module_links_course_id_courses_id_fk",
+          "tableFrom": "course_activity_module_links",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "course_activity_module_links_activity_module_id_activity_modules_id_fk": {
+          "name": "course_activity_module_links_activity_module_id_activity_modules_id_fk",
+          "tableFrom": "course_activity_module_links",
+          "tableTo": "activity_modules",
+          "columnsFrom": [
+            "activity_module_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.media": {
+      "name": "media",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "alt": {
+          "name": "alt",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },
-        "commit_date": {
-          "name": "commit_date",
+        "caption": {
+          "name": "caption",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
           "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "url": {
+          "name": "url",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "thumbnail_u_r_l": {
+          "name": "thumbnail_u_r_l",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filename": {
+          "name": "filename",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "mime_type": {
+          "name": "mime_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "filesize": {
+          "name": "filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "width": {
+          "name": "width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "height": {
+          "name": "height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "focal_x": {
+          "name": "focal_x",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "focal_y": {
+          "name": "focal_y",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_thumbnail_url": {
+          "name": "sizes_thumbnail_url",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_thumbnail_width": {
+          "name": "sizes_thumbnail_width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_thumbnail_height": {
+          "name": "sizes_thumbnail_height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_thumbnail_mime_type": {
+          "name": "sizes_thumbnail_mime_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_thumbnail_filesize": {
+          "name": "sizes_thumbnail_filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_thumbnail_filename": {
+          "name": "sizes_thumbnail_filename",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_card_url": {
+          "name": "sizes_card_url",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_card_width": {
+          "name": "sizes_card_width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_card_height": {
+          "name": "sizes_card_height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_card_mime_type": {
+          "name": "sizes_card_mime_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_card_filesize": {
+          "name": "sizes_card_filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_card_filename": {
+          "name": "sizes_card_filename",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_tablet_url": {
+          "name": "sizes_tablet_url",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_tablet_width": {
+          "name": "sizes_tablet_width",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_tablet_height": {
+          "name": "sizes_tablet_height",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_tablet_mime_type": {
+          "name": "sizes_tablet_mime_type",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_tablet_filesize": {
+          "name": "sizes_tablet_filesize",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sizes_tablet_filename": {
+          "name": "sizes_tablet_filename",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "media_updated_at_idx": {
+          "name": "media_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "media_created_at_idx": {
+          "name": "media_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "media_filename_idx": {
+          "name": "media_filename_idx",
+          "columns": [
+            {
+              "expression": "filename",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "media_sizes_thumbnail_sizes_thumbnail_filename_idx": {
+          "name": "media_sizes_thumbnail_sizes_thumbnail_filename_idx",
+          "columns": [
+            {
+              "expression": "sizes_thumbnail_filename",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "media_sizes_card_sizes_card_filename_idx": {
+          "name": "media_sizes_card_sizes_card_filename_idx",
+          "columns": [
+            {
+              "expression": "sizes_card_filename",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "media_sizes_tablet_sizes_tablet_filename_idx": {
+          "name": "media_sizes_tablet_sizes_tablet_filename_idx",
+          "columns": [
+            {
+              "expression": "sizes_tablet_filename",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.notes": {
+      "name": "notes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
         "content": {
           "name": "content",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "content_hash": {
-          "name": "content_hash",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -1015,26 +1325,11 @@
         }
       },
       "indexes": {
-        "commits_hash_idx": {
-          "name": "commits_hash_idx",
+        "notes_created_by_idx": {
+          "name": "notes_created_by_idx",
           "columns": [
             {
-              "expression": "hash",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commits_author_idx": {
-          "name": "commits_author_idx",
-          "columns": [
-            {
-              "expression": "author_id",
+              "expression": "created_by_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1045,23 +1340,8 @@
           "method": "btree",
           "with": {}
         },
-        "commits_parent_commit_idx": {
-          "name": "commits_parent_commit_idx",
-          "columns": [
-            {
-              "expression": "parent_commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "commits_updated_at_idx": {
-          "name": "commits_updated_at_idx",
+        "notes_updated_at_idx": {
+          "name": "notes_updated_at_idx",
           "columns": [
             {
               "expression": "updated_at",
@@ -1075,8 +1355,8 @@
           "method": "btree",
           "with": {}
         },
-        "commits_created_at_idx": {
-          "name": "commits_created_at_idx",
+        "notes_created_at_idx": {
+          "name": "notes_created_at_idx",
           "columns": [
             {
               "expression": "created_at",
@@ -1092,25 +1372,12 @@
         }
       },
       "foreignKeys": {
-        "commits_author_id_users_id_fk": {
-          "name": "commits_author_id_users_id_fk",
-          "tableFrom": "commits",
+        "notes_created_by_id_users_id_fk": {
+          "name": "notes_created_by_id_users_id_fk",
+          "tableFrom": "notes",
           "tableTo": "users",
           "columnsFrom": [
-            "author_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "commits_parent_commit_id_commits_id_fk": {
-          "name": "commits_parent_commit_id_commits_id_fk",
-          "tableFrom": "commits",
-          "tableTo": "commits",
-          "columnsFrom": [
-            "parent_commit_id"
+            "created_by_id"
           ],
           "columnsTo": [
             "id"
@@ -1125,8 +1392,878 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.commits_rels": {
-      "name": "commits_rels",
+    "public.gradebooks": {
+      "name": "gradebooks",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "course_id": {
+          "name": "course_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "gradebooks_course_idx": {
+          "name": "gradebooks_course_idx",
+          "columns": [
+            {
+              "expression": "course_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebooks_updated_at_idx": {
+          "name": "gradebooks_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebooks_created_at_idx": {
+          "name": "gradebooks_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "course_idx": {
+          "name": "course_idx",
+          "columns": [
+            {
+              "expression": "course_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "gradebooks_course_id_courses_id_fk": {
+          "name": "gradebooks_course_id_courses_id_fk",
+          "tableFrom": "gradebooks",
+          "tableTo": "courses",
+          "columnsFrom": [
+            "course_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gradebook_categories": {
+      "name": "gradebook_categories",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "gradebook_id": {
+          "name": "gradebook_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_id": {
+          "name": "parent_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "weight": {
+          "name": "weight",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "gradebook_categories_gradebook_idx": {
+          "name": "gradebook_categories_gradebook_idx",
+          "columns": [
+            {
+              "expression": "gradebook_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_categories_parent_idx": {
+          "name": "gradebook_categories_parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_categories_updated_at_idx": {
+          "name": "gradebook_categories_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_categories_created_at_idx": {
+          "name": "gradebook_categories_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_idx": {
+          "name": "gradebook_idx",
+          "columns": [
+            {
+              "expression": "gradebook_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "parent_idx": {
+          "name": "parent_idx",
+          "columns": [
+            {
+              "expression": "parent_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "gradebook_categories_gradebook_id_gradebooks_id_fk": {
+          "name": "gradebook_categories_gradebook_id_gradebooks_id_fk",
+          "tableFrom": "gradebook_categories",
+          "tableTo": "gradebooks",
+          "columnsFrom": [
+            "gradebook_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "gradebook_categories_parent_id_gradebook_categories_id_fk": {
+          "name": "gradebook_categories_parent_id_gradebook_categories_id_fk",
+          "tableFrom": "gradebook_categories",
+          "tableTo": "gradebook_categories",
+          "columnsFrom": [
+            "parent_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.gradebook_items": {
+      "name": "gradebook_items",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "gradebook_id": {
+          "name": "gradebook_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sort_order": {
+          "name": "sort_order",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activity_module_id": {
+          "name": "activity_module_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "max_grade": {
+          "name": "max_grade",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 100
+        },
+        "min_grade": {
+          "name": "min_grade",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "weight": {
+          "name": "weight",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "extra_credit": {
+          "name": "extra_credit",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "gradebook_items_gradebook_idx": {
+          "name": "gradebook_items_gradebook_idx",
+          "columns": [
+            {
+              "expression": "gradebook_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_items_category_idx": {
+          "name": "gradebook_items_category_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_items_activity_module_idx": {
+          "name": "gradebook_items_activity_module_idx",
+          "columns": [
+            {
+              "expression": "activity_module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_items_updated_at_idx": {
+          "name": "gradebook_items_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_items_created_at_idx": {
+          "name": "gradebook_items_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebook_1_idx": {
+          "name": "gradebook_1_idx",
+          "columns": [
+            {
+              "expression": "gradebook_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "category_idx": {
+          "name": "category_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "gradebook_items_gradebook_id_gradebooks_id_fk": {
+          "name": "gradebook_items_gradebook_id_gradebooks_id_fk",
+          "tableFrom": "gradebook_items",
+          "tableTo": "gradebooks",
+          "columnsFrom": [
+            "gradebook_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "gradebook_items_category_id_gradebook_categories_id_fk": {
+          "name": "gradebook_items_category_id_gradebook_categories_id_fk",
+          "tableFrom": "gradebook_items",
+          "tableTo": "gradebook_categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "gradebook_items_activity_module_id_course_activity_module_links_id_fk": {
+          "name": "gradebook_items_activity_module_id_course_activity_module_links_id_fk",
+          "tableFrom": "gradebook_items",
+          "tableTo": "course_activity_module_links",
+          "columnsFrom": [
+            "activity_module_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.user_grades": {
+      "name": "user_grades",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "enrollment_id": {
+          "name": "enrollment_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gradebook_item_id": {
+          "name": "gradebook_item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "grade": {
+          "name": "grade",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feedback": {
+          "name": "feedback",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "graded_by_id": {
+          "name": "graded_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "graded_at": {
+          "name": "graded_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "submitted_at": {
+          "name": "submitted_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "user_grades_enrollment_idx": {
+          "name": "user_grades_enrollment_idx",
+          "columns": [
+            {
+              "expression": "enrollment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_grades_gradebook_item_idx": {
+          "name": "user_grades_gradebook_item_idx",
+          "columns": [
+            {
+              "expression": "gradebook_item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_grades_graded_by_idx": {
+          "name": "user_grades_graded_by_idx",
+          "columns": [
+            {
+              "expression": "graded_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_grades_updated_at_idx": {
+          "name": "user_grades_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_grades_created_at_idx": {
+          "name": "user_grades_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "enrollment_gradebookItem_idx": {
+          "name": "enrollment_gradebookItem_idx",
+          "columns": [
+            {
+              "expression": "enrollment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "gradebook_item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "gradebookItem_idx": {
+          "name": "gradebookItem_idx",
+          "columns": [
+            {
+              "expression": "gradebook_item_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "enrollment_idx": {
+          "name": "enrollment_idx",
+          "columns": [
+            {
+              "expression": "enrollment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "user_grades_enrollment_id_enrollments_id_fk": {
+          "name": "user_grades_enrollment_id_enrollments_id_fk",
+          "tableFrom": "user_grades",
+          "tableTo": "enrollments",
+          "columnsFrom": [
+            "enrollment_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "user_grades_gradebook_item_id_gradebook_items_id_fk": {
+          "name": "user_grades_gradebook_item_id_gradebook_items_id_fk",
+          "tableFrom": "user_grades",
+          "tableTo": "gradebook_items",
+          "columnsFrom": [
+            "gradebook_item_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "user_grades_graded_by_id_users_id_fk": {
+          "name": "user_grades_graded_by_id_users_id_fk",
+          "tableFrom": "user_grades",
+          "tableTo": "users",
+          "columnsFrom": [
+            "graded_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.search": {
+      "name": "search",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "priority": {
+          "name": "priority",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "search_updated_at_idx": {
+          "name": "search_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "search_created_at_idx": {
+          "name": "search_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.search_rels": {
+      "name": "search_rels",
       "schema": "",
       "columns": {
         "id": {
@@ -1153,16 +2290,22 @@
           "primaryKey": false,
           "notNull": true
         },
-        "activity_modules_id": {
-          "name": "activity_modules_id",
+        "users_id": {
+          "name": "users_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "courses_id": {
+          "name": "courses_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         }
       },
       "indexes": {
-        "commits_rels_order_idx": {
-          "name": "commits_rels_order_idx",
+        "search_rels_order_idx": {
+          "name": "search_rels_order_idx",
           "columns": [
             {
               "expression": "order",
@@ -1176,8 +2319,8 @@
           "method": "btree",
           "with": {}
         },
-        "commits_rels_parent_idx": {
-          "name": "commits_rels_parent_idx",
+        "search_rels_parent_idx": {
+          "name": "search_rels_parent_idx",
           "columns": [
             {
               "expression": "parent_id",
@@ -1191,8 +2334,8 @@
           "method": "btree",
           "with": {}
         },
-        "commits_rels_path_idx": {
-          "name": "commits_rels_path_idx",
+        "search_rels_path_idx": {
+          "name": "search_rels_path_idx",
           "columns": [
             {
               "expression": "path",
@@ -1206,11 +2349,26 @@
           "method": "btree",
           "with": {}
         },
-        "commits_rels_activity_modules_id_idx": {
-          "name": "commits_rels_activity_modules_id_idx",
+        "search_rels_users_id_idx": {
+          "name": "search_rels_users_id_idx",
           "columns": [
             {
-              "expression": "activity_modules_id",
+              "expression": "users_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "search_rels_courses_id_idx": {
+          "name": "search_rels_courses_id_idx",
+          "columns": [
+            {
+              "expression": "courses_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1223,10 +2381,10 @@
         }
       },
       "foreignKeys": {
-        "commits_rels_parent_fk": {
-          "name": "commits_rels_parent_fk",
-          "tableFrom": "commits_rels",
-          "tableTo": "commits",
+        "search_rels_parent_fk": {
+          "name": "search_rels_parent_fk",
+          "tableFrom": "search_rels",
+          "tableTo": "search",
           "columnsFrom": [
             "parent_id"
           ],
@@ -1236,185 +2394,30 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "commits_rels_activity_modules_fk": {
-          "name": "commits_rels_activity_modules_fk",
-          "tableFrom": "commits_rels",
-          "tableTo": "activity_modules",
+        "search_rels_users_fk": {
+          "name": "search_rels_users_fk",
+          "tableFrom": "search_rels",
+          "tableTo": "users",
           "columnsFrom": [
-            "activity_modules_id"
+            "users_id"
           ],
           "columnsTo": [
             "id"
           ],
           "onDelete": "cascade",
           "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.tags": {
-      "name": "tags",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "serial",
-          "primaryKey": true,
-          "notNull": true
         },
-        "name": {
-          "name": "name",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "commit_id": {
-          "name": "commit_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tag_type": {
-          "name": "tag_type",
-          "type": "enum_tags_tag_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'snapshot'"
-        },
-        "created_by_id": {
-          "name": "created_by_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "tags_name_idx": {
-          "name": "tags_name_idx",
-          "columns": [
-            {
-              "expression": "name",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tags_commit_idx": {
-          "name": "tags_commit_idx",
-          "columns": [
-            {
-              "expression": "commit_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tags_created_by_idx": {
-          "name": "tags_created_by_idx",
-          "columns": [
-            {
-              "expression": "created_by_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tags_updated_at_idx": {
-          "name": "tags_updated_at_idx",
-          "columns": [
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "tags_created_at_idx": {
-          "name": "tags_created_at_idx",
-          "columns": [
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "tags_commit_id_commits_id_fk": {
-          "name": "tags_commit_id_commits_id_fk",
-          "tableFrom": "tags",
-          "tableTo": "commits",
+        "search_rels_courses_fk": {
+          "name": "search_rels_courses_fk",
+          "tableFrom": "search_rels",
+          "tableTo": "courses",
           "columnsFrom": [
-            "commit_id"
+            "courses_id"
           ],
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "tags_created_by_id_users_id_fk": {
-          "name": "tags_created_by_id_users_id_fk",
-          "tableFrom": "tags",
-          "tableTo": "users",
-          "columnsFrom": [
-            "created_by_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -1555,26 +2558,56 @@
           "primaryKey": false,
           "notNull": false
         },
-        "origins_id": {
-          "name": "origins_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
         "activity_modules_id": {
           "name": "activity_modules_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "commits_id": {
-          "name": "commits_id",
+        "course_activity_module_links_id": {
+          "name": "course_activity_module_links_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "tags_id": {
-          "name": "tags_id",
+        "media_id": {
+          "name": "media_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes_id": {
+          "name": "notes_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gradebooks_id": {
+          "name": "gradebooks_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gradebook_categories_id": {
+          "name": "gradebook_categories_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gradebook_items_id": {
+          "name": "gradebook_items_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_grades_id": {
+          "name": "user_grades_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "search_id": {
+          "name": "search_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -1671,21 +2704,6 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_origins_id_idx": {
-          "name": "payload_locked_documents_rels_origins_id_idx",
-          "columns": [
-            {
-              "expression": "origins_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "payload_locked_documents_rels_activity_modules_id_idx": {
           "name": "payload_locked_documents_rels_activity_modules_id_idx",
           "columns": [
@@ -1701,11 +2719,11 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_commits_id_idx": {
-          "name": "payload_locked_documents_rels_commits_id_idx",
+        "payload_locked_documents_rels_course_activity_module_lin_idx": {
+          "name": "payload_locked_documents_rels_course_activity_module_lin_idx",
           "columns": [
             {
-              "expression": "commits_id",
+              "expression": "course_activity_module_links_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1716,11 +2734,101 @@
           "method": "btree",
           "with": {}
         },
-        "payload_locked_documents_rels_tags_id_idx": {
-          "name": "payload_locked_documents_rels_tags_id_idx",
+        "payload_locked_documents_rels_media_id_idx": {
+          "name": "payload_locked_documents_rels_media_id_idx",
           "columns": [
             {
-              "expression": "tags_id",
+              "expression": "media_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_notes_id_idx": {
+          "name": "payload_locked_documents_rels_notes_id_idx",
+          "columns": [
+            {
+              "expression": "notes_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_gradebooks_id_idx": {
+          "name": "payload_locked_documents_rels_gradebooks_id_idx",
+          "columns": [
+            {
+              "expression": "gradebooks_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_gradebook_categories_id_idx": {
+          "name": "payload_locked_documents_rels_gradebook_categories_id_idx",
+          "columns": [
+            {
+              "expression": "gradebook_categories_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_gradebook_items_id_idx": {
+          "name": "payload_locked_documents_rels_gradebook_items_id_idx",
+          "columns": [
+            {
+              "expression": "gradebook_items_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_user_grades_id_idx": {
+          "name": "payload_locked_documents_rels_user_grades_id_idx",
+          "columns": [
+            {
+              "expression": "user_grades_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_search_id_idx": {
+          "name": "payload_locked_documents_rels_search_id_idx",
+          "columns": [
+            {
+              "expression": "search_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1785,19 +2893,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_origins_fk": {
-          "name": "payload_locked_documents_rels_origins_fk",
-          "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "origins",
-          "columnsFrom": [
-            "origins_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "payload_locked_documents_rels_activity_modules_fk": {
           "name": "payload_locked_documents_rels_activity_modules_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -1811,12 +2906,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_commits_fk": {
-          "name": "payload_locked_documents_rels_commits_fk",
+        "payload_locked_documents_rels_course_activity_module_links_fk": {
+          "name": "payload_locked_documents_rels_course_activity_module_links_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "commits",
+          "tableTo": "course_activity_module_links",
           "columnsFrom": [
-            "commits_id"
+            "course_activity_module_links_id"
           ],
           "columnsTo": [
             "id"
@@ -1824,12 +2919,90 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_tags_fk": {
-          "name": "payload_locked_documents_rels_tags_fk",
+        "payload_locked_documents_rels_media_fk": {
+          "name": "payload_locked_documents_rels_media_fk",
           "tableFrom": "payload_locked_documents_rels",
-          "tableTo": "tags",
+          "tableTo": "media",
           "columnsFrom": [
-            "tags_id"
+            "media_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_notes_fk": {
+          "name": "payload_locked_documents_rels_notes_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "notes",
+          "columnsFrom": [
+            "notes_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_gradebooks_fk": {
+          "name": "payload_locked_documents_rels_gradebooks_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "gradebooks",
+          "columnsFrom": [
+            "gradebooks_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_gradebook_categories_fk": {
+          "name": "payload_locked_documents_rels_gradebook_categories_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "gradebook_categories",
+          "columnsFrom": [
+            "gradebook_categories_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_gradebook_items_fk": {
+          "name": "payload_locked_documents_rels_gradebook_items_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "gradebook_items",
+          "columnsFrom": [
+            "gradebook_items_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_user_grades_fk": {
+          "name": "payload_locked_documents_rels_user_grades_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "user_grades",
+          "columnsFrom": [
+            "user_grades_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_search_fk": {
+          "name": "payload_locked_documents_rels_search_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "search",
+          "columnsFrom": [
+            "search_id"
           ],
           "columnsTo": [
             "id"
@@ -2153,15 +3326,6 @@
         "admin"
       ]
     },
-    "public.enum_courses_difficulty": {
-      "name": "enum_courses_difficulty",
-      "schema": "public",
-      "values": [
-        "beginner",
-        "intermediate",
-        "advanced"
-      ]
-    },
     "public.enum_courses_status": {
       "name": "enum_courses_status",
       "schema": "public",
@@ -2209,15 +3373,6 @@
         "draft",
         "published",
         "archived"
-      ]
-    },
-    "public.enum_tags_tag_type": {
-      "name": "enum_tags_tag_type",
-      "schema": "public",
-      "values": [
-        "release",
-        "milestone",
-        "snapshot"
       ]
     }
   },

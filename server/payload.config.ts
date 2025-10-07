@@ -242,83 +242,19 @@ export const Users = {
 	slug: "users" as const,
 } as const satisfies CollectionConfig;
 
-// Origins collection - tracks the root of activity module branches
-export const Origins = {
-	slug: "origins" as const,
-	defaultSort: "-createdAt",
-	fields: [
-		{
-			name: "title",
-			type: "text",
-			required: true,
-		},
-		{
-			name: "description",
-			type: "textarea",
-		},
-		{
-			name: "branches",
-			type: "join",
-			on: "origin",
-			collection: "activity-modules",
-			label: "Activity Module Branches",
-			hasMany: true,
-			defaultSort: "-createdAt",
-			defaultLimit: 999999,
-		},
-		{
-			name: "createdBy",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-		},
-	],
-} as const satisfies CollectionConfig;
-
 // Activity Modules collection - core learning activities
 export const ActivityModules = {
 	slug: "activity-modules",
 	defaultSort: "-createdAt",
 	fields: [
 		{
-			/**
-			 * the current branch name
-			 */
-			name: "branch",
-			type: "text",
-			required: true,
-			defaultValue: "main",
-			label: "Branch Name",
-		},
-		{
-			// ! this is the origin that this activity module belongs to
-			// ! all branches of the same activity module share the same origin
-			name: "origin",
-			type: "relationship",
-			relationTo: "origins",
-			label: "Origin",
-			required: true,
-		},
-		{
 			name: "title",
 			type: "text",
-			virtual: `origin.${Origins.fields[0].name}`,
+			required: true,
 		},
 		{
 			name: "description",
 			type: "textarea",
-			virtual: `origin.${Origins.fields[1].name}`,
-		},
-		{
-			name: "commits",
-			type: "join",
-			on: "activityModule",
-			collection: "commits",
-			label: "Commits",
-			hasMany: true,
-			// ! this is sorted by commit date but not created at
-			defaultSort: "-commitDate",
-			defaultLimit: 999999,
 		},
 		{
 			name: "type",
@@ -350,150 +286,14 @@ export const ActivityModules = {
 			required: true,
 		},
 	],
-	indexes: [
-		{
-			// branches will be unique by origin
-			fields: ["branch", "origin"],
-			unique: true,
-		},
-	],
-} as const satisfies CollectionConfig;
-
-/**
- * a commit is arbitrary content with a hash to previous commit and some other commit details
- */
-export const Commits = {
-	slug: "commits",
-	defaultSort: "-createdAt",
-	fields: [
-		{
-			/**
-			 * this is the hash of the content
-			 */
-			name: "hash",
-			type: "text",
-			required: true,
-			unique: true,
-			label: "Commit Hash",
-		},
-		{
-			name: "activityModule",
-			type: "relationship",
-			relationTo: "activity-modules",
-			label: "Activity Module",
-			hasMany: true,
-		},
-		{
-			name: "message",
-			type: "textarea",
-			required: true,
-			label: "Commit Message",
-		},
-		{
-			// ! we don't need to store the committer because auther and committer are the same
-			name: "author",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-			label: "Author",
-		},
-		{
-			// ! if this is null, this is the first commit of the branch
-			name: "parentCommit",
-			type: "relationship",
-			relationTo: "commits",
-			label: "Parent Commit",
-		},
-		{
-			name: "parentCommitHash",
-			type: "text",
-			label: "Parent Commit Hash",
-			virtual: `parentCommit.hash`,
-		},
-		{
-			name: "commitDate",
-			type: "date",
-			required: true,
-			label: "Commit Date",
-		},
-		{
-			name: "content",
-			type: "json",
-			required: true,
-			label: "Content (JSON)",
-		},
-		{
-			name: "contentHash",
-			type: "text",
-			required: true,
-			label: "Content Hash (for integrity)",
-		},
-	],
-	// ! we don't need timestamps for commits because we have commit date
-	timestamps: false,
 	indexes: [],
 } as const satisfies CollectionConfig;
 
-// Version Control: Tags (for marking specific versions)
-export const Tags = {
-	slug: "tags",
-	defaultSort: "-createdAt",
-	fields: [
-		{
-			name: "name",
-			type: "text",
-			required: true,
-			unique: true,
-			label: "Tag Name",
-		},
-		{
-			name: "description",
-			type: "textarea",
-			label: "Tag Description",
-		},
-		{
-			name: "commit",
-			type: "relationship",
-			relationTo: "commits",
-			required: true,
-		},
-		{
-			name: "origin",
-			type: "relationship",
-			relationTo: "origins",
-			required: true,
-		},
-		{
-			name: "tagType",
-			type: "select",
-			options: [
-				{ label: "Release", value: "release" },
-				{ label: "Milestone", value: "milestone" },
-				{ label: "Snapshot", value: "snapshot" },
-			],
-			defaultValue: "snapshot",
-		},
-		{
-			name: "createdBy",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-		},
-	],
-	indexes: [
-		{
-			// tags will be unique by origin
-			fields: ["name", "origin"],
-			unique: true,
-		},
-	],
-} as const satisfies CollectionConfig;
-
 /**
- * we need a new collection rather than just a relationship field on the course and commit
+ * we need a new collection rather than just a relationship field on the course and activity module
  */
-export const CourseActivityModuleCommitLinks = {
-	slug: "course-activity-module-commit-links",
+export const CourseActivityModuleLinks = {
+	slug: "course-activity-module-links",
 	defaultSort: "-createdAt",
 	fields: [
 		{
@@ -515,10 +315,10 @@ export const CourseActivityModuleCommitLinks = {
 			virtual: `course.${Courses.fields[1].name}`,
 		},
 		{
-			name: "commit",
+			name: "activityModule",
 			type: "relationship",
-			relationTo: "commits",
-			label: "Commit",
+			relationTo: "activity-modules",
+			label: "Activity Module",
 
 			required: true,
 		},
@@ -526,140 +326,12 @@ export const CourseActivityModuleCommitLinks = {
 			name: "activityModuleName",
 			type: "text",
 			hasMany: true,
-			virtual: `commit.${Commits.fields[1].name}.${ActivityModules.fields[1].name}.${Origins.fields[0].name}`,
+			virtual: `activityModule.${ActivityModules.fields[0].name}`,
 		},
 		{
 			name: "activityModuleType",
 			type: "text",
-			virtual: `commit.${Commits.fields[1].name}.${ActivityModules.fields[5].name}`,
-		},
-	],
-} as const satisfies CollectionConfig;
-
-export const MergeRequests = {
-	slug: "merge-requests",
-	defaultSort: "-createdAt",
-	fields: [
-		{
-			name: "title",
-			type: "text",
-			required: true,
-		},
-		{
-			name: "description",
-			type: "textarea",
-		},
-		{
-			name: "from",
-			type: "relationship",
-			relationTo: "activity-modules",
-			required: true,
-		},
-		{
-			name: "to",
-			type: "relationship",
-			relationTo: "activity-modules",
-			required: true,
-		},
-		{
-			name: "status",
-			type: "select",
-			options: [
-				{ label: "Open", value: "open" },
-				{ label: "Merged", value: "merged" },
-				{ label: "Rejected", value: "rejected" },
-				// ! closed by user
-				{ label: "Closed", value: "closed" },
-			],
-			defaultValue: "open",
-			required: true,
-		},
-		{
-			name: "comments",
-			type: "join",
-			on: "mergeRequest",
-			collection: "merge-request-comments",
-			label: "Comments",
-			hasMany: true,
-		},
-		{
-			name: "rejectedAt",
-			type: "date",
-		},
-		{
-			name: "rejectedBy",
-			type: "relationship",
-			relationTo: "users",
-		},
-		{
-			name: "mergedAt",
-			type: "date",
-		},
-		{
-			name: "mergedBy",
-			type: "relationship",
-			relationTo: "users",
-		},
-		{
-			name: "createdBy",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-		},
-		{
-			name: "closedAt",
-			type: "date",
-			label: "Closed At",
-		},
-		{
-			name: "closedBy",
-			type: "relationship",
-			relationTo: "users",
-			label: "Closed By",
-		},
-		{
-			name: "allowComments",
-			type: "checkbox",
-			label: "Allow Comments",
-			defaultValue: true,
-		},
-	],
-	indexes: [
-		// ! this is not a constraint because we can have mulitple closed merge requests between the same two activity modules
-		// {
-		// 	// ! the pair needs to be unique
-		// 	fields: ["from", "to"],
-		// 	unique: true,
-		// },
-	],
-} as const satisfies CollectionConfig;
-
-export const MergeRequestComments = {
-	slug: "merge-request-comments",
-	defaultSort: "-createdAt",
-	fields: [
-		{
-			name: "comment",
-			type: "textarea",
-			required: true,
-		},
-		{
-			name: "createdBy",
-			type: "relationship",
-			relationTo: "users",
-			required: true,
-		},
-		{
-			name: "mergeRequest",
-			type: "relationship",
-			relationTo: "merge-requests",
-			required: true,
-		},
-	],
-	indexes: [
-		{
-			fields: ["mergeRequest"],
-			unique: true,
+			virtual: `activityModule.${ActivityModules.fields[2].name}`,
 		},
 	],
 } as const satisfies CollectionConfig;
@@ -876,6 +548,7 @@ export const GradebookItems = {
 		},
 		{
 			// ! this is the manual item name
+			// ! this should be overridden by the activity module name
 			name: "name",
 			type: "text",
 			required: true,
@@ -893,21 +566,22 @@ export const GradebookItems = {
 			label: "Description",
 		},
 		{
+			// ! if this is null, then the item is not a course activity module, it is a manual item
 			name: "activityModule",
 			type: "relationship",
-			relationTo: "course-activity-module-commit-links",
+			relationTo: "course-activity-module-links",
 			label: "Active Module",
 		},
 		{
 			name: "activityModuleName",
 			type: "text",
-			virtual: `activityModule.commit.activityModule.title`,
+			virtual: `activityModule.activityModule.title`,
 			label: "Activity Module Name",
 		},
 		{
 			name: "activityModuleType",
 			type: "text",
-			virtual: `activityModule.commit.activityModule.type`,
+			virtual: `activityModule.activityModule.type`,
 			label: "Activity Module Type",
 		},
 		{
@@ -1117,13 +791,8 @@ const sanitizedConfig = await buildConfig({
 		Users,
 		Courses,
 		Enrollments,
-		Origins,
 		ActivityModules,
-		Commits,
-		Tags,
-		CourseActivityModuleCommitLinks,
-		MergeRequests,
-		MergeRequestComments,
+		CourseActivityModuleLinks,
 		Media,
 		Notes,
 		Gradebooks,

@@ -70,13 +70,8 @@ export interface Config {
     users: User;
     courses: Course;
     enrollments: Enrollment;
-    origins: Origin;
     'activity-modules': ActivityModule;
-    commits: Commit;
-    tags: Tag;
-    'course-activity-module-commit-links': CourseActivityModuleCommitLink;
-    'merge-requests': MergeRequest;
-    'merge-request-comments': MergeRequestComment;
+    'course-activity-module-links': CourseActivityModuleLink;
     media: Media;
     notes: Note;
     gradebooks: Gradebook;
@@ -89,15 +84,6 @@ export interface Config {
     'payload-migrations': PayloadMigration;
   };
   collectionsJoins: {
-    origins: {
-      branches: 'activity-modules';
-    };
-    'activity-modules': {
-      commits: 'commits';
-    };
-    'merge-requests': {
-      comments: 'merge-request-comments';
-    };
     gradebooks: {
       categories: 'gradebook-categories';
       items: 'gradebook-items';
@@ -114,13 +100,8 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
-    origins: OriginsSelect<false> | OriginsSelect<true>;
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
-    commits: CommitsSelect<false> | CommitsSelect<true>;
-    tags: TagsSelect<false> | TagsSelect<true>;
-    'course-activity-module-commit-links': CourseActivityModuleCommitLinksSelect<false> | CourseActivityModuleCommitLinksSelect<true>;
-    'merge-requests': MergeRequestsSelect<false> | MergeRequestsSelect<true>;
-    'merge-request-comments': MergeRequestCommentsSelect<false> | MergeRequestCommentsSelect<true>;
+    'course-activity-module-links': CourseActivityModuleLinksSelect<false> | CourseActivityModuleLinksSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     notes: NotesSelect<false> | NotesSelect<true>;
     gradebooks: GradebooksSelect<false> | GradebooksSelect<true>;
@@ -292,36 +273,12 @@ export interface Enrollment {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "origins".
- */
-export interface Origin {
-  id: number;
-  title: string;
-  description?: string | null;
-  branches?: {
-    docs?: (number | ActivityModule)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  createdBy: number | User;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "activity-modules".
  */
 export interface ActivityModule {
   id: number;
-  branch: string;
-  origin: number | Origin;
-  title?: string | null;
+  title: string;
   description?: string | null;
-  commits?: {
-    docs?: (number | Commit)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
   status: 'draft' | 'published' | 'archived';
   createdBy: number | User;
@@ -330,94 +287,16 @@ export interface ActivityModule {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "commits".
+ * via the `definition` "course-activity-module-links".
  */
-export interface Commit {
-  id: number;
-  hash: string;
-  activityModule?: (number | ActivityModule)[] | null;
-  message: string;
-  author: number | User;
-  parentCommit?: (number | null) | Commit;
-  parentCommitHash?: string | null;
-  commitDate: string;
-  content:
-    | {
-        [k: string]: unknown;
-      }
-    | unknown[]
-    | string
-    | number
-    | boolean
-    | null;
-  contentHash: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags".
- */
-export interface Tag {
-  id: number;
-  name: string;
-  description?: string | null;
-  commit: number | Commit;
-  origin: number | Origin;
-  tagType?: ('release' | 'milestone' | 'snapshot') | null;
-  createdBy: number | User;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "course-activity-module-commit-links".
- */
-export interface CourseActivityModuleCommitLink {
+export interface CourseActivityModuleLink {
   id: number;
   course: number | Course;
   courseName?: string | null;
   courseSlug?: string | null;
-  commit: number | Commit;
+  activityModule: number | ActivityModule;
   activityModuleName?: string[] | null;
-  activityModuleType?: string[] | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "merge-requests".
- */
-export interface MergeRequest {
-  id: number;
-  title: string;
-  description?: string | null;
-  from: number | ActivityModule;
-  to: number | ActivityModule;
-  status: 'open' | 'merged' | 'rejected' | 'closed';
-  comments?: {
-    docs?: (number | MergeRequestComment)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  rejectedAt?: string | null;
-  rejectedBy?: (number | null) | User;
-  mergedAt?: string | null;
-  mergedBy?: (number | null) | User;
-  createdBy: number | User;
-  closedAt?: string | null;
-  closedBy?: (number | null) | User;
-  allowComments?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "merge-request-comments".
- */
-export interface MergeRequestComment {
-  id: number;
-  comment: string;
-  createdBy: number | User;
-  mergeRequest: number | MergeRequest;
+  activityModuleType?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -490,9 +369,9 @@ export interface GradebookItem {
   name: string;
   sortOrder: number;
   description?: string | null;
-  activityModule?: (number | null) | CourseActivityModuleCommitLink;
-  activityModuleName?: string[] | null;
-  activityModuleType?: string[] | null;
+  activityModule?: (number | null) | CourseActivityModuleLink;
+  activityModuleName?: string | null;
+  activityModuleType?: string | null;
   maxGrade: number;
   minGrade: number;
   weight: number;
@@ -567,32 +446,12 @@ export interface PayloadLockedDocument {
         value: number | Enrollment;
       } | null)
     | ({
-        relationTo: 'origins';
-        value: number | Origin;
-      } | null)
-    | ({
         relationTo: 'activity-modules';
         value: number | ActivityModule;
       } | null)
     | ({
-        relationTo: 'commits';
-        value: number | Commit;
-      } | null)
-    | ({
-        relationTo: 'tags';
-        value: number | Tag;
-      } | null)
-    | ({
-        relationTo: 'course-activity-module-commit-links';
-        value: number | CourseActivityModuleCommitLink;
-      } | null)
-    | ({
-        relationTo: 'merge-requests';
-        value: number | MergeRequest;
-      } | null)
-    | ({
-        relationTo: 'merge-request-comments';
-        value: number | MergeRequestComment;
+        relationTo: 'course-activity-module-links';
+        value: number | CourseActivityModuleLink;
       } | null)
     | ({
         relationTo: 'media';
@@ -733,26 +592,11 @@ export interface EnrollmentsSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "origins_select".
- */
-export interface OriginsSelect<T extends boolean = true> {
-  title?: T;
-  description?: T;
-  branches?: T;
-  createdBy?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "activity-modules_select".
  */
 export interface ActivityModulesSelect<T extends boolean = true> {
-  branch?: T;
-  origin?: T;
   title?: T;
   description?: T;
-  commits?: T;
   type?: T;
   status?: T;
   createdBy?: T;
@@ -761,77 +605,15 @@ export interface ActivityModulesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "commits_select".
+ * via the `definition` "course-activity-module-links_select".
  */
-export interface CommitsSelect<T extends boolean = true> {
-  hash?: T;
-  activityModule?: T;
-  message?: T;
-  author?: T;
-  parentCommit?: T;
-  parentCommitHash?: T;
-  commitDate?: T;
-  content?: T;
-  contentHash?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "tags_select".
- */
-export interface TagsSelect<T extends boolean = true> {
-  name?: T;
-  description?: T;
-  commit?: T;
-  origin?: T;
-  tagType?: T;
-  createdBy?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "course-activity-module-commit-links_select".
- */
-export interface CourseActivityModuleCommitLinksSelect<T extends boolean = true> {
+export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
   course?: T;
   courseName?: T;
   courseSlug?: T;
-  commit?: T;
+  activityModule?: T;
   activityModuleName?: T;
   activityModuleType?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "merge-requests_select".
- */
-export interface MergeRequestsSelect<T extends boolean = true> {
-  title?: T;
-  description?: T;
-  from?: T;
-  to?: T;
-  status?: T;
-  comments?: T;
-  rejectedAt?: T;
-  rejectedBy?: T;
-  mergedAt?: T;
-  mergedBy?: T;
-  createdBy?: T;
-  closedAt?: T;
-  closedBy?: T;
-  allowComments?: T;
-  updatedAt?: T;
-  createdAt?: T;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "merge-request-comments_select".
- */
-export interface MergeRequestCommentsSelect<T extends boolean = true> {
-  comment?: T;
-  createdBy?: T;
-  mergeRequest?: T;
   updatedAt?: T;
   createdAt?: T;
 }
