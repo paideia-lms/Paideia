@@ -3,10 +3,12 @@ import { CourseActivityModuleLinks } from "server/collections/course-activity-mo
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
+import { TransactionIdNotFoundError } from "~/utils/error";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
 	activityModule: number;
+	transactionID?: string | number;
 }
 
 export interface SearchCourseActivityModuleLinksArgs {
@@ -25,7 +27,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		request: Request,
 		args: CreateCourseActivityModuleLinkArgs,
 	) => {
-		const { course, activityModule } = args;
+		const { course, activityModule, transactionID } = args;
 
 		const newLink = await payload.create({
 			collection: CourseActivityModuleLinks.slug,
@@ -33,7 +35,10 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				course,
 				activityModule,
 			},
-			req: request,
+			req: {
+				...request,
+				transactionID,
+			},
 		});
 
 		////////////////////////////////////////////////////

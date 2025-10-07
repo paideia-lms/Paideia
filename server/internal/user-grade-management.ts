@@ -25,6 +25,7 @@ export interface CreateUserGradeArgs {
 	feedback?: string;
 	gradedBy?: number;
 	submittedAt?: string;
+	transactionID?: string | number; // Optional transaction ID for nested transactions
 }
 
 export interface UpdateUserGradeArgs {
@@ -209,7 +210,8 @@ export const tryCreateUserGrade = Result.wrap(
 			);
 		}
 
-		const transactionID = await payload.db.beginTransaction();
+		const transactionID =
+			args.transactionID || (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
@@ -247,8 +249,10 @@ export const tryCreateUserGrade = Result.wrap(
 				req: { ...request, transactionID },
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			// Only commit transaction if we started it (not if it was provided)
+			if (!args.transactionID) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -288,8 +292,10 @@ export const tryCreateUserGrade = Result.wrap(
 			};
 			return result;
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Only rollback transaction if we started it (not if it was provided)
+			if (!args.transactionID) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},

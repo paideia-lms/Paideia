@@ -122,7 +122,7 @@ export const tryCreateGradebookItem = Result.wrap(
 		// Check if activity module exists (if provided)
 		if (activityModuleId) {
 			const activityModule = await payload.findByID({
-				collection: CourseActivityModuleLinks.slug,
+				collection: "activity-modules",
 				id: activityModuleId,
 				req: request,
 			});

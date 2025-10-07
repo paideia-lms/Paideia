@@ -166,6 +166,13 @@ export class NonExistingAssignmentSubmissionError extends Error {
 	}
 }
 
+export class NonExistingQuizSubmissionError extends Error {
+	static readonly type = "NonExistingQuizSubmissionError";
+	get type() {
+		return NonExistingQuizSubmissionError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (process.env.NODE_ENV === "test") {
 		console.log("transformError", error);
@@ -191,6 +198,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof InvalidSortOrderError) return error;
 	else if (error instanceof WeightExceedsLimitError) return error;
 	else if (error instanceof NonExistingAssignmentSubmissionError) return error;
+	else if (error instanceof NonExistingQuizSubmissionError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

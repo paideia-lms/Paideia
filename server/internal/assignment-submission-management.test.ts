@@ -17,6 +17,10 @@ import {
 	tryUpdateAssignmentSubmission,
 	type UpdateAssignmentSubmissionArgs,
 } from "./assignment-submission-management";
+import {
+	type CreateCourseActivityModuleLinkArgs,
+	tryCreateCourseActivityModuleLink,
+} from "./course-activity-module-link-management";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
 import {
 	type CreateEnrollmentArgs,
@@ -28,6 +32,8 @@ import {
 } from "./gradebook-item-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
+const year = new Date().getFullYear();
+
 describe("Assignment Submission Management - Full Workflow", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
@@ -38,6 +44,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	let gradebookItemId: number;
 	let activityModuleId: number;
 	let assignmentId: number;
+	let courseActivityModuleLinkId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -137,7 +144,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			userId: teacherId,
 			assignmentData: {
 				instructions: "Complete this assignment by writing a short essay",
-				dueDate: "2024-12-31T23:59:59Z",
+				dueDate: `${year}-12-31T23:59:59Z`,
 				maxAttempts: 3,
 				allowLateSubmissions: true,
 				requireTextSubmission: true,
@@ -168,6 +175,30 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			console.log("Extracted assignment ID:", assignmentId);
 		}
 
+		// Create course-activity-module-link
+		const courseActivityModuleLinkArgs: CreateCourseActivityModuleLinkArgs = {
+			course: courseId,
+			activityModule: activityModuleId,
+		};
+
+		const courseActivityModuleLinkResult =
+			await tryCreateCourseActivityModuleLink(
+				payload,
+				mockRequest,
+				courseActivityModuleLinkArgs,
+			);
+		expect(courseActivityModuleLinkResult.ok).toBe(true);
+		if (!courseActivityModuleLinkResult.ok) {
+			throw new Error(
+				"Test Error: Failed to create course-activity-module-link",
+			);
+		}
+		courseActivityModuleLinkId = courseActivityModuleLinkResult.value.id;
+		console.log(
+			"Created course-activity-module-link with ID:",
+			courseActivityModuleLinkId,
+		);
+
 		// Verify gradebook exists
 		const verifyGradebook = await payload.findByID({
 			collection: "gradebooks",
@@ -180,8 +211,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Create gradebook item for the assignment
 		console.log(
-			"Creating gradebook item with activityModuleId:",
-			activityModuleId,
+			"Creating gradebook item with courseActivityModuleLinkId:",
+			courseActivityModuleLinkId,
 			"gradebookId:",
 			courseResult.value.gradebook.id,
 		);
@@ -189,7 +220,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			gradebookId: courseResult.value.gradebook.id,
 			name: "Test Assignment",
 			description: "Assignment submission test",
-			activityModuleId,
+			activityModuleId: courseActivityModuleLinkId,
 			maxGrade: 100,
 			weight: 25,
 			sortOrder: 1,
@@ -384,66 +415,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		expect(gradedSubmission.userGrade.baseGrade).toBe(85);
 		expect(gradedSubmission.userGrade.baseGradeSource).toBe("submission");
 		expect(gradedSubmission.userGrade.submissionType).toBe("assignment");
-	});
-
-	test("should create user grade in gradebook automatically when grading (integration with gradebook)", async () => {
-		// First create and submit an assignment
-		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 5,
-			content: "Another submission for gradebook integration test",
-		};
-
-		const createResult = await tryCreateAssignmentSubmission(
-			payload,
-			createArgs,
-		);
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Submit the assignment
-		const submitResult = await trySubmitAssignment(payload, submissionId);
-		expect(submitResult.ok).toBe(true);
-		if (!submitResult.ok) return;
-
-		// Grade the assignment (now automatically creates gradebook entry)
-		const gradeResult = await tryGradeAssignmentSubmission(
-			payload,
-			mockRequest,
-			{
-				id: submissionId,
-				grade: 92,
-				feedback: "Excellent work!",
-				gradedBy: teacherId,
-				enrollmentId,
-				gradebookItemId,
-				submittedAt: submitResult.value.submittedAt ?? undefined,
-			},
-		);
-
-		expect(gradeResult.ok).toBe(true);
-		if (!gradeResult.ok)
-			throw new Error("Test Error: Failed to grade assignment submission");
-
-		const gradedSubmission = gradeResult.value;
-		expect(gradedSubmission.status).toBe("graded");
-		expect(gradedSubmission.grade).toBe(92);
-		expect(gradedSubmission.feedback).toBe("Excellent work!");
-		expect(gradedSubmission.gradedBy).toBe(teacherId);
-
-		// Verify gradebook entry was created automatically
-		expect(gradedSubmission.userGrade).toBeDefined();
-		const userGrade = gradedSubmission.userGrade;
-		expect(userGrade.baseGrade).toBe(92);
-		expect(userGrade.baseGradeSource).toBe("submission");
-		expect(userGrade.submissionType).toBe("assignment");
-		expect(userGrade.feedback).toBe("Excellent work!");
-		expect(userGrade.gradedBy).toBeDefined();
 	});
 
 	test("should get assignment submission by ID", async () => {

@@ -139,6 +139,14 @@ describe("Course Activity Module Link Management Functions", () => {
 				type: "assignment",
 				status: "draft",
 				userId: testUser.id,
+				assignmentData: {
+					instructions: "Complete this assignment",
+					dueDate: "2025-12-31T23:59:59Z",
+					maxAttempts: 3,
+					allowLateSubmissions: true,
+					requireTextSubmission: true,
+					requireFileSubmission: false,
+				},
 			};
 
 			const activityModuleResult2 = await tryCreateActivityModule(

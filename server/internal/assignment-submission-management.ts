@@ -518,9 +518,15 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			}
 
 			// Get assignment to verify it exists
+			const assignmentId =
+				typeof currentSubmission.assignment === "object" &&
+				"id" in currentSubmission.assignment
+					? currentSubmission.assignment.id
+					: (currentSubmission.assignment as number);
+
 			const assignment = await payload.findByID({
 				collection: Assignments.slug,
-				id: currentSubmission.assignment as number,
+				id: assignmentId,
 				req: { transactionID },
 			});
 
@@ -549,6 +555,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				feedback,
 				gradedBy,
 				submittedAt: submittedAt || updatedSubmission.submittedAt || undefined,
+				transactionID,
 			});
 
 			if (!userGradeResult.ok) {

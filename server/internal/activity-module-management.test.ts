@@ -13,6 +13,8 @@ import {
 } from "./activity-module-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
+const year = new Date().getFullYear();
+
 describe("Activity Module Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
@@ -401,7 +403,7 @@ describe("Activity Module Management", () => {
 			status: "published",
 			assignmentData: {
 				instructions: "Updated instructions",
-				dueDate: "2025-01-31",
+				dueDate: `${year}-01-31`,
 				maxAttempts: 3,
 				allowLateSubmissions: true,
 			},
