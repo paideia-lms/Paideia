@@ -131,15 +131,15 @@ export const users_sessions = pgTable(
       precision: 3,
     }).notNull(),
   },
-  (columns) => ({
-    _orderIdx: index("users_sessions_order_idx").on(columns._order),
-    _parentIDIdx: index("users_sessions_parent_id_idx").on(columns._parentID),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("users_sessions_order_idx").on(columns._order),
+    index("users_sessions_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [users.id],
       name: "users_sessions_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const users = pgTable(
@@ -185,12 +185,12 @@ export const users = pgTable(
       precision: 3,
     }),
   },
-  (columns) => ({
-    users_avatar_idx: index("users_avatar_idx").on(columns.avatar),
-    users_updated_at_idx: index("users_updated_at_idx").on(columns.updatedAt),
-    users_created_at_idx: index("users_created_at_idx").on(columns.createdAt),
-    users_email_idx: uniqueIndex("users_email_idx").on(columns.email),
-  }),
+  (columns) => [
+    index("users_avatar_idx").on(columns.avatar),
+    index("users_updated_at_idx").on(columns.updatedAt),
+    index("users_created_at_idx").on(columns.createdAt),
+    uniqueIndex("users_email_idx").on(columns.email),
+  ],
 );
 
 export const courses_tags = pgTable(
@@ -201,15 +201,15 @@ export const courses_tags = pgTable(
     id: varchar("id").primaryKey(),
     tag: varchar("tag"),
   },
-  (columns) => ({
-    _orderIdx: index("courses_tags_order_idx").on(columns._order),
-    _parentIDIdx: index("courses_tags_parent_id_idx").on(columns._parentID),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("courses_tags_order_idx").on(columns._order),
+    index("courses_tags_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [courses.id],
       name: "courses_tags_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const courses = pgTable(
@@ -244,19 +244,13 @@ export const courses = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    courses_slug_idx: uniqueIndex("courses_slug_idx").on(columns.slug),
-    courses_thumbnail_idx: index("courses_thumbnail_idx").on(columns.thumbnail),
-    courses_created_by_idx: index("courses_created_by_idx").on(
-      columns.createdBy,
-    ),
-    courses_updated_at_idx: index("courses_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    courses_created_at_idx: index("courses_created_at_idx").on(
-      columns.createdAt,
-    ),
-  }),
+  (columns) => [
+    uniqueIndex("courses_slug_idx").on(columns.slug),
+    index("courses_thumbnail_idx").on(columns.thumbnail),
+    index("courses_created_by_idx").on(columns.createdBy),
+    index("courses_updated_at_idx").on(columns.updatedAt),
+    index("courses_created_at_idx").on(columns.createdAt),
+  ],
 );
 
 export const enrollments_groups = pgTable(
@@ -267,17 +261,15 @@ export const enrollments_groups = pgTable(
     id: varchar("id").primaryKey(),
     groupPath: varchar("group_path").notNull(),
   },
-  (columns) => ({
-    _orderIdx: index("enrollments_groups_order_idx").on(columns._order),
-    _parentIDIdx: index("enrollments_groups_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("enrollments_groups_order_idx").on(columns._order),
+    index("enrollments_groups_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [enrollments.id],
       name: "enrollments_groups_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const enrollments = pgTable(
@@ -321,20 +313,13 @@ export const enrollments = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    enrollments_user_idx: index("enrollments_user_idx").on(columns.user),
-    enrollments_course_idx: index("enrollments_course_idx").on(columns.course),
-    enrollments_updated_at_idx: index("enrollments_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    enrollments_created_at_idx: index("enrollments_created_at_idx").on(
-      columns.createdAt,
-    ),
-    user_course_idx: uniqueIndex("user_course_idx").on(
-      columns.user,
-      columns.course,
-    ),
-  }),
+  (columns) => [
+    index("enrollments_user_idx").on(columns.user),
+    index("enrollments_course_idx").on(columns.course),
+    index("enrollments_updated_at_idx").on(columns.updatedAt),
+    index("enrollments_created_at_idx").on(columns.createdAt),
+    uniqueIndex("user_course_idx").on(columns.user, columns.course),
+  ],
 );
 
 export const activity_modules = pgTable(
@@ -376,32 +361,20 @@ export const activity_modules = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    activity_modules_created_by_idx: index(
-      "activity_modules_created_by_idx",
-    ).on(columns.createdBy),
-    activity_modules_assignment_idx: index(
-      "activity_modules_assignment_idx",
-    ).on(columns.assignment),
-    activity_modules_quiz_idx: index("activity_modules_quiz_idx").on(
-      columns.quiz,
-    ),
-    activity_modules_discussion_idx: index(
-      "activity_modules_discussion_idx",
-    ).on(columns.discussion),
-    activity_modules_updated_at_idx: index(
-      "activity_modules_updated_at_idx",
-    ).on(columns.updatedAt),
-    activity_modules_created_at_idx: index(
-      "activity_modules_created_at_idx",
-    ).on(columns.createdAt),
-    createdBy_idx: index("createdBy_idx").on(columns.createdBy),
-    type_idx: index("type_idx").on(columns.type),
-    status_idx: index("status_idx").on(columns.status),
-    assignment_idx: index("assignment_idx").on(columns.assignment),
-    quiz_idx: index("quiz_idx").on(columns.quiz),
-    discussion_idx: index("discussion_idx").on(columns.discussion),
-  }),
+  (columns) => [
+    index("activity_modules_created_by_idx").on(columns.createdBy),
+    index("activity_modules_assignment_idx").on(columns.assignment),
+    index("activity_modules_quiz_idx").on(columns.quiz),
+    index("activity_modules_discussion_idx").on(columns.discussion),
+    index("activity_modules_updated_at_idx").on(columns.updatedAt),
+    index("activity_modules_created_at_idx").on(columns.createdAt),
+    index("createdBy_idx").on(columns.createdBy),
+    index("type_idx").on(columns.type),
+    index("status_idx").on(columns.status),
+    index("assignment_idx").on(columns.assignment),
+    index("quiz_idx").on(columns.quiz),
+    index("discussion_idx").on(columns.discussion),
+  ],
 );
 
 export const assignments_allowed_file_types = pgTable(
@@ -413,19 +386,15 @@ export const assignments_allowed_file_types = pgTable(
     extension: varchar("extension").notNull(),
     mimeType: varchar("mime_type").notNull(),
   },
-  (columns) => ({
-    _orderIdx: index("assignments_allowed_file_types_order_idx").on(
-      columns._order,
-    ),
-    _parentIDIdx: index("assignments_allowed_file_types_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("assignments_allowed_file_types_order_idx").on(columns._order),
+    index("assignments_allowed_file_types_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [assignments.id],
       name: "assignments_allowed_file_types_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const assignments = pgTable(
@@ -466,19 +435,13 @@ export const assignments = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    assignments_created_by_idx: index("assignments_created_by_idx").on(
-      columns.createdBy,
-    ),
-    assignments_updated_at_idx: index("assignments_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    assignments_created_at_idx: index("assignments_created_at_idx").on(
-      columns.createdAt,
-    ),
-    createdBy_1_idx: index("createdBy_1_idx").on(columns.createdBy),
-    dueDate_idx: index("dueDate_idx").on(columns.dueDate),
-  }),
+  (columns) => [
+    index("assignments_created_by_idx").on(columns.createdBy),
+    index("assignments_updated_at_idx").on(columns.updatedAt),
+    index("assignments_created_at_idx").on(columns.createdAt),
+    index("createdBy_1_idx").on(columns.createdBy),
+    index("dueDate_idx").on(columns.dueDate),
+  ],
 );
 
 export const quizzes_questions_options = pgTable(
@@ -491,17 +454,15 @@ export const quizzes_questions_options = pgTable(
     isCorrect: boolean("is_correct").default(false),
     feedback: varchar("feedback"),
   },
-  (columns) => ({
-    _orderIdx: index("quizzes_questions_options_order_idx").on(columns._order),
-    _parentIDIdx: index("quizzes_questions_options_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("quizzes_questions_options_order_idx").on(columns._order),
+    index("quizzes_questions_options_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [quizzes_questions.id],
       name: "quizzes_questions_options_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const quizzes_questions_hints = pgTable(
@@ -512,17 +473,15 @@ export const quizzes_questions_hints = pgTable(
     id: varchar("id").primaryKey(),
     hint: varchar("hint").notNull(),
   },
-  (columns) => ({
-    _orderIdx: index("quizzes_questions_hints_order_idx").on(columns._order),
-    _parentIDIdx: index("quizzes_questions_hints_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("quizzes_questions_hints_order_idx").on(columns._order),
+    index("quizzes_questions_hints_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [quizzes_questions.id],
       name: "quizzes_questions_hints_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const quizzes_questions = pgTable(
@@ -538,17 +497,15 @@ export const quizzes_questions = pgTable(
     correctAnswer: varchar("correct_answer"),
     explanation: varchar("explanation"),
   },
-  (columns) => ({
-    _orderIdx: index("quizzes_questions_order_idx").on(columns._order),
-    _parentIDIdx: index("quizzes_questions_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("quizzes_questions_order_idx").on(columns._order),
+    index("quizzes_questions_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [quizzes.id],
       name: "quizzes_questions_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const quizzes = pgTable(
@@ -597,19 +554,13 @@ export const quizzes = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    quizzes_created_by_idx: index("quizzes_created_by_idx").on(
-      columns.createdBy,
-    ),
-    quizzes_updated_at_idx: index("quizzes_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    quizzes_created_at_idx: index("quizzes_created_at_idx").on(
-      columns.createdAt,
-    ),
-    createdBy_2_idx: index("createdBy_2_idx").on(columns.createdBy),
-    dueDate_1_idx: index("dueDate_1_idx").on(columns.dueDate),
-  }),
+  (columns) => [
+    index("quizzes_created_by_idx").on(columns.createdBy),
+    index("quizzes_updated_at_idx").on(columns.updatedAt),
+    index("quizzes_created_at_idx").on(columns.createdAt),
+    index("createdBy_2_idx").on(columns.createdBy),
+    index("dueDate_1_idx").on(columns.dueDate),
+  ],
 );
 
 export const discussions_pinned_threads = pgTable(
@@ -634,23 +585,17 @@ export const discussions_pinned_threads = pgTable(
         onDelete: "set null",
       }),
   },
-  (columns) => ({
-    _orderIdx: index("discussions_pinned_threads_order_idx").on(columns._order),
-    _parentIDIdx: index("discussions_pinned_threads_parent_id_idx").on(
-      columns._parentID,
-    ),
-    discussions_pinned_threads_thread_idx: index(
-      "discussions_pinned_threads_thread_idx",
-    ).on(columns.thread),
-    discussions_pinned_threads_pinned_by_idx: index(
-      "discussions_pinned_threads_pinned_by_idx",
-    ).on(columns.pinnedBy),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("discussions_pinned_threads_order_idx").on(columns._order),
+    index("discussions_pinned_threads_parent_id_idx").on(columns._parentID),
+    index("discussions_pinned_threads_thread_idx").on(columns.thread),
+    index("discussions_pinned_threads_pinned_by_idx").on(columns.pinnedBy),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [discussions.id],
       name: "discussions_pinned_threads_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const discussions = pgTable(
@@ -699,20 +644,14 @@ export const discussions = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    discussions_created_by_idx: index("discussions_created_by_idx").on(
-      columns.createdBy,
-    ),
-    discussions_updated_at_idx: index("discussions_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    discussions_created_at_idx: index("discussions_created_at_idx").on(
-      columns.createdAt,
-    ),
-    createdBy_3_idx: index("createdBy_3_idx").on(columns.createdBy),
-    dueDate_2_idx: index("dueDate_2_idx").on(columns.dueDate),
-    threadSorting_idx: index("threadSorting_idx").on(columns.threadSorting),
-  }),
+  (columns) => [
+    index("discussions_created_by_idx").on(columns.createdBy),
+    index("discussions_updated_at_idx").on(columns.updatedAt),
+    index("discussions_created_at_idx").on(columns.createdAt),
+    index("createdBy_3_idx").on(columns.createdBy),
+    index("dueDate_2_idx").on(columns.dueDate),
+    index("threadSorting_idx").on(columns.threadSorting),
+  ],
 );
 
 export const course_activity_module_links = pgTable(
@@ -744,20 +683,14 @@ export const course_activity_module_links = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    course_activity_module_links_course_idx: index(
-      "course_activity_module_links_course_idx",
-    ).on(columns.course),
-    course_activity_module_links_activity_module_idx: index(
-      "course_activity_module_links_activity_module_idx",
-    ).on(columns.activityModule),
-    course_activity_module_links_updated_at_idx: index(
-      "course_activity_module_links_updated_at_idx",
-    ).on(columns.updatedAt),
-    course_activity_module_links_created_at_idx: index(
-      "course_activity_module_links_created_at_idx",
-    ).on(columns.createdAt),
-  }),
+  (columns) => [
+    index("course_activity_module_links_course_idx").on(columns.course),
+    index("course_activity_module_links_activity_module_idx").on(
+      columns.activityModule,
+    ),
+    index("course_activity_module_links_updated_at_idx").on(columns.updatedAt),
+    index("course_activity_module_links_created_at_idx").on(columns.createdAt),
+  ],
 );
 
 export const media = pgTable(
@@ -808,20 +741,20 @@ export const media = pgTable(
     sizes_tablet_filesize: numeric("sizes_tablet_filesize"),
     sizes_tablet_filename: varchar("sizes_tablet_filename"),
   },
-  (columns) => ({
-    media_updated_at_idx: index("media_updated_at_idx").on(columns.updatedAt),
-    media_created_at_idx: index("media_created_at_idx").on(columns.createdAt),
-    media_filename_idx: uniqueIndex("media_filename_idx").on(columns.filename),
-    media_sizes_thumbnail_sizes_thumbnail_filename_idx: index(
-      "media_sizes_thumbnail_sizes_thumbnail_filename_idx",
-    ).on(columns.sizes_thumbnail_filename),
-    media_sizes_card_sizes_card_filename_idx: index(
-      "media_sizes_card_sizes_card_filename_idx",
-    ).on(columns.sizes_card_filename),
-    media_sizes_tablet_sizes_tablet_filename_idx: index(
-      "media_sizes_tablet_sizes_tablet_filename_idx",
-    ).on(columns.sizes_tablet_filename),
-  }),
+  (columns) => [
+    index("media_updated_at_idx").on(columns.updatedAt),
+    index("media_created_at_idx").on(columns.createdAt),
+    uniqueIndex("media_filename_idx").on(columns.filename),
+    index("media_sizes_thumbnail_sizes_thumbnail_filename_idx").on(
+      columns.sizes_thumbnail_filename,
+    ),
+    index("media_sizes_card_sizes_card_filename_idx").on(
+      columns.sizes_card_filename,
+    ),
+    index("media_sizes_tablet_sizes_tablet_filename_idx").on(
+      columns.sizes_tablet_filename,
+    ),
+  ],
 );
 
 export const notes = pgTable(
@@ -849,11 +782,11 @@ export const notes = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    notes_created_by_idx: index("notes_created_by_idx").on(columns.createdBy),
-    notes_updated_at_idx: index("notes_updated_at_idx").on(columns.updatedAt),
-    notes_created_at_idx: index("notes_created_at_idx").on(columns.createdAt),
-  }),
+  (columns) => [
+    index("notes_created_by_idx").on(columns.createdBy),
+    index("notes_updated_at_idx").on(columns.updatedAt),
+    index("notes_created_at_idx").on(columns.createdAt),
+  ],
 );
 
 export const gradebooks = pgTable(
@@ -881,16 +814,12 @@ export const gradebooks = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    gradebooks_course_idx: index("gradebooks_course_idx").on(columns.course),
-    gradebooks_updated_at_idx: index("gradebooks_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    gradebooks_created_at_idx: index("gradebooks_created_at_idx").on(
-      columns.createdAt,
-    ),
-    course_idx: uniqueIndex("course_idx").on(columns.course),
-  }),
+  (columns) => [
+    index("gradebooks_course_idx").on(columns.course),
+    index("gradebooks_updated_at_idx").on(columns.updatedAt),
+    index("gradebooks_created_at_idx").on(columns.createdAt),
+    uniqueIndex("course_idx").on(columns.course),
+  ],
 );
 
 export const gradebook_categories = pgTable(
@@ -927,22 +856,14 @@ export const gradebook_categories = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    gradebook_categories_gradebook_idx: index(
-      "gradebook_categories_gradebook_idx",
-    ).on(columns.gradebook),
-    gradebook_categories_parent_idx: index(
-      "gradebook_categories_parent_idx",
-    ).on(columns.parent),
-    gradebook_categories_updated_at_idx: index(
-      "gradebook_categories_updated_at_idx",
-    ).on(columns.updatedAt),
-    gradebook_categories_created_at_idx: index(
-      "gradebook_categories_created_at_idx",
-    ).on(columns.createdAt),
-    gradebook_idx: index("gradebook_idx").on(columns.gradebook),
-    parent_idx: index("parent_idx").on(columns.parent),
-  }),
+  (columns) => [
+    index("gradebook_categories_gradebook_idx").on(columns.gradebook),
+    index("gradebook_categories_parent_idx").on(columns.parent),
+    index("gradebook_categories_updated_at_idx").on(columns.updatedAt),
+    index("gradebook_categories_created_at_idx").on(columns.createdAt),
+    index("gradebook_idx").on(columns.gradebook),
+    index("parent_idx").on(columns.parent),
+  ],
 );
 
 export const gradebook_items = pgTable(
@@ -985,25 +906,15 @@ export const gradebook_items = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    gradebook_items_gradebook_idx: index("gradebook_items_gradebook_idx").on(
-      columns.gradebook,
-    ),
-    gradebook_items_category_idx: index("gradebook_items_category_idx").on(
-      columns.category,
-    ),
-    gradebook_items_activity_module_idx: index(
-      "gradebook_items_activity_module_idx",
-    ).on(columns.activityModule),
-    gradebook_items_updated_at_idx: index("gradebook_items_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    gradebook_items_created_at_idx: index("gradebook_items_created_at_idx").on(
-      columns.createdAt,
-    ),
-    gradebook_1_idx: index("gradebook_1_idx").on(columns.gradebook),
-    category_idx: index("category_idx").on(columns.category),
-  }),
+  (columns) => [
+    index("gradebook_items_gradebook_idx").on(columns.gradebook),
+    index("gradebook_items_category_idx").on(columns.category),
+    index("gradebook_items_activity_module_idx").on(columns.activityModule),
+    index("gradebook_items_updated_at_idx").on(columns.updatedAt),
+    index("gradebook_items_created_at_idx").on(columns.createdAt),
+    index("gradebook_1_idx").on(columns.gradebook),
+    index("category_idx").on(columns.category),
+  ],
 );
 
 export const assignment_submissions_attachments = pgTable(
@@ -1019,22 +930,18 @@ export const assignment_submissions_attachments = pgTable(
       }),
     description: varchar("description"),
   },
-  (columns) => ({
-    _orderIdx: index("assignment_submissions_attachments_order_idx").on(
-      columns._order,
-    ),
-    _parentIDIdx: index("assignment_submissions_attachments_parent_id_idx").on(
+  (columns) => [
+    index("assignment_submissions_attachments_order_idx").on(columns._order),
+    index("assignment_submissions_attachments_parent_id_idx").on(
       columns._parentID,
     ),
-    assignment_submissions_attachments_file_idx: index(
-      "assignment_submissions_attachments_file_idx",
-    ).on(columns.file),
-    _parentIDFk: foreignKey({
+    index("assignment_submissions_attachments_file_idx").on(columns.file),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [assignment_submissions.id],
       name: "assignment_submissions_attachments_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const assignment_submissions = pgTable(
@@ -1088,34 +995,26 @@ export const assignment_submissions = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    assignment_submissions_activity_module_idx: index(
-      "assignment_submissions_activity_module_idx",
-    ).on(columns.activityModule),
-    assignment_submissions_assignment_idx: index(
-      "assignment_submissions_assignment_idx",
-    ).on(columns.assignment),
-    assignment_submissions_student_idx: index(
-      "assignment_submissions_student_idx",
-    ).on(columns.student),
-    assignment_submissions_enrollment_idx: index(
-      "assignment_submissions_enrollment_idx",
-    ).on(columns.enrollment),
-    assignment_submissions_updated_at_idx: index(
-      "assignment_submissions_updated_at_idx",
-    ).on(columns.updatedAt),
-    assignment_submissions_created_at_idx: index(
-      "assignment_submissions_created_at_idx",
-    ).on(columns.createdAt),
-    activityModule_idx: index("activityModule_idx").on(columns.activityModule),
-    student_idx: index("student_idx").on(columns.student),
-    enrollment_idx: index("enrollment_idx").on(columns.enrollment),
-    activityModule_student_attemptNumber_idx: uniqueIndex(
-      "activityModule_student_attemptNumber_idx",
-    ).on(columns.activityModule, columns.student, columns.attemptNumber),
-    status_1_idx: index("status_1_idx").on(columns.status),
-    submittedAt_idx: index("submittedAt_idx").on(columns.submittedAt),
-  }),
+  (columns) => [
+    index("assignment_submissions_activity_module_idx").on(
+      columns.activityModule,
+    ),
+    index("assignment_submissions_assignment_idx").on(columns.assignment),
+    index("assignment_submissions_student_idx").on(columns.student),
+    index("assignment_submissions_enrollment_idx").on(columns.enrollment),
+    index("assignment_submissions_updated_at_idx").on(columns.updatedAt),
+    index("assignment_submissions_created_at_idx").on(columns.createdAt),
+    index("activityModule_idx").on(columns.activityModule),
+    index("student_idx").on(columns.student),
+    index("enrollment_idx").on(columns.enrollment),
+    uniqueIndex("activityModule_student_attemptNumber_idx").on(
+      columns.activityModule,
+      columns.student,
+      columns.attemptNumber,
+    ),
+    index("status_1_idx").on(columns.status),
+    index("submittedAt_idx").on(columns.submittedAt),
+  ],
 );
 
 export const quiz_submissions_answers_multiple_choice_answers = pgTable(
@@ -1127,19 +1026,19 @@ export const quiz_submissions_answers_multiple_choice_answers = pgTable(
     option: varchar("option").notNull(),
     isSelected: boolean("is_selected").default(false),
   },
-  (columns) => ({
-    _orderIdx: index(
-      "quiz_submissions_answers_multiple_choice_answers_order_idx",
-    ).on(columns._order),
-    _parentIDIdx: index(
-      "quiz_submissions_answers_multiple_choice_answers_parent_id_idx",
-    ).on(columns._parentID),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("quiz_submissions_answers_multiple_choice_answers_order_idx").on(
+      columns._order,
+    ),
+    index("quiz_submissions_answers_multiple_choice_answers_parent_id_idx").on(
+      columns._parentID,
+    ),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [quiz_submissions_answers.id],
       name: "quiz_submissions_answers_multiple_choice_answers_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const quiz_submissions_answers = pgTable(
@@ -1158,17 +1057,15 @@ export const quiz_submissions_answers = pgTable(
     maxPoints: numeric("max_points"),
     feedback: varchar("feedback"),
   },
-  (columns) => ({
-    _orderIdx: index("quiz_submissions_answers_order_idx").on(columns._order),
-    _parentIDIdx: index("quiz_submissions_answers_parent_id_idx").on(
-      columns._parentID,
-    ),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("quiz_submissions_answers_order_idx").on(columns._order),
+    index("quiz_submissions_answers_parent_id_idx").on(columns._parentID),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [quiz_submissions.id],
       name: "quiz_submissions_answers_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const quiz_submissions = pgTable(
@@ -1229,37 +1126,25 @@ export const quiz_submissions = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    quiz_submissions_activity_module_idx: index(
-      "quiz_submissions_activity_module_idx",
-    ).on(columns.activityModule),
-    quiz_submissions_quiz_idx: index("quiz_submissions_quiz_idx").on(
-      columns.quiz,
-    ),
-    quiz_submissions_student_idx: index("quiz_submissions_student_idx").on(
-      columns.student,
-    ),
-    quiz_submissions_enrollment_idx: index(
-      "quiz_submissions_enrollment_idx",
-    ).on(columns.enrollment),
-    quiz_submissions_updated_at_idx: index(
-      "quiz_submissions_updated_at_idx",
-    ).on(columns.updatedAt),
-    quiz_submissions_created_at_idx: index(
-      "quiz_submissions_created_at_idx",
-    ).on(columns.createdAt),
-    activityModule_1_idx: index("activityModule_1_idx").on(
+  (columns) => [
+    index("quiz_submissions_activity_module_idx").on(columns.activityModule),
+    index("quiz_submissions_quiz_idx").on(columns.quiz),
+    index("quiz_submissions_student_idx").on(columns.student),
+    index("quiz_submissions_enrollment_idx").on(columns.enrollment),
+    index("quiz_submissions_updated_at_idx").on(columns.updatedAt),
+    index("quiz_submissions_created_at_idx").on(columns.createdAt),
+    index("activityModule_1_idx").on(columns.activityModule),
+    index("student_1_idx").on(columns.student),
+    index("enrollment_1_idx").on(columns.enrollment),
+    uniqueIndex("activityModule_student_attemptNumber_1_idx").on(
       columns.activityModule,
+      columns.student,
+      columns.attemptNumber,
     ),
-    student_1_idx: index("student_1_idx").on(columns.student),
-    enrollment_1_idx: index("enrollment_1_idx").on(columns.enrollment),
-    activityModule_student_attemptNumber_1_idx: uniqueIndex(
-      "activityModule_student_attemptNumber_1_idx",
-    ).on(columns.activityModule, columns.student, columns.attemptNumber),
-    status_2_idx: index("status_2_idx").on(columns.status),
-    submittedAt_1_idx: index("submittedAt_1_idx").on(columns.submittedAt),
-    totalScore_idx: index("totalScore_idx").on(columns.totalScore),
-  }),
+    index("status_2_idx").on(columns.status),
+    index("submittedAt_1_idx").on(columns.submittedAt),
+    index("totalScore_idx").on(columns.totalScore),
+  ],
 );
 
 export const discussion_submissions_attachments = pgTable(
@@ -1275,22 +1160,18 @@ export const discussion_submissions_attachments = pgTable(
       }),
     description: varchar("description"),
   },
-  (columns) => ({
-    _orderIdx: index("discussion_submissions_attachments_order_idx").on(
-      columns._order,
-    ),
-    _parentIDIdx: index("discussion_submissions_attachments_parent_id_idx").on(
+  (columns) => [
+    index("discussion_submissions_attachments_order_idx").on(columns._order),
+    index("discussion_submissions_attachments_parent_id_idx").on(
       columns._parentID,
     ),
-    discussion_submissions_attachments_file_idx: index(
-      "discussion_submissions_attachments_file_idx",
-    ).on(columns.file),
-    _parentIDFk: foreignKey({
+    index("discussion_submissions_attachments_file_idx").on(columns.file),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [discussion_submissions.id],
       name: "discussion_submissions_attachments_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const discussion_submissions_upvotes = pgTable(
@@ -1310,22 +1191,16 @@ export const discussion_submissions_upvotes = pgTable(
       precision: 3,
     }).notNull(),
   },
-  (columns) => ({
-    _orderIdx: index("discussion_submissions_upvotes_order_idx").on(
-      columns._order,
-    ),
-    _parentIDIdx: index("discussion_submissions_upvotes_parent_id_idx").on(
-      columns._parentID,
-    ),
-    discussion_submissions_upvotes_user_idx: index(
-      "discussion_submissions_upvotes_user_idx",
-    ).on(columns.user),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("discussion_submissions_upvotes_order_idx").on(columns._order),
+    index("discussion_submissions_upvotes_parent_id_idx").on(columns._parentID),
+    index("discussion_submissions_upvotes_user_idx").on(columns.user),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [discussion_submissions.id],
       name: "discussion_submissions_upvotes_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const discussion_submissions = pgTable(
@@ -1399,45 +1274,31 @@ export const discussion_submissions = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    discussion_submissions_activity_module_idx: index(
-      "discussion_submissions_activity_module_idx",
-    ).on(columns.activityModule),
-    discussion_submissions_discussion_idx: index(
-      "discussion_submissions_discussion_idx",
-    ).on(columns.discussion),
-    discussion_submissions_student_idx: index(
-      "discussion_submissions_student_idx",
-    ).on(columns.student),
-    discussion_submissions_enrollment_idx: index(
-      "discussion_submissions_enrollment_idx",
-    ).on(columns.enrollment),
-    discussion_submissions_parent_thread_idx: index(
-      "discussion_submissions_parent_thread_idx",
-    ).on(columns.parentThread),
-    discussion_submissions_updated_at_idx: index(
-      "discussion_submissions_updated_at_idx",
-    ).on(columns.updatedAt),
-    discussion_submissions_created_at_idx: index(
-      "discussion_submissions_created_at_idx",
-    ).on(columns.createdAt),
-    activityModule_2_idx: index("activityModule_2_idx").on(
+  (columns) => [
+    index("discussion_submissions_activity_module_idx").on(
       columns.activityModule,
     ),
-    discussion_1_idx: index("discussion_1_idx").on(columns.discussion),
-    student_2_idx: index("student_2_idx").on(columns.student),
-    enrollment_2_idx: index("enrollment_2_idx").on(columns.enrollment),
-    parentThread_idx: index("parentThread_idx").on(columns.parentThread),
-    postType_idx: index("postType_idx").on(columns.postType),
-    status_3_idx: index("status_3_idx").on(columns.status),
-    publishedAt_idx: index("publishedAt_idx").on(columns.publishedAt),
-    isPinned_idx: index("isPinned_idx").on(columns.isPinned),
-    lastActivityAt_idx: index("lastActivityAt_idx").on(columns.lastActivityAt),
-    postType_lastActivityAt_idx: index("postType_lastActivityAt_idx").on(
+    index("discussion_submissions_discussion_idx").on(columns.discussion),
+    index("discussion_submissions_student_idx").on(columns.student),
+    index("discussion_submissions_enrollment_idx").on(columns.enrollment),
+    index("discussion_submissions_parent_thread_idx").on(columns.parentThread),
+    index("discussion_submissions_updated_at_idx").on(columns.updatedAt),
+    index("discussion_submissions_created_at_idx").on(columns.createdAt),
+    index("activityModule_2_idx").on(columns.activityModule),
+    index("discussion_1_idx").on(columns.discussion),
+    index("student_2_idx").on(columns.student),
+    index("enrollment_2_idx").on(columns.enrollment),
+    index("parentThread_idx").on(columns.parentThread),
+    index("postType_idx").on(columns.postType),
+    index("status_3_idx").on(columns.status),
+    index("publishedAt_idx").on(columns.publishedAt),
+    index("isPinned_idx").on(columns.isPinned),
+    index("lastActivityAt_idx").on(columns.lastActivityAt),
+    index("postType_lastActivityAt_idx").on(
       columns.postType,
       columns.lastActivityAt,
     ),
-  }),
+  ],
 );
 
 export const course_grade_tables_grade_letters = pgTable(
@@ -1449,19 +1310,17 @@ export const course_grade_tables_grade_letters = pgTable(
     letter: varchar("letter").notNull(),
     minimumPercentage: numeric("minimum_percentage").notNull(),
   },
-  (columns) => ({
-    _orderIdx: index("course_grade_tables_grade_letters_order_idx").on(
-      columns._order,
-    ),
-    _parentIDIdx: index("course_grade_tables_grade_letters_parent_id_idx").on(
+  (columns) => [
+    index("course_grade_tables_grade_letters_order_idx").on(columns._order),
+    index("course_grade_tables_grade_letters_parent_id_idx").on(
       columns._parentID,
     ),
-    _parentIDFk: foreignKey({
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [course_grade_tables.id],
       name: "course_grade_tables_grade_letters_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const course_grade_tables = pgTable(
@@ -1489,18 +1348,12 @@ export const course_grade_tables = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    course_grade_tables_course_idx: index("course_grade_tables_course_idx").on(
-      columns.course,
-    ),
-    course_grade_tables_updated_at_idx: index(
-      "course_grade_tables_updated_at_idx",
-    ).on(columns.updatedAt),
-    course_grade_tables_created_at_idx: index(
-      "course_grade_tables_created_at_idx",
-    ).on(columns.createdAt),
-    course_1_idx: uniqueIndex("course_1_idx").on(columns.course),
-  }),
+  (columns) => [
+    index("course_grade_tables_course_idx").on(columns.course),
+    index("course_grade_tables_updated_at_idx").on(columns.updatedAt),
+    index("course_grade_tables_created_at_idx").on(columns.createdAt),
+    uniqueIndex("course_1_idx").on(columns.course),
+  ],
 );
 
 export const user_grades_adjustments = pgTable(
@@ -1524,20 +1377,16 @@ export const user_grades_adjustments = pgTable(
     }).notNull(),
     isActive: boolean("is_active").default(true),
   },
-  (columns) => ({
-    _orderIdx: index("user_grades_adjustments_order_idx").on(columns._order),
-    _parentIDIdx: index("user_grades_adjustments_parent_id_idx").on(
-      columns._parentID,
-    ),
-    user_grades_adjustments_applied_by_idx: index(
-      "user_grades_adjustments_applied_by_idx",
-    ).on(columns.appliedBy),
-    _parentIDFk: foreignKey({
+  (columns) => [
+    index("user_grades_adjustments_order_idx").on(columns._order),
+    index("user_grades_adjustments_parent_id_idx").on(columns._parentID),
+    index("user_grades_adjustments_applied_by_idx").on(columns.appliedBy),
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [user_grades.id],
       name: "user_grades_adjustments_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const user_grades = pgTable(
@@ -1600,31 +1449,20 @@ export const user_grades = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    user_grades_enrollment_idx: index("user_grades_enrollment_idx").on(
+  (columns) => [
+    index("user_grades_enrollment_idx").on(columns.enrollment),
+    index("user_grades_gradebook_item_idx").on(columns.gradebookItem),
+    index("user_grades_overridden_by_idx").on(columns.overriddenBy),
+    index("user_grades_graded_by_idx").on(columns.gradedBy),
+    index("user_grades_updated_at_idx").on(columns.updatedAt),
+    index("user_grades_created_at_idx").on(columns.createdAt),
+    uniqueIndex("enrollment_gradebookItem_idx").on(
       columns.enrollment,
-    ),
-    user_grades_gradebook_item_idx: index("user_grades_gradebook_item_idx").on(
       columns.gradebookItem,
     ),
-    user_grades_overridden_by_idx: index("user_grades_overridden_by_idx").on(
-      columns.overriddenBy,
-    ),
-    user_grades_graded_by_idx: index("user_grades_graded_by_idx").on(
-      columns.gradedBy,
-    ),
-    user_grades_updated_at_idx: index("user_grades_updated_at_idx").on(
-      columns.updatedAt,
-    ),
-    user_grades_created_at_idx: index("user_grades_created_at_idx").on(
-      columns.createdAt,
-    ),
-    enrollment_gradebookItem_idx: uniqueIndex(
-      "enrollment_gradebookItem_idx",
-    ).on(columns.enrollment, columns.gradebookItem),
-    gradebookItem_idx: index("gradebookItem_idx").on(columns.gradebookItem),
-    enrollment_3_idx: index("enrollment_3_idx").on(columns.enrollment),
-  }),
+    index("gradebookItem_idx").on(columns.gradebookItem),
+    index("enrollment_3_idx").on(columns.enrollment),
+  ],
 );
 
 export const user_grades_rels = pgTable(
@@ -1638,40 +1476,40 @@ export const user_grades_rels = pgTable(
     "quiz-submissionsID": integer("quiz_submissions_id"),
     "discussion-submissionsID": integer("discussion_submissions_id"),
   },
-  (columns) => ({
-    order: index("user_grades_rels_order_idx").on(columns.order),
-    parentIdx: index("user_grades_rels_parent_idx").on(columns.parent),
-    pathIdx: index("user_grades_rels_path_idx").on(columns.path),
-    user_grades_rels_assignment_submissions_id_idx: index(
-      "user_grades_rels_assignment_submissions_id_idx",
-    ).on(columns["assignment-submissionsID"]),
-    user_grades_rels_quiz_submissions_id_idx: index(
-      "user_grades_rels_quiz_submissions_id_idx",
-    ).on(columns["quiz-submissionsID"]),
-    user_grades_rels_discussion_submissions_id_idx: index(
-      "user_grades_rels_discussion_submissions_id_idx",
-    ).on(columns["discussion-submissionsID"]),
-    parentFk: foreignKey({
+  (columns) => [
+    index("user_grades_rels_order_idx").on(columns.order),
+    index("user_grades_rels_parent_idx").on(columns.parent),
+    index("user_grades_rels_path_idx").on(columns.path),
+    index("user_grades_rels_assignment_submissions_id_idx").on(
+      columns["assignment-submissionsID"],
+    ),
+    index("user_grades_rels_quiz_submissions_id_idx").on(
+      columns["quiz-submissionsID"],
+    ),
+    index("user_grades_rels_discussion_submissions_id_idx").on(
+      columns["discussion-submissionsID"],
+    ),
+    foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [user_grades.id],
       name: "user_grades_rels_parent_fk",
     }).onDelete("cascade"),
-    "assignment-submissionsIdFk": foreignKey({
+    foreignKey({
       columns: [columns["assignment-submissionsID"]],
       foreignColumns: [assignment_submissions.id],
       name: "user_grades_rels_assignment_submissions_fk",
     }).onDelete("cascade"),
-    "quiz-submissionsIdFk": foreignKey({
+    foreignKey({
       columns: [columns["quiz-submissionsID"]],
       foreignColumns: [quiz_submissions.id],
       name: "user_grades_rels_quiz_submissions_fk",
     }).onDelete("cascade"),
-    "discussion-submissionsIdFk": foreignKey({
+    foreignKey({
       columns: [columns["discussion-submissionsID"]],
       foreignColumns: [discussion_submissions.id],
       name: "user_grades_rels_discussion_submissions_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const search = pgTable(
@@ -1695,10 +1533,10 @@ export const search = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    search_updated_at_idx: index("search_updated_at_idx").on(columns.updatedAt),
-    search_created_at_idx: index("search_created_at_idx").on(columns.createdAt),
-  }),
+  (columns) => [
+    index("search_updated_at_idx").on(columns.updatedAt),
+    index("search_created_at_idx").on(columns.createdAt),
+  ],
 );
 
 export const search_rels = pgTable(
@@ -1711,32 +1549,28 @@ export const search_rels = pgTable(
     usersID: integer("users_id"),
     coursesID: integer("courses_id"),
   },
-  (columns) => ({
-    order: index("search_rels_order_idx").on(columns.order),
-    parentIdx: index("search_rels_parent_idx").on(columns.parent),
-    pathIdx: index("search_rels_path_idx").on(columns.path),
-    search_rels_users_id_idx: index("search_rels_users_id_idx").on(
-      columns.usersID,
-    ),
-    search_rels_courses_id_idx: index("search_rels_courses_id_idx").on(
-      columns.coursesID,
-    ),
-    parentFk: foreignKey({
+  (columns) => [
+    index("search_rels_order_idx").on(columns.order),
+    index("search_rels_parent_idx").on(columns.parent),
+    index("search_rels_path_idx").on(columns.path),
+    index("search_rels_users_id_idx").on(columns.usersID),
+    index("search_rels_courses_id_idx").on(columns.coursesID),
+    foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [search.id],
       name: "search_rels_parent_fk",
     }).onDelete("cascade"),
-    usersIdFk: foreignKey({
+    foreignKey({
       columns: [columns["usersID"]],
       foreignColumns: [users.id],
       name: "search_rels_users_fk",
     }).onDelete("cascade"),
-    coursesIdFk: foreignKey({
+    foreignKey({
       columns: [columns["coursesID"]],
       foreignColumns: [courses.id],
       name: "search_rels_courses_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const payload_locked_documents = pgTable(
@@ -1759,17 +1593,11 @@ export const payload_locked_documents = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    payload_locked_documents_global_slug_idx: index(
-      "payload_locked_documents_global_slug_idx",
-    ).on(columns.globalSlug),
-    payload_locked_documents_updated_at_idx: index(
-      "payload_locked_documents_updated_at_idx",
-    ).on(columns.updatedAt),
-    payload_locked_documents_created_at_idx: index(
-      "payload_locked_documents_created_at_idx",
-    ).on(columns.createdAt),
-  }),
+  (columns) => [
+    index("payload_locked_documents_global_slug_idx").on(columns.globalSlug),
+    index("payload_locked_documents_updated_at_idx").on(columns.updatedAt),
+    index("payload_locked_documents_created_at_idx").on(columns.createdAt),
+  ],
 );
 
 export const payload_locked_documents_rels = pgTable(
@@ -1801,170 +1629,156 @@ export const payload_locked_documents_rels = pgTable(
     "user-gradesID": integer("user_grades_id"),
     searchID: integer("search_id"),
   },
-  (columns) => ({
-    order: index("payload_locked_documents_rels_order_idx").on(columns.order),
-    parentIdx: index("payload_locked_documents_rels_parent_idx").on(
-      columns.parent,
+  (columns) => [
+    index("payload_locked_documents_rels_order_idx").on(columns.order),
+    index("payload_locked_documents_rels_parent_idx").on(columns.parent),
+    index("payload_locked_documents_rels_path_idx").on(columns.path),
+    index("payload_locked_documents_rels_users_id_idx").on(columns.usersID),
+    index("payload_locked_documents_rels_courses_id_idx").on(columns.coursesID),
+    index("payload_locked_documents_rels_enrollments_id_idx").on(
+      columns.enrollmentsID,
     ),
-    pathIdx: index("payload_locked_documents_rels_path_idx").on(columns.path),
-    payload_locked_documents_rels_users_id_idx: index(
-      "payload_locked_documents_rels_users_id_idx",
-    ).on(columns.usersID),
-    payload_locked_documents_rels_courses_id_idx: index(
-      "payload_locked_documents_rels_courses_id_idx",
-    ).on(columns.coursesID),
-    payload_locked_documents_rels_enrollments_id_idx: index(
-      "payload_locked_documents_rels_enrollments_id_idx",
-    ).on(columns.enrollmentsID),
-    payload_locked_documents_rels_activity_modules_id_idx: index(
-      "payload_locked_documents_rels_activity_modules_id_idx",
-    ).on(columns["activity-modulesID"]),
-    payload_locked_documents_rels_assignments_id_idx: index(
-      "payload_locked_documents_rels_assignments_id_idx",
-    ).on(columns.assignmentsID),
-    payload_locked_documents_rels_quizzes_id_idx: index(
-      "payload_locked_documents_rels_quizzes_id_idx",
-    ).on(columns.quizzesID),
-    payload_locked_documents_rels_discussions_id_idx: index(
-      "payload_locked_documents_rels_discussions_id_idx",
-    ).on(columns.discussionsID),
-    payload_locked_documents_rels_course_activity_module_lin_idx: index(
-      "payload_locked_documents_rels_course_activity_module_lin_idx",
-    ).on(columns["course-activity-module-linksID"]),
-    payload_locked_documents_rels_media_id_idx: index(
-      "payload_locked_documents_rels_media_id_idx",
-    ).on(columns.mediaID),
-    payload_locked_documents_rels_notes_id_idx: index(
-      "payload_locked_documents_rels_notes_id_idx",
-    ).on(columns.notesID),
-    payload_locked_documents_rels_gradebooks_id_idx: index(
-      "payload_locked_documents_rels_gradebooks_id_idx",
-    ).on(columns.gradebooksID),
-    payload_locked_documents_rels_gradebook_categories_id_idx: index(
-      "payload_locked_documents_rels_gradebook_categories_id_idx",
-    ).on(columns["gradebook-categoriesID"]),
-    payload_locked_documents_rels_gradebook_items_id_idx: index(
-      "payload_locked_documents_rels_gradebook_items_id_idx",
-    ).on(columns["gradebook-itemsID"]),
-    payload_locked_documents_rels_assignment_submissions_id_idx: index(
-      "payload_locked_documents_rels_assignment_submissions_id_idx",
-    ).on(columns["assignment-submissionsID"]),
-    payload_locked_documents_rels_quiz_submissions_id_idx: index(
-      "payload_locked_documents_rels_quiz_submissions_id_idx",
-    ).on(columns["quiz-submissionsID"]),
-    payload_locked_documents_rels_discussion_submissions_id_idx: index(
-      "payload_locked_documents_rels_discussion_submissions_id_idx",
-    ).on(columns["discussion-submissionsID"]),
-    payload_locked_documents_rels_course_grade_tables_id_idx: index(
-      "payload_locked_documents_rels_course_grade_tables_id_idx",
-    ).on(columns["course-grade-tablesID"]),
-    payload_locked_documents_rels_user_grades_id_idx: index(
-      "payload_locked_documents_rels_user_grades_id_idx",
-    ).on(columns["user-gradesID"]),
-    payload_locked_documents_rels_search_id_idx: index(
-      "payload_locked_documents_rels_search_id_idx",
-    ).on(columns.searchID),
-    parentFk: foreignKey({
+    index("payload_locked_documents_rels_activity_modules_id_idx").on(
+      columns["activity-modulesID"],
+    ),
+    index("payload_locked_documents_rels_assignments_id_idx").on(
+      columns.assignmentsID,
+    ),
+    index("payload_locked_documents_rels_quizzes_id_idx").on(columns.quizzesID),
+    index("payload_locked_documents_rels_discussions_id_idx").on(
+      columns.discussionsID,
+    ),
+    index("payload_locked_documents_rels_course_activity_module_lin_idx").on(
+      columns["course-activity-module-linksID"],
+    ),
+    index("payload_locked_documents_rels_media_id_idx").on(columns.mediaID),
+    index("payload_locked_documents_rels_notes_id_idx").on(columns.notesID),
+    index("payload_locked_documents_rels_gradebooks_id_idx").on(
+      columns.gradebooksID,
+    ),
+    index("payload_locked_documents_rels_gradebook_categories_id_idx").on(
+      columns["gradebook-categoriesID"],
+    ),
+    index("payload_locked_documents_rels_gradebook_items_id_idx").on(
+      columns["gradebook-itemsID"],
+    ),
+    index("payload_locked_documents_rels_assignment_submissions_id_idx").on(
+      columns["assignment-submissionsID"],
+    ),
+    index("payload_locked_documents_rels_quiz_submissions_id_idx").on(
+      columns["quiz-submissionsID"],
+    ),
+    index("payload_locked_documents_rels_discussion_submissions_id_idx").on(
+      columns["discussion-submissionsID"],
+    ),
+    index("payload_locked_documents_rels_course_grade_tables_id_idx").on(
+      columns["course-grade-tablesID"],
+    ),
+    index("payload_locked_documents_rels_user_grades_id_idx").on(
+      columns["user-gradesID"],
+    ),
+    index("payload_locked_documents_rels_search_id_idx").on(columns.searchID),
+    foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [payload_locked_documents.id],
       name: "payload_locked_documents_rels_parent_fk",
     }).onDelete("cascade"),
-    usersIdFk: foreignKey({
+    foreignKey({
       columns: [columns["usersID"]],
       foreignColumns: [users.id],
       name: "payload_locked_documents_rels_users_fk",
     }).onDelete("cascade"),
-    coursesIdFk: foreignKey({
+    foreignKey({
       columns: [columns["coursesID"]],
       foreignColumns: [courses.id],
       name: "payload_locked_documents_rels_courses_fk",
     }).onDelete("cascade"),
-    enrollmentsIdFk: foreignKey({
+    foreignKey({
       columns: [columns["enrollmentsID"]],
       foreignColumns: [enrollments.id],
       name: "payload_locked_documents_rels_enrollments_fk",
     }).onDelete("cascade"),
-    "activity-modulesIdFk": foreignKey({
+    foreignKey({
       columns: [columns["activity-modulesID"]],
       foreignColumns: [activity_modules.id],
       name: "payload_locked_documents_rels_activity_modules_fk",
     }).onDelete("cascade"),
-    assignmentsIdFk: foreignKey({
+    foreignKey({
       columns: [columns["assignmentsID"]],
       foreignColumns: [assignments.id],
       name: "payload_locked_documents_rels_assignments_fk",
     }).onDelete("cascade"),
-    quizzesIdFk: foreignKey({
+    foreignKey({
       columns: [columns["quizzesID"]],
       foreignColumns: [quizzes.id],
       name: "payload_locked_documents_rels_quizzes_fk",
     }).onDelete("cascade"),
-    discussionsIdFk: foreignKey({
+    foreignKey({
       columns: [columns["discussionsID"]],
       foreignColumns: [discussions.id],
       name: "payload_locked_documents_rels_discussions_fk",
     }).onDelete("cascade"),
-    "course-activity-module-linksIdFk": foreignKey({
+    foreignKey({
       columns: [columns["course-activity-module-linksID"]],
       foreignColumns: [course_activity_module_links.id],
       name: "payload_locked_documents_rels_course_activity_module_links_fk",
     }).onDelete("cascade"),
-    mediaIdFk: foreignKey({
+    foreignKey({
       columns: [columns["mediaID"]],
       foreignColumns: [media.id],
       name: "payload_locked_documents_rels_media_fk",
     }).onDelete("cascade"),
-    notesIdFk: foreignKey({
+    foreignKey({
       columns: [columns["notesID"]],
       foreignColumns: [notes.id],
       name: "payload_locked_documents_rels_notes_fk",
     }).onDelete("cascade"),
-    gradebooksIdFk: foreignKey({
+    foreignKey({
       columns: [columns["gradebooksID"]],
       foreignColumns: [gradebooks.id],
       name: "payload_locked_documents_rels_gradebooks_fk",
     }).onDelete("cascade"),
-    "gradebook-categoriesIdFk": foreignKey({
+    foreignKey({
       columns: [columns["gradebook-categoriesID"]],
       foreignColumns: [gradebook_categories.id],
       name: "payload_locked_documents_rels_gradebook_categories_fk",
     }).onDelete("cascade"),
-    "gradebook-itemsIdFk": foreignKey({
+    foreignKey({
       columns: [columns["gradebook-itemsID"]],
       foreignColumns: [gradebook_items.id],
       name: "payload_locked_documents_rels_gradebook_items_fk",
     }).onDelete("cascade"),
-    "assignment-submissionsIdFk": foreignKey({
+    foreignKey({
       columns: [columns["assignment-submissionsID"]],
       foreignColumns: [assignment_submissions.id],
       name: "payload_locked_documents_rels_assignment_submissions_fk",
     }).onDelete("cascade"),
-    "quiz-submissionsIdFk": foreignKey({
+    foreignKey({
       columns: [columns["quiz-submissionsID"]],
       foreignColumns: [quiz_submissions.id],
       name: "payload_locked_documents_rels_quiz_submissions_fk",
     }).onDelete("cascade"),
-    "discussion-submissionsIdFk": foreignKey({
+    foreignKey({
       columns: [columns["discussion-submissionsID"]],
       foreignColumns: [discussion_submissions.id],
       name: "payload_locked_documents_rels_discussion_submissions_fk",
     }).onDelete("cascade"),
-    "course-grade-tablesIdFk": foreignKey({
+    foreignKey({
       columns: [columns["course-grade-tablesID"]],
       foreignColumns: [course_grade_tables.id],
       name: "payload_locked_documents_rels_course_grade_tables_fk",
     }).onDelete("cascade"),
-    "user-gradesIdFk": foreignKey({
+    foreignKey({
       columns: [columns["user-gradesID"]],
       foreignColumns: [user_grades.id],
       name: "payload_locked_documents_rels_user_grades_fk",
     }).onDelete("cascade"),
-    searchIdFk: foreignKey({
+    foreignKey({
       columns: [columns["searchID"]],
       foreignColumns: [search.id],
       name: "payload_locked_documents_rels_search_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const payload_preferences = pgTable(
@@ -1988,17 +1802,11 @@ export const payload_preferences = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    payload_preferences_key_idx: index("payload_preferences_key_idx").on(
-      columns.key,
-    ),
-    payload_preferences_updated_at_idx: index(
-      "payload_preferences_updated_at_idx",
-    ).on(columns.updatedAt),
-    payload_preferences_created_at_idx: index(
-      "payload_preferences_created_at_idx",
-    ).on(columns.createdAt),
-  }),
+  (columns) => [
+    index("payload_preferences_key_idx").on(columns.key),
+    index("payload_preferences_updated_at_idx").on(columns.updatedAt),
+    index("payload_preferences_created_at_idx").on(columns.createdAt),
+  ],
 );
 
 export const payload_preferences_rels = pgTable(
@@ -2010,24 +1818,22 @@ export const payload_preferences_rels = pgTable(
     path: varchar("path").notNull(),
     usersID: integer("users_id"),
   },
-  (columns) => ({
-    order: index("payload_preferences_rels_order_idx").on(columns.order),
-    parentIdx: index("payload_preferences_rels_parent_idx").on(columns.parent),
-    pathIdx: index("payload_preferences_rels_path_idx").on(columns.path),
-    payload_preferences_rels_users_id_idx: index(
-      "payload_preferences_rels_users_id_idx",
-    ).on(columns.usersID),
-    parentFk: foreignKey({
+  (columns) => [
+    index("payload_preferences_rels_order_idx").on(columns.order),
+    index("payload_preferences_rels_parent_idx").on(columns.parent),
+    index("payload_preferences_rels_path_idx").on(columns.path),
+    index("payload_preferences_rels_users_id_idx").on(columns.usersID),
+    foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [payload_preferences.id],
       name: "payload_preferences_rels_parent_fk",
     }).onDelete("cascade"),
-    usersIdFk: foreignKey({
+    foreignKey({
       columns: [columns["usersID"]],
       foreignColumns: [users.id],
       name: "payload_preferences_rels_users_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const payload_migrations = pgTable(
@@ -2051,14 +1857,10 @@ export const payload_migrations = pgTable(
       .defaultNow()
       .notNull(),
   },
-  (columns) => ({
-    payload_migrations_updated_at_idx: index(
-      "payload_migrations_updated_at_idx",
-    ).on(columns.updatedAt),
-    payload_migrations_created_at_idx: index(
-      "payload_migrations_created_at_idx",
-    ).on(columns.createdAt),
-  }),
+  (columns) => [
+    index("payload_migrations_updated_at_idx").on(columns.updatedAt),
+    index("payload_migrations_created_at_idx").on(columns.createdAt),
+  ],
 );
 
 export const system_grade_table_grade_letters = pgTable(
@@ -2070,19 +1872,17 @@ export const system_grade_table_grade_letters = pgTable(
     letter: varchar("letter").notNull(),
     minimumPercentage: numeric("minimum_percentage").notNull(),
   },
-  (columns) => ({
-    _orderIdx: index("system_grade_table_grade_letters_order_idx").on(
-      columns._order,
-    ),
-    _parentIDIdx: index("system_grade_table_grade_letters_parent_id_idx").on(
+  (columns) => [
+    index("system_grade_table_grade_letters_order_idx").on(columns._order),
+    index("system_grade_table_grade_letters_parent_id_idx").on(
       columns._parentID,
     ),
-    _parentIDFk: foreignKey({
+    foreignKey({
       columns: [columns["_parentID"]],
       foreignColumns: [system_grade_table.id],
       name: "system_grade_table_grade_letters_parent_id_fk",
     }).onDelete("cascade"),
-  }),
+  ],
 );
 
 export const system_grade_table = pgTable("system_grade_table", {
