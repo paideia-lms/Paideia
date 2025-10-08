@@ -1,21 +1,6 @@
-import type { JSONSchema4 } from "json-schema";
 import type { CollectionConfig, TextFieldValidation } from "payload";
+import { courseStructureSchema } from "server/utils/schema";
 import z from "zod";
-
-const courseStructureSchema = z.object({
-	sections: z.array(
-		z.object({
-			title: z.string(),
-			description: z.string(),
-			lessons: z.array(
-				z.object({
-					title: z.string(),
-					description: z.string(),
-				}),
-			),
-		}),
-	),
-});
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -52,6 +37,7 @@ export const Courses = {
 			type: "json",
 			required: true,
 			label: "Structure",
+
 			validate: (value) => {
 				const result = courseStructureSchema.safeParse(value);
 				if (!result.success) {
@@ -61,7 +47,8 @@ export const Courses = {
 				return true;
 			},
 			typescriptSchema: [
-				() => z.toJSONSchema(courseStructureSchema) as JSONSchema4,
+				// @ts-expect-error
+				() => "$fix:CourseStructure",
 			],
 		},
 		{

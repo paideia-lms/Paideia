@@ -1,3 +1,4 @@
+import * as Schemas from "./utils/schema";
 /* tslint:disable */
 /* eslint-disable */
 /**
@@ -261,16 +262,7 @@ export interface Course {
   title: string;
   slug: string;
   description: string;
-  structure: {
-    sections: {
-      title: string;
-      description: string;
-      lessons: {
-        title: string;
-        description: string;
-      }[];
-    }[];
-  };
+  structure: Schemas.CourseStructure;
   status: 'draft' | 'published' | 'archived';
   thumbnail?: (number | null) | Media;
   tags?:

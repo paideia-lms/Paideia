@@ -63,10 +63,9 @@ describe("Enrollment Management Functions", () => {
 						{
 							title: "Test Section",
 							description: "A test section for enrollment testing",
-							lessons: [
+							items: [
 								{
-									title: "Test Lesson",
-									description: "A test lesson for enrollment testing",
+									id: 1,
 								},
 							],
 						},

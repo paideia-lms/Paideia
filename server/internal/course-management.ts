@@ -66,22 +66,19 @@ export const tryCreateCourse = Result.wrap(
 				data: {
 					title,
 					description,
-					structure:
-						structure ??
-						({
-							sections: [
-								{
-									title: "Introduction",
-									description: "Introduction to the course",
-									lessons: [
-										{
-											title: "Introduction to the course",
-											description: "Introduction to the course",
-										},
-									],
-								},
-							],
-						} as Course["structure"]),
+					structure: structure ?? {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Introduction to the course",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 					slug,
 					createdBy,
 					status,

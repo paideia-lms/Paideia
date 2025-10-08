@@ -95,10 +95,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Learn the basics of JavaScript programming",
-							lessons: [
+							items: [
 								{
-									title: "Introduction to JavaScript",
-									description: "Learn the basics of JavaScript programming",
+									id: 1,
 								},
 							],
 						},
@@ -129,10 +128,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Learn the basics of HTML programming",
-							lessons: [
+							items: [
 								{
-									title: "Introduction to HTML",
-									description: "Learn the basics of HTML programming",
+									id: 1,
 								},
 							],
 						},
@@ -159,10 +157,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Test section",
-							lessons: [
+							items: [
 								{
-									title: "Test lesson",
-									description: "Test lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -189,10 +186,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Original section",
-							lessons: [
+							items: [
 								{
-									title: "Original lesson",
-									description: "Original lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -260,10 +256,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Test section",
-							lessons: [
+							items: [
 								{
-									title: "Test lesson",
-									description: "Test lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -310,10 +305,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Test section",
-							lessons: [
+							items: [
 								{
-									title: "Test lesson",
-									description: "Test lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -375,10 +369,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "React section",
-							lessons: [
+							items: [
 								{
-									title: "React lesson",
-									description: "React lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -396,10 +389,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Vue section",
-							lessons: [
+							items: [
 								{
-									title: "Vue lesson",
-									description: "Vue lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -486,10 +478,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Published section",
-							lessons: [
+							items: [
 								{
-									title: "Published lesson",
-									description: "Published lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -509,10 +500,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Draft section",
-							lessons: [
+							items: [
 								{
-									title: "Draft lesson",
-									description: "Draft lesson description",
+									id: 1,
 								},
 							],
 						},
@@ -545,10 +535,9 @@ describe("Course Management Functions", () => {
 						{
 							title: "Introduction",
 							description: "Lifecycle test section",
-							lessons: [
+							items: [
 								{
-									title: "Lifecycle test lesson",
-									description: "Lifecycle test lesson description",
+									id: 1,
 								},
 							],
 						},
