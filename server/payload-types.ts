@@ -669,6 +669,7 @@ export interface Note {
   id: number;
   createdBy: number | User;
   content: string;
+  isPublic?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1225,6 +1226,7 @@ export interface MediaSelect<T extends boolean = true> {
 export interface NotesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
+  isPublic?: T;
   updatedAt?: T;
   createdAt?: T;
 }

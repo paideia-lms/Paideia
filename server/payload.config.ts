@@ -154,7 +154,6 @@ const sanitizedConfig = await buildConfig({
 				],
 			},
 			beforeSync: async ({ originalDoc, searchDoc }) => {
-				console.log("beforeSync", originalDoc, searchDoc);
 				return {
 					...searchDoc,
 					meta: JSON.stringify(originalDoc, null, 2),
