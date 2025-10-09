@@ -141,6 +141,23 @@ const sanitizedConfig = await buildConfig({
 	plugins: [
 		searchPlugin({
 			collections: [Users.slug, Courses.slug],
+			searchOverrides: {
+				slug: "search" as const,
+				fields: ({ defaultFields }) => [
+					...defaultFields,
+					{
+						name: "meta",
+						type: "textarea",
+					},
+				],
+			},
+			beforeSync: async ({ originalDoc, searchDoc }) => {
+				console.log("beforeSync", originalDoc, searchDoc);
+				return {
+					...searchDoc,
+					meta: JSON.stringify(originalDoc, null, 2),
+				};
+			},
 		}),
 		s3Storage({
 			collections: {

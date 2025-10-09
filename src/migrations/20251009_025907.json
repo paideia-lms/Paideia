@@ -1,5 +1,5 @@
 {
-  "id": "fa1e55a0-68d3-41fd-b092-928a9a6a0ca6",
+  "id": "6363a9c7-20ac-4aad-8c6d-da01ccbdc23e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -6092,6 +6092,12 @@
         "priority": {
           "name": "priority",
           "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meta": {
+          "name": "meta",
+          "type": "varchar",
           "primaryKey": false,
           "notNull": false
         },

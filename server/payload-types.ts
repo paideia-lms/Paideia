@@ -781,6 +781,7 @@ export interface Search {
         relationTo: 'courses';
         value: number | Course;
       };
+  meta?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1429,6 +1430,7 @@ export interface SearchSelect<T extends boolean = true> {
   title?: T;
   priority?: T;
   doc?: T;
+  meta?: T;
   updatedAt?: T;
   createdAt?: T;
 }
