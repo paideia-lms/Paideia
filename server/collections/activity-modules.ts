@@ -63,19 +63,19 @@ export const ActivityModules = {
 		{
 			name: "assignment",
 			type: "relationship",
-			relationTo: "assignments" as any,
+			relationTo: "assignments",
 			label: "Assignment Configuration",
 		},
 		{
 			name: "quiz",
 			type: "relationship",
-			relationTo: "quizzes" as any,
+			relationTo: "quizzes",
 			label: "Quiz Configuration",
 		},
 		{
 			name: "discussion",
 			type: "relationship",
-			relationTo: "discussions" as any,
+			relationTo: "discussions",
 			label: "Discussion Configuration",
 		},
 		// Join fields for submissions

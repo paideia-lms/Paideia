@@ -3,6 +3,7 @@
 export { ActivityModules } from "./activity-modules";
 export { AssignmentSubmissions } from "./assignment-submissions";
 export { Assignments } from "./assignments";
+export { CategoryRoleAssignments } from "./category-role-assignments";
 export { CourseActivityModuleLinks } from "./course-activity-module-links";
 export { CourseCategories } from "./course-categories";
 export { CourseGradeTables } from "./course-grade-tables";

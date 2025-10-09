@@ -33,6 +33,10 @@ export const enum_courses_status = pgEnum("enum_courses_status", [
   "published",
   "archived",
 ]);
+export const enum_category_role_assignments_role = pgEnum(
+  "enum_category_role_assignments_role",
+  ["category-admin", "category-coordinator", "category-reviewer"],
+);
 export const enum_enrollments_role = pgEnum("enum_enrollments_role", [
   "student",
   "teacher",
@@ -287,6 +291,59 @@ export const course_categories = pgTable(
     index("course_categories_parent_idx").on(columns.parent),
     index("course_categories_updated_at_idx").on(columns.updatedAt),
     index("course_categories_created_at_idx").on(columns.createdAt),
+  ],
+);
+
+export const category_role_assignments = pgTable(
+  "category_role_assignments",
+  {
+    id: serial("id").primaryKey(),
+    user: integer("user_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    category: integer("category_id")
+      .notNull()
+      .references(() => course_categories.id, {
+        onDelete: "set null",
+      }),
+    role: enum_category_role_assignments_role("role").notNull(),
+    assignedBy: integer("assigned_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    assignedAt: timestamp("assigned_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    notes: varchar("notes"),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("category_role_assignments_user_idx").on(columns.user),
+    index("category_role_assignments_category_idx").on(columns.category),
+    index("category_role_assignments_assigned_by_idx").on(columns.assignedBy),
+    index("category_role_assignments_updated_at_idx").on(columns.updatedAt),
+    index("category_role_assignments_created_at_idx").on(columns.createdAt),
+    uniqueIndex("user_category_idx").on(columns.user, columns.category),
+    index("category_idx").on(columns.category),
+    index("user_idx").on(columns.user),
   ],
 );
 
@@ -959,7 +1016,7 @@ export const gradebook_items = pgTable(
     index("gradebook_items_updated_at_idx").on(columns.updatedAt),
     index("gradebook_items_created_at_idx").on(columns.createdAt),
     index("gradebook_1_idx").on(columns.gradebook),
-    index("category_idx").on(columns.category),
+    index("category_1_idx").on(columns.category),
   ],
 );
 
@@ -1701,6 +1758,7 @@ export const payload_locked_documents_rels = pgTable(
     usersID: integer("users_id"),
     coursesID: integer("courses_id"),
     "course-categoriesID": integer("course_categories_id"),
+    "category-role-assignmentsID": integer("category_role_assignments_id"),
     enrollmentsID: integer("enrollments_id"),
     "activity-modulesID": integer("activity_modules_id"),
     assignmentsID: integer("assignments_id"),
@@ -1730,6 +1788,9 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_courses_id_idx").on(columns.coursesID),
     index("payload_locked_documents_rels_course_categories_id_idx").on(
       columns["course-categoriesID"],
+    ),
+    index("payload_locked_documents_rels_category_role_assignments__idx").on(
+      columns["category-role-assignmentsID"],
     ),
     index("payload_locked_documents_rels_enrollments_id_idx").on(
       columns.enrollmentsID,
@@ -1794,6 +1855,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["course-categoriesID"]],
       foreignColumns: [course_categories.id],
       name: "payload_locked_documents_rels_course_categories_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["category-role-assignmentsID"]],
+      foreignColumns: [category_role_assignments.id],
+      name: "payload_locked_documents_rels_category_role_assignments_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["enrollmentsID"]],
@@ -2061,6 +2127,26 @@ export const relations_course_categories = relations(
       fields: [course_categories.parent],
       references: [course_categories.id],
       relationName: "parent",
+    }),
+  }),
+);
+export const relations_category_role_assignments = relations(
+  category_role_assignments,
+  ({ one }) => ({
+    user: one(users, {
+      fields: [category_role_assignments.user],
+      references: [users.id],
+      relationName: "user",
+    }),
+    category: one(course_categories, {
+      fields: [category_role_assignments.category],
+      references: [course_categories.id],
+      relationName: "category",
+    }),
+    assignedBy: one(users, {
+      fields: [category_role_assignments.assignedBy],
+      references: [users.id],
+      relationName: "assignedBy",
     }),
   }),
 );
@@ -2601,6 +2687,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [course_categories.id],
       relationName: "course-categories",
     }),
+    "category-role-assignmentsID": one(category_role_assignments, {
+      fields: [payload_locked_documents_rels["category-role-assignmentsID"]],
+      references: [category_role_assignments.id],
+      relationName: "category-role-assignments",
+    }),
     enrollmentsID: one(enrollments, {
       fields: [payload_locked_documents_rels.enrollmentsID],
       references: [enrollments.id],
@@ -2750,6 +2841,7 @@ export const relations_system_grade_table = relations(
 type DatabaseSchema = {
   enum_users_role: typeof enum_users_role;
   enum_courses_status: typeof enum_courses_status;
+  enum_category_role_assignments_role: typeof enum_category_role_assignments_role;
   enum_enrollments_role: typeof enum_enrollments_role;
   enum_enrollments_status: typeof enum_enrollments_status;
   enum_activity_modules_type: typeof enum_activity_modules_type;
@@ -2771,6 +2863,7 @@ type DatabaseSchema = {
   courses_tags: typeof courses_tags;
   courses: typeof courses;
   course_categories: typeof course_categories;
+  category_role_assignments: typeof category_role_assignments;
   enrollments: typeof enrollments;
   enrollments_rels: typeof enrollments_rels;
   activity_modules: typeof activity_modules;
@@ -2816,6 +2909,7 @@ type DatabaseSchema = {
   relations_courses_tags: typeof relations_courses_tags;
   relations_courses: typeof relations_courses;
   relations_course_categories: typeof relations_course_categories;
+  relations_category_role_assignments: typeof relations_category_role_assignments;
   relations_enrollments_rels: typeof relations_enrollments_rels;
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;

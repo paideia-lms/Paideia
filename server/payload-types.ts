@@ -71,6 +71,7 @@ export interface Config {
     users: User;
     courses: Course;
     'course-categories': CourseCategory;
+    'category-role-assignments': CategoryRoleAssignment;
     enrollments: Enrollment;
     'activity-modules': ActivityModule;
     assignments: Assignment;
@@ -130,6 +131,7 @@ export interface Config {
     users: UsersSelect<false> | UsersSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
     'course-categories': CourseCategoriesSelect<false> | CourseCategoriesSelect<true>;
+    'category-role-assignments': CategoryRoleAssignmentsSelect<false> | CategoryRoleAssignmentsSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
     assignments: AssignmentsSelect<false> | AssignmentsSelect<true>;
@@ -393,6 +395,27 @@ export interface CourseCategory {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "category-role-assignments".
+ */
+export interface CategoryRoleAssignment {
+  id: number;
+  user: number | User;
+  category: number | CourseCategory;
+  /**
+   * Category Admin: Manages category settings, nested subcategories, and direct courses. Category Coordinator: Assigns roles within category, monitors course counts. Category Reviewer: Views analytics and content without edit rights.
+   */
+  role: 'category-admin' | 'category-coordinator' | 'category-reviewer';
+  assignedBy: number | User;
+  assignedAt?: string | null;
+  /**
+   * Optional notes about why this role was assigned
+   */
+  notes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -873,6 +896,10 @@ export interface PayloadLockedDocument {
         value: number | CourseCategory;
       } | null)
     | ({
+        relationTo: 'category-role-assignments';
+        value: number | CategoryRoleAssignment;
+      } | null)
+    | ({
         relationTo: 'enrollments';
         value: number | Enrollment;
       } | null)
@@ -1049,6 +1076,20 @@ export interface CourseCategoriesSelect<T extends boolean = true> {
   parent?: T;
   subcategories?: T;
   courses?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "category-role-assignments_select".
+ */
+export interface CategoryRoleAssignmentsSelect<T extends boolean = true> {
+  user?: T;
+  category?: T;
+  role?: T;
+  assignedBy?: T;
+  assignedAt?: T;
+  notes?: T;
   updatedAt?: T;
   createdAt?: T;
 }
