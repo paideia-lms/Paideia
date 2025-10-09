@@ -1,10 +1,57 @@
-import type { CollectionConfig } from "payload";
+import type { AccessResult, CollectionConfig } from "payload";
 
 // Activity Modules collection - generic container for all learning activities
 export const ActivityModules = {
 	slug: "activity-modules",
 	defaultSort: "-createdAt",
+	access: {
+		read: ({ req }): AccessResult => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+
+			return {
+				or: [
+					{ owner: { equals: req.user.id } },
+					{ createdBy: { equals: req.user.id } },
+					{ "grants.grantedTo": { equals: req.user.id } },
+				],
+			};
+		},
+		update: ({ req }): AccessResult => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+
+			return {
+				or: [
+					{ owner: { equals: req.user.id } },
+					{ "grants.grantedTo": { equals: req.user.id } },
+				],
+			};
+		},
+		delete: ({ req }): AccessResult => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+
+			return {
+				owner: { equals: req.user.id },
+			};
+		},
+	},
 	fields: [
+		{
+			name: "owner",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+			label: "Owner",
+			admin: {
+				description:
+					"The owner has full control including deletion. Cannot be changed directly - use ownership transfer function.",
+			},
+			access: {
+				update: () => false,
+			},
+		},
 		{
 			name: "title",
 			type: "text",
@@ -103,8 +150,19 @@ export const ActivityModules = {
 			label: "Discussion Submissions",
 			hasMany: true,
 		},
+		{
+			name: "grants",
+			type: "join",
+			on: "activityModule",
+			collection: "activity-module-grants",
+			label: "Access Grants",
+			hasMany: true,
+		},
 	],
 	indexes: [
+		{
+			fields: ["owner"],
+		},
 		{
 			fields: ["createdBy"],
 		},

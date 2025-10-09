@@ -308,6 +308,7 @@ export const tryCreateActivityModule = Result.wrap(
 				type,
 				status,
 				createdBy: userId,
+				owner: userId,
 				requirePassword,
 				...(accessPassword && { accessPassword }),
 				...(type === "assignment" &&

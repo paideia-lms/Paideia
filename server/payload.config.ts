@@ -8,6 +8,7 @@ import { buildConfig, type CollectionConfig, type GlobalConfig } from "payload";
 import sharp from "sharp";
 import { migrations } from "src/migrations";
 import {
+	ActivityModuleGrants,
 	ActivityModules,
 	AssignmentSubmissions,
 	Assignments,
@@ -50,6 +51,44 @@ const pg = postgresAdapter({
 	// ! we never want to push directly, always respect the the migrations files
 	push: false,
 	// process.env.NODE_ENV !== "test" && process.env.NODE_ENV !== "production" ,
+	afterSchemaInit: [
+		// change the foreign key constraint to delete cascade
+		({ schema }) => {
+			// console.log(Object.keys(schema.relations));
+			// Modify foreign key constraints for activity_module_grants
+			const relations = [
+				{
+					relation: "relations_activity_module_grants",
+					foreignTable: "activity_modules",
+				},
+			];
+
+			relations.forEach((relation) => {
+				const index = Symbol.for("drizzle:PgInlineForeignKeys");
+				// @ts-expect-error workaround
+				const fkeys = schema.relations[relation.relation]?.table[index];
+				if (fkeys) {
+					// console.log(fkeys, relation);
+					// Loop through the foreign keys and modify them
+					// @ts-expect-error workaround
+					fkeys.forEach((foreignKey) => {
+						// console.log(foreignKey.reference().foreignTable[Symbol.for("drizzle:Name")]);
+						// Change activityModule foreign key to CASCADE on delete
+						if (
+							foreignKey.reference().foreignTable[
+								Symbol.for("drizzle:Name")
+							] === relation.foreignTable
+						) {
+							// console.log(foreignKey)
+							foreignKey.onDelete = "CASCADE";
+							foreignKey.onUpdate = "CASCADE";
+						}
+					});
+				}
+			});
+			return schema;
+		},
+	],
 });
 
 const __dirname = import.meta.dirname;
@@ -109,6 +148,7 @@ const sanitizedConfig = await buildConfig({
 		CategoryRoleAssignments,
 		Enrollments,
 		ActivityModules,
+		ActivityModuleGrants,
 		Assignments,
 		Quizzes,
 		Discussions,

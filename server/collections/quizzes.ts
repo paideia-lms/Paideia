@@ -1,9 +1,84 @@
-import type { CollectionConfig } from "payload";
+import type { AccessResult, CollectionConfig } from "payload";
 
 // Quizzes collection - quiz-specific configuration
 export const Quizzes = {
 	slug: "quizzes",
 	defaultSort: "-createdAt",
+	access: {
+		read: async ({ req }): Promise<AccessResult> => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+
+			// Allow access if user created it or has access to any activity module using this quiz
+			const activityModules = await req.payload.find({
+				collection: "activity-modules",
+				where: {
+					quiz: { exists: true },
+				},
+				depth: 0,
+			});
+
+			const accessibleModuleIds = activityModules.docs
+				.filter((mod) => {
+					const owner =
+						typeof mod.owner === "number" ? mod.owner : mod.owner?.id;
+					const createdBy =
+						typeof mod.createdBy === "number"
+							? mod.createdBy
+							: mod.createdBy?.id;
+					return owner === req.user?.id || createdBy === req.user?.id;
+				})
+				.map((mod) => (typeof mod.quiz === "number" ? mod.quiz : mod.quiz?.id))
+				.filter((id): id is number => id !== undefined);
+
+			return {
+				or: [
+					{ createdBy: { equals: req.user.id } },
+					{ id: { in: accessibleModuleIds } },
+				],
+			};
+		},
+		update: async ({ req }): Promise<AccessResult> => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+
+			const activityModules = await req.payload.find({
+				collection: "activity-modules",
+				where: {
+					quiz: { exists: true },
+				},
+				depth: 0,
+			});
+
+			const accessibleModuleIds = activityModules.docs
+				.filter((mod) => {
+					const owner =
+						typeof mod.owner === "number" ? mod.owner : mod.owner?.id;
+					const createdBy =
+						typeof mod.createdBy === "number"
+							? mod.createdBy
+							: mod.createdBy?.id;
+					return owner === req.user?.id || createdBy === req.user?.id;
+				})
+				.map((mod) => (typeof mod.quiz === "number" ? mod.quiz : mod.quiz?.id))
+				.filter((id): id is number => id !== undefined);
+
+			return {
+				or: [
+					{ createdBy: { equals: req.user.id } },
+					{ id: { in: accessibleModuleIds } },
+				],
+			};
+		},
+		delete: ({ req }): AccessResult => {
+			if (!req.user) return false;
+			if (req.user.role === "admin") return true;
+
+			return {
+				createdBy: { equals: req.user.id },
+			};
+		},
+	},
 	fields: [
 		{
 			name: "title",

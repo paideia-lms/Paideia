@@ -180,6 +180,34 @@ export class NonExistingDiscussionSubmissionError extends Error {
 	}
 }
 
+export class ActivityModuleAccessDeniedError extends Error {
+	static readonly type = "ActivityModuleAccessDeniedError";
+	get type() {
+		return ActivityModuleAccessDeniedError.type;
+	}
+}
+
+export class DuplicateAccessGrantError extends Error {
+	static readonly type = "DuplicateAccessGrantError";
+	get type() {
+		return DuplicateAccessGrantError.type;
+	}
+}
+
+export class AccessGrantNotFoundError extends Error {
+	static readonly type = "AccessGrantNotFoundError";
+	get type() {
+		return AccessGrantNotFoundError.type;
+	}
+}
+
+export class InvalidOwnerTransferError extends Error {
+	static readonly type = "InvalidOwnerTransferError";
+	get type() {
+		return InvalidOwnerTransferError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (process.env.NODE_ENV === "test") {
 		console.log("transformError", error);
@@ -207,6 +235,10 @@ export function transformError(error: unknown) {
 	else if (error instanceof NonExistingAssignmentSubmissionError) return error;
 	else if (error instanceof NonExistingQuizSubmissionError) return error;
 	else if (error instanceof NonExistingDiscussionSubmissionError) return error;
+	else if (error instanceof ActivityModuleAccessDeniedError) return error;
+	else if (error instanceof DuplicateAccessGrantError) return error;
+	else if (error instanceof AccessGrantNotFoundError) return error;
+	else if (error instanceof InvalidOwnerTransferError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

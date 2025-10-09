@@ -1,5 +1,6 @@
 // Collections
 
+export { ActivityModuleGrants } from "./activity-module-grants";
 export { ActivityModules } from "./activity-modules";
 export { AssignmentSubmissions } from "./assignment-submissions";
 export { Assignments } from "./assignments";

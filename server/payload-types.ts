@@ -74,6 +74,7 @@ export interface Config {
     'category-role-assignments': CategoryRoleAssignment;
     enrollments: Enrollment;
     'activity-modules': ActivityModule;
+    'activity-module-grants': ActivityModuleGrant;
     assignments: Assignment;
     quizzes: Quiz;
     discussions: Discussion;
@@ -108,6 +109,7 @@ export interface Config {
       submissions: 'assignment-submissions';
       quizSubmissions: 'quiz-submissions';
       discussionSubmissions: 'discussion-submissions';
+      grants: 'activity-module-grants';
     };
     gradebooks: {
       categories: 'gradebook-categories';
@@ -134,6 +136,7 @@ export interface Config {
     'category-role-assignments': CategoryRoleAssignmentsSelect<false> | CategoryRoleAssignmentsSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
+    'activity-module-grants': ActivityModuleGrantsSelect<false> | ActivityModuleGrantsSelect<true>;
     assignments: AssignmentsSelect<false> | AssignmentsSelect<true>;
     quizzes: QuizzesSelect<false> | QuizzesSelect<true>;
     discussions: DiscussionsSelect<false> | DiscussionsSelect<true>;
@@ -425,6 +428,10 @@ export interface CategoryRoleAssignment {
  */
 export interface ActivityModule {
   id: number;
+  /**
+   * The owner has full control including deletion. Cannot be changed directly - use ownership transfer function.
+   */
+  owner: number | User;
   title: string;
   description?: string | null;
   type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
@@ -447,6 +454,11 @@ export interface ActivityModule {
   };
   discussionSubmissions?: {
     docs?: (number | DiscussionSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  grants?: {
+    docs?: (number | ActivityModuleGrant)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -702,6 +714,19 @@ export interface QuizSubmission {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "activity-module-grants".
+ */
+export interface ActivityModuleGrant {
+  id: number;
+  activityModule: number | ActivityModule;
+  grantedTo: number | User;
+  grantedBy: number | User;
+  grantedAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "course-activity-module-links".
  */
 export interface CourseActivityModuleLink {
@@ -906,6 +931,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'activity-modules';
         value: number | ActivityModule;
+      } | null)
+    | ({
+        relationTo: 'activity-module-grants';
+        value: number | ActivityModuleGrant;
       } | null)
     | ({
         relationTo: 'assignments';
@@ -1116,6 +1145,7 @@ export interface EnrollmentsSelect<T extends boolean = true> {
  * via the `definition` "activity-modules_select".
  */
 export interface ActivityModulesSelect<T extends boolean = true> {
+  owner?: T;
   title?: T;
   description?: T;
   type?: T;
@@ -1129,6 +1159,19 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   submissions?: T;
   quizSubmissions?: T;
   discussionSubmissions?: T;
+  grants?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "activity-module-grants_select".
+ */
+export interface ActivityModuleGrantsSelect<T extends boolean = true> {
+  activityModule?: T;
+  grantedTo?: T;
+  grantedBy?: T;
+  grantedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }
