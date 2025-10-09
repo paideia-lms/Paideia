@@ -10,7 +10,7 @@ export const Notes = {
 	slug: "notes" as const,
 	defaultSort: "-createdAt",
 	access: {
-		read: ({ req, data }): AccessResult => {
+		read: ({ req }): AccessResult => {
 			// require login to read notes
 			if (!req.user) {
 				return false;
@@ -18,7 +18,7 @@ export const Notes = {
 
 			// admin can read all notes
 			if (req.user.role === "admin") return true;
-			// user can read their own notes unless it is public
+			// user can read their own notes or public notes
 			return {
 				or: [
 					{
@@ -40,7 +40,7 @@ export const Notes = {
 			// all users can create notes
 			return true;
 		},
-		update: ({ req, data }): AccessResult => {
+		update: ({ req }): AccessResult => {
 			// require login to update notes
 			if (!req.user) return false;
 			// admin can update all notes
@@ -52,7 +52,7 @@ export const Notes = {
 				},
 			};
 		},
-		delete: ({ req, data }): AccessResult => {
+		delete: ({ req }): AccessResult => {
 			// require login to delete notes
 			if (!req.user) return false;
 			// admin can delete all notes

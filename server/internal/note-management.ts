@@ -1,37 +1,83 @@
-import type { Payload } from "payload";
+import type { Payload, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 
 export interface CreateNoteArgs {
-	content: string;
-	createdBy: number;
-	isPublic?: boolean;
+	payload: Payload;
+	data: {
+		content: string;
+		createdBy: number;
+		isPublic?: boolean;
+	};
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateNoteArgs {
-	content?: string;
-	isPublic?: boolean;
+	payload: Payload;
+	noteId: number;
+	data: {
+		content?: string;
+		isPublic?: boolean;
+	};
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+export interface FindNoteByIdArgs {
+	payload: Payload;
+	noteId: number;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
 }
 
 export interface SearchNotesArgs {
-	createdBy?: number;
-	content?: string;
+	payload: Payload;
+	filters?: {
+		createdBy?: number;
+		content?: string;
+		limit?: number;
+		page?: number;
+	};
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+export interface DeleteNoteArgs {
+	payload: Payload;
+	noteId: number;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+export interface FindNotesByUserArgs {
+	payload: Payload;
+	userId: number;
 	limit?: number;
-	page?: number;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
 }
 
 /**
  * Creates a new note using Payload local API
- * Requires authenticated request to enforce access control
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryCreateNote = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		args: CreateNoteArgs,
-		overrideAccess: boolean = false,
-	) => {
-		const { content, createdBy, isPublic = false } = args;
+	async (args: CreateNoteArgs) => {
+		const {
+			payload,
+			data: { content, createdBy, isPublic = false },
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate content is not empty
 		if (!content || content.trim().length === 0) {
@@ -39,18 +85,17 @@ export const tryCreateNote = Result.wrap(
 		}
 
 		// Verify user exists
-		const user = await payload.findByID({
+		const userExists = await payload.findByID({
 			collection: "users",
 			id: createdBy,
 			overrideAccess: true, // Always allow checking if user exists
-			req: request,
 		});
 
-		if (!user) {
+		if (!userExists) {
 			throw new Error(`User with ID ${createdBy} not found`);
 		}
 
-		// Payload automatically authenticates via Authorization header
+		// Create note with access control
 		const newNote = await payload.create({
 			collection: "notes",
 			data: {
@@ -58,8 +103,9 @@ export const tryCreateNote = Result.wrap(
 				createdBy,
 				isPublic,
 			},
+			user,
+			req,
 			overrideAccess,
-			req: request,
 		});
 
 		return newNote;
@@ -73,23 +119,27 @@ export const tryCreateNote = Result.wrap(
 
 /**
  * Updates an existing note using Payload local API
- * Requires authenticated request to enforce access control
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryUpdateNote = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		noteId: number,
-		args: UpdateNoteArgs,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: UpdateNoteArgs) => {
+		const {
+			payload,
+			noteId,
+			data,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Check if note exists and user has permission to update it
-		// Payload automatically authenticates via Authorization header
 		const existingNote = await payload.findByID({
 			collection: "notes",
 			id: noteId,
+			user,
+			req,
 			overrideAccess,
-			req: request,
 		});
 
 		if (!existingNote) {
@@ -97,26 +147,27 @@ export const tryUpdateNote = Result.wrap(
 		}
 
 		// Validate content if provided
-		if (args.content !== undefined) {
-			if (!args.content || args.content.trim().length === 0) {
+		if (data.content !== undefined) {
+			if (!data.content || data.content.trim().length === 0) {
 				throw new Error("Note content cannot be empty");
 			}
 		}
 
 		const updateData: Record<string, string | boolean | undefined> = {};
-		if (args.content !== undefined) {
-			updateData.content = args.content.trim();
+		if (data.content !== undefined) {
+			updateData.content = data.content.trim();
 		}
-		if (args.isPublic !== undefined) {
-			updateData.isPublic = args.isPublic;
+		if (data.isPublic !== undefined) {
+			updateData.isPublic = data.isPublic;
 		}
 
 		const updatedNote = await payload.update({
 			collection: "notes",
 			id: noteId,
 			data: updateData,
+			user,
+			req,
 			overrideAccess,
-			req: request,
 		});
 
 		return updatedNote;
@@ -130,20 +181,19 @@ export const tryUpdateNote = Result.wrap(
 
 /**
  * Finds a note by ID
- * If request is provided, enforces access control (user can only read their own notes or public notes)
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindNoteById = Result.wrap(
-	async (
-		payload: Payload,
-		noteId: number,
-		request?: Request,
-		overrideAccess: boolean = false,
-	) => {
-		// Payload automatically authenticates via Authorization header
+	async (args: FindNoteByIdArgs) => {
+		const { payload, noteId, user = null, req, overrideAccess = false } = args;
+
+		// Find note with access control
 		const note = await payload.findByID({
 			collection: "notes",
 			id: noteId,
-			req: request,
+			user,
+			req,
 			overrideAccess,
 		});
 
@@ -162,16 +212,20 @@ export const tryFindNoteById = Result.wrap(
 
 /**
  * Searches notes with various filters
- * If request is provided, enforces access control (user can only see their own notes or public notes)
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const trySearchNotes = Result.wrap(
-	async (
-		payload: Payload,
-		args: SearchNotesArgs = {},
-		request?: Request,
-		overrideAccess: boolean = false,
-	) => {
-		const { createdBy, content, limit = 10, page = 1 } = args;
+	async (args: SearchNotesArgs) => {
+		const {
+			payload,
+			filters = {},
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		const { createdBy, content, limit = 10, page = 1 } = filters;
 
 		const where: Record<string, { equals?: number; contains?: string }> = {};
 
@@ -187,14 +241,15 @@ export const trySearchNotes = Result.wrap(
 			};
 		}
 
-		// Payload automatically authenticates via Authorization header
+		// Search notes with access control
 		const notes = await payload.find({
 			collection: "notes",
 			where,
 			limit,
 			page,
 			sort: "-createdAt",
-			req: request,
+			user,
+			req,
 			overrideAccess,
 		});
 
@@ -217,21 +272,19 @@ export const trySearchNotes = Result.wrap(
 
 /**
  * Deletes a note by ID
- * Requires authenticated request to enforce access control
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryDeleteNote = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		noteId: number,
-		overrideAccess: boolean = false,
-	) => {
-		// Payload automatically authenticates via Authorization header
-		// Access control is enforced by Payload's access control hooks
+	async (args: DeleteNoteArgs) => {
+		const { payload, noteId, user = null, req, overrideAccess = false } = args;
+
+		// Delete note with access control
 		const deletedNote = await payload.delete({
 			collection: "notes",
 			id: noteId,
-			req: request,
+			user,
+			req,
 			overrideAccess,
 		});
 
@@ -246,15 +299,21 @@ export const tryDeleteNote = Result.wrap(
 
 /**
  * Finds notes by user ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindNotesByUser = Result.wrap(
-	async (
-		payload: Payload,
-		userId: number,
-		limit: number = 10,
-		request: Request,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: FindNotesByUserArgs) => {
+		const {
+			payload,
+			userId,
+			limit = 10,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Find notes with access control
 		const notes = await payload.find({
 			collection: "notes",
 			where: {
@@ -264,8 +323,9 @@ export const tryFindNotesByUser = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
+			user,
+			req,
 			overrideAccess,
-			req: request,
 		});
 
 		return notes.docs;

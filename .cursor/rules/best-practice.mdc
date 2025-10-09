@@ -49,3 +49,8 @@ use virtual field over depth. we would rather have a nested virtual field than h
 when user id provided to the internal function, we can always assume the user exists.
 
 we should not expose the depth variable to args for internal functions. The output type should be defined.
+
+
+## Changelog
+
+changelog should be written in the `changelogs` folder. each changelog should be named like `0001-2025-01-01-feature-or-change-name.md`. the number should be the order of the changelog. the date should be the date of the changelog. the feature name should be the name of the feature.

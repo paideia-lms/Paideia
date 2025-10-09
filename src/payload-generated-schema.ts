@@ -775,6 +775,7 @@ export const notes = pgTable(
         onDelete: "set null",
       }),
     content: varchar("content").notNull(),
+    isPublic: boolean("is_public").default(false),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
