@@ -25,6 +25,7 @@ export interface CreateCourseArgs {
 	status?: "draft" | "published" | "archived";
 	thumbnail?: number;
 	tags?: { tag?: string }[];
+	category?: number;
 }
 
 export interface UpdateCourseArgs {
@@ -58,6 +59,7 @@ export const tryCreateCourse = Result.wrap(
 			status = "draft",
 			thumbnail,
 			tags,
+			category,
 		} = args;
 
 		const transactionID = await payload.db.beginTransaction();
@@ -90,7 +92,9 @@ export const tryCreateCourse = Result.wrap(
 					status,
 					thumbnail,
 					tags,
+					category,
 				},
+				depth: 1,
 				req: { ...request, transactionID },
 			});
 
@@ -126,6 +130,16 @@ export const tryCreateCourse = Result.wrap(
 					.nullish(),
 			);
 
+			const newCourseCategory = newCourse.category;
+			assertZod(
+				newCourseCategory,
+				z
+					.object({
+						id: z.number(),
+					})
+					.nullish(),
+			);
+
 			// commit the transaction
 			await payload.db.commitTransaction(transactionID);
 
@@ -134,6 +148,7 @@ export const tryCreateCourse = Result.wrap(
 				createdBy: createdByUser,
 				gradebook: gradebookResult,
 				thumbnail: newCourseThumbnail,
+				category: newCourseCategory,
 			};
 			return result;
 		} catch (error) {

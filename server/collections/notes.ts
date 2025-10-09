@@ -72,6 +72,9 @@ export const Notes = {
 			relationTo: "users",
 			required: true,
 			label: "Created By",
+			access: {
+				update: () => false,
+			},
 		},
 		{
 			name: "content",

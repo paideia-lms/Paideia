@@ -229,6 +229,9 @@ export const courses = pgTable(
       .references(() => users.id, {
         onDelete: "set null",
       }),
+    category: integer("category_id").references(() => course_categories.id, {
+      onDelete: "set null",
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -248,8 +251,42 @@ export const courses = pgTable(
     uniqueIndex("courses_slug_idx").on(columns.slug),
     index("courses_thumbnail_idx").on(columns.thumbnail),
     index("courses_created_by_idx").on(columns.createdBy),
+    index("courses_category_idx").on(columns.category),
     index("courses_updated_at_idx").on(columns.updatedAt),
     index("courses_created_at_idx").on(columns.createdAt),
+  ],
+);
+
+export const course_categories = pgTable(
+  "course_categories",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name").notNull(),
+    parent: integer("parent_id").references(
+      (): AnyPgColumn => course_categories.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("course_categories_parent_idx").on(columns.parent),
+    index("course_categories_updated_at_idx").on(columns.updatedAt),
+    index("course_categories_created_at_idx").on(columns.createdAt),
   ],
 );
 
@@ -1663,6 +1700,7 @@ export const payload_locked_documents_rels = pgTable(
     path: varchar("path").notNull(),
     usersID: integer("users_id"),
     coursesID: integer("courses_id"),
+    "course-categoriesID": integer("course_categories_id"),
     enrollmentsID: integer("enrollments_id"),
     "activity-modulesID": integer("activity_modules_id"),
     assignmentsID: integer("assignments_id"),
@@ -1690,6 +1728,9 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_path_idx").on(columns.path),
     index("payload_locked_documents_rels_users_id_idx").on(columns.usersID),
     index("payload_locked_documents_rels_courses_id_idx").on(columns.coursesID),
+    index("payload_locked_documents_rels_course_categories_id_idx").on(
+      columns["course-categoriesID"],
+    ),
     index("payload_locked_documents_rels_enrollments_id_idx").on(
       columns.enrollmentsID,
     ),
@@ -1748,6 +1789,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["coursesID"]],
       foreignColumns: [courses.id],
       name: "payload_locked_documents_rels_courses_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["course-categoriesID"]],
+      foreignColumns: [course_categories.id],
+      name: "payload_locked_documents_rels_course_categories_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["enrollmentsID"]],
@@ -1948,6 +1994,7 @@ export const system_grade_table_grade_letters = pgTable(
 
 export const system_grade_table = pgTable("system_grade_table", {
   id: serial("id").primaryKey(),
+  maxCategoryDepth: numeric("max_category_depth"),
   updatedAt: timestamp("updated_at", {
     mode: "string",
     withTimezone: true,
@@ -2001,7 +2048,22 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
     references: [users.id],
     relationName: "createdBy",
   }),
+  category: one(course_categories, {
+    fields: [courses.category],
+    references: [course_categories.id],
+    relationName: "category",
+  }),
 }));
+export const relations_course_categories = relations(
+  course_categories,
+  ({ one }) => ({
+    parent: one(course_categories, {
+      fields: [course_categories.parent],
+      references: [course_categories.id],
+      relationName: "parent",
+    }),
+  }),
+);
 export const relations_enrollments_rels = relations(
   enrollments_rels,
   ({ one }) => ({
@@ -2534,6 +2596,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [courses.id],
       relationName: "courses",
     }),
+    "course-categoriesID": one(course_categories, {
+      fields: [payload_locked_documents_rels["course-categoriesID"]],
+      references: [course_categories.id],
+      relationName: "course-categories",
+    }),
     enrollmentsID: one(enrollments, {
       fields: [payload_locked_documents_rels.enrollmentsID],
       references: [enrollments.id],
@@ -2703,6 +2770,7 @@ type DatabaseSchema = {
   users: typeof users;
   courses_tags: typeof courses_tags;
   courses: typeof courses;
+  course_categories: typeof course_categories;
   enrollments: typeof enrollments;
   enrollments_rels: typeof enrollments_rels;
   activity_modules: typeof activity_modules;
@@ -2747,6 +2815,7 @@ type DatabaseSchema = {
   relations_users: typeof relations_users;
   relations_courses_tags: typeof relations_courses_tags;
   relations_courses: typeof relations_courses;
+  relations_course_categories: typeof relations_course_categories;
   relations_enrollments_rels: typeof relations_enrollments_rels;
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;

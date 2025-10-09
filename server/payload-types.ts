@@ -70,6 +70,7 @@ export interface Config {
   collections: {
     users: User;
     courses: Course;
+    'course-categories': CourseCategory;
     enrollments: Enrollment;
     'activity-modules': ActivityModule;
     assignments: Assignment;
@@ -98,6 +99,10 @@ export interface Config {
       enrollments: 'enrollments';
       groups: 'groups';
     };
+    'course-categories': {
+      subcategories: 'course-categories';
+      courses: 'courses';
+    };
     'activity-modules': {
       submissions: 'assignment-submissions';
       quizSubmissions: 'quiz-submissions';
@@ -124,6 +129,7 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
+    'course-categories': CourseCategoriesSelect<false> | CourseCategoriesSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
     assignments: AssignmentsSelect<false> | AssignmentsSelect<true>;
@@ -293,6 +299,7 @@ export interface Course {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  category?: (number | null) | CourseCategory;
   updatedAt: string;
   createdAt: string;
 }
@@ -359,6 +366,30 @@ export interface Group {
     | null;
   enrollments?: {
     docs?: (number | Enrollment)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-categories".
+ */
+export interface CourseCategory {
+  id: number;
+  name: string;
+  /**
+   * Optional parent category for nested organization
+   */
+  parent?: (number | null) | CourseCategory;
+  subcategories?: {
+    docs?: (number | CourseCategory)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  courses?: {
+    docs?: (number | Course)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -838,6 +869,10 @@ export interface PayloadLockedDocument {
         value: number | Course;
       } | null)
     | ({
+        relationTo: 'course-categories';
+        value: number | CourseCategory;
+      } | null)
+    | ({
         relationTo: 'enrollments';
         value: number | Enrollment;
       } | null)
@@ -1001,6 +1036,19 @@ export interface CoursesSelect<T extends boolean = true> {
   gradeTable?: T;
   enrollments?: T;
   groups?: T;
+  category?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-categories_select".
+ */
+export interface CourseCategoriesSelect<T extends boolean = true> {
+  name?: T;
+  parent?: T;
+  subcategories?: T;
+  courses?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1534,6 +1582,10 @@ export interface SystemGradeTable {
         id?: string | null;
       }[]
     | null;
+  /**
+   * Maximum nesting depth for course categories. Leave empty for unlimited depth.
+   */
+  maxCategoryDepth?: number | null;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -1549,6 +1601,7 @@ export interface SystemGradeTableSelect<T extends boolean = true> {
         minimumPercentage?: T;
         id?: T;
       };
+  maxCategoryDepth?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

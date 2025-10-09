@@ -44,6 +44,8 @@ payload local api return document with unknown depth. we should handle both case
 
 use virtual field over depth. we would rather have a nested virtual field than have depth more than 2, because depth can cause infinite loop.
 
+all globals collections should be defined in a single `server/collections/globals.ts`.
+
 ## internal functions 
 
 when user id provided to the internal function, we can always assume the user exists.

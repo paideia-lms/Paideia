@@ -40,5 +40,15 @@ export const SystemGradeTable = {
 				{ letter: "F", minimumPercentage: 0 },
 			],
 		},
+		{
+			name: "maxCategoryDepth",
+			type: "number",
+			label: "Maximum Category Depth",
+			admin: {
+				description:
+					"Maximum nesting depth for course categories. Leave empty for unlimited depth.",
+			},
+			min: 1,
+		},
 	],
 } as const satisfies GlobalConfig;

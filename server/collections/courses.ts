@@ -105,5 +105,11 @@ export const Courses = {
 			collection: "groups",
 			label: "Groups",
 		},
+		{
+			name: "category",
+			type: "relationship",
+			relationTo: "course-categories",
+			label: "Category",
+		},
 	],
 } as const satisfies CollectionConfig;

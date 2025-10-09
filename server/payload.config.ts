@@ -12,6 +12,7 @@ import {
 	AssignmentSubmissions,
 	Assignments,
 	CourseActivityModuleLinks,
+	CourseCategories,
 	CourseGradeTables,
 	Courses,
 	DiscussionSubmissions,
@@ -103,6 +104,7 @@ const sanitizedConfig = await buildConfig({
 	collections: [
 		Users,
 		Courses,
+		CourseCategories,
 		Enrollments,
 		ActivityModules,
 		Assignments,
