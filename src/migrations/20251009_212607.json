@@ -1,5 +1,5 @@
 {
-  "id": "b61cf54a-695b-46a6-95ba-b2d5ccc6a34f",
+  "id": "37f1ecff-1a03-43d3-9b4b-46cace27f13f",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -120,7 +120,7 @@
           "typeSchema": "public",
           "primaryKey": false,
           "notNull": false,
-          "default": "'student'"
+          "default": "'user'"
         },
         "bio": {
           "name": "bio",
@@ -688,6 +688,243 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.category_role_assignments": {
+      "name": "category_role_assignments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "enum_category_role_assignments_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assigned_by_id": {
+          "name": "assigned_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "assigned_at": {
+          "name": "assigned_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "category_role_assignments_user_idx": {
+          "name": "category_role_assignments_user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "category_role_assignments_category_idx": {
+          "name": "category_role_assignments_category_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "category_role_assignments_assigned_by_idx": {
+          "name": "category_role_assignments_assigned_by_idx",
+          "columns": [
+            {
+              "expression": "assigned_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "category_role_assignments_updated_at_idx": {
+          "name": "category_role_assignments_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "category_role_assignments_created_at_idx": {
+          "name": "category_role_assignments_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_category_idx": {
+          "name": "user_category_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "category_idx": {
+          "name": "category_idx",
+          "columns": [
+            {
+              "expression": "category_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "user_idx": {
+          "name": "user_idx",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "category_role_assignments_user_id_users_id_fk": {
+          "name": "category_role_assignments_user_id_users_id_fk",
+          "tableFrom": "category_role_assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "category_role_assignments_category_id_course_categories_id_fk": {
+          "name": "category_role_assignments_category_id_course_categories_id_fk",
+          "tableFrom": "category_role_assignments",
+          "tableTo": "course_categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "category_role_assignments_assigned_by_id_users_id_fk": {
+          "name": "category_role_assignments_assigned_by_id_users_id_fk",
+          "tableFrom": "category_role_assignments",
+          "tableTo": "users",
+          "columnsFrom": [
+            "assigned_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.enrollments": {
       "name": "enrollments",
       "schema": "",
@@ -1010,6 +1247,12 @@
           "primaryKey": true,
           "notNull": true
         },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
         "title": {
           "name": "title",
           "type": "varchar",
@@ -1090,6 +1333,21 @@
         }
       },
       "indexes": {
+        "activity_modules_owner_idx": {
+          "name": "activity_modules_owner_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "activity_modules_created_by_idx": {
           "name": "activity_modules_created_by_idx",
           "columns": [
@@ -1170,6 +1428,21 @@
           "columns": [
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "owner_idx": {
+          "name": "owner_idx",
+          "columns": [
+            {
+              "expression": "owner_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1272,6 +1545,19 @@
         }
       },
       "foreignKeys": {
+        "activity_modules_owner_id_users_id_fk": {
+          "name": "activity_modules_owner_id_users_id_fk",
+          "tableFrom": "activity_modules",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
         "activity_modules_created_by_id_users_id_fk": {
           "name": "activity_modules_created_by_id_users_id_fk",
           "tableFrom": "activity_modules",
@@ -1317,6 +1603,230 @@
           "tableTo": "discussions",
           "columnsFrom": [
             "discussion_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.activity_module_grants": {
+      "name": "activity_module_grants",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "activity_module_id": {
+          "name": "activity_module_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_to_id": {
+          "name": "granted_to_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_by_id": {
+          "name": "granted_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "granted_at": {
+          "name": "granted_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "activity_module_grants_activity_module_idx": {
+          "name": "activity_module_grants_activity_module_idx",
+          "columns": [
+            {
+              "expression": "activity_module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activity_module_grants_granted_to_idx": {
+          "name": "activity_module_grants_granted_to_idx",
+          "columns": [
+            {
+              "expression": "granted_to_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activity_module_grants_granted_by_idx": {
+          "name": "activity_module_grants_granted_by_idx",
+          "columns": [
+            {
+              "expression": "granted_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activity_module_grants_updated_at_idx": {
+          "name": "activity_module_grants_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activity_module_grants_created_at_idx": {
+          "name": "activity_module_grants_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activityModule_grantedTo_idx": {
+          "name": "activityModule_grantedTo_idx",
+          "columns": [
+            {
+              "expression": "activity_module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "granted_to_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activityModule_idx": {
+          "name": "activityModule_idx",
+          "columns": [
+            {
+              "expression": "activity_module_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "grantedTo_idx": {
+          "name": "grantedTo_idx",
+          "columns": [
+            {
+              "expression": "granted_to_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "activity_module_grants_activity_module_id_activity_modules_id_fk": {
+          "name": "activity_module_grants_activity_module_id_activity_modules_id_fk",
+          "tableFrom": "activity_module_grants",
+          "tableTo": "activity_modules",
+          "columnsFrom": [
+            "activity_module_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "CASCADE",
+          "onUpdate": "CASCADE"
+        },
+        "activity_module_grants_granted_to_id_users_id_fk": {
+          "name": "activity_module_grants_granted_to_id_users_id_fk",
+          "tableFrom": "activity_module_grants",
+          "tableTo": "users",
+          "columnsFrom": [
+            "granted_to_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "activity_module_grants_granted_by_id_users_id_fk": {
+          "name": "activity_module_grants_granted_by_id_users_id_fk",
+          "tableFrom": "activity_module_grants",
+          "tableTo": "users",
+          "columnsFrom": [
+            "granted_by_id"
           ],
           "columnsTo": [
             "id"
@@ -3575,8 +4085,8 @@
           "method": "btree",
           "with": {}
         },
-        "category_idx": {
-          "name": "category_idx",
+        "category_1_idx": {
+          "name": "category_1_idx",
           "columns": [
             {
               "expression": "category_id",
@@ -3934,8 +4444,8 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_idx": {
-          "name": "activityModule_idx",
+        "activityModule_1_idx": {
+          "name": "activityModule_1_idx",
           "columns": [
             {
               "expression": "activity_module_id",
@@ -4510,8 +5020,8 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_1_idx": {
-          "name": "activityModule_1_idx",
+        "activityModule_2_idx": {
+          "name": "activityModule_2_idx",
           "columns": [
             {
               "expression": "activity_module_id",
@@ -5148,8 +5658,8 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_2_idx": {
-          "name": "activityModule_2_idx",
+        "activityModule_3_idx": {
+          "name": "activityModule_3_idx",
           "columns": [
             {
               "expression": "activity_module_id",
@@ -6858,6 +7368,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "category_role_assignments_id": {
+          "name": "category_role_assignments_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "enrollments_id": {
           "name": "enrollments_id",
           "type": "integer",
@@ -6866,6 +7382,12 @@
         },
         "activity_modules_id": {
           "name": "activity_modules_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activity_module_grants_id": {
+          "name": "activity_module_grants_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
@@ -7058,6 +7580,21 @@
           "method": "btree",
           "with": {}
         },
+        "payload_locked_documents_rels_category_role_assignments__idx": {
+          "name": "payload_locked_documents_rels_category_role_assignments__idx",
+          "columns": [
+            {
+              "expression": "category_role_assignments_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "payload_locked_documents_rels_enrollments_id_idx": {
           "name": "payload_locked_documents_rels_enrollments_id_idx",
           "columns": [
@@ -7078,6 +7615,21 @@
           "columns": [
             {
               "expression": "activity_modules_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_activity_module_grants_id_idx": {
+          "name": "payload_locked_documents_rels_activity_module_grants_id_idx",
+          "columns": [
+            {
+              "expression": "activity_module_grants_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -7382,6 +7934,19 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+        "payload_locked_documents_rels_category_role_assignments_fk": {
+          "name": "payload_locked_documents_rels_category_role_assignments_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "category_role_assignments",
+          "columnsFrom": [
+            "category_role_assignments_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "payload_locked_documents_rels_enrollments_fk": {
           "name": "payload_locked_documents_rels_enrollments_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -7401,6 +7966,19 @@
           "tableTo": "activity_modules",
           "columnsFrom": [
             "activity_modules_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_activity_module_grants_fk": {
+          "name": "payload_locked_documents_rels_activity_module_grants_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "activity_module_grants",
+          "columnsFrom": [
+            "activity_module_grants_id"
           ],
           "columnsTo": [
             "id"
@@ -8052,9 +8630,10 @@
       "name": "enum_users_role",
       "schema": "public",
       "values": [
-        "student",
-        "instructor",
-        "admin"
+        "admin",
+        "content-manager",
+        "analytics-viewer",
+        "user"
       ]
     },
     "public.enum_courses_status": {
@@ -8064,6 +8643,15 @@
         "draft",
         "published",
         "archived"
+      ]
+    },
+    "public.enum_category_role_assignments_role": {
+      "name": "enum_category_role_assignments_role",
+      "schema": "public",
+      "values": [
+        "category-admin",
+        "category-coordinator",
+        "category-reviewer"
       ]
     },
     "public.enum_enrollments_role": {

@@ -7,7 +7,7 @@ export interface CreateUserArgs {
 	password: string;
 	firstName?: string;
 	lastName?: string;
-	role?: "student" | "instructor" | "admin";
+	role?: User["role"];
 	bio?: string;
 	avatar?: number;
 }
@@ -15,7 +15,7 @@ export interface CreateUserArgs {
 export interface UpdateUserArgs {
 	firstName?: string;
 	lastName?: string;
-	role?: "student" | "instructor" | "admin";
+	role?: User["role"];
 	bio?: string;
 	avatar?: number;
 	_verified?: boolean;
@@ -31,7 +31,7 @@ export const tryCreateUser = Result.wrap(
 			password,
 			firstName,
 			lastName,
-			role = "student",
+			role = "user",
 			bio,
 			avatar,
 		} = args;

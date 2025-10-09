@@ -68,7 +68,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			password: "password123",
 			firstName: "John",
 			lastName: "Teacher",
-			role: "instructor",
+			role: "user",
 		};
 
 		const teacherResult = await tryCreateUser(
@@ -88,7 +88,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			password: "password123",
 			firstName: "Jane",
 			lastName: "Student",
-			role: "student",
+			role: "user",
 		};
 
 		const studentResult = await tryCreateUser(

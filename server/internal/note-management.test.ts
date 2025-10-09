@@ -52,7 +52,7 @@ describe("Note Management Functions", () => {
 			password: "testpassword123",
 			firstName: "Test",
 			lastName: "User1",
-			role: "student",
+			role: "user",
 		};
 
 		const userArgs2: CreateUserArgs = {
@@ -60,7 +60,7 @@ describe("Note Management Functions", () => {
 			password: "testpassword123",
 			firstName: "Test",
 			lastName: "User2",
-			role: "instructor",
+			role: "user",
 		};
 
 		const adminArgs: CreateUserArgs = {
@@ -574,7 +574,7 @@ describe("Note Management Functions", () => {
 				password: "testpassword123",
 				firstName: "No",
 				lastName: "Notes",
-				role: "student",
+				role: "user",
 			};
 
 			const userResult = await tryCreateUser(payload, mockRequest, userArgs);

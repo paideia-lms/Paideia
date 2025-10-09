@@ -24,9 +24,10 @@ import {
 } from "@payloadcms/db-postgres/drizzle/pg-core";
 import { sql, relations } from "@payloadcms/db-postgres/drizzle";
 export const enum_users_role = pgEnum("enum_users_role", [
-  "student",
-  "instructor",
   "admin",
+  "content-manager",
+  "analytics-viewer",
+  "user",
 ]);
 export const enum_courses_status = pgEnum("enum_courses_status", [
   "draft",
@@ -152,7 +153,7 @@ export const users = pgTable(
     id: serial("id").primaryKey(),
     firstName: varchar("first_name"),
     lastName: varchar("last_name"),
-    role: enum_users_role("role").default("student"),
+    role: enum_users_role("role").default("user"),
     bio: varchar("bio"),
     avatar: integer("avatar_id").references(() => media.id, {
       onDelete: "set null",
@@ -428,6 +429,11 @@ export const activity_modules = pgTable(
   "activity_modules",
   {
     id: serial("id").primaryKey(),
+    owner: integer("owner_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
     title: varchar("title").notNull(),
     description: varchar("description"),
     type: enum_activity_modules_type("type").notNull(),
@@ -464,18 +470,76 @@ export const activity_modules = pgTable(
       .notNull(),
   },
   (columns) => [
+    index("activity_modules_owner_idx").on(columns.owner),
     index("activity_modules_created_by_idx").on(columns.createdBy),
     index("activity_modules_assignment_idx").on(columns.assignment),
     index("activity_modules_quiz_idx").on(columns.quiz),
     index("activity_modules_discussion_idx").on(columns.discussion),
     index("activity_modules_updated_at_idx").on(columns.updatedAt),
     index("activity_modules_created_at_idx").on(columns.createdAt),
+    index("owner_idx").on(columns.owner),
     index("createdBy_idx").on(columns.createdBy),
     index("type_idx").on(columns.type),
     index("status_idx").on(columns.status),
     index("assignment_idx").on(columns.assignment),
     index("quiz_idx").on(columns.quiz),
     index("discussion_idx").on(columns.discussion),
+  ],
+);
+
+export const activity_module_grants = pgTable(
+  "activity_module_grants",
+  {
+    id: serial("id").primaryKey(),
+    activityModule: integer("activity_module_id")
+      .notNull()
+      .references(() => activity_modules.id, {
+        onDelete: "set null",
+      }),
+    grantedTo: integer("granted_to_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    grantedBy: integer("granted_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    grantedAt: timestamp("granted_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }).notNull(),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("activity_module_grants_activity_module_idx").on(
+      columns.activityModule,
+    ),
+    index("activity_module_grants_granted_to_idx").on(columns.grantedTo),
+    index("activity_module_grants_granted_by_idx").on(columns.grantedBy),
+    index("activity_module_grants_updated_at_idx").on(columns.updatedAt),
+    index("activity_module_grants_created_at_idx").on(columns.createdAt),
+    uniqueIndex("activityModule_grantedTo_idx").on(
+      columns.activityModule,
+      columns.grantedTo,
+    ),
+    index("activityModule_idx").on(columns.activityModule),
+    index("grantedTo_idx").on(columns.grantedTo),
   ],
 );
 
@@ -1107,7 +1171,7 @@ export const assignment_submissions = pgTable(
     index("assignment_submissions_enrollment_idx").on(columns.enrollment),
     index("assignment_submissions_updated_at_idx").on(columns.updatedAt),
     index("assignment_submissions_created_at_idx").on(columns.createdAt),
-    index("activityModule_idx").on(columns.activityModule),
+    index("activityModule_1_idx").on(columns.activityModule),
     index("student_idx").on(columns.student),
     index("enrollment_idx").on(columns.enrollment),
     uniqueIndex("activityModule_student_attemptNumber_idx").on(
@@ -1236,7 +1300,7 @@ export const quiz_submissions = pgTable(
     index("quiz_submissions_enrollment_idx").on(columns.enrollment),
     index("quiz_submissions_updated_at_idx").on(columns.updatedAt),
     index("quiz_submissions_created_at_idx").on(columns.createdAt),
-    index("activityModule_1_idx").on(columns.activityModule),
+    index("activityModule_2_idx").on(columns.activityModule),
     index("student_1_idx").on(columns.student),
     index("enrollment_1_idx").on(columns.enrollment),
     uniqueIndex("activityModule_student_attemptNumber_1_idx").on(
@@ -1387,7 +1451,7 @@ export const discussion_submissions = pgTable(
     index("discussion_submissions_parent_thread_idx").on(columns.parentThread),
     index("discussion_submissions_updated_at_idx").on(columns.updatedAt),
     index("discussion_submissions_created_at_idx").on(columns.createdAt),
-    index("activityModule_2_idx").on(columns.activityModule),
+    index("activityModule_3_idx").on(columns.activityModule),
     index("discussion_1_idx").on(columns.discussion),
     index("student_2_idx").on(columns.student),
     index("enrollment_2_idx").on(columns.enrollment),
@@ -1761,6 +1825,7 @@ export const payload_locked_documents_rels = pgTable(
     "category-role-assignmentsID": integer("category_role_assignments_id"),
     enrollmentsID: integer("enrollments_id"),
     "activity-modulesID": integer("activity_modules_id"),
+    "activity-module-grantsID": integer("activity_module_grants_id"),
     assignmentsID: integer("assignments_id"),
     quizzesID: integer("quizzes_id"),
     discussionsID: integer("discussions_id"),
@@ -1797,6 +1862,9 @@ export const payload_locked_documents_rels = pgTable(
     ),
     index("payload_locked_documents_rels_activity_modules_id_idx").on(
       columns["activity-modulesID"],
+    ),
+    index("payload_locked_documents_rels_activity_module_grants_id_idx").on(
+      columns["activity-module-grantsID"],
     ),
     index("payload_locked_documents_rels_assignments_id_idx").on(
       columns.assignmentsID,
@@ -1870,6 +1938,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["activity-modulesID"]],
       foreignColumns: [activity_modules.id],
       name: "payload_locked_documents_rels_activity_modules_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["activity-module-grantsID"]],
+      foreignColumns: [activity_module_grants.id],
+      name: "payload_locked_documents_rels_activity_module_grants_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["assignmentsID"]],
@@ -2186,6 +2259,11 @@ export const relations_enrollments = relations(
 export const relations_activity_modules = relations(
   activity_modules,
   ({ one }) => ({
+    owner: one(users, {
+      fields: [activity_modules.owner],
+      references: [users.id],
+      relationName: "owner",
+    }),
     createdBy: one(users, {
       fields: [activity_modules.createdBy],
       references: [users.id],
@@ -2205,6 +2283,26 @@ export const relations_activity_modules = relations(
       fields: [activity_modules.discussion],
       references: [discussions.id],
       relationName: "discussion",
+    }),
+  }),
+);
+export const relations_activity_module_grants = relations(
+  activity_module_grants,
+  ({ one }) => ({
+    activityModule: one(activity_modules, {
+      fields: [activity_module_grants.activityModule],
+      references: [activity_modules.id],
+      relationName: "activityModule",
+    }),
+    grantedTo: one(users, {
+      fields: [activity_module_grants.grantedTo],
+      references: [users.id],
+      relationName: "grantedTo",
+    }),
+    grantedBy: one(users, {
+      fields: [activity_module_grants.grantedBy],
+      references: [users.id],
+      relationName: "grantedBy",
     }),
   }),
 );
@@ -2702,6 +2800,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [activity_modules.id],
       relationName: "activity-modules",
     }),
+    "activity-module-grantsID": one(activity_module_grants, {
+      fields: [payload_locked_documents_rels["activity-module-grantsID"]],
+      references: [activity_module_grants.id],
+      relationName: "activity-module-grants",
+    }),
     assignmentsID: one(assignments, {
       fields: [payload_locked_documents_rels.assignmentsID],
       references: [assignments.id],
@@ -2867,6 +2970,7 @@ type DatabaseSchema = {
   enrollments: typeof enrollments;
   enrollments_rels: typeof enrollments_rels;
   activity_modules: typeof activity_modules;
+  activity_module_grants: typeof activity_module_grants;
   assignments_allowed_file_types: typeof assignments_allowed_file_types;
   assignments: typeof assignments;
   quizzes_questions_options: typeof quizzes_questions_options;
@@ -2913,6 +3017,7 @@ type DatabaseSchema = {
   relations_enrollments_rels: typeof relations_enrollments_rels;
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;
+  relations_activity_module_grants: typeof relations_activity_module_grants;
   relations_assignments_allowed_file_types: typeof relations_assignments_allowed_file_types;
   relations_assignments: typeof relations_assignments;
   relations_quizzes_questions_options: typeof relations_quizzes_questions_options;

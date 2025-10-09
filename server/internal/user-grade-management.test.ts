@@ -61,7 +61,7 @@ describe("User Grade Management", () => {
 			password: "password123",
 			firstName: "John",
 			lastName: "Instructor",
-			role: "instructor",
+			role: "user",
 		};
 
 		const studentArgs: CreateUserArgs = {
@@ -69,7 +69,7 @@ describe("User Grade Management", () => {
 			password: "password123",
 			firstName: "Jane",
 			lastName: "Student",
-			role: "student",
+			role: "user",
 		};
 
 		const instructorResult = await tryCreateUser(

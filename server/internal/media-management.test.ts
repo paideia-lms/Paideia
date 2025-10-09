@@ -39,7 +39,7 @@ describe("Media Management", () => {
 			password: "password123",
 			firstName: "Test",
 			lastName: "User",
-			role: "instructor",
+			role: "user",
 		});
 
 		if (!userResult.ok) {

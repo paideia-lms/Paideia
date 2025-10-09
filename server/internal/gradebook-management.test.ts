@@ -50,7 +50,7 @@ describe("Gradebook Management", () => {
 			password: "password123",
 			firstName: "John",
 			lastName: "Instructor",
-			role: "instructor",
+			role: "user",
 		};
 
 		const instructorResult = await tryCreateUser(

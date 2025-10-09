@@ -42,7 +42,7 @@ describe("Activity Module Management", () => {
 			password: "password123",
 			firstName: "Test",
 			lastName: "User",
-			role: "instructor",
+			role: "user",
 		};
 
 		const userResult = await tryCreateUser(payload, mockRequest, userArgs);

@@ -55,7 +55,7 @@ describe("Category Role Management Functions", () => {
 			password: "testpassword123",
 			firstName: "User",
 			lastName: "One",
-			role: "instructor",
+			role: "user",
 		};
 
 		const user2Args: CreateUserArgs = {
@@ -63,7 +63,7 @@ describe("Category Role Management Functions", () => {
 			password: "testpassword123",
 			firstName: "User",
 			lastName: "Two",
-			role: "instructor",
+			role: "user",
 		};
 
 		const user3Args: CreateUserArgs = {
@@ -71,7 +71,7 @@ describe("Category Role Management Functions", () => {
 			password: "testpassword123",
 			firstName: "User",
 			lastName: "Three",
-			role: "student",
+			role: "user",
 		};
 
 		const adminResult = await tryCreateUser(payload, mockRequest, adminArgs);

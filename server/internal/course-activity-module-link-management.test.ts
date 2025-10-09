@@ -47,7 +47,7 @@ describe("Course Activity Module Link Management Functions", () => {
 			password: "testpassword123",
 			firstName: "Test",
 			lastName: "User",
-			role: "instructor",
+			role: "user",
 		};
 
 		const userResult = await tryCreateUser(payload, mockRequest, userArgs);

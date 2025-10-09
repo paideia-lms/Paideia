@@ -53,7 +53,7 @@ describe("Search Management Functions", () => {
 			password: "password123",
 			firstName: "John",
 			lastName: "Doe",
-			role: "student",
+			role: "user",
 		};
 
 		const user2Args: CreateUserArgs = {
@@ -61,7 +61,7 @@ describe("Search Management Functions", () => {
 			password: "password123",
 			firstName: "Jane Pattern",
 			lastName: "Smith",
-			role: "instructor",
+			role: "user",
 		};
 
 		const user1Result = await tryCreateUser(payload, mockRequest, user1Args);
@@ -308,7 +308,7 @@ describe("Search Management Functions", () => {
 				password: "password123",
 				firstName: uniqueName,
 				lastName: "ToDelete",
-				role: "student",
+				role: "user",
 			};
 
 			const createResult = await tryCreateUser(payload, mockRequest, userArgs);

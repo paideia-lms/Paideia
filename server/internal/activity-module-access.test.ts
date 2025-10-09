@@ -53,7 +53,7 @@ describe("Activity Module Access Control", () => {
 			password: "testpassword123",
 			firstName: "Instructor",
 			lastName: "One",
-			role: "instructor",
+			role: "user",
 		};
 
 		const user2Args: CreateUserArgs = {
@@ -61,7 +61,7 @@ describe("Activity Module Access Control", () => {
 			password: "testpassword123",
 			firstName: "Instructor",
 			lastName: "Two",
-			role: "instructor",
+			role: "user",
 		};
 
 		const user3Args: CreateUserArgs = {
@@ -69,7 +69,7 @@ describe("Activity Module Access Control", () => {
 			password: "testpassword123",
 			firstName: "Instructor",
 			lastName: "Three",
-			role: "instructor",
+			role: "user",
 		};
 
 		const adminArgs: CreateUserArgs = {

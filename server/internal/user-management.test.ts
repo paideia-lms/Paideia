@@ -48,7 +48,7 @@ describe("User Management Functions", () => {
 				password: "testpassword123",
 				firstName: "Test",
 				lastName: "User",
-				role: "student",
+				role: "user",
 			};
 
 			const result = await tryCreateUser(payload, mockRequest, userArgs);
@@ -94,7 +94,7 @@ describe("User Management Functions", () => {
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.role).toBe("student");
+				expect(result.value.role).toBe("user");
 			}
 		});
 	});
@@ -120,7 +120,7 @@ describe("User Management Functions", () => {
 				const updateArgs: UpdateUserArgs = {
 					firstName: "Updated",
 					lastName: "Name",
-					role: "instructor",
+					role: "user",
 					bio: "Updated bio",
 				};
 
@@ -135,7 +135,7 @@ describe("User Management Functions", () => {
 				if (updateResult.ok) {
 					expect(updateResult.value.firstName).toBe("Updated");
 					expect(updateResult.value.lastName).toBe("Name");
-					expect(updateResult.value.role).toBe("instructor");
+					expect(updateResult.value.role).toBe("user");
 					expect(updateResult.value.bio).toBe("Updated bio");
 				}
 			}
@@ -272,7 +272,7 @@ describe("User Management Functions", () => {
 				password: "testpassword123",
 				firstName: "Lifecycle",
 				lastName: "Test",
-				role: "student",
+				role: "user",
 			};
 
 			const createResult = await tryCreateUser(
@@ -298,7 +298,7 @@ describe("User Management Functions", () => {
 
 				// Update user
 				const updateArgs: UpdateUserArgs = {
-					role: "instructor",
+					role: "user",
 					bio: "Updated in lifecycle test",
 				};
 				const updateResult = await tryUpdateUser(
