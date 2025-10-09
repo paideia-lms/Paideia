@@ -67,16 +67,9 @@ export const Enrollments = {
 		},
 		{
 			name: "groups",
-			type: "array",
-			fields: [
-				{
-					name: "groupPath",
-					type: "text",
-					required: true,
-					label: "Group Path",
-					// e.g., "art", "art/group-1", "econ/group-1/subgroup-1"
-				},
-			],
+			type: "relationship",
+			relationTo: "groups",
+			hasMany: true,
 			label: "Groups",
 		},
 	],
@@ -87,7 +80,6 @@ export const Enrollments = {
 				if (process.env.NODE_ENV === "test") return;
 
 				const user = req.user;
-				console.log("beforeOperation", collection, operation, user);
 				if (!user) throw new UnauthorizedError("Unauthorized");
 			},
 		],

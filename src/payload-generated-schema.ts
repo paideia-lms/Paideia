@@ -253,25 +253,6 @@ export const courses = pgTable(
   ],
 );
 
-export const enrollments_groups = pgTable(
-  "enrollments_groups",
-  {
-    _order: integer("_order").notNull(),
-    _parentID: integer("_parent_id").notNull(),
-    id: varchar("id").primaryKey(),
-    groupPath: varchar("group_path").notNull(),
-  },
-  (columns) => [
-    index("enrollments_groups_order_idx").on(columns._order),
-    index("enrollments_groups_parent_id_idx").on(columns._parentID),
-    foreignKey({
-      columns: [columns["_parentID"]],
-      foreignColumns: [enrollments.id],
-      name: "enrollments_groups_parent_id_fk",
-    }).onDelete("cascade"),
-  ],
-);
-
 export const enrollments = pgTable(
   "enrollments",
   {
@@ -319,6 +300,33 @@ export const enrollments = pgTable(
     index("enrollments_updated_at_idx").on(columns.updatedAt),
     index("enrollments_created_at_idx").on(columns.createdAt),
     uniqueIndex("user_course_idx").on(columns.user, columns.course),
+  ],
+);
+
+export const enrollments_rels = pgTable(
+  "enrollments_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    groupsID: integer("groups_id"),
+  },
+  (columns) => [
+    index("enrollments_rels_order_idx").on(columns.order),
+    index("enrollments_rels_parent_idx").on(columns.parent),
+    index("enrollments_rels_path_idx").on(columns.path),
+    index("enrollments_rels_groups_id_idx").on(columns.groupsID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [enrollments.id],
+      name: "enrollments_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["groupsID"]],
+      foreignColumns: [groups.id],
+      name: "enrollments_rels_groups_fk",
+    }).onDelete("cascade"),
   ],
 );
 
@@ -1356,6 +1364,50 @@ export const course_grade_tables = pgTable(
   ],
 );
 
+export const groups = pgTable(
+  "groups",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name").notNull(),
+    course: integer("course_id")
+      .notNull()
+      .references(() => courses.id, {
+        onDelete: "set null",
+      }),
+    parent: integer("parent_id").references((): AnyPgColumn => groups.id, {
+      onDelete: "set null",
+    }),
+    path: varchar("path").notNull(),
+    description: varchar("description"),
+    color: varchar("color"),
+    maxMembers: numeric("max_members"),
+    isActive: boolean("is_active").default(true),
+    metadata: jsonb("metadata"),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("groups_course_idx").on(columns.course),
+    index("groups_parent_idx").on(columns.parent),
+    uniqueIndex("groups_path_idx").on(columns.path),
+    index("groups_updated_at_idx").on(columns.updatedAt),
+    index("groups_created_at_idx").on(columns.createdAt),
+    uniqueIndex("course_path_idx").on(columns.course, columns.path),
+  ],
+);
+
 export const user_grades_adjustments = pgTable(
   "user_grades_adjustments",
   {
@@ -1518,6 +1570,7 @@ export const search = pgTable(
     id: serial("id").primaryKey(),
     title: varchar("title"),
     priority: numeric("priority"),
+    meta: varchar("meta"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1626,6 +1679,7 @@ export const payload_locked_documents_rels = pgTable(
     "quiz-submissionsID": integer("quiz_submissions_id"),
     "discussion-submissionsID": integer("discussion_submissions_id"),
     "course-grade-tablesID": integer("course_grade_tables_id"),
+    groupsID: integer("groups_id"),
     "user-gradesID": integer("user_grades_id"),
     searchID: integer("search_id"),
   },
@@ -1674,6 +1728,7 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_course_grade_tables_id_idx").on(
       columns["course-grade-tablesID"],
     ),
+    index("payload_locked_documents_rels_groups_id_idx").on(columns.groupsID),
     index("payload_locked_documents_rels_user_grades_id_idx").on(
       columns["user-gradesID"],
     ),
@@ -1767,6 +1822,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["course-grade-tablesID"]],
       foreignColumns: [course_grade_tables.id],
       name: "payload_locked_documents_rels_course_grade_tables_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["groupsID"]],
+      foreignColumns: [groups.id],
+      name: "payload_locked_documents_rels_groups_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["user-gradesID"]],
@@ -1941,12 +2001,17 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
     relationName: "createdBy",
   }),
 }));
-export const relations_enrollments_groups = relations(
-  enrollments_groups,
+export const relations_enrollments_rels = relations(
+  enrollments_rels,
   ({ one }) => ({
-    _parentID: one(enrollments, {
-      fields: [enrollments_groups._parentID],
+    parent: one(enrollments, {
+      fields: [enrollments_rels.parent],
       references: [enrollments.id],
+      relationName: "_rels",
+    }),
+    groupsID: one(groups, {
+      fields: [enrollments_rels.groupsID],
+      references: [groups.id],
       relationName: "groups",
     }),
   }),
@@ -1964,8 +2029,8 @@ export const relations_enrollments = relations(
       references: [courses.id],
       relationName: "course",
     }),
-    groups: many(enrollments_groups, {
-      relationName: "groups",
+    _rels: many(enrollments_rels, {
+      relationName: "_rels",
     }),
   }),
 );
@@ -2345,6 +2410,18 @@ export const relations_course_grade_tables = relations(
     }),
   }),
 );
+export const relations_groups = relations(groups, ({ one }) => ({
+  course: one(courses, {
+    fields: [groups.course],
+    references: [courses.id],
+    relationName: "course",
+  }),
+  parent: one(groups, {
+    fields: [groups.parent],
+    references: [groups.id],
+    relationName: "parent",
+  }),
+}));
 export const relations_user_grades_adjustments = relations(
   user_grades_adjustments,
   ({ one }) => ({
@@ -2531,6 +2608,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [course_grade_tables.id],
       relationName: "course-grade-tables",
     }),
+    groupsID: one(groups, {
+      fields: [payload_locked_documents_rels.groupsID],
+      references: [groups.id],
+      relationName: "groups",
+    }),
     "user-gradesID": one(user_grades, {
       fields: [payload_locked_documents_rels["user-gradesID"]],
       references: [user_grades.id],
@@ -2620,8 +2702,8 @@ type DatabaseSchema = {
   users: typeof users;
   courses_tags: typeof courses_tags;
   courses: typeof courses;
-  enrollments_groups: typeof enrollments_groups;
   enrollments: typeof enrollments;
+  enrollments_rels: typeof enrollments_rels;
   activity_modules: typeof activity_modules;
   assignments_allowed_file_types: typeof assignments_allowed_file_types;
   assignments: typeof assignments;
@@ -2647,6 +2729,7 @@ type DatabaseSchema = {
   discussion_submissions: typeof discussion_submissions;
   course_grade_tables_grade_letters: typeof course_grade_tables_grade_letters;
   course_grade_tables: typeof course_grade_tables;
+  groups: typeof groups;
   user_grades_adjustments: typeof user_grades_adjustments;
   user_grades: typeof user_grades;
   user_grades_rels: typeof user_grades_rels;
@@ -2663,7 +2746,7 @@ type DatabaseSchema = {
   relations_users: typeof relations_users;
   relations_courses_tags: typeof relations_courses_tags;
   relations_courses: typeof relations_courses;
-  relations_enrollments_groups: typeof relations_enrollments_groups;
+  relations_enrollments_rels: typeof relations_enrollments_rels;
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;
   relations_assignments_allowed_file_types: typeof relations_assignments_allowed_file_types;
@@ -2690,6 +2773,7 @@ type DatabaseSchema = {
   relations_discussion_submissions: typeof relations_discussion_submissions;
   relations_course_grade_tables_grade_letters: typeof relations_course_grade_tables_grade_letters;
   relations_course_grade_tables: typeof relations_course_grade_tables;
+  relations_groups: typeof relations_groups;
   relations_user_grades_adjustments: typeof relations_user_grades_adjustments;
   relations_user_grades_rels: typeof relations_user_grades_rels;
   relations_user_grades: typeof relations_user_grades;

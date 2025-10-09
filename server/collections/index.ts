@@ -14,6 +14,7 @@ export { SystemGradeTable } from "./globals";
 export { GradebookCategories } from "./gradebook-categories";
 export { GradebookItems } from "./gradebook-items";
 export { Gradebooks } from "./gradebooks";
+export { Groups } from "./groups";
 export { Media } from "./media";
 export { Notes } from "./notes";
 export { QuizSubmissions } from "./quiz-submissions";

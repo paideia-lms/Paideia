@@ -1,13 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import {
-	DuplicateEnrollmentError,
-	EnrollmentNotFoundError,
-	InvalidArgumentError,
-} from "~/utils/error";
 import sanitizedConfig from "../payload.config";
-import { tryFindCourseById } from "./course-management";
+import {
+	tryCreateGroup,
+	tryFindCourseById,
+	tryFindGroupsByCourse,
+} from "./course-management";
 import {
 	type CreateEnrollmentArgs,
 	tryAddGroupsToEnrollment,
@@ -15,7 +14,6 @@ import {
 	tryDeleteEnrollment,
 	tryFindEnrollmentById,
 	tryFindEnrollmentsByGroup,
-	tryGetAllGroupPaths,
 	tryRemoveGroupsFromEnrollment,
 	tryUpdateEnrollment,
 	type UpdateEnrollmentArgs,
@@ -339,8 +337,52 @@ describe("Enrollment Management Functions", () => {
 
 	describe("Group Management Functions", () => {
 		let enrollmentId: number;
+		let artGroupId: number;
+		let econGroupId: number;
+		let mathGroupId: number;
+		let scienceGroupId: number;
+		let mockRequest: Request;
 
 		beforeAll(async () => {
+			mockRequest = new Request("http://localhost:3000/test");
+
+			// Create groups first
+			const artGroupResult = await tryCreateGroup(payload, mockRequest, {
+				name: "art",
+				course: testCourseId,
+			});
+			expect(artGroupResult.ok).toBe(true);
+			if (artGroupResult.ok) {
+				artGroupId = artGroupResult.value.id;
+			}
+
+			const econGroupResult = await tryCreateGroup(payload, mockRequest, {
+				name: "econ",
+				course: testCourseId,
+			});
+			expect(econGroupResult.ok).toBe(true);
+			if (econGroupResult.ok) {
+				econGroupId = econGroupResult.value.id;
+			}
+
+			const mathGroupResult = await tryCreateGroup(payload, mockRequest, {
+				name: "math",
+				course: testCourseId,
+			});
+			expect(mathGroupResult.ok).toBe(true);
+			if (mathGroupResult.ok) {
+				mathGroupId = mathGroupResult.value.id;
+			}
+
+			const scienceGroupResult = await tryCreateGroup(payload, mockRequest, {
+				name: "science",
+				course: testCourseId,
+			});
+			expect(scienceGroupResult.ok).toBe(true);
+			if (scienceGroupResult.ok) {
+				scienceGroupId = scienceGroupResult.value.id;
+			}
+
 			// Create a separate enrollment for group tests
 			const testUser5 = await payload.create({
 				collection: "users",
@@ -357,7 +399,7 @@ describe("Enrollment Management Functions", () => {
 				course: testCourseId,
 				role: "student",
 				status: "active",
-				groups: ["art", "econ"],
+				groups: [artGroupId, econGroupId],
 			};
 
 			const result = await tryCreateEnrollment(payload, enrollmentArgs);
@@ -367,7 +409,7 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		describe("tryCreateEnrollment with groups", () => {
-			test("should create enrollment with groups and expand parent groups", async () => {
+			test("should create enrollment with groups", async () => {
 				const testUser6 = await payload.create({
 					collection: "users",
 					data: {
@@ -378,12 +420,20 @@ describe("Enrollment Management Functions", () => {
 					},
 				});
 
+				// Create nested groups
+				const artGroup1Result = await tryCreateGroup(payload, mockRequest, {
+					name: "group-1",
+					course: testCourseId,
+					parent: artGroupId,
+				});
+				expect(artGroup1Result.ok).toBe(true);
+
 				const enrollmentArgs: CreateEnrollmentArgs = {
 					user: testUser6.id,
 					course: testCourseId,
 					role: "student",
 					status: "active",
-					groups: ["art/group-1", "econ/group-2/subgroup-a"],
+					groups: artGroup1Result.ok ? [artGroup1Result.value.id] : [],
 				};
 
 				const result = await tryCreateEnrollment(payload, enrollmentArgs);
@@ -391,15 +441,7 @@ describe("Enrollment Management Functions", () => {
 				expect(result.ok).toBe(true);
 				if (result.ok) {
 					expect(result.value.groups).toBeDefined();
-					const groupPaths =
-						result.value.groups?.map((g: any) => g.groupPath) || [];
-
-					// Should include the specified groups and their parents
-					expect(groupPaths).toContain("art");
-					expect(groupPaths).toContain("art/group-1");
-					expect(groupPaths).toContain("econ");
-					expect(groupPaths).toContain("econ/group-2");
-					expect(groupPaths).toContain("econ/group-2/subgroup-a");
+					expect(Array.isArray(result.value.groups)).toBe(true);
 				}
 			});
 		});
@@ -407,28 +449,32 @@ describe("Enrollment Management Functions", () => {
 		describe("tryAddGroupsToEnrollment", () => {
 			test("should add groups to existing enrollment", async () => {
 				const result = await tryAddGroupsToEnrollment(payload, enrollmentId, [
-					"math",
-					"science/group-1",
+					mathGroupId,
+					scienceGroupId,
 				]);
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
-					const groupPaths =
-						result.value.groups?.map((g: any) => g.groupPath) || [];
+					expect(result.value.groups).toBeDefined();
+					const groupIds =
+						result.value.groups?.map((g: any) =>
+							typeof g === "number" ? g : g.id,
+						) || [];
 
 					// Should include original groups
-					expect(groupPaths).toContain("art");
-					expect(groupPaths).toContain("econ");
+					expect(groupIds).toContain(artGroupId);
+					expect(groupIds).toContain(econGroupId);
 
-					// Should include new groups and their parents
-					expect(groupPaths).toContain("math");
-					expect(groupPaths).toContain("science");
-					expect(groupPaths).toContain("science/group-1");
+					// Should include new groups
+					expect(groupIds).toContain(mathGroupId);
+					expect(groupIds).toContain(scienceGroupId);
 				}
 			});
 
 			test("should fail when enrollment ID is missing", async () => {
-				const result = await tryAddGroupsToEnrollment(payload, 0, ["math"]);
+				const result = await tryAddGroupsToEnrollment(payload, 0, [
+					mathGroupId,
+				]);
 
 				expect(result.ok).toBe(false);
 			});
@@ -450,11 +496,17 @@ describe("Enrollment Management Functions", () => {
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
-					console.log(result.value);
-					const groups = result.value.groups.map((g) => g.groupPath);
 					expect(result.value.groups).toBeDefined();
-					expect(groups).toContain("art");
-					expect(groups).toContain("econ");
+				}
+
+				// Get all groups for the course
+				const groupsResult = await tryFindGroupsByCourse(payload, testCourseId);
+				expect(groupsResult.ok).toBe(true);
+				if (groupsResult.ok) {
+					expect(groupsResult.value.length).toBeGreaterThan(0);
+					const groupNames = groupsResult.value.map((g) => g.name);
+					expect(groupNames).toContain("art");
+					expect(groupNames).toContain("econ");
 				}
 			});
 		});
@@ -464,28 +516,29 @@ describe("Enrollment Management Functions", () => {
 				const result = await tryRemoveGroupsFromEnrollment(
 					payload,
 					enrollmentId,
-					["art", "science"],
+					[artGroupId, scienceGroupId],
 				);
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
-					const groupPaths =
-						result.value.groups?.map((g: any) => g.groupPath) || [];
+					const groupIds =
+						result.value.groups?.map((g: any) =>
+							typeof g === "number" ? g : g.id,
+						) || [];
 
 					// Should not contain removed groups
-					expect(groupPaths).not.toContain("art");
-					expect(groupPaths).not.toContain("science");
-					expect(groupPaths).not.toContain("science/group-1");
+					expect(groupIds).not.toContain(artGroupId);
+					expect(groupIds).not.toContain(scienceGroupId);
 
 					// Should still contain other groups
-					expect(groupPaths).toContain("econ");
-					expect(groupPaths).toContain("math");
+					expect(groupIds).toContain(econGroupId);
+					expect(groupIds).toContain(mathGroupId);
 				}
 			});
 
 			test("should fail when enrollment ID is missing", async () => {
 				const result = await tryRemoveGroupsFromEnrollment(payload, 0, [
-					"math",
+					mathGroupId,
 				]);
 
 				expect(result.ok).toBe(false);
@@ -493,42 +546,27 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		describe("tryFindEnrollmentsByGroup", () => {
-			test("should find enrollments by group path", async () => {
-				const result = await tryFindEnrollmentsByGroup(payload, "econ");
+			test("should find enrollments by group ID", async () => {
+				const result = await tryFindEnrollmentsByGroup(payload, econGroupId);
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
 					expect(result.value.length).toBeGreaterThan(0);
 					// All returned enrollments should be in the econ group
 					for (const enrollment of result.value) {
-						const groupPaths =
-							enrollment.groups?.map((g: any) => g.groupPath) || [];
-						expect(groupPaths).toContain("econ");
+						const groupIds =
+							enrollment.groups?.map((g: any) =>
+								typeof g === "number" ? g : g.id,
+							) || [];
+						expect(groupIds).toContain(econGroupId);
 					}
 				}
 			});
 
-			test("should fail when group path is missing", async () => {
-				const result = await tryFindEnrollmentsByGroup(payload, "");
+			test("should fail when group ID is missing", async () => {
+				const result = await tryFindEnrollmentsByGroup(payload, 0);
 
 				expect(result.ok).toBe(false);
-			});
-		});
-
-		describe("tryGetAllGroupPaths", () => {
-			test("should get all unique group paths", async () => {
-				const result = await tryGetAllGroupPaths(payload);
-
-				expect(result.ok).toBe(true);
-				if (result.ok) {
-					expect(Array.isArray(result.value)).toBe(true);
-					expect(result.value.length).toBeGreaterThan(0);
-
-					// Should contain some of the groups we created
-					expect(result.value).toContain("art");
-					expect(result.value).toContain("econ");
-					expect(result.value).toContain("math");
-				}
 			});
 		});
 	});

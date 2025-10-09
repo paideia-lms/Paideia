@@ -100,9 +100,10 @@ export const Courses = {
 		},
 		{
 			name: "groups",
-			type: "text",
+			type: "join",
+			on: "course",
+			collection: "groups",
 			label: "Groups",
-			virtual: `enrollments.groups`,
 		},
 	],
 } as const satisfies CollectionConfig;

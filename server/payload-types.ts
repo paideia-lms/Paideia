@@ -85,6 +85,7 @@ export interface Config {
     'quiz-submissions': QuizSubmission;
     'discussion-submissions': DiscussionSubmission;
     'course-grade-tables': CourseGradeTable;
+    groups: Group;
     'user-grades': UserGrade;
     search: Search;
     'payload-locked-documents': PayloadLockedDocument;
@@ -95,6 +96,7 @@ export interface Config {
     courses: {
       gradeTable: 'course-grade-tables';
       enrollments: 'enrollments';
+      groups: 'groups';
     };
     'activity-modules': {
       submissions: 'assignment-submissions';
@@ -115,6 +117,9 @@ export interface Config {
     'discussion-submissions': {
       replies: 'discussion-submissions';
     };
+    groups: {
+      enrollments: 'enrollments';
+    };
   };
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
@@ -134,6 +139,7 @@ export interface Config {
     'quiz-submissions': QuizSubmissionsSelect<false> | QuizSubmissionsSelect<true>;
     'discussion-submissions': DiscussionSubmissionsSelect<false> | DiscussionSubmissionsSelect<true>;
     'course-grade-tables': CourseGradeTablesSelect<false> | CourseGradeTablesSelect<true>;
+    groups: GroupsSelect<false> | GroupsSelect<true>;
     'user-grades': UserGradesSelect<false> | UserGradesSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
@@ -282,7 +288,11 @@ export interface Course {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  groups?: string | null;
+  groups?: {
+    docs?: (number | Group)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -320,12 +330,38 @@ export interface Enrollment {
   status: 'active' | 'inactive' | 'completed' | 'dropped';
   enrolledAt?: string | null;
   completedAt?: string | null;
-  groups?:
+  groups?: (number | Group)[] | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "groups".
+ */
+export interface Group {
+  id: number;
+  name: string;
+  course: number | Course;
+  parent?: (number | null) | Group;
+  path: string;
+  description?: string | null;
+  color?: string | null;
+  maxMembers?: number | null;
+  isActive?: boolean | null;
+  metadata?:
     | {
-        groupPath: string;
-        id?: string | null;
-      }[]
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
     | null;
+  enrollments?: {
+    docs?: (number | Enrollment)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -861,6 +897,10 @@ export interface PayloadLockedDocument {
         value: number | CourseGradeTable;
       } | null)
     | ({
+        relationTo: 'groups';
+        value: number | Group;
+      } | null)
+    | ({
         relationTo: 'user-grades';
         value: number | UserGrade;
       } | null)
@@ -977,12 +1017,7 @@ export interface EnrollmentsSelect<T extends boolean = true> {
   status?: T;
   enrolledAt?: T;
   completedAt?: T;
-  groups?:
-    | T
-    | {
-        groupPath?: T;
-        id?: T;
-      };
+  groups?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1379,6 +1414,24 @@ export interface CourseGradeTablesSelect<T extends boolean = true> {
         id?: T;
       };
   isActive?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "groups_select".
+ */
+export interface GroupsSelect<T extends boolean = true> {
+  name?: T;
+  course?: T;
+  parent?: T;
+  path?: T;
+  description?: T;
+  color?: T;
+  maxMembers?: T;
+  isActive?: T;
+  metadata?: T;
+  enrollments?: T;
   updatedAt?: T;
   createdAt?: T;
 }
