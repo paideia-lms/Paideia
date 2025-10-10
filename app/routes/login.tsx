@@ -23,7 +23,7 @@ import {
 } from "react-router";
 import { dbContextKey } from "server/contexts/global-context";
 import { z } from "zod";
-import { getTokenFromCookie, setCookie } from "~/utils/cookie";
+import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { ok } from "~/utils/responses";
 import type { Route } from "./+types/login";
@@ -32,17 +32,13 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 	// Mock loader - just return some basic data
 
 	const payload = context.get(dbContextKey).payload;
-	const unstorage = context.get(dbContextKey).unstorage;
+
 	const { user, responseHeaders, permissions } = await payload.auth({
 		headers: request.headers,
 		canSetHeaders: true,
 	});
 
 	if (user) {
-		await unstorage.setItem(
-			`user:${getTokenFromCookie(request.headers)}`,
-			user,
-		);
 		throw redirect(href("/admin/*", { "*": "" }));
 	}
 
@@ -71,44 +67,38 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	const { contentType, data } = await getDataAndContentTypeFromRequest(request);
 
-	console.log(contentType, data);
-	try {
-		const parsedData = loginSchema.parse(data);
+	const parsedData = loginSchema.parse(data);
 
-		const { exp, token, user } = await payload.login({
-			collection: "users",
-			req: request,
-			data: parsedData,
-		});
+	const { exp, token } = await payload.login({
+		collection: "users",
+		req: request,
+		data: parsedData,
+	});
 
-		if (!exp || !token) {
-			return {
-				success: false,
-				error: "Invalid credentials",
-			};
-		}
-
-		console.log(exp, token, user);
-
-		// set the cookie
-
-		return ok(
-			{
-				success: true,
-				message: "Login successful",
-			},
-			{
-				headers: {
-					"Set-Cookie": setCookie(token, exp, requestInfo.domainUrl),
-				},
-			},
-		);
-	} catch (error) {
+	if (!exp || !token) {
 		return {
 			success: false,
-			error: error instanceof Error ? error.message : "Login failed",
+			error: "Invalid credentials",
 		};
 	}
+
+	// set the cookie
+	// return redirect(href("/"), {
+	// 	headers: {
+	// 		"Set-Cookie": setCookie(token, exp, requestInfo.domainUrl, request.headers, payload),
+	// 	},
+	// })
+	throw redirect(href("/"), {
+		headers: {
+			"Set-Cookie": setCookie(
+				token,
+				exp,
+				requestInfo.domainUrl,
+				request.headers,
+				payload,
+			),
+		},
+	});
 };
 
 export async function clientAction({

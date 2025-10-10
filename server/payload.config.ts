@@ -167,6 +167,12 @@ const sanitizedConfig = await buildConfig({
 		UserGrades,
 	] as CollectionConfig[],
 	globals: [SystemGradeTable] as GlobalConfig[],
+	csrf: [
+		// ! this is required for the local development to work
+		...(process.env.NODE_ENV === "development"
+			? ["http://localhost:3000", "localhost"]
+			: []),
+	].filter(Boolean) as string[],
 	admin: {
 		// ! when you use auto login, you can never logout
 		// autoLogin: process.env.NODE_ENV === "development" ? {

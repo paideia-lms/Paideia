@@ -58,6 +58,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 						result.token,
 						result.exp,
 						requestInfo.domainUrl,
+						request.headers,
+						payload,
 					),
 				},
 			},

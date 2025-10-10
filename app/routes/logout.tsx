@@ -24,7 +24,11 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 		},
 		{
 			headers: {
-				"Set-Cookie": removeCookie(requestInfo.domainUrl),
+				"Set-Cookie": removeCookie(
+					requestInfo.domainUrl,
+					request.headers,
+					payload,
+				),
 			},
 		},
 	);

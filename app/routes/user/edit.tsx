@@ -19,13 +19,12 @@ import type {
 } from "@remix-run/form-data-parser";
 import { parseFormData } from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import type { TypedUser } from "payload";
+import { extractJWT } from "payload";
 import { useState } from "react";
 import { href, useFetcher } from "react-router";
 import { dbContextKey } from "server/contexts/global-context";
 import { tryUpdateUser } from "server/internal/user-management";
 import z from "zod";
-import { getTokenFromCookie } from "~/utils/cookie";
 import {
 	badRequest,
 	NotFoundResponse,
@@ -36,7 +35,6 @@ import type { Route } from "./+types/edit";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(dbContextKey).payload;
-	const unstorage = context.get(dbContextKey).unstorage;
 	const { user: currentUser } = await payload.auth({
 		headers: request.headers,
 		canSetHeaders: true,
@@ -45,11 +43,6 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
 	}
-
-	await unstorage.setItem(
-		`user:${getTokenFromCookie(request.headers)}`,
-		currentUser,
-	);
 
 	// Handle avatar - could be Media object or just ID
 	let avatarUrl: string | null = null;
@@ -76,15 +69,21 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
 	const payload = context.get(dbContextKey).payload;
-	const unstorage = context.get(dbContextKey).unstorage;
-	const token = getTokenFromCookie(request.headers);
-	if (token === null)
-		throw unauthorized({
+	const token = extractJWT({ headers: request.headers, payload });
+	if (token === null) {
+		return unauthorized({
 			success: false,
 			error: "Unauthorized",
 		});
+	}
 
-	const currentUser = await unstorage.getItem<TypedUser>(`user:${token}`);
+	const currentUser = await payload
+		.auth({
+			headers: request.headers,
+			canSetHeaders: true,
+		})
+		.then((res) => res.user);
+
 	if (currentUser === null) {
 		return unauthorized({
 			success: false,
