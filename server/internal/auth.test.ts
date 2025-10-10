@@ -3,7 +3,7 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import type { User } from "../payload-types";
-import { checkFirstUser } from "./check-first-user";
+import { type CheckFirstUserArgs, tryCheckFirstUser } from "./check-first-user";
 import { registerFirstUser } from "./register-first-user";
 
 describe("Authentication Functions", () => {
@@ -39,8 +39,17 @@ describe("Authentication Functions", () => {
 
 	describe("First User Registration and Authentication Flow", () => {
 		test("should check that no users exist initially", async () => {
-			const needsFirstUser = await checkFirstUser(payload);
-			expect(needsFirstUser).toBe(true);
+			const args: CheckFirstUserArgs = {
+				payload,
+				overrideAccess: true,
+			};
+
+			const result = await tryCheckFirstUser(args);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toBe(true);
+			}
 		});
 
 		test("should create and auto-login first user", async () => {
@@ -83,8 +92,17 @@ describe("Authentication Functions", () => {
 		});
 
 		test("should verify first user check returns false after user creation", async () => {
-			const needsFirstUser = await checkFirstUser(payload);
-			expect(needsFirstUser).toBe(false);
+			const args: CheckFirstUserArgs = {
+				payload,
+				overrideAccess: true,
+			};
+
+			const result = await tryCheckFirstUser(args);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).toBe(false);
+			}
 		});
 	});
 

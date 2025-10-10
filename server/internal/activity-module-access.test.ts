@@ -49,41 +49,57 @@ describe("Activity Module Access Control", () => {
 
 		// Create test users
 		const user1Args: CreateUserArgs = {
-			email: "instructor1@example.com",
-			password: "testpassword123",
-			firstName: "Instructor",
-			lastName: "One",
-			role: "user",
+			payload,
+			data: {
+				email: "instructor1@example.com",
+				password: "testpassword123",
+				firstName: "Instructor",
+				lastName: "One",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const user2Args: CreateUserArgs = {
-			email: "instructor2@example.com",
-			password: "testpassword123",
-			firstName: "Instructor",
-			lastName: "Two",
-			role: "user",
+			payload,
+			data: {
+				email: "instructor2@example.com",
+				password: "testpassword123",
+				firstName: "Instructor",
+				lastName: "Two",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const user3Args: CreateUserArgs = {
-			email: "instructor3@example.com",
-			password: "testpassword123",
-			firstName: "Instructor",
-			lastName: "Three",
-			role: "user",
+			payload,
+			data: {
+				email: "instructor3@example.com",
+				password: "testpassword123",
+				firstName: "Instructor",
+				lastName: "Three",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const adminArgs: CreateUserArgs = {
-			email: "admin@example.com",
-			password: "adminpassword123",
-			firstName: "Admin",
-			lastName: "User",
-			role: "admin",
+			payload,
+			data: {
+				email: "admin@example.com",
+				password: "adminpassword123",
+				firstName: "Admin",
+				lastName: "User",
+				role: "admin",
+			},
+			overrideAccess: true,
 		};
 
-		const userResult1 = await tryCreateUser(payload, mockRequest, user1Args);
-		const userResult2 = await tryCreateUser(payload, mockRequest, user2Args);
-		const userResult3 = await tryCreateUser(payload, mockRequest, user3Args);
-		const adminResult = await tryCreateUser(payload, mockRequest, adminArgs);
+		const userResult1 = await tryCreateUser(user1Args);
+		const userResult2 = await tryCreateUser(user2Args);
+		const userResult3 = await tryCreateUser(user3Args);
+		const adminResult = await tryCreateUser(adminArgs);
 
 		if (
 			!userResult1.ok ||

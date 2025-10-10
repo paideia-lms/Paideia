@@ -33,6 +33,7 @@ import {
 	Users,
 } from "./collections";
 import { envVars } from "./env";
+import { devConstants } from "./utils/constants";
 
 export * from "./collections";
 
@@ -166,6 +167,13 @@ const sanitizedConfig = await buildConfig({
 		UserGrades,
 	] as CollectionConfig[],
 	globals: [SystemGradeTable] as GlobalConfig[],
+	admin: {
+		// ! when you use auto login, you can never logout
+		// autoLogin: process.env.NODE_ENV === "development" ? {
+		// 	email: devConstants.ADMIN_EMAIL,
+		// 	password: devConstants.ADMIN_PASSWORD,
+		// } : undefined,
+	},
 	email:
 		envVars.SMTP_HOST.value &&
 		envVars.SMTP_USER.value &&

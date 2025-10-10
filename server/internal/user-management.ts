@@ -1,39 +1,86 @@
-import type { Payload } from "payload";
+import type { Payload, TypedUser } from "payload";
 import { Result } from "typescript-result";
-import type { User } from "../payload-types";
+import { transformError, UnknownError } from "~/utils/error";
+import type { Media, User } from "../payload-types";
 
 export interface CreateUserArgs {
-	email: string;
-	password: string;
-	firstName?: string;
-	lastName?: string;
-	role?: User["role"];
-	bio?: string;
-	avatar?: number;
+	payload: Payload;
+	data: {
+		email: string;
+		password: string;
+		firstName?: string;
+		lastName?: string;
+		role?: User["role"];
+		bio?: string;
+		avatar?: number;
+	};
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateUserArgs {
-	firstName?: string;
-	lastName?: string;
-	role?: User["role"];
-	bio?: string;
-	avatar?: number;
-	_verified?: boolean;
+	payload: Payload;
+	userId: number;
+	data: {
+		firstName?: string;
+		lastName?: string;
+		role?: User["role"];
+		bio?: string;
+		avatar?: number | Media;
+		_verified?: boolean;
+	};
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+	transactionID?: string | number;
+}
+
+export interface FindUserByEmailArgs {
+	payload: Payload;
+	email: string;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+export interface FindUserByIdArgs {
+	payload: Payload;
+	userId: number;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+export interface DeleteUserArgs {
+	payload: Payload;
+	userId: number;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
 }
 
 /**
  * Creates a new user using Payload local API
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryCreateUser = Result.wrap(
-	async (payload: Payload, request: Request, args: CreateUserArgs) => {
+	async (args: CreateUserArgs) => {
 		const {
-			email,
-			password,
-			firstName,
-			lastName,
-			role = "user",
-			bio,
-			avatar,
+			payload,
+			data: {
+				email,
+				password,
+				firstName,
+				lastName,
+				role = "user",
+				bio,
+				avatar,
+			},
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Check if user already exists
@@ -45,7 +92,9 @@ export const tryCreateUser = Result.wrap(
 				},
 			},
 			limit: 1,
-			req: request,
+			user,
+			req,
+			overrideAccess: true, // Always allow checking if user exists
 		});
 
 		if (existingUsers.docs.length > 0) {
@@ -63,58 +112,65 @@ export const tryCreateUser = Result.wrap(
 				bio,
 				avatar,
 			},
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return newUser as User;
 	},
 	(error) =>
-		new Error(
-			`Failed to create user: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to create user", {
+			cause: error,
+		}),
 );
 
 /**
  * Updates an existing user using Payload local API
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ * When transactionID is provided, uses that transaction, otherwise creates a new one
  */
 export const tryUpdateUser = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		userId: number,
-		args: UpdateUserArgs,
-	) => {
-		// Check if user exists
-		const existingUser = await payload.findByID({
-			collection: "users",
-			id: userId,
-			req: request,
-		});
-
-		if (!existingUser) {
-			throw new Error(`User with ID ${userId} not found`);
-		}
+	async (args: UpdateUserArgs) => {
+		const {
+			payload,
+			userId,
+			data,
+			user = null,
+			req,
+			overrideAccess = false,
+			transactionID,
+		} = args;
 
 		const updatedUser = await payload.update({
 			collection: "users",
 			id: userId,
-			data: args,
-			req: request,
+			data,
+			user,
+			req: transactionID ? { transactionID, ...req } : req,
+			overrideAccess,
 		});
 
-		return updatedUser;
+		return updatedUser as User;
 	},
 	(error) =>
-		new Error(
-			`Failed to update user: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to update user", {
+			cause: error,
+		}),
 );
 
 /**
  * Finds a user by email
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindUserByEmail = Result.wrap(
-	async (payload: Payload, email: string) => {
+	async (args: FindUserByEmailArgs) => {
+		const { payload, email, user = null, req, overrideAccess = false } = args;
+
 		const users = await payload.find({
 			collection: "users",
 			where: {
@@ -123,53 +179,72 @@ export const tryFindUserByEmail = Result.wrap(
 				},
 			},
 			limit: 1,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return users.docs.length > 0 ? (users.docs[0] as User) : null;
 	},
 	(error) =>
-		new Error(
-			`Failed to find user by email: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find user by email", {
+			cause: error,
+		}),
 );
 
 /**
  * Finds a user by ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindUserById = Result.wrap(
-	async (payload: Payload, userId: number) => {
-		const user = await payload.findByID({
+	async (args: FindUserByIdArgs) => {
+		const { payload, userId, user = null, req, overrideAccess = false } = args;
+
+		const foundUser = await payload.findByID({
 			collection: "users",
 			id: userId,
+			user,
+			req,
+			overrideAccess,
 		});
 
-		if (!user) {
+		if (!foundUser) {
 			throw new Error(`User with ID ${userId} not found`);
 		}
 
-		return user as User;
+		return foundUser as User;
 	},
 	(error) =>
-		new Error(
-			`Failed to find user by ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find user by ID", {
+			cause: error,
+		}),
 );
 
 /**
  * Deletes a user by ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryDeleteUser = Result.wrap(
-	async (payload: Payload, request: Request, userId: number) => {
+	async (args: DeleteUserArgs) => {
+		const { payload, userId, user = null, req, overrideAccess = false } = args;
+
 		const deletedUser = await payload.delete({
 			collection: "users",
 			id: userId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return deletedUser as User;
 	},
 	(error) =>
-		new Error(
-			`Failed to delete user: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to delete user", {
+			cause: error,
+		}),
 );

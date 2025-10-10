@@ -1,4 +1,12 @@
-import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
+import {
+	href,
+	Links,
+	Meta,
+	Outlet,
+	redirect,
+	Scripts,
+	ScrollRestoration,
+} from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
 import { dbContextKey } from "server/contexts/global-context";
@@ -6,17 +14,25 @@ import elysiaLogo from "./assets/elysia_v.webp";
 import reactRouterLogo from "./assets/rr_lockup_light.png";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
+import "@mantine/dropzone/styles.css";
+
 import { Button, ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import { useState } from "react";
-import { getUserCount } from "server/internal/check-first-user";
+import { tryGetUserCount } from "server/internal/check-first-user";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const { payload, requestInfo } = context.get(dbContextKey);
 	// ! we can get elysia from context!!!
 	// console.log(payload, elysia);
-	const users = await getUserCount(payload);
+	const result = await tryGetUserCount({ payload, overrideAccess: true });
+
+	if (!result.ok) {
+		throw new Error("Failed to get user count");
+	}
+
+	const users = result.value;
 
 	// Check if we need to redirect to first-user creation
 	const url = new URL(request.url);
@@ -33,18 +49,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		};
 	}
 
-	// Check if database has any users
-	const userCount = await payload.find({
-		collection: "users",
-		limit: 1,
-	});
-
 	// If no users exist, redirect to first-user creation
-	if (userCount.docs.length === 0) {
-		throw new Response(null, {
-			status: 302,
-			headers: { Location: "/first-user" },
-		});
+	if (users === 0) {
+		throw redirect(href("/first-user"));
 	}
 
 	const timestamp = new Date().toISOString();

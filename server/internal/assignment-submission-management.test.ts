@@ -64,18 +64,18 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Create teacher user
 		const teacherArgs: CreateUserArgs = {
-			email: "teacher@example.com",
-			password: "password123",
-			firstName: "John",
-			lastName: "Teacher",
-			role: "user",
+			payload,
+			data: {
+				email: "teacher@example.com",
+				password: "password123",
+				firstName: "John",
+				lastName: "Teacher",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const teacherResult = await tryCreateUser(
-			payload,
-			mockRequest,
-			teacherArgs,
-		);
+		const teacherResult = await tryCreateUser(teacherArgs);
 		expect(teacherResult.ok).toBe(true);
 		if (!teacherResult.ok) {
 			throw new Error("Test Error: Failed to create test teacher");
@@ -84,18 +84,18 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Create student user
 		const studentArgs: CreateUserArgs = {
-			email: "student@example.com",
-			password: "password123",
-			firstName: "Jane",
-			lastName: "Student",
-			role: "user",
+			payload,
+			data: {
+				email: "student@example.com",
+				password: "password123",
+				firstName: "Jane",
+				lastName: "Student",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const studentResult = await tryCreateUser(
-			payload,
-			mockRequest,
-			studentArgs,
-		);
+		const studentResult = await tryCreateUser(studentArgs);
 		expect(studentResult.ok).toBe(true);
 		if (!studentResult.ok) {
 			throw new Error("Test Error: Failed to create test student");

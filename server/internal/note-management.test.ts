@@ -14,7 +14,6 @@ import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 describe("Note Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
 	let testUser: { id: number };
 	let testUser2: { id: number };
 	let user1Token: string;
@@ -43,37 +42,46 @@ describe("Note Management Functions", () => {
 			config: sanitizedConfig,
 		});
 
-		// Create mock request object
-		mockRequest = new Request("http://localhost:3000/test");
-
 		// Create test users
 		const userArgs1: CreateUserArgs = {
-			email: "testuser1@example.com",
-			password: "testpassword123",
-			firstName: "Test",
-			lastName: "User1",
-			role: "user",
+			payload,
+			data: {
+				email: "testuser1@example.com",
+				password: "testpassword123",
+				firstName: "Test",
+				lastName: "User1",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const userArgs2: CreateUserArgs = {
-			email: "testuser2@example.com",
-			password: "testpassword123",
-			firstName: "Test",
-			lastName: "User2",
-			role: "user",
+			payload,
+			data: {
+				email: "testuser2@example.com",
+				password: "testpassword123",
+				firstName: "Test",
+				lastName: "User2",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const adminArgs: CreateUserArgs = {
-			email: "admin@example.com",
-			password: "adminpassword123",
-			firstName: "Admin",
-			lastName: "User",
-			role: "admin",
+			payload,
+			data: {
+				email: "admin@example.com",
+				password: "adminpassword123",
+				firstName: "Admin",
+				lastName: "User",
+				role: "admin",
+			},
+			overrideAccess: true,
 		};
 
-		const userResult1 = await tryCreateUser(payload, mockRequest, userArgs1);
-		const userResult2 = await tryCreateUser(payload, mockRequest, userArgs2);
-		const adminResult = await tryCreateUser(payload, mockRequest, adminArgs);
+		const userResult1 = await tryCreateUser(userArgs1);
+		const userResult2 = await tryCreateUser(userArgs2);
+		const adminResult = await tryCreateUser(adminArgs);
 
 		if (!userResult1.ok || !userResult2.ok || !adminResult.ok) {
 			throw new Error("Failed to create test users");
@@ -570,14 +578,18 @@ describe("Note Management Functions", () => {
 		test("should return empty array for user with no notes", async () => {
 			// Create a new user with no notes
 			const userArgs: CreateUserArgs = {
-				email: "nouser@example.com",
-				password: "testpassword123",
-				firstName: "No",
-				lastName: "Notes",
-				role: "user",
+				payload,
+				data: {
+					email: "nouser@example.com",
+					password: "testpassword123",
+					firstName: "No",
+					lastName: "Notes",
+					role: "user",
+				},
+				overrideAccess: true,
 			};
 
-			const userResult = await tryCreateUser(payload, mockRequest, userArgs);
+			const userResult = await tryCreateUser(userArgs);
 			if (userResult.ok) {
 				const result = await tryFindNotesByUser({
 					payload,

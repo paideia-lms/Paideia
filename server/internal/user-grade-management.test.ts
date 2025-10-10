@@ -57,31 +57,31 @@ describe("User Grade Management", () => {
 
 		// Create test users (instructor and student)
 		const instructorArgs: CreateUserArgs = {
-			email: "instructor@test.com",
-			password: "password123",
-			firstName: "John",
-			lastName: "Instructor",
-			role: "user",
+			payload,
+			data: {
+				email: "instructor@test.com",
+				password: "password123",
+				firstName: "John",
+				lastName: "Instructor",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const studentArgs: CreateUserArgs = {
-			email: "student@test.com",
-			password: "password123",
-			firstName: "Jane",
-			lastName: "Student",
-			role: "user",
+			payload,
+			data: {
+				email: "student@test.com",
+				password: "password123",
+				firstName: "Jane",
+				lastName: "Student",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const instructorResult = await tryCreateUser(
-			payload,
-			mockRequest,
-			instructorArgs,
-		);
-		const studentResult = await tryCreateUser(
-			payload,
-			mockRequest,
-			studentArgs,
-		);
+		const instructorResult = await tryCreateUser(instructorArgs);
+		const studentResult = await tryCreateUser(studentArgs);
 
 		expect(instructorResult.ok).toBe(true);
 		expect(studentResult.ok).toBe(true);

@@ -38,14 +38,18 @@ describe("Activity Module Management", () => {
 
 		// Create test user
 		const userArgs: CreateUserArgs = {
-			email: "test-activity@example.com",
-			password: "password123",
-			firstName: "Test",
-			lastName: "User",
-			role: "user",
+			payload,
+			data: {
+				email: "test-activity@example.com",
+				password: "password123",
+				firstName: "Test",
+				lastName: "User",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const userResult = await tryCreateUser(payload, mockRequest, userArgs);
+		const userResult = await tryCreateUser(userArgs);
 
 		expect(userResult.ok).toBe(true);
 

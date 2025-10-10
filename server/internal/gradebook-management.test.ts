@@ -46,18 +46,18 @@ describe("Gradebook Management", () => {
 
 		// Create test users (instructor and student)
 		const instructorArgs: CreateUserArgs = {
-			email: "instructor@test.com",
-			password: "password123",
-			firstName: "John",
-			lastName: "Instructor",
-			role: "user",
+			payload,
+			data: {
+				email: "instructor@test.com",
+				password: "password123",
+				firstName: "John",
+				lastName: "Instructor",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const instructorResult = await tryCreateUser(
-			payload,
-			mockRequest,
-			instructorArgs,
-		);
+		const instructorResult = await tryCreateUser(instructorArgs);
 
 		expect(instructorResult.ok).toBe(true);
 		if (!instructorResult.ok) {

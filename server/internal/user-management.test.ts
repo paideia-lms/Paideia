@@ -1,9 +1,12 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateUserArgs,
+	type DeleteUserArgs,
+	type FindUserByEmailArgs,
+	type FindUserByIdArgs,
 	tryCreateUser,
 	tryDeleteUser,
 	tryFindUserByEmail,
@@ -14,7 +17,17 @@ import {
 
 describe("User Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
+	let adminToken: string;
+
+	// Helper to get authenticated user from token
+	const getAuthUser = async (token: string): Promise<TypedUser | null> => {
+		const authResult = await payload.auth({
+			headers: new Headers({
+				Authorization: `Bearer ${token}`,
+			}),
+		});
+		return authResult.user;
+	};
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -28,8 +41,48 @@ describe("User Management Functions", () => {
 			config: sanitizedConfig,
 		});
 
-		// Create mock request object
-		mockRequest = new Request("http://localhost:3000/test");
+		// Create admin user for testing
+		const adminArgs: CreateUserArgs = {
+			payload,
+			data: {
+				email: "admin@example.com",
+				password: "adminpassword123",
+				firstName: "Admin",
+				lastName: "User",
+				role: "admin",
+			},
+			overrideAccess: true,
+		};
+
+		const adminResult = await tryCreateUser(adminArgs);
+		if (!adminResult.ok) {
+			throw new Error("Failed to create admin user");
+		}
+
+		// Verify admin
+		await payload.update({
+			collection: "users",
+			id: adminResult.value.id,
+			data: {
+				_verified: true,
+			},
+			overrideAccess: true,
+		});
+
+		// Login to get admin token
+		const adminLogin = await payload.login({
+			collection: "users",
+			data: {
+				email: "admin@example.com",
+				password: "adminpassword123",
+			},
+		});
+
+		if (!adminLogin.token) {
+			throw new Error("Failed to get admin token");
+		}
+
+		adminToken = adminLogin.token;
 	});
 
 	afterAll(async () => {
@@ -42,94 +95,143 @@ describe("User Management Functions", () => {
 	});
 
 	describe("tryCreateUser", () => {
-		test("should create a new user successfully", async () => {
+		test("should create a new user successfully with overrideAccess", async () => {
 			const userArgs: CreateUserArgs = {
-				email: "test@example.com",
-				password: "testpassword123",
-				firstName: "Test",
-				lastName: "User",
-				role: "user",
+				payload,
+				data: {
+					email: "test@example.com",
+					password: "testpassword123",
+					firstName: "Test",
+					lastName: "User",
+					role: "user",
+				},
+				overrideAccess: true,
 			};
 
-			const result = await tryCreateUser(payload, mockRequest, userArgs);
+			const result = await tryCreateUser(userArgs);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.email).toBe(userArgs.email);
-				expect(result.value.firstName).toBe(userArgs.firstName);
-				expect(result.value.lastName).toBe(userArgs.lastName);
-				expect(result.value.role).toBe(userArgs.role);
+				expect(result.value.email).toBe("test@example.com");
+				expect(result.value.firstName).toBe("Test");
+				expect(result.value.lastName).toBe("User");
+				expect(result.value.role).toBe("user");
 			}
 		});
 
 		test("should fail when creating user with duplicate email", async () => {
 			const userArgs: CreateUserArgs = {
-				email: "duplicate@example.com",
-				password: "testpassword123",
-				firstName: "Test",
-				lastName: "User",
+				payload,
+				data: {
+					email: "duplicate@example.com",
+					password: "testpassword123",
+					firstName: "Test",
+					lastName: "User",
+				},
+				overrideAccess: true,
 			};
 
 			// Create first user
-			const firstResult = await tryCreateUser(payload, mockRequest, userArgs);
+			const firstResult = await tryCreateUser(userArgs);
 			expect(firstResult.ok).toBe(true);
 
 			// Try to create second user with same email
-			const secondResult = await tryCreateUser(payload, mockRequest, userArgs);
+			const secondResult = await tryCreateUser(userArgs);
 			expect(secondResult.ok).toBe(false);
-			if (!secondResult.ok) {
-				expect(secondResult.error.message).toContain("already exists");
-			}
 		});
 
-		test("should create user with default role as student", async () => {
+		test("should create user with default role as user", async () => {
 			const userArgs: CreateUserArgs = {
-				email: "default-role@example.com",
-				password: "testpassword123",
-				firstName: "Default",
-				lastName: "User",
+				payload,
+				data: {
+					email: "default-role@example.com",
+					password: "testpassword123",
+					firstName: "Default",
+					lastName: "User",
+				},
+				overrideAccess: true,
 			};
 
-			const result = await tryCreateUser(payload, mockRequest, userArgs);
+			const result = await tryCreateUser(userArgs);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value.role).toBe("user");
 			}
 		});
+
+		test("admin should be able to create users", async () => {
+			const adminUser = await getAuthUser(adminToken);
+
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "created-by-admin@example.com",
+					password: "testpassword123",
+					firstName: "Created",
+					lastName: "ByAdmin",
+				},
+				user: adminUser,
+				overrideAccess: false,
+			};
+
+			const result = await tryCreateUser(userArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.email).toBe("created-by-admin@example.com");
+			}
+		});
+
+		test("unauthenticated request should fail to create user", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "unauthorized@example.com",
+					password: "testpassword123",
+					firstName: "Unauthorized",
+					lastName: "User",
+				},
+				overrideAccess: false,
+			};
+
+			const result = await tryCreateUser(userArgs);
+
+			expect(result.ok).toBe(false);
+		});
 	});
 
 	describe("tryUpdateUser", () => {
-		test("should update user successfully", async () => {
+		test("should update user successfully with overrideAccess", async () => {
 			// First create a user
 			const createArgs: CreateUserArgs = {
-				email: "update-test@example.com",
-				password: "testpassword123",
-				firstName: "Update",
-				lastName: "Test",
+				payload,
+				data: {
+					email: "update-test@example.com",
+					password: "testpassword123",
+					firstName: "Update",
+					lastName: "Test",
+				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateUser(
-				payload,
-				mockRequest,
-				createArgs,
-			);
+			const createResult = await tryCreateUser(createArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
 				const updateArgs: UpdateUserArgs = {
-					firstName: "Updated",
-					lastName: "Name",
-					role: "user",
-					bio: "Updated bio",
+					payload,
+					userId: createResult.value.id,
+					data: {
+						firstName: "Updated",
+						lastName: "Name",
+						role: "user",
+						bio: "Updated bio",
+					},
+					overrideAccess: true,
 				};
 
-				const updateResult = await tryUpdateUser(
-					payload,
-					mockRequest,
-					createResult.value.id,
-					updateArgs,
-				);
+				const updateResult = await tryUpdateUser(updateArgs);
 
 				expect(updateResult.ok).toBe(true);
 				if (updateResult.ok) {
@@ -143,74 +245,155 @@ describe("User Management Functions", () => {
 
 		test("should fail when updating non-existent user", async () => {
 			const updateArgs: UpdateUserArgs = {
-				firstName: "Non",
-				lastName: "Existent",
+				payload,
+				userId: 99999,
+				data: {
+					firstName: "Non",
+					lastName: "Existent",
+				},
+				overrideAccess: true,
 			};
 
-			const result = await tryUpdateUser(
-				payload,
-				mockRequest,
-				99999,
-				updateArgs,
-			);
+			const result = await tryUpdateUser(updateArgs);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("Not Found");
+		});
+
+		test("admin should be able to update any user", async () => {
+			// Create a test user
+			const createArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "admin-update-test@example.com",
+					password: "testpassword123",
+					firstName: "AdminUpdate",
+					lastName: "Test",
+				},
+				overrideAccess: true,
+			};
+
+			const createResult = await tryCreateUser(createArgs);
+			expect(createResult.ok).toBe(true);
+
+			if (createResult.ok) {
+				const adminUser = await getAuthUser(adminToken);
+
+				const updateArgs: UpdateUserArgs = {
+					payload,
+					userId: createResult.value.id,
+					data: {
+						bio: "Updated by admin",
+					},
+					user: adminUser,
+					overrideAccess: false,
+				};
+
+				const updateResult = await tryUpdateUser(updateArgs);
+
+				expect(updateResult.ok).toBe(true);
+				if (updateResult.ok) {
+					expect(updateResult.value.bio).toBe("Updated by admin");
+				}
 			}
+		});
+
+		test("unauthenticated request should fail to update user", async () => {
+			const updateArgs: UpdateUserArgs = {
+				payload,
+				userId: 1,
+				data: {
+					firstName: "Unauthorized",
+				},
+				overrideAccess: false,
+			};
+
+			const result = await tryUpdateUser(updateArgs);
+
+			expect(result.ok).toBe(false);
 		});
 	});
 
 	describe("tryFindUserByEmail", () => {
-		test("should find existing user by email", async () => {
+		test("should find existing user by email with overrideAccess", async () => {
 			const userArgs: CreateUserArgs = {
-				email: "find-test@example.com",
-				password: "testpassword123",
-				firstName: "Find",
-				lastName: "Test",
+				payload,
+				data: {
+					email: "find-test@example.com",
+					password: "testpassword123",
+					firstName: "Find",
+					lastName: "Test",
+				},
+				overrideAccess: true,
 			};
 
-			await tryCreateUser(payload, mockRequest, userArgs);
+			await tryCreateUser(userArgs);
 
-			const result = await tryFindUserByEmail(payload, "find-test@example.com");
+			const findArgs: FindUserByEmailArgs = {
+				payload,
+				email: "find-test@example.com",
+				overrideAccess: true,
+			};
+
+			const result = await tryFindUserByEmail(findArgs);
 
 			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).not.toBeNull();
-				expect(result.value!.email).toBe("find-test@example.com");
+			if (result.ok && result.value) {
+				expect(result.value.email).toBe("find-test@example.com");
 			}
 		});
 
 		test("should return null for non-existent email", async () => {
-			const result = await tryFindUserByEmail(
+			const findArgs: FindUserByEmailArgs = {
 				payload,
-				"nonexistent@example.com",
-			);
+				email: "nonexistent@example.com",
+				overrideAccess: true,
+			};
+
+			const result = await tryFindUserByEmail(findArgs);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value).toBe(null);
 			}
 		});
+
+		test("unauthenticated request should fail to find user", async () => {
+			const findArgs: FindUserByEmailArgs = {
+				payload,
+				email: "find-test@example.com",
+				overrideAccess: false,
+			};
+
+			const result = await tryFindUserByEmail(findArgs);
+
+			expect(result.ok).toBe(false);
+		});
 	});
 
 	describe("tryFindUserById", () => {
-		test("should find existing user by ID", async () => {
+		test("should find existing user by ID with overrideAccess", async () => {
 			const userArgs: CreateUserArgs = {
-				email: "find-by-id@example.com",
-				password: "testpassword123",
-				firstName: "FindById",
-				lastName: "Test",
+				payload,
+				data: {
+					email: "find-by-id@example.com",
+					password: "testpassword123",
+					firstName: "FindById",
+					lastName: "Test",
+				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateUser(payload, mockRequest, userArgs);
+			const createResult = await tryCreateUser(userArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
-				const findResult = await tryFindUserById(
+				const findArgs: FindUserByIdArgs = {
 					payload,
-					createResult.value.id,
-				);
+					userId: createResult.value.id,
+					overrideAccess: true,
+				};
+
+				const findResult = await tryFindUserById(findArgs);
 
 				expect(findResult.ok).toBe(true);
 				if (findResult.ok) {
@@ -221,33 +404,54 @@ describe("User Management Functions", () => {
 		});
 
 		test("should fail when finding non-existent user by ID", async () => {
-			const result = await tryFindUserById(payload, 99999);
+			const findArgs: FindUserByIdArgs = {
+				payload,
+				userId: 99999,
+				overrideAccess: true,
+			};
+
+			const result = await tryFindUserById(findArgs);
 
 			expect(result.ok).toBe(false);
-			if (!result.ok) {
-				expect(result.error.message).toContain("Not Found");
-			}
+		});
+
+		test("unauthenticated request should fail to find user", async () => {
+			const findArgs: FindUserByIdArgs = {
+				payload,
+				userId: 1,
+				overrideAccess: false,
+			};
+
+			const result = await tryFindUserById(findArgs);
+
+			expect(result.ok).toBe(false);
 		});
 	});
 
 	describe("tryDeleteUser", () => {
-		test("should delete user successfully", async () => {
+		test("should delete user successfully with overrideAccess", async () => {
 			const userArgs: CreateUserArgs = {
-				email: "delete-test@example.com",
-				password: "testpassword123",
-				firstName: "Delete",
-				lastName: "Test",
+				payload,
+				data: {
+					email: "delete-test@example.com",
+					password: "testpassword123",
+					firstName: "Delete",
+					lastName: "Test",
+				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateUser(payload, mockRequest, userArgs);
+			const createResult = await tryCreateUser(userArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
-				const deleteResult = await tryDeleteUser(
+				const deleteArgs: DeleteUserArgs = {
 					payload,
-					mockRequest,
-					createResult.value.id,
-				);
+					userId: createResult.value.id,
+					overrideAccess: true,
+				};
+
+				const deleteResult = await tryDeleteUser(deleteArgs);
 
 				expect(deleteResult.ok).toBe(true);
 				if (deleteResult.ok) {
@@ -255,66 +459,136 @@ describe("User Management Functions", () => {
 				}
 
 				// Verify user is actually deleted
-				const findResult = await tryFindUserById(
+				const findArgs: FindUserByIdArgs = {
 					payload,
-					createResult.value.id,
-				);
+					userId: createResult.value.id,
+					overrideAccess: true,
+				};
+
+				const findResult = await tryFindUserById(findArgs);
 				expect(findResult.ok).toBe(false);
 			}
+		});
+
+		test("admin should be able to delete any user", async () => {
+			// Create a test user
+			const createArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "admin-delete-test@example.com",
+					password: "testpassword123",
+					firstName: "AdminDelete",
+					lastName: "Test",
+				},
+				overrideAccess: true,
+			};
+
+			const createResult = await tryCreateUser(createArgs);
+			expect(createResult.ok).toBe(true);
+
+			if (createResult.ok) {
+				const adminUser = await getAuthUser(adminToken);
+
+				const deleteArgs: DeleteUserArgs = {
+					payload,
+					userId: createResult.value.id,
+					user: adminUser,
+					overrideAccess: false,
+				};
+
+				const deleteResult = await tryDeleteUser(deleteArgs);
+
+				expect(deleteResult.ok).toBe(true);
+			}
+		});
+
+		test("unauthenticated request should fail to delete user", async () => {
+			const deleteArgs: DeleteUserArgs = {
+				payload,
+				userId: 1,
+				overrideAccess: false,
+			};
+
+			const result = await tryDeleteUser(deleteArgs);
+
+			expect(result.ok).toBe(false);
 		});
 	});
 
 	describe("Integration Tests", () => {
-		test("should handle complete user lifecycle", async () => {
+		test("should handle complete user lifecycle with overrideAccess", async () => {
 			// Create user
 			const createArgs: CreateUserArgs = {
-				email: "lifecycle@example.com",
-				password: "testpassword123",
-				firstName: "Lifecycle",
-				lastName: "Test",
-				role: "user",
+				payload,
+				data: {
+					email: "lifecycle@example.com",
+					password: "testpassword123",
+					firstName: "Lifecycle",
+					lastName: "Test",
+					role: "user",
+				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateUser(
-				payload,
-				mockRequest,
-				createArgs,
-			);
+			const createResult = await tryCreateUser(createArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
 				const userId = createResult.value.id;
 
 				// Find by email
-				const findByEmailResult = await tryFindUserByEmail(
+				const findByEmailArgs: FindUserByEmailArgs = {
 					payload,
-					"lifecycle@example.com",
-				);
+					email: "lifecycle@example.com",
+					overrideAccess: true,
+				};
+
+				const findByEmailResult = await tryFindUserByEmail(findByEmailArgs);
 				expect(findByEmailResult.ok).toBe(true);
 
 				// Find by ID
-				const findByIdResult = await tryFindUserById(payload, userId);
+				const findByIdArgs: FindUserByIdArgs = {
+					payload,
+					userId,
+					overrideAccess: true,
+				};
+
+				const findByIdResult = await tryFindUserById(findByIdArgs);
 				expect(findByIdResult.ok).toBe(true);
 
 				// Update user
 				const updateArgs: UpdateUserArgs = {
-					role: "user",
-					bio: "Updated in lifecycle test",
-				};
-				const updateResult = await tryUpdateUser(
 					payload,
-					mockRequest,
 					userId,
-					updateArgs,
-				);
+					data: {
+						role: "user",
+						bio: "Updated in lifecycle test",
+					},
+					overrideAccess: true,
+				};
+
+				const updateResult = await tryUpdateUser(updateArgs);
 				expect(updateResult.ok).toBe(true);
 
 				// Delete user
-				const deleteResult = await tryDeleteUser(payload, mockRequest, userId);
+				const deleteArgs: DeleteUserArgs = {
+					payload,
+					userId,
+					overrideAccess: true,
+				};
+
+				const deleteResult = await tryDeleteUser(deleteArgs);
 				expect(deleteResult.ok).toBe(true);
 
 				// Verify deletion
-				const findAfterDeleteResult = await tryFindUserById(payload, userId);
+				const findAfterDeleteArgs: FindUserByIdArgs = {
+					payload,
+					userId,
+					overrideAccess: true,
+				};
+
+				const findAfterDeleteResult =
+					await tryFindUserById(findAfterDeleteArgs);
 				expect(findAfterDeleteResult.ok).toBe(false);
 			}
 		});

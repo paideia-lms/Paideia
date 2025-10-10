@@ -1,61 +1,105 @@
-import type { Payload } from "payload";
-import sanitizedConfig from "../payload.config";
+import type { Payload, TypedUser } from "payload";
+import { Result } from "typescript-result";
+import { transformError, UnknownError } from "~/utils/error";
+
+export interface CheckFirstUserArgs {
+	payload: Payload;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+export interface GetUserCountArgs {
+	payload: Payload;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+export interface ValidateFirstUserStateArgs {
+	payload: Payload;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
 
 /**
  * Checks if the database has any users
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  * @returns Promise<boolean> - true if no users exist (first user needed), false if users exist
  */
-export async function checkFirstUser(payload: Payload): Promise<boolean> {
-	try {
+export const tryCheckFirstUser = Result.wrap(
+	async (args: CheckFirstUserArgs) => {
+		const { payload, user = null, req, overrideAccess = false } = args;
+
 		const users = await payload.find({
 			collection: "users",
 			limit: 1,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return users.docs.length === 0;
-	} catch (error) {
-		payload.logger.error("Error checking for first user:", error);
-		throw new Error("Failed to check if first user exists");
-	}
-}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to check if first user exists", {
+			cause: error,
+		}),
+);
 
 /**
  * Gets the total count of users in the database
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  * @returns Promise<number> - number of users in the database
  */
-export async function getUserCount(payload: Payload): Promise<number> {
-	try {
+export const tryGetUserCount = Result.wrap(
+	async (args: GetUserCountArgs) => {
+		const { payload, user = null, req, overrideAccess = false } = args;
+
 		const users = await payload.find({
 			collection: "users",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return users.docs.length;
-	} catch (error) {
-		payload.logger.error("Error getting user count:", error);
-		throw new Error("Failed to get user count");
-	}
-}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get user count", {
+			cause: error,
+		}),
+);
 
 /**
  * Validates if the database is in a state where first user creation is needed
  * This is more comprehensive than just checking user count - it also validates
  * the database connection and payload configuration
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  * @returns Promise<{ needsFirstUser: boolean; userCount: number; isValid: boolean }>
  */
-export async function validateFirstUserState(payload: Payload): Promise<{
-	needsFirstUser: boolean;
-	userCount: number;
-	isValid: boolean;
-}> {
-	try {
-		if (!payload.db.connect)
+export const tryValidateFirstUserState = Result.wrap(
+	async (args: ValidateFirstUserStateArgs) => {
+		const { payload, user = null, req, overrideAccess = false } = args;
+
+		if (!payload.db.connect) {
 			throw new Error("Database connection not established");
+		}
 
 		// Test database connection
 		await payload.db.connect();
 
 		const users = await payload.find({
 			collection: "users",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const userCount = users.docs.length;
@@ -66,12 +110,14 @@ export async function validateFirstUserState(payload: Payload): Promise<{
 			userCount,
 			isValid: true,
 		};
-	} catch (error) {
-		payload.logger.error("Error validating first user state:", error);
-		return {
-			needsFirstUser: true, // Assume we need first user if we can't check
-			userCount: 0,
-			isValid: false,
-		};
-	}
-}
+	},
+	(error) => {
+		// Return a failed result with default state instead of throwing
+		return (
+			transformError(error) ??
+			new UnknownError("Failed to validate first user state", {
+				cause: error,
+			})
+		);
+	},
+);

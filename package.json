@@ -34,6 +34,7 @@
 		"@elysiajs/openapi": "^1.4.11",
 		"@elysiajs/static": "^1.4.0",
 		"@mantine/core": "^8.3.3",
+		"@mantine/dropzone": "^8.3.4",
 		"@mantine/form": "^8.3.3",
 		"@mantine/hooks": "^8.3.3",
 		"@mantine/notifications": "^8.3.3",
@@ -43,6 +44,7 @@
 		"@payloadcms/plugin-search": "^3.59.1",
 		"@payloadcms/storage-s3": "^3.59.1",
 		"@react-router/fs-routes": "^7.9.4",
+		"@remix-run/form-data-parser": "^0.11.0",
 		"@scalar/api-reference-react": "^0.7.55",
 		"@standard-community/standard-json": "^0.3.5",
 		"@tabler/icons-react": "^3.35.0",
@@ -69,6 +71,7 @@
 		"sharp": "^0.34.4",
 		"typescript-result": "^3.5.2",
 		"ua-parser-js": "^2.0.5",
+		"unstorage": "^1.17.1",
 		"zod": "^4.1.12"
 	},
 	"devDependencies": {

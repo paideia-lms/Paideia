@@ -49,23 +49,31 @@ describe("Search Management Functions", () => {
 
 		// Create test users
 		const user1Args: CreateUserArgs = {
-			email: "john.doe@test.com",
-			password: "password123",
-			firstName: "John",
-			lastName: "Doe",
-			role: "user",
+			payload,
+			data: {
+				email: "john.doe@test.com",
+				password: "password123",
+				firstName: "John",
+				lastName: "Doe",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const user2Args: CreateUserArgs = {
-			email: "jane.smith@test.com",
-			password: "password123",
-			firstName: "Jane Pattern",
-			lastName: "Smith",
-			role: "user",
+			payload,
+			data: {
+				email: "jane.smith@test.com",
+				password: "password123",
+				firstName: "Jane Pattern",
+				lastName: "Smith",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const user1Result = await tryCreateUser(payload, mockRequest, user1Args);
-		const user2Result = await tryCreateUser(payload, mockRequest, user2Args);
+		const user1Result = await tryCreateUser(user1Args);
+		const user2Result = await tryCreateUser(user2Args);
 
 		expect(user1Result.ok).toBe(true);
 		expect(user2Result.ok).toBe(true);
@@ -304,14 +312,18 @@ describe("Search Management Functions", () => {
 			// Create a user with unique name
 			const uniqueName = `TempUser${Date.now()}`;
 			const userArgs: CreateUserArgs = {
-				email: `${uniqueName.toLowerCase()}@test.com`,
-				password: "password123",
-				firstName: uniqueName,
-				lastName: "ToDelete",
-				role: "user",
+				payload,
+				data: {
+					email: `${uniqueName.toLowerCase()}@test.com`,
+					password: "password123",
+					firstName: uniqueName,
+					lastName: "ToDelete",
+					role: "user",
+				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateUser(payload, mockRequest, userArgs);
+			const createResult = await tryCreateUser(userArgs);
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
 				throw new Error("Failed to create user");

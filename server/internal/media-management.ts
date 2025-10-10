@@ -1,4 +1,6 @@
 import "@total-typescript/ts-reset";
+import type { S3Client } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
 import {
@@ -8,6 +10,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import { envVars } from "../env";
 import type { Media } from "../payload-types";
 
 export interface CreateMediaArgs {
@@ -104,6 +107,22 @@ export interface GetMediaByIdArgs {
 	transactionID?: string | number;
 }
 
+export interface GetMediaByFilenameArgs {
+	filename: string;
+	depth?: number;
+	transactionID?: string | number;
+}
+
+export interface GetMediaBufferFromFilenameArgs {
+	filename: string;
+	depth?: number;
+}
+
+export interface GetMediaBufferFromFilenameResult {
+	media: Media;
+	buffer: Buffer;
+}
+
 /**
  * Get a media record by ID
  *
@@ -143,6 +162,114 @@ export const tryGetMediaById = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get media", {
+			cause: error,
+		}),
+);
+
+/**
+ * Get a media record by filename
+ *
+ * This function fetches a media record by its filename with optional depth control
+ * for relationships
+ */
+export const tryGetMediaByFilename = Result.wrap(
+	async (payload: Payload, args: GetMediaByFilenameArgs): Promise<Media> => {
+		const { filename, depth = 1, transactionID } = args;
+
+		// Validate filename
+		if (!filename || filename.trim() === "") {
+			throw new InvalidArgumentError("Filename is required");
+		}
+
+		// Fetch the media record
+		const mediaResult = await payload.find({
+			collection: "media",
+			where: {
+				filename: { equals: filename },
+			},
+			depth,
+			req: transactionID ? { transactionID } : undefined,
+		});
+
+		const media = mediaResult.docs[0];
+
+		if (!media) {
+			throw new NonExistingMediaError(
+				`Media with filename '${filename}' not found`,
+			);
+		}
+
+		return media;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get media by filename", {
+			cause: error,
+		}),
+);
+
+/**
+ * Get a media record by filename and fetch the file buffer from S3
+ *
+ * This function:
+ * 1. Validates the filename
+ * 2. Fetches the media record from the database
+ * 3. Fetches the file buffer from S3 storage
+ * 4. Returns both the media record and the buffer
+ */
+export const tryGetMediaBufferFromFilename = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+		args: GetMediaBufferFromFilenameArgs,
+	): Promise<GetMediaBufferFromFilenameResult> => {
+		const { filename, depth = 0 } = args;
+
+		// Validate filename
+		if (!filename || filename.trim() === "") {
+			throw new InvalidArgumentError("Filename is required");
+		}
+
+		// First, get the media record from the database
+		const mediaResult = await tryGetMediaByFilename(payload, {
+			filename,
+			depth,
+		});
+
+		if (!mediaResult.ok) {
+			throw mediaResult.error;
+		}
+
+		const media = mediaResult.value;
+
+		// Fetch the file from S3
+		const command = new GetObjectCommand({
+			Bucket: envVars.S3_BUCKET.value,
+			Key: filename,
+		});
+
+		const response = await s3Client.send(command);
+
+		if (!response.Body) {
+			throw new NonExistingMediaError(`File not found in storage: ${filename}`);
+		}
+
+		// Convert the stream to a buffer
+		const chunks: Uint8Array[] = [];
+		// @ts-expect-error - Body is a stream in Node.js
+		for await (const chunk of response.Body) {
+			chunks.push(chunk);
+		}
+		const buffer = Buffer.concat(chunks);
+
+		return {
+			media,
+			buffer,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get media buffer from filename", {
 			cause: error,
 		}),
 );

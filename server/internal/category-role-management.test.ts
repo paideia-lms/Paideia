@@ -43,41 +43,57 @@ describe("Category Role Management Functions", () => {
 
 		// Create test users
 		const adminArgs: CreateUserArgs = {
-			email: "admin@example.com",
-			password: "testpassword123",
-			firstName: "Admin",
-			lastName: "User",
-			role: "admin",
+			payload,
+			data: {
+				email: "admin@example.com",
+				password: "testpassword123",
+				firstName: "Admin",
+				lastName: "User",
+				role: "admin",
+			},
+			overrideAccess: true,
 		};
 
 		const user1Args: CreateUserArgs = {
-			email: "user1@example.com",
-			password: "testpassword123",
-			firstName: "User",
-			lastName: "One",
-			role: "user",
+			payload,
+			data: {
+				email: "user1@example.com",
+				password: "testpassword123",
+				firstName: "User",
+				lastName: "One",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const user2Args: CreateUserArgs = {
-			email: "user2@example.com",
-			password: "testpassword123",
-			firstName: "User",
-			lastName: "Two",
-			role: "user",
+			payload,
+			data: {
+				email: "user2@example.com",
+				password: "testpassword123",
+				firstName: "User",
+				lastName: "Two",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
 		const user3Args: CreateUserArgs = {
-			email: "user3@example.com",
-			password: "testpassword123",
-			firstName: "User",
-			lastName: "Three",
-			role: "user",
+			payload,
+			data: {
+				email: "user3@example.com",
+				password: "testpassword123",
+				firstName: "User",
+				lastName: "Three",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const adminResult = await tryCreateUser(payload, mockRequest, adminArgs);
-		const user1Result = await tryCreateUser(payload, mockRequest, user1Args);
-		const user2Result = await tryCreateUser(payload, mockRequest, user2Args);
-		const user3Result = await tryCreateUser(payload, mockRequest, user3Args);
+		const adminResult = await tryCreateUser(adminArgs);
+		const user1Result = await tryCreateUser(user1Args);
+		const user2Result = await tryCreateUser(user2Args);
+		const user3Result = await tryCreateUser(user3Args);
 
 		if (
 			!adminResult.ok ||

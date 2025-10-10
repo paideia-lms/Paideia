@@ -38,14 +38,18 @@ describe("Course Category Management Functions", () => {
 
 		// Create test user
 		const userArgs: CreateUserArgs = {
-			email: "testuser@example.com",
-			password: "testpassword123",
-			firstName: "Test",
-			lastName: "User",
-			role: "admin",
+			payload,
+			data: {
+				email: "testuser@example.com",
+				password: "testpassword123",
+				firstName: "Test",
+				lastName: "User",
+				role: "admin",
+			},
+			overrideAccess: true,
 		};
 
-		const userResult = await tryCreateUser(payload, mockRequest, userArgs);
+		const userResult = await tryCreateUser(userArgs);
 		if (!userResult.ok) {
 			throw new Error("Failed to create test user");
 		}

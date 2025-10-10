@@ -2,19 +2,17 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import config from "../payload.config";
+import { s3Client } from "../utils/s3-client";
 import {
 	tryCreateMedia,
-	tryDeleteMedia,
 	tryGetAllMedia,
-	tryGetMediaById,
-	tryGetMediaByMimeType,
-	tryUpdateMedia,
+	tryGetMediaBufferFromFilename,
+	tryGetMediaByFilename,
 } from "./media-management";
 import { tryCreateUser } from "./user-management";
 
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
 	let testUserId: number;
 
 	beforeAll(async () => {
@@ -30,16 +28,17 @@ describe("Media Management", () => {
 			config: config,
 		});
 
-		// Create mock request object
-		mockRequest = new Request("http://localhost:3000/test");
-
 		// Create test user
-		const userResult = await tryCreateUser(payload, mockRequest, {
-			email: "test-media@example.com",
-			password: "password123",
-			firstName: "Test",
-			lastName: "User",
-			role: "user",
+		const userResult = await tryCreateUser({
+			payload,
+			data: {
+				email: "test-media@example.com",
+				password: "password123",
+				firstName: "Test",
+				lastName: "User",
+				role: "user",
+			},
+			overrideAccess: true,
 		});
 
 		if (!userResult.ok) {
@@ -111,12 +110,161 @@ describe("Media Management", () => {
 				// console.log(media.url);
 				// console.log(media.thumbnailURL);
 			}
+		}
+	});
 
-			// get the buffer from payload
-			const test = await payload.findByID({
-				collection: "media",
-				id: result.value.docs[0].id,
-			});
+	test("should get media by filename", async () => {
+		// First create a media file
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createResult = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-gem-by-filename.png",
+			mimeType: "image/png",
+			alt: "Test gem image",
+			caption: "This is a test",
+			userId: testUserId,
+		});
+
+		expect(createResult.ok).toBe(true);
+
+		if (!createResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const createdMedia = createResult.value.media;
+		console.log("Created media with filename:", createdMedia.filename);
+
+		// Ensure filename exists
+		if (!createdMedia.filename) {
+			throw new Error("Created media has no filename");
+		}
+
+		// Now try to get it by filename
+		const getResult = await tryGetMediaByFilename(payload, {
+			filename: createdMedia.filename,
+			depth: 0,
+		});
+
+		expect(getResult.ok).toBe(true);
+
+		if (getResult.ok) {
+			const media = getResult.value;
+			expect(media.id).toBe(createdMedia.id);
+			expect(media.filename).toBe(createdMedia.filename);
+			expect(media.mimeType).toBe("image/png");
+			expect(media.alt).toBe("Test gem image");
+			expect(media.caption).toBe("This is a test");
+
+			console.log("Successfully retrieved media by filename:", media.filename);
+		}
+	});
+
+	test("should fail to get media with non-existent filename", async () => {
+		const result = await tryGetMediaByFilename(payload, {
+			filename: "non-existent-file-12345.png",
+			depth: 0,
+		});
+
+		expect(result.ok).toBe(false);
+
+		if (!result.ok) {
+			expect(result.error.message).toContain("not found");
+			console.log("Expected error:", result.error.message);
+		}
+	});
+
+	test("should fail to get media with empty filename", async () => {
+		const result = await tryGetMediaByFilename(payload, {
+			filename: "",
+			depth: 0,
+		});
+
+		expect(result.ok).toBe(false);
+
+		if (!result.ok) {
+			expect(result.error.message).toContain("required");
+		}
+	});
+
+	test("should get media buffer from filename", async () => {
+		// First create a media file
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const originalBuffer = Buffer.from(fileBuffer);
+
+		const createResult = await tryCreateMedia(payload, {
+			file: originalBuffer,
+			filename: "test-buffer-gem.png",
+			mimeType: "image/png",
+			alt: "Test buffer gem",
+			userId: testUserId,
+		});
+
+		expect(createResult.ok).toBe(true);
+
+		if (!createResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const createdMedia = createResult.value.media;
+
+		// Ensure filename exists
+		if (!createdMedia.filename) {
+			throw new Error("Created media has no filename");
+		}
+
+		console.log("Testing buffer retrieval for:", createdMedia.filename);
+
+		// Now try to get both media and buffer
+		const result = await tryGetMediaBufferFromFilename(payload, s3Client, {
+			filename: createdMedia.filename,
+			depth: 0,
+		});
+
+		expect(result.ok).toBe(true);
+
+		if (result.ok) {
+			const { media, buffer } = result.value;
+
+			// Verify media object
+			expect(media.id).toBe(createdMedia.id);
+			expect(media.filename).toBe(createdMedia.filename);
+			expect(media.mimeType).toBe("image/png");
+			expect(media.alt).toBe("Test buffer gem");
+
+			// Verify buffer
+			expect(buffer).toBeInstanceOf(Buffer);
+			expect(buffer.length).toBeGreaterThan(0);
+			expect(buffer.length).toBe(originalBuffer.length);
+
+			console.log(
+				`Successfully retrieved media and buffer (${buffer.length} bytes)`,
+			);
+		}
+	});
+
+	test("should fail to get buffer for non-existent file", async () => {
+		const result = await tryGetMediaBufferFromFilename(payload, s3Client, {
+			filename: "non-existent-buffer-file.png",
+			depth: 0,
+		});
+
+		expect(result.ok).toBe(false);
+
+		if (!result.ok) {
+			expect(result.error.message).toContain("not found");
+		}
+	});
+
+	test("should fail to get buffer with empty filename", async () => {
+		const result = await tryGetMediaBufferFromFilename(payload, s3Client, {
+			filename: "",
+			depth: 0,
+		});
+
+		expect(result.ok).toBe(false);
+
+		if (!result.ok) {
+			expect(result.error.message).toContain("required");
 		}
 	});
 });

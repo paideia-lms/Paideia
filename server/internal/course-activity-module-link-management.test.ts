@@ -43,14 +43,18 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		// Create test user
 		const userArgs: CreateUserArgs = {
-			email: "testuser@example.com",
-			password: "testpassword123",
-			firstName: "Test",
-			lastName: "User",
-			role: "user",
+			payload,
+			data: {
+				email: "testuser@example.com",
+				password: "testpassword123",
+				firstName: "Test",
+				lastName: "User",
+				role: "user",
+			},
+			overrideAccess: true,
 		};
 
-		const userResult = await tryCreateUser(payload, mockRequest, userArgs);
+		const userResult = await tryCreateUser(userArgs);
 		expect(userResult.ok).toBe(true);
 		if (userResult.ok) {
 			testUser = userResult.value;

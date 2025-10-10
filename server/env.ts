@@ -70,13 +70,6 @@ export const envVars = {
 		sensitive: true,
 		value: process.env.SMTP_PASS,
 	},
-	// ! when sandbox mode is not 0, the server will clean up every N minutes
-	SANDBOX_MODE: {
-		required: false,
-		sensitive: false,
-		value: process.env.SANDBOX_MODE,
-		default: "0",
-	},
 	// R2_URL: {
 	//     required: false,
 	//     sensitive: true,
