@@ -22,12 +22,15 @@ import type {
 import { parseFormData } from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { extractJWT } from "payload";
+import qs from "qs";
 import { useState } from "react";
-import { useFetcher } from "react-router";
+import { href, redirect, useFetcher } from "react-router";
+import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryCreateMedia } from "server/internal/media-management";
 import { tryCreateUser } from "server/internal/user-management";
 import type { User } from "server/payload-types";
+import { enum_users_role } from "src/payload-generated-schema";
 import z from "zod";
 import {
 	badRequest,
@@ -99,6 +102,8 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 	}
 
+	console.log("Creating user...");
+
 	try {
 		// Parse form data with upload handler
 		const uploadHandler = async (fileUpload: FileUpload) => {
@@ -118,6 +123,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				});
 
 				if (!mediaResult.ok) {
+					console.error("Failed to create media:", mediaResult.error);
 					throw mediaResult.error;
 				}
 
@@ -138,7 +144,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				firstName: z.string(),
 				lastName: z.string(),
 				bio: z.string().optional(),
-				role: z.enum(["admin", "content-manager", "analytics-viewer", "user"]),
+				role: z.enum(enum_users_role.enumValues),
 				avatar: z.coerce.number().nullish(),
 			})
 			.safeParse({
@@ -152,6 +158,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 
 		if (!parsed.success) {
+			console.error("Failed to parse form data:", parsed.error);
 			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
@@ -177,6 +184,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 
 		if (!createResult.ok) {
+			console.error("Failed to create user:", createResult.error);
 			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
@@ -190,6 +198,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		return ok({
 			success: true,
 			message: "User created successfully",
+			id: createResult.value.id,
 		});
 	} catch (error) {
 		// Rollback on any error
@@ -206,11 +215,17 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData?.success) {
-		notifications.show({
-			title: "User created",
-			message: "The user has been created successfully",
-			color: "green",
-		});
+		if (actionData.status === 200) {
+			notifications.show({
+				title: "User created",
+				message: "The user has been created successfully",
+				color: "green",
+			});
+			// add search params to the redirect
+			throw redirect(
+				href("/user/profile") + "?" + qs.stringify({ id: actionData.id }),
+			);
+		}
 	} else if ("error" in actionData) {
 		notifications.show({
 			title: "Creation failed",
@@ -234,7 +249,7 @@ export default function NewUserPage() {
 			firstName: "",
 			lastName: "",
 			bio: "",
-			role: "user" as User["role"],
+			role: "student" as User["role"],
 		},
 		validate: {
 			email: (value) => {
@@ -274,7 +289,10 @@ export default function NewUserPage() {
 		formData.append("firstName", values.firstName);
 		formData.append("lastName", values.lastName);
 		formData.append("bio", values.bio);
-		formData.append("role", values.role || "user");
+		formData.append(
+			"role",
+			(values.role ?? "student") as NonNullable<User["role"]>,
+		);
 
 		if (selectedFile) {
 			formData.append("avatar", selectedFile);
@@ -416,12 +434,10 @@ export default function NewUserPage() {
 							label="Role"
 							placeholder="Select role"
 							required
-							data={[
-								{ value: "user", label: "User" },
-								{ value: "content-manager", label: "Content Manager" },
-								{ value: "analytics-viewer", label: "Analytics Viewer" },
-								{ value: "admin", label: "Admin" },
-							]}
+							data={Users.fields[2].options?.map((option) => ({
+								value: option.value,
+								label: option.label,
+							}))}
 						/>
 
 						<Textarea

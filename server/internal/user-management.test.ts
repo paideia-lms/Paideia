@@ -105,7 +105,7 @@ describe("User Management Functions", () => {
 					password: "testpassword123",
 					firstName: "Test",
 					lastName: "User",
-					role: "user",
+					role: "student",
 				},
 				overrideAccess: true,
 			};
@@ -117,7 +117,7 @@ describe("User Management Functions", () => {
 				expect(result.value.email).toBe("test@example.com");
 				expect(result.value.firstName).toBe("Test");
 				expect(result.value.lastName).toBe("User");
-				expect(result.value.role).toBe("user");
+				expect(result.value.role).toBe("student");
 			}
 		});
 
@@ -158,7 +158,7 @@ describe("User Management Functions", () => {
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.role).toBe("user");
+				expect(result.value.role).toBe("student");
 			}
 		});
 
@@ -227,7 +227,7 @@ describe("User Management Functions", () => {
 					data: {
 						firstName: "Updated",
 						lastName: "Name",
-						role: "user",
+						role: "student",
 						bio: "Updated bio",
 					},
 					overrideAccess: true,
@@ -239,7 +239,7 @@ describe("User Management Functions", () => {
 				if (updateResult.ok) {
 					expect(updateResult.value.firstName).toBe("Updated");
 					expect(updateResult.value.lastName).toBe("Name");
-					expect(updateResult.value.role).toBe("user");
+					expect(updateResult.value.role).toBe("student");
 					expect(updateResult.value.bio).toBe("Updated bio");
 				}
 			}
@@ -642,13 +642,13 @@ describe("User Management Functions", () => {
 					email: "alice.user@search-test.com",
 					firstName: "Alice",
 					lastName: "Smith",
-					role: "user" as const,
+					role: "student" as const,
 				},
 				{
 					email: "david.developer@search-test.com",
 					firstName: "David",
 					lastName: "Developer",
-					role: "user" as const,
+					role: "student" as const,
 				},
 			];
 
@@ -822,7 +822,7 @@ describe("User Management Functions", () => {
 					password: "testpassword123",
 					firstName: "Lifecycle",
 					lastName: "Test",
-					role: "user",
+					role: "student",
 				},
 				overrideAccess: true,
 			};
@@ -858,7 +858,7 @@ describe("User Management Functions", () => {
 					payload,
 					userId,
 					data: {
-						role: "user",
+						role: "student",
 						bio: "Updated in lifecycle test",
 					},
 					overrideAccess: true,

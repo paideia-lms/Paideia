@@ -49,7 +49,7 @@ describe("Course Activity Module Link Management Functions", () => {
 				password: "testpassword123",
 				firstName: "Test",
 				lastName: "User",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};

@@ -129,7 +129,7 @@ export const tryCreateUser = Result.wrap(
 				password,
 				firstName,
 				lastName,
-				role = "user",
+				role = "student",
 				bio,
 				avatar,
 			},

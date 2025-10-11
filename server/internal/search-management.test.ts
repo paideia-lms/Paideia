@@ -55,7 +55,7 @@ describe("Search Management Functions", () => {
 				password: "password123",
 				firstName: "John",
 				lastName: "Doe",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -67,7 +67,7 @@ describe("Search Management Functions", () => {
 				password: "password123",
 				firstName: "Jane Pattern",
 				lastName: "Smith",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -318,7 +318,7 @@ describe("Search Management Functions", () => {
 					password: "password123",
 					firstName: uniqueName,
 					lastName: "ToDelete",
-					role: "user",
+					role: "student",
 				},
 				overrideAccess: true,
 			};

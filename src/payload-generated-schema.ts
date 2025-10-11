@@ -27,7 +27,8 @@ export const enum_users_role = pgEnum("enum_users_role", [
   "admin",
   "content-manager",
   "analytics-viewer",
-  "user",
+  "instructor",
+  "student",
 ]);
 export const enum_courses_status = pgEnum("enum_courses_status", [
   "draft",
@@ -153,7 +154,7 @@ export const users = pgTable(
     id: serial("id").primaryKey(),
     firstName: varchar("first_name"),
     lastName: varchar("last_name"),
-    role: enum_users_role("role").default("user"),
+    role: enum_users_role("role").default("student"),
     bio: varchar("bio"),
     avatar: integer("avatar_id").references(() => media.id, {
       onDelete: "set null",

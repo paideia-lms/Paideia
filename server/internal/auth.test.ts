@@ -353,7 +353,7 @@ describe("Authentication Functions", () => {
 					password: "password456",
 					firstName: "Second",
 					lastName: "User",
-					role: "user",
+					role: "student",
 					_verified: true,
 				},
 				req: mockRequest,
@@ -361,7 +361,7 @@ describe("Authentication Functions", () => {
 
 			expect(secondUser).toBeDefined();
 			expect(secondUser.email).toBe("user2@example.com");
-			expect(secondUser.role).toBe("user");
+			expect(secondUser.role).toBe("student");
 
 			// Login as second user
 			const loginResult = await payload.login({
@@ -378,7 +378,7 @@ describe("Authentication Functions", () => {
 
 			const user = loginResult.user as User;
 			expect(user.email).toBe("user2@example.com");
-			expect(user.role).toBe("user");
+			expect(user.role).toBe("student");
 
 			// Authenticate with second user's token
 			const authenticatedRequest = new Request("http://localhost:3000/test", {
@@ -395,7 +395,7 @@ describe("Authentication Functions", () => {
 			const authenticatedUser = authResult.user as User;
 			expect(authenticatedUser.id).toBe(secondUser.id);
 			expect(authenticatedUser.email).toBe("user2@example.com");
-			expect(authenticatedUser.role).toBe("user");
+			expect(authenticatedUser.role).toBe("student");
 		});
 	});
 });

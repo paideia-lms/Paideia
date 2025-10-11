@@ -50,7 +50,7 @@ describe("Note Management Functions", () => {
 				password: "testpassword123",
 				firstName: "Test",
 				lastName: "User1",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -62,7 +62,7 @@ describe("Note Management Functions", () => {
 				password: "testpassword123",
 				firstName: "Test",
 				lastName: "User2",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -584,7 +584,7 @@ describe("Note Management Functions", () => {
 					password: "testpassword123",
 					firstName: "No",
 					lastName: "Notes",
-					role: "user",
+					role: "student",
 				},
 				overrideAccess: true,
 			};

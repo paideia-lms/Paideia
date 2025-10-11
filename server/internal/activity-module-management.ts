@@ -777,3 +777,56 @@ export const tryListActivityModules = Result.wrap(
 			cause: error,
 		}),
 );
+
+/**
+ * Gets all activity modules that a user owns or has access to
+ * Includes modules where user is owner, creator, or has been granted access
+ */
+export const tryGetUserActivityModules = Result.wrap(
+	async (
+		payload: Payload,
+		args: {
+			userId: number;
+			limit?: number;
+			page?: number;
+		},
+	) => {
+		const { userId, limit = 50, page = 1 } = args;
+
+		// Validate user ID
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		const result = await payload.find({
+			collection: "activity-modules",
+			where: {
+				or: [
+					{ owner: { equals: userId } },
+					{ createdBy: { equals: userId } },
+					{ "grants.grantedTo": { equals: userId } },
+				],
+			},
+			limit,
+			page,
+			sort: "-createdAt",
+			depth: 0,
+			overrideAccess: true,
+		});
+
+		return {
+			docs: result.docs,
+			totalDocs: result.totalDocs,
+			totalPages: result.totalPages,
+			page: result.page,
+			limit: result.limit,
+			hasNextPage: result.hasNextPage,
+			hasPrevPage: result.hasPrevPage,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get user activity modules", {
+			cause: error,
+		}),
+);

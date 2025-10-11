@@ -59,13 +59,15 @@ export const Users = {
 				// 1. **System Admin**: Full control over platform settings, user management, and global configurations (e.g., category nesting limits). *Pro*: Centralizes high-level management. *Con*: Risk of over-privileged accounts; limit to few users.
 				// 2. **Content Manager**: Manages global content libraries, templates, and shared resources across categories. *Pro*: Supports consistency. *Con*: Needs clear boundaries to avoid course-level conflicts.
 				// 3. **Analytics Viewer**: Access to platform-wide reports and usage data. *Pro*: Enables data-driven decisions. *Con*: Privacy concerns if not restricted properly.
-				// 4. user: normal user, cannot read and write any admin level content. those are not normally instructor and students.
+				// 4. **Instructor**: Manages courses, content, and assessments within a category.
+				// 5. **Student**: Learns from courses within a category.
 				{ label: "Admin", value: "admin" },
 				{ label: "Content Manager", value: "content-manager" },
 				{ label: "Analytics Viewer", value: "analytics-viewer" },
-				{ label: "User", value: "user" },
+				{ label: "Instructor", value: "instructor" },
+				{ label: "Student", value: "student" },
 			],
-			defaultValue: "user",
+			defaultValue: "student",
 		},
 		{
 			name: "bio",

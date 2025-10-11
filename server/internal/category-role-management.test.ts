@@ -61,7 +61,7 @@ describe("Category Role Management Functions", () => {
 				password: "testpassword123",
 				firstName: "User",
 				lastName: "One",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -73,7 +73,7 @@ describe("Category Role Management Functions", () => {
 				password: "testpassword123",
 				firstName: "User",
 				lastName: "Two",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -85,7 +85,7 @@ describe("Category Role Management Functions", () => {
 				password: "testpassword123",
 				firstName: "User",
 				lastName: "Three",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};

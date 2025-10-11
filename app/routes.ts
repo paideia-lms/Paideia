@@ -14,6 +14,7 @@ export default [
 	layout("layouts/user-layout.tsx", [
 		route("user/profile", "routes/user/profile.tsx"),
 		route("user/edit", "routes/user/edit.tsx"),
+		route("user/module/new", "routes/user/module/new.tsx"),
 		layout("layouts/course-layout.tsx", [route("course", "routes/course.tsx")]),
 		layout("layouts/server-admin-layout.tsx", [
 			route("admin/*", "routes/admin/index.tsx"),

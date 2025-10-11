@@ -15,6 +15,7 @@ import reactRouterLogo from "./assets/rr_lockup_light.png";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dropzone/styles.css";
+import "@mantine/dates/styles.css";
 
 import { Button, ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";

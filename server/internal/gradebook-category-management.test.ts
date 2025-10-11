@@ -50,7 +50,7 @@ describe("Gradebook Category Management", () => {
 				password: "password123",
 				firstName: "John",
 				lastName: "Instructor",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};

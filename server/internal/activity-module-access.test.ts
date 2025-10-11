@@ -55,7 +55,7 @@ describe("Activity Module Access Control", () => {
 				password: "testpassword123",
 				firstName: "Instructor",
 				lastName: "One",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -67,7 +67,7 @@ describe("Activity Module Access Control", () => {
 				password: "testpassword123",
 				firstName: "Instructor",
 				lastName: "Two",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -79,7 +79,7 @@ describe("Activity Module Access Control", () => {
 				password: "testpassword123",
 				firstName: "Instructor",
 				lastName: "Three",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};

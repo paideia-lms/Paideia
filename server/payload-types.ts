@@ -201,7 +201,7 @@ export interface User {
   id: number;
   firstName?: string | null;
   lastName?: string | null;
-  role?: ('admin' | 'content-manager' | 'analytics-viewer' | 'user') | null;
+  role?: ('admin' | 'content-manager' | 'analytics-viewer' | 'instructor' | 'student') | null;
   bio?: string | null;
   avatar?: (number | null) | Media;
   updatedAt: string;

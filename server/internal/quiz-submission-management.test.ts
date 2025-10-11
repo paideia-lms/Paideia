@@ -74,7 +74,7 @@ describe("Quiz Management - Full Workflow", () => {
 				password: "password123",
 				firstName: "John",
 				lastName: "Teacher",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -94,7 +94,7 @@ describe("Quiz Management - Full Workflow", () => {
 				password: "password123",
 				firstName: "Jane",
 				lastName: "Student",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};

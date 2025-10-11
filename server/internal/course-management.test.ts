@@ -45,7 +45,7 @@ describe("Course Management Functions", () => {
 				password: "password123",
 				firstName: "John",
 				lastName: "Instructor",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};
@@ -57,7 +57,7 @@ describe("Course Management Functions", () => {
 				password: "password123",
 				firstName: "Jane",
 				lastName: "Student",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};

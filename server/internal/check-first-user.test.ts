@@ -336,7 +336,7 @@ describe("First User Check Functions - With Access Control", () => {
 				password: "userpassword123",
 				firstName: "Regular",
 				lastName: "User",
-				role: "user",
+				role: "student",
 			},
 			overrideAccess: true,
 		};

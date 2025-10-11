@@ -17,6 +17,19 @@ export const ActivityModules = {
 				],
 			};
 		},
+		create: ({ req }): AccessResult => {
+			// require login to create activity modules
+			if (!req.user) return false;
+			// only admin, instructor, and content manager can create activity modules
+			if (
+				req.user.role === "admin" ||
+				req.user.role === "instructor" ||
+				req.user.role === "content-manager"
+			)
+				return true;
+			// no one else can create activity modules
+			return false;
+		},
 		update: ({ req }): AccessResult => {
 			if (!req.user) return false;
 			if (req.user.role === "admin") return true;
