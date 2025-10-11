@@ -22,9 +22,8 @@ import type {
 import { parseFormData } from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { extractJWT } from "payload";
-import qs from "qs";
 import { useState } from "react";
-import { href, redirect, useFetcher } from "react-router";
+import { redirect, useFetcher } from "react-router";
 import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryCreateMedia } from "server/internal/media-management";
@@ -102,8 +101,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 	}
 
-	console.log("Creating user...");
-
 	try {
 		// Parse form data with upload handler
 		const uploadHandler = async (fileUpload: FileUpload) => {
@@ -123,7 +120,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				});
 
 				if (!mediaResult.ok) {
-					console.error("Failed to create media:", mediaResult.error);
 					throw mediaResult.error;
 				}
 
@@ -158,7 +154,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 
 		if (!parsed.success) {
-			console.error("Failed to parse form data:", parsed.error);
 			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
@@ -184,7 +179,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 
 		if (!createResult.ok) {
-			console.error("Failed to create user:", createResult.error);
 			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
@@ -221,10 +215,8 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 				message: "The user has been created successfully",
 				color: "green",
 			});
-			// add search params to the redirect
-			throw redirect(
-				href("/user/profile") + "?" + qs.stringify({ id: actionData.id }),
-			);
+			// Redirect to the newly created user's profile using route param
+			throw redirect(`/user/profile/${actionData.id}`);
 		}
 	} else if ("error" in actionData) {
 		notifications.show({

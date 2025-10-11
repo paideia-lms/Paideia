@@ -12,8 +12,10 @@ export default [
 	route("logout", "routes/logout.tsx"),
 	route("api/media/file/:filename", "routes/api/media/file.$filename.tsx"),
 	layout("layouts/user-layout.tsx", [
-		route("user/profile", "routes/user/profile.tsx"),
-		route("user/edit", "routes/user/edit.tsx"),
+		route("user/profile/:id?", "routes/user/profile.tsx"),
+		route("user/edit/:id?", "routes/user/edit.tsx"),
+		route("user/notes/:id?", "routes/user/notes.tsx"),
+		route("user/note/create", "routes/user/note-create.tsx"),
 		route("user/module/new", "routes/user/module/new.tsx"),
 		layout("layouts/course-layout.tsx", [route("course", "routes/course.tsx")]),
 		layout("layouts/server-admin-layout.tsx", [

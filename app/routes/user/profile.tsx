@@ -10,7 +10,6 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { createLoader, parseAsInteger } from "nuqs/server";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
@@ -18,14 +17,11 @@ import { tryFindUserById } from "server/internal/user-management";
 import { NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/profile";
 
-// Describe your search params, and reuse this in useQueryStates / createSerializer:
-export const profileSearchParams = {
-	id: parseAsInteger,
-};
-
-export const loadSearchParams = createLoader(profileSearchParams);
-
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+export const loader = async ({
+	request,
+	context,
+	params,
+}: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const { user: currentUser } = await payload.auth({
 		headers: request.headers,
@@ -36,9 +32,8 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		throw new NotFoundResponse("Unauthorized");
 	}
 
-	// Get user ID from query params, or use current user
-	const { id } = loadSearchParams(request);
-	const userId = id ? id : currentUser.id;
+	// Get user ID from route params, or use current user
+	const userId = params.id ? Number(params.id) : currentUser.id;
 
 	// Fetch the user profile
 	const userResult = await tryFindUserById({
@@ -80,6 +75,9 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		currentUser.role === "instructor" ||
 		currentUser.role === "content-manager";
 
+	// Check if user can edit this profile
+	const canEdit = userId === currentUser.id || currentUser.role === "admin";
+
 	return {
 		user: {
 			id: profileUser.id,
@@ -91,11 +89,12 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		isOwnProfile: userId === currentUser.id,
 		modules,
 		canCreateModules,
+		canEdit,
 	};
 };
 
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
-	const { user, isOwnProfile, modules, canCreateModules } = loaderData;
+	const { user, isOwnProfile, modules, canCreateModules, canEdit } = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 
 	// Helper function to get badge color based on status
@@ -165,6 +164,16 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 								</Text>
 							</div>
 						)}
+						{canEdit && (
+							<Button
+								component={Link}
+								to={isOwnProfile ? "/user/edit" : `/user/edit/${user.id}`}
+								variant="light"
+								fullWidth
+							>
+								Edit Profile
+							</Button>
+						)}
 					</Stack>
 				</Paper>
 
@@ -208,6 +217,27 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 							))}
 						</Stack>
 					)}
+				</Paper>
+
+				{/* Notes Link */}
+				<Paper withBorder shadow="md" p="xl" radius="md">
+					<Group justify="space-between" align="center">
+						<div>
+							<Title order={3} mb="xs">
+								Notes
+							</Title>
+							<Text size="sm" c="dimmed">
+								View {isOwnProfile ? "your" : "their"} notes and activity
+							</Text>
+						</div>
+						<Button
+							component={Link}
+							to={isOwnProfile ? "/user/notes" : `/user/notes/${user.id}`}
+							variant="light"
+						>
+							View Notes
+						</Button>
+					</Group>
 				</Paper>
 			</Stack>
 		</Container>

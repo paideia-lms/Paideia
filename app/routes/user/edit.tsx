@@ -28,14 +28,20 @@ import { tryUpdateUser } from "server/internal/user-management";
 import z from "zod";
 import {
 	badRequest,
+	ForbiddenResponse,
 	NotFoundResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit";
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+export const loader = async ({
+	request,
+	context,
+	params,
+}: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
+	const { id } = params;
 	const { user: currentUser } = await payload.auth({
 		headers: request.headers,
 		canSetHeaders: true,
@@ -43,6 +49,13 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
+	}
+
+	// if id is provided, check if the user is admin
+	if (id !== undefined && Number(id) !== currentUser.id) {
+		if (currentUser.role !== "admin") {
+			throw new ForbiddenResponse("Only admins can edit other users");
+		}
 	}
 
 	// Handle avatar - could be Media object or just ID

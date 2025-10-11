@@ -16,6 +16,8 @@ import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dropzone/styles.css";
 import "@mantine/dates/styles.css";
+import "@mantine/charts/styles.css";
+import "@mantine/tiptap/styles.css";
 
 import { Button, ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
@@ -64,19 +66,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	};
 }
 
-export const meta: Route.MetaFunction = () => {
-	return [
-		{ title: "Paideia LMS" },
-		{ name: "description", content: "Paideia LMS" },
-	];
-};
-
 export default function App({ loaderData }: Route.ComponentProps) {
 	return (
 		<html lang="en">
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<meta title="Paideia LMS" />
+				<meta name="description" content="Paideia LMS" />
 				{/* ! this will force the browser to reload the favicon, see https://stackoverflow.com/questions/2208933/how-do-i-force-a-favicon-refresh */}
 				<link
 					rel="icon"

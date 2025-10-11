@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import type { Payload, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
@@ -333,6 +334,65 @@ export const tryFindNotesByUser = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to find notes by user", {
+			cause: error,
+		}),
+);
+
+export interface GenerateNoteHeatmapArgs {
+	payload: Payload;
+	userId: number;
+	user?: TypedUser | null;
+	req?: Request;
+	overrideAccess?: boolean;
+}
+
+/**
+ * Generates heatmap data for user's note activity
+ * Returns heatmap data (date -> count), available years, and all notes
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export const tryGenerateNoteHeatmap = Result.wrap(
+	async (args: GenerateNoteHeatmapArgs) => {
+		const { payload, userId, user = null, req, overrideAccess = false } = args;
+
+		// Fetch all notes for the user
+		const notes = await payload.find({
+			collection: "notes",
+			where: {
+				createdBy: { equals: userId },
+			},
+			limit: 1000,
+			sort: "-createdAt",
+			user,
+			req,
+			overrideAccess,
+		});
+
+		const heatmapData: Record<string, number> = {};
+		const availableYears: number[] = [];
+
+		notes.docs.forEach((note) => {
+			const date = dayjs(note.createdAt).format("YYYY-MM-DD");
+			heatmapData[date] = (heatmapData[date] || 0) + 1;
+
+			const year = dayjs(note.createdAt).year();
+			if (!availableYears.includes(year)) {
+				availableYears.push(year);
+			}
+		});
+
+		availableYears.sort((a, b) => b - a);
+
+		return {
+			heatmapData,
+			availableYears,
+			notes: notes.docs,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to generate note heatmap", {
 			cause: error,
 		}),
 );

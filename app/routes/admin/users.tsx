@@ -247,7 +247,7 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 												<Group gap="xs">
 													<Button
 														component={Link}
-														to={`/user/profile?id=${user.id}`}
+														to={`/user/profile/${user.id}`}
 														size="xs"
 														variant="light"
 													>

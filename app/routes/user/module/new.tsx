@@ -16,7 +16,6 @@ import { notifications } from "@mantine/notifications";
 import { isUndefined, omitBy } from "es-toolkit";
 import {
 	type ActionFunctionArgs,
-	href,
 	type LoaderFunctionArgs,
 	redirect,
 	useFetcher,
@@ -198,7 +197,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 		});
 	}
 
-	throw redirect(href("/user/profile"));
+	throw redirect("/user/profile");
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {

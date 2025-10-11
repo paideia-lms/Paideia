@@ -7,6 +7,7 @@ import {
 	tryDeleteNote,
 	tryFindNoteById,
 	tryFindNotesByUser,
+	tryGenerateNoteHeatmap,
 	trySearchNotes,
 	tryUpdateNote,
 } from "./note-management";
@@ -985,6 +986,29 @@ describe("Note Management Functions", () => {
 
 				expect(result.ok).toBe(false);
 			});
+		});
+	});
+
+	describe("tryGenerateNoteHeatmap", () => {
+		test("should generate heatmap data and available years", async () => {
+			// Notes were already created in previous tests
+			const result = await tryGenerateNoteHeatmap({
+				payload,
+				userId: testUser.id,
+				overrideAccess: true,
+			});
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.notes.length).toBeGreaterThan(0);
+				expect(Object.keys(result.value.heatmapData).length).toBeGreaterThan(0);
+				expect(result.value.availableYears.length).toBeGreaterThan(0);
+
+				// Check heatmap data format
+				const firstDate = Object.keys(result.value.heatmapData)[0];
+				expect(firstDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+				expect(typeof result.value.heatmapData[firstDate]).toBe("number");
+			}
 		});
 	});
 });
