@@ -3,7 +3,6 @@ import { createLoader, parseAsInteger } from "nuqs/server";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryFindUserById } from "server/internal/user-management";
-import type { Media } from "server/payload-types";
 import { NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/profile";
 

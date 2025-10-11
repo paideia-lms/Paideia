@@ -12,7 +12,7 @@ import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { globalContextKey } from "./contexts/global-context";
 import { reactRouter } from "./elysia-react-router";
 import { tryCheckFirstUser } from "./internal/check-first-user";
-import { registerFirstUser } from "./internal/register-first-user";
+import { tryRegisterFirstUser } from "./internal/user-management";
 import sanitizedConfig from "./payload.config";
 import { devConstants } from "./utils/constants";
 import { getRequestInfo } from "./utils/get-request-info";
@@ -43,7 +43,9 @@ if (process.env.NODE_ENV === "development") {
 			const request = new Request("http://localhost:3000");
 			// no user found
 			// register the first user
-			await registerFirstUser(payload, request, {
+			await tryRegisterFirstUser({
+				payload,
+				req: request,
 				email: devConstants.ADMIN_EMAIL,
 				password: devConstants.ADMIN_PASSWORD,
 				firstName: "Admin",

@@ -1,9 +1,14 @@
+import { Button, PasswordInput, TextInput } from "@mantine/core";
+import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import { href, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { registerFirstUser } from "server/internal/register-first-user";
+import { tryRegisterFirstUser } from "server/internal/user-management";
+import { devConstants } from "server/utils/constants";
 import { z } from "zod";
+import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { ok } from "~/utils/responses";
+import { badRequest, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/first-user";
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -19,7 +24,10 @@ export async function loader({ context }: Route.LoaderArgs) {
 		throw new NotFoundResponse("Not Found");
 	}
 
-	return {};
+	return {
+		NODE_ENV: process.env.NODE_ENV,
+		DEV_CONSTANTS: devConstants,
+	};
 }
 
 const formSchema = z.object({
@@ -32,50 +40,47 @@ const formSchema = z.object({
 export async function action({ request, context }: Route.ActionArgs) {
 	const { payload, requestInfo } = context.get(globalContextKey);
 
-	const { contentType, data } = await getDataAndContentTypeFromRequest(request);
+	const { data } = await getDataAndContentTypeFromRequest(request);
 
-	try {
-		const parsedData = formSchema.parse(data);
+	const parsed = formSchema.safeParse(data);
 
-		const result = await registerFirstUser(payload, request, { ...parsedData });
-
-		if (!result.token || !result.exp) {
-			return {
-				success: false,
-				error: "Registration failed, no token or exp",
-			};
-		}
-
-		// set the cookie
-		return ok(
-			{
-				success: true,
-				message: "First user created successfully",
-			},
-			{
-				headers: {
-					"Set-Cookie": setCookie(
-						result.token,
-						result.exp,
-						requestInfo.domainUrl,
-						request.headers,
-						payload,
-					),
-				},
-			},
-		);
-	} catch (error) {
-		return {
+	if (!parsed.success) {
+		return badRequest({
 			success: false,
-			error: error instanceof Error ? error.message : "Registration failed",
-		};
+			error: parsed.error.message,
+		});
 	}
+
+	const result = await tryRegisterFirstUser({
+		payload,
+		...parsed.data,
+		req: request,
+	});
+
+	if (!result.ok) {
+		return badRequest({
+			success: false,
+			error: result.error.message,
+		});
+	}
+
+	const { token, exp } = result.value;
+
+	// set the cookie
+	throw redirect(href("/"), {
+		headers: {
+			"Set-Cookie": setCookie(
+				token,
+				exp,
+				requestInfo.domainUrl,
+				request.headers,
+				payload,
+			),
+		},
+	});
 }
 
-export async function clientAction({
-	request,
-	serverAction,
-}: Route.ClientActionArgs) {
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData?.success) {
@@ -97,6 +102,8 @@ export async function clientAction({
 export default function CreateFirstUserView({
 	loaderData,
 }: Route.ComponentProps) {
+	const { NODE_ENV, DEV_CONSTANTS } = loaderData;
+
 	return (
 		<div style={{ padding: "20px", maxWidth: "500px", margin: "50px auto" }}>
 			<title>Create First User | Paideia LMS</title>
@@ -112,18 +119,21 @@ export default function CreateFirstUserView({
 
 			<h1>Create First User</h1>
 			<p>Welcome! Please create the first user account to get started.</p>
-			<CreateFirstUserClient />
+			<CreateFirstUserClient
+				NODE_ENV={NODE_ENV}
+				DEV_CONSTANTS={DEV_CONSTANTS}
+			/>
 		</div>
 	);
 }
 
-import { Button, PasswordInput, TextInput } from "@mantine/core";
-import { isEmail, useForm } from "@mantine/form";
-import { useFetcher } from "react-router";
-import { setCookie } from "~/utils/cookie";
-import { NotFoundResponse } from "~/utils/responses";
-
-export function CreateFirstUserClient() {
+export function CreateFirstUserClient({
+	NODE_ENV,
+	DEV_CONSTANTS,
+}: {
+	NODE_ENV: string | undefined;
+	DEV_CONSTANTS: typeof devConstants;
+}) {
 	const fetcher = useFetcher<typeof action>();
 
 	const form = useForm({
@@ -146,6 +156,16 @@ export function CreateFirstUserClient() {
 		},
 	});
 
+	const handleAutoFill = () => {
+		form.setValues({
+			email: DEV_CONSTANTS.ADMIN_EMAIL,
+			password: DEV_CONSTANTS.ADMIN_PASSWORD,
+			confirmPassword: DEV_CONSTANTS.ADMIN_PASSWORD,
+			firstName: "Admin",
+			lastName: "User",
+		});
+	};
+
 	return (
 		<fetcher.Form
 			method="POST"
@@ -157,6 +177,18 @@ export function CreateFirstUserClient() {
 			})}
 			style={{ display: "flex", flexDirection: "column", gap: "16px" }}
 		>
+			{NODE_ENV === "development" && (
+				<Button
+					onClick={handleAutoFill}
+					variant="light"
+					color="gray"
+					fullWidth
+					size="sm"
+				>
+					🚀 Auto-fill (Dev Only)
+				</Button>
+			)}
+
 			<TextInput
 				{...form.getInputProps("email")}
 				key={form.key("email")}

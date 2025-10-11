@@ -4,7 +4,7 @@ import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import type { User } from "../payload-types";
 import { type CheckFirstUserArgs, tryCheckFirstUser } from "./check-first-user";
-import { registerFirstUser } from "./register-first-user";
+import { tryRegisterFirstUser } from "./user-management";
 
 describe("Authentication Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -60,27 +60,29 @@ describe("Authentication Functions", () => {
 				lastName: "User",
 			};
 
-			const result = await registerFirstUser(
+			const registerResult = await tryRegisterFirstUser({
 				payload,
-				mockRequest,
-				firstUserArgs,
-			);
+				req: mockRequest,
+				...firstUserArgs,
+			});
+
+			if (!registerResult.ok) {
+				throw new Error(
+					`Failed to create first user: ${registerResult.error.message}`,
+				);
+			}
+
+			const result = registerResult.value;
 
 			// Verify user creation
-			expect(result.email).toBe(firstUserArgs.email);
-			expect(result.firstName).toBe(firstUserArgs.firstName);
-			expect(result.lastName).toBe(firstUserArgs.lastName);
-			expect(result.role).toBe("admin");
-			// expect(result._verified).toBe(true);
+			expect(result.user.email).toBe(firstUserArgs.email);
+			expect(result.user.firstName).toBe(firstUserArgs.firstName);
+			expect(result.user.lastName).toBe(firstUserArgs.lastName);
+			expect(result.user.role).toBe("admin");
 
 			// Verify login tokens
 			expect(result.token).toBeDefined();
-
-			if (!result.token) throw new Error("Test error: token is undefined");
-
 			expect(result.exp).toBeDefined();
-			expect(result._strategy).toBe("local-jwt");
-			expect(result.collection).toBe("users");
 
 			// Verify token is a string
 			expect(typeof result.token).toBe("string");

@@ -5,6 +5,7 @@ import {
 	Button,
 	Container,
 	Group,
+	Pagination,
 	Paper,
 	Stack,
 	Table,
@@ -12,14 +13,24 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
+import { useDebouncedValue } from "@mantine/hooks";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
-import { useState } from "react";
-import { href, Link } from "react-router";
+import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
+import { useEffect, useState } from "react";
+import { href, Link, useSearchParams } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryFindAllUsers } from "server/internal/user-management";
 import type { User } from "server/payload-types";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/users";
+
+// Define search params
+export const usersSearchParams = {
+	query: parseAsString.withDefault(""),
+	page: parseAsInteger.withDefault(1),
+};
+
+export const loadSearchParams = createLoader(usersSearchParams);
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -36,10 +47,15 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can view users");
 	}
 
-	// Fetch all users using tryFindAllUsers
+	// Get search params from URL
+	const { query, page } = loadSearchParams(request);
+
+	// Fetch users with search and pagination
 	const usersResult = await tryFindAllUsers({
 		payload,
-		limit: 100,
+		query: query || undefined,
+		limit: 10,
+		page,
 		sort: "-createdAt",
 		user: currentUser,
 		overrideAccess: false,
@@ -49,6 +65,8 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		return badRequest({
 			users: [],
 			totalUsers: 0,
+			totalPages: 0,
+			currentPage: 1,
 			error: usersResult.error.message,
 		});
 	}
@@ -77,21 +95,43 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	return {
 		users,
 		totalUsers: usersResult.value.totalDocs,
+		totalPages: usersResult.value.totalPages,
+		currentPage: usersResult.value.page,
 	};
 };
 
 export default function UsersPage({ loaderData }: Route.ComponentProps) {
-	const { users, totalUsers } = loaderData;
-	const [searchQuery, setSearchQuery] = useState("");
+	const { users, totalUsers, totalPages, currentPage } = loaderData;
+	const [searchParams, setSearchParams] = useSearchParams();
 
-	const filteredUsers = users.filter((user) => {
-		const searchLower = searchQuery.toLowerCase();
-		const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
-		return (
-			fullName.includes(searchLower) ||
-			user.email.toLowerCase().includes(searchLower)
-		);
-	});
+	// Get current query from URL
+	const urlQuery = searchParams.get("query") || "";
+
+	// Local search state for immediate UI updates
+	const [searchQuery, setSearchQuery] = useState(urlQuery);
+
+	// Debounce the search query
+	const [debouncedQuery] = useDebouncedValue(searchQuery, 500);
+
+	// Update URL when debounced query changes
+	useEffect(() => {
+		const newParams = new URLSearchParams(searchParams);
+		if (debouncedQuery) {
+			newParams.set("query", debouncedQuery);
+		} else {
+			newParams.delete("query");
+		}
+		// Reset to page 1 when search changes
+		newParams.set("page", "1");
+		setSearchParams(newParams, { replace: true });
+	}, [debouncedQuery, searchParams, setSearchParams]);
+
+	// Handle page change
+	const handlePageChange = (page: number) => {
+		const newParams = new URLSearchParams(searchParams);
+		newParams.set("page", page.toString());
+		setSearchParams(newParams);
+	};
 
 	const getRoleBadgeColor = (role: User["role"]) => {
 		switch (role) {
@@ -145,7 +185,7 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
 					<TextInput
-						placeholder="Search by name or email..."
+						placeholder="Search by name, email, or use role:admin, role:user..."
 						leftSection={<IconSearch size={16} />}
 						value={searchQuery}
 						onChange={(event) => setSearchQuery(event.currentTarget.value)}
@@ -164,7 +204,7 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 								</Table.Tr>
 							</Table.Thead>
 							<Table.Tbody>
-								{filteredUsers.length === 0 ? (
+								{users.length === 0 ? (
 									<Table.Tr>
 										<Table.Td colSpan={5}>
 											<Text ta="center" c="dimmed" py="xl">
@@ -173,7 +213,7 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 										</Table.Td>
 									</Table.Tr>
 								) : (
-									filteredUsers.map((user) => (
+									users.map((user) => (
 										<Table.Tr key={user.id}>
 											<Table.Td>
 												<Group gap="sm">
@@ -221,6 +261,16 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 							</Table.Tbody>
 						</Table>
 					</Box>
+
+					{totalPages > 1 && (
+						<Group justify="center" mt="lg">
+							<Pagination
+								total={totalPages}
+								value={currentPage}
+								onChange={handlePageChange}
+							/>
+						</Group>
+					)}
 				</Paper>
 			</Stack>
 		</Container>

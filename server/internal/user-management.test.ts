@@ -616,6 +616,200 @@ describe("User Management Functions", () => {
 
 			expect(result.ok).toBe(false);
 		});
+
+		test("should comprehensively test search functionality with text and role filters", async () => {
+			// Create diverse test users with different roles and names
+			const testUsers = [
+				{
+					email: "alice.admin@search-test.com",
+					firstName: "Alice",
+					lastName: "Administrator",
+					role: "admin" as const,
+				},
+				{
+					email: "bob.manager@search-test.com",
+					firstName: "Bob",
+					lastName: "Manager",
+					role: "content-manager" as const,
+				},
+				{
+					email: "charlie.viewer@search-test.com",
+					firstName: "Charlie",
+					lastName: "Viewer",
+					role: "analytics-viewer" as const,
+				},
+				{
+					email: "alice.user@search-test.com",
+					firstName: "Alice",
+					lastName: "Smith",
+					role: "user" as const,
+				},
+				{
+					email: "david.developer@search-test.com",
+					firstName: "David",
+					lastName: "Developer",
+					role: "user" as const,
+				},
+			];
+
+			// Create all test users
+			for (const userData of testUsers) {
+				const createArgs: CreateUserArgs = {
+					payload,
+					data: {
+						...userData,
+						password: "testpassword123",
+					},
+					overrideAccess: true,
+				};
+				await tryCreateUser(createArgs);
+			}
+
+			// Test 1: Search by first name
+			const searchByFirstName = await tryFindAllUsers({
+				payload,
+				query: "Alice",
+				overrideAccess: true,
+			});
+
+			expect(searchByFirstName.ok).toBe(true);
+			if (searchByFirstName.ok) {
+				expect(searchByFirstName.value.docs.length).toBe(2);
+				expect(
+					searchByFirstName.value.docs.every((user) =>
+						user.firstName?.includes("Alice"),
+					),
+				).toBe(true);
+			}
+
+			// Test 2: Search by last name
+			const searchByLastName = await tryFindAllUsers({
+				payload,
+				query: "Manager",
+				overrideAccess: true,
+			});
+
+			expect(searchByLastName.ok).toBe(true);
+			if (searchByLastName.ok) {
+				expect(searchByLastName.value.docs.length).toBe(1);
+				expect(searchByLastName.value.docs[0]?.lastName).toBe("Manager");
+			}
+
+			// Test 3: Search by email
+			const searchByEmail = await tryFindAllUsers({
+				payload,
+				query: "developer",
+				overrideAccess: true,
+			});
+
+			expect(searchByEmail.ok).toBe(true);
+			if (searchByEmail.ok) {
+				expect(searchByEmail.value.docs.length).toBe(1);
+				expect(searchByEmail.value.docs[0]?.email).toContain("developer");
+			}
+
+			// Test 4: Filter by single role
+			const filterByAdminRole = await tryFindAllUsers({
+				payload,
+				query: "role:admin",
+				overrideAccess: true,
+			});
+
+			expect(filterByAdminRole.ok).toBe(true);
+			if (filterByAdminRole.ok) {
+				expect(
+					filterByAdminRole.value.docs.every((user) => user.role === "admin"),
+				).toBe(true);
+			}
+
+			// Test 5: Filter by multiple roles
+			const filterByMultipleRoles = await tryFindAllUsers({
+				payload,
+				query: "role:content-manager,analytics-viewer",
+				overrideAccess: true,
+			});
+
+			expect(filterByMultipleRoles.ok).toBe(true);
+			if (filterByMultipleRoles.ok) {
+				expect(
+					filterByMultipleRoles.value.docs.every(
+						(user) =>
+							user.role === "content-manager" ||
+							user.role === "analytics-viewer",
+					),
+				).toBe(true);
+			}
+
+			// Test 6: Combined text search and role filter
+			const combinedSearch = await tryFindAllUsers({
+				payload,
+				query: "Alice role:admin",
+				overrideAccess: true,
+			});
+
+			expect(combinedSearch.ok).toBe(true);
+			if (combinedSearch.ok) {
+				expect(combinedSearch.value.docs.length).toBe(1);
+				expect(combinedSearch.value.docs[0]?.firstName).toBe("Alice");
+				expect(combinedSearch.value.docs[0]?.role).toBe("admin");
+			}
+
+			// Test 7: Search with pagination
+			const searchWithPagination = await tryFindAllUsers({
+				payload,
+				query: "search-test",
+				limit: 2,
+				page: 1,
+				overrideAccess: true,
+			});
+
+			expect(searchWithPagination.ok).toBe(true);
+			if (searchWithPagination.ok) {
+				expect(searchWithPagination.value.docs.length).toBe(2);
+				expect(searchWithPagination.value.limit).toBe(2);
+				expect(searchWithPagination.value.page).toBe(1);
+				expect(searchWithPagination.value.totalDocs).toBeGreaterThanOrEqual(5);
+			}
+
+			// Test 8: Search with no results
+			const noResultsSearch = await tryFindAllUsers({
+				payload,
+				query: "nonexistentuser12345",
+				overrideAccess: true,
+			});
+
+			expect(noResultsSearch.ok).toBe(true);
+			if (noResultsSearch.ok) {
+				expect(noResultsSearch.value.docs.length).toBe(0);
+				expect(noResultsSearch.value.totalDocs).toBe(0);
+			}
+
+			// Test 9: Empty query should return all users
+			const emptyQuerySearch = await tryFindAllUsers({
+				payload,
+				query: "",
+				overrideAccess: true,
+			});
+
+			expect(emptyQuerySearch.ok).toBe(true);
+			if (emptyQuerySearch.ok) {
+				expect(emptyQuerySearch.value.docs.length).toBeGreaterThanOrEqual(5);
+			}
+
+			// Test 10: Admin can use search functionality
+			const adminUser = await getAuthUser(adminToken);
+			const adminSearch = await tryFindAllUsers({
+				payload,
+				query: "Alice",
+				user: adminUser,
+				overrideAccess: false,
+			});
+
+			expect(adminSearch.ok).toBe(true);
+			if (adminSearch.ok) {
+				expect(adminSearch.value.docs.length).toBeGreaterThanOrEqual(1);
+			}
+		});
 	});
 
 	describe("Integration Tests", () => {
