@@ -4,6 +4,7 @@ import {
     RichTextEditor as MantineRTE,
     useRichTextEditorContext,
 } from "@mantine/tiptap";
+import { useFileDialog } from "@mantine/hooks";
 import {
     IconBrandYoutube,
     IconColumnInsertLeft,
@@ -50,7 +51,6 @@ import sql from "highlight.js/lib/languages/sql";
 import ts from "highlight.js/lib/languages/typescript";
 import html from "highlight.js/lib/languages/xml";
 import { createLowlight } from "lowlight";
-
 import { useEffect, useState } from "react";
 
 const lowlight = createLowlight();
@@ -335,20 +335,38 @@ function AddYoutubeVideoControl() {
     );
 }
 
-function AddImageControl() {
+function AddImageControl({ onImageAdd }: { onImageAdd?: (imageFile: ImageFile) => void }) {
     const { editor } = useRichTextEditorContext();
+    const fileDialog = useFileDialog({
+        accept: 'image/jpeg,image/png,image/gif,image/webp',
+        multiple: false,
+    });
 
-    const addImage = () => {
-        const url = prompt("Enter image URL");
+    // Handle file selection when files change
+    useEffect(() => {
+        if (fileDialog.files && fileDialog.files.length > 0) {
+            const file = fileDialog.files[0];
+            const reader = new FileReader();
 
-        if (url) {
-            editor?.chain().focus().setImage({ src: url }).run();
+            reader.onload = () => {
+                const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+                const preview = reader.result as string;
+
+                if (onImageAdd) {
+                    onImageAdd({ id, file, preview });
+                }
+
+                editor?.chain().focus().setImage({ src: preview }).run();
+            };
+
+            reader.readAsDataURL(file);
+            fileDialog.reset();
         }
-    };
+    }, [fileDialog.files, editor, onImageAdd, fileDialog]);
 
     return (
         <MantineRTE.Control
-            onClick={addImage}
+            onClick={fileDialog.open}
             aria-label="Add image"
             title="Add image"
         >
@@ -680,7 +698,7 @@ export function RichTextEditor({
                         </MantineRTE.ControlsGroup>
 
                         <MantineRTE.ControlsGroup>
-                            <AddImageControl />
+                            <AddImageControl onImageAdd={onImageAdd} />
                             <AddYoutubeVideoControl />
                         </MantineRTE.ControlsGroup>
 
