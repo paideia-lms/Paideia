@@ -51,7 +51,7 @@ import ts from "highlight.js/lib/languages/typescript";
 import html from "highlight.js/lib/languages/xml";
 import { createLowlight } from "lowlight";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 const lowlight = createLowlight();
 
@@ -66,6 +66,85 @@ lowlight.register("json", json);
 lowlight.register("bash", bash);
 lowlight.register("sql", sql);
 lowlight.register("markdown", markdown);
+
+// Custom hook for image resizing
+function useImageResize(editor: Editor | null) {
+    useEffect(() => {
+        if (!editor) return;
+
+        const editorElement = editor.view.dom;
+        let resizingImg: HTMLImageElement | null = null;
+        let startX = 0;
+        let startWidth = 0;
+        let startHeight = 0;
+
+        const handleMouseDown = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (target.tagName === 'IMG' && target.classList.contains('ProseMirror-selectednode')) {
+                event.preventDefault();
+                resizingImg = target as HTMLImageElement;
+                startX = event.clientX;
+                startWidth = resizingImg.offsetWidth;
+                startHeight = resizingImg.offsetHeight;
+
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+            }
+        };
+
+        const handleMouseMove = (event: MouseEvent) => {
+            if (!resizingImg) return;
+
+            const deltaX = event.clientX - startX;
+            const newWidth = startWidth + deltaX;
+
+            // Maintain aspect ratio
+            const aspectRatio = startHeight / startWidth;
+            const newHeight = newWidth * aspectRatio;
+
+            resizingImg.style.width = `${newWidth}px`;
+            resizingImg.style.height = `${newHeight}px`;
+        };
+
+        const handleMouseUp = () => {
+            if (!resizingImg) return;
+
+            // Only update if the size actually changed (not just a click)
+            const currentWidth = resizingImg.offsetWidth;
+            const sizeChanged = Math.abs(currentWidth - startWidth) > 2; // 2px threshold
+
+            if (sizeChanged) {
+                // Update the node attributes in Tiptap
+                const { state } = editor.view;
+                const pos = editor.view.posAtDOM(resizingImg, 0);
+
+                if (pos !== null && pos !== undefined) {
+                    const resolvedPos = state.doc.resolve(pos);
+                    const node = resolvedPos.parent.maybeChild(resolvedPos.index());
+
+                    if (node && node.type.name === 'image') {
+                        editor.commands.updateAttributes('image', {
+                            width: resizingImg.style.width,
+                            height: resizingImg.style.height,
+                        });
+                    }
+                }
+            }
+
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            resizingImg = null;
+        };
+
+        editorElement.addEventListener('mousedown', handleMouseDown);
+
+        return () => {
+            editorElement.removeEventListener('mousedown', handleMouseDown);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+        };
+    }, [editor]);
+}
 
 // Table Controls
 function InsertTableControl() {
@@ -278,6 +357,74 @@ function AddImageControl() {
     );
 }
 
+function ImageSizeSmallControl() {
+    const { editor } = useRichTextEditorContext();
+
+    return (
+        <MantineRTE.Control
+            onClick={() => editor?.chain().focus().updateAttributes('image', {
+                width: '300px',
+                height: null
+            }).run()}
+            aria-label="Small image"
+            title="Small image (300px)"
+        >
+            <span style={{ fontSize: '10px' }}>S</span>
+        </MantineRTE.Control>
+    );
+}
+
+function ImageSizeMediumControl() {
+    const { editor } = useRichTextEditorContext();
+
+    return (
+        <MantineRTE.Control
+            onClick={() => editor?.chain().focus().updateAttributes('image', {
+                width: '500px',
+                height: null
+            }).run()}
+            aria-label="Medium image"
+            title="Medium image (500px)"
+        >
+            <span style={{ fontSize: '12px' }}>M</span>
+        </MantineRTE.Control>
+    );
+}
+
+function ImageSizeLargeControl() {
+    const { editor } = useRichTextEditorContext();
+
+    return (
+        <MantineRTE.Control
+            onClick={() => editor?.chain().focus().updateAttributes('image', {
+                width: '800px',
+                height: null
+            }).run()}
+            aria-label="Large image"
+            title="Large image (800px)"
+        >
+            <span style={{ fontSize: '14px' }}>L</span>
+        </MantineRTE.Control>
+    );
+}
+
+function ImageSizeFullControl() {
+    const { editor } = useRichTextEditorContext();
+
+    return (
+        <MantineRTE.Control
+            onClick={() => editor?.chain().focus().updateAttributes('image', {
+                width: '100%',
+                height: null
+            }).run()}
+            aria-label="Full width image"
+            title="Full width image"
+        >
+            <span style={{ fontSize: '10px' }}>100%</span>
+        </MantineRTE.Control>
+    );
+}
+
 export interface ImageFile {
     id: string;
     file: File;
@@ -332,7 +479,31 @@ export function RichTextEditor({
                 controls: false,
                 nocookie: true,
             }),
-            Image.configure({
+            Image.extend({
+                addAttributes() {
+                    return {
+                        ...this.parent?.(),
+                        width: {
+                            default: null,
+                            renderHTML: (attributes) => {
+                                if (!attributes.width) {
+                                    return {};
+                                }
+                                return { width: attributes.width };
+                            },
+                        },
+                        height: {
+                            default: null,
+                            renderHTML: (attributes) => {
+                                if (!attributes.height) {
+                                    return {};
+                                }
+                                return { height: attributes.height };
+                            },
+                        },
+                    };
+                },
+            }).configure({
                 inline: false,
                 allowBase64: true,
             }),
@@ -385,6 +556,9 @@ export function RichTextEditor({
             }
         },
     });
+
+    // Add image resizing functionality
+    useImageResize(editor);
 
     return (
         <MantineRTE editor={editor} onSourceCodeTextSwitch={setIsSourceCodeMode}>
@@ -508,6 +682,13 @@ export function RichTextEditor({
                         <MantineRTE.ControlsGroup>
                             <AddImageControl />
                             <AddYoutubeVideoControl />
+                        </MantineRTE.ControlsGroup>
+
+                        <MantineRTE.ControlsGroup>
+                            <ImageSizeSmallControl />
+                            <ImageSizeMediumControl />
+                            <ImageSizeLargeControl />
+                            <ImageSizeFullControl />
                         </MantineRTE.ControlsGroup>
 
                         <MantineRTE.ControlsGroup>

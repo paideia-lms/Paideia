@@ -103,6 +103,27 @@
 
     &.ProseMirror-selectednode {
       outline: 3px solid var(--mantine-color-violet-6);
+      cursor: se-resize;
+      position: relative;
+
+      /* Resize handle indicator in bottom-right corner */
+      &::after {
+        content: "";
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        width: 16px;
+        height: 16px;
+        background: var(--mantine-color-violet-6);
+        cursor: se-resize;
+        border-radius: 2px 0 0 0;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+
+      &:hover::after {
+        opacity: 1;
+      }
     }
   }
 }
