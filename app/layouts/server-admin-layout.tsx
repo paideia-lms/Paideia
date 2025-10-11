@@ -1,11 +1,11 @@
 import { Outlet } from "react-router";
-import { dbContextKey } from "server/contexts/global-context";
+import { globalContextKey } from "server/contexts/global-context";
 import { BadRequestResponse, UnauthorizedResponse } from "~/utils/responses";
 import { tryGetContext } from "~/utils/try-get-context";
 import type { Route } from "./+types/server-admin-layout";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const contextResult = tryGetContext(context, dbContextKey);
+	const contextResult = tryGetContext(context, globalContextKey);
 
 	if (!contextResult.ok) {
 		throw new BadRequestResponse("Context not found");

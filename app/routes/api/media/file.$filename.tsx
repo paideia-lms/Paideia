@@ -1,4 +1,4 @@
-import { dbContextKey } from "server/contexts/global-context";
+import { globalContextKey } from "server/contexts/global-context";
 import { tryGetMediaBufferFromFilename } from "server/internal/media-management";
 import type { Route } from "./+types/file.$filename";
 
@@ -9,8 +9,8 @@ export const loader = async ({ params, context }: Route.LoaderArgs) => {
 		return new Response("Filename is required", { status: 400 });
 	}
 
-	const payload = context.get(dbContextKey).payload;
-	const s3Client = context.get(dbContextKey).s3Client;
+	const payload = context.get(globalContextKey).payload;
+	const s3Client = context.get(globalContextKey).s3Client;
 
 	// Get media record and buffer from S3
 	const result = await tryGetMediaBufferFromFilename(payload, s3Client, {

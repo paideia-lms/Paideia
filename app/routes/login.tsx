@@ -4,34 +4,32 @@ import {
 	Container,
 	Paper,
 	PasswordInput,
+	Stack,
 	Text,
 	TextInput,
 	Title,
 } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { useState } from "react";
 import {
 	type ActionFunctionArgs,
-	Form,
 	href,
 	type LoaderFunctionArgs,
 	redirect,
-	useActionData,
 	useFetcher,
-	useLoaderData,
 } from "react-router";
-import { dbContextKey } from "server/contexts/global-context";
+import { globalContextKey } from "server/contexts/global-context";
+import { tryLogin } from "server/internal/user-management";
+import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { ok } from "~/utils/responses";
+import { badRequest, ok } from "~/utils/responses";
 import type { Route } from "./+types/login";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 	// Mock loader - just return some basic data
-
-	const payload = context.get(dbContextKey).payload;
+	const payload = context.get(globalContextKey).payload;
 
 	const { user, responseHeaders, permissions } = await payload.auth({
 		headers: request.headers,
@@ -45,6 +43,8 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 	return {
 		user: null,
 		message: "Welcome to login page",
+		NODE_ENV: process.env.NODE_ENV,
+		DEV_CONSTANTS: devConstants,
 	};
 };
 
@@ -54,8 +54,8 @@ const loginSchema = z.object({
 });
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
-	const payload = context.get(dbContextKey).payload;
-	const requestInfo = context.get(dbContextKey).requestInfo;
+	const payload = context.get(globalContextKey).payload;
+	const requestInfo = context.get(globalContextKey).requestInfo;
 	const { user, responseHeaders, permissions } = await payload.auth({
 		headers: request.headers,
 		canSetHeaders: true,
@@ -69,25 +69,22 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	const parsedData = loginSchema.parse(data);
 
-	const { exp, token } = await payload.login({
-		collection: "users",
+	const loginResult = await tryLogin({
+		payload,
+		email: parsedData.email,
+		password: parsedData.password,
 		req: request,
-		data: parsedData,
 	});
 
-	if (!exp || !token) {
-		return {
+	if (!loginResult.ok) {
+		return badRequest({
 			success: false,
 			error: "Invalid credentials",
-		};
+		});
 	}
 
-	// set the cookie
-	// return redirect(href("/"), {
-	// 	headers: {
-	// 		"Set-Cookie": setCookie(token, exp, requestInfo.domainUrl, request.headers, payload),
-	// 	},
-	// })
+	const { token, exp } = loginResult.value;
+
 	throw redirect(href("/"), {
 		headers: {
 			"Set-Cookie": setCookie(
@@ -125,7 +122,7 @@ export default function LoginPage({
 	loaderData,
 	actionData,
 }: Route.ComponentProps) {
-	const { user, message } = loaderData;
+	const { user, message, NODE_ENV, DEV_CONSTANTS } = loaderData;
 	const fetcher = useFetcher<typeof action>();
 	const form = useForm({
 		mode: "uncontrolled",
@@ -140,6 +137,13 @@ export default function LoginPage({
 		},
 	});
 
+	const handleAutoFill = () => {
+		form.setValues({
+			email: DEV_CONSTANTS.ADMIN_EMAIL,
+			password: DEV_CONSTANTS.ADMIN_PASSWORD,
+		});
+	};
+
 	return (
 		<Container
 			size="sm"
@@ -152,6 +156,17 @@ export default function LoginPage({
 				alignItems: "center",
 			}}
 		>
+			<title>Login | Paideia LMS</title>
+			<meta
+				name="description"
+				content="Log in to Paideia Learning Management System"
+			/>
+			<meta property="og:title" content="Login | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="Log in to Paideia Learning Management System"
+			/>
+
 			<Paper
 				withBorder
 				shadow="md"
@@ -165,6 +180,19 @@ export default function LoginPage({
 				<Text ta="center" mb="lg">
 					{message}
 				</Text>
+
+				{NODE_ENV === "development" && (
+					<Button
+						onClick={handleAutoFill}
+						variant="light"
+						color="gray"
+						fullWidth
+						mb="md"
+						size="sm"
+					>
+						🚀 Auto-fill (Dev Only)
+					</Button>
+				)}
 
 				<fetcher.Form
 					method="POST"
@@ -194,9 +222,11 @@ export default function LoginPage({
 						mb="lg"
 					/>
 
-					<Button type="submit" fullWidth size="lg">
-						Login
-					</Button>
+					<Stack gap="sm">
+						<Button type="submit" fullWidth size="lg">
+							Login
+						</Button>
+					</Stack>
 				</fetcher.Form>
 			</Paper>
 		</Container>

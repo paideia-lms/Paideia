@@ -9,7 +9,7 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
-import { dbContextKey } from "server/contexts/global-context";
+import { globalContextKey } from "server/contexts/global-context";
 import elysiaLogo from "./assets/elysia_v.webp";
 import reactRouterLogo from "./assets/rr_lockup_light.png";
 import "@mantine/core/styles.css";
@@ -23,7 +23,7 @@ import { useState } from "react";
 import { tryGetUserCount } from "server/internal/check-first-user";
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-	const { payload, requestInfo } = context.get(dbContextKey);
+	const { payload, requestInfo } = context.get(globalContextKey);
 	// ! we can get elysia from context!!!
 	// console.log(payload, elysia);
 	const result = await tryGetUserCount({ payload, overrideAccess: true });

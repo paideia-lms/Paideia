@@ -14,6 +14,8 @@ We should not use any external css framework. Strictly prohibited.
 
 when working with jsx array, we should not use index as key. we should use the id of the item if available.
 
+we should use `<meta>` in the page component.
+
 ## testing 
 
 every features on the backend should be tested using `bun:test`.

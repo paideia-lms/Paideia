@@ -1,5 +1,5 @@
 import { notifications } from "@mantine/notifications";
-import { dbContextKey } from "server/contexts/global-context";
+import { globalContextKey } from "server/contexts/global-context";
 import { registerFirstUser } from "server/internal/register-first-user";
 import { z } from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
@@ -7,7 +7,7 @@ import { ok } from "~/utils/responses";
 import type { Route } from "./+types/first-user";
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const payload = context.get(dbContextKey).payload;
+	const payload = context.get(globalContextKey).payload;
 
 	// Check if we already have users - if so, redirect to admin
 	const users = await payload.find({
@@ -30,7 +30,7 @@ const formSchema = z.object({
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
-	const { payload, requestInfo } = context.get(dbContextKey);
+	const { payload, requestInfo } = context.get(globalContextKey);
 
 	const { contentType, data } = await getDataAndContentTypeFromRequest(request);
 
@@ -99,6 +99,17 @@ export default function CreateFirstUserView({
 }: Route.ComponentProps) {
 	return (
 		<div style={{ padding: "20px", maxWidth: "500px", margin: "50px auto" }}>
+			<title>Create First User | Paideia LMS</title>
+			<meta
+				name="description"
+				content="Create the first administrator account for Paideia LMS"
+			/>
+			<meta property="og:title" content="Create First User | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="Create the first administrator account for Paideia LMS"
+			/>
+
 			<h1>Create First User</h1>
 			<p>Welcome! Please create the first user account to get started.</p>
 			<CreateFirstUserClient />

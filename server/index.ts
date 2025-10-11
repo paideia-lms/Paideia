@@ -9,7 +9,7 @@ import { getPayload } from "payload";
 import { RouterContextProvider } from "react-router";
 import { createStorage } from "unstorage";
 import lruCacheDriver from "unstorage/drivers/lru-cache";
-import { dbContextKey } from "./contexts/global-context";
+import { globalContextKey } from "./contexts/global-context";
 import { reactRouter } from "./elysia-react-router";
 import { tryCheckFirstUser } from "./internal/check-first-user";
 import { registerFirstUser } from "./internal/register-first-user";
@@ -71,13 +71,14 @@ const frontend = new Elysia()
 				getLoadContext: ({ request }) => {
 					const c = new RouterContextProvider();
 					const requestInfo = getRequestInfo(request);
-					c.set(dbContextKey, {
+					c.set(globalContextKey, {
 						payload: payload,
 						elysia: backend,
 						api,
 						requestInfo,
 						s3Client,
 						unstorage,
+						envVars: envVars,
 					});
 					return c;
 				},

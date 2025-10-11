@@ -1,10 +1,10 @@
 import { Outlet } from "react-router";
-import { dbContextKey } from "server/contexts/global-context";
+import { globalContextKey } from "server/contexts/global-context";
 import { UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(dbContextKey).payload;
+	const payload = context.get(globalContextKey).payload;
 	const { user, responseHeaders, permissions } = await payload.auth({
 		headers: request.headers,
 		canSetHeaders: true,

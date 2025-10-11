@@ -2,12 +2,12 @@ import { Box, Group, Stack, Tabs, Text, TextInput, Title } from "@mantine/core";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { isRouteErrorResponse, type LoaderFunctionArgs } from "react-router";
-import { dbContextKey } from "server/contexts/global-context";
+import { globalContextKey } from "server/contexts/global-context";
 import { UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/index";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
-	const payload = context.get(dbContextKey).payload;
+	const payload = context.get(globalContextKey).payload;
 
 	return {};
 };
@@ -493,7 +493,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Blog" },
 					{ title: "Navigation" },
 					{ title: "HTML settings" },
-					{ title: "Moodle Docs" },
+					{ title: "Paideia Docs" },
 					{ title: "Default Dashboard page" },
 					{ title: "Default profile page" },
 					{ title: "Courses" },
@@ -522,7 +522,6 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Maintenance mode" },
 					{ title: "Cleanup" },
 					{ title: "Environment" },
-					{ title: "PHP info" },
 					{ title: "Performance" },
 					{ title: "Update notifications" },
 				],
@@ -610,7 +609,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 				title: "Development",
 				items: [
 					{ title: "Debugging" },
-					{ title: "Moodle REST API UI (SwaggerUI)" },
+					{ title: "Paideia REST API UI (SwaggerUI)" },
 					{ title: "Web service test client" },
 					{ title: "Purge caches" },
 					{ title: "Third party libraries" },
@@ -619,9 +618,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Make test course" },
 					{ title: "Make JMeter test plan" },
 					{ title: "Create testing scenarios" },
-					{ title: "PHPUnit tests" },
 					{ title: "Template library" },
-					{ title: "XMLDB editor" },
 				],
 			},
 			experimental: {
@@ -655,6 +652,17 @@ export default function AdminPage() {
 
 	return (
 		<Box className="admin-dashboard">
+			<title>Site Administration | Paideia LMS</title>
+			<meta
+				name="description"
+				content="Manage and configure your Paideia LMS installation"
+			/>
+			<meta property="og:title" content="Site Administration | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="Manage and configure your Paideia LMS installation"
+			/>
+
 			{/* Header */}
 			<Group justify="space-between" mb="xl">
 				<Title order={1}>Site administration</Title>

@@ -4,6 +4,8 @@ import {
 	Container,
 	Group,
 	Paper,
+	PasswordInput,
+	Select,
 	Stack,
 	Text,
 	Textarea,
@@ -21,18 +23,20 @@ import { parseFormData } from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { extractJWT } from "payload";
 import { useState } from "react";
-import { href, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryCreateMedia } from "server/internal/media-management";
-import { tryUpdateUser } from "server/internal/user-management";
+import { tryCreateUser } from "server/internal/user-management";
+import type { User } from "server/payload-types";
 import z from "zod";
 import {
 	badRequest,
-	NotFoundResponse,
+	ForbiddenResponse,
+	forbidden,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import type { Route } from "./+types/edit";
+import type { Route } from "./+types/new";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -42,29 +46,15 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	});
 
 	if (!currentUser) {
-		throw new NotFoundResponse("Unauthorized");
+		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (currentUser.avatar) {
-		if (typeof currentUser.avatar === "object") {
-			avatarUrl = currentUser.avatar.filename
-				? href(`/api/media/file/:filename`, {
-						filename: currentUser.avatar.filename,
-					})
-				: null;
-		}
+	if (currentUser.role !== "admin") {
+		throw new ForbiddenResponse("Only admins can create users");
 	}
 
 	return {
-		user: {
-			id: currentUser.id,
-			firstName: currentUser.firstName ?? "",
-			lastName: currentUser.lastName ?? "",
-			bio: currentUser.bio ?? "",
-			avatarUrl,
-		},
+		success: true,
 	};
 };
 
@@ -92,7 +82,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 	}
 
-	// Start a transaction for atomic media creation + user update
+	if (currentUser.role !== "admin") {
+		return forbidden({
+			success: false,
+			error: "Only admins can create users",
+		});
+	}
+
+	// Start a transaction for atomic media creation + user creation
 	const transactionID = await payload.db.beginTransaction();
 
 	if (!transactionID) {
@@ -115,7 +112,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
-					alt: `${currentUser.firstName} ${currentUser.lastName} avatar`,
+					alt: "User avatar",
 					userId: currentUser.id,
 					transactionID,
 				});
@@ -136,47 +133,54 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 		const parsed = z
 			.object({
+				email: z.email(),
+				password: z.string().min(8),
 				firstName: z.string(),
 				lastName: z.string(),
-				bio: z.string(),
+				bio: z.string().optional(),
+				role: z.enum(["admin", "content-manager", "analytics-viewer", "user"]),
 				avatar: z.coerce.number().nullish(),
 			})
 			.safeParse({
+				email: formData.get("email"),
+				password: formData.get("password"),
 				firstName: formData.get("firstName"),
 				lastName: formData.get("lastName"),
 				bio: formData.get("bio"),
+				role: formData.get("role"),
 				avatar: formData.get("avatar"),
 			});
 
 		if (!parsed.success) {
+			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: parsed.error.message,
 			});
 		}
 
-		console.log(parsed.data);
-
-		// Update user within the same transaction
-		const updateResult = await tryUpdateUser({
+		// Create user within the same transaction
+		const createResult = await tryCreateUser({
 			payload,
-			userId: currentUser.id,
 			data: {
+				email: parsed.data.email,
+				password: parsed.data.password,
 				firstName: parsed.data.firstName,
 				lastName: parsed.data.lastName,
 				bio: parsed.data.bio,
+				role: parsed.data.role,
 				avatar: parsed.data.avatar ?? undefined,
 			},
 			user: currentUser,
-			overrideAccess: false,
-			transactionID,
+			overrideAccess: true,
+			req: { ...request, transactionID },
 		});
 
-		if (!updateResult.ok) {
+		if (!createResult.ok) {
 			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
-				error: updateResult.error.message,
+				error: createResult.error.message,
 			});
 		}
 
@@ -185,16 +189,15 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 		return ok({
 			success: true,
-			message: "Profile updated successfully",
+			message: "User created successfully",
 		});
 	} catch (error) {
 		// Rollback on any error
 		await payload.db.rollbackTransaction(transactionID);
-		console.error("Profile update error:", error);
+		console.error("User creation error:", error);
 		return badRequest({
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Failed to update profile",
+			error: error instanceof Error ? error.message : "Failed to create user",
 		});
 	}
 };
@@ -204,13 +207,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 	if (actionData?.success) {
 		notifications.show({
-			title: "Profile updated",
-			message: "Your profile has been updated successfully",
+			title: "User created",
+			message: "The user has been created successfully",
 			color: "green",
 		});
 	} else if ("error" in actionData) {
 		notifications.show({
-			title: "Update failed",
+			title: "Creation failed",
 			message: actionData?.error,
 			color: "red",
 		});
@@ -218,24 +221,37 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-export default function EditProfilePage({ loaderData }: Route.ComponentProps) {
-	const { user } = loaderData;
+export default function NewUserPage() {
 	const fetcher = useFetcher<typeof action>();
-	const [avatarPreview, setAvatarPreview] = useState<string | null>(
-		user.avatarUrl,
-	);
+	const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			firstName: user.firstName,
-			lastName: user.lastName,
-			bio: user.bio,
+			email: "",
+			password: "",
+			firstName: "",
+			lastName: "",
+			bio: "",
+			role: "user" as User["role"],
 		},
 		validate: {
+			email: (value) => {
+				if (!value) return "Email is required";
+				if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+					return "Invalid email format";
+				}
+				return null;
+			},
+			password: (value) => {
+				if (!value) return "Password is required";
+				if (value.length < 8) return "Password must be at least 8 characters";
+				return null;
+			},
 			firstName: (value) => (!value ? "First name is required" : null),
 			lastName: (value) => (!value ? "Last name is required" : null),
+			role: (value) => (!value ? "Role is required" : null),
 		},
 	});
 
@@ -253,9 +269,12 @@ export default function EditProfilePage({ loaderData }: Route.ComponentProps) {
 
 	const handleSubmit = (values: typeof form.values) => {
 		const formData = new FormData();
+		formData.append("email", values.email);
+		formData.append("password", values.password);
 		formData.append("firstName", values.firstName);
 		formData.append("lastName", values.lastName);
 		formData.append("bio", values.bio);
+		formData.append("role", values.role || "user");
 
 		if (selectedFile) {
 			formData.append("avatar", selectedFile);
@@ -269,20 +288,23 @@ export default function EditProfilePage({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<Container size="sm" py="xl">
-			<title>Edit Profile | Paideia LMS</title>
+			<title>Create New User | Admin | Paideia LMS</title>
 			<meta
 				name="description"
-				content="Edit your profile information and settings"
+				content="Create a new user account in Paideia LMS"
 			/>
-			<meta property="og:title" content="Edit Profile | Paideia LMS" />
+			<meta
+				property="og:title"
+				content="Create New User | Admin | Paideia LMS"
+			/>
 			<meta
 				property="og:description"
-				content="Edit your profile information and settings"
+				content="Create a new user account in Paideia LMS"
 			/>
 
 			<Paper withBorder shadow="md" p="xl" radius="md">
 				<Title order={2} mb="xl">
-					Edit Profile
+					Create New User
 				</Title>
 
 				<fetcher.Form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
@@ -355,10 +377,28 @@ export default function EditProfilePage({ loaderData }: Route.ComponentProps) {
 						</div>
 
 						<TextInput
+							{...form.getInputProps("email")}
+							key={form.key("email")}
+							label="Email"
+							placeholder="user@example.com"
+							required
+							type="email"
+						/>
+
+						<PasswordInput
+							{...form.getInputProps("password")}
+							key={form.key("password")}
+							label="Password"
+							placeholder="Enter password"
+							required
+							description="Password must be at least 8 characters"
+						/>
+
+						<TextInput
 							{...form.getInputProps("firstName")}
 							key={form.key("firstName")}
 							label="First Name"
-							placeholder="Enter your first name"
+							placeholder="Enter first name"
 							required
 						/>
 
@@ -366,15 +406,29 @@ export default function EditProfilePage({ loaderData }: Route.ComponentProps) {
 							{...form.getInputProps("lastName")}
 							key={form.key("lastName")}
 							label="Last Name"
-							placeholder="Enter your last name"
+							placeholder="Enter last name"
 							required
+						/>
+
+						<Select
+							{...form.getInputProps("role")}
+							key={form.key("role")}
+							label="Role"
+							placeholder="Select role"
+							required
+							data={[
+								{ value: "user", label: "User" },
+								{ value: "content-manager", label: "Content Manager" },
+								{ value: "analytics-viewer", label: "Analytics Viewer" },
+								{ value: "admin", label: "Admin" },
+							]}
 						/>
 
 						<Textarea
 							{...form.getInputProps("bio")}
 							key={form.key("bio")}
 							label="Bio"
-							placeholder="Tell us about yourself"
+							placeholder="Tell us about this user"
 							minRows={4}
 							maxRows={8}
 						/>
@@ -385,7 +439,7 @@ export default function EditProfilePage({ loaderData }: Route.ComponentProps) {
 								loading={fetcher.state !== "idle"}
 								disabled={fetcher.state !== "idle"}
 							>
-								Save Changes
+								Create User
 							</Button>
 						</Group>
 					</Stack>

@@ -20,6 +20,7 @@ export interface CreateMediaArgs {
 	alt?: string;
 	caption?: string;
 	userId: number;
+	transactionID?: string | number;
 }
 
 export interface CreateMediaResult {
@@ -39,7 +40,15 @@ export const tryCreateMedia = Result.wrap(
 		payload: Payload,
 		args: CreateMediaArgs,
 	): Promise<CreateMediaResult> => {
-		const { file, filename, mimeType, alt, caption, userId } = args;
+		const {
+			file,
+			filename,
+			mimeType,
+			alt,
+			caption,
+			userId,
+			transactionID: providedTransactionID,
+		} = args;
 
 		// Validate required fields
 		if (!file) {
@@ -58,8 +67,10 @@ export const tryCreateMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		// Use provided transaction or create a new one
+		const shouldManageTransaction = !providedTransactionID;
+		const transactionID =
+			providedTransactionID || (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
@@ -82,15 +93,19 @@ export const tryCreateMedia = Result.wrap(
 				req: { transactionID },
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			// Commit transaction only if we created it
+			if (shouldManageTransaction) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			return {
 				media,
 			};
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Rollback transaction only if we created it
+			if (shouldManageTransaction) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},
@@ -323,7 +338,8 @@ export const tryGetAllMedia = Result.wrap(
 		// Fetch media records
 		const mediaResult = await payload.find({
 			collection: "media",
-			where: where as Record<string, any>, // Type assertion for Payload's where clause
+			// @ts-expect-error - Dynamic where clause type
+			where,
 			depth,
 			limit,
 			page,

@@ -1,4 +1,4 @@
-import type { Payload, TypedUser } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 import type { Media, User } from "../payload-types";
@@ -15,7 +15,7 @@ export interface CreateUserArgs {
 		avatar?: number;
 	};
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -31,7 +31,7 @@ export interface UpdateUserArgs {
 		_verified?: boolean;
 	};
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	transactionID?: string | number;
 }
@@ -40,7 +40,7 @@ export interface FindUserByEmailArgs {
 	payload: Payload;
 	email: string;
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -48,7 +48,7 @@ export interface FindUserByIdArgs {
 	payload: Payload;
 	userId: number;
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -56,8 +56,44 @@ export interface DeleteUserArgs {
 	payload: Payload;
 	userId: number;
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
+}
+
+export interface FindAllUsersArgs {
+	payload: Payload;
+	limit?: number;
+	page?: number;
+	sort?: string;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface FindAllUsersResult {
+	docs: User[];
+	totalDocs: number;
+	limit: number;
+	totalPages: number;
+	page: number;
+	pagingCounter: number;
+	hasPrevPage: boolean;
+	hasNextPage: boolean;
+	prevPage: number | null;
+	nextPage: number | null;
+}
+
+export interface LoginArgs {
+	payload: Payload;
+	email: string;
+	password: string;
+	req?: Partial<PayloadRequest>;
+}
+
+export interface LoginResult {
+	token: string;
+	exp: number;
+	user: User;
 }
 
 /**
@@ -245,6 +281,90 @@ export const tryDeleteUser = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to delete user", {
+			cause: error,
+		}),
+);
+
+/**
+ * Finds all users with pagination
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export const tryFindAllUsers = Result.wrap(
+	async (args: FindAllUsersArgs): Promise<FindAllUsersResult> => {
+		const {
+			payload,
+			limit = 100,
+			page = 1,
+			sort = "-createdAt",
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		const usersResult = await payload.find({
+			collection: "users",
+			limit,
+			page,
+			sort,
+			depth: 1,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		return {
+			docs: usersResult.docs as User[],
+			totalDocs: usersResult.totalDocs,
+			limit: usersResult.limit || limit,
+			totalPages: usersResult.totalPages || 0,
+			page: usersResult.page || page,
+			pagingCounter: usersResult.pagingCounter || 0,
+			hasPrevPage: usersResult.hasPrevPage || false,
+			hasNextPage: usersResult.hasNextPage || false,
+			prevPage: usersResult.prevPage || null,
+			nextPage: usersResult.nextPage || null,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find all users", {
+			cause: error,
+		}),
+);
+
+/**
+ * Logs in a user and returns authentication token and user data
+ * Validates credentials and returns token with expiration
+ */
+export const tryLogin = Result.wrap(
+	async (args: LoginArgs): Promise<LoginResult> => {
+		const { payload, email, password, req } = args;
+
+		const loginResult = await payload.login({
+			collection: "users",
+			req,
+			data: {
+				email,
+				password,
+			},
+		});
+
+		const { exp, token, user } = loginResult;
+
+		if (!exp || !token) {
+			throw new Error("Login failed: missing token or expiration");
+		}
+
+		return {
+			token,
+			exp,
+			user: user as User,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to login", {
 			cause: error,
 		}),
 );

@@ -5,10 +5,12 @@ import sanitizedConfig from "../payload.config";
 import {
 	type CreateUserArgs,
 	type DeleteUserArgs,
+	type FindAllUsersArgs,
 	type FindUserByEmailArgs,
 	type FindUserByIdArgs,
 	tryCreateUser,
 	tryDeleteUser,
+	tryFindAllUsers,
 	tryFindUserByEmail,
 	tryFindUserById,
 	tryUpdateUser,
@@ -510,6 +512,107 @@ describe("User Management Functions", () => {
 			};
 
 			const result = await tryDeleteUser(deleteArgs);
+
+			expect(result.ok).toBe(false);
+		});
+	});
+
+	describe("tryFindAllUsers", () => {
+		test("should find all users with overrideAccess", async () => {
+			// Create a few test users
+			const userEmails = [
+				"findall1@example.com",
+				"findall2@example.com",
+				"findall3@example.com",
+			];
+
+			for (const email of userEmails) {
+				const createArgs: CreateUserArgs = {
+					payload,
+					data: {
+						email,
+						password: "testpassword123",
+						firstName: "FindAll",
+						lastName: "Test",
+					},
+					overrideAccess: true,
+				};
+
+				await tryCreateUser(createArgs);
+			}
+
+			const findArgs: FindAllUsersArgs = {
+				payload,
+				limit: 100,
+				overrideAccess: true,
+			};
+
+			const result = await tryFindAllUsers(findArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.docs.length).toBeGreaterThanOrEqual(3);
+				expect(result.value.totalDocs).toBeGreaterThanOrEqual(3);
+			}
+		});
+
+		test("should support pagination", async () => {
+			const findArgs: FindAllUsersArgs = {
+				payload,
+				limit: 2,
+				page: 1,
+				overrideAccess: true,
+			};
+
+			const result = await tryFindAllUsers(findArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.docs.length).toBeLessThanOrEqual(2);
+				expect(result.value.limit).toBe(2);
+				expect(result.value.page).toBe(1);
+			}
+		});
+
+		test("should support sorting", async () => {
+			const findArgs: FindAllUsersArgs = {
+				payload,
+				sort: "-createdAt",
+				overrideAccess: true,
+			};
+
+			const result = await tryFindAllUsers(findArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.docs.length).toBeGreaterThan(0);
+			}
+		});
+
+		test("admin should be able to find all users", async () => {
+			const adminUser = await getAuthUser(adminToken);
+
+			const findArgs: FindAllUsersArgs = {
+				payload,
+				user: adminUser,
+				overrideAccess: false,
+			};
+
+			const result = await tryFindAllUsers(findArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.docs.length).toBeGreaterThan(0);
+			}
+		});
+
+		test("unauthenticated request should fail to find all users", async () => {
+			const findArgs: FindAllUsersArgs = {
+				payload,
+				overrideAccess: false,
+			};
+
+			const result = await tryFindAllUsers(findArgs);
 
 			expect(result.ok).toBe(false);
 		});

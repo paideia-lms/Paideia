@@ -14,6 +14,7 @@ export const StatusCode = {
 	Accepted: 202 as const,
 	BadRequest: 400 as const,
 	Unauthorized: 401 as const,
+	Forbidden: 403 as const,
 	Redirect: 302 as const,
 	NotFound: 404 as const,
 };
@@ -61,6 +62,22 @@ export function unauthorized<T>(value: T, init?: ResponseInitWithoutStatus) {
 	return data(
 		{ ...value, status: StatusCode.Unauthorized },
 		{ ...init, status: StatusCode.Unauthorized },
+	);
+}
+
+export class ForbiddenResponse extends Response {
+	constructor(message: string) {
+		super(message, {
+			status: StatusCode.Forbidden,
+			statusText: "Forbidden",
+		});
+	}
+}
+
+export function forbidden<T>(value: T, init?: ResponseInitWithoutStatus) {
+	return data(
+		{ ...value, status: StatusCode.Forbidden },
+		{ ...init, status: StatusCode.Forbidden },
 	);
 }
 

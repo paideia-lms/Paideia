@@ -1,11 +1,12 @@
 import type { LoaderFunctionArgs } from "react-router";
-import { dbContextKey } from "server/contexts/global-context";
+import { href, redirect } from "react-router";
+import { globalContextKey } from "server/contexts/global-context";
 import { removeCookie } from "~/utils/cookie";
-import { ok, UnauthorizedResponse } from "~/utils/responses";
+import { UnauthorizedResponse } from "~/utils/responses";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
-	const payload = context.get(dbContextKey).payload;
-	const requestInfo = context.get(dbContextKey).requestInfo;
+	const payload = context.get(globalContextKey).payload;
+	const requestInfo = context.get(globalContextKey).requestInfo;
 	const { user, responseHeaders, permissions } = await payload.auth({
 		headers: request.headers,
 		canSetHeaders: true,
@@ -17,19 +18,13 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 
 	// remove the cookie
 
-	return ok(
-		{
-			success: true,
-			message: "Logout successful",
+	throw redirect(href("/login"), {
+		headers: {
+			"Set-Cookie": removeCookie(
+				requestInfo.domainUrl,
+				request.headers,
+				payload,
+			),
 		},
-		{
-			headers: {
-				"Set-Cookie": removeCookie(
-					requestInfo.domainUrl,
-					request.headers,
-					payload,
-				),
-			},
-		},
-	);
+	});
 };
