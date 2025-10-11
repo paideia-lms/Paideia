@@ -64,8 +64,8 @@ export const loader = async ({
 		if (typeof currentUser.avatar === "object") {
 			avatarUrl = currentUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-						filename: currentUser.avatar.filename,
-					})
+					filename: currentUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -137,7 +137,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					throw mediaResult.error;
 				}
 
-				// Return the media ID
+				// Return the media ID so that avatar become the media id
 				return mediaResult.value.media.id;
 			}
 		};
