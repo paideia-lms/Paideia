@@ -19,11 +19,15 @@ export default [
 		route("user/note/edit/:id", "routes/user/note-edit.tsx"),
 		route("user/module/new", "routes/user/module/new.tsx"),
 		route("user/module/edit/:id", "routes/user/module/edit.tsx"),
+		route("course/new", "routes/course-new.tsx"),
+		route("course/view/:id", "routes/course-view.$id.tsx"),
+		route("course/edit/:id", "routes/course-edit.$id.tsx"),
 		layout("layouts/course-layout.tsx", [route("course", "routes/course.tsx")]),
 		layout("layouts/server-admin-layout.tsx", [
 			route("admin/*", "routes/admin/index.tsx"),
 			route("admin/users", "routes/admin/users.tsx"),
 			route("admin/user/new", "routes/admin/new.tsx"),
+			route("admin/courses", "routes/admin/courses.tsx"),
 		]),
 	]),
 ] satisfies RouteConfig;

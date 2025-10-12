@@ -1,7 +1,8 @@
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
-import type { Payload } from "payload";
+import type { Payload, Where } from "payload";
+import searchQueryParser from "search-query-parser";
 import { Courses, Gradebooks, Groups } from "server/payload.config";
-import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import {
@@ -280,7 +281,7 @@ export const trySearchCourses = Result.wrap(
 	async (payload: Payload, args: SearchCoursesArgs = {}) => {
 		const { title, createdBy, status, limit = 10, page = 1 } = args;
 
-		const where: any = {};
+		const where: Where = {};
 
 		if (title) {
 			where.title = {
@@ -421,6 +422,173 @@ export const tryFindPublishedCourses = Result.wrap(
 		new Error(
 			`Failed to find published courses: ${error instanceof Error ? error.message : String(error)}`,
 		),
+);
+
+export interface FindAllCoursesArgs {
+	payload: Payload;
+	limit?: number;
+	page?: number;
+	sort?: string;
+	query?: string;
+}
+
+export interface FindAllCoursesResult {
+	docs: Course[];
+	totalDocs: number;
+	limit: number;
+	totalPages: number;
+	page: number;
+	pagingCounter: number;
+	hasPrevPage: boolean;
+	hasNextPage: boolean;
+	prevPage: number | null;
+	nextPage: number | null;
+}
+
+/**
+ * Finds all courses with pagination and search
+ * Supports search by title and filter by status
+ */
+export const tryFindAllCourses = Result.wrap(
+	async (args: FindAllCoursesArgs): Promise<FindAllCoursesResult> => {
+		const {
+			payload,
+			limit = 10,
+			page = 1,
+			sort = "-createdAt",
+			query,
+		} = args;
+
+		// Parse search query
+		const where: Where = {};
+		if (query) {
+			const parsed = searchQueryParser.parse(query, {
+				keywords: ["status"],
+			});
+
+			const searchText = typeof parsed === "string" ? parsed : parsed.text;
+			const statusFilter =
+				typeof parsed === "object" ? parsed.status : undefined;
+
+			const orConditions = [];
+
+			// Text search across title and description
+			if (searchText) {
+				const textArray = Array.isArray(searchText) ? searchText : [searchText];
+				for (const text of textArray) {
+					if (text) {
+						orConditions.push(
+							{
+								title: {
+									contains: text,
+								},
+							},
+							{
+								description: {
+									contains: text,
+								},
+							},
+							{
+								slug: {
+									contains: text,
+								},
+							},
+						);
+					}
+				}
+			}
+
+			if (orConditions.length > 0) {
+				where.or = orConditions;
+			}
+
+			// Status filter
+			if (statusFilter) {
+				const statuses = Array.isArray(statusFilter)
+					? statusFilter
+					: [statusFilter];
+				where.status = {
+					in: statuses as Course["status"][],
+				};
+			}
+		}
+
+		const coursesResult = await payload
+			.find({
+				collection: Courses.slug,
+				where,
+				limit,
+				page,
+				sort,
+				depth: 1,
+			})
+			.then((result) => {
+				const docs = result.docs.map((doc) => {
+					// Type narrowing for relationships
+					const createdBy = doc.createdBy;
+					assertZod(
+						createdBy,
+						z.object({
+							id: z.number(),
+							email: z.string(),
+							firstName: z.string().nullable(),
+							lastName: z.string().nullable(),
+						}),
+					);
+
+					const thumbnail = doc.thumbnail;
+					assertZod(
+						thumbnail,
+						z
+							.object({
+								id: z.number(),
+								filename: z.string(),
+							})
+							.nullable(),
+					);
+
+					const category = doc.category;
+					assertZod(
+						category,
+						z
+							.object({
+								id: z.number(),
+								name: z.string(),
+							})
+							.nullable(),
+					);
+
+					return {
+						...doc,
+						createdBy,
+						thumbnail,
+						category,
+					};
+				});
+				return {
+					...result,
+					docs,
+				};
+			});
+
+		return {
+			docs: coursesResult.docs,
+			totalDocs: coursesResult.totalDocs,
+			limit: coursesResult.limit || limit,
+			totalPages: coursesResult.totalPages || 0,
+			page: coursesResult.page || page,
+			pagingCounter: coursesResult.pagingCounter || 0,
+			hasPrevPage: coursesResult.hasPrevPage || false,
+			hasNextPage: coursesResult.hasNextPage || false,
+			prevPage: coursesResult.prevPage || null,
+			nextPage: coursesResult.nextPage || null,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find all courses", {
+			cause: error,
+		}),
 );
 
 // ============================================================================
