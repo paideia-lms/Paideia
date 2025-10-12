@@ -16,6 +16,7 @@ export default [
 		route("user/edit/:id?", "routes/user/edit.tsx"),
 		route("user/notes/:id?", "routes/user/notes.tsx"),
 		route("user/note/create", "routes/user/note-create.tsx"),
+		route("user/note/edit/:id", "routes/user/note-edit.tsx"),
 		route("user/module/new", "routes/user/module/new.tsx"),
 		layout("layouts/course-layout.tsx", [route("course", "routes/course.tsx")]),
 		layout("layouts/server-admin-layout.tsx", [

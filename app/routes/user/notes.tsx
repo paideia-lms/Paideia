@@ -1,5 +1,6 @@
 import { Heatmap } from "@mantine/charts";
 import {
+    ActionIcon,
     Badge,
     Box,
     Button,
@@ -12,17 +13,23 @@ import {
     Text,
     Title,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { Calendar } from "@mantine/dates";
+import { IconEdit, IconTrash } from "@tabler/icons-react";
 import * as cheerio from "cheerio";
 import dayjs from "dayjs";
 import { useState } from "react";
-import { Link } from "react-router";
+import { Link, useFetcher, useRevalidator } from "react-router";
 import { Notes } from "server/collections";
 import { globalContextKey } from "server/contexts/global-context";
-import { tryGenerateNoteHeatmap } from "server/internal/note-management";
+import {
+    tryDeleteNote,
+    tryGenerateNoteHeatmap,
+} from "server/internal/note-management";
 import { tryFindUserById } from "server/internal/user-management";
 import type { Note } from "server/payload-types";
-import { NotFoundResponse } from "~/utils/responses";
+import { assertRequestMethod } from "~/utils/assert-request-method";
+import { badRequest, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/notes";
 
 export const loader = async ({
@@ -79,10 +86,46 @@ export const loader = async ({
         },
         isOwnProfile: userId === currentUser.id,
         canCreateNotes,
+        currentUserId: currentUser.id,
+        currentUserRole: currentUser.role,
         notes,
         heatmapData,
         availableYears,
     };
+};
+
+export const action = async ({ request, context }: Route.ActionArgs) => {
+    assertRequestMethod(request.method, "DELETE");
+
+    const payload = context.get(globalContextKey).payload;
+    const { user: currentUser } = await payload.auth({
+        headers: request.headers,
+        canSetHeaders: true,
+    });
+
+    if (!currentUser) {
+        throw new NotFoundResponse("Unauthorized");
+    }
+
+    const formData = await request.formData();
+    const noteId = Number(formData.get("noteId"));
+
+    if (Number.isNaN(noteId)) {
+        return badRequest({ error: "Invalid note ID" });
+    }
+
+    const result = await tryDeleteNote({
+        payload,
+        noteId,
+        user: currentUser,
+        overrideAccess: false,
+    });
+
+    if (!result.ok) {
+        return badRequest({ error: result.error.message });
+    }
+
+    return { success: true };
 };
 
 export default function NotesPage({ loaderData }: Route.ComponentProps) {
@@ -90,16 +133,44 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
         user,
         isOwnProfile,
         canCreateNotes,
+        currentUserId,
+        currentUserRole,
         notes,
         heatmapData,
         availableYears,
     } = loaderData;
     const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
+    const fetcher = useFetcher();
+    const revalidator = useRevalidator();
 
     const [selectedYear, setSelectedYear] = useState(
         availableYears[0] || new Date().getFullYear(),
     );
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+    const handleDeleteNote = (noteId: number) => {
+        if (
+            !window.confirm(
+                "Are you sure you want to delete this note? This action cannot be undone.",
+            )
+        ) {
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("noteId", String(noteId));
+        fetcher.submit(formData, { method: "DELETE" });
+
+        // Show notification
+        notifications.show({
+            title: "Note deleted",
+            message: "Your note has been deleted successfully",
+            color: "green",
+        });
+
+        // Revalidate to refresh the list
+        setTimeout(() => revalidator.revalidate(), 100);
+    };
 
     // Filter heatmap data for selected year
     const yearHeatmapData = Object.fromEntries(
@@ -236,7 +307,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
                         shadow="md"
                         p="xl"
                         radius="md"
-                        style={{ flex: "1 1 400px" }}
+                        style={{ flex: "1 1 400px", maxWidth: '100%', overflow: 'hidden' }}
                     >
                         <Group justify="space-between" mb="md">
                             <Title order={3}>
@@ -266,18 +337,68 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
                                     const $ = cheerio.load(note.content);
                                     $("input").attr("disabled", "true");
                                     const html = $.html();
+
+                                    // Check if current user can edit/delete this note
+                                    const createdById =
+                                        typeof note.createdBy === "object"
+                                            ? note.createdBy.id
+                                            : note.createdBy;
+                                    const canEdit =
+                                        currentUserId === createdById ||
+                                        currentUserRole === "admin";
+
                                     return (
-                                        <Card key={note.id} withBorder padding="md" radius="sm">
+                                        <Card
+                                            key={note.id}
+                                            withBorder
+                                            padding="md"
+                                            radius="sm"
+                                            style={{
+                                                overflow: "hidden",
+                                                maxWidth: "100%",
+                                            }}
+                                        >
                                             <Group justify="space-between" mb="xs">
-                                                <Text size="xs" c="dimmed">
-                                                    {dayjs(note.createdAt).format("MMM DD, YYYY h:mm A")}
-                                                </Text>
-                                                {note.isPublic && <Badge size="xs">Public</Badge>}
+                                                <Group gap="xs">
+                                                    <Text size="xs" c="dimmed">
+                                                        {dayjs(note.createdAt).format(
+                                                            "MMM DD, YYYY h:mm A",
+                                                        )}
+                                                    </Text>
+                                                    {note.isPublic && <Badge size="xs">Public</Badge>}
+                                                </Group>
+                                                {canEdit && (
+                                                    <Group gap="xs">
+                                                        <ActionIcon
+                                                            component={Link}
+                                                            to={`/user/note/edit/${note.id}`}
+                                                            variant="subtle"
+                                                            color="blue"
+                                                            size="sm"
+                                                            aria-label="Edit note"
+                                                        >
+                                                            <IconEdit size={16} />
+                                                        </ActionIcon>
+                                                        <ActionIcon
+                                                            onClick={() => handleDeleteNote(note.id)}
+                                                            variant="subtle"
+                                                            color="red"
+                                                            size="sm"
+                                                            aria-label="Delete note"
+                                                        >
+                                                            <IconTrash size={16} />
+                                                        </ActionIcon>
+                                                    </Group>
+                                                )}
                                             </Group>
                                             {/* change all input to disabled */}
                                             <div
                                                 className="tiptap"
-                                                /** biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation> */
+                                                style={{
+                                                    maxWidth: "100%",
+                                                    wordBreak: "break-word",
+                                                }}
+                                                /** biome-ignore lint/security/noDangerouslySetInnerHtml: cheerio sanitizes the html */
                                                 dangerouslySetInnerHTML={{ __html: html }}
                                             />
                                         </Card>

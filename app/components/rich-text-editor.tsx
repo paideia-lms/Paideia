@@ -52,6 +52,7 @@ import ts from "highlight.js/lib/languages/typescript";
 import html from "highlight.js/lib/languages/xml";
 import { createLowlight } from "lowlight";
 import { useEffect, useState } from "react";
+import { useMantineTheme } from "@mantine/core";
 
 const lowlight = createLowlight();
 
@@ -335,6 +336,7 @@ function AddYoutubeVideoControl() {
     );
 }
 
+
 function AddImageControl({ onImageAdd }: { onImageAdd?: (imageFile: ImageFile) => void }) {
     const { editor } = useRichTextEditorContext();
     const fileDialog = useFileDialog({
@@ -466,6 +468,8 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
     const [isSourceCodeMode, setIsSourceCodeMode] = useState(false);
 
+    const mantineTheme = useMantineTheme();
+
     const editor = useEditor({
         immediatelyRender: false,
         shouldRerenderOnTransaction: true,
@@ -581,33 +585,28 @@ export function RichTextEditor({
     return (
         <MantineRTE editor={editor} onSourceCodeTextSwitch={setIsSourceCodeMode}>
             {editor && (
-                <BubbleMenu editor={editor} options={{
-                    placement: "bottom-start",
-                }} >
-                    <MantineRTE.ControlsGroup>
+                <BubbleMenu
+                    editor={editor}
+                    options={{
+                        placement: "bottom-start",
+                    }}
+                >
+                    <MantineRTE.ControlsGroup
+                        onMouseDown={(e) => {
+                            // Prevent BubbleMenu from closing when clicking color picker
+                            const target = e.target as HTMLElement;
+                            if (target.closest('.mantine-ColorPicker-root') ||
+                                target.closest('[role="listbox"]') ||
+                                target.closest('.mantine-Popover-dropdown')) {
+                                e.preventDefault();
+                            }
+                        }}
+                    >
                         <MantineRTE.Bold />
                         <MantineRTE.Italic />
                         <MantineRTE.Underline />
                         <MantineRTE.Strikethrough />
                         <MantineRTE.Highlight />
-                        <MantineRTE.ColorPicker
-                            colors={[
-                                "#25262b",
-                                "#868e96",
-                                "#fa5252",
-                                "#e64980",
-                                "#be4bdb",
-                                "#7950f2",
-                                "#4c6ef5",
-                                "#228be6",
-                                "#15aabf",
-                                "#12b886",
-                                "#40c057",
-                                "#82c91e",
-                                "#fab005",
-                                "#fd7e14",
-                            ]}
-                        />
                         <MantineRTE.UnsetColor />
                     </MantineRTE.ControlsGroup>
                 </BubbleMenu>

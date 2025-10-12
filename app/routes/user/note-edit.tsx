@@ -9,14 +9,21 @@ import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryCreateMedia } from "server/internal/media-management";
-import { tryCreateNote } from "server/internal/note-management";
+import {
+    tryFindNoteById,
+    tryUpdateNote,
+} from "server/internal/note-management";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { badRequest, NotFoundResponse } from "~/utils/responses";
-import type { Route } from "./+types/note-create";
+import type { Route } from "./+types/note-edit";
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+export const loader = async ({
+    request,
+    context,
+    params,
+}: Route.LoaderArgs) => {
     const payload = context.get(globalContextKey).payload;
     const { user: currentUser } = await payload.auth({
         headers: request.headers,
@@ -27,10 +34,44 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
         throw new NotFoundResponse("Unauthorized");
     }
 
-    return { user: currentUser };
+    const noteId = Number(params.id);
+    if (Number.isNaN(noteId)) {
+        throw new NotFoundResponse("Invalid note ID");
+    }
+
+    // Fetch the note
+    const noteResult = await tryFindNoteById({
+        payload,
+        noteId,
+        user: currentUser,
+        overrideAccess: false,
+    });
+
+    if (!noteResult.ok) {
+        throw new NotFoundResponse("Note not found");
+    }
+
+    const note = noteResult.value;
+
+    // Extract createdBy ID (handle both depth 0 and 1)
+    const createdById =
+        typeof note.createdBy === "object" ? note.createdBy.id : note.createdBy;
+
+    // Check if user can edit this note
+    if (currentUser.id !== createdById && currentUser.role !== "admin") {
+        throw new NotFoundResponse("You don't have permission to edit this note");
+    }
+
+    return {
+        note: {
+            id: note.id,
+            content: note.content,
+            isPublic: note.isPublic,
+        },
+    };
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
+export const action = async ({ request, context, params }: Route.ActionArgs) => {
     assertRequestMethod(request.method, "POST");
 
     const payload = context.get(globalContextKey).payload;
@@ -43,7 +84,12 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
         throw new NotFoundResponse("Unauthorized");
     }
 
-    // Start transaction for atomic media creation + note creation
+    const noteId = Number(params.id);
+    if (Number.isNaN(noteId)) {
+        throw new NotFoundResponse("Invalid note ID");
+    }
+
+    // Start transaction for atomic media creation + note update
     const transactionID = await payload.db.beginTransaction();
 
     if (!transactionID) {
@@ -137,12 +183,12 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
             content = $.html();
         }
 
-        // Create note with updated content
-        const result = await tryCreateNote({
+        // Update note with updated content
+        const result = await tryUpdateNote({
             payload,
+            noteId,
             data: {
                 content,
-                createdBy: currentUser.id,
                 isPublic,
             },
             user: currentUser,
@@ -163,19 +209,21 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
     } catch (error) {
         // Rollback on any error
         await payload.db.rollbackTransaction(transactionID);
-        console.error("Note creation error:", error);
+        console.error("Note update error:", error);
         return badRequest({
-            error:
-                error instanceof Error ? error.message : "Failed to create note",
+            error: error instanceof Error ? error.message : "Failed to update note",
         });
     }
 };
 
-export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
+export default function NoteEditPage({
+    loaderData,
+    actionData,
+}: Route.ComponentProps) {
     const navigate = useNavigate();
     const fetcher = useFetcher<typeof action>();
-    const [content, setContent] = useState("");
-    const [isPublic, setIsPublic] = useState(false);
+    const [content, setContent] = useState(loaderData.note.content);
+    const [isPublic, setIsPublic] = useState(loaderData.note.isPublic);
     const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
 
     const handleImageAdd = (imageFile: ImageFile) => {
@@ -205,27 +253,28 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 
     return (
         <Container size="md" py="xl">
-            <title>Create Note | Paideia LMS</title>
-            <meta name="description" content="Create a new note" />
-            <meta property="og:title" content="Create Note | Paideia LMS" />
-            <meta property="og:description" content="Create a new note" />
+            <title>Edit Note | Paideia LMS</title>
+            <meta name="description" content="Edit your note" />
+            <meta property="og:title" content="Edit Note | Paideia LMS" />
+            <meta property="og:description" content="Edit your note" />
 
             <Stack gap="xl">
-                <Title order={1}>Create Note</Title>
+                <Title order={1}>Edit Note</Title>
 
                 <NoteForm
                     content={content}
                     setContent={setContent}
-                    isPublic={isPublic}
+                    isPublic={Boolean(isPublic)}
                     setIsPublic={setIsPublic}
                     handleImageAdd={handleImageAdd}
                     onSubmit={handleSubmit}
                     onCancel={() => navigate("/user/notes")}
                     fetcher={fetcher}
-                    submitLabel="Create Note"
+                    submitLabel="Update Note"
                     error={actionData?.error}
                 />
             </Stack>
         </Container>
     );
 }
+
