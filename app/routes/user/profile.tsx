@@ -1,20 +1,37 @@
 import {
+	ActionIcon,
 	Avatar,
 	Badge,
 	Button,
-	Card,
 	Container,
 	Group,
+	Modal,
 	Paper,
 	Stack,
+	Table,
 	Text,
 	Title,
 } from "@mantine/core";
-import { href, Link } from "react-router";
+import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
+import { IconEdit, IconTrash } from "@tabler/icons-react";
+import { useState } from "react";
+import { href, Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { tryGetUserActivityModules } from "server/internal/activity-module-management";
+import {
+	tryDeleteActivityModule,
+	tryGetUserActivityModules,
+} from "server/internal/activity-module-management";
+import { tryFindLinksByActivityModule } from "server/internal/course-activity-module-link-management";
 import { tryFindUserById } from "server/internal/user-management";
-import { NotFoundResponse } from "~/utils/responses";
+import { assertRequestMethod } from "~/utils/assert-request-method";
+import {
+	badRequest,
+	NotFoundResponse,
+	ok,
+	StatusCode,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/profile";
 
 export const loader = async ({
@@ -55,8 +72,8 @@ export const loader = async ({
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-						filename: profileUser.avatar.filename,
-					})
+					filename: profileUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -68,6 +85,18 @@ export const loader = async ({
 	});
 
 	const modules = modulesResult.ok ? modulesResult.value.docs : [];
+
+	// Fetch course link counts for each module
+	const modulesWithLinkCounts = await Promise.all(
+		modules.map(async (module) => {
+			const linksResult = await tryFindLinksByActivityModule(payload, module.id);
+			const linkCount = linksResult.ok ? linksResult.value.length : 0;
+			return {
+				...module,
+				linkCount,
+			};
+		}),
+	);
 
 	// Check if user can create modules
 	const canCreateModules =
@@ -87,15 +116,86 @@ export const loader = async ({
 			avatarUrl,
 		},
 		isOwnProfile: userId === currentUser.id,
-		modules,
+		modules: modulesWithLinkCounts,
 		canCreateModules,
 		canEdit,
 	};
 };
 
+export const action = async ({ request, context }: Route.ActionArgs) => {
+	assertRequestMethod(request.method, "DELETE");
+
+	const payload = context.get(globalContextKey).payload;
+	const { user: currentUser } = await payload.auth({
+		headers: request.headers,
+		canSetHeaders: true,
+	});
+
+	if (!currentUser) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const formData = await request.formData();
+	const moduleId = Number(formData.get("moduleId"));
+
+	if (Number.isNaN(moduleId)) {
+		return badRequest({ error: "Invalid module ID" });
+	}
+
+	// Verify the user owns this module by fetching it first
+	const modulesResult = await tryGetUserActivityModules(payload, {
+		userId: currentUser.id,
+		limit: 100,
+	});
+
+	if (!modulesResult.ok) {
+		return badRequest({ error: "Failed to verify module ownership" });
+	}
+
+	const userModule = modulesResult.value.docs.find((m) => m.id === moduleId);
+
+	if (!userModule) {
+		return badRequest({
+			error: "Module not found or you don't have permission to delete it",
+		});
+	}
+
+	// Delete the module
+	const deleteResult = await tryDeleteActivityModule(payload, moduleId);
+
+	if (!deleteResult.ok) {
+		return badRequest({ error: deleteResult.error.message });
+	}
+
+	return ok({ message: "Activity module deleted successfully" });
+};
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+	const actionData = await serverAction();
+
+	if (actionData?.status === StatusCode.Ok) {
+		notifications.show({
+			title: "Module deleted",
+			message: "Your activity module has been deleted successfully",
+			color: "green",
+		});
+	} else {
+		notifications.show({
+			title: "Error",
+			message: actionData?.error,
+			color: "red",
+		});
+	}
+
+	return actionData;
+}
+
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 	const { user, isOwnProfile, modules, canCreateModules, canEdit } = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
+	const [deleteModuleId, setDeleteModuleId] = useState<number | null>(null);
+	const [opened, { open, close }] = useDisclosure(false);
+	const fetcher = useFetcher();
 
 	// Helper function to get badge color based on status
 	const getStatusColor = (status: string) => {
@@ -117,6 +217,21 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 			.split("-")
 			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 			.join(" ");
+	};
+
+	// Handler for delete confirmation
+	const handleDeleteClick = (moduleId: number) => {
+		setDeleteModuleId(moduleId);
+		open();
+	};
+
+	const handleDeleteConfirm = () => {
+		if (deleteModuleId === null) return;
+
+		const formData = new FormData();
+		formData.append("moduleId", String(deleteModuleId));
+		fetcher.submit(formData, { method: "DELETE" });
+		close();
 	};
 
 	return (
@@ -194,28 +309,70 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 							{isOwnProfile && canCreateModules && " Create your first one!"}
 						</Text>
 					) : (
-						<Stack gap="md">
-							{modules.map((module) => (
-								<Card key={module.id} withBorder padding="lg" radius="md">
-									<Group justify="space-between" mb="xs">
-										<Text fw={600} size="lg">
-											{module.title}
-										</Text>
-										<Group gap="xs">
-											<Badge color={getStatusColor(module.status)}>
-												{module.status}
-											</Badge>
-											<Badge variant="light">{formatType(module.type)}</Badge>
-										</Group>
-									</Group>
-									{module.description && (
-										<Text size="sm" c="dimmed" lineClamp={2}>
-											{module.description}
-										</Text>
-									)}
-								</Card>
-							))}
-						</Stack>
+						<Table.ScrollContainer minWidth={800}>
+							<Table striped highlightOnHover>
+								<Table.Thead>
+									<Table.Tr>
+										<Table.Th>Name</Table.Th>
+										<Table.Th>Description</Table.Th>
+										<Table.Th>Type</Table.Th>
+										<Table.Th>Status</Table.Th>
+										<Table.Th>Linked Courses</Table.Th>
+										{isOwnProfile && <Table.Th>Actions</Table.Th>}
+									</Table.Tr>
+								</Table.Thead>
+								<Table.Tbody>
+									{modules.map((module) => (
+										<Table.Tr key={module.id}>
+											<Table.Td>
+												<Text fw={500}>{module.title}</Text>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm" c="dimmed" lineClamp={2} maw={300}>
+													{module.description || "—"}
+												</Text>
+											</Table.Td>
+											<Table.Td>
+												<Badge variant="light">{formatType(module.type)}</Badge>
+											</Table.Td>
+											<Table.Td>
+												<Badge color={getStatusColor(module.status)}>
+													{module.status}
+												</Badge>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm">{module.linkCount}</Text>
+											</Table.Td>
+											{isOwnProfile && (
+												<Table.Td>
+													<Group gap="xs">
+														<ActionIcon
+															component={Link}
+															to={`/user/module/edit/${module.id}`}
+															variant="light"
+															color="blue"
+															size="md"
+															aria-label="Edit module"
+														>
+															<IconEdit size={16} />
+														</ActionIcon>
+														<ActionIcon
+															variant="light"
+															color="red"
+															size="md"
+															aria-label="Delete module"
+															onClick={() => handleDeleteClick(module.id)}
+														>
+															<IconTrash size={16} />
+														</ActionIcon>
+													</Group>
+												</Table.Td>
+											)}
+										</Table.Tr>
+									))}
+								</Table.Tbody>
+							</Table>
+						</Table.ScrollContainer>
 					)}
 				</Paper>
 
@@ -240,6 +397,33 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 					</Group>
 				</Paper>
 			</Stack>
+
+			{/* Delete Confirmation Modal */}
+			<Modal
+				opened={opened}
+				onClose={close}
+				title="Delete Activity Module"
+				centered
+			>
+				<Stack gap="md">
+					<Text>
+						Are you sure you want to delete this activity module? This action
+						cannot be undone.
+					</Text>
+					<Group justify="flex-end" gap="sm">
+						<Button variant="default" onClick={close}>
+							Cancel
+						</Button>
+						<Button
+							color="red"
+							onClick={handleDeleteConfirm}
+							loading={fetcher.state === "submitting"}
+						>
+							Delete
+						</Button>
+					</Group>
+				</Stack>
+			</Modal>
 		</Container>
 	);
 }

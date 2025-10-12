@@ -13,17 +13,22 @@ import {
 import { DateTimePicker } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { isUndefined, omitBy } from "es-toolkit";
 import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
 	redirect,
 	useFetcher,
 } from "react-router";
+import {
+	activityModuleSchema,
+	getInitialFormValues,
+	transformFormValues,
+	transformToActivityData,
+	type ActivityModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { globalContextKey } from "server/contexts/global-context";
 import { tryCreateActivityModule } from "server/internal/activity-module-management";
-import type { ActivityModule } from "server/payload-types";
-import { z } from "zod";
+import { canManageActivityModules } from "server/utils/permissions";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/new";
@@ -40,13 +45,7 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 		throw new UnauthorizedResponse("You must be logged in to create modules");
 	}
 
-	// Check if user has permission to create modules
-	const canCreateModules =
-		user.role === "admin" ||
-		user.role === "instructor" ||
-		user.role === "content-manager";
-
-	if (!canCreateModules) {
+	if (!canManageActivityModules(user)) {
 		throw new UnauthorizedResponse(
 			"You don't have permission to create modules",
 		);
@@ -56,35 +55,6 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 		user,
 	};
 };
-
-const createModuleSchema = z.object({
-	title: z.string().min(1, "Title is required"),
-	description: z.string().optional(),
-	type: z.enum(["page", "whiteboard", "assignment", "quiz", "discussion"]),
-	status: z.enum(["draft", "published", "archived"]).optional(),
-	requirePassword: z.boolean().optional(),
-	accessPassword: z.string().optional(),
-	// Assignment fields
-	assignmentInstructions: z.string().optional(),
-	assignmentDueDate: z.string().optional(),
-	assignmentMaxAttempts: z.number().optional(),
-	assignmentAllowLateSubmissions: z.boolean().optional(),
-	assignmentRequireTextSubmission: z.boolean().optional(),
-	assignmentRequireFileSubmission: z.boolean().optional(),
-	// Quiz fields
-	quizInstructions: z.string().optional(),
-	quizDueDate: z.string().optional(),
-	quizMaxAttempts: z.number().optional(),
-	quizPoints: z.number().optional(),
-	quizTimeLimit: z.number().optional(),
-	quizGradingType: z.enum(["automatic", "manual"]).optional(),
-	// Discussion fields
-	discussionInstructions: z.string().optional(),
-	discussionDueDate: z.string().optional(),
-	discussionRequireThread: z.boolean().optional(),
-	discussionRequireReplies: z.boolean().optional(),
-	discussionMinReplies: z.number().optional(),
-});
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -101,13 +71,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 		});
 	}
 
-	// Check if user has permission to create modules
-	const canCreateModules =
-		user.role === "admin" ||
-		user.role === "instructor" ||
-		user.role === "content-manager";
-
-	if (!canCreateModules) {
+	if (!canManageActivityModules(user)) {
 		return badRequest({
 			success: false,
 			error: "You don't have permission to create modules",
@@ -116,66 +80,9 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
-	const parsedData = createModuleSchema.parse(data);
+	const parsedData = activityModuleSchema.parse(data);
 
-	// Build activity-specific data based on type
-	let assignmentData:
-		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				allowLateSubmissions?: boolean;
-				requireTextSubmission?: boolean;
-				requireFileSubmission?: boolean;
-		  }
-		| undefined;
-	let quizData:
-		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				points?: number;
-				timeLimit?: number;
-				gradingType?: "automatic" | "manual";
-		  }
-		| undefined;
-	let discussionData:
-		| {
-				instructions?: string;
-				dueDate?: string;
-				requireThread?: boolean;
-				requireReplies?: boolean;
-				minReplies?: number;
-		  }
-		| undefined;
-
-	if (parsedData.type === "assignment") {
-		assignmentData = {
-			instructions: parsedData.assignmentInstructions,
-			dueDate: parsedData.assignmentDueDate,
-			maxAttempts: parsedData.assignmentMaxAttempts,
-			allowLateSubmissions: parsedData.assignmentAllowLateSubmissions,
-			requireTextSubmission: parsedData.assignmentRequireTextSubmission,
-			requireFileSubmission: parsedData.assignmentRequireFileSubmission,
-		};
-	} else if (parsedData.type === "quiz") {
-		quizData = {
-			instructions: parsedData.quizInstructions,
-			dueDate: parsedData.quizDueDate,
-			maxAttempts: parsedData.quizMaxAttempts,
-			points: parsedData.quizPoints,
-			timeLimit: parsedData.quizTimeLimit,
-			gradingType: parsedData.quizGradingType,
-		};
-	} else if (parsedData.type === "discussion") {
-		discussionData = {
-			instructions: parsedData.discussionInstructions,
-			dueDate: parsedData.discussionDueDate,
-			requireThread: parsedData.discussionRequireThread,
-			requireReplies: parsedData.discussionRequireReplies,
-			minReplies: parsedData.discussionMinReplies,
-		};
-	}
+	const { assignmentData, quizData, discussionData } = transformToActivityData(parsedData);
 
 	const createResult = await tryCreateActivityModule(payload, {
 		title: parsedData.title,
@@ -222,36 +129,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export default function NewModulePage() {
 	const fetcher = useFetcher<typeof action>();
 
-	const form = useForm({
+	const form = useForm<ActivityModuleFormValues>({
 		mode: "uncontrolled",
-		initialValues: {
-			title: "",
-			description: "",
-			type: "page" as ActivityModule["type"],
-			status: "draft" as ActivityModule["status"],
-			requirePassword: false,
-			accessPassword: "",
-			// Assignment fields
-			assignmentInstructions: "",
-			assignmentDueDate: null as Date | null,
-			assignmentMaxAttempts: 1,
-			assignmentAllowLateSubmissions: false,
-			assignmentRequireTextSubmission: false,
-			assignmentRequireFileSubmission: false,
-			// Quiz fields
-			quizInstructions: "",
-			quizDueDate: null as Date | null,
-			quizMaxAttempts: 1,
-			quizPoints: 100,
-			quizTimeLimit: 60,
-			quizGradingType: "automatic" as const,
-			// Discussion fields
-			discussionInstructions: "",
-			discussionDueDate: null as Date | null,
-			discussionRequireThread: false,
-			discussionRequireReplies: false,
-			discussionMinReplies: 1,
-		},
+		initialValues: getInitialFormValues(),
 		validate: {
 			title: (value) =>
 				value.trim().length === 0 ? "Title is required" : null,
@@ -284,23 +164,7 @@ export default function NewModulePage() {
 				<fetcher.Form
 					method="POST"
 					onSubmit={form.onSubmit((values) => {
-						// Convert dates to ISO strings and filter out undefined values
-						const submissionData = omitBy(
-							{
-								...values,
-								assignmentDueDate: values.assignmentDueDate
-									? values.assignmentDueDate.toISOString()
-									: undefined,
-								quizDueDate: values.quizDueDate
-									? values.quizDueDate.toISOString()
-									: undefined,
-								discussionDueDate: values.discussionDueDate
-									? values.discussionDueDate.toISOString()
-									: undefined,
-							},
-							isUndefined,
-						);
-
+						const submissionData = transformFormValues(values);
 						fetcher.submit(submissionData, {
 							method: "POST",
 							encType: "application/json",
@@ -308,7 +172,6 @@ export default function NewModulePage() {
 					})}
 				>
 					<Stack gap="md">
-						{/* Basic Fields */}
 						<TextInput
 							{...form.getInputProps("title")}
 							key={form.key("title")}
@@ -354,7 +217,6 @@ export default function NewModulePage() {
 							]}
 						/>
 
-						{/* Password Protection */}
 						<Checkbox
 							{...form.getInputProps("requirePassword", { type: "checkbox" })}
 							key={form.key("requirePassword")}

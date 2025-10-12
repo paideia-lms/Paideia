@@ -29,7 +29,7 @@ import {
 import { tryFindUserById } from "server/internal/user-management";
 import type { Note } from "server/payload-types";
 import { assertRequestMethod } from "~/utils/assert-request-method";
-import { badRequest, NotFoundResponse } from "~/utils/responses";
+import { badRequest, NotFoundResponse, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/notes";
 
 export const loader = async ({
@@ -104,7 +104,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
     });
 
     if (!currentUser) {
-        throw new NotFoundResponse("Unauthorized");
+        return unauthorized({ error: "Unauthorized" });
     }
 
     const formData = await request.formData();
@@ -125,8 +125,29 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
         return badRequest({ error: result.error.message });
     }
 
-    return { success: true };
+    return ok({ message: "Note deleted successfully" });
 };
+
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+    const actionData = await serverAction();
+
+    if (actionData?.status === StatusCode.Ok) {
+        notifications.show({
+            title: "Note deleted",
+            message: "Your note has been deleted successfully",
+            color: "green",
+        });
+    } else {
+        notifications.show({
+            title: "Error",
+            message: actionData?.error,
+            color: "red",
+        });
+    }
+
+    return actionData;
+}
 
 export default function NotesPage({ loaderData }: Route.ComponentProps) {
     const {
@@ -140,8 +161,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
         availableYears,
     } = loaderData;
     const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-    const fetcher = useFetcher();
-    const revalidator = useRevalidator();
+    const fetcher = useFetcher<typeof clientAction>();
 
     const [selectedYear, setSelectedYear] = useState(
         availableYears[0] || new Date().getFullYear(),
@@ -160,16 +180,6 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
         const formData = new FormData();
         formData.append("noteId", String(noteId));
         fetcher.submit(formData, { method: "DELETE" });
-
-        // Show notification
-        notifications.show({
-            title: "Note deleted",
-            message: "Your note has been deleted successfully",
-            color: "green",
-        });
-
-        // Revalidate to refresh the list
-        setTimeout(() => revalidator.revalidate(), 100);
     };
 
     // Filter heatmap data for selected year
