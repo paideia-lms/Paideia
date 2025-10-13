@@ -12,6 +12,7 @@ import {
 	IconCalendar,
 	IconChevronDown,
 	IconLanguage,
+	IconLayoutGrid,
 	IconLogin,
 	IconLogout,
 	IconPhoto,
@@ -228,6 +229,13 @@ export function HeaderTabs({
 										to={href("/user/profile/:id?", { id: undefined })}
 									>
 										Profile
+									</Menu.Item>
+									<Menu.Item
+										leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
+										component={Link}
+										to={href("/user/modules/:id?", { id: undefined })}
+									>
+										Modules
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconSchool size={16} stroke={1.5} />}

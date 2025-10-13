@@ -6,6 +6,8 @@ import {
 	Paper,
 	Select,
 	Stack,
+	Table,
+	Text,
 	Textarea,
 	TextInput,
 	Title,
@@ -25,6 +27,8 @@ import {
 	tryGetActivityModuleById,
 	tryUpdateActivityModule,
 } from "server/internal/activity-module-management";
+import { tryFindLinksByActivityModule } from "server/internal/course-activity-module-link-management";
+import { tryFindCourseById } from "server/internal/course-management";
 import { canManageActivityModules } from "server/utils/permissions";
 import {
 	type ActivityModuleFormValues,
@@ -82,9 +86,32 @@ export const loader = async ({
 		);
 	}
 
+	// Fetch linked courses for this module
+	const linksResult = await tryFindLinksByActivityModule(payload, module.id);
+
+	const linkedCourses = [];
+	if (linksResult.ok) {
+		// Fetch course details for each link
+		for (const link of linksResult.value) {
+			const courseId =
+				typeof link.course === "object" ? link.course.id : link.course;
+			const courseResult = await tryFindCourseById(payload, courseId);
+			if (courseResult.ok) {
+				linkedCourses.push({
+					id: courseResult.value.id,
+					title: courseResult.value.title,
+					slug: courseResult.value.slug,
+					linkId: link.id,
+					createdAt: link.createdAt,
+				});
+			}
+		}
+	}
+
 	return {
 		user,
 		module,
+		linkedCourses,
 	};
 };
 
@@ -171,7 +198,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function EditModulePage() {
-	const { module } = useLoaderData<typeof loader>();
+	const { module, linkedCourses } = useLoaderData<typeof loader>();
 	const fetcher = useFetcher<typeof action>();
 
 	// Extract activity-specific data
@@ -259,241 +286,294 @@ export default function EditModulePage() {
 				content="Edit an activity module in Paideia LMS"
 			/>
 
-			<Paper withBorder shadow="md" p="xl" radius="md">
-				<Title order={2} mb="lg">
-					Edit Activity Module
-				</Title>
+			<Stack gap="xl">
+				{/* Linked Courses Section */}
+				<Paper withBorder shadow="md" p="xl" radius="md">
+					<Title order={3} mb="lg">
+						Linked Courses
+					</Title>
+					{linkedCourses.length === 0 ? (
+						<Text c="dimmed" ta="center" py="xl">
+							This module is not linked to any courses yet.
+						</Text>
+					) : (
+						<Table.ScrollContainer minWidth={600}>
+							<Table striped highlightOnHover>
+								<Table.Thead>
+									<Table.Tr>
+										<Table.Th>Course Name</Table.Th>
+										<Table.Th>Course Slug</Table.Th>
+										<Table.Th>Linked Date</Table.Th>
+									</Table.Tr>
+								</Table.Thead>
+								<Table.Tbody>
+									{linkedCourses.map((course) => (
+										<Table.Tr key={course.linkId}>
+											<Table.Td>
+												<Text
+													component="a"
+													href={`/course/view/${course.id}`}
+													fw={500}
+													style={{ textDecoration: "none" }}
+												>
+													{course.title}
+												</Text>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm" c="dimmed">
+													{course.slug}
+												</Text>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm" c="dimmed">
+													{new Date(course.createdAt).toLocaleDateString()}
+												</Text>
+											</Table.Td>
+										</Table.Tr>
+									))}
+								</Table.Tbody>
+							</Table>
+						</Table.ScrollContainer>
+					)}
+				</Paper>
 
-				<fetcher.Form
-					method="POST"
-					onSubmit={form.onSubmit((values) => {
-						const submissionData = transformFormValues(values);
-						fetcher.submit(submissionData, {
-							method: "POST",
-							encType: "application/json",
-						});
-					})}
-				>
-					<Stack gap="md">
-						<TextInput
-							{...form.getInputProps("title")}
-							key={form.key("title")}
-							label="Title"
-							placeholder="Enter module title"
-							required
-							withAsterisk
-						/>
+				{/* Edit Form */}
+				<Paper withBorder shadow="md" p="xl" radius="md">
+					<Title order={2} mb="lg">
+						Edit Activity Module
+					</Title>
 
-						<Textarea
-							{...form.getInputProps("description")}
-							key={form.key("description")}
-							label="Description"
-							placeholder="Enter module description"
-							minRows={3}
-						/>
-
-						<Select
-							{...form.getInputProps("type")}
-							key={form.key("type")}
-							label="Module Type"
-							placeholder="Select module type"
-							required
-							withAsterisk
-							disabled
-							data={[
-								{ value: "page", label: "Page" },
-								{ value: "whiteboard", label: "Whiteboard" },
-								{ value: "assignment", label: "Assignment" },
-								{ value: "quiz", label: "Quiz" },
-								{ value: "discussion", label: "Discussion" },
-							]}
-						/>
-
-						<Select
-							{...form.getInputProps("status")}
-							key={form.key("status")}
-							label="Status"
-							placeholder="Select status"
-							data={[
-								{ value: "draft", label: "Draft" },
-								{ value: "published", label: "Published" },
-								{ value: "archived", label: "Archived" },
-							]}
-						/>
-
-						<Checkbox
-							{...form.getInputProps("requirePassword", { type: "checkbox" })}
-							key={form.key("requirePassword")}
-							label="Require password to access"
-						/>
-
-						{form.getValues().requirePassword && (
+					<fetcher.Form
+						method="POST"
+						onSubmit={form.onSubmit((values) => {
+							const submissionData = transformFormValues(values);
+							fetcher.submit(submissionData, {
+								method: "POST",
+								encType: "application/json",
+							});
+						})}
+					>
+						<Stack gap="md">
 							<TextInput
-								{...form.getInputProps("accessPassword")}
-								key={form.key("accessPassword")}
-								label="Access Password"
-								placeholder="Enter access password"
+								{...form.getInputProps("title")}
+								key={form.key("title")}
+								label="Title"
+								placeholder="Enter module title"
+								required
+								withAsterisk
 							/>
-						)}
 
-						{/* Assignment-specific fields */}
-						{selectedType === "assignment" && (
-							<>
-								<Title order={4} mt="md">
-									Assignment Settings
-								</Title>
-								<Textarea
-									{...form.getInputProps("assignmentInstructions")}
-									key={form.key("assignmentInstructions")}
-									label="Instructions"
-									placeholder="Enter assignment instructions"
-									minRows={3}
-								/>
-								<DateTimePicker
-									{...form.getInputProps("assignmentDueDate")}
-									key={form.key("assignmentDueDate")}
-									label="Due Date"
-									placeholder="Select due date"
-								/>
-								<NumberInput
-									{...form.getInputProps("assignmentMaxAttempts")}
-									key={form.key("assignmentMaxAttempts")}
-									label="Max Attempts"
-									placeholder="Enter max attempts"
-									min={1}
-								/>
-								<Checkbox
-									{...form.getInputProps("assignmentAllowLateSubmissions", {
-										type: "checkbox",
-									})}
-									key={form.key("assignmentAllowLateSubmissions")}
-									label="Allow late submissions"
-								/>
-								<Checkbox
-									{...form.getInputProps("assignmentRequireTextSubmission", {
-										type: "checkbox",
-									})}
-									key={form.key("assignmentRequireTextSubmission")}
-									label="Require text submission"
-								/>
-								<Checkbox
-									{...form.getInputProps("assignmentRequireFileSubmission", {
-										type: "checkbox",
-									})}
-									key={form.key("assignmentRequireFileSubmission")}
-									label="Require file submission"
-								/>
-							</>
-						)}
+							<Textarea
+								{...form.getInputProps("description")}
+								key={form.key("description")}
+								label="Description"
+								placeholder="Enter module description"
+								minRows={3}
+							/>
 
-						{/* Quiz-specific fields */}
-						{selectedType === "quiz" && (
-							<>
-								<Title order={4} mt="md">
-									Quiz Settings
-								</Title>
-								<Textarea
-									{...form.getInputProps("quizInstructions")}
-									key={form.key("quizInstructions")}
-									label="Instructions"
-									placeholder="Enter quiz instructions"
-									minRows={3}
-								/>
-								<DateTimePicker
-									{...form.getInputProps("quizDueDate")}
-									key={form.key("quizDueDate")}
-									label="Due Date"
-									placeholder="Select due date"
-								/>
-								<NumberInput
-									{...form.getInputProps("quizMaxAttempts")}
-									key={form.key("quizMaxAttempts")}
-									label="Max Attempts"
-									placeholder="Enter max attempts"
-									min={1}
-								/>
-								<NumberInput
-									{...form.getInputProps("quizPoints")}
-									key={form.key("quizPoints")}
-									label="Total Points"
-									placeholder="Enter total points"
-									min={0}
-								/>
-								<NumberInput
-									{...form.getInputProps("quizTimeLimit")}
-									key={form.key("quizTimeLimit")}
-									label="Time Limit (minutes)"
-									placeholder="Enter time limit in minutes"
-									min={1}
-								/>
-								<Select
-									{...form.getInputProps("quizGradingType")}
-									key={form.key("quizGradingType")}
-									label="Grading Type"
-									data={[
-										{ value: "automatic", label: "Automatic" },
-										{ value: "manual", label: "Manual" },
-									]}
-								/>
-							</>
-						)}
+							<Select
+								{...form.getInputProps("type")}
+								key={form.key("type")}
+								label="Module Type"
+								placeholder="Select module type"
+								required
+								withAsterisk
+								disabled
+								data={[
+									{ value: "page", label: "Page" },
+									{ value: "whiteboard", label: "Whiteboard" },
+									{ value: "assignment", label: "Assignment" },
+									{ value: "quiz", label: "Quiz" },
+									{ value: "discussion", label: "Discussion" },
+								]}
+							/>
 
-						{/* Discussion-specific fields */}
-						{selectedType === "discussion" && (
-							<>
-								<Title order={4} mt="md">
-									Discussion Settings
-								</Title>
-								<Textarea
-									{...form.getInputProps("discussionInstructions")}
-									key={form.key("discussionInstructions")}
-									label="Instructions"
-									placeholder="Enter discussion instructions"
-									minRows={3}
+							<Select
+								{...form.getInputProps("status")}
+								key={form.key("status")}
+								label="Status"
+								placeholder="Select status"
+								data={[
+									{ value: "draft", label: "Draft" },
+									{ value: "published", label: "Published" },
+									{ value: "archived", label: "Archived" },
+								]}
+							/>
+
+							<Checkbox
+								{...form.getInputProps("requirePassword", { type: "checkbox" })}
+								key={form.key("requirePassword")}
+								label="Require password to access"
+							/>
+
+							{form.getValues().requirePassword && (
+								<TextInput
+									{...form.getInputProps("accessPassword")}
+									key={form.key("accessPassword")}
+									label="Access Password"
+									placeholder="Enter access password"
 								/>
-								<DateTimePicker
-									{...form.getInputProps("discussionDueDate")}
-									key={form.key("discussionDueDate")}
-									label="Due Date"
-									placeholder="Select due date"
-								/>
-								<Checkbox
-									{...form.getInputProps("discussionRequireThread", {
-										type: "checkbox",
-									})}
-									key={form.key("discussionRequireThread")}
-									label="Require thread creation"
-								/>
-								<Checkbox
-									{...form.getInputProps("discussionRequireReplies", {
-										type: "checkbox",
-									})}
-									key={form.key("discussionRequireReplies")}
-									label="Require replies"
-								/>
-								{form.getValues().discussionRequireReplies && (
+							)}
+
+							{/* Assignment-specific fields */}
+							{selectedType === "assignment" && (
+								<>
+									<Title order={4} mt="md">
+										Assignment Settings
+									</Title>
+									<Textarea
+										{...form.getInputProps("assignmentInstructions")}
+										key={form.key("assignmentInstructions")}
+										label="Instructions"
+										placeholder="Enter assignment instructions"
+										minRows={3}
+									/>
+									<DateTimePicker
+										{...form.getInputProps("assignmentDueDate")}
+										key={form.key("assignmentDueDate")}
+										label="Due Date"
+										placeholder="Select due date"
+									/>
 									<NumberInput
-										{...form.getInputProps("discussionMinReplies")}
-										key={form.key("discussionMinReplies")}
-										label="Minimum Replies"
-										placeholder="Enter minimum number of replies"
+										{...form.getInputProps("assignmentMaxAttempts")}
+										key={form.key("assignmentMaxAttempts")}
+										label="Max Attempts"
+										placeholder="Enter max attempts"
 										min={1}
 									/>
-								)}
-							</>
-						)}
+									<Checkbox
+										{...form.getInputProps("assignmentAllowLateSubmissions", {
+											type: "checkbox",
+										})}
+										key={form.key("assignmentAllowLateSubmissions")}
+										label="Allow late submissions"
+									/>
+									<Checkbox
+										{...form.getInputProps("assignmentRequireTextSubmission", {
+											type: "checkbox",
+										})}
+										key={form.key("assignmentRequireTextSubmission")}
+										label="Require text submission"
+									/>
+									<Checkbox
+										{...form.getInputProps("assignmentRequireFileSubmission", {
+											type: "checkbox",
+										})}
+										key={form.key("assignmentRequireFileSubmission")}
+										label="Require file submission"
+									/>
+								</>
+							)}
 
-						<Button
-							type="submit"
-							size="lg"
-							mt="lg"
-							loading={fetcher.state === "submitting"}
-						>
-							Update Module
-						</Button>
-					</Stack>
-				</fetcher.Form>
-			</Paper>
+							{/* Quiz-specific fields */}
+							{selectedType === "quiz" && (
+								<>
+									<Title order={4} mt="md">
+										Quiz Settings
+									</Title>
+									<Textarea
+										{...form.getInputProps("quizInstructions")}
+										key={form.key("quizInstructions")}
+										label="Instructions"
+										placeholder="Enter quiz instructions"
+										minRows={3}
+									/>
+									<DateTimePicker
+										{...form.getInputProps("quizDueDate")}
+										key={form.key("quizDueDate")}
+										label="Due Date"
+										placeholder="Select due date"
+									/>
+									<NumberInput
+										{...form.getInputProps("quizMaxAttempts")}
+										key={form.key("quizMaxAttempts")}
+										label="Max Attempts"
+										placeholder="Enter max attempts"
+										min={1}
+									/>
+									<NumberInput
+										{...form.getInputProps("quizPoints")}
+										key={form.key("quizPoints")}
+										label="Total Points"
+										placeholder="Enter total points"
+										min={0}
+									/>
+									<NumberInput
+										{...form.getInputProps("quizTimeLimit")}
+										key={form.key("quizTimeLimit")}
+										label="Time Limit (minutes)"
+										placeholder="Enter time limit in minutes"
+										min={1}
+									/>
+									<Select
+										{...form.getInputProps("quizGradingType")}
+										key={form.key("quizGradingType")}
+										label="Grading Type"
+										data={[
+											{ value: "automatic", label: "Automatic" },
+											{ value: "manual", label: "Manual" },
+										]}
+									/>
+								</>
+							)}
+
+							{/* Discussion-specific fields */}
+							{selectedType === "discussion" && (
+								<>
+									<Title order={4} mt="md">
+										Discussion Settings
+									</Title>
+									<Textarea
+										{...form.getInputProps("discussionInstructions")}
+										key={form.key("discussionInstructions")}
+										label="Instructions"
+										placeholder="Enter discussion instructions"
+										minRows={3}
+									/>
+									<DateTimePicker
+										{...form.getInputProps("discussionDueDate")}
+										key={form.key("discussionDueDate")}
+										label="Due Date"
+										placeholder="Select due date"
+									/>
+									<Checkbox
+										{...form.getInputProps("discussionRequireThread", {
+											type: "checkbox",
+										})}
+										key={form.key("discussionRequireThread")}
+										label="Require thread creation"
+									/>
+									<Checkbox
+										{...form.getInputProps("discussionRequireReplies", {
+											type: "checkbox",
+										})}
+										key={form.key("discussionRequireReplies")}
+										label="Require replies"
+									/>
+									{form.getValues().discussionRequireReplies && (
+										<NumberInput
+											{...form.getInputProps("discussionMinReplies")}
+											key={form.key("discussionMinReplies")}
+											label="Minimum Replies"
+											placeholder="Enter minimum number of replies"
+											min={1}
+										/>
+									)}
+								</>
+							)}
+
+							<Button
+								type="submit"
+								size="lg"
+								mt="lg"
+								loading={fetcher.state === "submitting"}
+							>
+								Update Module
+							</Button>
+						</Stack>
+					</fetcher.Form>
+				</Paper>
+			</Stack>
 		</Container>
 	);
 }

@@ -306,7 +306,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<Container size="lg" py="xl">
-			<title>{course.title} | Paideia LMS</title>
+			<title>{`${course.title} | Paideia LMS`}</title>
 			<meta name="description" content={course.description} />
 			<meta property="og:title" content={`${course.title} | Paideia LMS`} />
 			<meta property="og:description" content={course.description} />

@@ -15,6 +15,7 @@ export const routes = [
 		index("routes/index.tsx"),
 		route("user/profile/:id?", "routes/user/profile.tsx"),
 		route("user/edit/:id?", "routes/user/edit.tsx"),
+		route("user/modules/:id?", "routes/user/modules.tsx"),
 		route("user/notes/:id?", "routes/user/notes.tsx"),
 		route("user/note/create", "routes/user/note-create.tsx"),
 		route("user/note/edit/:id", "routes/user/note-edit.tsx"),
