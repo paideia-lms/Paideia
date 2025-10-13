@@ -64,8 +64,8 @@ export const loader = async ({
 		if (typeof currentUser.avatar === "object") {
 			avatarUrl = currentUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-					filename: currentUser.avatar.filename,
-				})
+						filename: currentUser.avatar.filename,
+					})
 				: null;
 		}
 	}

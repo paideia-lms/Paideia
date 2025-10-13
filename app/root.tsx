@@ -10,8 +10,6 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import { globalContextKey } from "server/contexts/global-context";
-import elysiaLogo from "./assets/elysia_v.webp";
-import reactRouterLogo from "./assets/rr_lockup_light.png";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dropzone/styles.css";
@@ -19,11 +17,66 @@ import "@mantine/dates/styles.css";
 import "@mantine/charts/styles.css";
 import "@mantine/tiptap/styles.css";
 
-import { Button, ColorSchemeScript, MantineProvider } from "@mantine/core";
+import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
-import { useState } from "react";
+import { parseCookies } from "payload";
+import { userContextKey } from "server/contexts/user-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
+import { tryHandleImpersonation } from "server/internal/user-management";
+import type { User as PayloadUser } from "server/payload-types";
+
+export const middleware = [
+	async ({ request, context }) => {
+		const { payload } = context.get(globalContextKey);
+
+		// Get the authenticated user
+		const { user: authenticatedUser } = await payload.auth({
+			headers: request.headers,
+			canSetHeaders: true,
+		});
+
+		if (!authenticatedUser) {
+			// No authenticated user, don't set context - let it use default null value
+			return;
+		}
+
+		// Check for impersonation cookie
+		const cookies = parseCookies(request.headers);
+		const impersonateUserId = cookies.get(
+			`${payload.config.cookiePrefix}-impersonate`,
+		);
+
+		let effectiveUser: PayloadUser | null = null;
+		let effectiveUserPermissions: string[] | null = null;
+		let isImpersonating = false;
+
+		// If impersonation cookie exists and user is admin
+		if (impersonateUserId && authenticatedUser.role === "admin") {
+			const impersonationResult = await tryHandleImpersonation({
+				payload,
+				impersonateUserId,
+				authenticatedUser,
+			});
+
+			if (impersonationResult.ok && impersonationResult.value) {
+				effectiveUser = impersonationResult.value.targetUser;
+				effectiveUserPermissions = impersonationResult.value.permissions;
+				isImpersonating = true;
+			}
+		}
+
+		// Set the user context
+		context.set(userContextKey, {
+			authenticatedUser: authenticatedUser,
+			effectiveUser,
+			authenticatedUserPermissions: effectiveUserPermissions ?? [],
+			effectiveUserPermissions,
+			isImpersonating,
+			isAuthenticated: true,
+		});
+	},
+] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const { payload, requestInfo } = context.get(globalContextKey);

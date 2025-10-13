@@ -1,4 +1,5 @@
-import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
+import type { Payload, PayloadRequest, Where } from "payload";
+import { getAccessResults } from "payload";
 import searchQueryParser from "search-query-parser";
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -17,7 +18,7 @@ export interface CreateUserArgs {
 		bio?: string;
 		avatar?: number;
 	};
-	user?: TypedUser | null;
+	user?: User | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -33,7 +34,7 @@ export interface UpdateUserArgs {
 		avatar?: number | Media;
 		_verified?: boolean;
 	};
-	user?: TypedUser | null;
+	user?: User | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	transactionID?: string | number;
@@ -42,7 +43,7 @@ export interface UpdateUserArgs {
 export interface FindUserByEmailArgs {
 	payload: Payload;
 	email: string;
-	user?: TypedUser | null;
+	user?: User | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -50,7 +51,7 @@ export interface FindUserByEmailArgs {
 export interface FindUserByIdArgs {
 	payload: Payload;
 	userId: number;
-	user?: TypedUser | null;
+	user?: User | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -58,7 +59,7 @@ export interface FindUserByIdArgs {
 export interface DeleteUserArgs {
 	payload: Payload;
 	userId: number;
-	user?: TypedUser | null;
+	user?: User | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -69,7 +70,7 @@ export interface FindAllUsersArgs {
 	page?: number;
 	sort?: string;
 	query?: string;
-	user?: TypedUser | null;
+	user?: User | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -113,6 +114,17 @@ export interface RegisterFirstUserResult {
 	token: string;
 	exp: number;
 	user: User;
+}
+
+export interface HandleImpersonationArgs {
+	payload: Payload;
+	impersonateUserId: string;
+	authenticatedUser: User;
+}
+
+export interface ImpersonationResult {
+	targetUser: User;
+	permissions: string[];
 }
 
 /**
@@ -544,6 +556,60 @@ export const tryRegisterFirstUser = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to register first user", {
+			cause: error,
+		}),
+);
+
+/**
+ * Handles impersonation logic for admin users
+ * Validates the target user and returns their data with permissions
+ * Returns null if impersonation is not allowed or fails
+ */
+export const tryHandleImpersonation = Result.wrap(
+	async (
+		args: HandleImpersonationArgs,
+	): Promise<ImpersonationResult | null> => {
+		const { payload, impersonateUserId, authenticatedUser } = args;
+
+		const targetUserId = Number(impersonateUserId);
+
+		if (Number.isNaN(targetUserId)) {
+			return null;
+		}
+
+		// Fetch the target user
+		const targetUserResult = await tryFindUserById({
+			payload,
+			userId: targetUserId,
+			user: authenticatedUser,
+			overrideAccess: true,
+		});
+
+		if (!targetUserResult.ok || !targetUserResult.value) {
+			return null;
+		}
+
+		const targetUser = targetUserResult.value;
+
+		// Only allow impersonating non-admin users
+		if (targetUser.role === "admin") {
+			return null;
+		}
+
+		// Get permissions for the target user
+		const accessResults = await getAccessResults({
+			req: { user: targetUser, payload } as PayloadRequest,
+		});
+
+		const permissions = Object.keys(accessResults).filter(
+			(key) => accessResults[key as keyof typeof accessResults],
+		);
+
+		return { targetUser, permissions };
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to handle impersonation", {
 			cause: error,
 		}),
 );

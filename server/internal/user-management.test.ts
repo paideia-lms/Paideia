@@ -13,6 +13,7 @@ import {
 	tryFindAllUsers,
 	tryFindUserByEmail,
 	tryFindUserById,
+	tryHandleImpersonation,
 	tryUpdateUser,
 	type UpdateUserArgs,
 } from "./user-management";
@@ -888,6 +889,143 @@ describe("User Management Functions", () => {
 					await tryFindUserById(findAfterDeleteArgs);
 				expect(findAfterDeleteResult.ok).toBe(false);
 			}
+		});
+	});
+
+	describe("User Impersonation", () => {
+		let adminUser: any;
+		let studentUser: any;
+
+		beforeAll(async () => {
+			// Create test admin user
+			const adminResult = await tryCreateUser({
+				payload,
+				data: {
+					email: "impersonate-admin@test.com",
+					password: "password123",
+					firstName: "Impersonate",
+					lastName: "Admin",
+					role: "admin",
+				},
+				overrideAccess: true,
+			});
+
+			if (!adminResult.ok) {
+				throw new Error("Failed to create admin user for impersonation test");
+			}
+			adminUser = adminResult.value;
+
+			// Create test student user
+			const studentResult = await tryCreateUser({
+				payload,
+				data: {
+					email: "impersonate-student@test.com",
+					password: "password123",
+					firstName: "Impersonate",
+					lastName: "Student",
+					role: "student",
+				},
+				overrideAccess: true,
+			});
+
+			if (!studentResult.ok) {
+				throw new Error("Failed to create student user for impersonation test");
+			}
+			studentUser = studentResult.value;
+		});
+
+		afterAll(async () => {
+			// Clean up test users
+			if (adminUser) {
+				await payload.delete({
+					collection: "users",
+					id: adminUser.id,
+					overrideAccess: true,
+				});
+			}
+			if (studentUser) {
+				await payload.delete({
+					collection: "users",
+					id: studentUser.id,
+					overrideAccess: true,
+				});
+			}
+		});
+
+		test("should allow admin to impersonate student user", async () => {
+			const result = await tryHandleImpersonation({
+				payload,
+				impersonateUserId: String(studentUser.id),
+				authenticatedUser: adminUser,
+			});
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value).not.toBeNull();
+				expect(result.value?.targetUser.id).toBe(studentUser.id);
+				expect(result.value?.targetUser.email).toBe(
+					"impersonate-student@test.com",
+				);
+				expect(result.value?.permissions).toBeDefined();
+				expect(Array.isArray(result.value?.permissions)).toBe(true);
+			}
+		});
+
+		test("should not allow admin to impersonate another admin", async () => {
+			// Create another admin user
+			const anotherAdminResult = await tryCreateUser({
+				payload,
+				data: {
+					email: "impersonate-admin2@test.com",
+					password: "password123",
+					firstName: "Impersonate2",
+					lastName: "Admin",
+					role: "admin",
+				},
+				overrideAccess: true,
+			});
+
+			if (!anotherAdminResult.ok) {
+				throw new Error("Failed to create second admin user");
+			}
+
+			const result = await tryHandleImpersonation({
+				payload,
+				impersonateUserId: String(anotherAdminResult.value.id),
+				authenticatedUser: adminUser,
+			});
+
+			expect(result.ok).toBe(true);
+			expect(result.value).toBeNull();
+
+			// Clean up
+			await payload.delete({
+				collection: "users",
+				id: anotherAdminResult.value.id,
+				overrideAccess: true,
+			});
+		});
+
+		test("should return null for invalid user ID", async () => {
+			const result = await tryHandleImpersonation({
+				payload,
+				impersonateUserId: "invalid",
+				authenticatedUser: adminUser,
+			});
+
+			expect(result.ok).toBe(true);
+			expect(result.value).toBeNull();
+		});
+
+		test("should return null for non-existent user ID", async () => {
+			const result = await tryHandleImpersonation({
+				payload,
+				impersonateUserId: "99999",
+				authenticatedUser: adminUser,
+			});
+
+			expect(result.ok).toBe(true);
+			expect(result.value).toBeNull();
 		});
 	});
 });

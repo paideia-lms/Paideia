@@ -1,45 +1,14 @@
 import { Box, Group, Stack, Tabs, Text, TextInput, Title } from "@mantine/core";
 import { useQueryState } from "nuqs";
-import { useState } from "react";
-import { isRouteErrorResponse, type LoaderFunctionArgs } from "react-router";
-import { globalContextKey } from "server/contexts/global-context";
-import { UnauthorizedResponse } from "~/utils/responses";
+import { AdminErrorBoundary } from "~/components/admin-error-boundary";
 import type { Route } from "./+types/index";
 
-export const loader = async ({ context, request }: LoaderFunctionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-
+export const loader = async () => {
 	return {};
 };
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-	return (
-		<Box p="md">
-			{isRouteErrorResponse(error) ? (
-				<>
-					<Title order={1} c="red">
-						{error.status} {error.statusText}
-					</Title>
-					<Text>
-						{typeof error.data === "string"
-							? error.data
-							: JSON.stringify(error.data)}
-					</Text>
-				</>
-			) : error instanceof Error ? (
-				<>
-					<Title order={1} c="red">
-						Error
-					</Title>
-					<Text>{error.message}</Text>
-				</>
-			) : (
-				<Title order={1} c="red">
-					Unknown Error
-				</Title>
-			)}
-		</Box>
-	);
+	return <AdminErrorBoundary error={error} />;
 }
 
 interface AdminItem {

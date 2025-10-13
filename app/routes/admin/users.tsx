@@ -19,6 +19,7 @@ import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useEffect, useState } from "react";
 import { href, Link, useSearchParams } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
 import type { User } from "server/payload-types";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
@@ -34,18 +35,18 @@ export const loadSearchParams = createLoader(usersSearchParams);
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
 
-	if (!currentUser) {
+	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	if (currentUser.role !== "admin") {
+	if (userSession.authenticatedUser.role !== "admin") {
 		throw new ForbiddenResponse("Only admins can view users");
 	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get search params from URL
 	const { query, page } = loadSearchParams(request);

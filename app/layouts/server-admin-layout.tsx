@@ -1,27 +1,36 @@
 import { Outlet } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { BadRequestResponse, UnauthorizedResponse } from "~/utils/responses";
+import { userContextKey } from "server/contexts/user-context";
+import { AdminErrorBoundary } from "~/components/admin-error-boundary";
+import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import { tryGetContext } from "~/utils/try-get-context";
 import type { Route } from "./+types/server-admin-layout";
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const contextResult = tryGetContext(context, globalContextKey);
 
 	if (!contextResult.ok) {
 		throw new BadRequestResponse("Context not found");
 	}
 
-	const { payload } = contextResult.value;
+	const userSession = context.get(userContextKey);
 
-	const { user } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
-
-	if (!user || user.role !== "admin") {
-		throw new UnauthorizedResponse("Unauthorized");
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
 	}
-	return { user };
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (currentUser.role !== "admin") {
+		throw new ForbiddenResponse("Only admins can access this area");
+	}
+
+	return { user: currentUser };
+};
+
+export const ErrorBoundary = ({ error }: { error: Error }) => {
+	return <AdminErrorBoundary error={error} />;
 };
 
 export default function ServerAdminLayout() {

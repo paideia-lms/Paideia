@@ -1,5 +1,6 @@
 import {
 	ActionIcon,
+	Alert,
 	Avatar,
 	Badge,
 	Button,
@@ -14,10 +15,11 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconEdit, IconTrash } from "@tabler/icons-react";
+import { IconEdit, IconTrash, IconUserCheck } from "@tabler/icons-react";
 import { useState } from "react";
-import { href, Link, useFetcher } from "react-router";
+import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteActivityModule,
 	tryGetUserActivityModules,
@@ -25,6 +27,10 @@ import {
 import { tryFindLinksByActivityModule } from "server/internal/course-activity-module-link-management";
 import { tryFindUserById } from "server/internal/user-management";
 import { assertRequestMethod } from "~/utils/assert-request-method";
+import {
+	removeImpersonationCookie,
+	setImpersonationCookie,
+} from "~/utils/cookie";
 import {
 	badRequest,
 	NotFoundResponse,
@@ -34,20 +40,17 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/profile";
 
-export const loader = async ({
-	request,
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
 
-	if (!currentUser) {
+	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
 	}
+
+	// Use effectiveUser if impersonating, otherwise use authenticatedUser
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user ID from route params, or use current user
 	const userId = params.id ? Number(params.id) : currentUser.id;
@@ -72,8 +75,8 @@ export const loader = async ({
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-					filename: profileUser.avatar.filename,
-				})
+						filename: profileUser.avatar.filename,
+					})
 				: null;
 		}
 	}
@@ -89,7 +92,10 @@ export const loader = async ({
 	// Fetch course link counts for each module
 	const modulesWithLinkCounts = await Promise.all(
 		modules.map(async (module) => {
-			const linksResult = await tryFindLinksByActivityModule(payload, module.id);
+			const linksResult = await tryFindLinksByActivityModule(
+				payload,
+				module.id,
+			);
 			const linkCount = linksResult.ok ? linksResult.value.length : 0;
 			return {
 				...module,
@@ -107,6 +113,13 @@ export const loader = async ({
 	// Check if user can edit this profile
 	const canEdit = userId === currentUser.id || currentUser.role === "admin";
 
+	// Check if user can impersonate (admin viewing someone else's profile, not an admin, and not already impersonating)
+	const canImpersonate =
+		userSession.authenticatedUser.role === "admin" &&
+		userId !== userSession.authenticatedUser.id &&
+		profileUser.role !== "admin" &&
+		!userSession.isImpersonating;
+
 	return {
 		user: {
 			id: profileUser.id,
@@ -119,23 +132,86 @@ export const loader = async ({
 		modules: modulesWithLinkCounts,
 		canCreateModules,
 		canEdit,
+		canImpersonate,
+		isImpersonating: userSession.isImpersonating,
+		authenticatedUser: userSession.authenticatedUser,
 	};
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-	assertRequestMethod(request.method, "DELETE");
-
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const requestInfo = context.get(globalContextKey).requestInfo;
+	const userSession = context.get(userContextKey);
 
-	if (!currentUser) {
+	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
 
+	const { authenticatedUser: currentUser } = userSession;
 	const formData = await request.formData();
+	const intent = formData.get("intent");
+
+	// Handle impersonation actions
+	if (intent === "impersonate") {
+		if (currentUser.role !== "admin") {
+			return unauthorized({ error: "Only admins can impersonate users" });
+		}
+
+		const targetUserId = Number(formData.get("targetUserId"));
+		if (Number.isNaN(targetUserId)) {
+			return badRequest({ error: "Invalid target user ID" });
+		}
+
+		// Verify the target user exists and is not an admin
+		const targetUserResult = await tryFindUserById({
+			payload,
+			userId: targetUserId,
+			user: currentUser,
+			overrideAccess: true,
+		});
+
+		if (!targetUserResult.ok || !targetUserResult.value) {
+			return badRequest({ error: "Target user not found" });
+		}
+
+		const targetUser = targetUserResult.value;
+		if (targetUser.role === "admin") {
+			return badRequest({ error: "Cannot impersonate admin users" });
+		}
+
+		// Set impersonation cookie and redirect
+		throw redirect("/", {
+			headers: {
+				"Set-Cookie": setImpersonationCookie(
+					targetUserId,
+					requestInfo.domainUrl,
+					request.headers,
+					payload,
+				),
+			},
+		});
+	}
+
+	if (intent === "stop-impersonate") {
+		if (!userSession.isImpersonating) {
+			return badRequest({ error: "Not currently impersonating" });
+		}
+
+		// Remove impersonation cookie and redirect to admin's profile
+		throw redirect(`/user/profile/${currentUser.id}`, {
+			headers: {
+				"Set-Cookie": removeImpersonationCookie(
+					requestInfo.domainUrl,
+					request.headers,
+					payload,
+				),
+			},
+		});
+	}
+
+	// Handle existing DELETE action for module deletion
+	assertRequestMethod(request.method, "DELETE");
+
 	const moduleId = Number(formData.get("moduleId"));
 
 	if (Number.isNaN(moduleId)) {
@@ -174,11 +250,15 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData?.status === StatusCode.Ok) {
-		notifications.show({
-			title: "Module deleted",
-			message: "Your activity module has been deleted successfully",
-			color: "green",
-		});
+		// Check if this was an impersonation action by looking at the response
+		if (actionData.message === "Activity module deleted successfully") {
+			notifications.show({
+				title: "Module deleted",
+				message: "Your activity module has been deleted successfully",
+				color: "green",
+			});
+		}
+		// Impersonation actions redirect, so no notification needed
 	} else {
 		notifications.show({
 			title: "Error",
@@ -191,7 +271,16 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
-	const { user, isOwnProfile, modules, canCreateModules, canEdit } = loaderData;
+	const {
+		user,
+		isOwnProfile,
+		modules,
+		canCreateModules,
+		canEdit,
+		canImpersonate,
+		isImpersonating,
+		authenticatedUser,
+	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const [deleteModuleId, setDeleteModuleId] = useState<number | null>(null);
 	const [opened, { open, close }] = useDisclosure(false);
@@ -234,6 +323,21 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 		close();
 	};
 
+	// Handler for impersonation
+	const handleImpersonate = () => {
+		const formData = new FormData();
+		formData.append("intent", "impersonate");
+		formData.append("targetUserId", String(user.id));
+		fetcher.submit(formData, { method: "POST" });
+	};
+
+	// Handler for stopping impersonation
+	const handleStopImpersonate = () => {
+		const formData = new FormData();
+		formData.append("intent", "stop-impersonate");
+		fetcher.submit(formData, { method: "POST" });
+	};
+
 	return (
 		<Container size="md" py="xl">
 			<title>{`${fullName} | Profile | Paideia LMS`}</title>
@@ -251,6 +355,28 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
+				{/* Impersonation Banner */}
+				{isImpersonating && (
+					<Alert
+						color="orange"
+						title="Impersonating User"
+						icon={<IconUserCheck size={16} />}
+					>
+						You are currently viewing the system as {fullName}. You are logged
+						in as {authenticatedUser.firstName} {authenticatedUser.lastName}.
+						<Button
+							size="xs"
+							color="orange"
+							variant="light"
+							onClick={handleStopImpersonate}
+							loading={fetcher.state === "submitting"}
+							ml="md"
+						>
+							Stop Impersonating
+						</Button>
+					</Alert>
+				)}
+
 				<Paper withBorder shadow="md" p="xl" radius="md">
 					<Stack align="center" gap="lg">
 						<Avatar
@@ -279,16 +405,30 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 								</Text>
 							</div>
 						)}
-						{canEdit && (
-							<Button
-								component={Link}
-								to={isOwnProfile ? "/user/edit" : `/user/edit/${user.id}`}
-								variant="light"
-								fullWidth
-							>
-								Edit Profile
-							</Button>
-						)}
+						<Group gap="md" w="100%">
+							{canEdit && (
+								<Button
+									component={Link}
+									to={isOwnProfile ? "/user/edit" : `/user/edit/${user.id}`}
+									variant="light"
+									fullWidth
+								>
+									Edit Profile
+								</Button>
+							)}
+							{canImpersonate && (
+								<Button
+									variant="light"
+									color="orange"
+									onClick={handleImpersonate}
+									loading={fetcher.state === "submitting"}
+									fullWidth
+									leftSection={<IconUserCheck size={16} />}
+								>
+									Impersonate User
+								</Button>
+							)}
+						</Group>
 					</Stack>
 				</Paper>
 

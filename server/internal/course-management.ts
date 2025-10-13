@@ -451,13 +451,7 @@ export interface FindAllCoursesResult {
  */
 export const tryFindAllCourses = Result.wrap(
 	async (args: FindAllCoursesArgs): Promise<FindAllCoursesResult> => {
-		const {
-			payload,
-			limit = 10,
-			page = 1,
-			sort = "-createdAt",
-			query,
-		} = args;
+		const { payload, limit = 10, page = 1, sort = "-createdAt", query } = args;
 
 		// Parse search query
 		const where: Where = {};

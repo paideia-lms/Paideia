@@ -19,16 +19,16 @@ import {
 	redirect,
 	useFetcher,
 } from "react-router";
+import { globalContextKey } from "server/contexts/global-context";
+import { tryCreateActivityModule } from "server/internal/activity-module-management";
+import { canManageActivityModules } from "server/utils/permissions";
 import {
+	type ActivityModuleFormValues,
 	activityModuleSchema,
 	getInitialFormValues,
 	transformFormValues,
 	transformToActivityData,
-	type ActivityModuleFormValues,
 } from "~/utils/activity-module-schema";
-import { globalContextKey } from "server/contexts/global-context";
-import { tryCreateActivityModule } from "server/internal/activity-module-management";
-import { canManageActivityModules } from "server/utils/permissions";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/new";
@@ -82,7 +82,8 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	const parsedData = activityModuleSchema.parse(data);
 
-	const { assignmentData, quizData, discussionData } = transformToActivityData(parsedData);
+	const { assignmentData, quizData, discussionData } =
+		transformToActivityData(parsedData);
 
 	const createResult = await tryCreateActivityModule(payload, {
 		title: parsedData.title,
