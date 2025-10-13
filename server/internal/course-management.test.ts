@@ -4,23 +4,22 @@ import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateCourseArgs,
-	SearchCoursesArgs,
 	tryCreateCourse,
 	tryDeleteCourse,
 	tryFindCourseById,
-	tryFindCoursesByInstructor,
-	tryFindPublishedCourses,
+	tryGetUserAccessibleCourses,
 	trySearchCourses,
 	tryUpdateCourse,
 	type UpdateCourseArgs,
 } from "./course-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateEnrollment } from "./enrollment-management";
+import { tryCreateCategory, tryAssignCategoryRole } from "./category-role-management";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
 	let instructorId: number;
-	let studentId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -50,27 +49,12 @@ describe("Course Management Functions", () => {
 			overrideAccess: true,
 		};
 
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "student@test.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
 		const instructorResult = await tryCreateUser(instructorArgs);
-		const studentResult = await tryCreateUser(studentArgs);
 
 		expect(instructorResult.ok).toBe(true);
-		expect(studentResult.ok).toBe(true);
 
-		if (instructorResult.ok && studentResult.ok) {
+		if (instructorResult.ok) {
 			instructorId = instructorResult.value.id;
-			studentId = studentResult.value.id;
 		}
 	});
 
@@ -591,6 +575,291 @@ describe("Course Management Functions", () => {
 					courseId,
 				);
 				expect(findAfterDeleteResult.ok).toBe(false);
+			}
+		});
+	});
+
+	describe("tryGetUserAccessibleCourses", () => {
+		let adminUserId: number;
+		let contentManagerUserId: number;
+		let regularUserId: number;
+		let course1Id: number;
+		let course2Id: number;
+		let course3Id: number;
+		let categoryId: number;
+
+		beforeAll(async () => {
+			// Create additional test users
+			const adminArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "admin@test.com",
+					password: "password123",
+					firstName: "Admin",
+					lastName: "User",
+					role: "admin",
+				},
+				overrideAccess: true,
+			};
+
+			const contentManagerArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "contentmanager@test.com",
+					password: "password123",
+					firstName: "Content",
+					lastName: "Manager",
+					role: "content-manager",
+				},
+				overrideAccess: true,
+			};
+
+			const regularUserArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "regular@test.com",
+					password: "password123",
+					firstName: "Regular",
+					lastName: "User",
+					role: "student",
+				},
+				overrideAccess: true,
+			};
+
+			const adminResult = await tryCreateUser(adminArgs);
+			const contentManagerResult = await tryCreateUser(contentManagerArgs);
+			const regularUserResult = await tryCreateUser(regularUserArgs);
+
+			expect(adminResult.ok).toBe(true);
+			expect(contentManagerResult.ok).toBe(true);
+			expect(regularUserResult.ok).toBe(true);
+
+			if (adminResult.ok && contentManagerResult.ok && regularUserResult.ok) {
+				adminUserId = adminResult.value.id;
+				contentManagerUserId = contentManagerResult.value.id;
+				regularUserId = regularUserResult.value.id;
+			}
+
+			// Create test courses
+			const course1Args: CreateCourseArgs = {
+				title: "Course 1 - Admin Access",
+				description: "Test course for admin access",
+				createdBy: instructorId,
+				slug: "course-1-admin-access",
+				status: "published",
+			};
+
+			const course2Args: CreateCourseArgs = {
+				title: "Course 2 - Enrollment Access",
+				description: "Test course for enrollment access",
+				createdBy: instructorId,
+				slug: "course-2-enrollment-access",
+				status: "published",
+			};
+
+			const course3Args: CreateCourseArgs = {
+				title: "Course 3 - Category Access",
+				description: "Test course for category access",
+				createdBy: instructorId,
+				slug: "course-3-category-access",
+				status: "published",
+			};
+
+			const course1Result = await tryCreateCourse(payload, mockRequest, course1Args);
+			const course2Result = await tryCreateCourse(payload, mockRequest, course2Args);
+			const course3Result = await tryCreateCourse(payload, mockRequest, course3Args);
+
+			expect(course1Result.ok).toBe(true);
+			expect(course2Result.ok).toBe(true);
+			expect(course3Result.ok).toBe(true);
+
+			if (course1Result.ok && course2Result.ok && course3Result.ok) {
+				course1Id = course1Result.value.id;
+				course2Id = course2Result.value.id;
+				course3Id = course3Result.value.id;
+			}
+
+			// Create a category and assign role
+			const categoryResult = await tryCreateCategory(payload, mockRequest, {
+				name: "Test Category",
+			});
+
+			expect(categoryResult.ok).toBe(true);
+			if (categoryResult.ok) {
+				categoryId = categoryResult.value.id;
+
+				// Update course3 to belong to this category
+				await tryUpdateCourse(payload, mockRequest, course3Id, {
+					category: categoryId,
+				});
+
+				// Assign category role to regular user
+				const roleAssignmentResult = await tryAssignCategoryRole(payload, mockRequest, {
+					userId: regularUserId,
+					categoryId: categoryId,
+					role: "category-coordinator",
+					assignedBy: adminUserId,
+				});
+
+				expect(roleAssignmentResult.ok).toBe(true);
+			}
+
+			// Create enrollment for regular user in course2
+			const enrollmentResult = await tryCreateEnrollment(payload, {
+				user: regularUserId,
+				course: course2Id,
+				role: "student",
+				status: "active",
+			});
+
+			expect(enrollmentResult.ok).toBe(true);
+		});
+
+		test("should return all courses for admin user", async () => {
+			const result = await tryGetUserAccessibleCourses(payload, adminUserId);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.length).toBeGreaterThanOrEqual(3);
+
+				// Check that admin sees all courses
+				const courseIds = result.value.map(course => course.id);
+				expect(courseIds).toContain(course1Id);
+				expect(courseIds).toContain(course2Id);
+				expect(courseIds).toContain(course3Id);
+
+				// Check admin role assignment
+				const adminCourse = result.value.find(course => course.id === course1Id);
+				expect(adminCourse?.role).toBe("manager");
+				expect(adminCourse?.source).toBe("global-admin");
+			}
+		});
+
+		test("should return all courses for content manager user", async () => {
+			const result = await tryGetUserAccessibleCourses(payload, contentManagerUserId);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.length).toBeGreaterThanOrEqual(3);
+
+				// Check that content manager sees all courses
+				const courseIds = result.value.map(course => course.id);
+				expect(courseIds).toContain(course1Id);
+				expect(courseIds).toContain(course2Id);
+				expect(courseIds).toContain(course3Id);
+
+				// Check content manager role assignment
+				const contentManagerCourse = result.value.find(course => course.id === course1Id);
+				expect(contentManagerCourse?.role).toBe("category-coordinator");
+				expect(contentManagerCourse?.source).toBe("global-admin");
+			}
+		});
+
+		test("should return courses from enrollments for regular user", async () => {
+			const result = await tryGetUserAccessibleCourses(payload, regularUserId);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				// Should have at least course2 (enrollment) and course3 (category access)
+				expect(result.value.length).toBeGreaterThanOrEqual(2);
+
+				// Check enrollment access
+				const enrollmentCourse = result.value.find(course => course.id === course2Id);
+				expect(enrollmentCourse).toBeDefined();
+				expect(enrollmentCourse?.role).toBe("student");
+				expect(enrollmentCourse?.source).toBe("enrollment");
+				expect(enrollmentCourse?.enrollmentStatus).toBe("active");
+			}
+		});
+
+		test("should return courses from category roles for regular user", async () => {
+			const result = await tryGetUserAccessibleCourses(payload, regularUserId);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				// Check category access
+				const categoryCourse = result.value.find(course => course.id === course3Id);
+				expect(categoryCourse).toBeDefined();
+				expect(categoryCourse?.role).toBe("category-coordinator");
+				expect(categoryCourse?.source).toBe("category");
+				expect(categoryCourse?.enrollmentStatus).toBeNull();
+			}
+		});
+
+		test("should not return courses user has no access to", async () => {
+			const result = await tryGetUserAccessibleCourses(payload, regularUserId);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				// Regular user should not see course1 (no enrollment or category access)
+				const courseIds = result.value.map(course => course.id);
+				expect(courseIds).not.toContain(course1Id);
+			}
+		});
+
+		test("should handle completed enrollment status", async () => {
+			// Update enrollment to completed
+			const enrollments = await payload.find({
+				collection: "enrollments",
+				where: {
+					and: [
+						{ user: { equals: regularUserId } },
+						{ course: { equals: course2Id } },
+					],
+				},
+			});
+
+			if (enrollments.docs.length > 0) {
+				await payload.update({
+					collection: "enrollments",
+					id: enrollments.docs[0].id,
+					data: { status: "completed" },
+				});
+
+				const result = await tryGetUserAccessibleCourses(payload, regularUserId);
+
+				expect(result.ok).toBe(true);
+				if (result.ok) {
+					const enrollmentCourse = result.value.find(course => course.id === course2Id);
+					expect(enrollmentCourse?.enrollmentStatus).toBe("completed");
+					expect(enrollmentCourse?.completionPercentage).toBe(100);
+				}
+			}
+		});
+
+		test("should fail with invalid user ID", async () => {
+			const result = await tryGetUserAccessibleCourses(payload, 99999);
+
+			expect(result.ok).toBe(false);
+			if (!result.ok) {
+				expect(result.error.message).toContain("User ID is required");
+			}
+		});
+
+		test("should handle user with no course access", async () => {
+			// Create a user with no enrollments or category roles
+			const noAccessUserArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "noaccess@test.com",
+					password: "password123",
+					firstName: "No",
+					lastName: "Access",
+					role: "student",
+				},
+				overrideAccess: true,
+			};
+
+			const noAccessUserResult = await tryCreateUser(noAccessUserArgs);
+			expect(noAccessUserResult.ok).toBe(true);
+
+			if (noAccessUserResult.ok) {
+				const result = await tryGetUserAccessibleCourses(payload, noAccessUserResult.value.id);
+
+				expect(result.ok).toBe(true);
+				if (result.ok) {
+					expect(result.value.length).toBe(0);
+				}
 			}
 		});
 	});

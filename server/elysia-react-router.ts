@@ -107,8 +107,8 @@ export async function reactRouter(
 		const serverBuild = vite
 			? await vite.ssrLoadModule("virtual:react-router/server-build")
 			: // @ts-expect-error
-			// ! this will appear when we run build
-			((await import("../build/server/index.js")) as ServerBuild);
+				// ! this will appear when we run build
+				((await import("../build/server/index.js")) as ServerBuild);
 		const handler = createRequestHandler(
 			// @ts-expect-error
 			serverBuild,
