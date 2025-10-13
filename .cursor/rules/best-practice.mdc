@@ -16,6 +16,8 @@ when working with jsx array, we should not use index as key. we should use the i
 
 we should use `<meta>` in the page component.
 
+use `matches` to from Route.ComponentProps to check current route.
+
 ## testing 
 
 every features on the backend should be tested using `bun:test`.

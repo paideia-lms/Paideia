@@ -1,7 +1,8 @@
-import { Box, Group, Stack, Tabs, Text, TextInput, Title } from "@mantine/core";
+import { Box, Group, Stack, Tabs, TextInput, Title } from "@mantine/core";
 import { useQueryState } from "nuqs";
 import { AdminErrorBoundary } from "~/components/admin-error-boundary";
 import type { Route } from "./+types/index";
+import { href, Link } from "react-router";
 
 export const loader = async () => {
 	return {};
@@ -13,6 +14,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
 interface AdminItem {
 	title: string;
+	href?: string;
 }
 
 interface AdminSection {
@@ -168,7 +170,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 			courses: {
 				title: "Courses",
 				items: [
-					{ title: "Manage courses and categories" },
+					{ title: "Manage courses and categories", href: href("/admin/courses") },
 					{ title: "Add a category" },
 					{ title: "Add a new course" },
 					{ title: "Restore course" },
@@ -601,6 +603,47 @@ const adminTabs: { [key: string]: AdminTab } = {
 	},
 };
 
+const AdminTabPanel = ({ tabKey }: { tabKey: string }) => {
+	const tabData = adminTabs[tabKey];
+	if (!tabData) return null;
+
+	return (
+		<Tabs.Panel value={tabKey} pt="xl">
+			<Stack gap="lg">
+				{Object.entries(tabData.sections).map(([sectionKey, section]) => (
+					<Box key={sectionKey}>
+						<Title order={2} mb="md">
+							{section.title}
+						</Title>
+						<Stack gap="sm">
+							{section.items.map((item) => (
+								<Box
+									key={item.title}
+									p="md"
+									style={{
+										// remove the link style 
+										textDecoration: "none",
+										color: "inherit",
+										border: "1px solid var(--mantine-color-gray-3)",
+										borderRadius: "var(--mantine-radius-sm)",
+										cursor: "pointer",
+									}}
+									component={Link}
+									to={item.href ?? "#"}
+								>
+									<Title order={4} mb="xs">
+										{item.title}
+									</Title>
+								</Box>
+							))}
+						</Stack>
+					</Box>
+				))}
+			</Stack>
+		</Tabs.Panel>
+	);
+};
+
 const SearchInput = () => {
 	const [searchQuery, setSearchQuery] = useQueryState("search");
 
@@ -661,320 +704,9 @@ export default function AdminPage() {
 				</Tabs.List>
 
 				{/* Tab Panels */}
-				<Tabs.Panel value="general" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.general.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="users" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.users.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="courses" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.courses.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="grades" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.grades.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="plugins" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.plugins.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="appearance" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.appearance.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="server" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.server.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="reports" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.reports.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
-
-				<Tabs.Panel value="development" pt="xl">
-					<Stack gap="lg">
-						{Object.entries(adminTabs.development.sections).map(
-							([sectionKey, section]) => (
-								<Box key={sectionKey}>
-									<Title order={2} mb="md">
-										{section.title}
-									</Title>
-									<Stack gap="sm">
-										{section.items.map((item) => (
-											<Box
-												key={item.title}
-												p="md"
-												className="admin-item"
-												style={{
-													border: "1px solid var(--mantine-color-gray-3)",
-													borderRadius: "var(--mantine-radius-sm)",
-													cursor: "pointer",
-												}}
-												onClick={() => {
-													console.log(`Clicked: ${item.title}`);
-												}}
-											>
-												<Title order={4} mb="xs">
-													{item.title}
-												</Title>
-											</Box>
-										))}
-									</Stack>
-								</Box>
-							),
-						)}
-					</Stack>
-				</Tabs.Panel>
+				{Object.keys(adminTabs).map((tabKey) => (
+					<AdminTabPanel key={tabKey} tabKey={tabKey} />
+				))}
 			</Tabs>
 		</Box>
 	);

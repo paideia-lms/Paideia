@@ -5,13 +5,13 @@ import {
 	route,
 } from "@react-router/dev/routes";
 
-export default [
-	index("routes/index.tsx"),
+export const routes = [
 	route("login", "routes/login.tsx"),
 	route("first-user", "routes/first-user.tsx"),
 	route("logout", "routes/logout.tsx"),
 	route("api/media/file/:filename", "routes/api/media/file.$filename.tsx"),
-	layout("layouts/user-layout.tsx", [
+	layout("layouts/root-layout.tsx", [
+		index("routes/index.tsx"),
 		route("user/profile/:id?", "routes/user/profile.tsx"),
 		route("user/edit/:id?", "routes/user/edit.tsx"),
 		route("user/notes/:id?", "routes/user/notes.tsx"),
@@ -20,9 +20,11 @@ export default [
 		route("user/module/new", "routes/user/module/new.tsx"),
 		route("user/module/edit/:id", "routes/user/module/edit.tsx"),
 		route("course/new", "routes/course-new.tsx"),
-		route("course/view/:id", "routes/course-view.$id.tsx"),
-		route("course/edit/:id", "routes/course-edit.$id.tsx"),
-		layout("layouts/course-layout.tsx", [route("course", "routes/course.tsx")]),
+		layout("layouts/course-layout.tsx", [
+			route("course", "routes/course.tsx"),
+			route("course/view/:id", "routes/course-view.$id.tsx"),
+			route("course/edit/:id", "routes/course-edit.$id.tsx"),
+		]),
 		layout("layouts/server-admin-layout.tsx", [
 			route("admin/*", "routes/admin/index.tsx"),
 			route("admin/users", "routes/admin/users.tsx"),
@@ -30,4 +32,7 @@ export default [
 			route("admin/courses", "routes/admin/courses.tsx"),
 		]),
 	]),
-] satisfies RouteConfig;
+] as const satisfies RouteConfig;
+
+
+export default routes; 

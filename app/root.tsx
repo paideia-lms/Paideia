@@ -25,9 +25,31 @@ import { userContextKey } from "server/contexts/user-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryHandleImpersonation } from "server/internal/user-management";
 import type { User as PayloadUser } from "server/payload-types";
+import { tryGetRouteHierarchy } from "./utils/routes-utils";
 
 export const middleware = [
 	async ({ request, context }) => {
+		const routeHierarchy = tryGetRouteHierarchy(new URL(request.url).pathname);
+		const isAdmin = !!routeHierarchy.find(route => route.id === "layouts/server-admin-layout");
+		const isMyCourses = !!routeHierarchy.find(route => route.id === "routes/course");
+		const isDashboard = !!routeHierarchy.find(route => route.id === "routes/index");
+		const isLogin = !!routeHierarchy.find(route => route.id === "routes/login");
+		const isFirstUser = !!routeHierarchy.find(route => route.id === "routes/first-user");
+
+		// set the route hierarchy and page info to the context
+		context.set(globalContextKey, {
+			...context.get(globalContextKey),
+			routeHierarchy,
+			pageInfo: {
+				isAdmin,
+				isMyCourses,
+				isDashboard,
+				isLogin,
+				isFirstUser,
+			},
+		});
+	},
+	async ({ request, context, },) => {
 		const { payload } = context.get(globalContextKey);
 
 		// Get the authenticated user
@@ -79,7 +101,9 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-	const { payload, requestInfo } = context.get(globalContextKey);
+	const { payload, requestInfo, pageInfo } = context.get(globalContextKey);
+	const timestamp = new Date().toISOString();
+	// console.log(routes)
 	// ! we can get elysia from context!!!
 	// console.log(payload, elysia);
 	const result = await tryGetUserCount({ payload, overrideAccess: true });
@@ -90,18 +114,24 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 	const users = result.value;
 
+
 	// Check if we need to redirect to first-user creation
 	const url = new URL(request.url);
+
+
 	const currentPath = url.pathname;
 
 	// Skip redirect check for essential routes
 	if (
-		currentPath === "/first-user" ||
-		currentPath === "/login" ||
+		pageInfo.isFirstUser ||
+		pageInfo.isLogin ||
 		currentPath.startsWith("/api/")
 	) {
 		return {
 			users: users,
+			domainUrl: requestInfo.domainUrl,
+			timestamp: timestamp,
+			pageInfo: pageInfo,
 		};
 	}
 
@@ -110,34 +140,32 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		throw redirect(href("/first-user"));
 	}
 
-	const timestamp = new Date().toISOString();
 
 	return {
 		users: users,
 		domainUrl: requestInfo.domainUrl,
 		timestamp: timestamp,
+		pageInfo: pageInfo,
 	};
 }
 
+
 export default function App({ loaderData }: Route.ComponentProps) {
 	return (
-		<html lang="en">
+		<html lang="en" data-mantine-color-scheme="light">
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<meta title="Paideia LMS" />
 				<meta name="description" content="Paideia LMS" />
 				{/* ! this will force the browser to reload the favicon, see https://stackoverflow.com/questions/2208933/how-do-i-force-a-favicon-refresh */}
-				<link
-					rel="icon"
-					href={`/favicon.ico?timestamp=${loaderData.timestamp}`}
-				/>
+				<link rel="icon" href={`/favicon.ico?timestamp=${loaderData.timestamp}`} />
 				<Meta />
 				<Links />
 				<ColorSchemeScript />
 			</head>
 			<body>
-				<MantineProvider>
+				<MantineProvider defaultColorScheme="light">
 					<NuqsAdapter>
 						<Outlet />
 						<Notifications />

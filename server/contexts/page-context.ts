@@ -20,6 +20,6 @@ export interface PageContext {
 	theme?: "light" | "dark" | "auto";
 }
 
-export const pageContext = createContext<PageContext>();
+export const pageContext = createContext<PageContext | null>(null);
 
 export const pageContextKey = "pageContext" as unknown as typeof pageContext;
