@@ -119,7 +119,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 			users: {
 				title: "Users",
 				items: [
-					{ title: "Browse list of users" },
+					{ title: "Browse list of users", href: href("/admin/users") },
 					{ title: "Bulk user actions" },
 					{ title: "Add a new user" },
 					{ title: "User management" },

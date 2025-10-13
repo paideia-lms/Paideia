@@ -9,6 +9,7 @@ export const routes = [
 	route("login", "routes/login.tsx"),
 	route("first-user", "routes/first-user.tsx"),
 	route("logout", "routes/logout.tsx"),
+	route("stop-impersonation", "routes/stop-impersonation.tsx"),
 	route("api/media/file/:filename", "routes/api/media/file.$filename.tsx"),
 	layout("layouts/root-layout.tsx", [
 		index("routes/index.tsx"),

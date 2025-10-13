@@ -16,6 +16,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconEdit, IconTrash, IconUserCheck } from "@tabler/icons-react";
+import { StopImpersonatingButton } from "~/routes/stop-impersonation";
 import { useState } from "react";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -75,8 +76,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-						filename: profileUser.avatar.filename,
-					})
+					filename: profileUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -184,23 +185,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			headers: {
 				"Set-Cookie": setImpersonationCookie(
 					targetUserId,
-					requestInfo.domainUrl,
-					request.headers,
-					payload,
-				),
-			},
-		});
-	}
-
-	if (intent === "stop-impersonate") {
-		if (!userSession.isImpersonating) {
-			return badRequest({ error: "Not currently impersonating" });
-		}
-
-		// Remove impersonation cookie and redirect to admin's profile
-		throw redirect(`/user/profile/${currentUser.id}`, {
-			headers: {
-				"Set-Cookie": removeImpersonationCookie(
 					requestInfo.domainUrl,
 					request.headers,
 					payload,
@@ -331,13 +315,6 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 		fetcher.submit(formData, { method: "POST" });
 	};
 
-	// Handler for stopping impersonation
-	const handleStopImpersonate = () => {
-		const formData = new FormData();
-		formData.append("intent", "stop-impersonate");
-		fetcher.submit(formData, { method: "POST" });
-	};
-
 	return (
 		<Container size="md" py="xl">
 			<title>{`${fullName} | Profile | Paideia LMS`}</title>
@@ -364,16 +341,13 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 					>
 						You are currently viewing the system as {fullName}. You are logged
 						in as {authenticatedUser.firstName} {authenticatedUser.lastName}.
-						<Button
-							size="xs"
-							color="orange"
-							variant="light"
-							onClick={handleStopImpersonate}
-							loading={fetcher.state === "submitting"}
-							ml="md"
-						>
-							Stop Impersonating
-						</Button>
+						<div style={{ marginLeft: "1rem" }}>
+							<StopImpersonatingButton
+								size="xs"
+								color="orange"
+								variant="light"
+							/>
+						</div>
 					</Alert>
 				)}
 
