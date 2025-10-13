@@ -44,8 +44,8 @@ const pg = postgresAdapter({
 	// disable logger in different environments
 	logger:
 		process.env.NODE_ENV !== "test" &&
-			process.env.NODE_ENV !== "production" &&
-			process.env.NODE_ENV !== "development"
+		process.env.NODE_ENV !== "production" &&
+		process.env.NODE_ENV !== "development"
 			? new EnhancedQueryLogger()
 			: undefined,
 	// ! we never want to push directly, always respect the the migrations files
@@ -76,7 +76,7 @@ const pg = postgresAdapter({
 						// Change activityModule foreign key to CASCADE on delete
 						if (
 							foreignKey.reference().foreignTable[
-							Symbol.for("drizzle:Name")
+								Symbol.for("drizzle:Name")
 							] === relation.foreignTable
 						) {
 							// console.log(foreignKey)
@@ -170,7 +170,7 @@ const sanitizedConfig = buildConfig({
 		// ! this is required for the local development to work
 		...(process.env.NODE_ENV === "development"
 			? ["http://localhost:3000", "localhost"]
-			: []),
+			: ["http://localhost:3000", "localhost"]),
 	].filter(Boolean) as string[],
 	admin: {
 		// ! when you use auto login, you can never logout
@@ -181,21 +181,21 @@ const sanitizedConfig = buildConfig({
 	},
 	email:
 		envVars.SMTP_HOST.value &&
-			envVars.SMTP_USER.value &&
-			envVars.SMTP_PASS.value
+		envVars.SMTP_USER.value &&
+		envVars.SMTP_PASS.value
 			? nodemailerAdapter({
-				defaultFromAddress: "info@payloadcms.com",
-				defaultFromName: "Payload",
-				// Nodemailer transportOptions
-				transportOptions: {
-					host: envVars.SMTP_HOST.value,
-					port: 587,
-					auth: {
-						user: envVars.SMTP_USER.value,
-						pass: envVars.SMTP_PASS.value,
+					defaultFromAddress: "info@payloadcms.com",
+					defaultFromName: "Payload",
+					// Nodemailer transportOptions
+					transportOptions: {
+						host: envVars.SMTP_HOST.value,
+						port: 587,
+						auth: {
+							user: envVars.SMTP_USER.value,
+							pass: envVars.SMTP_PASS.value,
+						},
 					},
-				},
-			})
+				})
 			: undefined,
 	plugins: [
 		searchPlugin({

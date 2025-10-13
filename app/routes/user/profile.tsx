@@ -16,7 +16,6 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconEdit, IconTrash, IconUserCheck } from "@tabler/icons-react";
-import { StopImpersonatingButton } from "~/routes/stop-impersonation";
 import { useState } from "react";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -27,11 +26,9 @@ import {
 } from "server/internal/activity-module-management";
 import { tryFindLinksByActivityModule } from "server/internal/course-activity-module-link-management";
 import { tryFindUserById } from "server/internal/user-management";
+import { StopImpersonatingButton } from "~/routes/api/stop-impersonation";
 import { assertRequestMethod } from "~/utils/assert-request-method";
-import {
-	removeImpersonationCookie,
-	setImpersonationCookie,
-} from "~/utils/cookie";
+import { setImpersonationCookie } from "~/utils/cookie";
 import {
 	badRequest,
 	NotFoundResponse,
@@ -76,15 +73,15 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-					filename: profileUser.avatar.filename,
-				})
+						filename: profileUser.avatar.filename,
+					})
 				: null;
 		}
 	}
 
-	// Fetch activity modules for the current logged-in user
+	// Fetch activity modules for the target user
 	const modulesResult = await tryGetUserActivityModules(payload, {
-		userId: currentUser.id,
+		userId: userId,
 		limit: 50,
 	});
 
@@ -105,14 +102,19 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		}),
 	);
 
-	// Check if user can create modules
+	// Check if user can create modules (only for own profile)
 	const canCreateModules =
-		currentUser.role === "admin" ||
-		currentUser.role === "instructor" ||
-		currentUser.role === "content-manager";
+		userId === currentUser.id &&
+		(currentUser.role === "admin" ||
+			currentUser.role === "instructor" ||
+			currentUser.role === "content-manager");
 
 	// Check if user can edit this profile
 	const canEdit = userId === currentUser.id || currentUser.role === "admin";
+
+	// Check if user can manage modules (edit/delete) - only for own profile or if admin
+	const canManageModules =
+		userId === currentUser.id || currentUser.role === "admin";
 
 	// Check if user can impersonate (admin viewing someone else's profile, not an admin, and not already impersonating)
 	const canImpersonate =
@@ -133,22 +135,32 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		modules: modulesWithLinkCounts,
 		canCreateModules,
 		canEdit,
+		canManageModules,
 		canImpersonate,
 		isImpersonating: userSession.isImpersonating,
 		authenticatedUser: userSession.authenticatedUser,
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
+export const action = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const requestInfo = context.get(globalContextKey).requestInfo;
 	const userSession = context.get(userContextKey);
+	const { id } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
 
 	const { authenticatedUser: currentUser } = userSession;
+
+	// Determine which user's profile we're working with
+	const targetUserId = id ? Number(id) : currentUser.id;
+
 	const formData = await request.formData();
 	const intent = formData.get("intent");
 
@@ -202,9 +214,19 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		return badRequest({ error: "Invalid module ID" });
 	}
 
-	// Verify the user owns this module by fetching it first
+	// Check permissions: only allow deletion if current user is the target user or is admin
+	const canDeleteModules =
+		targetUserId === currentUser.id || currentUser.role === "admin";
+
+	if (!canDeleteModules) {
+		return unauthorized({
+			error: "You don't have permission to delete this user's modules",
+		});
+	}
+
+	// Verify the module exists and belongs to the target user
 	const modulesResult = await tryGetUserActivityModules(payload, {
-		userId: currentUser.id,
+		userId: targetUserId,
 		limit: 100,
 	});
 
@@ -261,6 +283,7 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 		modules,
 		canCreateModules,
 		canEdit,
+		canManageModules,
 		canImpersonate,
 		isImpersonating,
 		authenticatedUser,
@@ -432,7 +455,7 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 										<Table.Th>Type</Table.Th>
 										<Table.Th>Status</Table.Th>
 										<Table.Th>Linked Courses</Table.Th>
-										{isOwnProfile && <Table.Th>Actions</Table.Th>}
+										{canManageModules && <Table.Th>Actions</Table.Th>}
 									</Table.Tr>
 								</Table.Thead>
 								<Table.Tbody>
@@ -457,7 +480,7 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 											<Table.Td>
 												<Text size="sm">{module.linkCount}</Text>
 											</Table.Td>
-											{isOwnProfile && (
+											{canManageModules && (
 												<Table.Td>
 													<Group gap="xs">
 														<ActionIcon

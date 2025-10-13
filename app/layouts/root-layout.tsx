@@ -1,20 +1,3 @@
-import { Outlet, Link, href, useNavigate } from "react-router";
-import { User, userContextKey, type UserSession } from "server/contexts/user-context";
-import type { Route } from "./+types/root-layout";
-import { useState } from 'react';
-import {
-	IconChevronDown,
-	IconLogout,
-	IconUser,
-	IconSchool,
-	IconCalendar,
-	IconPhoto,
-	IconSettings,
-	IconLanguage,
-	IconLogin,
-	IconUserCheck,
-} from '@tabler/icons-react';
-import cx from 'clsx';
 import {
 	Avatar,
 	Container,
@@ -22,12 +5,33 @@ import {
 	Menu,
 	Tabs,
 	Text,
-	UnstyledButton,
 	Tooltip,
-} from '@mantine/core';
-import classes from './header-tabs.module.css';
+	UnstyledButton,
+} from "@mantine/core";
+import {
+	IconCalendar,
+	IconChevronDown,
+	IconLanguage,
+	IconLogin,
+	IconLogout,
+	IconPhoto,
+	IconSchool,
+	IconSettings,
+	IconUser,
+	IconUserCheck,
+} from "@tabler/icons-react";
+import cx from "clsx";
+import { useState } from "react";
+import { href, Link, Outlet, useNavigate } from "react-router";
 import type { PageInfo } from "server/contexts/global-context";
-import { StopImpersonatingMenuItem } from "~/routes/stop-impersonation";
+import {
+	type User,
+	type UserSession,
+	userContextKey,
+} from "server/contexts/user-context";
+import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
+import type { Route } from "./+types/root-layout";
+import classes from "./header-tabs.module.css";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -37,14 +41,14 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-export default function UserLayout({ loaderData, matches }: Route.ComponentProps) {
+export default function UserLayout({
+	loaderData,
+	matches,
+}: Route.ComponentProps) {
 	const { pageInfo } = matches[0].loaderData;
 	return (
 		<>
-			<HeaderTabs
-				userSession={loaderData.userSession}
-				pageInfo={pageInfo}
-			/>
+			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} />
 			<Outlet />
 		</>
 	);
@@ -61,11 +65,10 @@ function getAvatarUrl(user: User) {
 	return null;
 }
 
-
 enum Tab {
-	Dashboard = 'Dashboard',
-	MyCourses = 'My Courses',
-	SiteAdmin = 'Site Admin',
+	Dashboard = "Dashboard",
+	MyCourses = "My Courses",
+	SiteAdmin = "Site Admin",
 }
 
 export function HeaderTabs({
@@ -79,7 +82,8 @@ export function HeaderTabs({
 	const [userMenuOpened, setUserMenuOpened] = useState(false);
 
 	const isAuthenticated = userSession?.isAuthenticated ?? false;
-	const currentUser = userSession?.effectiveUser || userSession?.authenticatedUser;
+	const currentUser =
+		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const isImpersonating = userSession?.isImpersonating ?? false;
 	const authenticatedUser = userSession?.authenticatedUser;
 
@@ -99,14 +103,14 @@ export function HeaderTabs({
 		if (!value) return;
 
 		switch (value) {
-			case 'Dashboard':
-				navigate(href('/'));
+			case "Dashboard":
+				navigate(href("/"));
 				break;
-			case 'My Courses':
-				navigate(href('/course'));
+			case "My Courses":
+				navigate(href("/course"));
 				break;
-			case 'Site Admin':
-				navigate(href('/admin/*', { '*': '' }));
+			case "Site Admin":
+				navigate(href("/admin/*", { "*": "" }));
 				break;
 		}
 	};
@@ -127,48 +131,62 @@ export function HeaderTabs({
 						}}
 					>
 						<Tabs.List>
-							<Tabs.Tab value={Tab.Dashboard}>
-								Dashboard
-							</Tabs.Tab>
-							<Tabs.Tab value={Tab.MyCourses}>
-								My Courses
-							</Tabs.Tab>
-							{isAuthenticated && currentUser?.role === 'admin' && (
-								<Tabs.Tab value={Tab.SiteAdmin}>
-									Site Admin
-								</Tabs.Tab>
+							<Tabs.Tab value={Tab.Dashboard}>Dashboard</Tabs.Tab>
+							<Tabs.Tab value={Tab.MyCourses}>My Courses</Tabs.Tab>
+							{isAuthenticated && currentUser?.role === "admin" && (
+								<Tabs.Tab value={Tab.SiteAdmin}>Site Admin</Tabs.Tab>
 							)}
 						</Tabs.List>
 					</Tabs>
 					<Menu
 						width={260}
 						position="bottom-end"
-						transitionProps={{ transition: 'pop-top-right' }}
+						transitionProps={{ transition: "pop-top-right" }}
 						onClose={() => setUserMenuOpened(false)}
 						onOpen={() => setUserMenuOpened(true)}
 						withinPortal
 					>
 						<Menu.Target>
 							<UnstyledButton
-								className={cx(classes.user, { [classes.userActive]: userMenuOpened })}
+								className={cx(classes.user, {
+									[classes.userActive]: userMenuOpened,
+								})}
 							>
 								<Group gap={7}>
 									{isAuthenticated && currentUser ? (
 										isImpersonating && authenticatedUser ? (
 											<Tooltip.Group openDelay={300} closeDelay={100}>
 												<Avatar.Group spacing="sm">
-													<Tooltip label={`Logged in as: ${authenticatedUser.firstName ?? ''} ${authenticatedUser.lastName ?? ''}`.trim() || 'Admin'} withArrow>
+													<Tooltip
+														label={
+															`Logged in as: ${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
+															"Admin"
+														}
+														withArrow
+													>
 														<Avatar
 															src={getAvatarUrl(authenticatedUser)}
-															alt={`${authenticatedUser.firstName ?? ''} ${authenticatedUser.lastName ?? ''}`.trim() || 'Admin'}
+															alt={
+																`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
+																"Admin"
+															}
 															radius="xl"
 															size={20}
 														/>
 													</Tooltip>
-													<Tooltip label={`Impersonating: ${currentUser.firstName ?? ''} ${currentUser.lastName ?? ''}`.trim() || 'Anonymous'} withArrow>
+													<Tooltip
+														label={
+															`Impersonating: ${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+															"Anonymous"
+														}
+														withArrow
+													>
 														<Avatar
 															src={getAvatarUrl(currentUser)}
-															alt={`${currentUser.firstName ?? ''} ${currentUser.lastName ?? ''}`.trim() || 'Anonymous'}
+															alt={
+																`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+																"Anonymous"
+															}
 															radius="xl"
 															size={20}
 														/>
@@ -178,7 +196,10 @@ export function HeaderTabs({
 										) : (
 											<Avatar
 												src={getAvatarUrl(currentUser)}
-												alt={`${currentUser.firstName ?? ''} ${currentUser.lastName ?? ''}`.trim() || 'Anonymous'}
+												alt={
+													`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+													"Anonymous"
+												}
 												radius="xl"
 												size={20}
 											/>
@@ -189,7 +210,10 @@ export function HeaderTabs({
 										</Avatar>
 									)}
 									<Text fw={500} size="sm" lh={1} mr={3}>
-										{isAuthenticated && currentUser ? `${currentUser.firstName ?? ''} ${currentUser.lastName ?? ''}`.trim() || 'Anonymous' : 'Not signed in'}
+										{isAuthenticated && currentUser
+											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+												"Anonymous"
+											: "Not signed in"}
 									</Text>
 									<IconChevronDown size={12} stroke={1.5} />
 								</Group>
@@ -198,8 +222,6 @@ export function HeaderTabs({
 						<Menu.Dropdown>
 							{isAuthenticated ? (
 								<>
-
-
 									<Menu.Item
 										leftSection={<IconUser size={16} stroke={1.5} />}
 										component={Link}
@@ -207,10 +229,14 @@ export function HeaderTabs({
 									>
 										Profile
 									</Menu.Item>
-									<Menu.Item leftSection={<IconSchool size={16} stroke={1.5} />}>
+									<Menu.Item
+										leftSection={<IconSchool size={16} stroke={1.5} />}
+									>
 										Grades
 									</Menu.Item>
-									<Menu.Item leftSection={<IconCalendar size={16} stroke={1.5} />}>
+									<Menu.Item
+										leftSection={<IconCalendar size={16} stroke={1.5} />}
+									>
 										Calendar
 									</Menu.Item>
 									<Menu.Item leftSection={<IconPhoto size={16} stroke={1.5} />}>
@@ -219,10 +245,14 @@ export function HeaderTabs({
 
 									<Menu.Divider />
 
-									<Menu.Item leftSection={<IconSettings size={16} stroke={1.5} />}>
+									<Menu.Item
+										leftSection={<IconSettings size={16} stroke={1.5} />}
+									>
 										Preferences
 									</Menu.Item>
-									<Menu.Item leftSection={<IconLanguage size={16} stroke={1.5} />}>
+									<Menu.Item
+										leftSection={<IconLanguage size={16} stroke={1.5} />}
+									>
 										Languages
 									</Menu.Item>
 
@@ -254,7 +284,6 @@ export function HeaderTabs({
 						</Menu.Dropdown>
 					</Menu>
 				</Group>
-
 			</Container>
 		</div>
 	);

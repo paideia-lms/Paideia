@@ -19,6 +19,7 @@ import {
 	useFetcher,
 } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryLogin } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
@@ -26,7 +27,6 @@ import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ok } from "~/utils/responses";
 import type { Route } from "./+types/login";
-import { userContextKey } from "server/contexts/user-context";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 	// Mock loader - just return some basic data

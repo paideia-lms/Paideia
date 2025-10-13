@@ -19,10 +19,10 @@ import type {
 } from "@remix-run/form-data-parser";
 import { parseFormData } from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import { extractJWT } from "payload";
 import { useState } from "react";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryCreateMedia } from "server/internal/media-management";
 import { tryUpdateUser } from "server/internal/user-management";
 import z from "zod";
@@ -35,36 +35,49 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/edit";
 
-export const loader = async ({
-	request,
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
 	const { id } = params;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
 
-	if (!currentUser) {
+	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
 	}
 
-	// if id is provided, check if the user is admin
-	if (id !== undefined && Number(id) !== currentUser.id) {
-		if (currentUser.role !== "admin") {
+	// Use effectiveUser if impersonating, otherwise use authenticatedUser
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	// Determine which user to edit
+	let targetUserId: number;
+	if (id !== undefined) {
+		// If id is provided, check if the user is admin
+		if (Number(id) !== currentUser.id && currentUser.role !== "admin") {
 			throw new ForbiddenResponse("Only admins can edit other users");
 		}
+		targetUserId = Number(id);
+	} else {
+		// If no id provided, edit current user
+		targetUserId = currentUser.id;
+	}
+
+	// Fetch the target user
+	const targetUser = await payload.findByID({
+		collection: "users",
+		id: targetUserId,
+	});
+
+	if (!targetUser) {
+		throw new NotFoundResponse("User not found");
 	}
 
 	// Handle avatar - could be Media object or just ID
 	let avatarUrl: string | null = null;
-	if (currentUser.avatar) {
-		if (typeof currentUser.avatar === "object") {
-			avatarUrl = currentUser.avatar.filename
+	if (targetUser.avatar) {
+		if (typeof targetUser.avatar === "object") {
+			avatarUrl = targetUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-						filename: currentUser.avatar.filename,
+						filename: targetUser.avatar.filename,
 					})
 				: null;
 		}
@@ -72,37 +85,49 @@ export const loader = async ({
 
 	return {
 		user: {
-			id: currentUser.id,
-			firstName: currentUser.firstName ?? "",
-			lastName: currentUser.lastName ?? "",
-			bio: currentUser.bio ?? "",
+			id: targetUser.id,
+			firstName: targetUser.firstName ?? "",
+			lastName: targetUser.lastName ?? "",
+			bio: targetUser.bio ?? "",
 			avatarUrl,
 		},
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
+export const action = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const token = extractJWT({ headers: request.headers, payload });
-	if (token === null) {
+	const userSession = context.get(userContextKey);
+	const { id } = params;
+
+	if (!userSession?.isAuthenticated) {
 		return unauthorized({
 			success: false,
 			error: "Unauthorized",
 		});
 	}
 
-	const currentUser = await payload
-		.auth({
-			headers: request.headers,
-			canSetHeaders: true,
-		})
-		.then((res) => res.user);
+	// Use effectiveUser if impersonating, otherwise use authenticatedUser
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (currentUser === null) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
+	// Determine which user to update
+	let targetUserId: number;
+	if (id !== undefined) {
+		// If id is provided, check if the user is admin
+		if (Number(id) !== currentUser.id && currentUser.role !== "admin") {
+			return unauthorized({
+				success: false,
+				error: "Only admins can edit other users",
+			});
+		}
+		targetUserId = Number(id);
+	} else {
+		// If no id provided, update current user
+		targetUserId = currentUser.id;
 	}
 
 	// Start a transaction for atomic media creation + user update
@@ -128,8 +153,8 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
-					alt: `${currentUser.firstName} ${currentUser.lastName} avatar`,
-					userId: currentUser.id,
+					alt: `User avatar`,
+					userId: targetUserId,
 					transactionID,
 				});
 
@@ -173,7 +198,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		// Update user within the same transaction
 		const updateResult = await tryUpdateUser({
 			payload,
-			userId: currentUser.id,
+			userId: targetUserId,
 			data: {
 				firstName: parsed.data.firstName,
 				lastName: parsed.data.lastName,

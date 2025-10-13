@@ -244,10 +244,6 @@ export const tryFindCourseById = Result.wrap(
 				);
 
 				const courseEnrollments = course.enrollments?.docs;
-				console.log(
-					"courseEnrollments",
-					JSON.stringify(courseEnrollments, null, 2),
-				);
 
 				assertZod(
 					courseEnrollments,

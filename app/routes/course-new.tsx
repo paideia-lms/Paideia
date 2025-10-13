@@ -14,6 +14,7 @@ import { notifications } from "@mantine/notifications";
 import { extractJWT } from "payload";
 import { redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryCreateCourse } from "server/internal/course-management";
 import type { Course } from "server/payload-types";
 import z from "zod";
@@ -28,16 +29,16 @@ import type { Route } from "./+types/course-new";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
 
-	if (!currentUser) {
+	if (!userSession?.authenticatedUser) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	if (currentUser.role !== "admin" && currentUser.role !== "content-manager") {
+	if (
+		userSession.authenticatedUser.role !== "admin" &&
+		userSession.authenticatedUser.role !== "content-manager"
+	) {
 		throw new ForbiddenResponse(
 			"Only admins and content managers can create courses",
 		);

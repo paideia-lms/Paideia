@@ -1,8 +1,8 @@
 import { Box, Group, Stack, Tabs, TextInput, Title } from "@mantine/core";
 import { useQueryState } from "nuqs";
+import { href, Link } from "react-router";
 import { AdminErrorBoundary } from "~/components/admin-error-boundary";
 import type { Route } from "./+types/index";
-import { href, Link } from "react-router";
 
 export const loader = async () => {
 	return {};
@@ -170,7 +170,10 @@ const adminTabs: { [key: string]: AdminTab } = {
 			courses: {
 				title: "Courses",
 				items: [
-					{ title: "Manage courses and categories", href: href("/admin/courses") },
+					{
+						title: "Manage courses and categories",
+						href: href("/admin/courses"),
+					},
 					{ title: "Add a category" },
 					{ title: "Add a new course" },
 					{ title: "Restore course" },
@@ -621,7 +624,7 @@ const AdminTabPanel = ({ tabKey }: { tabKey: string }) => {
 									key={item.title}
 									p="md"
 									style={{
-										// remove the link style 
+										// remove the link style
 										textDecoration: "none",
 										color: "inherit",
 										border: "1px solid var(--mantine-color-gray-3)",

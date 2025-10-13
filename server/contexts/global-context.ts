@@ -2,10 +2,10 @@ import type { S3Client } from "@aws-sdk/client-s3";
 import type { BasePayload } from "payload";
 import { createContext } from "react-router";
 import type { Storage } from "unstorage";
+import type { RouteInfo } from "~/utils/routes-utils";
 import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
-import type { RouteInfo } from "~/utils/routes-utils";
 
 export type PageInfo = {
 	isAdmin: boolean;
@@ -13,7 +13,8 @@ export type PageInfo = {
 	isDashboard: boolean;
 	isLogin: boolean;
 	isFirstUser: boolean;
-}
+	isInCourse: boolean;
+};
 
 /**
  * global context for all the routes. it must exist in all the routes.

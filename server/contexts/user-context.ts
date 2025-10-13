@@ -6,14 +6,14 @@ export interface User {
 	firstName?: string | null;
 	lastName?: string | null;
 	role?:
-	| (
-		| "student"
-		| "instructor"
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer"
-	)
-	| null;
+		| (
+				| "student"
+				| "instructor"
+				| "admin"
+				| "content-manager"
+				| "analytics-viewer"
+		  )
+		| null;
 	bio?: string | null;
 	avatar?: number | PayloadUser["avatar"] | null;
 	email: string;
