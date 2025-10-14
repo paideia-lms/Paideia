@@ -74,15 +74,6 @@ export const Enrollments = {
 		},
 	],
 	hooks: {
-		beforeOperation: [
-			({ collection, operation, req }) => {
-				// Skip authentication in test environment
-				if (process.env.NODE_ENV === "test") return;
-
-				const user = req.user;
-				if (!user) throw new UnauthorizedError("Unauthorized");
-			},
-		],
 	},
 	// Ensure unique user-course combinations
 	indexes: [

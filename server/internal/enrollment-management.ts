@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import {
 	DuplicateEnrollmentError,
@@ -8,9 +8,10 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Enrollment } from "../payload-types";
+import type { Enrollment, User } from "../payload-types";
 
 export interface CreateEnrollmentArgs {
+	payload: Payload;
 	user: number; // User ID
 	course: number; // Course ID
 	role: "student" | "teacher" | "ta" | "manager";
@@ -18,17 +19,26 @@ export interface CreateEnrollmentArgs {
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
+	authenticatedUser?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateEnrollmentArgs {
+	payload: Payload;
+	enrollmentId: number;
 	role?: "student" | "teacher" | "ta" | "manager";
 	status?: "active" | "inactive" | "completed" | "dropped";
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
+	authenticatedUser?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface SearchEnrollmentsArgs {
+	payload: Payload;
 	user?: number;
 	course?: number;
 	role?: "student" | "teacher" | "ta" | "manager";
@@ -36,14 +46,18 @@ export interface SearchEnrollmentsArgs {
 	groupId?: number; // Filter by group ID
 	limit?: number;
 	page?: number;
+	authenticatedUser?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
  * Creates a new enrollment using Payload local API
  */
 export const tryCreateEnrollment = Result.wrap(
-	async (payload: Payload, args: CreateEnrollmentArgs) => {
+	async (args: CreateEnrollmentArgs) => {
 		const {
+			payload,
 			user,
 			course,
 			role,
@@ -51,6 +65,9 @@ export const tryCreateEnrollment = Result.wrap(
 			enrolledAt,
 			completedAt,
 			groups = [],
+			authenticatedUser = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -78,7 +95,9 @@ export const tryCreateEnrollment = Result.wrap(
 			const userExists = await payload.findByID({
 				collection: "users",
 				id: user,
-				req: { transactionID },
+				user: authenticatedUser,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess: true, // Always allow checking if user exists
 			});
 
 			if (!userExists) {
@@ -89,7 +108,9 @@ export const tryCreateEnrollment = Result.wrap(
 			const courseExists = await payload.findByID({
 				collection: "courses",
 				id: course,
-				req: { transactionID },
+				user: authenticatedUser,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess: true, // Always allow checking if course exists
 			});
 
 			if (!courseExists) {
@@ -114,7 +135,9 @@ export const tryCreateEnrollment = Result.wrap(
 					],
 				},
 				limit: 1,
-				req: { transactionID },
+				user: authenticatedUser,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess: true, // Always allow checking if enrollment exists
 			});
 
 			if (existingEnrollments.docs.length > 0) {
@@ -134,7 +157,9 @@ export const tryCreateEnrollment = Result.wrap(
 					completedAt,
 					groups,
 				},
-				req: { transactionID },
+				user: authenticatedUser,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			// Commit transaction
@@ -158,11 +183,20 @@ export const tryCreateEnrollment = Result.wrap(
  * Updates an existing enrollment using Payload local API
  */
 export const tryUpdateEnrollment = Result.wrap(
-	async (
-		payload: Payload,
-		enrollmentId: number,
-		args: UpdateEnrollmentArgs,
-	) => {
+	async (args: UpdateEnrollmentArgs) => {
+		const {
+			payload,
+			enrollmentId,
+			role,
+			status,
+			enrolledAt,
+			completedAt,
+			groups,
+			authenticatedUser = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
@@ -179,8 +213,16 @@ export const tryUpdateEnrollment = Result.wrap(
 			const updatedEnrollment = await payload.update({
 				collection: "enrollments",
 				id: enrollmentId,
-				data: args,
-				req: { transactionID },
+				data: {
+					role,
+					status,
+					enrolledAt,
+					completedAt,
+					groups,
+				},
+				user: authenticatedUser,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			// Commit transaction
@@ -204,7 +246,7 @@ export const tryUpdateEnrollment = Result.wrap(
  * Finds an enrollment by ID
  */
 export const tryFindEnrollmentById = Result.wrap(
-	async (payload: Payload, enrollmentId: number) => {
+	async (payload: Payload, enrollmentId: number, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
@@ -213,6 +255,9 @@ export const tryFindEnrollmentById = Result.wrap(
 		const enrollment = await payload.findByID({
 			collection: "enrollments",
 			id: enrollmentId,
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
 		});
 
 		return enrollment;
@@ -228,10 +273,22 @@ export const tryFindEnrollmentById = Result.wrap(
  * Searches enrollments with various filters
  */
 export const trySearchEnrollments = Result.wrap(
-	async (payload: Payload, args: SearchEnrollmentsArgs = {}) => {
-		const { user, course, role, status, groupId, limit = 10, page = 1 } = args;
+	async (args: SearchEnrollmentsArgs) => {
+		const {
+			payload,
+			user,
+			course,
+			role,
+			status,
+			groupId,
+			limit = 10,
+			page = 1,
+			authenticatedUser = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
-		const where: any = {};
+		const where: Record<string, any> = {};
 
 		if (user) {
 			where.user = {
@@ -269,6 +326,9 @@ export const trySearchEnrollments = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
 		});
 
 		return {
@@ -292,7 +352,7 @@ export const trySearchEnrollments = Result.wrap(
  * Deletes an enrollment by ID
  */
 export const tryDeleteEnrollment = Result.wrap(
-	async (payload: Payload, enrollmentId: number) => {
+	async (payload: Payload, enrollmentId: number, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
@@ -308,7 +368,9 @@ export const tryDeleteEnrollment = Result.wrap(
 		const deletedEnrollment = await payload.delete({
 			collection: "enrollments",
 			id: enrollmentId,
-			req: { transactionID },
+			user: authenticatedUser,
+			req: req ? { ...req, transactionID } : { transactionID },
+			overrideAccess,
 		});
 
 		// Commit transaction
@@ -327,7 +389,7 @@ export const tryDeleteEnrollment = Result.wrap(
  * Finds enrollments by user ID
  */
 export const tryFindEnrollmentsByUser = Result.wrap(
-	async (payload: Payload, userId: number, limit: number = 10) => {
+	async (payload: Payload, userId: number, limit: number = 10, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		// Validate required fields
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -342,6 +404,9 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
 		});
 
 		return enrollments.docs as Enrollment[];
@@ -357,7 +422,7 @@ export const tryFindEnrollmentsByUser = Result.wrap(
  * Finds enrollments by course ID
  */
 export const tryFindEnrollmentsByCourse = Result.wrap(
-	async (payload: Payload, courseId: number, limit: number = 10) => {
+	async (payload: Payload, courseId: number, limit: number = 10, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		// Validate required fields
 		if (!courseId) {
 			throw new InvalidArgumentError("Course ID is required");
@@ -372,6 +437,9 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
 		});
 
 		return enrollments.docs as Enrollment[];
@@ -387,7 +455,7 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
  * Finds a specific user enrollment in a course
  */
 export const tryFindUserEnrollmentInCourse = Result.wrap(
-	async (payload: Payload, userId: number, courseId: number) => {
+	async (payload: Payload, userId: number, courseId: number, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		// Validate required fields
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -414,6 +482,9 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
 				],
 			},
 			limit: 1,
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
 		});
 
 		return enrollments.docs.length > 0
@@ -431,7 +502,7 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
  * Finds active enrollments only
  */
 export const tryFindActiveEnrollments = Result.wrap(
-	async (payload: Payload, limit: number = 10, page: number = 1) => {
+	async (payload: Payload, limit: number = 10, page: number = 1, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		const enrollments = await payload.find({
 			collection: "enrollments",
 			where: {
@@ -442,6 +513,9 @@ export const tryFindActiveEnrollments = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
 		});
 
 		return {
@@ -470,6 +544,9 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 		enrollmentId: number,
 		status: "active" | "inactive" | "completed" | "dropped",
 		completedAt?: string,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
 	) => {
 		// Validate required fields
 		if (!enrollmentId) {
@@ -480,7 +557,14 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 			throw new InvalidArgumentError("Status is required");
 		}
 
-		const updateData: UpdateEnrollmentArgs = { status };
+		const updateData: UpdateEnrollmentArgs = {
+			payload,
+			enrollmentId,
+			status,
+			authenticatedUser,
+			req,
+			overrideAccess,
+		};
 
 		// If marking as completed and completedAt is provided, set it
 		if (status === "completed" && completedAt) {
@@ -492,7 +576,7 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 			updateData.completedAt = new Date().toISOString();
 		}
 
-		return tryUpdateEnrollment(payload, enrollmentId, updateData);
+		return tryUpdateEnrollment(updateData);
 	},
 	(error) =>
 		transformError(error) ??
@@ -505,7 +589,7 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
  * Adds groups to an enrollment
  */
 export const tryAddGroupsToEnrollment = Result.wrap(
-	async (payload: Payload, enrollmentId: number, groupIds: number[]) => {
+	async (payload: Payload, enrollmentId: number, groupIds: number[], authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
@@ -525,7 +609,9 @@ export const tryAddGroupsToEnrollment = Result.wrap(
 			const enrollment = await payload.findByID({
 				collection: "enrollments",
 				id: enrollmentId,
-				req: { transactionID },
+				user: authenticatedUser,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess: true, // Always allow reading enrollment for group management
 			});
 
 			if (!enrollment) {
@@ -549,7 +635,9 @@ export const tryAddGroupsToEnrollment = Result.wrap(
 				data: {
 					groups: allGroupIds,
 				},
-				req: { transactionID },
+				user: authenticatedUser,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			// Commit transaction
@@ -573,7 +661,7 @@ export const tryAddGroupsToEnrollment = Result.wrap(
  * Removes groups from an enrollment
  */
 export const tryRemoveGroupsFromEnrollment = Result.wrap(
-	async (payload: Payload, enrollmentId: number, groupIds: number[]) => {
+	async (payload: Payload, enrollmentId: number, groupIds: number[], authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
@@ -593,7 +681,7 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
 			const enrollment = await payload.findByID({
 				collection: "enrollments",
 				id: enrollmentId,
-				req: { transactionID },
+				req: req ? { ...req, transactionID } : { transactionID },
 			});
 
 			if (!enrollment) {
@@ -617,10 +705,11 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
 			const updatedEnrollment = await payload.update({
 				collection: "enrollments",
 				id: enrollmentId,
+				user: authenticatedUser,
 				data: {
 					groups: remainingGroupIds,
 				},
-				req: { transactionID },
+				req: req ? { ...req, transactionID } : { transactionID },
 			});
 
 			// Commit transaction
@@ -644,7 +733,7 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
  * Finds enrollments by group ID
  */
 export const tryFindEnrollmentsByGroup = Result.wrap(
-	async (payload: Payload, groupId: number, limit: number = 10) => {
+	async (payload: Payload, groupId: number, limit: number = 10, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
 		if (!groupId) {
 			throw new InvalidArgumentError("Group ID is required");
 		}
@@ -658,6 +747,9 @@ export const tryFindEnrollmentsByGroup = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
 		});
 
 		return enrollments.docs as Enrollment[];

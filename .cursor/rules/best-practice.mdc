@@ -18,6 +18,8 @@ we should use `<meta>` in the page component.
 
 use `matches` to from Route.ComponentProps to check current route.
 
+don't use `useEffect`, use `useEffectEvent` instead.
+
 ## testing 
 
 every features on the backend should be tested using `bun:test`.

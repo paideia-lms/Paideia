@@ -209,9 +209,9 @@ export class InvalidOwnerTransferError extends Error {
 }
 
 export function transformError(error: unknown) {
-	if (process.env.NODE_ENV === "test") {
-		console.log("transformError", error);
-	}
+	// if (process.env.NODE_ENV === "test") {
+	console.log("transformError", error);
+	// }
 	if (error instanceof NonExistingSourceError) return error;
 	else if (error instanceof DuplicateBranchError) return error;
 	else if (error instanceof UnauthorizedError) return error;
