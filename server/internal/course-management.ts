@@ -1,5 +1,5 @@
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
-import type { Payload, Where } from "payload";
+import type { Payload, PayloadRequest, Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Courses, Gradebooks, Groups } from "server/payload.config";
 import { assertZod } from "server/utils/type-narrowing";
@@ -11,9 +11,8 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Course, Enrollment, Group } from "../payload-types";
+import type { Course, Enrollment, Group, User } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
-import { tryGetUserCoursesFromCategories } from "./category-role-management";
 
 // e.g. Replace<Enrollment, "groups", number[]>
 // Omit and add a new property
@@ -985,128 +984,130 @@ export interface UserAccessibleCourse {
 	enrollmentStatus: "active" | "inactive" | "completed" | "dropped" | null;
 	completionPercentage: number;
 	thumbnailUrl: string | null;
-	role: "student" | "teacher" | "ta" | "manager" | "category-admin" | "category-coordinator" | "category-reviewer" | null;
-	source: "enrollment" | "category" | "global-admin";
+	role: "student" | "teacher" | "ta" | "manager" | null;
+	source: "enrollment" | "owner";
+	createdBy: number;
 }
 
 /**
- * Gets all courses a user has access to via enrollments and category roles
+ * Gets all courses a user has access to via enrollments or ownership
  */
 export const tryGetUserAccessibleCourses = Result.wrap(
-	async (payload: Payload, userId: number): Promise<UserAccessibleCourse[]> => {
+	async (
+		payload: Payload,
+		userId: number,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	): Promise<UserAccessibleCourse[]> => {
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Check if user is admin or content-manager - they see all courses
-		const user = await payload.findByID({
-			collection: "users",
-			id: userId,
-			depth: 0,
-		});
-
-		if (user.role === "admin" || user.role === "content-manager") {
-			// Get all courses for admin/content-manager
-			const allCoursesResult = await tryFindAllCourses({
-				payload,
-				limit: 1000, // Large limit to get all courses
-			});
-
-			if (!allCoursesResult.ok) {
-				throw new Error("Failed to fetch all courses");
-			}
-
-			return allCoursesResult.value.docs.map((course) => ({
-				id: course.id,
-				title: course.title,
-				category: typeof course.category === "object" && course.category
-					? course.category.name
-					: null,
-				enrollmentStatus: null, // No enrollment status for admin view
-				completionPercentage: 0, // Dummy for now
-				thumbnailUrl: typeof course.thumbnail === "object" && course.thumbnail
-					? `/api/media/file/${course.thumbnail.filename}`
-					: null,
-				role: user.role === "admin" ? "manager" : "category-coordinator",
-				source: "global-admin" as const,
-			}));
-		}
-
-		// For regular users, get courses from enrollments and category roles
 		const coursesMap = new Map<number, UserAccessibleCourse>();
 
-		// Get courses from direct enrollments
-		const enrollmentsResult = await tryFindEnrollmentsByUser(payload, userId, 100);
+		// 1. Get courses created by user (owner)
+		const createdCourses = await payload.find({
+			collection: "courses",
+			where: {
+				createdBy: {
+					equals: userId,
+				},
+			},
+			depth: 1,
+			pagination: false,
+			user: authenticatedUser,
+			req: req || {},
+			overrideAccess,
+		});
+
+		for (const course of createdCourses.docs) {
+			const categoryName =
+				typeof course.category === "object" && course.category
+					? course.category.name
+					: null;
+
+			const thumbnailUrl =
+				typeof course.thumbnail === "object" && course.thumbnail
+					? `/api/media/file/${course.thumbnail.filename}`
+					: null;
+
+			coursesMap.set(course.id, {
+				id: course.id,
+				title: course.title,
+				category: categoryName,
+				enrollmentStatus: null, // No enrollment status for owner
+				completionPercentage: 0, // Dummy for now
+				thumbnailUrl,
+				role: null, // No role for owner
+				source: "owner",
+				createdBy: userId,
+			});
+		}
+
+		// 2. Get courses from enrollments
+		const enrollmentsResult = await tryFindEnrollmentsByUser(
+			payload,
+			userId,
+			1000,
+			authenticatedUser,
+			req,
+			overrideAccess,
+		);
 		if (enrollmentsResult.ok) {
 			for (const enrollment of enrollmentsResult.value) {
 				// Get course details
-				const courseId = typeof enrollment.course === "number"
-					? enrollment.course
-					: enrollment.course.id;
+				const courseId =
+					typeof enrollment.course === "number"
+						? enrollment.course
+						: enrollment.course.id;
 				const course = await payload.findByID({
 					collection: "courses",
 					id: courseId,
 					depth: 1,
+					user: authenticatedUser,
+					req: req || {},
+					overrideAccess,
 				});
 
 				if (course) {
-					const categoryName = typeof course.category === "object" && course.category
-						? course.category.name
-						: null;
+					const categoryName =
+						typeof course.category === "object" && course.category
+							? course.category.name
+							: null;
 
-					const thumbnailUrl = typeof course.thumbnail === "object" && course.thumbnail
-						? `/api/media/file/${course.thumbnail.filename}`
-						: null;
+					const thumbnailUrl =
+						typeof course.thumbnail === "object" && course.thumbnail
+							? `/api/media/file/${course.thumbnail.filename}`
+							: null;
 
-					coursesMap.set(course.id, {
-						id: course.id,
-						title: course.title,
-						category: categoryName,
-						enrollmentStatus: enrollment.status,
-						completionPercentage: enrollment.status === "completed" ? 100 : 0, // Dummy calculation
-						thumbnailUrl,
-						role: enrollment.role,
-						source: "enrollment",
-					});
-				}
-			}
-		}
-
-		// Get courses from category roles
-		const categoryCoursesResult = await tryGetUserCoursesFromCategories(payload, userId);
-		if (categoryCoursesResult.ok) {
-			for (const courseAccess of categoryCoursesResult.value) {
-				// Skip if already added via enrollment
-				if (coursesMap.has(courseAccess.courseId)) {
-					continue;
-				}
-
-				// Get course details
-				const course = await payload.findByID({
-					collection: "courses",
-					id: courseAccess.courseId,
-					depth: 1,
-				});
-
-				if (course) {
-					const categoryName = typeof course.category === "object" && course.category
-						? course.category.name
-						: null;
-
-					const thumbnailUrl = typeof course.thumbnail === "object" && course.thumbnail
-						? `/api/media/file/${course.thumbnail.filename}`
-						: null;
-
-					coursesMap.set(course.id, {
-						id: course.id,
-						title: course.title,
-						category: categoryName,
-						enrollmentStatus: null, // No enrollment status for category access
-						completionPercentage: 0, // Dummy for now
-						thumbnailUrl,
-						role: courseAccess.categoryRole,
-						source: "category",
-					});
+					// If course already exists in map (from owner), update with enrollment info
+					if (coursesMap.has(course.id)) {
+						const existingCourse = coursesMap.get(course.id);
+						if (existingCourse) {
+							coursesMap.set(course.id, {
+								...existingCourse,
+								enrollmentStatus: enrollment.status,
+								role: enrollment.role,
+								source: "enrollment", // Prioritize enrollment over owner
+							});
+						}
+					} else {
+						coursesMap.set(course.id, {
+							id: course.id,
+							title: course.title,
+							category: categoryName,
+							enrollmentStatus: enrollment.status,
+							completionPercentage: enrollment.status === "completed" ? 100 : 0, // Dummy calculation
+							thumbnailUrl,
+							role: enrollment.role,
+							source: "enrollment",
+							createdBy:
+								typeof course.createdBy === "number"
+									? course.createdBy
+									: course.createdBy.id,
+						});
+					}
 				}
 			}
 		}

@@ -2,9 +2,10 @@ import {
 	Badge,
 	Button,
 	Card,
+	Checkbox,
 	Container,
-	Group,
 	Grid,
+	Group,
 	Progress,
 	SegmentedControl,
 	Select,
@@ -14,9 +15,14 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { IconLayoutGrid, IconList, IconPlus, IconSettings } from "@tabler/icons-react";
+import {
+	IconLayoutGrid,
+	IconList,
+	IconPlus,
+	IconSettings,
+} from "@tabler/icons-react";
 import { useState } from "react";
-import { Link, href, useNavigate } from "react-router";
+import { href, Link, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetUserAccessibleCourses } from "server/internal/course-management";
@@ -36,7 +42,13 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user's accessible courses
-	const coursesResult = await tryGetUserAccessibleCourses(payload, currentUser.id);
+	const coursesResult = await tryGetUserAccessibleCourses(
+		payload,
+		currentUser.id,
+		currentUser,
+		undefined,
+		true, // overrideAccess for admin functionality
+	);
 
 	if (!coursesResult.ok) {
 		throw new Error("Failed to fetch courses");
@@ -51,18 +63,25 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	return {
 		courses,
 		canManageCourses,
+		currentUserId: currentUser.id,
 	};
 };
 
 export default function CoursePage({ loaderData }: Route.ComponentProps) {
-	const { courses, canManageCourses } = loaderData;
+	const { courses, canManageCourses, currentUserId } = loaderData;
 	const [viewMode, setViewMode] = useState<"card" | "table">("card");
 	const [sortBy, setSortBy] = useState<string>("last-accessed");
+	const [showCreatedByMe, setShowCreatedByMe] = useState<boolean>(false);
 	const navigate = useNavigate();
 
 	const handleCourseClick = (courseId: number) => {
 		navigate(href("/course/view/:id", { id: courseId.toString() }));
 	};
+
+	// Filter courses based on "Created by me" filter
+	const filteredCourses = showCreatedByMe
+		? courses.filter((course) => course.createdBy === currentUserId)
+		: courses;
 
 	return (
 		<Container size="xl" py="md">
@@ -98,10 +117,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 				{/* Controls Section */}
 				<Group justify="space-between" align="center">
 					<Group gap="md">
-						<TextInput
-							placeholder="Search"
-							style={{ width: 200 }}
-						/>
+						<TextInput placeholder="Search" style={{ width: 200 }} />
 						<Select
 							placeholder="Sort by last accessed"
 							data={[
@@ -112,6 +128,13 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 							value={sortBy}
 							onChange={(value) => setSortBy(value || "last-accessed")}
 							style={{ width: 200 }}
+						/>
+						<Checkbox
+							label="Created by me"
+							checked={showCreatedByMe}
+							onChange={(event) =>
+								setShowCreatedByMe(event.currentTarget.checked)
+							}
 						/>
 					</Group>
 					<SegmentedControl
@@ -143,7 +166,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 				{/* Display Section */}
 				{viewMode === "card" ? (
 					<Grid>
-						{courses.map((course) => (
+						{filteredCourses.map((course) => (
 							<Grid.Col key={course.id} span={{ base: 12, sm: 6, md: 4 }}>
 								<Card
 									component={Link}
@@ -194,9 +217,13 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 												<Badge
 													size="sm"
 													color={
-														course.enrollmentStatus === "active" ? "green" :
-															course.enrollmentStatus === "completed" ? "blue" :
-																course.enrollmentStatus === "dropped" ? "red" : "gray"
+														course.enrollmentStatus === "active"
+															? "green"
+															: course.enrollmentStatus === "completed"
+																? "blue"
+																: course.enrollmentStatus === "dropped"
+																	? "red"
+																	: "gray"
 													}
 												>
 													{course.enrollmentStatus}
@@ -232,7 +259,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 							</Table.Tr>
 						</Table.Thead>
 						<Table.Tbody>
-							{courses.map((course) => (
+							{filteredCourses.map((course) => (
 								<Table.Tr
 									key={course.id}
 									style={{ cursor: "pointer" }}
@@ -255,9 +282,13 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 											<Badge
 												size="sm"
 												color={
-													course.enrollmentStatus === "active" ? "green" :
-														course.enrollmentStatus === "completed" ? "blue" :
-															course.enrollmentStatus === "dropped" ? "red" : "gray"
+													course.enrollmentStatus === "active"
+														? "green"
+														: course.enrollmentStatus === "completed"
+															? "blue"
+															: course.enrollmentStatus === "dropped"
+																? "red"
+																: "gray"
 												}
 											>
 												{course.enrollmentStatus}
@@ -287,7 +318,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 				)}
 
 				{/* Empty State */}
-				{courses.length === 0 && (
+				{filteredCourses.length === 0 && (
 					<Stack align="center" gap="md" py="xl">
 						<Text size="lg" c="dimmed">
 							No courses available

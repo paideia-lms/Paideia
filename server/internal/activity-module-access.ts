@@ -46,6 +46,16 @@ export interface CheckAccessArgs {
 	userId: number;
 }
 
+export interface FindGrantsByActivityModuleArgs {
+	payload: Payload;
+	activityModuleId: number;
+}
+
+export interface FindInstructorsForActivityModuleArgs {
+	payload: Payload;
+	activityModuleId: number;
+}
+
 export interface AccessCheckResult {
 	hasAccess: boolean;
 	isOwner: boolean;
@@ -458,6 +468,127 @@ export const tryCheckActivityModuleAccess = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to check activity module access", {
+			cause: error,
+		}),
+);
+
+/**
+ * Finds all grants for an activity module
+ * Returns grants with populated user data
+ */
+export const tryFindGrantsByActivityModule = Result.wrap(
+	async (args: FindGrantsByActivityModuleArgs) => {
+		const { payload, activityModuleId } = args;
+
+		const grants = await payload.find({
+			collection: "activity-module-grants",
+			where: {
+				activityModule: { equals: activityModuleId },
+			},
+			depth: 1, // Populate grantedTo and grantedBy user data
+			overrideAccess: true,
+		});
+
+		return grants.docs;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to fetch activity module grants", {
+			cause: error,
+		}),
+);
+
+/**
+ * Finds instructors from courses linked to an activity module
+ * Returns instructors (teachers/TAs) with their course count
+ */
+export const tryFindInstructorsForActivityModule = Result.wrap(
+	async (args: FindInstructorsForActivityModuleArgs) => {
+		const { payload, activityModuleId } = args;
+
+		// Find all course links for this activity module
+		const links = await payload.find({
+			collection: "course-activity-module-links",
+			where: {
+				activityModule: { equals: activityModuleId },
+			},
+			depth: 0,
+			overrideAccess: true,
+		});
+
+		if (links.docs.length === 0) {
+			return [];
+		}
+
+		// Extract course IDs
+		const courseIds = links.docs.map((link) =>
+			typeof link.course === "number" ? link.course : link.course.id,
+		);
+
+		// Find all enrollments for these courses with teacher/ta roles
+		const enrollments = await payload.find({
+			collection: "enrollments",
+			where: {
+				and: [
+					{ course: { in: courseIds } },
+					{ role: { in: ["teacher", "ta"] } },
+					{ status: { equals: "active" } },
+				],
+			},
+			depth: 1, // Populate user data
+			limit: 1000, // Get all instructors
+			overrideAccess: true,
+		});
+
+		// Extract unique users with their course info
+		const instructorMap = new Map<
+			number,
+			{
+				user: any;
+				courses: number[];
+				role: string;
+			}
+		>();
+
+		for (const enrollment of enrollments.docs) {
+			const userId =
+				typeof enrollment.user === "number"
+					? enrollment.user
+					: enrollment.user.id;
+
+			const courseId =
+				typeof enrollment.course === "number"
+					? enrollment.course
+					: enrollment.course.id;
+
+			if (!instructorMap.has(userId)) {
+				instructorMap.set(userId, {
+					user: typeof enrollment.user === "object" ? enrollment.user : null,
+					courses: [courseId],
+					role: enrollment.role,
+				});
+			} else {
+				const existing = instructorMap.get(userId)!;
+				if (!existing.courses.includes(courseId)) {
+					existing.courses.push(courseId);
+				}
+			}
+		}
+
+		return Array.from(instructorMap.values())
+			.filter((item) => item.user !== null)
+			.map((item) => ({
+				id: item.user.id,
+				email: item.user.email,
+				firstName: item.user.firstName,
+				lastName: item.user.lastName,
+				role: item.role,
+				courseCount: item.courses.length,
+			}));
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to fetch instructors for activity module", {
 			cause: error,
 		}),
 );

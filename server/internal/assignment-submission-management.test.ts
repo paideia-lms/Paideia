@@ -123,13 +123,15 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Create enrollment
 		const enrollmentArgs: CreateEnrollmentArgs = {
+			payload,
 			user: studentId,
 			course: courseId,
 			role: "student",
 			status: "active",
+			overrideAccess: true,
 		};
 
-		const enrollmentResult = await tryCreateEnrollment(payload, enrollmentArgs);
+		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
 		expect(enrollmentResult.ok).toBe(true);
 		if (enrollmentResult.ok) {
 			enrollmentId = enrollmentResult.value.id;

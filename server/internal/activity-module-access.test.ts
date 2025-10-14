@@ -4,6 +4,8 @@ import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryCheckActivityModuleAccess,
+	tryFindGrantsByActivityModule,
+	tryFindInstructorsForActivityModule,
 	tryGrantAccessToActivityModule,
 	tryRevokeAccessFromActivityModule,
 	tryTransferActivityModuleOwnership,
@@ -988,5 +990,330 @@ describe("Activity Module Access Control", () => {
 		});
 
 		expect(user1Grants.docs.length).toBe(1);
+	});
+
+	test("should find grants for activity module", async () => {
+		const user1 = await getAuthUser(user1Token);
+
+		// Create activity module
+		const activityModule = await payload.create({
+			collection: "activity-modules",
+			data: {
+				title: "Find Grants Test",
+				type: "assignment",
+				status: "draft",
+				createdBy: testUser1.id,
+				owner: testUser1.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Grant access to user2
+		await tryGrantAccessToActivityModule({
+			payload,
+			activityModuleId: activityModule.id,
+			grantedToUserId: testUser2.id,
+			grantedByUserId: testUser1.id,
+			overrideAccess: true,
+		});
+
+		// Grant access to user3
+		await tryGrantAccessToActivityModule({
+			payload,
+			activityModuleId: activityModule.id,
+			grantedToUserId: testUser3.id,
+			grantedByUserId: testUser1.id,
+			overrideAccess: true,
+		});
+
+		// Find grants
+		const grantsResult = await tryFindGrantsByActivityModule({
+			payload,
+			activityModuleId: activityModule.id,
+		});
+
+		expect(grantsResult.ok).toBe(true);
+		if (grantsResult.ok) {
+			expect(grantsResult.value.length).toBe(2);
+
+			// Check that both users are in the grants
+			const grantedUserIds = grantsResult.value.map((grant) =>
+				typeof grant.grantedTo === "number"
+					? grant.grantedTo
+					: grant.grantedTo.id,
+			);
+			expect(grantedUserIds).toContain(testUser2.id);
+			expect(grantedUserIds).toContain(testUser3.id);
+		}
+	});
+
+	test("should find instructors for activity module", async () => {
+		const user1 = await getAuthUser(user1Token);
+
+		// Create activity module
+		const activityModule = await payload.create({
+			collection: "activity-modules",
+			data: {
+				title: "Find Instructors Test",
+				type: "quiz",
+				status: "draft",
+				createdBy: testUser1.id,
+				owner: testUser1.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Create a course
+		const course = await payload.create({
+			collection: "courses",
+			data: {
+				title: "Test Course",
+				description: "Test course description",
+				slug: "test-course",
+				createdBy: testUser1.id,
+				status: "published",
+				structure: { sections: [] },
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Create course-activity-module link
+		await payload.create({
+			collection: "course-activity-module-links",
+			data: {
+				course: course.id,
+				activityModule: activityModule.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Enroll user2 as teacher in the course
+		await payload.create({
+			collection: "enrollments",
+			data: {
+				user: testUser2.id,
+				course: course.id,
+				role: "teacher",
+				status: "active",
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Enroll user3 as ta in the course
+		await payload.create({
+			collection: "enrollments",
+			data: {
+				user: testUser3.id,
+				course: course.id,
+				role: "ta",
+				status: "active",
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Find instructors
+		const instructorsResult = await tryFindInstructorsForActivityModule({
+			payload,
+			activityModuleId: activityModule.id,
+		});
+
+		expect(instructorsResult.ok).toBe(true);
+		if (instructorsResult.ok) {
+			expect(instructorsResult.value.length).toBe(2);
+
+			// Check that both users are instructors
+			const instructorIds = instructorsResult.value.map(
+				(instructor) => instructor.id,
+			);
+			expect(instructorIds).toContain(testUser2.id);
+			expect(instructorIds).toContain(testUser3.id);
+
+			// Check course count
+			const teacherInstructor = instructorsResult.value.find(
+				(i) => i.id === testUser2.id,
+			);
+			const taInstructor = instructorsResult.value.find(
+				(i) => i.id === testUser3.id,
+			);
+
+			expect(teacherInstructor?.courseCount).toBe(1);
+			expect(taInstructor?.courseCount).toBe(1);
+			expect(teacherInstructor?.role).toBe("teacher");
+			expect(taInstructor?.role).toBe("ta");
+		}
+	});
+
+	test("should find instructors from multiple linked courses", async () => {
+		const user1 = await getAuthUser(user1Token);
+
+		// Create activity module
+		const activityModule = await payload.create({
+			collection: "activity-modules",
+			data: {
+				title: "Multi Course Instructors Test",
+				type: "discussion",
+				status: "draft",
+				createdBy: testUser1.id,
+				owner: testUser1.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Create two courses
+		const course1 = await payload.create({
+			collection: "courses",
+			data: {
+				title: "Test Course 1",
+				description: "Test course 1 description",
+				slug: "test-course-1",
+				createdBy: testUser1.id,
+				status: "published",
+				structure: { sections: [] },
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		const course2 = await payload.create({
+			collection: "courses",
+			data: {
+				title: "Test Course 2",
+				description: "Test course 2 description",
+				slug: "test-course-2",
+				createdBy: testUser1.id,
+				status: "published",
+				structure: { sections: [] },
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Link activity module to both courses
+		await payload.create({
+			collection: "course-activity-module-links",
+			data: {
+				course: course1.id,
+				activityModule: activityModule.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		await payload.create({
+			collection: "course-activity-module-links",
+			data: {
+				course: course2.id,
+				activityModule: activityModule.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Enroll user2 as teacher in both courses
+		await payload.create({
+			collection: "enrollments",
+			data: {
+				user: testUser2.id,
+				course: course1.id,
+				role: "teacher",
+				status: "active",
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		await payload.create({
+			collection: "enrollments",
+			data: {
+				user: testUser2.id,
+				course: course2.id,
+				role: "teacher",
+				status: "active",
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Find instructors
+		const instructorsResult = await tryFindInstructorsForActivityModule({
+			payload,
+			activityModuleId: activityModule.id,
+		});
+
+		expect(instructorsResult.ok).toBe(true);
+		if (instructorsResult.ok) {
+			expect(instructorsResult.value.length).toBe(1);
+
+			// Check that user2 is instructor with course count 2
+			const instructor = instructorsResult.value[0];
+			expect(instructor.id).toBe(testUser2.id);
+			expect(instructor.courseCount).toBe(2);
+			expect(instructor.role).toBe("teacher");
+		}
+	});
+
+	test("should return empty array when no instructors found", async () => {
+		const user1 = await getAuthUser(user1Token);
+
+		// Create activity module
+		const activityModule = await payload.create({
+			collection: "activity-modules",
+			data: {
+				title: "No Instructors Test",
+				type: "assignment",
+				status: "draft",
+				createdBy: testUser1.id,
+				owner: testUser1.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Find instructors (no courses linked)
+		const instructorsResult = await tryFindInstructorsForActivityModule({
+			payload,
+			activityModuleId: activityModule.id,
+		});
+
+		expect(instructorsResult.ok).toBe(true);
+		if (instructorsResult.ok) {
+			expect(instructorsResult.value.length).toBe(0);
+		}
+	});
+
+	test("should return empty array when no grants found", async () => {
+		const user1 = await getAuthUser(user1Token);
+
+		// Create activity module
+		const activityModule = await payload.create({
+			collection: "activity-modules",
+			data: {
+				title: "No Grants Test",
+				type: "quiz",
+				status: "draft",
+				createdBy: testUser1.id,
+				owner: testUser1.id,
+			},
+			user: user1,
+			overrideAccess: true,
+		});
+
+		// Find grants (no grants created)
+		const grantsResult = await tryFindGrantsByActivityModule({
+			payload,
+			activityModuleId: activityModule.id,
+		});
+
+		expect(grantsResult.ok).toBe(true);
+		if (grantsResult.ok) {
+			expect(grantsResult.value.length).toBe(0);
+		}
 	});
 });

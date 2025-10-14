@@ -24,12 +24,19 @@ import {
 } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import {
+	tryFindGrantsByActivityModule,
+	tryFindInstructorsForActivityModule,
+	tryGrantAccessToActivityModule,
+	tryRevokeAccessFromActivityModule,
+} from "server/internal/activity-module-access";
+import {
 	tryGetActivityModuleById,
 	tryUpdateActivityModule,
 } from "server/internal/activity-module-management";
 import { tryFindLinksByActivityModule } from "server/internal/course-activity-module-link-management";
 import { tryFindCourseById } from "server/internal/course-management";
 import { canManageActivityModules } from "server/utils/permissions";
+import { GrantAccessSection } from "~/components/grant-access-section";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
@@ -108,10 +115,26 @@ export const loader = async ({
 		}
 	}
 
+	// Fetch grants for this module
+	const grantsResult = await tryFindGrantsByActivityModule({
+		payload,
+		activityModuleId: module.id,
+	});
+	const grants = grantsResult.ok ? grantsResult.value : [];
+
+	// Fetch instructors from linked courses
+	const instructorsResult = await tryFindInstructorsForActivityModule({
+		payload,
+		activityModuleId: module.id,
+	});
+	const instructors = instructorsResult.ok ? instructorsResult.value : [];
+
 	return {
 		user,
 		module,
 		linkedCourses,
+		grants,
+		instructors,
 	};
 };
 
@@ -151,6 +174,49 @@ export const action = async ({
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
+	// Check if this is a grant/revoke action
+	if ((data as any).intent === "grant-access") {
+		const grantResult = await tryGrantAccessToActivityModule({
+			payload,
+			activityModuleId: Number(moduleId),
+			grantedToUserId: Number((data as any).userId),
+			grantedByUserId: user.id,
+			user,
+			req: request,
+			overrideAccess: false,
+		});
+
+		if (!grantResult.ok) {
+			return badRequest({
+				success: false,
+				error: grantResult.error.message,
+			});
+		}
+
+		return { success: true, message: "Access granted successfully" };
+	}
+
+	if ((data as any).intent === "revoke-access") {
+		const revokeResult = await tryRevokeAccessFromActivityModule({
+			payload,
+			activityModuleId: Number(moduleId),
+			userId: Number((data as any).userId),
+			user,
+			req: request,
+			overrideAccess: false,
+		});
+
+		if (!revokeResult.ok) {
+			return badRequest({
+				success: false,
+				error: revokeResult.error.message,
+			});
+		}
+
+		return { success: true, message: "Access revoked successfully" };
+	}
+
+	// Continue with existing module update logic
 	const parsedData = activityModuleSchema.parse(data);
 
 	const { assignmentData, quizData, discussionData } =
@@ -198,7 +264,8 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function EditModulePage() {
-	const { module, linkedCourses } = useLoaderData<typeof loader>();
+	const { module, linkedCourses, grants, instructors } =
+		useLoaderData<typeof loader>();
 	const fetcher = useFetcher<typeof action>();
 
 	// Extract activity-specific data
@@ -226,6 +293,56 @@ export default function EditModulePage() {
 	const assignmentData = getAssignmentData();
 	const quizData = getQuizData();
 	const discussionData = getDiscussionData();
+
+	// Grant access handlers
+	const handleGrantAccess = (userIds: number[], notifyPeople: boolean) => {
+		userIds.forEach((userId) => {
+			fetcher.submit(
+				{
+					intent: "grant-access",
+					userId: userId.toString(),
+					notifyPeople: notifyPeople.toString(),
+				},
+				{ method: "POST", encType: "application/json" },
+			);
+		});
+	};
+
+	const handleRevokeAccess = (userId: number) => {
+		fetcher.submit(
+			{ intent: "revoke-access", userId: userId.toString() },
+			{ method: "POST", encType: "application/json" },
+		);
+	};
+
+	// Calculate exclude user IDs
+	const grantedUserIds = grants.map((g) =>
+		typeof g.grantedTo === "object" ? g.grantedTo.id : g.grantedTo,
+	);
+	const instructorIds = instructors.map((i) => i.id);
+	const ownerId =
+		typeof module.owner === "object" ? module.owner.id : module.owner;
+	const excludeUserIds = [ownerId, ...grantedUserIds, ...instructorIds];
+
+	// Transform grants to match component interface
+	const transformedGrants = grants.map((grant) => ({
+		id: grant.id,
+		grantedTo:
+			typeof grant.grantedTo === "object"
+				? {
+						id: grant.grantedTo.id,
+						email: grant.grantedTo.email,
+						firstName: grant.grantedTo.firstName,
+						lastName: grant.grantedTo.lastName,
+					}
+				: {
+						id: grant.grantedTo,
+						email: "",
+						firstName: "",
+						lastName: "",
+					},
+		grantedAt: grant.grantedAt,
+	}));
 
 	const form = useForm<ActivityModuleFormValues>({
 		mode: "uncontrolled",
@@ -336,6 +453,16 @@ export default function EditModulePage() {
 						</Table.ScrollContainer>
 					)}
 				</Paper>
+
+				{/* User Access Section */}
+				<GrantAccessSection
+					grants={transformedGrants}
+					instructors={instructors}
+					fetcherState={fetcher.state}
+					onGrantAccess={handleGrantAccess}
+					onRevokeAccess={handleRevokeAccess}
+					excludeUserIds={excludeUserIds}
+				/>
 
 				{/* Edit Form */}
 				<Paper withBorder shadow="md" p="xl" radius="md">

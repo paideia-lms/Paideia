@@ -6,6 +6,29 @@ import z from "zod";
 export const Courses = {
 	slug: "courses" as const,
 	defaultSort: "-createdAt",
+	access: {
+		create: ({ req }) => {
+			// must be logged in to create a course
+			if (!req.user) return false;
+			// only admin and content manager can create a course
+			return req.user.role === "admin" || req.user.role === "content-manager";
+		},
+		read: ({ req }) => {
+			// any one can read any course
+			return true;
+		},
+		update: ({ req }) => {
+			// must be logged in to update a course
+			if (!req.user) return false;
+			// only admin can update a course
+			return req.user.role === "admin";
+		},
+		delete: ({ req }) => {
+			if (!req.user) return false;
+			// only admin can delete a course
+			return req.user.role === "admin";
+		},
+	},
 	fields: [
 		{
 			name: "title",

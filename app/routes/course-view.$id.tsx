@@ -1,12 +1,12 @@
 import {
-    Badge,
-    Button,
-    Container,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Title,
+	Badge,
+	Button,
+	Container,
+	Group,
+	Paper,
+	Stack,
+	Text,
+	Title,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
@@ -18,523 +18,631 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import {
-    tryCreateCourseActivityModuleLink,
-    tryDeleteCourseActivityModuleLink,
-    tryFindLinksByCourse,
+	tryCreateCourseActivityModuleLink,
+	tryDeleteCourseActivityModuleLink,
+	tryFindLinksByCourse,
 } from "server/internal/course-activity-module-link-management";
-import { trySearchEnrollments, tryCreateEnrollment, tryUpdateEnrollment, tryDeleteEnrollment } from "server/internal/enrollment-management";
-import type { Course, Enrollment } from "server/payload-types";
-import type { SearchUser } from "~/routes/api/search-users";
 import {
-    badRequest,
-    ForbiddenResponse,
-    ok,
-    unauthorized,
-} from "~/utils/responses";
+	tryCreateEnrollment,
+	tryDeleteEnrollment,
+	tryFindUserEnrollmentInCourse,
+	trySearchEnrollments,
+	tryUpdateEnrollment,
+} from "server/internal/enrollment-management";
+import type { Course, Enrollment } from "server/payload-types";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
 import { CourseInfo } from "~/components/course-info";
+import {
+	getStatusBadgeColor,
+	getStatusLabel,
+} from "~/components/course-view-utils";
 import { DeleteEnrollmentModal } from "~/components/delete-enrollment-modal";
 import { EditEnrollmentModal } from "~/components/edit-enrollment-modal";
 import { EnrollUserModal } from "~/components/enroll-user-modal";
 import { EnrollmentsSection } from "~/components/enrollments-section";
-import { getStatusBadgeColor, getStatusLabel } from "~/components/course-view-utils";
+import type { SearchUser } from "~/routes/api/search-users";
+import {
+	badRequest,
+	ForbiddenResponse,
+	ok,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/course-view.$id";
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
-    const payload = context.get(globalContextKey).payload;
-    const courseContext = context.get(courseContextKey);
-    const userSession = context.get(userContextKey);
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
+	const payload = context.get(globalContextKey).payload;
+	const courseContext = context.get(courseContextKey);
+	const userSession = context.get(userContextKey);
 
-    if (!userSession?.isAuthenticated) {
-        throw new ForbiddenResponse("Unauthorized");
-    }
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
 
-    const currentUser =
-        userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-    if (currentUser.role !== "admin" && currentUser.role !== "content-manager") {
-        throw new ForbiddenResponse(
-            "Only admins and content managers can view courses",
-        );
-    }
+	const courseId = Number.parseInt(params.id, 10);
+	if (Number.isNaN(courseId)) {
+		return badRequest({
+			error: "Invalid course ID",
+		});
+	}
 
-    const courseId = Number.parseInt(params.id, 10);
-    if (Number.isNaN(courseId)) {
-        return badRequest({
-            error: "Invalid course ID",
-        });
-    }
+	// Course context must be defined, otherwise throw not found response
+	if (!courseContext) {
+		throw new ForbiddenResponse("Course not found");
+	}
 
-    // Course context must be defined, otherwise throw not found response
-    if (!courseContext) {
-        throw new ForbiddenResponse("Course not found");
-    }
+	const course = courseContext.course;
 
-    const course = courseContext.course;
+	// Check if user has access to this course
+	const courseCreatedById =
+		typeof course.createdBy === "number"
+			? course.createdBy
+			: course.createdBy.id;
 
-    const createdByName = course.createdBy
-        ? `${course.createdBy.firstName || ""} ${course.createdBy.lastName || ""}`.trim() ||
-        course.createdBy.email
-        : "Unknown";
+	const hasAccess =
+		currentUser.role === "admin" ||
+		currentUser.role === "content-manager" ||
+		courseCreatedById === currentUser.id;
 
-    // Fetch existing course-activity-module links
-    const linksResult = await tryFindLinksByCourse(payload, courseId);
-    const existingLinks = linksResult.ok ? linksResult.value : [];
+	if (!hasAccess) {
+		// Check if user is enrolled in the course
+		const enrollmentResult = await tryFindUserEnrollmentInCourse(
+			payload,
+			currentUser.id,
+			courseId,
+			currentUser,
+			request,
+			false, // respect access control
+		);
 
-    // Fetch available activity modules the user can access
-    const modulesResult = await tryGetUserActivityModules(payload, {
-        userId: currentUser.id,
-        limit: 100,
-    });
-    const availableModules = modulesResult.ok ? modulesResult.value.docs : [];
+		if (!enrollmentResult.ok || !enrollmentResult.value) {
+			throw new ForbiddenResponse("You don't have access to this course");
+		}
+	}
 
-    // Fetch enrollments with pagination
-    const page = new URL(request.url).searchParams.get("page");
-    const currentPage = page ? Number.parseInt(page, 10) : 1;
+	const createdByName = course.createdBy
+		? `${course.createdBy.firstName || ""} ${course.createdBy.lastName || ""}`.trim() ||
+			course.createdBy.email
+		: "Unknown";
 
-    const enrollmentsResult = await trySearchEnrollments({
-        payload,
-        course: courseId,
-        limit: 10,
-        page: currentPage,
-        authenticatedUser: currentUser,
-        req: request,
-        overrideAccess: false,
-    });
+	// Fetch existing course-activity-module links
+	const linksResult = await tryFindLinksByCourse(payload, courseId);
+	const existingLinks = linksResult.ok ? linksResult.value : [];
 
-    const enrollments = enrollmentsResult.ok ? enrollmentsResult.value : {
-        docs: [],
-        totalDocs: 0,
-        totalPages: 0,
-        page: 1,
-    };
+	// Fetch available activity modules the user can access
+	const modulesResult = await tryGetUserActivityModules(payload, {
+		userId: currentUser.id,
+		limit: 100,
+	});
+	const availableModules = modulesResult.ok ? modulesResult.value.docs : [];
 
-    return {
-        course: {
-            id: course.id,
-            title: course.title,
-            slug: course.slug,
-            description: course.description,
-            status: course.status,
-            createdBy: createdByName,
-            createdById: course.createdBy.id,
-            createdAt: course.createdAt,
-            updatedAt: course.updatedAt,
-            structure: course.structure,
-            enrollmentCount: (course as Course & { enrollments?: { docs: Enrollment[] } }).enrollments?.docs?.length || 0,
-        },
-        currentUser: {
-            id: currentUser.id,
-            role: currentUser.role,
-        },
-        existingLinks,
-        availableModules: availableModules.map((module) => ({
-            id: module.id,
-            title: module.title,
-            type: module.type,
-            status: module.status,
-            description: module.description,
-        })),
-        enrollments: {
-            docs: enrollments.docs,
-            totalDocs: enrollments.totalDocs,
-            totalPages: enrollments.totalPages,
-            currentPage: enrollments.page,
-        },
-    };
+	// Fetch enrollments with pagination
+	const page = new URL(request.url).searchParams.get("page");
+	const currentPage = page ? Number.parseInt(page, 10) : 1;
+
+	const enrollmentsResult = await trySearchEnrollments({
+		payload,
+		course: courseId,
+		limit: 10,
+		page: currentPage,
+		authenticatedUser: currentUser,
+		req: request,
+		overrideAccess: false,
+	});
+
+	const enrollments = enrollmentsResult.ok
+		? enrollmentsResult.value
+		: {
+				docs: [],
+				totalDocs: 0,
+				totalPages: 0,
+				page: 1,
+			};
+
+	return {
+		course: {
+			id: course.id,
+			title: course.title,
+			slug: course.slug,
+			description: course.description,
+			status: course.status,
+			createdBy: createdByName,
+			createdById: course.createdBy.id,
+			createdAt: course.createdAt,
+			updatedAt: course.updatedAt,
+			structure: course.structure,
+			enrollmentCount:
+				(course as Course & { enrollments?: { docs: Enrollment[] } })
+					.enrollments?.docs?.length || 0,
+		},
+		currentUser: {
+			id: currentUser.id,
+			role: currentUser.role,
+		},
+		existingLinks,
+		availableModules: availableModules.map((module) => ({
+			id: module.id,
+			title: module.title,
+			type: module.type,
+			status: module.status,
+			description: module.description,
+		})),
+		enrollments: {
+			docs: enrollments.docs,
+			totalDocs: enrollments.totalDocs,
+			totalPages: enrollments.totalPages,
+			currentPage: enrollments.page,
+		},
+	};
 };
 
 export const action = async ({
-    request,
-    context,
-    params,
+	request,
+	context,
+	params,
 }: Route.ActionArgs) => {
-    const payload = context.get(globalContextKey).payload;
-    const userSession = context.get(userContextKey);
+	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
 
-    if (!userSession?.isAuthenticated) {
-        return unauthorized({ error: "Unauthorized" });
-    }
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
 
-    const currentUser =
-        userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-    if (currentUser.role !== "admin" && currentUser.role !== "content-manager") {
-        return unauthorized({
-            error: "Only admins and content managers can manage course links",
-        });
-    }
+	const courseId = Number.parseInt(params.id, 10);
+	if (Number.isNaN(courseId)) {
+		return badRequest({ error: "Invalid course ID" });
+	}
 
-    const courseId = Number.parseInt(params.id, 10);
-    if (Number.isNaN(courseId)) {
-        return badRequest({ error: "Invalid course ID" });
-    }
+	// Get course to check ownership
+	const course = await payload.findByID({
+		collection: "courses",
+		id: courseId,
+		user: currentUser,
+		req: request,
+		overrideAccess: false,
+	});
 
-    const formData = await request.formData();
-    const intent = formData.get("intent");
+	if (!course) {
+		return badRequest({ error: "Course not found" });
+	}
 
-    if (intent === "create") {
-        const activityModuleId = Number(formData.get("activityModuleId"));
-        if (Number.isNaN(activityModuleId)) {
-            return badRequest({ error: "Invalid activity module ID" });
-        }
+	// Check if user has management access to this course
+	const courseCreatedById =
+		typeof course.createdBy === "number"
+			? course.createdBy
+			: course.createdBy.id;
 
-        // Start transaction
-        const transactionID = await payload.db.beginTransaction();
-        if (!transactionID) {
-            return badRequest({ error: "Failed to begin transaction" });
-        }
+	const canManage =
+		currentUser.role === "admin" ||
+		currentUser.role === "content-manager" ||
+		courseCreatedById === currentUser.id;
 
-        try {
-            const createResult = await tryCreateCourseActivityModuleLink(
-                payload,
-                request,
-                {
-                    course: courseId,
-                    activityModule: activityModuleId,
-                    transactionID,
-                },
-            );
+	if (!canManage) {
+		return unauthorized({
+			error: "You don't have permission to manage this course",
+		});
+	}
 
-            if (!createResult.ok) {
-                await payload.db.rollbackTransaction(transactionID);
-                return badRequest({ error: createResult.error.message });
-            }
+	const formData = await request.formData();
+	const intent = formData.get("intent");
 
-            await payload.db.commitTransaction(transactionID);
-            return ok({
-                success: true,
-                message: "Activity module linked successfully",
-            });
-        } catch {
-            await payload.db.rollbackTransaction(transactionID);
-            return badRequest({ error: "Failed to create link" });
-        }
-    }
+	if (intent === "create") {
+		const activityModuleId = Number(formData.get("activityModuleId"));
+		if (Number.isNaN(activityModuleId)) {
+			return badRequest({ error: "Invalid activity module ID" });
+		}
 
-    if (intent === "delete") {
-        const linkId = Number(formData.get("linkId"));
-        if (Number.isNaN(linkId)) {
-            return badRequest({ error: "Invalid link ID" });
-        }
+		// Start transaction
+		const transactionID = await payload.db.beginTransaction();
+		if (!transactionID) {
+			return badRequest({ error: "Failed to begin transaction" });
+		}
 
-        const deleteResult = await tryDeleteCourseActivityModuleLink(
-            payload,
-            request,
-            linkId,
-        );
+		try {
+			const createResult = await tryCreateCourseActivityModuleLink(
+				payload,
+				request,
+				{
+					course: courseId,
+					activityModule: activityModuleId,
+					transactionID,
+				},
+			);
 
-        if (!deleteResult.ok) {
-            return badRequest({ error: deleteResult.error.message });
-        }
+			if (!createResult.ok) {
+				await payload.db.rollbackTransaction(transactionID);
+				return badRequest({ error: createResult.error.message });
+			}
 
-        return ok({ success: true, message: "Link deleted successfully" });
-    }
+			await payload.db.commitTransaction(transactionID);
+			return ok({
+				success: true,
+				message: "Activity module linked successfully",
+			});
+		} catch {
+			await payload.db.rollbackTransaction(transactionID);
+			return badRequest({ error: "Failed to create link" });
+		}
+	}
 
-    if (intent === "enroll") {
-        const userId = Number(formData.get("userId"));
-        const role = formData.get("role") as "student" | "teacher" | "ta" | "manager";
-        const status = formData.get("status") as "active" | "inactive" | "completed" | "dropped";
+	if (intent === "delete") {
+		const linkId = Number(formData.get("linkId"));
+		if (Number.isNaN(linkId)) {
+			return badRequest({ error: "Invalid link ID" });
+		}
 
-        if (Number.isNaN(userId)) {
-            return badRequest({ error: "Invalid user ID" });
-        }
+		const deleteResult = await tryDeleteCourseActivityModuleLink(
+			payload,
+			request,
+			linkId,
+		);
 
-        if (!role || !status) {
-            return badRequest({ error: "Role and status are required" });
-        }
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
 
-        const createResult = await tryCreateEnrollment({
-            payload,
-            user: userId,
-            course: courseId,
-            role,
-            status,
-            authenticatedUser: currentUser,
-            req: request,
-            overrideAccess: false,
-        });
+		return ok({ success: true, message: "Link deleted successfully" });
+	}
 
-        if (!createResult.ok) {
-            return badRequest({ error: createResult.error.message });
-        }
+	if (intent === "enroll") {
+		const userId = Number(formData.get("userId"));
+		const role = formData.get("role") as
+			| "student"
+			| "teacher"
+			| "ta"
+			| "manager";
+		const status = formData.get("status") as
+			| "active"
+			| "inactive"
+			| "completed"
+			| "dropped";
 
-        return ok({ success: true, message: "User enrolled successfully" });
-    }
+		if (Number.isNaN(userId)) {
+			return badRequest({ error: "Invalid user ID" });
+		}
 
-    if (intent === "edit-enrollment") {
-        const enrollmentId = Number(formData.get("enrollmentId"));
-        const role = formData.get("role") as "student" | "teacher" | "ta" | "manager";
-        const status = formData.get("status") as "active" | "inactive" | "completed" | "dropped";
+		if (!role || !status) {
+			return badRequest({ error: "Role and status are required" });
+		}
 
-        if (Number.isNaN(enrollmentId)) {
-            return badRequest({ error: "Invalid enrollment ID" });
-        }
+		const createResult = await tryCreateEnrollment({
+			payload,
+			user: userId,
+			course: courseId,
+			role,
+			status,
+			authenticatedUser: currentUser,
+			req: request,
+			overrideAccess: false,
+		});
 
-        if (!role || !status) {
-            return badRequest({ error: "Role and status are required" });
-        }
+		if (!createResult.ok) {
+			return badRequest({ error: createResult.error.message });
+		}
 
-        const updateResult = await tryUpdateEnrollment({
-            payload,
-            enrollmentId,
-            role,
-            status,
-            authenticatedUser: currentUser,
-            req: request,
-            overrideAccess: false,
-        });
+		return ok({ success: true, message: "User enrolled successfully" });
+	}
 
-        if (!updateResult.ok) {
-            return badRequest({ error: updateResult.error.message });
-        }
+	if (intent === "edit-enrollment") {
+		const enrollmentId = Number(formData.get("enrollmentId"));
+		const role = formData.get("role") as
+			| "student"
+			| "teacher"
+			| "ta"
+			| "manager";
+		const status = formData.get("status") as
+			| "active"
+			| "inactive"
+			| "completed"
+			| "dropped";
 
-        return ok({ success: true, message: "Enrollment updated successfully" });
-    }
+		if (Number.isNaN(enrollmentId)) {
+			return badRequest({ error: "Invalid enrollment ID" });
+		}
 
-    if (intent === "delete-enrollment") {
-        const enrollmentId = Number(formData.get("enrollmentId"));
-        if (Number.isNaN(enrollmentId)) {
-            return badRequest({ error: "Invalid enrollment ID" });
-        }
+		if (!role || !status) {
+			return badRequest({ error: "Role and status are required" });
+		}
 
-        const deleteResult = await tryDeleteEnrollment(payload, enrollmentId, currentUser, request, false);
+		const updateResult = await tryUpdateEnrollment({
+			payload,
+			enrollmentId,
+			role,
+			status,
+			authenticatedUser: currentUser,
+			req: request,
+			overrideAccess: false,
+		});
 
-        if (!deleteResult.ok) {
-            return badRequest({ error: deleteResult.error.message });
-        }
+		if (!updateResult.ok) {
+			return badRequest({ error: updateResult.error.message });
+		}
 
-        return ok({ success: true, message: "Enrollment deleted successfully" });
-    }
+		return ok({ success: true, message: "Enrollment updated successfully" });
+	}
 
-    return badRequest({ error: "Invalid intent" });
+	if (intent === "delete-enrollment") {
+		const enrollmentId = Number(formData.get("enrollmentId"));
+		if (Number.isNaN(enrollmentId)) {
+			return badRequest({ error: "Invalid enrollment ID" });
+		}
+
+		const deleteResult = await tryDeleteEnrollment(
+			payload,
+			enrollmentId,
+			currentUser,
+			request,
+			false,
+		);
+
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
+
+		return ok({ success: true, message: "Enrollment deleted successfully" });
+	}
+
+	return badRequest({ error: "Invalid intent" });
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-    const actionData = await serverAction();
+	const actionData = await serverAction();
 
-    if (actionData && "success" in actionData && actionData.success) {
-        notifications.show({
-            title: "Success",
-            message: actionData.message,
-            color: "green",
-        });
-    } else if (actionData && "error" in actionData) {
-        notifications.show({
-            title: "Error",
-            message: actionData.error,
-            color: "red",
-        });
-    }
-    return actionData;
+	if (actionData && "success" in actionData && actionData.success) {
+		notifications.show({
+			title: "Success",
+			message: actionData.message,
+			color: "green",
+		});
+	} else if (actionData && "error" in actionData) {
+		notifications.show({
+			title: "Error",
+			message: actionData.error,
+			color: "red",
+		});
+	}
+	return actionData;
 }
 
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
-    const fetcher = useFetcher<typeof action>();
-    const [searchParams, setSearchParams] = useSearchParams();
+	const fetcher = useFetcher<typeof action>();
+	const [searchParams, setSearchParams] = useSearchParams();
 
-    // Modal states
-    const [enrollModalOpened, { open: openEnrollModal, close: closeEnrollModal }] = useDisclosure(false);
-    const [editModalOpened, { open: openEditModal, close: closeEditModal }] = useDisclosure(false);
-    const [deleteModalOpened, { open: openDeleteModal, close: closeDeleteModal }] = useDisclosure(false);
+	// Modal states
+	const [
+		enrollModalOpened,
+		{ open: openEnrollModal, close: closeEnrollModal },
+	] = useDisclosure(false);
+	const [editModalOpened, { open: openEditModal, close: closeEditModal }] =
+		useDisclosure(false);
+	const [
+		deleteModalOpened,
+		{ open: openDeleteModal, close: closeDeleteModal },
+	] = useDisclosure(false);
 
-    // Form states
-    const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([]);
-    const [selectedRole, setSelectedRole] = useState<string | null>(null);
-    const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
-    const [editingEnrollment, setEditingEnrollment] = useState<Enrollment | null>(null);
-    const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<number | null>(null);
+	// Form states
+	const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([]);
+	const [selectedRole, setSelectedRole] = useState<string | null>(null);
+	const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+	const [editingEnrollment, setEditingEnrollment] = useState<Enrollment | null>(
+		null,
+	);
+	const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<
+		number | null
+	>(null);
 
-    if ("error" in loaderData) {
-        return (
-            <Container size="lg" py="xl">
-                <Paper withBorder shadow="sm" p="xl" radius="md">
-                    <Text c="red">{loaderData.error}</Text>
-                </Paper>
-            </Container>
-        );
-    }
+	if ("error" in loaderData) {
+		return (
+			<Container size="lg" py="xl">
+				<Paper withBorder shadow="sm" p="xl" radius="md">
+					<Text c="red">{loaderData.error}</Text>
+				</Paper>
+			</Container>
+		);
+	}
 
-    const { course, currentUser, existingLinks, availableModules, enrollments } = loaderData;
+	const { course, currentUser, existingLinks, availableModules, enrollments } =
+		loaderData;
 
-    const canEdit =
-        currentUser.role === "admin" || currentUser.id === course.createdById;
+	const canEdit =
+		currentUser.role === "admin" ||
+		currentUser.role === "content-manager" ||
+		currentUser.id === course.createdById;
 
-    const handleDeleteLink = (linkId: number) => {
-        fetcher.submit(
-            { intent: "delete", linkId: linkId.toString() },
-            { method: "post" },
-        );
-    };
+	const handleDeleteLink = (linkId: number) => {
+		fetcher.submit(
+			{ intent: "delete", linkId: linkId.toString() },
+			{ method: "post" },
+		);
+	};
 
-    const handleCreateLink = (activityModuleId: number) => {
-        fetcher.submit(
-            { intent: "create", activityModuleId: activityModuleId.toString() },
-            { method: "post" },
-        );
-    };
+	const handleCreateLink = (activityModuleId: number) => {
+		fetcher.submit(
+			{ intent: "create", activityModuleId: activityModuleId.toString() },
+			{ method: "post" },
+		);
+	};
 
-    // Enrollment handlers
-    const handleEnrollUsers = () => {
-        if (selectedUsers.length > 0 && selectedRole && selectedStatus) {
-            // Submit each user enrollment
-            selectedUsers.forEach((user) => {
-                fetcher.submit(
-                    {
-                        intent: "enroll",
-                        userId: user.id.toString(),
-                        role: selectedRole,
-                        status: selectedStatus,
-                    },
-                    { method: "post" },
-                );
-            });
-            closeEnrollModal();
-            setSelectedUsers([]);
-            setSelectedRole(null);
-            setSelectedStatus(null);
-        }
-    };
+	// Enrollment handlers
+	const handleEnrollUsers = () => {
+		if (selectedUsers.length > 0 && selectedRole && selectedStatus) {
+			// Submit each user enrollment
+			selectedUsers.forEach((user) => {
+				fetcher.submit(
+					{
+						intent: "enroll",
+						userId: user.id.toString(),
+						role: selectedRole,
+						status: selectedStatus,
+					},
+					{ method: "post" },
+				);
+			});
+			closeEnrollModal();
+			setSelectedUsers([]);
+			setSelectedRole(null);
+			setSelectedStatus(null);
+		}
+	};
 
-    const handleEditEnrollment = (enrollment: Enrollment) => {
-        setEditingEnrollment(enrollment);
-        setSelectedRole(enrollment.role);
-        setSelectedStatus(enrollment.status);
-        openEditModal();
-    };
+	const handleEditEnrollment = (enrollment: Enrollment) => {
+		setEditingEnrollment(enrollment);
+		setSelectedRole(enrollment.role);
+		setSelectedStatus(enrollment.status);
+		openEditModal();
+	};
 
-    const handleUpdateEnrollment = () => {
-        if (editingEnrollment && selectedRole && selectedStatus) {
-            fetcher.submit(
-                {
-                    intent: "edit-enrollment",
-                    enrollmentId: editingEnrollment.id.toString(),
-                    role: selectedRole,
-                    status: selectedStatus,
-                },
-                { method: "post" },
-            );
-            closeEditModal();
-            setEditingEnrollment(null);
-            setSelectedRole(null);
-            setSelectedStatus(null);
-        }
-    };
+	const handleUpdateEnrollment = () => {
+		if (editingEnrollment && selectedRole && selectedStatus) {
+			fetcher.submit(
+				{
+					intent: "edit-enrollment",
+					enrollmentId: editingEnrollment.id.toString(),
+					role: selectedRole,
+					status: selectedStatus,
+				},
+				{ method: "post" },
+			);
+			closeEditModal();
+			setEditingEnrollment(null);
+			setSelectedRole(null);
+			setSelectedStatus(null);
+		}
+	};
 
-    const handleDeleteEnrollment = (enrollmentId: number) => {
-        setDeletingEnrollmentId(enrollmentId);
-        openDeleteModal();
-    };
+	const handleDeleteEnrollment = (enrollmentId: number) => {
+		setDeletingEnrollmentId(enrollmentId);
+		openDeleteModal();
+	};
 
-    const handleConfirmDeleteEnrollment = () => {
-        if (deletingEnrollmentId) {
-            fetcher.submit(
-                {
-                    intent: "delete-enrollment",
-                    enrollmentId: deletingEnrollmentId.toString(),
-                },
-                { method: "post" },
-            );
-            closeDeleteModal();
-            setDeletingEnrollmentId(null);
-        }
-    };
+	const handleConfirmDeleteEnrollment = () => {
+		if (deletingEnrollmentId) {
+			fetcher.submit(
+				{
+					intent: "delete-enrollment",
+					enrollmentId: deletingEnrollmentId.toString(),
+				},
+				{ method: "post" },
+			);
+			closeDeleteModal();
+			setDeletingEnrollmentId(null);
+		}
+	};
 
-    const handlePageChange = (page: number) => {
-        const newParams = new URLSearchParams(searchParams);
-        newParams.set("page", page.toString());
-        setSearchParams(newParams);
-    };
+	const handlePageChange = (page: number) => {
+		const newParams = new URLSearchParams(searchParams);
+		newParams.set("page", page.toString());
+		setSearchParams(newParams);
+	};
 
-    // Get enrolled user IDs for exclusion
-    const enrolledUserIds = enrollments.docs.map((enrollment: Enrollment) =>
-        typeof enrollment.user === "object" ? enrollment.user.id : enrollment.user
-    );
+	// Get enrolled user IDs for exclusion
+	const enrolledUserIds = enrollments.docs.map((enrollment: Enrollment) =>
+		typeof enrollment.user === "object" ? enrollment.user.id : enrollment.user,
+	);
 
-    return (
-        <Container size="lg" py="xl">
-            <title>{`${course.title} | Paideia LMS`}</title>
-            <meta name="description" content={course.description} />
-            <meta property="og:title" content={`${course.title} | Paideia LMS`} />
-            <meta property="og:description" content={course.description} />
+	return (
+		<Container size="lg" py="xl">
+			<title>{`${course.title} | Paideia LMS`}</title>
+			<meta name="description" content={course.description} />
+			<meta property="og:title" content={`${course.title} | Paideia LMS`} />
+			<meta property="og:description" content={course.description} />
 
-            <Stack gap="lg">
-                <Group justify="space-between">
-                    <div>
-                        <Group gap="sm" mb="xs">
-                            <Title order={1}>{course.title}</Title>
-                            <Badge color={getStatusBadgeColor(course.status)} size="lg">
-                                {getStatusLabel(course.status)}
-                            </Badge>
-                        </Group>
-                        <Text c="dimmed" size="sm">
-                            {course.slug}
-                        </Text>
-                    </div>
-                    {canEdit && (
-                        <Button
-                            component={Link}
-                            to={`/course/edit/${course.id}`}
-                            leftSection={<IconEdit size={16} />}
-                        >
-                            Edit Course
-                        </Button>
-                    )}
-                </Group>
+			<Stack gap="lg">
+				<Group justify="space-between">
+					<div>
+						<Group gap="sm" mb="xs">
+							<Title order={1}>{course.title}</Title>
+							<Badge color={getStatusBadgeColor(course.status)} size="lg">
+								{getStatusLabel(course.status)}
+							</Badge>
+						</Group>
+						<Text c="dimmed" size="sm">
+							{course.slug}
+						</Text>
+					</div>
+					{canEdit && (
+						<Button
+							component={Link}
+							to={`/course/edit/${course.id}`}
+							leftSection={<IconEdit size={16} />}
+						>
+							Edit Course
+						</Button>
+					)}
+				</Group>
 
-                <CourseInfo course={course} />
+				<CourseInfo course={course} />
 
-                <ActivityModulesSection
-                    existingLinks={existingLinks}
-                    availableModules={availableModules}
-                    canEdit={canEdit}
-                    fetcherState={fetcher.state}
-                    onAddModule={handleCreateLink}
-                    onDeleteLink={handleDeleteLink}
-                />
+				<ActivityModulesSection
+					existingLinks={existingLinks.map((link) => ({
+						id: link.id,
+						activityModule: {
+							id: String(link.activityModule.id),
+							title: link.activityModule.title || "",
+							type: link.activityModule.type,
+							status: link.activityModule.status,
+							description: link.activityModule.description,
+						},
+						createdAt: link.createdAt,
+					}))}
+					availableModules={availableModules}
+					canEdit={canEdit}
+					fetcherState={fetcher.state}
+					onAddModule={handleCreateLink}
+					onDeleteLink={handleDeleteLink}
+				/>
 
-                <EnrollmentsSection
-                    enrollments={enrollments}
-                    currentUserRole={currentUser.role}
-                    fetcherState={fetcher.state}
-                    onOpenEnrollModal={openEnrollModal}
-                    onEditEnrollment={handleEditEnrollment}
-                    onDeleteEnrollment={handleDeleteEnrollment}
-                    onPageChange={handlePageChange}
-                />
-            </Stack>
+				<EnrollmentsSection
+					enrollments={enrollments}
+					currentUserRole={currentUser.role || "student"}
+					fetcherState={fetcher.state}
+					onOpenEnrollModal={openEnrollModal}
+					onEditEnrollment={handleEditEnrollment}
+					onDeleteEnrollment={handleDeleteEnrollment}
+					onPageChange={handlePageChange}
+				/>
+			</Stack>
 
-            <EnrollUserModal
-                opened={enrollModalOpened}
-                onClose={closeEnrollModal}
-                selectedUsers={selectedUsers}
-                onSelectedUsersChange={setSelectedUsers}
-                selectedRole={selectedRole}
-                onSelectedRoleChange={setSelectedRole}
-                selectedStatus={selectedStatus}
-                onSelectedStatusChange={setSelectedStatus}
-                enrolledUserIds={enrolledUserIds}
-                fetcherState={fetcher.state}
-                onEnrollUsers={handleEnrollUsers}
-            />
+			<EnrollUserModal
+				opened={enrollModalOpened}
+				onClose={closeEnrollModal}
+				selectedUsers={selectedUsers}
+				onSelectedUsersChange={setSelectedUsers}
+				selectedRole={selectedRole}
+				onSelectedRoleChange={setSelectedRole}
+				selectedStatus={selectedStatus}
+				onSelectedStatusChange={setSelectedStatus}
+				enrolledUserIds={enrolledUserIds}
+				fetcherState={fetcher.state}
+				onEnrollUsers={handleEnrollUsers}
+			/>
 
-            <EditEnrollmentModal
-                opened={editModalOpened}
-                onClose={closeEditModal}
-                selectedRole={selectedRole}
-                onSelectedRoleChange={setSelectedRole}
-                selectedStatus={selectedStatus}
-                onSelectedStatusChange={setSelectedStatus}
-                fetcherState={fetcher.state}
-                onUpdateEnrollment={handleUpdateEnrollment}
-            />
+			<EditEnrollmentModal
+				opened={editModalOpened}
+				onClose={closeEditModal}
+				selectedRole={selectedRole}
+				onSelectedRoleChange={setSelectedRole}
+				selectedStatus={selectedStatus}
+				onSelectedStatusChange={setSelectedStatus}
+				fetcherState={fetcher.state}
+				onUpdateEnrollment={handleUpdateEnrollment}
+			/>
 
-            <DeleteEnrollmentModal
-                opened={deleteModalOpened}
-                onClose={closeDeleteModal}
-                fetcherState={fetcher.state}
-                onConfirmDelete={handleConfirmDeleteEnrollment}
-            />
-        </Container>
-    );
+			<DeleteEnrollmentModal
+				opened={deleteModalOpened}
+				onClose={closeDeleteModal}
+				fetcherState={fetcher.state}
+				onConfirmDelete={handleConfirmDeleteEnrollment}
+			/>
+		</Container>
+	);
 }

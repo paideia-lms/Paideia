@@ -108,11 +108,13 @@ describe("User Grade Management", () => {
 		testCourse = courseResult.value;
 
 		// Create enrollment for student in the course
-		const enrollmentResult = await tryCreateEnrollment(payload, {
+		const enrollmentResult = await tryCreateEnrollment({
+			payload,
 			user: student.id,
 			course: testCourse.id,
 			role: "student",
 			status: "active",
+			overrideAccess: true,
 		});
 
 		expect(enrollmentResult.ok).toBe(true);

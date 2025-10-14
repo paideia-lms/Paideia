@@ -4,7 +4,7 @@ validateEnvVars();
 
 import { type Treaty, treaty } from "@elysiajs/eden";
 import { openapi } from "@elysiajs/openapi";
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { getPayload } from "payload";
 import { RouterContextProvider } from "react-router";
 import { createStorage } from "unstorage";
@@ -16,10 +16,8 @@ import { globalContextKey } from "./contexts/global-context";
 import { pageContextKey } from "./contexts/page-context";
 import { userContextKey } from "./contexts/user-context";
 import { reactRouter } from "./elysia-react-router";
-import { tryCheckFirstUser } from "./internal/check-first-user";
-import { tryRegisterFirstUser } from "./internal/user-management";
 import sanitizedConfig from "./payload.config";
-import { devConstants } from "./utils/constants";
+import { runSeed } from "./seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { s3Client } from "./utils/s3-client";
 
@@ -41,23 +39,7 @@ const payload = await getPayload({
 
 // console.log("Payload: ", payload)
 if (process.env.NODE_ENV === "development") {
-	// check the first user
-	const users = await tryCheckFirstUser({ payload, overrideAccess: true });
-	if (users.ok) {
-		if (users.value) {
-			const request = new Request("http://localhost:3000");
-			// no user found
-			// register the first user
-			await tryRegisterFirstUser({
-				payload,
-				req: request,
-				email: devConstants.ADMIN_EMAIL,
-				password: devConstants.ADMIN_PASSWORD,
-				firstName: "Admin",
-				lastName: "User",
-			});
-		}
-	}
+	await runSeed({ payload });
 }
 
 const port = Number(envVars.PORT.value) || envVars.PORT.default;
