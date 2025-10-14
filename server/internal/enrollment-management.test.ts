@@ -283,7 +283,13 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should delete enrollment successfully", async () => {
-			const result = await tryDeleteEnrollment(payload, enrollmentId, null, undefined, true);
+			const result = await tryDeleteEnrollment(
+				payload,
+				enrollmentId,
+				null,
+				undefined,
+				true,
+			);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -292,13 +298,25 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should fail when enrollment ID is missing", async () => {
-			const result = await tryDeleteEnrollment(payload, 0, null, undefined, true);
+			const result = await tryDeleteEnrollment(
+				payload,
+				0,
+				null,
+				undefined,
+				true,
+			);
 
 			expect(result.ok).toBe(false);
 		});
 
 		test("should fail when enrollment does not exist", async () => {
-			const result = await tryDeleteEnrollment(payload, 99999, null, undefined, true);
+			const result = await tryDeleteEnrollment(
+				payload,
+				99999,
+				null,
+				undefined,
+				true,
+			);
 
 			expect(result.ok).toBe(false);
 		});
@@ -335,7 +353,13 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should find enrollment by ID successfully", async () => {
-			const result = await tryFindEnrollmentById(payload, enrollmentId, null, undefined, true);
+			const result = await tryFindEnrollmentById(
+				payload,
+				enrollmentId,
+				null,
+				undefined,
+				true,
+			);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -346,13 +370,25 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should fail when enrollment ID is missing", async () => {
-			const result = await tryFindEnrollmentById(payload, 0, null, undefined, true);
+			const result = await tryFindEnrollmentById(
+				payload,
+				0,
+				null,
+				undefined,
+				true,
+			);
 
 			expect(result.ok).toBe(false);
 		});
 
 		test("should fail when enrollment does not exist", async () => {
-			const result = await tryFindEnrollmentById(payload, 99999, null, undefined, true);
+			const result = await tryFindEnrollmentById(
+				payload,
+				99999,
+				null,
+				undefined,
+				true,
+			);
 
 			expect(result.ok).toBe(false);
 		});
@@ -475,10 +511,14 @@ describe("Enrollment Management Functions", () => {
 
 		describe("tryAddGroupsToEnrollment", () => {
 			test("should add groups to existing enrollment", async () => {
-				const result = await tryAddGroupsToEnrollment(payload, enrollmentId, [
-					mathGroupId,
-					scienceGroupId,
-				], null, undefined, true);
+				const result = await tryAddGroupsToEnrollment(
+					payload,
+					enrollmentId,
+					[mathGroupId, scienceGroupId],
+					null,
+					undefined,
+					true,
+				);
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -499,9 +539,14 @@ describe("Enrollment Management Functions", () => {
 			});
 
 			test("should fail when enrollment ID is missing", async () => {
-				const result = await tryAddGroupsToEnrollment(payload, 0, [
-					mathGroupId,
-				], null, undefined, true);
+				const result = await tryAddGroupsToEnrollment(
+					payload,
+					0,
+					[mathGroupId],
+					null,
+					undefined,
+					true,
+				);
 
 				expect(result.ok).toBe(false);
 			});
@@ -570,9 +615,14 @@ describe("Enrollment Management Functions", () => {
 			});
 
 			test("should fail when enrollment ID is missing", async () => {
-				const result = await tryRemoveGroupsFromEnrollment(payload, 0, [
-					mathGroupId,
-				], null, undefined, true);
+				const result = await tryRemoveGroupsFromEnrollment(
+					payload,
+					0,
+					[mathGroupId],
+					null,
+					undefined,
+					true,
+				);
 
 				expect(result.ok).toBe(false);
 			});
@@ -580,7 +630,14 @@ describe("Enrollment Management Functions", () => {
 
 		describe("tryFindEnrollmentsByGroup", () => {
 			test("should find enrollments by group ID", async () => {
-				const result = await tryFindEnrollmentsByGroup(payload, econGroupId, 10, null, undefined, true);
+				const result = await tryFindEnrollmentsByGroup(
+					payload,
+					econGroupId,
+					10,
+					null,
+					undefined,
+					true,
+				);
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -597,7 +654,14 @@ describe("Enrollment Management Functions", () => {
 			});
 
 			test("should fail when group ID is missing", async () => {
-				const result = await tryFindEnrollmentsByGroup(payload, 0, 10, null, undefined, true);
+				const result = await tryFindEnrollmentsByGroup(
+					payload,
+					0,
+					10,
+					null,
+					undefined,
+					true,
+				);
 
 				expect(result.ok).toBe(false);
 			});

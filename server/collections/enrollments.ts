@@ -73,8 +73,7 @@ export const Enrollments = {
 			label: "Groups",
 		},
 	],
-	hooks: {
-	},
+	hooks: {},
 	// Ensure unique user-course combinations
 	indexes: [
 		{

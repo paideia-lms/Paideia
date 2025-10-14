@@ -246,7 +246,13 @@ export const tryUpdateEnrollment = Result.wrap(
  * Finds an enrollment by ID
  */
 export const tryFindEnrollmentById = Result.wrap(
-	async (payload: Payload, enrollmentId: number, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		enrollmentId: number,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
@@ -352,7 +358,13 @@ export const trySearchEnrollments = Result.wrap(
  * Deletes an enrollment by ID
  */
 export const tryDeleteEnrollment = Result.wrap(
-	async (payload: Payload, enrollmentId: number, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		enrollmentId: number,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
@@ -389,7 +401,14 @@ export const tryDeleteEnrollment = Result.wrap(
  * Finds enrollments by user ID
  */
 export const tryFindEnrollmentsByUser = Result.wrap(
-	async (payload: Payload, userId: number, limit: number = 10, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		userId: number,
+		limit: number = 10,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		// Validate required fields
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -422,7 +441,14 @@ export const tryFindEnrollmentsByUser = Result.wrap(
  * Finds enrollments by course ID
  */
 export const tryFindEnrollmentsByCourse = Result.wrap(
-	async (payload: Payload, courseId: number, limit: number = 10, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		courseId: number,
+		limit: number = 10,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		// Validate required fields
 		if (!courseId) {
 			throw new InvalidArgumentError("Course ID is required");
@@ -455,7 +481,14 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
  * Finds a specific user enrollment in a course
  */
 export const tryFindUserEnrollmentInCourse = Result.wrap(
-	async (payload: Payload, userId: number, courseId: number, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		userId: number,
+		courseId: number,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		// Validate required fields
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -502,7 +535,14 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
  * Finds active enrollments only
  */
 export const tryFindActiveEnrollments = Result.wrap(
-	async (payload: Payload, limit: number = 10, page: number = 1, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		limit: number = 10,
+		page: number = 1,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		const enrollments = await payload.find({
 			collection: "enrollments",
 			where: {
@@ -589,7 +629,14 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
  * Adds groups to an enrollment
  */
 export const tryAddGroupsToEnrollment = Result.wrap(
-	async (payload: Payload, enrollmentId: number, groupIds: number[], authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		enrollmentId: number,
+		groupIds: number[],
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
@@ -661,7 +708,14 @@ export const tryAddGroupsToEnrollment = Result.wrap(
  * Removes groups from an enrollment
  */
 export const tryRemoveGroupsFromEnrollment = Result.wrap(
-	async (payload: Payload, enrollmentId: number, groupIds: number[], authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		enrollmentId: number,
+		groupIds: number[],
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
@@ -733,7 +787,14 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
  * Finds enrollments by group ID
  */
 export const tryFindEnrollmentsByGroup = Result.wrap(
-	async (payload: Payload, groupId: number, limit: number = 10, authenticatedUser?: User | null, req?: Partial<PayloadRequest>, overrideAccess: boolean = false) => {
+	async (
+		payload: Payload,
+		groupId: number,
+		limit: number = 10,
+		authenticatedUser?: User | null,
+		req?: Partial<PayloadRequest>,
+		overrideAccess: boolean = false,
+	) => {
 		if (!groupId) {
 			throw new InvalidArgumentError("Group ID is required");
 		}
