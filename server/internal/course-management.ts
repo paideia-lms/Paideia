@@ -1,5 +1,5 @@
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
-import type { Payload, PayloadRequest, Where } from "payload";
+import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Courses, Gradebooks, Groups } from "server/payload.config";
 import { assertZod } from "server/utils/type-narrowing";
@@ -19,49 +19,110 @@ import { tryFindEnrollmentsByUser } from "./enrollment-management";
 type Replace<O, T extends keyof O, W> = Simplify<Omit<O, T> & { [K in T]: W }>;
 
 export interface CreateCourseArgs {
-	title: string;
-	description: string;
-	slug: string;
-	structure?: Course["structure"];
-	createdBy: number;
-	status?: "draft" | "published" | "archived";
-	thumbnail?: number;
-	tags?: { tag?: string }[];
-	category?: number;
+	payload: Payload;
+	data: {
+		title: string;
+		description: string;
+		slug: string;
+		structure?: Course["structure"];
+		createdBy: number;
+		status?: "draft" | "published" | "archived";
+		thumbnail?: number;
+		tags?: { tag?: string }[];
+		category?: number;
+	};
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateCourseArgs {
-	title?: string;
-	description?: string;
-	createdBy?: number; // User ID
-	status?: "draft" | "published" | "archived";
-	thumbnail?: number;
-	tags?: { tag?: string }[];
+	payload: Payload;
+	courseId: number;
+	data: {
+		title?: string;
+		description?: string;
+		createdBy?: number; // User ID
+		status?: "draft" | "published" | "archived";
+		thumbnail?: number;
+		tags?: { tag?: string }[];
+	};
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface FindCourseByIdArgs {
+	payload: Payload;
+	courseId: number;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface SearchCoursesArgs {
-	title?: string;
-	createdBy?: number;
-	status?: "draft" | "published" | "archived";
+	payload: Payload;
+	filters?: {
+		title?: string;
+		createdBy?: number;
+		status?: "draft" | "published" | "archived";
+		limit?: number;
+		page?: number;
+	};
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface DeleteCourseArgs {
+	payload: Payload;
+	courseId: number;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface FindCoursesByInstructorArgs {
+	payload: Payload;
+	instructorId: number;
+	limit?: number;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface FindPublishedCoursesArgs {
+	payload: Payload;
 	limit?: number;
 	page?: number;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
  * Creates a new course using Payload local API
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryCreateCourse = Result.wrap(
-	async (payload: Payload, request: Request, args: CreateCourseArgs) => {
+	async (args: CreateCourseArgs) => {
 		const {
-			title,
-			description,
-			slug,
-			structure,
-			createdBy,
-			status = "draft",
-			thumbnail,
-			tags,
-			category,
+			payload,
+			data: {
+				title,
+				description,
+				slug,
+				structure,
+				createdBy,
+				status = "draft",
+				thumbnail,
+				tags,
+				category,
+			},
+			user,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		const transactionID = await payload.db.beginTransaction();
@@ -97,7 +158,9 @@ export const tryCreateCourse = Result.wrap(
 					category,
 				},
 				depth: 1,
-				req: { ...request, transactionID },
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			// create the gradebook as well
@@ -107,7 +170,9 @@ export const tryCreateCourse = Result.wrap(
 					course: newCourse.id,
 				},
 				depth: 0,
-				req: { ...request, transactionID },
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			////////////////////////////////////////////////////
@@ -168,19 +233,20 @@ export const tryCreateCourse = Result.wrap(
 
 /**
  * Updates an existing course using Payload local API
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryUpdateCourse = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		courseId: number,
-		args: UpdateCourseArgs,
-	) => {
+	async (args: UpdateCourseArgs) => {
+		const { payload, courseId, data, user, req, overrideAccess = false } = args;
+
 		// Check if course exists
 		const existingCourse = await payload.findByID({
 			collection: "courses",
 			id: courseId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!existingCourse) {
@@ -188,38 +254,47 @@ export const tryUpdateCourse = Result.wrap(
 		}
 
 		// If createdBy is being updated, verify new user exists
-		if (args.createdBy) {
-			const user = await payload.findByID({
+		if (data.createdBy) {
+			const userExists = await payload.findByID({
 				collection: "users",
-				id: args.createdBy,
-				req: request,
+				id: data.createdBy,
+				user,
+				req,
+				overrideAccess: true, // Always allow checking if user exists
 			});
 
-			if (!user) {
-				throw new Error(`User with ID ${args.createdBy} not found`);
+			if (!userExists) {
+				throw new Error(`User with ID ${data.createdBy} not found`);
 			}
 		}
 
 		const updatedCourse = await payload.update({
 			collection: "courses",
 			id: courseId,
-			data: args,
-			req: request,
+			data,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return updatedCourse as Course;
 	},
 	(error) =>
-		new Error(
-			`Failed to update course: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to update course", {
+			cause: error,
+		}),
 );
 
 /**
  * Finds a course by ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindCourseById = Result.wrap(
-	async (payload: Payload, courseId: number) => {
+	async (args: FindCourseByIdArgs) => {
+		const { payload, courseId, user, req, overrideAccess = false } = args;
+
 		const course = await payload
 			.find({
 				collection: Courses.slug,
@@ -229,6 +304,9 @@ export const tryFindCourseById = Result.wrap(
 					},
 				},
 				pagination: false,
+				user,
+				req,
+				overrideAccess,
 			})
 			.then((result) => {
 				////////////////////////////////////////////////////
@@ -273,10 +351,14 @@ export const tryFindCourseById = Result.wrap(
 
 /**
  * Searches courses with various filters
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const trySearchCourses = Result.wrap(
-	async (payload: Payload, args: SearchCoursesArgs = {}) => {
-		const { title, createdBy, status, limit = 10, page = 1 } = args;
+	async (args: SearchCoursesArgs) => {
+		const { payload, filters = {}, user, req, overrideAccess = false } = args;
+
+		const { title, createdBy, status, limit = 10, page = 1 } = filters;
 
 		const where: Where = {};
 
@@ -304,6 +386,9 @@ export const trySearchCourses = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return {
@@ -317,16 +402,21 @@ export const trySearchCourses = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
-			`Failed to search courses: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to search courses", {
+			cause: error,
+		}),
 );
 
 /**
  * Deletes a course by ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryDeleteCourse = Result.wrap(
-	async (payload: Payload, request: Request, courseId: number) => {
+	async (args: DeleteCourseArgs) => {
+		const { payload, courseId, user, req, overrideAccess = false } = args;
+
 		const transactionID = await payload.db.beginTransaction();
 
 		if (!transactionID) {
@@ -339,13 +429,17 @@ export const tryDeleteCourse = Result.wrap(
 				where: {
 					course: { equals: courseId },
 				},
-				req: { ...request, transactionID },
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			const deletedCourse = await payload.delete({
 				collection: Courses.slug,
 				id: courseId,
-				req: { ...request, transactionID },
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			// commit the transaction
@@ -366,9 +460,20 @@ export const tryDeleteCourse = Result.wrap(
 
 /**
  * Finds courses by instructor ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindCoursesByInstructor = Result.wrap(
-	async (payload: Payload, instructorId: number, limit: number = 10) => {
+	async (args: FindCoursesByInstructorArgs) => {
+		const {
+			payload,
+			instructorId,
+			limit = 10,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const courses = await payload.find({
 			collection: "courses",
 			where: {
@@ -378,21 +483,36 @@ export const tryFindCoursesByInstructor = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return courses.docs as Course[];
 	},
 	(error) =>
-		new Error(
-			`Failed to find courses by instructor: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find courses by instructor", {
+			cause: error,
+		}),
 );
 
 /**
  * Finds published courses only
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindPublishedCourses = Result.wrap(
-	async (payload: Payload, limit: number = 10, page: number = 1) => {
+	async (args: FindPublishedCoursesArgs) => {
+		const {
+			payload,
+			limit = 10,
+			page = 1,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const courses = await payload.find({
 			collection: "courses",
 			where: {
@@ -403,6 +523,9 @@ export const tryFindPublishedCourses = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return {
@@ -416,9 +539,10 @@ export const tryFindPublishedCourses = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
-			`Failed to find published courses: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find published courses", {
+			cause: error,
+		}),
 );
 
 export interface FindAllCoursesArgs {
@@ -427,6 +551,9 @@ export interface FindAllCoursesArgs {
 	page?: number;
 	sort?: string;
 	query?: string;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface FindAllCoursesResult {
@@ -445,10 +572,21 @@ export interface FindAllCoursesResult {
 /**
  * Finds all courses with pagination and search
  * Supports search by title and filter by status
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryFindAllCourses = Result.wrap(
 	async (args: FindAllCoursesArgs): Promise<FindAllCoursesResult> => {
-		const { payload, limit = 10, page = 1, sort = "-createdAt", query } = args;
+		const {
+			payload,
+			limit = 10,
+			page = 1,
+			sort = "-createdAt",
+			query,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Parse search query
 		const where: Where = {};
@@ -512,6 +650,9 @@ export const tryFindAllCourses = Result.wrap(
 				page,
 				sort,
 				depth: 1,
+				user,
+				req,
+				overrideAccess,
 			})
 			.then((result) => {
 				const docs = result.docs.map((doc) => {
@@ -977,6 +1118,14 @@ export const tryFindRootGroups = Result.wrap(
 // User Course Access Functions
 // ============================================================================
 
+export interface GetUserAccessibleCoursesArgs {
+	payload: Payload;
+	userId: number;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 export interface UserAccessibleCourse {
 	id: number;
 	title: string;
@@ -991,15 +1140,15 @@ export interface UserAccessibleCourse {
 
 /**
  * Gets all courses a user has access to via enrollments or ownership
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
  */
 export const tryGetUserAccessibleCourses = Result.wrap(
 	async (
-		payload: Payload,
-		userId: number,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
+		args: GetUserAccessibleCoursesArgs,
 	): Promise<UserAccessibleCourse[]> => {
+		const { payload, userId, user, req, overrideAccess = false } = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
@@ -1016,8 +1165,8 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 			},
 			depth: 1,
 			pagination: false,
-			user: authenticatedUser,
-			req: req || {},
+			user,
+			req,
 			overrideAccess,
 		});
 
@@ -1050,7 +1199,7 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 			payload,
 			userId,
 			1000,
-			authenticatedUser,
+			user,
 			req,
 			overrideAccess,
 		);
@@ -1065,8 +1214,8 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 					collection: "courses",
 					id: courseId,
 					depth: 1,
-					user: authenticatedUser,
-					req: req || {},
+					user,
+					req,
 					overrideAccess,
 				});
 

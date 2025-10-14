@@ -308,12 +308,16 @@ describe("Course Category Management Functions", () => {
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) return;
 
-		const courseResult = await tryCreateCourse(payload, mockRequest, {
-			title: "Test Course",
-			description: "Test Description",
-			slug: "test-course-cat",
-			createdBy: testUser.id,
-			category: categoryResult.value.id,
+		const courseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Test Course",
+				description: "Test Description",
+				slug: "test-course-cat",
+				createdBy: testUser.id,
+				category: categoryResult.value.id,
+			},
+			overrideAccess: true,
 		});
 		expect(courseResult.ok).toBe(true);
 
@@ -477,28 +481,40 @@ describe("Course Category Management Functions", () => {
 		if (!child1.ok || !child2.ok) return;
 
 		// Create courses in different categories
-		await tryCreateCourse(payload, mockRequest, {
-			title: "Parent Course",
-			description: "Course in parent",
-			slug: "parent-course-count",
-			createdBy: testUser.id,
-			category: parent.value.id,
+		await tryCreateCourse({
+			payload,
+			data: {
+				title: "Parent Course",
+				description: "Course in parent",
+				slug: "parent-course-count",
+				createdBy: testUser.id,
+				category: parent.value.id,
+			},
+			overrideAccess: true,
 		});
 
-		await tryCreateCourse(payload, mockRequest, {
-			title: "Child 1 Course",
-			description: "Course in child 1",
-			slug: "child1-course-count",
-			createdBy: testUser.id,
-			category: child1.value.id,
+		await tryCreateCourse({
+			payload,
+			data: {
+				title: "Child 1 Course",
+				description: "Course in child 1",
+				slug: "child1-course-count",
+				createdBy: testUser.id,
+				category: child1.value.id,
+			},
+			overrideAccess: true,
 		});
 
-		await tryCreateCourse(payload, mockRequest, {
-			title: "Child 2 Course",
-			description: "Course in child 2",
-			slug: "child2-course-count",
-			createdBy: testUser.id,
-			category: child2.value.id,
+		await tryCreateCourse({
+			payload,
+			data: {
+				title: "Child 2 Course",
+				description: "Course in child 2",
+				slug: "child2-course-count",
+				createdBy: testUser.id,
+				category: child2.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		const countResult = await tryGetTotalNestedCoursesCount(
@@ -557,12 +573,16 @@ describe("Course Category Management Functions", () => {
 		});
 		if (!category.ok) return;
 
-		const course = await tryCreateCourse(payload, mockRequest, {
-			title: "Categorized Course",
-			description: "A course with a category",
-			slug: "categorized-course",
-			createdBy: testUser.id,
-			category: category.value.id,
+		const course = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Categorized Course",
+				description: "A course with a category",
+				slug: "categorized-course",
+				createdBy: testUser.id,
+				category: category.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		expect(course.ok).toBe(true);
@@ -585,12 +605,16 @@ describe("Course Category Management Functions", () => {
 
 		if (!cat1.ok || !cat2.ok) return;
 
-		const course = await tryCreateCourse(payload, mockRequest, {
-			title: "Movable Course",
-			description: "A course that moves",
-			slug: "movable-course",
-			createdBy: testUser.id,
-			category: cat1.value.id,
+		const course = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Movable Course",
+				description: "A course that moves",
+				slug: "movable-course",
+				createdBy: testUser.id,
+				category: cat1.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		if (!course.ok) return;

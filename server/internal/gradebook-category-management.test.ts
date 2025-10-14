@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
-import { InvalidSortOrderError, WeightExceedsLimitError } from "~/utils/error";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCourse } from "./course-management";
 import {
@@ -20,7 +19,6 @@ import { tryCreateUser } from "./user-management";
 
 describe("Gradebook Category Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
 	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
@@ -38,9 +36,6 @@ describe("Gradebook Category Management", () => {
 		payload = await getPayload({
 			config: sanitizedConfig,
 		});
-
-		// Create mock request object
-		mockRequest = new Request("http://localhost:3000/test");
 
 		// Create test users (instructor and student)
 		const instructorArgs: CreateUserArgs = {
@@ -65,11 +60,15 @@ describe("Gradebook Category Management", () => {
 		instructor = instructorResult.value;
 
 		// Create a test course
-		const courseResult = await tryCreateCourse(payload, {} as Request, {
-			title: "Test Course Categories",
-			description: "Test Course Description",
-			slug: "test-course-categories",
-			createdBy: instructor.id,
+		const courseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Test Course Categories",
+				description: "Test Course Description",
+				slug: "test-course-categories",
+				createdBy: instructor.id,
+			},
+			overrideAccess: true,
 		});
 
 		expect(courseResult.ok).toBe(true);

@@ -22,7 +22,6 @@ import { tryCreateUser } from "./user-management";
 
 describe("Gradebook Item Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let student: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
@@ -42,9 +41,6 @@ describe("Gradebook Item Management", () => {
 		payload = await getPayload({
 			config: sanitizedConfig,
 		});
-
-		// Create mock request object
-		mockRequest = new Request("http://localhost:3000/test");
 
 		// Create test users (instructor and student)
 		const instructorArgs: CreateUserArgs = {
@@ -84,11 +80,15 @@ describe("Gradebook Item Management", () => {
 		student = studentResult.value;
 
 		// Create a test course
-		const courseResult = await tryCreateCourse(payload, {} as Request, {
-			title: "Test Course Items",
-			description: "Test Course Description",
-			slug: "test-course-items",
-			createdBy: instructor.id,
+		const courseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Test Course Items",
+				description: "Test Course Description",
+				slug: "test-course-items",
+				createdBy: instructor.id,
+			},
+			overrideAccess: true,
 		});
 
 		expect(courseResult.ok).toBe(true);

@@ -567,7 +567,11 @@ describe("Enrollment Management Functions", () => {
 
 		describe("try get course with groups", () => {
 			test("should get course with groups", async () => {
-				const result = await tryFindCourseById(payload, testCourseId);
+				const result = await tryFindCourseById({
+					payload,
+					courseId: testCourseId,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {

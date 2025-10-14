@@ -128,7 +128,11 @@ export const middleware = [
 
 				if (!Number.isNaN(courseId)) {
 					try {
-						const courseResult = await tryFindCourseById(payload, courseId);
+						const courseResult = await tryFindCourseById({
+							payload,
+							courseId,
+							overrideAccess: true,
+						});
 
 						if (courseResult.ok) {
 							const course = courseResult.value;

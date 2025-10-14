@@ -108,17 +108,17 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// Create course
 		const courseArgs: CreateCourseArgs = {
-			title: "Quiz Test Course",
-			description: "A test course for quiz submissions",
-			slug: "quiz-test-course",
-			createdBy: teacherId,
+			payload,
+			data: {
+				title: "Quiz Test Course",
+				description: "A test course for quiz submissions",
+				slug: "quiz-test-course",
+				createdBy: teacherId,
+			},
+			overrideAccess: true,
 		};
 
-		const courseResult = await tryCreateCourse(
-			payload,
-			mockRequest,
-			courseArgs,
-		);
+		const courseResult = await tryCreateCourse(courseArgs);
 		expect(courseResult.ok).toBe(true);
 		if (!courseResult.ok) {
 			throw new Error("Test Error: Failed to create test course");

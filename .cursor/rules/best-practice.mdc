@@ -20,6 +20,10 @@ use `matches` to from Route.ComponentProps to check current route.
 
 don't use `useEffect`, use `useEffectEvent` instead.
 
+in loader and actions, we need to use `overrideAccess` to false and provide the current user ( `effectiveUser ?? authenticatedUser`) to the function.
+
+we don't check for access in loader and actions. we only check for access in internal functions and through access hook in collections. 
+
 ## testing 
 
 every features on the backend should be tested using `bun:test`.

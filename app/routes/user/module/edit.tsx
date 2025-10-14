@@ -102,7 +102,11 @@ export const loader = async ({
 		for (const link of linksResult.value) {
 			const courseId =
 				typeof link.course === "object" ? link.course.id : link.course;
-			const courseResult = await tryFindCourseById(payload, courseId);
+			const courseResult = await tryFindCourseById({
+				payload,
+				courseId,
+				overrideAccess: true,
+			});
 			if (courseResult.ok) {
 				linkedCourses.push({
 					id: courseResult.value.id,

@@ -102,19 +102,16 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		}
 		studentId = studentResult.value.id;
 
-		// Create course
-		const courseArgs: CreateCourseArgs = {
-			title: "Test Course",
-			description: "A test course for assignment submissions",
-			slug: "test-course",
-			createdBy: teacherId,
-		};
-
-		const courseResult = await tryCreateCourse(
+		const courseResult = await tryCreateCourse({
 			payload,
-			mockRequest,
-			courseArgs,
-		);
+			data: {
+				title: "Test Course",
+				description: "A test course for assignment submissions",
+				slug: "test-course",
+				createdBy: teacherId,
+			},
+			overrideAccess: true,
+		});
 		expect(courseResult.ok).toBe(true);
 		if (!courseResult.ok) {
 			throw new Error("Test Error: Failed to create test course");

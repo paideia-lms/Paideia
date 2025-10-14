@@ -14,6 +14,7 @@ import { notifications } from "@mantine/notifications";
 import { extractJWT } from "payload";
 import { redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import {
 	tryFindCourseById,
 	tryUpdateCourse,
@@ -35,20 +36,12 @@ export const loader = async ({
 	params,
 }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
-
-	if (!currentUser) {
+	const userSession = context.get(userContextKey);
+	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
-
-	if (currentUser.role !== "admin" && currentUser.role !== "content-manager") {
-		throw new ForbiddenResponse(
-			"Only admins and content managers can edit courses",
-		);
-	}
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
@@ -57,7 +50,12 @@ export const loader = async ({
 		});
 	}
 
-	const courseResult = await tryFindCourseById(payload, courseId);
+	const courseResult = await tryFindCourseById({
+		payload,
+		courseId,
+		user: currentUser,
+		overrideAccess: true,
+	});
 
 	if (!courseResult.ok) {
 		return badRequest({
@@ -113,60 +111,23 @@ export const action = async ({
 	params,
 }: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const token = extractJWT({ headers: request.headers, payload });
-	if (token === null) {
+	const userSession = context.get(userContextKey);
+	const { id } = params;
+	if (!userSession?.isAuthenticated) {
 		return unauthorized({
 			success: false,
 			error: "Unauthorized",
 		});
 	}
 
-	const currentUser = await payload
-		.auth({
-			headers: request.headers,
-			canSetHeaders: true,
-		})
-		.then((res) => res.user);
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (currentUser === null) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
-	}
-
-	if (currentUser.role !== "admin" && currentUser.role !== "content-manager") {
-		return forbidden({
-			success: false,
-			error: "Only admins and content managers can edit courses",
-		});
-	}
-
-	const courseId = Number.parseInt(params.id, 10);
+	const courseId = Number.parseInt(id, 10);
 	if (Number.isNaN(courseId)) {
 		return badRequest({
 			success: false,
 			error: "Invalid course ID",
-		});
-	}
-
-	// Verify user can edit this course
-	const courseResult = await tryFindCourseById(payload, courseId);
-	if (!courseResult.ok) {
-		return badRequest({
-			success: false,
-			error: courseResult.error.message,
-		});
-	}
-
-	const course = courseResult.value;
-	if (
-		currentUser.role === "content-manager" &&
-		course.createdBy.id !== currentUser.id
-	) {
-		return forbidden({
-			success: false,
-			error: "Content managers can only edit courses they created",
 		});
 	}
 
@@ -203,12 +164,17 @@ export const action = async ({
 		}
 
 		// Update course
-		const updateResult = await tryUpdateCourse(payload, request, courseId, {
-			title: parsed.data.title,
-			description: parsed.data.description,
-			status: parsed.data.status,
+		const updateResult = await tryUpdateCourse({
+			payload,
+			courseId,
+			data: {
+				title: parsed.data.title,
+				description: parsed.data.description,
+				status: parsed.data.status,
+			},
+			user: currentUser,
+			overrideAccess: true,
 		});
-
 		if (!updateResult.ok) {
 			return badRequest({
 				success: false,

@@ -139,12 +139,16 @@ export const runSeed = Result.wrap(
 
 		// Step 5: Create a course
 		console.log("📚 Creating course...");
-		const courseResult = await tryCreateCourse(payload, mockRequest, {
-			title: "Introduction to Programming",
-			description: "Learn the basics of programming",
-			slug: "intro-to-programming",
-			createdBy: adminUser.id,
-			status: "published",
+		const courseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Introduction to Programming",
+				description: "Learn the basics of programming",
+				slug: "intro-to-programming",
+				createdBy: adminUser.id,
+				status: "published",
+			},
+			overrideAccess: true,
 		});
 
 		if (!courseResult.ok) {

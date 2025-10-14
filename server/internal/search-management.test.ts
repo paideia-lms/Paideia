@@ -88,57 +88,57 @@ describe("Search Management Functions", () => {
 
 		// Create test courses
 		const course1Args: CreateCourseArgs = {
-			title: "Introduction to JavaScript Programming",
-			description: "Learn the fundamentals of JavaScript",
-			createdBy: user1Result.value.id,
-			slug: "intro-javascript",
-			status: "published",
-			structure: {
-				sections: [
-					{
-						title: "Getting Started",
-						description: "Introduction section",
-						items: [
-							{
-								id: 1,
-							},
-						],
-					},
-				],
+			payload,
+			data: {
+				title: "Introduction to JavaScript Programming",
+				description: "Learn the fundamentals of JavaScript",
+				createdBy: user1Result.value.id,
+				slug: "intro-javascript",
+				status: "published",
+				structure: {
+					sections: [
+						{
+							title: "Getting Started",
+							description: "Introduction section",
+							items: [
+								{
+									id: 1,
+								},
+							],
+						},
+					],
+				},
 			},
+			overrideAccess: true,
 		};
 
 		const course2Args: CreateCourseArgs = {
-			title: "Advanced Python Development Patterns",
-			description: "Master advanced Python concepts and design patterns",
-			createdBy: userId2,
-			slug: "advanced-python",
-			status: "published",
-			structure: {
-				sections: [
-					{
-						title: "Advanced Topics",
-						description: "Deep dive into Python",
-						items: [
-							{
-								id: 1,
-							},
-						],
-					},
-				],
+			payload,
+			data: {
+				title: "Advanced Python Development Patterns",
+				description: "Master advanced Python concepts and design patterns",
+				createdBy: userId2,
+				slug: "advanced-python",
+				status: "published",
+				structure: {
+					sections: [
+						{
+							title: "Advanced Topics",
+							description: "Deep dive into Python",
+							items: [
+								{
+									id: 1,
+								},
+							],
+						},
+					],
+				},
 			},
+			overrideAccess: true,
 		};
 
-		const course1Result = await tryCreateCourse(
-			payload,
-			mockRequest,
-			course1Args,
-		);
-		const course2Result = await tryCreateCourse(
-			payload,
-			mockRequest,
-			course2Args,
-		);
+		const course1Result = await tryCreateCourse(course1Args);
+		const course2Result = await tryCreateCourse(course2Args);
 
 		expect(course1Result.ok).toBe(true);
 		expect(course2Result.ok).toBe(true);
@@ -227,31 +227,31 @@ describe("Search Management Functions", () => {
 			// Create a course with unique title
 			const uniqueTitle = `Temporary Course ${Date.now()}`;
 			const courseArgs: CreateCourseArgs = {
-				title: uniqueTitle,
-				description: "This course will be deleted",
-				createdBy: userId2,
-				slug: `temp-course-${Date.now()}`,
-				status: "published",
-				structure: {
-					sections: [
-						{
-							title: "Test Section",
-							description: "Test section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+				payload,
+				data: {
+					title: uniqueTitle,
+					description: "This course will be deleted",
+					createdBy: userId2,
+					slug: `temp-course-${Date.now()}`,
+					status: "published",
+					structure: {
+						sections: [
+							{
+								title: "Test Section",
+								description: "Test section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				courseArgs,
-			);
+			const createResult = await tryCreateCourse(courseArgs);
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
 				throw new Error("Failed to create course");
@@ -280,11 +280,11 @@ describe("Search Management Functions", () => {
 			expect(foundBefore).toBeDefined();
 
 			// Delete the course
-			const deleteResult = await tryDeleteCourse(
+			const deleteResult = await tryDeleteCourse({
 				payload,
-				mockRequest,
 				courseId,
-			);
+				overrideAccess: true,
+			});
 			expect(deleteResult.ok).toBe(true);
 
 			// Wait for search index to update
@@ -382,36 +382,36 @@ describe("Search Management Functions", () => {
 		test("should update search when course is updated", async () => {
 			// Create a course with initial title
 			const initialTitle = `Original Course ${Date.now()}`;
-			const courseArgs: CreateCourseArgs = {
-				title: initialTitle,
-				description: "This course will be updated",
-				createdBy: userId2,
-				slug: `update-course-${Date.now()}`,
-				status: "published",
-				structure: {
-					sections: [
-						{
-							title: "Test Section",
-							description: "Test section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
-				},
-			};
 
 			// creata a new request
 			// ! this is important, we need to create a new request to avoid the request being cached
 			const newRequest = new Request("http://localhost:3000/test");
 
-			const createResult = await tryCreateCourse(
+			const createResult = await tryCreateCourse({
 				payload,
-				newRequest,
-				courseArgs,
-			);
+				data: {
+					title: initialTitle,
+					description: "This course will be updated",
+					createdBy: userId2,
+					slug: `update-course-${Date.now()}`,
+					status: "published",
+					structure: {
+						sections: [
+							{
+								title: "Test Section",
+								description: "Test section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
+				},
+				req: newRequest,
+				overrideAccess: true,
+			});
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
 				throw new Error("Failed to create course");
@@ -427,8 +427,13 @@ describe("Search Management Functions", () => {
 			// Update the course title
 			const updatedTitle = `Updated Course ${Date.now()}`;
 			console.log("updating course", courseId, updatedTitle);
-			await tryUpdateCourse(payload, mockRequest, courseId, {
-				title: updatedTitle,
+			await tryUpdateCourse({
+				payload,
+				courseId,
+				data: {
+					title: updatedTitle,
+				},
+				overrideAccess: true,
 			});
 
 			console.log("course after update");

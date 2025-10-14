@@ -62,34 +62,15 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const token = extractJWT({ headers: request.headers, payload });
-	if (token === null) {
+	const userSession = context.get(userContextKey);
+	if (!userSession?.isAuthenticated) {
 		return unauthorized({
 			success: false,
 			error: "Unauthorized",
 		});
 	}
-
-	const currentUser = await payload
-		.auth({
-			headers: request.headers,
-			canSetHeaders: true,
-		})
-		.then((res) => res.user);
-
-	if (currentUser === null) {
-		return unauthorized({
-			success: false,
-			error: "Unauthorized",
-		});
-	}
-
-	if (currentUser.role !== "admin" && currentUser.role !== "content-manager") {
-		return forbidden({
-			success: false,
-			error: "Only admins and content managers can create courses",
-		});
-	}
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	try {
 		const formData = await request.formData();
@@ -124,13 +105,18 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		}
 
 		// Create course
-		const createResult = await tryCreateCourse(payload, request, {
-			title: parsed.data.title,
-			slug: parsed.data.slug,
-			description: parsed.data.description,
-			status: parsed.data.status,
-			createdBy: currentUser.id,
-			category: parsed.data.category ?? undefined,
+		const createResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: parsed.data.title,
+				slug: parsed.data.slug,
+				description: parsed.data.description,
+				status: parsed.data.status,
+				createdBy: currentUser.id,
+				category: parsed.data.category ?? undefined,
+			},
+			user: currentUser,
+			overrideAccess: false,
 		});
 
 		if (!createResult.ok) {

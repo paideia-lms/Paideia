@@ -17,7 +17,6 @@ import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
 	let instructorId: number;
 
 	beforeAll(async () => {
@@ -31,9 +30,6 @@ describe("Course Management Functions", () => {
 		payload = await getPayload({
 			config: sanitizedConfig,
 		});
-
-		// Create mock request object
-		mockRequest = new Request("http://localhost:3000/test");
 
 		// Create test users (instructor and student)
 		const instructorArgs: CreateUserArgs = {
@@ -68,60 +64,68 @@ describe("Course Management Functions", () => {
 
 	describe("tryCreateCourse", () => {
 		test("should create a new course successfully", async () => {
-			const courseArgs = {
-				title: "Introduction to JavaScript",
-				description: "Learn the basics of JavaScript programming",
-				createdBy: instructorId,
-				slug: "introduction-to-javascript",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Learn the basics of JavaScript programming",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Introduction to JavaScript",
+					description: "Learn the basics of JavaScript programming",
+					createdBy: instructorId,
+					slug: "introduction-to-javascript",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Learn the basics of JavaScript programming",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
+					status: "draft",
+					tags: [{ tag: "javascript" }, { tag: "programming" }],
 				},
-				status: "draft",
-				tags: [{ tag: "javascript" }, { tag: "programming" }],
-			} satisfies CreateCourseArgs;
+				overrideAccess: true,
+			};
 
-			const result = await tryCreateCourse(payload, mockRequest, courseArgs);
+			const result = await tryCreateCourse(courseArgs);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value.title).toBe(courseArgs.title);
-				expect(result.value.description).toBe(courseArgs.description);
-				expect(result.value.status).toBe(courseArgs.status);
+				expect(result.value.title).toBe(courseArgs.data.title);
+				expect(result.value.description).toBe(courseArgs.data.description);
+				expect(result.value.status).toBe(courseArgs.data.status || "draft");
 			}
 		});
 
 		test("should create course with default values", async () => {
 			const courseArgs: CreateCourseArgs = {
-				title: "Basic HTML",
-				description: "Learn HTML fundamentals",
-				createdBy: instructorId,
-				slug: "basic-html",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Learn the basics of HTML programming",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+				payload,
+				data: {
+					title: "Basic HTML",
+					description: "Learn HTML fundamentals",
+					createdBy: instructorId,
+					slug: "basic-html",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Learn the basics of HTML programming",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			};
 
-			const result = await tryCreateCourse(payload, mockRequest, courseArgs);
+			const result = await tryCreateCourse(courseArgs);
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -131,26 +135,30 @@ describe("Course Management Functions", () => {
 
 		test("should fail when instructor does not exist", async () => {
 			const courseArgs: CreateCourseArgs = {
-				title: "Non-existent Instructor Course",
-				description: "This should fail",
-				createdBy: 99999,
-				slug: "non-existent-instructor-course",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Test section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+				payload,
+				data: {
+					title: "Non-existent Instructor Course",
+					description: "This should fail",
+					createdBy: 99999,
+					slug: "non-existent-instructor-course",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Test section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			};
 
-			const result = await tryCreateCourse(payload, mockRequest, courseArgs);
+			const result = await tryCreateCourse(courseArgs);
 
 			expect(result.ok).toBe(false);
 		});
@@ -160,45 +168,45 @@ describe("Course Management Functions", () => {
 		test("should update course successfully", async () => {
 			// First create a course
 			const createArgs: CreateCourseArgs = {
-				title: "Original Title",
-				description: "Original description",
-				createdBy: instructorId,
-				slug: "original-title",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Original section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+				payload,
+				data: {
+					title: "Original Title",
+					description: "Original description",
+					createdBy: instructorId,
+					slug: "original-title",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Original section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				createArgs,
-			);
+			const createResult = await tryCreateCourse(createArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
 				const updateArgs: UpdateCourseArgs = {
-					title: "Updated Title",
-					description: "Updated description",
-					status: "published",
+					payload,
+					courseId: createResult.value.id,
+					data: {
+						title: "Updated Title",
+						description: "Updated description",
+						status: "published",
+					},
+					overrideAccess: true,
 				};
 
-				const updateResult = await tryUpdateCourse(
-					payload,
-					mockRequest,
-					createResult.value.id,
-					updateArgs,
-				);
+				const updateResult = await tryUpdateCourse(updateArgs);
 
 				expect(updateResult.ok).toBe(true);
 				if (updateResult.ok) {
@@ -211,15 +219,15 @@ describe("Course Management Functions", () => {
 
 		test("should fail when updating non-existent course", async () => {
 			const updateArgs: UpdateCourseArgs = {
-				title: "Non-existent Course",
+				payload,
+				courseId: 99999,
+				data: {
+					title: "Non-existent Course",
+				},
+				overrideAccess: true,
 			};
 
-			const result = await tryUpdateCourse(
-				payload,
-				mockRequest,
-				99999,
-				updateArgs,
-			);
+			const result = await tryUpdateCourse(updateArgs);
 
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
@@ -230,43 +238,43 @@ describe("Course Management Functions", () => {
 		test("should fail when updating with non-existent instructor", async () => {
 			// First create a course
 			const createArgs: CreateCourseArgs = {
-				title: "Test Course",
-				description: "Test description",
-				createdBy: instructorId,
-				slug: "test-course",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Test section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+				payload,
+				data: {
+					title: "Test Course",
+					description: "Test description",
+					createdBy: instructorId,
+					slug: "test-course",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Test section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				createArgs,
-			);
+			const createResult = await tryCreateCourse(createArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
 				const updateArgs: UpdateCourseArgs = {
-					createdBy: 99999,
+					payload,
+					courseId: createResult.value.id,
+					data: {
+						createdBy: 99999,
+					},
+					overrideAccess: true,
 				};
 
-				const updateResult = await tryUpdateCourse(
-					payload,
-					mockRequest,
-					createResult.value.id,
-					updateArgs,
-				);
+				const updateResult = await tryUpdateCourse(updateArgs);
 
 				expect(updateResult.ok).toBe(false);
 				if (!updateResult.ok) {
@@ -278,39 +286,40 @@ describe("Course Management Functions", () => {
 
 	describe("tryFindCourseById", () => {
 		test("should find existing course by ID", async () => {
-			const courseArgs = {
-				title: "Find By ID Test",
-				description: "Test course for finding by ID",
-				createdBy: instructorId,
-				slug: "find-by-id-test",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Test section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
-				},
-			} satisfies CreateCourseArgs;
-
-			const createResult = await tryCreateCourse(
+			const courseArgs: CreateCourseArgs = {
 				payload,
-				mockRequest,
-				courseArgs,
-			);
+				data: {
+					title: "Find By ID Test",
+					description: "Test course for finding by ID",
+					createdBy: instructorId,
+					slug: "find-by-id-test",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Test section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
+				},
+				overrideAccess: true,
+			};
+
+			const createResult = await tryCreateCourse(courseArgs);
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
 				throw new Error("Failed to create course");
 			}
-			const findResult = await tryFindCourseById(
+			const findResult = await tryFindCourseById({
 				payload,
-				createResult.value.id,
-			);
+				courseId: createResult.value.id,
+				overrideAccess: true,
+			});
 
 			expect(findResult.ok).toBe(true);
 			if (!findResult.ok) {
@@ -321,7 +330,11 @@ describe("Course Management Functions", () => {
 		});
 
 		test("should fail when finding non-existent course by ID", async () => {
-			const result = await tryFindCourseById(payload, 99999);
+			const result = await tryFindCourseById({
+				payload,
+				courseId: 99999,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(false);
 		});
@@ -329,7 +342,10 @@ describe("Course Management Functions", () => {
 
 	describe("trySearchCourses", () => {
 		test("should search courses with no filters", async () => {
-			const result = await trySearchCourses(payload, {});
+			const result = await trySearchCourses({
+				payload,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -342,47 +358,59 @@ describe("Course Management Functions", () => {
 
 		test("should search courses by title", async () => {
 			// Create test courses
-			await tryCreateCourse(payload, mockRequest, {
-				title: "React Fundamentals",
-				description: "Learn React",
-				createdBy: instructorId,
-				slug: "react-fundamentals",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "React section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+			await tryCreateCourse({
+				payload,
+				data: {
+					title: "React Fundamentals",
+					description: "Learn React",
+					createdBy: instructorId,
+					slug: "react-fundamentals",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "React section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			});
 
-			await tryCreateCourse(payload, mockRequest, {
-				title: "Vue.js Basics",
-				description: "Learn Vue",
-				createdBy: instructorId,
-				slug: "vue-js-basics",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Vue section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+			await tryCreateCourse({
+				payload,
+				data: {
+					title: "Vue.js Basics",
+					description: "Learn Vue",
+					createdBy: instructorId,
+					slug: "vue-js-basics",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Vue section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			});
 
-			const result = await trySearchCourses(payload, { title: "React" });
+			const result = await trySearchCourses({
+				payload,
+				filters: { title: "React" },
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -398,28 +426,28 @@ describe("Course Management Functions", () => {
 
 	describe("tryDeleteCourse", () => {
 		test("should delete course successfully", async () => {
-			const courseArgs = {
-				title: "Course to Delete",
-				description: "This course will be deleted",
-				createdBy: instructorId,
-				slug: "course-to-delete",
-			} satisfies CreateCourseArgs;
-
-			const createResult = await tryCreateCourse(
+			const courseArgs: CreateCourseArgs = {
 				payload,
-				mockRequest,
-				courseArgs,
-			);
+				data: {
+					title: "Course to Delete",
+					description: "This course will be deleted",
+					createdBy: instructorId,
+					slug: "course-to-delete",
+				},
+				overrideAccess: true,
+			};
+
+			const createResult = await tryCreateCourse(courseArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (!createResult.ok) {
 				throw new Error("Test Error: Failed to create course");
 			}
-			const deleteResult = await tryDeleteCourse(
+			const deleteResult = await tryDeleteCourse({
 				payload,
-				mockRequest,
-				createResult.value.id,
-			);
+				courseId: createResult.value.id,
+				overrideAccess: true,
+			});
 
 			expect(deleteResult.ok).toBe(true);
 			if (!deleteResult.ok) {
@@ -428,10 +456,11 @@ describe("Course Management Functions", () => {
 			expect(deleteResult.value.id).toBe(createResult.value.id);
 
 			// Verify course is actually deleted
-			const findResult = await tryFindCourseById(
+			const findResult = await tryFindCourseById({
 				payload,
-				createResult.value.id,
-			);
+				courseId: createResult.value.id,
+				overrideAccess: true,
+			});
 			expect(findResult.ok).toBe(false);
 		});
 	});
@@ -506,71 +535,78 @@ describe("Course Management Functions", () => {
 		test("should handle complete course lifecycle", async () => {
 			// Create course
 			const createArgs: CreateCourseArgs = {
-				title: "Lifecycle Test Course",
-				description: "Testing complete lifecycle",
-				createdBy: instructorId,
-				slug: "lifecycle-test-course",
-				status: "draft",
-				structure: {
-					sections: [
-						{
-							title: "Introduction",
-							description: "Lifecycle test section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
+				payload,
+				data: {
+					title: "Lifecycle Test Course",
+					description: "Testing complete lifecycle",
+					createdBy: instructorId,
+					slug: "lifecycle-test-course",
+					status: "draft",
+					structure: {
+						sections: [
+							{
+								title: "Introduction",
+								description: "Lifecycle test section",
+								items: [
+									{
+										id: 1,
+									},
+								],
+							},
+						],
+					},
 				},
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				createArgs,
-			);
+			const createResult = await tryCreateCourse(createArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
 				const courseId = createResult.value.id;
 
 				// Find by ID
-				const findResult = await tryFindCourseById(payload, courseId);
+				const findResult = await tryFindCourseById({
+					payload,
+					courseId,
+					overrideAccess: true,
+				});
 				expect(findResult.ok).toBe(true);
 
 				// Update course
 				const updateArgs: UpdateCourseArgs = {
-					status: "published",
-				};
-				const updateResult = await tryUpdateCourse(
 					payload,
-					mockRequest,
 					courseId,
-					updateArgs,
-				);
+					data: {
+						status: "published",
+					},
+					overrideAccess: true,
+				};
+				const updateResult = await tryUpdateCourse(updateArgs);
 				expect(updateResult.ok).toBe(true);
 
 				// Search for updated course
-				const searchResult = await trySearchCourses(payload, {
-					status: "published",
+				const searchResult = await trySearchCourses({
+					payload,
+					filters: { status: "published" },
+					overrideAccess: true,
 				});
 				expect(searchResult.ok).toBe(true);
 
 				// Delete course
-				const deleteResult = await tryDeleteCourse(
+				const deleteResult = await tryDeleteCourse({
 					payload,
-					mockRequest,
 					courseId,
-				);
+					overrideAccess: true,
+				});
 				expect(deleteResult.ok).toBe(true);
 
 				// Verify deletion
-				const findAfterDeleteResult = await tryFindCourseById(
+				const findAfterDeleteResult = await tryFindCourseById({
 					payload,
 					courseId,
-				);
+					overrideAccess: true,
+				});
 				expect(findAfterDeleteResult.ok).toBe(false);
 			}
 		});
@@ -638,44 +674,44 @@ describe("Course Management Functions", () => {
 
 			// Create test courses
 			const course1Args: CreateCourseArgs = {
-				title: "Course 1 - Admin Access",
-				description: "Test course for admin access",
-				createdBy: instructorId,
-				slug: "course-1-admin-access",
-				status: "published",
+				payload,
+				data: {
+					title: "Course 1 - Admin Access",
+					description: "Test course for admin access",
+					createdBy: instructorId,
+					slug: "course-1-admin-access",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
 			const course2Args: CreateCourseArgs = {
-				title: "Course 2 - Enrollment Access",
-				description: "Test course for enrollment access",
-				createdBy: instructorId,
-				slug: "course-2-enrollment-access",
-				status: "published",
+				payload,
+				data: {
+					title: "Course 2 - Enrollment Access",
+					description: "Test course for enrollment access",
+					createdBy: instructorId,
+					slug: "course-2-enrollment-access",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
 			const course3Args: CreateCourseArgs = {
-				title: "Course 3 - Category Access",
-				description: "Test course for category access",
-				createdBy: instructorId,
-				slug: "course-3-category-access",
-				status: "published",
+				payload,
+				data: {
+					title: "Course 3 - Category Access",
+					description: "Test course for category access",
+					createdBy: instructorId,
+					slug: "course-3-category-access",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
-			const course1Result = await tryCreateCourse(
-				payload,
-				mockRequest,
-				course1Args,
-			);
-			const course2Result = await tryCreateCourse(
-				payload,
-				mockRequest,
-				course2Args,
-			);
-			const course3Result = await tryCreateCourse(
-				payload,
-				mockRequest,
-				course3Args,
-			);
+			const course1Result = await tryCreateCourse(course1Args);
+			const course2Result = await tryCreateCourse(course2Args);
+			const course3Result = await tryCreateCourse(course3Args);
 
 			expect(course1Result.ok).toBe(true);
 			expect(course2Result.ok).toBe(true);
@@ -703,31 +739,29 @@ describe("Course Management Functions", () => {
 		test("should return only owned courses for admin user", async () => {
 			// Create a course owned by admin
 			const adminCourseArgs: CreateCourseArgs = {
-				title: "Admin Owned Course",
-				description: "Course owned by admin",
-				createdBy: adminUserId,
-				slug: "admin-owned-course",
-				status: "published",
+				payload,
+				data: {
+					title: "Admin Owned Course",
+					description: "Course owned by admin",
+					createdBy: adminUserId,
+					slug: "admin-owned-course",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
-			const adminCourseResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				adminCourseArgs,
-			);
+			const adminCourseResult = await tryCreateCourse(adminCourseArgs);
 			expect(adminCourseResult.ok).toBe(true);
 
 			if (!adminCourseResult.ok) {
 				throw new Error("Failed to create admin course");
 			}
 
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				adminUserId,
-				null,
-				undefined,
-				true, // overrideAccess for tests
-			);
+				userId: adminUserId,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -748,16 +782,18 @@ describe("Course Management Functions", () => {
 		test("should return only owned courses for content manager user", async () => {
 			// Create a course owned by content manager
 			const contentManagerCourseArgs: CreateCourseArgs = {
-				title: "Content Manager Owned Course",
-				description: "Course owned by content manager",
-				createdBy: contentManagerUserId,
-				slug: "content-manager-owned-course",
-				status: "published",
+				payload,
+				data: {
+					title: "Content Manager Owned Course",
+					description: "Course owned by content manager",
+					createdBy: contentManagerUserId,
+					slug: "content-manager-owned-course",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
 			const contentManagerCourseResult = await tryCreateCourse(
-				payload,
-				mockRequest,
 				contentManagerCourseArgs,
 			);
 			expect(contentManagerCourseResult.ok).toBe(true);
@@ -766,13 +802,11 @@ describe("Course Management Functions", () => {
 				throw new Error("Failed to create content manager course");
 			}
 
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				contentManagerUserId,
-				null,
-				undefined,
-				true, // overrideAccess for tests
-			);
+				userId: contentManagerUserId,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -793,16 +827,18 @@ describe("Course Management Functions", () => {
 		test("should return courses from enrollments and ownership for regular user", async () => {
 			// Create a course owned by regular user
 			const regularUserCourseArgs: CreateCourseArgs = {
-				title: "Regular User Owned Course",
-				description: "Course owned by regular user",
-				createdBy: regularUserId,
-				slug: "regular-user-owned-course",
-				status: "published",
+				payload,
+				data: {
+					title: "Regular User Owned Course",
+					description: "Course owned by regular user",
+					createdBy: regularUserId,
+					slug: "regular-user-owned-course",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
 			const regularUserCourseResult = await tryCreateCourse(
-				payload,
-				mockRequest,
 				regularUserCourseArgs,
 			);
 			expect(regularUserCourseResult.ok).toBe(true);
@@ -811,13 +847,11 @@ describe("Course Management Functions", () => {
 				throw new Error("Failed to create regular user course");
 			}
 
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				regularUserId,
-				null,
-				undefined,
-				true, // overrideAccess for tests
-			);
+				userId: regularUserId,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -845,13 +879,11 @@ describe("Course Management Functions", () => {
 		});
 
 		test("should not return courses from category roles for regular user", async () => {
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				regularUserId,
-				null,
-				undefined,
-				true, // overrideAccess for tests
-			);
+				userId: regularUserId,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -864,13 +896,11 @@ describe("Course Management Functions", () => {
 		});
 
 		test("should not return courses user has no access to", async () => {
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				regularUserId,
-				null,
-				undefined,
-				true, // overrideAccess for tests
-			);
+				userId: regularUserId,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -883,18 +913,18 @@ describe("Course Management Functions", () => {
 		test("should prioritize enrollment over ownership when user has both", async () => {
 			// Create a course owned by regular user
 			const ownedCourseArgs: CreateCourseArgs = {
-				title: "Owned and Enrolled Course",
-				description: "Course owned by regular user who is also enrolled",
-				createdBy: regularUserId,
-				slug: "owned-and-enrolled-course",
-				status: "published",
+				payload,
+				data: {
+					title: "Owned and Enrolled Course",
+					description: "Course owned by regular user who is also enrolled",
+					createdBy: regularUserId,
+					slug: "owned-and-enrolled-course",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
-			const ownedCourseResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				ownedCourseArgs,
-			);
+			const ownedCourseResult = await tryCreateCourse(ownedCourseArgs);
 			expect(ownedCourseResult.ok).toBe(true);
 
 			if (!ownedCourseResult.ok) {
@@ -912,13 +942,11 @@ describe("Course Management Functions", () => {
 			});
 			expect(enrollmentResult.ok).toBe(true);
 
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				regularUserId,
-				null,
-				undefined,
-				true, // overrideAccess for tests
-			);
+				userId: regularUserId,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -953,13 +981,11 @@ describe("Course Management Functions", () => {
 					data: { status: "completed" },
 				});
 
-				const result = await tryGetUserAccessibleCourses(
+				const result = await tryGetUserAccessibleCourses({
 					payload,
-					regularUserId,
-					null,
-					undefined,
-					true, // overrideAccess for tests
-				);
+					userId: regularUserId,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -990,13 +1016,11 @@ describe("Course Management Functions", () => {
 			expect(noAccessUserResult.ok).toBe(true);
 
 			if (noAccessUserResult.ok) {
-				const result = await tryGetUserAccessibleCourses(
+				const result = await tryGetUserAccessibleCourses({
 					payload,
-					noAccessUserResult.value.id,
-					null,
-					undefined,
-					true, // overrideAccess for tests
-				);
+					userId: noAccessUserResult.value.id,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -1062,44 +1086,44 @@ describe("Course Management Functions", () => {
 
 			// Create test courses
 			const course1Args: CreateCourseArgs = {
-				title: "Course 1 - Owned by Test User",
-				description: "Course owned by test user",
-				createdBy: testUserId,
-				slug: "course-1-owned-by-test-user",
-				status: "published",
+				payload,
+				data: {
+					title: "Course 1 - Owned by Test User",
+					description: "Course owned by test user",
+					createdBy: testUserId,
+					slug: "course-1-owned-by-test-user",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
 			const course2Args: CreateCourseArgs = {
-				title: "Course 2 - Owned by Other User",
-				description: "Course owned by other user",
-				createdBy: otherUserId,
-				slug: "course-2-owned-by-other-user",
-				status: "published",
+				payload,
+				data: {
+					title: "Course 2 - Owned by Other User",
+					description: "Course owned by other user",
+					createdBy: otherUserId,
+					slug: "course-2-owned-by-other-user",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
 			const course3Args: CreateCourseArgs = {
-				title: "Course 3 - Test User Enrolled",
-				description: "Course where test user is enrolled",
-				createdBy: otherUserId,
-				slug: "course-3-test-user-enrolled",
-				status: "published",
+				payload,
+				data: {
+					title: "Course 3 - Test User Enrolled",
+					description: "Course where test user is enrolled",
+					createdBy: otherUserId,
+					slug: "course-3-test-user-enrolled",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
-			const course1Result = await tryCreateCourse(
-				payload,
-				mockRequest,
-				course1Args,
-			);
-			const course2Result = await tryCreateCourse(
-				payload,
-				mockRequest,
-				course2Args,
-			);
-			const course3Result = await tryCreateCourse(
-				payload,
-				mockRequest,
-				course3Args,
-			);
+			const course1Result = await tryCreateCourse(course1Args);
+			const course2Result = await tryCreateCourse(course2Args);
+			const course3Result = await tryCreateCourse(course3Args);
 
 			expect(course1Result.ok).toBe(true);
 			expect(course2Result.ok).toBe(true);
@@ -1141,13 +1165,12 @@ describe("Course Management Functions", () => {
 				overrideAccess: true,
 			});
 
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				testUserId,
-				testUser,
-				undefined,
-				false, // overrideAccess false - respect access control
-			);
+				userId: testUserId,
+				user: testUser as any, // Cast to TypedUser for compatibility
+				overrideAccess: false,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -1185,13 +1208,12 @@ describe("Course Management Functions", () => {
 			});
 
 			// Try to get courses for otherUserId while authenticated as testUserId
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				otherUserId, // Different user ID
-				testUser, // Authenticated as test user
-				undefined,
-				false, // overrideAccess false - respect access control
-			);
+				userId: otherUserId, // Different user ID
+				user: testUser as any, // Authenticated as test user
+				overrideAccess: false, // overrideAccess false - respect access control
+			});
 
 			// This should fail because test user can't access other user's courses
 			expect(result.ok).toBe(false);
@@ -1206,13 +1228,12 @@ describe("Course Management Functions", () => {
 			});
 
 			// Try to get courses for otherUserId while authenticated as testUserId but with overrideAccess
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				otherUserId, // Different user ID
-				testUser, // Authenticated as test user
-				undefined,
-				true, // overrideAccess true - bypass access control
-			);
+				userId: otherUserId,
+				user: testUser as any, // Cast to TypedUser for compatibility
+				overrideAccess: true,
+			});
 
 			// This should work because overrideAccess bypasses access control
 			expect(result.ok).toBe(true);
@@ -1253,13 +1274,12 @@ describe("Course Management Functions", () => {
 					overrideAccess: true,
 				});
 
-				const result = await tryGetUserAccessibleCourses(
+				const result = await tryGetUserAccessibleCourses({
 					payload,
-					noCoursesUserResult.value.id,
-					noCoursesUser,
-					undefined,
-					false, // overrideAccess false - respect access control
-				);
+					userId: noCoursesUserResult.value.id,
+					user: noCoursesUser as any, // Cast to TypedUser for compatibility
+					overrideAccess: false,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -1271,18 +1291,18 @@ describe("Course Management Functions", () => {
 		test("should prioritize enrollment over ownership when user has both", async () => {
 			// Create a course owned by test user
 			const ownedCourseArgs: CreateCourseArgs = {
-				title: "Owned and Enrolled Course",
-				description: "Course owned by test user who is also enrolled",
-				createdBy: testUserId,
-				slug: "owned-and-enrolled-course-access-test",
-				status: "published",
+				payload,
+				data: {
+					title: "Owned and Enrolled Course",
+					description: "Course owned by test user who is also enrolled",
+					createdBy: testUserId,
+					slug: "owned-and-enrolled-course-access-test",
+					status: "published",
+				},
+				overrideAccess: true,
 			};
 
-			const ownedCourseResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				ownedCourseArgs,
-			);
+			const ownedCourseResult = await tryCreateCourse(ownedCourseArgs);
 			expect(ownedCourseResult.ok).toBe(true);
 
 			if (!ownedCourseResult.ok) {
@@ -1307,13 +1327,12 @@ describe("Course Management Functions", () => {
 				overrideAccess: true,
 			});
 
-			const result = await tryGetUserAccessibleCourses(
+			const result = await tryGetUserAccessibleCourses({
 				payload,
-				testUserId,
-				testUser,
-				undefined,
-				false, // overrideAccess false - respect access control
-			);
+				userId: testUserId,
+				user: testUser as any, // Cast to TypedUser for compatibility
+				overrideAccess: false,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {

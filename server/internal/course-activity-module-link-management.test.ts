@@ -62,17 +62,17 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		// Create test course
 		const courseArgs: CreateCourseArgs = {
-			title: "Test Course",
-			description: "A test course for link management",
-			slug: "test-course",
-			createdBy: testUser.id,
+			payload,
+			data: {
+				title: "Test Course",
+				description: "A test course for link management",
+				slug: "test-course",
+				createdBy: testUser.id,
+			},
+			overrideAccess: true,
 		};
 
-		const courseResult = await tryCreateCourse(
-			payload,
-			mockRequest,
-			courseArgs,
-		);
+		const courseResult = await tryCreateCourse(courseArgs);
 		expect(courseResult.ok).toBe(true);
 		if (courseResult.ok) {
 			testCourse = courseResult.value;
@@ -200,17 +200,17 @@ describe("Course Activity Module Link Management Functions", () => {
 		test("should return empty array for course with no links", async () => {
 			// Create a new course with no links
 			const courseArgs: CreateCourseArgs = {
-				title: "Empty Course",
-				description: "A course with no links",
-				slug: "empty-course",
-				createdBy: testUser.id,
+				payload,
+				data: {
+					title: "Empty Course",
+					description: "A course with no links",
+					slug: "empty-course",
+					createdBy: testUser.id,
+				},
+				overrideAccess: true,
 			};
 
-			const courseResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				courseArgs,
-			);
+			const courseResult = await tryCreateCourse(courseArgs);
 			if (courseResult.ok) {
 				const result = await tryFindLinksByCourse(
 					payload,
@@ -384,17 +384,17 @@ describe("Course Activity Module Link Management Functions", () => {
 		test("should return false for non-existing link", async () => {
 			// Create a new course and activity module that don't have a link
 			const courseArgs: CreateCourseArgs = {
-				title: "Unlinked Course",
-				description: "A course with no links",
-				slug: "unlinked-course",
-				createdBy: testUser.id,
+				payload,
+				data: {
+					title: "Unlinked Course",
+					description: "A course with no links",
+					slug: "unlinked-course",
+					createdBy: testUser.id,
+				},
+				overrideAccess: true,
 			};
 
-			const courseResult = await tryCreateCourse(
-				payload,
-				mockRequest,
-				courseArgs,
-			);
+			const courseResult = await tryCreateCourse(courseArgs);
 			if (courseResult.ok) {
 				const activityModuleArgs: CreateActivityModuleArgs = {
 					title: "Unlinked Activity Module",

@@ -93,11 +93,15 @@ describe("User Grade Management", () => {
 		student = studentResult.value;
 
 		// Create a test course
-		const courseResult = await tryCreateCourse(payload, {} as Request, {
-			title: "Test Course Grades",
-			description: "Test Course Description",
-			slug: "test-course-grades",
-			createdBy: instructor.id,
+		const courseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Test Course Grades",
+				description: "Test Course Description",
+				slug: "test-course-grades",
+				createdBy: instructor.id,
+			},
+			overrideAccess: true,
 		});
 
 		expect(courseResult.ok).toBe(true);
@@ -413,11 +417,15 @@ describe("User Grade Management", () => {
 
 	it("should fail to get single user grades for wrong course", async () => {
 		// Create another course
-		const anotherCourseResult = await tryCreateCourse(payload, {} as Request, {
-			title: "Another Test Course",
-			description: "Another Test Course Description",
-			slug: "another-test-course",
-			createdBy: instructor.id,
+		const anotherCourseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Another Test Course",
+				description: "Another Test Course Description",
+				slug: "another-test-course",
+				createdBy: instructor.id,
+			},
+			overrideAccess: true,
 		});
 
 		expect(anotherCourseResult.ok).toBe(true);

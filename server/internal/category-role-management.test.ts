@@ -449,20 +449,28 @@ describe("Category Role Management Functions", () => {
 		if (!subcategory.ok) return;
 
 		// Create courses in both categories
-		await tryCreateCourse(payload, mockRequest, {
-			title: "Course 1",
-			description: "Description 1",
-			slug: "course-1-access",
-			createdBy: adminUser.id,
-			category: category.value.id,
+		await tryCreateCourse({
+			payload,
+			data: {
+				title: "Course 1",
+				description: "Description 1",
+				slug: "course-1-access",
+				createdBy: adminUser.id,
+				category: category.value.id,
+			},
+			overrideAccess: true,
 		});
 
-		await tryCreateCourse(payload, mockRequest, {
-			title: "Course 2",
-			description: "Description 2",
-			slug: "course-2-access",
-			createdBy: adminUser.id,
-			category: subcategory.value.id,
+		await tryCreateCourse({
+			payload,
+			data: {
+				title: "Course 2",
+				description: "Description 2",
+				slug: "course-2-access",
+				createdBy: adminUser.id,
+				category: subcategory.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		// Assign role on parent category
@@ -491,12 +499,16 @@ describe("Category Role Management Functions", () => {
 
 		if (!category.ok) return;
 
-		const course = await tryCreateCourse(payload, mockRequest, {
-			title: "Direct Course",
-			description: "Direct Description",
-			slug: "direct-course-access",
-			createdBy: adminUser.id,
-			category: category.value.id,
+		const course = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Direct Course",
+				description: "Direct Description",
+				slug: "direct-course-access",
+				createdBy: adminUser.id,
+				category: category.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		if (!course.ok) return;
@@ -534,12 +546,16 @@ describe("Category Role Management Functions", () => {
 
 		if (!childCat.ok) return;
 
-		const course = await tryCreateCourse(payload, mockRequest, {
-			title: "Nested Course",
-			description: "Nested Description",
-			slug: "nested-course-access",
-			createdBy: adminUser.id,
-			category: childCat.value.id,
+		const course = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Nested Course",
+				description: "Nested Description",
+				slug: "nested-course-access",
+				createdBy: adminUser.id,
+				category: childCat.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		if (!course.ok) return;
@@ -571,12 +587,16 @@ describe("Category Role Management Functions", () => {
 
 		if (!category.ok) return;
 
-		const course = await tryCreateCourse(payload, mockRequest, {
-			title: "Admin Test Course",
-			description: "Admin Test Description",
-			slug: "admin-test-course",
-			createdBy: adminUser.id,
-			category: category.value.id,
+		const course = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Admin Test Course",
+				description: "Admin Test Description",
+				slug: "admin-test-course",
+				createdBy: adminUser.id,
+				category: category.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		if (!course.ok) return;
@@ -598,12 +618,16 @@ describe("Category Role Management Functions", () => {
 
 		if (!category.ok) return;
 
-		const course = await tryCreateCourse(payload, mockRequest, {
-			title: "No Enrollment Course",
-			description: "No Enrollment Description",
-			slug: "no-enrollment-course",
-			createdBy: adminUser.id,
-			category: category.value.id,
+		const course = await tryCreateCourse({
+			payload,
+			data: {
+				title: "No Enrollment Course",
+				description: "No Enrollment Description",
+				slug: "no-enrollment-course",
+				createdBy: adminUser.id,
+				category: category.value.id,
+			},
+			overrideAccess: true,
 		});
 
 		if (!course.ok) return;

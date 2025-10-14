@@ -42,13 +42,12 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user's accessible courses
-	const coursesResult = await tryGetUserAccessibleCourses(
+	const coursesResult = await tryGetUserAccessibleCourses({
 		payload,
-		currentUser.id,
-		currentUser,
-		undefined,
-		true, // overrideAccess for admin functionality
-	);
+		userId: currentUser.id,
+		user: currentUser as any, // Cast to TypedUser for compatibility
+		overrideAccess: true, // overrideAccess for admin functionality
+	});
 
 	if (!coursesResult.ok) {
 		throw new Error("Failed to fetch courses");
@@ -142,7 +141,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 							{
 								value: "card",
 								label: (
-									<Group gap="xs">
+									<Group gap="xs" w={64}>
 										<IconLayoutGrid size={16} />
 										<Text size="sm">Card</Text>
 									</Group>
@@ -151,7 +150,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 							{
 								value: "table",
 								label: (
-									<Group gap="xs">
+									<Group gap="xs" w={64}>
 										<IconList size={16} />
 										<Text size="sm">Table</Text>
 									</Group>
