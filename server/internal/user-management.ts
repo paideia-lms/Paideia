@@ -75,30 +75,11 @@ export interface FindAllUsersArgs {
 	overrideAccess?: boolean;
 }
 
-export interface FindAllUsersResult {
-	docs: User[];
-	totalDocs: number;
-	limit: number;
-	totalPages: number;
-	page: number;
-	pagingCounter: number;
-	hasPrevPage: boolean;
-	hasNextPage: boolean;
-	prevPage: number | null;
-	nextPage: number | null;
-}
-
 export interface LoginArgs {
 	payload: Payload;
 	email: string;
 	password: string;
 	req?: Partial<PayloadRequest>;
-}
-
-export interface LoginResult {
-	token: string;
-	exp: number;
-	user: User;
 }
 
 export interface RegisterFirstUserArgs {
@@ -110,21 +91,12 @@ export interface RegisterFirstUserArgs {
 	req?: Partial<PayloadRequest>;
 }
 
-export interface RegisterFirstUserResult {
-	token: string;
-	exp: number;
-	user: User;
-}
-
 export interface HandleImpersonationArgs {
 	payload: Payload;
 	impersonateUserId: string;
 	authenticatedUser: User;
-}
-
-export interface ImpersonationResult {
-	targetUser: User;
-	permissions: string[];
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
@@ -161,30 +133,39 @@ export const tryCreateUser = Result.wrap(
 			limit: 1,
 			user,
 			req,
-			overrideAccess: true, // Always allow checking if user exists
+			overrideAccess,
 		});
 
 		if (existingUsers.docs.length > 0) {
 			throw new Error(`User with email ${email} already exists`);
 		}
 
-		const newUser = await payload.create({
-			collection: "users",
-			data: {
-				email,
-				password,
-				firstName,
-				lastName,
-				role,
-				bio,
-				avatar,
-			},
-			user,
-			req,
-			overrideAccess,
-		});
+		const newUser = await payload
+			.create({
+				collection: "users",
+				data: {
+					email,
+					password,
+					firstName,
+					lastName,
+					role,
+					bio,
+					avatar,
+				},
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((u) => {
+				const avatar = u.avatar;
+				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				return {
+					...u,
+					avatar,
+				};
+			});
 
-		return newUser as User;
+		return newUser;
 	},
 	(error) =>
 		transformError(error) ??
@@ -211,16 +192,25 @@ export const tryUpdateUser = Result.wrap(
 			transactionID,
 		} = args;
 
-		const updatedUser = await payload.update({
-			collection: "users",
-			id: userId,
-			data,
-			user,
-			req: transactionID ? { transactionID, ...req } : req,
-			overrideAccess,
-		});
+		const updatedUser = await payload
+			.update({
+				collection: "users",
+				id: userId,
+				data,
+				user,
+				req: transactionID ? { transactionID, ...req } : req,
+				overrideAccess,
+			})
+			.then((u) => {
+				const avatar = u.avatar;
+				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				return {
+					...u,
+					avatar,
+				};
+			});
 
-		return updatedUser as User;
+		return updatedUser;
 	},
 	(error) =>
 		transformError(error) ??
@@ -238,20 +228,33 @@ export const tryFindUserByEmail = Result.wrap(
 	async (args: FindUserByEmailArgs) => {
 		const { payload, email, user = null, req, overrideAccess = false } = args;
 
-		const users = await payload.find({
-			collection: "users",
-			where: {
-				email: {
-					equals: email,
+		const foundUser = await payload
+			.find({
+				collection: "users",
+				where: {
+					email: {
+						equals: email,
+					},
 				},
-			},
-			limit: 1,
-			user,
-			req,
-			overrideAccess,
-		});
+				limit: 1,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((users) => {
+				if (users.docs.length === 0) {
+					return null;
+				}
+				const user = users.docs[0];
+				const avatar = user.avatar;
+				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				return {
+					...user,
+					avatar,
+				};
+			});
 
-		return users.docs.length > 0 ? (users.docs[0] as User) : null;
+		return foundUser;
 	},
 	(error) =>
 		transformError(error) ??
@@ -269,19 +272,24 @@ export const tryFindUserById = Result.wrap(
 	async (args: FindUserByIdArgs) => {
 		const { payload, userId, user = null, req, overrideAccess = false } = args;
 
-		const foundUser = await payload.findByID({
-			collection: "users",
-			id: userId,
-			user,
-			req,
-			overrideAccess,
-		});
+		const foundUser = await payload
+			.findByID({
+				collection: "users",
+				id: userId,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((u) => {
+				const avatar = u.avatar;
+				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				return {
+					...u,
+					avatar,
+				};
+			});
 
-		if (!foundUser) {
-			throw new Error(`User with ID ${userId} not found`);
-		}
-
-		return foundUser as User;
+		return foundUser;
 	},
 	(error) =>
 		transformError(error) ??
@@ -299,15 +307,24 @@ export const tryDeleteUser = Result.wrap(
 	async (args: DeleteUserArgs) => {
 		const { payload, userId, user = null, req, overrideAccess = false } = args;
 
-		const deletedUser = await payload.delete({
-			collection: "users",
-			id: userId,
-			user,
-			req,
-			overrideAccess,
-		});
+		const deletedUser = await payload
+			.delete({
+				collection: "users",
+				id: userId,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((u) => {
+				const avatar = u.avatar;
+				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				return {
+					...u,
+					avatar,
+				};
+			});
 
-		return deletedUser as User;
+		return deletedUser;
 	},
 	(error) =>
 		transformError(error) ??
@@ -322,7 +339,7 @@ export const tryDeleteUser = Result.wrap(
  * When overrideAccess is true, bypasses all access control
  */
 export const tryFindAllUsers = Result.wrap(
-	async (args: FindAllUsersArgs): Promise<FindAllUsersResult> => {
+	async (args: FindAllUsersArgs) => {
 		const {
 			payload,
 			limit = 100,
@@ -401,7 +418,7 @@ export const tryFindAllUsers = Result.wrap(
 				const docs = result.docs.map((doc) => {
 					const avatar = doc.avatar;
 					// type narrowing - avatar can be null
-					assertZod(avatar, z.object({ id: z.number() }).nullable());
+					assertZod(avatar, z.object({ id: z.number() }).nullish());
 					return {
 						...doc,
 						avatar: avatar,
@@ -438,17 +455,27 @@ export const tryFindAllUsers = Result.wrap(
  * Validates credentials and returns token with expiration
  */
 export const tryLogin = Result.wrap(
-	async (args: LoginArgs): Promise<LoginResult> => {
+	async (args: LoginArgs) => {
 		const { payload, email, password, req } = args;
 
-		const loginResult = await payload.login({
-			collection: "users",
-			req,
-			data: {
-				email,
-				password,
-			},
-		});
+		const loginResult = await payload
+			.login({
+				collection: "users",
+				req,
+				data: {
+					email,
+					password,
+				},
+			})
+			.then((l) => {
+				const user = l.user;
+				const avatar = user.avatar;
+				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				return {
+					...l,
+					user: { ...user, avatar },
+				};
+			});
 
 		const { exp, token, user } = loginResult;
 
@@ -459,7 +486,7 @@ export const tryLogin = Result.wrap(
 		return {
 			token,
 			exp,
-			user: user as User,
+			user,
 		};
 	},
 	(error) =>
@@ -476,13 +503,14 @@ export const tryLogin = Result.wrap(
  * First user is always created as an admin
  */
 export const tryRegisterFirstUser = Result.wrap(
-	async (args: RegisterFirstUserArgs): Promise<RegisterFirstUserResult> => {
+	async (args: RegisterFirstUserArgs) => {
 		const { payload, email, password, firstName, lastName, req } = args;
 
 		// Check if users already exist
 		const existingUsers = await payload.find({
 			collection: "users",
 			limit: 1,
+			// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 			overrideAccess: true,
 		});
 
@@ -504,6 +532,7 @@ export const tryRegisterFirstUser = Result.wrap(
 					lastName,
 					role: "admin",
 				},
+				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
 				req: transactionID ? { transactionID, ...req } : req,
 			});
@@ -515,6 +544,7 @@ export const tryRegisterFirstUser = Result.wrap(
 				data: {
 					_verified: true,
 				},
+				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
 				req: transactionID ? { transactionID, ...req } : req,
 			});
@@ -525,16 +555,26 @@ export const tryRegisterFirstUser = Result.wrap(
 			}
 
 			// Log in the new user (outside transaction)
-			const loginResult = await payload.login({
-				collection: "users",
-				req,
-				data: {
-					email,
-					password,
-				},
-			});
+			const loginResult = await payload
+				.login({
+					collection: "users",
+					req,
+					data: {
+						email,
+						password,
+					},
+				})
+				.then((l) => {
+					const user = l.user;
+					const avatar = user.avatar;
+					assertZod(avatar, z.object({ id: z.number() }).nullish());
+					return {
+						...l,
+						user: { ...user, avatar },
+					};
+				});
 
-			const { exp, token } = loginResult;
+			const { exp, token, user } = loginResult;
 
 			if (!exp || !token) {
 				throw new Error("Login failed: missing token or expiration");
@@ -543,7 +583,7 @@ export const tryRegisterFirstUser = Result.wrap(
 			return {
 				token,
 				exp,
-				user: newUser as User,
+				user,
 			};
 		} catch (error) {
 			// Rollback transaction on error if it exists
@@ -566,10 +606,14 @@ export const tryRegisterFirstUser = Result.wrap(
  * Returns null if impersonation is not allowed or fails
  */
 export const tryHandleImpersonation = Result.wrap(
-	async (
-		args: HandleImpersonationArgs,
-	): Promise<ImpersonationResult | null> => {
-		const { payload, impersonateUserId, authenticatedUser } = args;
+	async (args: HandleImpersonationArgs) => {
+		const {
+			payload,
+			impersonateUserId,
+			authenticatedUser,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		const targetUserId = Number(impersonateUserId);
 
@@ -582,7 +626,8 @@ export const tryHandleImpersonation = Result.wrap(
 			payload,
 			userId: targetUserId,
 			user: authenticatedUser,
-			overrideAccess: true,
+			overrideAccess,
+			req,
 		});
 
 		if (!targetUserResult.ok || !targetUserResult.value) {

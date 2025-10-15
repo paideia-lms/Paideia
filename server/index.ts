@@ -13,7 +13,6 @@ import { courseContextKey } from "./contexts/course-context";
 import { courseModuleContextKey } from "./contexts/course-module-context";
 import { enrolmentContextKey } from "./contexts/enrolment-context";
 import { globalContextKey } from "./contexts/global-context";
-import { pageContextKey } from "./contexts/page-context";
 import { userContextKey } from "./contexts/user-context";
 import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
@@ -81,7 +80,6 @@ const frontend = new Elysia()
 					});
 					// set all the contexts to be null in the beginning??
 					c.set(userContextKey, null);
-					c.set(pageContextKey, null);
 					c.set(courseContextKey, null);
 					c.set(enrolmentContextKey, null);
 					c.set(courseModuleContextKey, null);

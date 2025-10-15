@@ -44,7 +44,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: currentUser,
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 		overrideAccess: false,
 	});
 
@@ -121,7 +124,10 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const targetUserResult = await tryFindUserById({
 			payload,
 			userId: targetUserId,
-			user: currentUser,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			overrideAccess: true,
 		});
 

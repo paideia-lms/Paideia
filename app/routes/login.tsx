@@ -52,13 +52,9 @@ const loginSchema = z.object({
 export const action = async ({ request, context }: ActionFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const requestInfo = context.get(globalContextKey).requestInfo;
-	const { user, responseHeaders, permissions } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
-
-	if (user) {
-		throw redirect(href("/admin/*", { "*": "" }));
+	const userSession = context.get(userContextKey);
+	if (userSession?.isAuthenticated) {
+		throw redirect(href("/"));
 	}
 
 	const { contentType, data } = await getDataAndContentTypeFromRequest(request);

@@ -53,7 +53,10 @@ export const loader = async ({
 	const courseResult = await tryFindCourseById({
 		payload,
 		courseId,
-		user: currentUser,
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 		overrideAccess: true,
 	});
 
@@ -172,7 +175,10 @@ export const action = async ({
 				description: parsed.data.description,
 				status: parsed.data.status,
 			},
-			user: currentUser,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			overrideAccess: true,
 		});
 		if (!updateResult.ok) {

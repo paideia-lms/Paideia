@@ -96,7 +96,10 @@ export const loader = async ({
 			payload,
 			currentUser.id,
 			courseId,
-			currentUser,
+			{
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			request,
 			false, // respect access control
 		);
@@ -131,7 +134,10 @@ export const loader = async ({
 		course: courseId,
 		limit: 10,
 		page: currentPage,
-		authenticatedUser: currentUser,
+		authenticatedUser: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 		req: request,
 		overrideAccess: false,
 	});
@@ -157,9 +163,7 @@ export const loader = async ({
 			createdAt: course.createdAt,
 			updatedAt: course.updatedAt,
 			structure: course.structure,
-			enrollmentCount:
-				(course as Course & { enrollments?: { docs: Enrollment[] } })
-					.enrollments?.docs?.length || 0,
+			enrollmentCount: course.enrollments.length,
 		},
 		currentUser: {
 			id: currentUser.id,
@@ -320,7 +324,10 @@ export const action = async ({
 			course: courseId,
 			role,
 			status,
-			authenticatedUser: currentUser,
+			authenticatedUser: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			req: request,
 			overrideAccess: false,
 		});
@@ -358,7 +365,10 @@ export const action = async ({
 			enrollmentId,
 			role,
 			status,
-			authenticatedUser: currentUser,
+			authenticatedUser: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			req: request,
 			overrideAccess: false,
 		});
@@ -379,7 +389,10 @@ export const action = async ({
 		const deleteResult = await tryDeleteEnrollment(
 			payload,
 			enrollmentId,
-			currentUser,
+			{
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			request,
 			false,
 		);

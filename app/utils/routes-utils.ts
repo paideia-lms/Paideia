@@ -1,8 +1,14 @@
 import { routes } from "virtual:react-router/server-build";
+import type { Simplify } from "@payloadcms/db-postgres/drizzle";
 import { matchRoutes, type Register } from "react-router";
 
 type RouteId = keyof Register["routeModules"];
-type RouteModule = Register["routeModules"][RouteId];
+type RoutePage<T extends RouteId> = Simplify<
+	Extract<Register["routeFiles"][keyof Register["routeFiles"]], { id: T }>
+>["page"];
+export type RouteParams<T extends RouteId> = Simplify<
+	Register["pages"][RoutePage<T>]["params"]
+>;
 
 /**
  * the matched info
@@ -72,4 +78,14 @@ export function tryGetRouteHierarchy(pathname: string) {
 	);
 	// console.log('Complete Route Hierarchy:', completeHierarchy);
 	return completeHierarchy;
+}
+
+/**
+ * Helper function to get route parameters with type safety
+ * @param routeId - The route ID to get parameters for
+ * @returns The parameter type for the given route
+ */
+export function getRouteParams<T extends RouteId>(_routeId: T): RouteParams<T> {
+	// This is a type-only function - actual implementation would need runtime data
+	return {} as RouteParams<T>;
 }

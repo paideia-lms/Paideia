@@ -19,9 +19,10 @@ import { IconEdit, IconTrash } from "@tabler/icons-react";
 import * as cheerio from "cheerio";
 import dayjs from "dayjs";
 import { useState } from "react";
-import { Link, useFetcher, useRevalidator } from "react-router";
+import { Link, useFetcher } from "react-router";
 import { Notes } from "server/collections";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteNote,
 	tryGenerateNoteHeatmap,
@@ -44,37 +45,49 @@ export const loader = async ({
 	params,
 }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser, permissions } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
+	const { id } = params;
+
+	if (!userSession?.isAuthenticated) {
+		throw new NotFoundResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
 	}
 
 	// Get user ID from route params, or use current user
-	const userId = params.id ? Number(params.id) : currentUser.id;
+	const userId = id ? Number(id) : currentUser.id;
 
 	// Fetch the user profile
-	const userResult = await tryFindUserById({
-		payload,
-		userId,
-		user: currentUser,
-		overrideAccess: false,
-	});
-
-	if (!userResult.ok) {
-		throw new NotFoundResponse("User not found");
-	}
-
-	const profileUser = userResult.value;
+	const profileUser =
+		userId !== currentUser.id
+			? await tryFindUserById({
+					payload,
+					userId,
+					user: {
+						...currentUser,
+						avatar: currentUser.avatar?.id,
+					},
+					overrideAccess: false,
+				}).then((result) => {
+					if (result.ok) return result.value;
+					throw new NotFoundResponse("User not found");
+				})
+			: currentUser;
 
 	// Fetch notes and generate heatmap data
 	const heatmapResult = await tryGenerateNoteHeatmap({
 		payload,
 		userId,
-		user: currentUser,
+		user: {
+			...currentUser,
+			collection: "users",
+			avatar: currentUser.avatar?.id,
+		},
 		overrideAccess: false,
 	});
 
@@ -82,13 +95,22 @@ export const loader = async ({
 		? heatmapResult.value
 		: { notes: [], heatmapData: {}, availableYears: [] };
 
-	const canCreateNotes = permissions.collections?.[Notes.slug]?.create === true;
+	// user can create notes if he is the user of this profile
+	const canCreateNotes = userId === currentUser.id;
 
 	return {
 		user: {
 			id: profileUser.id,
 			firstName: profileUser.firstName ?? "",
 			lastName: profileUser.lastName ?? "",
+			avatar: profileUser.avatar
+				? {
+						id: profileUser.avatar.id,
+						filename: profileUser.avatar.filename,
+					}
+				: null,
+			bio: profileUser.bio ?? "",
+			email: profileUser.email,
 		},
 		isOwnProfile: userId === currentUser.id,
 		canCreateNotes,
@@ -104,10 +126,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "DELETE");
 
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!currentUser) {
 		return unauthorized({ error: "Unauthorized" });
@@ -123,7 +149,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const result = await tryDeleteNote({
 		payload,
 		noteId,
-		user: currentUser,
+		user: {
+			...currentUser,
+			collection: "users",
+			avatar: currentUser.avatar?.id,
+		},
 		overrideAccess: false,
 	});
 

@@ -107,6 +107,7 @@
 	"devDependencies": {
 		"@aws-sdk/client-s3": "^3.908.0",
 		"@biomejs/biome": "2.2.4",
+		"@faker-js/faker": "^10.1.0",
 		"@playwright/test": "^1.56.0",
 		"@react-router/dev": "^7.9.4",
 		"@total-typescript/ts-reset": "^0.6.1",

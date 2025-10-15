@@ -2,7 +2,7 @@ import type { Simplify } from "@payloadcms/db-postgres/drizzle";
 import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Courses, Gradebooks, Groups } from "server/payload.config";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import {
@@ -304,6 +304,15 @@ export const tryFindCourseById = Result.wrap(
 					},
 				},
 				pagination: false,
+				joins: {
+					groups: {
+						limit: MOCK_INFINITY,
+					},
+					enrollments: {
+						limit: MOCK_INFINITY,
+					},
+				},
+				depth: 2,
 				user,
 				req,
 				overrideAccess,
@@ -322,21 +331,46 @@ export const tryFindCourseById = Result.wrap(
 					}),
 				);
 
-				const courseEnrollments = course.enrollments?.docs;
+				const courseEnrollments =
+					course.enrollments?.docs?.map((e) => {
+						console.log("e", e);
+						assertZod(
+							e,
+							z.object({
+								id: z.number(),
+							}),
+						);
 
-				assertZod(
-					courseEnrollments,
-					z.array(z.object({ id: z.number(), groups: z.array(z.number()) })),
-				);
+						const user = e.user;
+						assertZod(
+							user,
+							z.object({
+								id: z.number(),
+							}),
+						);
+
+						const groups = e.groups?.map((g) => {
+							assertZod(g, z.object({ id: z.number() }));
+							return g;
+						});
+
+						const avatar = user.avatar;
+						assertZod(avatar, z.object({ id: z.number() }).nullish());
+
+						return {
+							...e,
+							groups,
+							user: {
+								...user,
+								avatar,
+							},
+						};
+					}) ?? [];
 
 				return {
 					...course,
 					createdBy: courseCreatedBy,
-					enrollments: courseEnrollments as Replace<
-						Enrollment,
-						"groups",
-						number[]
-					>[],
+					enrollments: courseEnrollments,
 				};
 			});
 

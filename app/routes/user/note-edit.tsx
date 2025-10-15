@@ -8,6 +8,7 @@ import * as cheerio from "cheerio";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryCreateMedia } from "server/internal/media-management";
 import {
 	tryFindNoteById,
@@ -25,37 +26,32 @@ export const loader = async ({
 	params,
 }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
 
-	if (!currentUser) {
+	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
 	}
 
-	const noteId = Number(params.id);
-	if (Number.isNaN(noteId)) {
-		throw new NotFoundResponse("Invalid note ID");
-	}
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Fetch the note
-	const noteResult = await tryFindNoteById({
+	const note = await tryFindNoteById({
 		payload,
-		noteId,
-		user: currentUser,
+		noteId: Number(params.id),
+		user: {
+			...currentUser,
+			collection: "users",
+			avatar: currentUser.avatar?.id,
+		},
 		overrideAccess: false,
 	});
 
-	if (!noteResult.ok) {
+	if (!note.ok) {
 		throw new NotFoundResponse("Note not found");
 	}
 
-	const note = noteResult.value;
-
 	// Extract createdBy ID (handle both depth 0 and 1)
-	const createdById =
-		typeof note.createdBy === "object" ? note.createdBy.id : note.createdBy;
+	const createdById = note.value.createdBy.id;
 
 	// Check if user can edit this note
 	if (currentUser.id !== createdById && currentUser.role !== "admin") {
@@ -63,11 +59,7 @@ export const loader = async ({
 	}
 
 	return {
-		note: {
-			id: note.id,
-			content: note.content,
-			isPublic: note.isPublic,
-		},
+		note: note.value,
 	};
 };
 
@@ -79,10 +71,14 @@ export const action = async ({
 	assertRequestMethod(request.method, "POST");
 
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		throw new NotFoundResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
@@ -195,7 +191,11 @@ export const action = async ({
 				content,
 				isPublic,
 			},
-			user: currentUser,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id,
+			},
 			overrideAccess: false,
 		});
 

@@ -172,6 +172,7 @@ const sanitizedConfig = buildConfig({
 			? ["http://localhost:3000", "localhost"]
 			: ["http://localhost:3000", "localhost"]),
 	].filter(Boolean) as string[],
+
 	admin: {
 		// ! when you use auto login, you can never logout
 		// autoLogin: process.env.NODE_ENV === "development" ? {

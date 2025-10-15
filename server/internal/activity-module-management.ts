@@ -1,5 +1,5 @@
 import type { Payload } from "payload";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -369,39 +369,95 @@ export const tryGetActivityModuleById = Result.wrap(
 		}
 
 		// Fetch the activity module with related data
-		const activityModuleResult = await payload.find({
-			collection: "activity-modules",
-			where: {
-				and: [
-					{
-						id: { equals: id },
+		const activityModuleResult = await payload
+			.find({
+				collection: "activity-modules",
+				where: {
+					and: [
+						{
+							id: { equals: id },
+						},
+					],
+				},
+				joins: {
+					// ! this cannot scale because it is very likely a module will have a lot of submissions.
+					// ! for now we don't care about performance and we are just going to fetch all submissions.
+					submissions: {
+						limit: MOCK_INFINITY,
 					},
-				],
-			},
-			depth: 1, // Fetch related assignment/quiz/discussion data
-		});
+					discussionSubmissions: {
+						limit: MOCK_INFINITY,
+					},
+					quizSubmissions: {
+						limit: MOCK_INFINITY,
+					},
+					grants: {
+						limit: MOCK_INFINITY,
+					},
+				},
+				depth: 1, // Fetch related assignment/quiz/discussion data
+			})
+			.then((r) => {
+				if (r.docs.length === 0) {
+					return null;
+				}
+				const am = r.docs[0];
+				const createdBy = am.createdBy;
+				const owner = am.owner;
+				const assignment = am.assignment;
+				const quiz = am.quiz;
+				const discussion = am.discussion;
+				assertZod(createdBy, z.object({ id: z.number() }));
+				assertZod(owner, z.object({ id: z.number() }));
+				// ! assignment, quiz, discussion can be null
+				assertZod(assignment, z.object({ id: z.number() }).nullish());
+				assertZod(quiz, z.object({ id: z.number() }).nullish());
+				assertZod(discussion, z.object({ id: z.number() }).nullish());
 
-		const activityModule = activityModuleResult.docs[0];
+				const submissions = am.submissions?.docs?.map((s) => {
+					assertZod(s, z.object({ id: z.number() }));
+					return s;
+				});
 
-		if (!activityModule) {
+				const discussionSubmissions = am.discussionSubmissions?.docs?.map(
+					(s) => {
+						assertZod(s, z.object({ id: z.number() }));
+						return s;
+					},
+				);
+
+				const quizSubmissions = am.quizSubmissions?.docs?.map((s) => {
+					assertZod(s, z.object({ id: z.number() }));
+					return s;
+				});
+
+				const grants = am.grants?.docs?.map((g) => {
+					assertZod(g, z.object({ id: z.number() }));
+					return g;
+				});
+
+				return {
+					...am,
+					createdBy,
+					owner,
+					assignment,
+					quiz,
+					discussion,
+					submissions,
+					discussionSubmissions,
+					quizSubmissions,
+					grants,
+				};
+			});
+
+		if (!activityModuleResult) {
 			throw new NonExistingActivityModuleError(
 				`Activity module with id '${id}' not found`,
 			);
 		}
 
-		const createdBy = activityModule.createdBy;
-		assertZod(
-			createdBy,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
 		// narrow the type
-		return {
-			...activityModule,
-			createdBy,
-		};
+		return activityModuleResult;
 	},
 	(error) =>
 		transformError(error) ??

@@ -120,6 +120,7 @@ export const Courses = {
 			on: "course",
 			collection: "enrollments",
 			label: "Enrollments",
+			maxDepth: 2,
 		},
 		{
 			name: "groups",
@@ -127,6 +128,7 @@ export const Courses = {
 			on: "course",
 			collection: "groups",
 			label: "Groups",
+			maxDepth: 2,
 		},
 		{
 			name: "category",

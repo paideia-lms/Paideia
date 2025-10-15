@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
 import type { Payload, TypedUser } from "payload";
+import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
+import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 
 export interface CreateNoteArgs {
@@ -190,17 +192,27 @@ export const tryFindNoteById = Result.wrap(
 		const { payload, noteId, user = null, req, overrideAccess = false } = args;
 
 		// Find note with access control
-		const note = await payload.findByID({
-			collection: "notes",
-			id: noteId,
-			user,
-			req,
-			overrideAccess,
-		});
-
-		if (!note) {
-			throw new Error(`Note with ID ${noteId} not found`);
-		}
+		const note = await payload
+			.findByID({
+				collection: "notes",
+				id: noteId,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((n) => {
+				const createdBy = n.createdBy;
+				assertZod(createdBy, z.object({ id: z.number() }));
+				const avatar = createdBy.avatar;
+				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				return {
+					...n,
+					createdBy: {
+						...createdBy,
+						avatar,
+					},
+				};
+			});
 
 		return note;
 	},

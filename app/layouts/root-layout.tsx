@@ -55,17 +55,6 @@ export default function UserLayout({
 	);
 }
 
-function getAvatarUrl(user: User) {
-	if (user.avatar) {
-		if (typeof user.avatar === "object" && user.avatar.filename) {
-			return href(`/api/media/file/:filename`, {
-				filename: user.avatar.filename,
-			});
-		}
-	}
-	return null;
-}
-
 enum Tab {
 	Dashboard = "Dashboard",
 	MyCourses = "My Courses",
@@ -166,7 +155,14 @@ export function HeaderTabs({
 														withArrow
 													>
 														<Avatar
-															src={getAvatarUrl(authenticatedUser)}
+															src={
+																authenticatedUser.avatar?.filename
+																	? href(`/api/media/file/:filename`, {
+																			filename:
+																				authenticatedUser.avatar.filename,
+																		})
+																	: null
+															}
 															alt={
 																`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
 																"Admin"
@@ -183,7 +179,13 @@ export function HeaderTabs({
 														withArrow
 													>
 														<Avatar
-															src={getAvatarUrl(currentUser)}
+															src={
+																currentUser.avatar?.filename
+																	? href(`/api/media/file/:filename`, {
+																			filename: currentUser.avatar.filename,
+																		})
+																	: null
+															}
 															alt={
 																`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 																"Anonymous"
@@ -196,7 +198,13 @@ export function HeaderTabs({
 											</Tooltip.Group>
 										) : (
 											<Avatar
-												src={getAvatarUrl(currentUser)}
+												src={
+													currentUser.avatar?.filename
+														? href(`/api/media/file/:filename`, {
+																filename: currentUser.avatar.filename,
+															})
+														: null
+												}
 												alt={
 													`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 													"Anonymous"

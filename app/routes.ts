@@ -23,8 +23,8 @@ export const routes = [
 		route("user/module/new", "routes/user/module/new.tsx"),
 		route("user/module/edit/:id", "routes/user/module/edit.tsx"),
 		route("course/new", "routes/course-new.tsx"),
+		route("course", "routes/course.tsx"),
 		layout("layouts/course-layout.tsx", [
-			route("course", "routes/course.tsx"),
 			route("course/view/:id", "routes/course-view.$id.tsx"),
 			route("course/edit/:id", "routes/course-edit.$id.tsx"),
 		]),

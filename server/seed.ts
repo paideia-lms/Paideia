@@ -1,3 +1,4 @@
+import { faker } from "@faker-js/faker";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
 import { tryCreateActivityModule } from "./internal/activity-module-management";
@@ -54,8 +55,8 @@ export const runSeed = Result.wrap(
 			req: mockRequest,
 			email: devConstants.ADMIN_EMAIL,
 			password: devConstants.ADMIN_PASSWORD,
-			firstName: "Admin",
-			lastName: "User",
+			firstName: faker.person.firstName(),
+			lastName: faker.person.lastName(),
 		});
 
 		if (!adminResult.ok) {
@@ -72,10 +73,10 @@ export const runSeed = Result.wrap(
 		const studentResult = await tryCreateUser({
 			payload,
 			data: {
-				email: "student@example.com",
-				password: "studentpassword123",
-				firstName: "Student",
-				lastName: "User",
+				email: faker.internet.email(),
+				password: faker.internet.password({ length: 12 }),
+				firstName: faker.person.firstName(),
+				lastName: faker.person.lastName(),
 				role: "student",
 			},
 			req: mockRequest,
@@ -96,10 +97,10 @@ export const runSeed = Result.wrap(
 		const teacherResult = await tryCreateUser({
 			payload,
 			data: {
-				email: "teacher@example.com",
-				password: "teacherpassword123",
-				firstName: "Teacher",
-				lastName: "User",
+				email: faker.internet.email(),
+				password: faker.internet.password({ length: 12 }),
+				firstName: faker.person.firstName(),
+				lastName: faker.person.lastName(),
 				role: "student", // Users start as students, role is set via enrollment
 			},
 			req: mockRequest,
@@ -120,10 +121,10 @@ export const runSeed = Result.wrap(
 		const taResult = await tryCreateUser({
 			payload,
 			data: {
-				email: "ta@example.com",
-				password: "tapassword123",
-				firstName: "Teaching",
-				lastName: "Assistant",
+				email: faker.internet.email(),
+				password: faker.internet.password({ length: 12 }),
+				firstName: faker.person.firstName(),
+				lastName: faker.person.lastName(),
 				role: "student", // Users start as students, role is set via enrollment
 			},
 			req: mockRequest,
@@ -137,26 +138,59 @@ export const runSeed = Result.wrap(
 		const taUser = taResult.value;
 		console.log(`✅ TA user created with ID: ${taUser.id}`);
 
-		// Step 5: Create a course
-		console.log("📚 Creating course...");
-		const courseResult = await tryCreateCourse({
-			payload,
-			data: {
-				title: "Introduction to Programming",
-				description: "Learn the basics of programming",
-				slug: "intro-to-programming",
-				createdBy: adminUser.id,
-				status: "published",
-			},
-			overrideAccess: true,
-		});
+		// Step 4.5: Create additional students
+		console.log("👤 Creating additional students...");
+		const additionalStudents = [];
+		for (let i = 0; i < 5; i++) {
+			const studentResult = await tryCreateUser({
+				payload,
+				data: {
+					email: faker.internet.email(),
+					password: faker.internet.password({ length: 12 }),
+					firstName: faker.person.firstName(),
+					lastName: faker.person.lastName(),
+					role: "student",
+				},
+				req: mockRequest,
+				overrideAccess: true,
+			});
 
-		if (!courseResult.ok) {
-			throw new Error(`Failed to create course: ${courseResult.error.message}`);
+			if (studentResult.ok) {
+				additionalStudents.push(studentResult.value);
+				console.log(
+					`✅ Additional student created with ID: ${studentResult.value.id}`,
+				);
+			}
 		}
 
-		const course = courseResult.value;
-		console.log(`✅ Course created with ID: ${course.id}`);
+		// Step 5: Create multiple courses
+		console.log("📚 Creating courses...");
+		const courses = [];
+		for (let i = 0; i < 3; i++) {
+			const courseTitle = faker.company.buzzPhrase();
+			const courseResult = await tryCreateCourse({
+				payload,
+				data: {
+					title: courseTitle,
+					description: faker.lorem.paragraphs(2),
+					slug: faker.helpers.slugify(courseTitle).toLowerCase(),
+					createdBy: adminUser.id,
+					status: faker.helpers.arrayElement([
+						"draft",
+						"published",
+						"archived",
+					]),
+				},
+				overrideAccess: true,
+			});
+
+			if (courseResult.ok) {
+				courses.push(courseResult.value);
+				console.log(`✅ Course created with ID: ${courseResult.value.id}`);
+			}
+		}
+
+		const course = courses[0]; // Use first course for enrollments
 
 		// Step 6: Enroll student in course
 		console.log("🎓 Enrolling student in course...");
@@ -225,11 +259,33 @@ export const runSeed = Result.wrap(
 		const taEnrollment = taEnrollmentResult.value;
 		console.log(`✅ TA enrollment created with ID: ${taEnrollment.id}`);
 
+		// Step 8.5: Enroll additional students
+		console.log("🎓 Enrolling additional students...");
+		const additionalEnrollments = [];
+		for (const student of additionalStudents) {
+			const enrollmentResult = await tryCreateEnrollment({
+				payload,
+				user: student.id,
+				course: course.id,
+				role: "student",
+				status: faker.helpers.arrayElement(["active", "inactive", "completed"]),
+				req: mockRequest,
+				overrideAccess: true,
+			});
+
+			if (enrollmentResult.ok) {
+				additionalEnrollments.push(enrollmentResult.value);
+				console.log(
+					`✅ Additional student enrollment created with ID: ${enrollmentResult.value.id}`,
+				);
+			}
+		}
+
 		// Step 9: Create page module
 		console.log("📄 Creating page module...");
 		const pageModuleResult = await tryCreateActivityModule(payload, {
-			title: "Welcome to the Course",
-			description: "Introduction and course overview",
+			title: faker.company.catchPhrase(),
+			description: faker.lorem.paragraph(),
 			type: "page",
 			status: "published",
 			userId: adminUser.id,
@@ -243,6 +299,28 @@ export const runSeed = Result.wrap(
 
 		const pageModule = pageModuleResult.value;
 		console.log(`✅ Page module created with ID: ${pageModule.id}`);
+
+		// Step 9.5: Create additional activity modules
+		console.log("📄 Creating additional activity modules...");
+		const additionalModules = [];
+		const moduleTypes = ["page", "quiz", "assignment", "discussion"] as const;
+
+		for (let i = 0; i < 4; i++) {
+			const moduleResult = await tryCreateActivityModule(payload, {
+				title: faker.company.catchPhrase(),
+				description: faker.lorem.paragraph(),
+				type: moduleTypes[i],
+				status: faker.helpers.arrayElement(["draft", "published"]),
+				userId: adminUser.id,
+			});
+
+			if (moduleResult.ok) {
+				additionalModules.push(moduleResult.value);
+				console.log(
+					`✅ Additional module created with ID: ${moduleResult.value.id}`,
+				);
+			}
+		}
 
 		// Step 10: Link page module to course
 		console.log("🔗 Linking page module to course...");
@@ -274,7 +352,11 @@ export const runSeed = Result.wrap(
 			`   - Teacher user: ${teacherUser.email} (ID: ${teacherUser.id})`,
 		);
 		console.log(`   - TA user: ${taUser.email} (ID: ${taUser.id})`);
-		console.log(`   - Course: ${course.title} (ID: ${course.id})`);
+		console.log(
+			`   - Additional students: ${additionalStudents.length} created`,
+		);
+		console.log(`   - Courses: ${courses.length} created`);
+		console.log(`   - Main course: ${course.title} (ID: ${course.id})`);
 		console.log(
 			`   - Student enrollment: Student enrolled as ${studentEnrollment.role}`,
 		);
@@ -282,7 +364,11 @@ export const runSeed = Result.wrap(
 			`   - Teacher enrollment: Teacher enrolled as ${teacherEnrollment.role}`,
 		);
 		console.log(`   - TA enrollment: TA enrolled as ${taEnrollment.role}`);
+		console.log(
+			`   - Additional enrollments: ${additionalEnrollments.length} created`,
+		);
 		console.log(`   - Page module: ${pageModule.title} (ID: ${pageModule.id})`);
+		console.log(`   - Additional modules: ${additionalModules.length} created`);
 		console.log(`   - Course link: Course linked to page module`);
 
 		return {
@@ -290,11 +376,15 @@ export const runSeed = Result.wrap(
 			studentUser,
 			teacherUser,
 			taUser,
+			additionalStudents,
+			courses,
 			course,
 			studentEnrollment,
 			teacherEnrollment,
 			taEnrollment,
+			additionalEnrollments,
 			pageModule,
+			additionalModules,
 			link,
 		};
 	},

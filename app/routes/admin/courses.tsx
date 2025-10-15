@@ -18,6 +18,7 @@ import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllCourses } from "server/internal/course-management";
 import type { Course } from "server/payload-types";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
@@ -33,14 +34,14 @@ export const loadSearchParams = createLoader(coursesSearchParams);
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
 
-	if (!currentUser) {
+	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (currentUser.role !== "admin") {
 		throw new ForbiddenResponse("Only admins can view all courses");
@@ -56,6 +57,10 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit: 10,
 		page,
 		sort: "-createdAt",
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 	});
 
 	if (!coursesResult.ok) {

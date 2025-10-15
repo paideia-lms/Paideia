@@ -8,20 +8,24 @@ import * as cheerio from "cheerio";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryCreateMedia } from "server/internal/media-management";
 import { tryCreateNote } from "server/internal/note-management";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
-import { badRequest, NotFoundResponse } from "~/utils/responses";
+import { badRequest, NotFoundResponse, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/note-create";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		throw new NotFoundResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
@@ -34,10 +38,17 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "POST");
 
 	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({
+			success: false,
+			error: "Unauthorized",
+		});
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
@@ -145,7 +156,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				createdBy: currentUser.id,
 				isPublic,
 			},
-			user: currentUser,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id ?? undefined,
+			},
 			overrideAccess: false,
 		});
 

@@ -21,11 +21,11 @@ import type {
 } from "@remix-run/form-data-parser";
 import { parseFormData } from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import { extractJWT } from "payload";
 import { useState } from "react";
 import { redirect, useFetcher } from "react-router";
 import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryCreateMedia } from "server/internal/media-management";
 import { tryCreateUser } from "server/internal/user-management";
 import type { User } from "server/payload-types";
@@ -41,11 +41,14 @@ import {
 import type { Route } from "./+types/new";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const { user: currentUser } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -62,22 +65,19 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const token = extractJWT({ headers: request.headers, payload });
-	if (token === null) {
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
 		return unauthorized({
 			success: false,
 			error: "Unauthorized",
 		});
 	}
 
-	const currentUser = await payload
-		.auth({
-			headers: request.headers,
-			canSetHeaders: true,
-		})
-		.then((res) => res.user);
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-	if (currentUser === null) {
+	if (!currentUser) {
 		return unauthorized({
 			success: false,
 			error: "Unauthorized",
@@ -173,7 +173,10 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				role: parsed.data.role,
 				avatar: parsed.data.avatar ?? undefined,
 			},
-			user: currentUser,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			overrideAccess: true,
 			req: { ...request, transactionID },
 		});

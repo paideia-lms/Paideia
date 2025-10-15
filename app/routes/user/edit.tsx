@@ -205,7 +205,10 @@ export const action = async ({
 				bio: parsed.data.bio,
 				avatar: parsed.data.avatar ?? undefined,
 			},
-			user: currentUser,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			overrideAccess: false,
 			transactionID,
 		});

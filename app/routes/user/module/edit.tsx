@@ -23,6 +23,7 @@ import {
 	useLoaderData,
 } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import {
 	tryFindGrantsByActivityModule,
 	tryFindInstructorsForActivityModule,
@@ -36,6 +37,7 @@ import {
 import { tryFindLinksByActivityModule } from "server/internal/course-activity-module-link-management";
 import { tryFindCourseById } from "server/internal/course-management";
 import { canManageActivityModules } from "server/utils/permissions";
+import { z } from "zod";
 import { GrantAccessSection } from "~/components/grant-access-section";
 import {
 	type ActivityModuleFormValues,
@@ -57,19 +59,14 @@ export const loader = async ({
 	params,
 }: LoaderFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
 
-	const { user } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
-
-	if (!user) {
+	if (!userSession?.isAuthenticated) {
 		throw new UnauthorizedResponse("You must be logged in to edit modules");
 	}
 
-	if (!canManageActivityModules(user)) {
-		throw new UnauthorizedResponse("You don't have permission to edit modules");
-	}
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const moduleId = params.id;
 	if (!moduleId) {
@@ -87,7 +84,7 @@ export const loader = async ({
 	const module = moduleResult.value;
 
 	// Verify user owns this module
-	if (module.createdBy.id !== user.id && user.role !== "admin") {
+	if (module.createdBy.id !== currentUser.id && currentUser.role !== "admin") {
 		throw new UnauthorizedResponse(
 			"You don't have permission to edit this module",
 		);
@@ -134,7 +131,7 @@ export const loader = async ({
 	const instructors = instructorsResult.ok ? instructorsResult.value : [];
 
 	return {
-		user,
+		user: currentUser,
 		module,
 		linkedCourses,
 		grants,
@@ -142,31 +139,32 @@ export const loader = async ({
 	};
 };
 
+// the schema
+const updateActivityModuleSchema = z.object({
+	title: z.string().min(1),
+	description: z.string().min(1),
+	status: z.string().min(1),
+	requirePassword: z.boolean(),
+	accessPassword: z.string().min(1),
+});
+
 export const action = async ({
 	request,
 	context,
 	params,
 }: ActionFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
 
-	const { user } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
-
-	if (!user) {
+	if (!userSession?.isAuthenticated) {
 		return badRequest({
 			success: false,
 			error: "You must be logged in to edit modules",
 		});
 	}
 
-	if (!canManageActivityModules(user)) {
-		return badRequest({
-			success: false,
-			error: "You don't have permission to edit modules",
-		});
-	}
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const moduleId = params.id;
 	if (!moduleId) {
@@ -184,8 +182,12 @@ export const action = async ({
 			payload,
 			activityModuleId: Number(moduleId),
 			grantedToUserId: Number((data as any).userId),
-			grantedByUserId: user.id,
-			user,
+			grantedByUserId: currentUser.id,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id,
+			},
 			req: request,
 			overrideAccess: false,
 		});
@@ -205,7 +207,11 @@ export const action = async ({
 			payload,
 			activityModuleId: Number(moduleId),
 			userId: Number((data as any).userId),
-			user,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id,
+			},
 			req: request,
 			overrideAccess: false,
 		});

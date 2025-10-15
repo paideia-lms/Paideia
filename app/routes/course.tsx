@@ -45,7 +45,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const coursesResult = await tryGetUserAccessibleCourses({
 		payload,
 		userId: currentUser.id,
-		user: currentUser as any, // Cast to TypedUser for compatibility
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 		overrideAccess: true, // overrideAccess for admin functionality
 	});
 

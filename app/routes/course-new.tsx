@@ -115,7 +115,10 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				createdBy: currentUser.id,
 				category: parsed.data.category ?? undefined,
 			},
-			user: currentUser,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
 			overrideAccess: false,
 		});
 

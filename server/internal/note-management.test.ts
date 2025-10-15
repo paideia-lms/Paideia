@@ -387,12 +387,7 @@ describe("Note Management Functions", () => {
 			if (result.ok) {
 				expect(result.value.id).toBe(testNote.id);
 				expect(result.value.content).toBe("Note for finding");
-				// Handle both depth 0 (ID) and depth 1 (object) cases
-				if (typeof result.value.createdBy === "object") {
-					expect(result.value.createdBy.id).toBe(testUser.id);
-				} else {
-					expect(result.value.createdBy).toBe(testUser.id);
-				}
+				expect(result.value.createdBy.id).toBe(testUser.id);
 			}
 		});
 

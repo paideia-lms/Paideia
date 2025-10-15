@@ -20,8 +20,8 @@ import {
 	useFetcher,
 } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryCreateActivityModule } from "server/internal/activity-module-management";
-import { canManageActivityModules } from "server/utils/permissions";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
@@ -35,48 +35,33 @@ import type { Route } from "./+types/new";
 
 export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
 
-	const { user } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
-
-	if (!user) {
+	if (!userSession?.isAuthenticated) {
 		throw new UnauthorizedResponse("You must be logged in to create modules");
 	}
 
-	if (!canManageActivityModules(user)) {
-		throw new UnauthorizedResponse(
-			"You don't have permission to create modules",
-		);
-	}
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	return {
-		user,
+		user: currentUser,
 	};
 };
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
 
-	const { user } = await payload.auth({
-		headers: request.headers,
-		canSetHeaders: true,
-	});
-
-	if (!user) {
+	if (!userSession?.isAuthenticated) {
 		return badRequest({
 			success: false,
 			error: "You must be logged in to create modules",
 		});
 	}
 
-	if (!canManageActivityModules(user)) {
-		return badRequest({
-			success: false,
-			error: "You don't have permission to create modules",
-		});
-	}
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
@@ -90,7 +75,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 		description: parsedData.description,
 		type: parsedData.type,
 		status: parsedData.status || "draft",
-		userId: user.id,
+		userId: currentUser.id,
 		assignmentData,
 		quizData,
 		discussionData,

@@ -356,7 +356,7 @@ describe("User Management Functions", () => {
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect(result.value).toBe(null);
+				expect(result.value).toBeNull();
 			}
 		});
 

@@ -9,7 +9,10 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import "./app.css";
-import { courseContextKey } from "server/contexts/course-context";
+import {
+	courseContextKey,
+	tryGetCourseContext,
+} from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
@@ -22,14 +25,21 @@ import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import { parseCookies } from "payload";
-import { userContextKey } from "server/contexts/user-context";
+import {
+	tryGetUserContext,
+	User,
+	userContextKey,
+} from "server/contexts/user-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseById } from "server/internal/course-management";
 import { tryHandleImpersonation } from "server/internal/user-management";
 import type { User as PayloadUser } from "server/payload-types";
-import { tryGetRouteHierarchy } from "./utils/routes-utils";
+import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 
 export const middleware = [
+	/**
+	 * update the page info to the global context
+	 */
 	async ({ request, context }) => {
 		const routeHierarchy = tryGetRouteHierarchy(new URL(request.url).pathname);
 		let isAdmin = false;
@@ -62,111 +72,34 @@ export const middleware = [
 			},
 		});
 	},
+	/**
+	 * set the user context
+	 */
 	async ({ request, context }) => {
 		const { payload } = context.get(globalContextKey);
 
-		// Get the authenticated user
-		const { user: authenticatedUser } = await payload.auth({
-			headers: request.headers,
-			canSetHeaders: true,
-		});
-
-		if (!authenticatedUser) {
-			// No authenticated user, don't set context - let it use default null value
-			return;
-		}
-
-		// Check for impersonation cookie
-		const cookies = parseCookies(request.headers);
-		const impersonateUserId = cookies.get(
-			`${payload.config.cookiePrefix}-impersonate`,
-		);
-
-		let effectiveUser: PayloadUser | null = null;
-		let effectiveUserPermissions: string[] | null = null;
-		let isImpersonating = false;
-
-		// If impersonation cookie exists and user is admin
-		if (impersonateUserId && authenticatedUser.role === "admin") {
-			const impersonationResult = await tryHandleImpersonation({
-				payload,
-				impersonateUserId,
-				authenticatedUser,
-			});
-
-			if (impersonationResult.ok && impersonationResult.value) {
-				effectiveUser = impersonationResult.value.targetUser;
-				effectiveUserPermissions = impersonationResult.value.permissions;
-				isImpersonating = true;
-			}
-		}
+		const userSession = await tryGetUserContext(payload, request);
 
 		// Set the user context
-		context.set(userContextKey, {
-			authenticatedUser: authenticatedUser,
-			effectiveUser,
-			authenticatedUserPermissions: effectiveUserPermissions ?? [],
-			effectiveUserPermissions,
-			isImpersonating,
-			isAuthenticated: true,
-		});
+		context.set(userContextKey, userSession);
 	},
-	async ({ request, context }) => {
-		const { payload, pageInfo } = context.get(globalContextKey);
+	/**
+	 * set the course context
+	 */
+	async ({ request, context, params }) => {
+		const { payload, routeHierarchy } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
-		// Only set course context if we're in a course route and user is authenticated
-		if (pageInfo.isInCourse && userSession?.isAuthenticated) {
-			const url = new URL(request.url);
-			const pathname = url.pathname;
-
-			// Extract course ID from URL patterns like /course/view/:id or /course/edit/:id
-			const courseIdMatch = pathname.match(/\/course\/(?:view|edit)\/(\d+)/);
-
-			if (courseIdMatch) {
-				const courseId = Number.parseInt(courseIdMatch[1], 10);
-
-				if (!Number.isNaN(courseId)) {
-					try {
-						const courseResult = await tryFindCourseById({
-							payload,
-							courseId,
-							overrideAccess: true,
-						});
-
-						if (courseResult.ok) {
-							const course = courseResult.value;
-
-							// Set course context
-							context.set(courseContextKey, {
-								course: {
-									id: course.id,
-									title: course.title,
-									slug: course.slug,
-									description: course.description,
-									status: course.status,
-									structure: course.structure,
-									createdBy: {
-										id: course.createdBy.id,
-										email: course.createdBy.email,
-										firstName: course.createdBy.firstName,
-										lastName: course.createdBy.lastName,
-									},
-									category:
-										typeof course.category === "number"
-											? course.category
-											: course.category?.id,
-									updatedAt: course.updatedAt,
-									createdAt: course.createdAt,
-								},
-								courseId,
-							});
-						}
-					} catch {
-						// Course not found or access denied - don't set context
-						// This is expected behavior, so we don't throw
-					}
-				}
+		// check if the user is in a course
+		if (routeHierarchy.some((route) => route.id === "layouts/course-layout")) {
+			const { id } = params as RouteParams<"layouts/course-layout">;
+			if (!Number.isNaN(id)) {
+				const courseContext = await tryGetCourseContext(
+					payload,
+					Number(id),
+					userSession?.effectiveUser || userSession?.authenticatedUser || null,
+				);
+				context.set(courseContextKey, courseContext);
 			}
 		}
 	},
