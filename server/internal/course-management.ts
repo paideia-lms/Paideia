@@ -312,17 +312,35 @@ export const tryFindCourseById = Result.wrap(
 						limit: MOCK_INFINITY,
 					},
 				},
+				populate: {
+					// ! we don't want to populate the course in the enrollments and groups
+					'enrollments': {
+						'course': false,
+					},
+					'groups': {
+						'course': false,
+					},
+					// ! we don't need the subcategories and courses in the category
+					'course-categories': {
+						'courses': false,
+						'subcategories': false,
+					}
+				},
 				depth: 2,
 				user,
 				req,
 				overrideAccess,
 			})
 			.then((result) => {
+
 				////////////////////////////////////////////////////
 				// type narrowing
 				////////////////////////////////////////////////////
 
 				const course = result.docs[0];
+				if (!course) {
+					throw new Error("Course not found");
+				}
 				const courseCreatedBy = course.createdBy;
 				assertZod(
 					courseCreatedBy,
@@ -333,13 +351,16 @@ export const tryFindCourseById = Result.wrap(
 
 				const courseEnrollments =
 					course.enrollments?.docs?.map((e) => {
-						console.log("e", e);
 						assertZod(
 							e,
 							z.object({
 								id: z.number(),
 							}),
 						);
+
+						const course = e.course;
+						// assert e has no course
+						assertZod(course, z.undefined());
 
 						const user = e.user;
 						assertZod(
@@ -351,8 +372,16 @@ export const tryFindCourseById = Result.wrap(
 
 						const groups = e.groups?.map((g) => {
 							assertZod(g, z.object({ id: z.number() }));
-							return g;
-						});
+							const parent = g.parent;
+							assertZod(parent, z.number().nullish());
+							const course = g.course;
+							assertZod(course, z.undefined());
+							return {
+								...g,
+								parent,
+								course,
+							};
+						}) ?? []
 
 						const avatar = user.avatar;
 						assertZod(avatar, z.object({ id: z.number() }).nullish());
@@ -364,16 +393,50 @@ export const tryFindCourseById = Result.wrap(
 								...user,
 								avatar,
 							},
+							course: course,
 						};
 					}) ?? [];
 
+				const groups = course.groups?.docs?.map((g) => {
+					assertZod(g, z.object({ id: z.number() }));
+					const parent = g.parent;
+					assertZod(parent, z.object({ id: z.number() }).nullish());
+					const course = g.course;
+					assertZod(course, z.undefined());
+					return {
+						...g,
+						parent,
+						course,
+					};
+				}) ?? []
+
+				const category = course.category;
+				assertZod(category, z.object({ id: z.number() }).nullish());
+
+				const categoryCourses = category?.courses;
+				assertZod(categoryCourses, z.undefined());
+
+				const parent = category?.parent;
+				assertZod(parent, z.object({ id: z.number() }).nullish());
+
+				const categorySubcategories = category?.subcategories;
+				assertZod(categorySubcategories, z.undefined());
+
 				return {
 					...course,
+					groups,
 					createdBy: courseCreatedBy,
 					enrollments: courseEnrollments,
+					category: category ? {
+						...category,
+						parent,
+						courses: categoryCourses,
+						subcategories: categorySubcategories
+					} : null,
 				};
 			});
 
+		console.log("course", JSON.stringify(course, null, 2));
 		return course;
 	},
 	(error) =>

@@ -566,7 +566,7 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		describe("try get course with groups", () => {
-			test.only("should get course with groups", async () => {
+			test("should get course with groups", async () => {
 				const result = await tryFindCourseById({
 					payload,
 					courseId: testCourseId,

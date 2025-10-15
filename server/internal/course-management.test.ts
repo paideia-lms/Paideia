@@ -1102,7 +1102,7 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: testUserId,
-				user: testUser as any, // Cast to TypedUser for compatibility
+				user: testUser,
 				overrideAccess: false,
 			});
 
@@ -1133,25 +1133,6 @@ describe("Course Management Functions", () => {
 			}
 		});
 
-		test.skip("should fail when trying to access courses for different user without overrideAccess", async () => {
-			// Get test user object for authentication
-			const testUser = await payload.findByID({
-				collection: "users",
-				id: testUserId,
-				overrideAccess: true,
-			});
-
-			// Try to get courses for otherUserId while authenticated as testUserId
-			const result = await tryGetUserAccessibleCourses({
-				payload,
-				userId: otherUserId, // Different user ID
-				user: testUser as any, // Authenticated as test user
-				overrideAccess: false, // overrideAccess false - respect access control
-			});
-
-			// This should fail because test user can't access other user's courses
-			expect(result.ok).toBe(false);
-		});
 
 		test("should work with overrideAccess true even for different user", async () => {
 			// Get test user object for authentication
@@ -1165,7 +1146,7 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: otherUserId,
-				user: testUser as any, // Cast to TypedUser for compatibility
+				user: testUser,
 				overrideAccess: true,
 			});
 

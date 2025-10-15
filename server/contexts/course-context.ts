@@ -10,6 +10,15 @@ import { tryFindCourseById } from "server/internal/course-management";
 import type { CourseStructure } from "server/utils/schema";
 import type { User } from "./user-context";
 
+type Group = {
+	id: number,
+	name: string,
+	path: string,
+	description?: string | null;
+	color?: string | null;
+	parent?: number | null;
+}
+
 /**
  * all the user enrollments, the name, id, email, role, status, enrolledAt, completedAt
  */
@@ -25,7 +34,17 @@ export type Enrollment = {
 	} | null;
 	enrolledAt?: string | null;
 	completedAt?: string | null;
+	groups: Group[];
 };
+
+type Category = {
+	id: number;
+	name: string;
+	parent?: {
+		id: number;
+		name: string;
+	} | null;
+}
 
 export interface Course {
 	id: number;
@@ -44,10 +63,11 @@ export interface Course {
 			filename?: string | null;
 		} | null;
 	};
-	category?: number | null;
+	category?: Category | null;
 	updatedAt: string;
 	createdAt: string;
 	enrollments: Enrollment[];
+	groups: Group[];
 }
 
 export interface CourseContext {
@@ -70,9 +90,9 @@ export const tryGetCourseContext = async (
 		courseId: courseId,
 		user: user
 			? {
-					...user,
-					avatar: user.avatar?.id,
-				}
+				...user,
+				avatar: user.avatar?.id,
+			}
 			: null,
 		// ! we cannot use overrideAccess true here
 	});
@@ -101,12 +121,24 @@ export const tryGetCourseContext = async (
 					? course.createdBy.avatar
 					: null,
 		},
-		category:
-			typeof course.category === "number"
-				? course.category
-				: course.category?.id || null,
+		category: course.category ? {
+			id: course.category.id,
+			name: course.category.name,
+			parent: course.category.parent ? {
+				id: course.category.parent.id,
+				name: course.category.parent.name,
+			} : null,
+		} : null,
 		updatedAt: course.updatedAt,
 		createdAt: course.createdAt,
+		groups: course.groups.map(g => ({
+			id: g.id,
+			name: g.name,
+			path: g.path,
+			description: g.description,
+			color: g.color,
+			parent: g.parent?.id,
+		})),
 		enrollments: course.enrollments.map(
 			(e) =>
 				({
@@ -118,6 +150,14 @@ export const tryGetCourseContext = async (
 					avatar: e.user.avatar ?? null,
 					enrolledAt: e.enrolledAt,
 					completedAt: e.completedAt,
+					groups: e.groups.map(g => ({
+						id: g.id,
+						name: g.name,
+						path: g.path,
+						description: g.description,
+						color: g.color,
+						parent: g.parent,
+					})),
 				}) satisfies Enrollment,
 		),
 	};

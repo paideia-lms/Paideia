@@ -1,11 +1,13 @@
-import { tryCreateActivityModule } from "server/internal/activity-module-management";
-import type z from "zod";
+import z from "zod";
 
 function assertZod<T>(
 	value: unknown,
 	schema: z.ZodSchema<T>,
 ): asserts value is T {
-	schema.parse(value);
+	const result = schema.safeParse(value);
+	if (!result.success) {
+		throw z.treeifyError(result.error);
+	}
 }
 
 export { assertZod };
