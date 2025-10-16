@@ -79,7 +79,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 	const navigate = useNavigate();
 
 	const handleCourseClick = (courseId: number) => {
-		navigate(href("/course/view/:id", { id: courseId.toString() }));
+		navigate(href("/course/:id", { id: courseId.toString() }));
 	};
 
 	// Filter courses based on "Created by me" filter
@@ -174,7 +174,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 							<Grid.Col key={course.id} span={{ base: 12, sm: 6, md: 4 }}>
 								<Card
 									component={Link}
-									to={href("/course/view/:id", { id: course.id.toString() })}
+									to={href("/course/:id", { id: course.id.toString() })}
 									shadow="sm"
 									padding="lg"
 									radius="md"

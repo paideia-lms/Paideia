@@ -4,7 +4,6 @@ import type { Enrollment } from "./course-context";
 
 export interface EnrolmentContext {
 	enrolment: Enrollment;
-	isActive: boolean;
 }
 
 export const enrolmentContext = createContext<EnrolmentContext | null>(null);

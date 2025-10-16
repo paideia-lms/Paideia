@@ -17,6 +17,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
 	type ActionFunctionArgs,
+	href,
 	type LoaderFunctionArgs,
 	redirect,
 	useFetcher,
@@ -128,7 +129,9 @@ export const loader = async ({
 		payload,
 		activityModuleId: module.id,
 	});
-	const instructors = instructorsResult.ok ? instructorsResult.value : [];
+	const instructors = instructorsResult.ok ? instructorsResult.value.filter(i => {
+		return i.id !== module.owner.id;
+	}) : [];
 
 	return {
 		user: currentUser,
@@ -439,7 +442,7 @@ export default function EditModulePage() {
 											<Table.Td>
 												<Text
 													component="a"
-													href={`/course/view/${course.id}`}
+													href={href("/course/:id", { id: String(course.id) })}
 													fw={500}
 													style={{ textDecoration: "none" }}
 												>

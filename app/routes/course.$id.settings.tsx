@@ -213,7 +213,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 				color: "green",
 			});
 			// Redirect to the course's view page
-			throw redirect(`/course/view/${actionData.id}`);
+			throw redirect(`/course/${actionData.id}`);
 		}
 	} else if ("error" in actionData) {
 		notifications.show({

@@ -63,8 +63,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-						filename: profileUser.avatar.filename,
-					})
+					filename: profileUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -212,24 +212,6 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-				{/* Impersonation Banner */}
-				{isImpersonating && (
-					<Alert
-						color="orange"
-						title="Impersonating User"
-						icon={<IconUserCheck size={16} />}
-					>
-						You are currently viewing the system as {fullName}. You are logged
-						in as {authenticatedUser.firstName} {authenticatedUser.lastName}.
-						<div style={{ marginLeft: "1rem" }}>
-							<StopImpersonatingButton
-								size="xs"
-								color="orange"
-								variant="light"
-							/>
-						</div>
-					</Alert>
-				)}
 
 				<Paper withBorder shadow="md" p="xl" radius="md">
 					<Stack align="center" gap="lg">

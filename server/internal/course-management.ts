@@ -40,6 +40,7 @@ export interface UpdateCourseArgs {
 	payload: Payload;
 	courseId: number;
 	data: {
+		structure?: Course["structure"];
 		title?: string;
 		description?: string;
 		createdBy?: number; // User ID
@@ -442,7 +443,6 @@ export const tryFindCourseById = Result.wrap(
 				};
 			});
 
-		console.log("course", JSON.stringify(course, null, 2));
 		return course;
 	},
 	(error) =>

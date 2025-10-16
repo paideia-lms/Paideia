@@ -125,7 +125,10 @@ export const getUserAccessContext = async (
     }))] satisfies ActivityModule[];
 
     return {
-        activityModules: activityModules,
+        activityModules: activityModules.filter(
+            // unique by id
+            (module, index, self) => self.findIndex(m => m.id === module.id) === index
+        ),
         enrollments: enrollmentsData,
     }
 }

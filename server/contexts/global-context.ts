@@ -14,6 +14,12 @@ export type PageInfo = {
 	isLogin: boolean;
 	isFirstUser: boolean;
 	isInCourse: boolean;
+	isCourseSettings: boolean;
+	isCourseParticipants: boolean;
+	isCourseGrades: boolean;
+	isCourseModules: boolean;
+	isCourseBin: boolean;
+	isCourseBackup: boolean;
 };
 
 /**

@@ -1,75 +1,75 @@
 .header {
-	padding-top: var(--mantine-spacing-sm);
-	background-color: light-dark(
-		var(--mantine-color-gray-0),
-		var(--mantine-color-dark-6)
-	);
-	/* border-bottom: 1px solid light-dark(var(--mantine-color-gray-2), transparent); */
-	margin-bottom: 120px;
+  padding-top: var(--mantine-spacing-sm);
+  background-color: light-dark(
+    var(--mantine-color-gray-0),
+    var(--mantine-color-dark-6)
+  );
+  /* border-bottom: 1px solid light-dark(var(--mantine-color-gray-2), transparent); */
+  /* margin-bottom: 120px; */
 }
 
 .mainSection {
-	/* padding-bottom: var(--mantine-spacing-sm); */
+  /* padding-bottom: var(--mantine-spacing-sm); */
 }
 
 .user {
-	color: light-dark(var(--mantine-color-black), var(--mantine-color-dark-0));
-	padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
-	border-radius: var(--mantine-radius-sm);
-	transition: background-color 100ms ease;
+  color: light-dark(var(--mantine-color-black), var(--mantine-color-dark-0));
+  padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+  border-radius: var(--mantine-radius-sm);
+  transition: background-color 100ms ease;
 }
 
 .user:hover {
-	background-color: light-dark(
-		var(--mantine-color-white),
-		var(--mantine-color-dark-8)
-	);
+  background-color: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-8)
+  );
 }
 
 .userActive {
-	background-color: light-dark(
-		var(--mantine-color-white),
-		var(--mantine-color-dark-8)
-	);
+  background-color: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-8)
+  );
 }
 
 .tabsList {
-	&::before {
-		display: none;
-	}
+  &::before {
+    display: none;
+  }
 }
 
 .tab {
-	font-weight: 500;
-	height: 38px;
-	background-color: transparent;
-	position: relative;
-	bottom: -1px;
+  font-weight: 500;
+  height: 38px;
+  background-color: transparent;
+  position: relative;
+  bottom: -1px;
 }
 
 .tab::before,
 .tab::after {
-	background-color: light-dark(
-		var(--mantine-color-gray-2),
-		var(--mantine-color-dark-7)
-	) !important;
+  background-color: light-dark(
+    var(--mantine-color-gray-2),
+    var(--mantine-color-dark-7)
+  ) !important;
 }
 
 .tab:hover {
-	background-color: light-dark(
-		var(--mantine-color-gray-1),
-		var(--mantine-color-dark-5)
-	);
+  background-color: light-dark(
+    var(--mantine-color-gray-1),
+    var(--mantine-color-dark-5)
+  );
 }
 
 .tab[data-active] {
-	background-color: light-dark(
-		var(--mantine-color-white),
-		var(--mantine-color-dark-7)
-	);
-	border-color: light-dark(
-		var(--mantine-color-gray-2),
-		var(--mantine-color-dark-7)
-	);
-	border-bottom-color: transparent;
+  background-color: light-dark(
+    var(--mantine-color-white),
+    var(--mantine-color-dark-7)
+  );
+  border-color: light-dark(
+    var(--mantine-color-gray-2),
+    var(--mantine-color-dark-7)
+  );
+  border-bottom-color: transparent;
 }

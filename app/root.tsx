@@ -24,18 +24,14 @@ import "@mantine/tiptap/styles.css";
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
-import { parseCookies } from "payload";
 import {
 	tryGetUserContext,
-	User,
 	userContextKey,
 } from "server/contexts/user-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
-import { tryFindCourseById } from "server/internal/course-management";
-import { tryHandleImpersonation } from "server/internal/user-management";
-import type { User as PayloadUser } from "server/payload-types";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 import { getUserAccessContext, userAccessContextKey } from "server/contexts/user-access-context";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
 export const middleware = [
 	/**
@@ -49,7 +45,12 @@ export const middleware = [
 		let isLogin = false;
 		let isFirstUser = false;
 		let isInCourse = false;
-
+		let isCourseSettings = false;
+		let isCourseParticipants = false;
+		let isCourseGrades = false;
+		let isCourseModules = false;
+		let isCourseBin = false;
+		let isCourseBackup = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -57,6 +58,12 @@ export const middleware = [
 			else if (route.id === "routes/login") isLogin = true;
 			else if (route.id === "routes/first-user") isFirstUser = true;
 			else if (route.id === "layouts/course-layout") isInCourse = true;
+			else if (route.id === "routes/course.$id.settings") isCourseSettings = true;
+			else if (route.id === "routes/course.$id.participants") isCourseParticipants = true;
+			else if (route.id === "routes/course.$id.grades") isCourseGrades = true;
+			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
+			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
+			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -70,6 +77,12 @@ export const middleware = [
 				isLogin,
 				isFirstUser,
 				isInCourse,
+				isCourseSettings,
+				isCourseParticipants,
+				isCourseGrades,
+				isCourseModules,
+				isCourseBin,
+				isCourseBackup,
 			},
 		});
 	},
@@ -112,6 +125,24 @@ export const middleware = [
 		if (userSession?.isAuthenticated) {
 			const userAccessContext = await getUserAccessContext(payload, userSession.effectiveUser || userSession.authenticatedUser || null);
 			context.set(userAccessContextKey, userAccessContext);
+		}
+	},
+	// set the enrolment context
+	async ({ request, context }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+		if (userSession?.isAuthenticated && courseContext) {
+			// get the enrollment 
+			const currentUser = userSession.effectiveUser || userSession.authenticatedUser;
+			const enrollment = courseContext.course.enrollments.find(e => e.userId === currentUser?.id);
+
+			// set the enrolment context
+			if (enrollment) {
+				context.set(enrolmentContextKey, {
+					enrolment: enrollment,
+				});
+			}
 		}
 	},
 ] satisfies Route.MiddlewareFunction[];

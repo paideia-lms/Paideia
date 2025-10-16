@@ -86,7 +86,9 @@ export function HeaderTabs({
 		if (pageInfo.isMyCourses) return Tab.MyCourses;
 
 		// Default to Dashboard for root and other routes
-		return Tab.Dashboard;
+		if (pageInfo.isDashboard) return Tab.Dashboard;
+
+		return null;
 	};
 
 	const handleTabChange = (value: string | null) => {
@@ -158,9 +160,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filename`, {
-																			filename:
-																				authenticatedUser.avatar.filename,
-																		})
+																		filename:
+																			authenticatedUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -182,8 +184,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filename`, {
-																			filename: currentUser.avatar.filename,
-																		})
+																		filename: currentUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -201,8 +203,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filename`, {
-																filename: currentUser.avatar.filename,
-															})
+															filename: currentUser.avatar.filename,
+														})
 														: null
 												}
 												alt={
@@ -221,7 +223,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+											"Anonymous"
 											: "Not signed in"}
 									</Text>
 									<IconChevronDown size={12} stroke={1.5} />

@@ -12,6 +12,7 @@ export const routes = [
 	route("api/stop-impersonation", "routes/api/stop-impersonation.tsx"),
 	route("api/search-users", "routes/api/search-users.tsx"),
 	route("api/media/file/:filename", "routes/api/media/file.$filename.tsx"),
+	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	layout("layouts/root-layout.tsx", [
 		index("routes/index.tsx"),
 		route("user/profile/:id?", "routes/user/profile.tsx"),
@@ -25,8 +26,15 @@ export const routes = [
 		route("course/new", "routes/course-new.tsx"),
 		route("course", "routes/course.tsx"),
 		layout("layouts/course-layout.tsx", [
-			route("course/view/:id", "routes/course-view.$id.tsx"),
-			route("course/edit/:id", "routes/course-edit.$id.tsx"),
+			layout("layouts/course-content-layout.tsx", [
+				route("course/:id", "routes/course.$id.tsx"),
+			]),
+			route("course/:id/settings", "routes/course.$id.settings.tsx"),
+			route("course/:id/participants", "routes/course.$id.participants.tsx"),
+			route("course/:id/grades", "routes/course.$id.grades.tsx"),
+			route("course/:id/modules", "routes/course.$id.modules.tsx"),
+			route("course/:id/bin", "routes/course.$id.bin.tsx"),
+			route("course/:id/backup", "routes/course.$id.backup.tsx"),
 		]),
 		layout("layouts/server-admin-layout.tsx", [
 			route("admin/*", "routes/admin/index.tsx"),

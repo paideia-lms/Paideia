@@ -77,6 +77,12 @@ const frontend = new Elysia()
 							isLogin: false,
 							isFirstUser: false,
 							isInCourse: false,
+							isCourseSettings: false,
+							isCourseParticipants: false,
+							isCourseGrades: false,
+							isCourseModules: false,
+							isCourseBin: false,
+							isCourseBackup: false,
 						},
 					});
 					// set all the contexts to be null in the beginning??

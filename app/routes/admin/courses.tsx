@@ -16,7 +16,7 @@ import { useDebouncedValue } from "@mantine/hooks";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
 import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useEffect, useState } from "react";
-import { Link, useSearchParams } from "react-router";
+import { href, Link, useSearchParams } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllCourses } from "server/internal/course-management";
@@ -78,7 +78,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			typeof createdBy === "object" && createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		return {
@@ -250,7 +250,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 												<Group gap="xs">
 													<Button
 														component={Link}
-														to={`/course/view/${course.id}`}
+														to={href("/course/:id", { id: String(course.id) })}
 														size="xs"
 														variant="light"
 													>
@@ -258,7 +258,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 													</Button>
 													<Button
 														component={Link}
-														to={`/course/edit/${course.id}`}
+														to={href("/course/:id/settings", { id: String(course.id) })}
 														size="xs"
 														variant="light"
 														color="blue"

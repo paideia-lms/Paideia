@@ -44,7 +44,8 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import type { Route } from "./+types/course-view.$id";
+import type { Route } from "./+types/course.$id";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
 export const loader = async ({
 	context,
@@ -52,6 +53,7 @@ export const loader = async ({
 }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -78,7 +80,10 @@ export const loader = async ({
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	return courseViewData;
+	return {
+		...courseViewData,
+		enrolment: enrolmentContext?.enrolment,
+	}
 };
 
 export const action = async ({
@@ -485,7 +490,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 					{canEdit && (
 						<Button
 							component={Link}
-							to={`/course/edit/${course.id}`}
+							to={`/course/${course.id}/settings`}
 							leftSection={<IconEdit size={16} />}
 						>
 							Edit Course
