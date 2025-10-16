@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, User } from "payload";
 import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -9,6 +9,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 
 export interface CreateActivityModuleArgs {
 	title: string;
@@ -47,13 +48,13 @@ export interface CreateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -125,13 +126,13 @@ export interface UpdateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -843,42 +844,109 @@ export const tryGetUserActivityModules = Result.wrap(
 		payload: Payload,
 		args: {
 			userId: number;
-			limit?: number;
-			page?: number;
+			user?: User | null;
+			overrideAccess?: boolean;
 		},
 	) => {
-		const { userId, limit = 50, page = 1 } = args;
+		const { userId, user, overrideAccess = false } = args;
 
 		// Validate user ID
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		const result = await payload.find({
+		const modulesOwnedOrGranted = await payload.find({
 			collection: "activity-modules",
 			where: {
 				or: [
 					{ owner: { equals: userId } },
-					{ createdBy: { equals: userId } },
 					{ "grants.grantedTo": { equals: userId } },
 				],
 			},
-			limit,
-			page,
+			joins: {
+				"linkedCourses": {
+					limit: MOCK_INFINITY
+				},
+				// ! we don't care about the grants, submissions details here
+				"grants": false,
+				'discussionSubmissions': false,
+				'quizSubmissions': false,
+				'submissions': false,
+			},
 			sort: "-createdAt",
-			depth: 0,
-			overrideAccess: true,
+			// ! we don't care about pagination and performance for now 
+			pagination: false,
+			overrideAccess,
+			user,
+		}).then(result => {
+			const docs = result.docs.map(doc => {
+				const owner = doc.owner;
+				assertZod(owner, z.object({
+					id: z.number(),
+				}));
+				const ownerAvatar = owner.avatar;
+				assertZod(ownerAvatar, z.object({
+					id: z.number(),
+				}).nullish());
+				const createdBy = doc.createdBy;
+				assertZod(createdBy, z.object({
+					id: z.number(),
+				}));
+				const createdByAvatar = createdBy.avatar;
+				assertZod(createdByAvatar, z.object({
+					id: z.number(),
+				}).nullish());
+				const grants = doc.grants;
+				assertZod(grants, z.undefined());
+				const submissions = doc.submissions;
+				assertZod(submissions, z.undefined());
+				const discussionSubmissions = doc.discussionSubmissions;
+				assertZod(discussionSubmissions, z.undefined());
+				const quizSubmissions = doc.quizSubmissions;
+				assertZod(quizSubmissions, z.undefined());
+				const courses = doc.linkedCourses?.docs?.map(link => {
+					assertZod(link, z.object({
+						id: z.number(),
+					}));
+					const course = link.course;
+					assertZod(course, z.number());
+					return course;
+				}) ?? []
+
+				return {
+					...doc,
+					owner: {
+						...owner,
+						avatar: ownerAvatar,
+					},
+					createdBy: {
+						...createdBy,
+						avatar: createdByAvatar,
+					},
+					grants,
+					submissions,
+					discussionSubmissions,
+					quizSubmissions,
+					linkedCourses: courses,
+				};
+			});
+
+			return docs;
 		});
 
+		const autoGrantedModules = await tryFindAutoGrantedModulesForInstructor({
+			payload,
+			userId,
+			user,
+			overrideAccess,
+		});
+
+		if (!autoGrantedModules.ok) throw autoGrantedModules.error;
+
 		return {
-			docs: result.docs,
-			totalDocs: result.totalDocs,
-			totalPages: result.totalPages,
-			page: result.page,
-			limit: result.limit,
-			hasNextPage: result.hasNextPage,
-			hasPrevPage: result.hasPrevPage,
-		};
+			modulesOwnedOrGranted,
+			autoGrantedModules: autoGrantedModules.value,
+		}
 	},
 	(error) =>
 		transformError(error) ??

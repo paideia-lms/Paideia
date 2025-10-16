@@ -9,6 +9,8 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { Enrollment, User } from "../payload-types";
+import z from "zod";
+import { assertZod } from "server/utils/type-narrowing";
 
 export interface CreateEnrollmentArgs {
 	payload: Payload;
@@ -404,7 +406,6 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 	async (
 		payload: Payload,
 		userId: number,
-		limit: number = 10,
 		authenticatedUser?: User | null,
 		req?: Partial<PayloadRequest>,
 		overrideAccess: boolean = false,
@@ -421,14 +422,37 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 					equals: userId,
 				},
 			},
-			limit,
 			sort: "-createdAt",
+			pagination: false,
 			user: authenticatedUser,
 			req: req || {},
 			overrideAccess,
+		}).then(result => {
+			return result.docs.map(doc => {
+				const user = doc.user;
+				assertZod(user, z.object({
+					id: z.number()
+				}));
+				const course = doc.course;
+				assertZod(course, z.object({
+					id: z.number()
+				}));
+				const groups = doc.groups?.map(group => {
+					assertZod(group, z.object({
+						id: z.number()
+					}));
+					return group;
+				}) ?? []
+				return {
+					...doc,
+					user: user.id,
+					course: course,
+					groups
+				}
+			});
 		});
 
-		return enrollments.docs as Enrollment[];
+		return enrollments
 	},
 	(error) =>
 		transformError(error) ??

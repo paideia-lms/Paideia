@@ -349,6 +349,9 @@ export const tryFindCourseById = Result.wrap(
 					}),
 				);
 
+				const courseCreatedByAvatar = courseCreatedBy.avatar;
+				assertZod(courseCreatedByAvatar, z.object({ id: z.number() }).nullish());
+
 				const courseEnrollments =
 					course.enrollments?.docs?.map((e) => {
 						assertZod(
@@ -425,7 +428,10 @@ export const tryFindCourseById = Result.wrap(
 				return {
 					...course,
 					groups,
-					createdBy: courseCreatedBy,
+					createdBy: {
+						...courseCreatedBy,
+						avatar: courseCreatedByAvatar,
+					},
 					enrollments: courseEnrollments,
 					category: category ? {
 						...category,
@@ -1295,7 +1301,6 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 		const enrollmentsResult = await tryFindEnrollmentsByUser(
 			payload,
 			userId,
-			1000,
 			user,
 			req,
 			overrideAccess,

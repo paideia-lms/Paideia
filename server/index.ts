@@ -19,6 +19,7 @@ import sanitizedConfig from "./payload.config";
 import { runSeed } from "./seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { s3Client } from "./utils/s3-client";
+import { userAccessContextKey } from "./contexts/user-access-context";
 
 const unstorage = createStorage({
 	driver: lruCacheDriver({
@@ -83,6 +84,7 @@ const frontend = new Elysia()
 					c.set(courseContextKey, null);
 					c.set(enrolmentContextKey, null);
 					c.set(courseModuleContextKey, null);
+					c.set(userAccessContextKey, null);
 					return c;
 				},
 			}),

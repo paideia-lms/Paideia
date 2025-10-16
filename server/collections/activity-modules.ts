@@ -171,6 +171,14 @@ export const ActivityModules = {
 			label: "Access Grants",
 			hasMany: true,
 		},
+		{
+			name: "linkedCourses",
+			type: "join",
+			on: "activityModule",
+			collection: "course-activity-module-links",
+			label: "Linked Courses",
+			hasMany: true,
+		}
 	],
 	indexes: [
 		{

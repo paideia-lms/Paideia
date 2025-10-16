@@ -102,3 +102,7 @@ export const getEnrollmentStatusLabel = (status: string) => {
 			return status;
 	}
 };
+
+export const getUserId = (user: number | { id: number }) => {
+	return typeof user === "object" ? user.id : user;
+};

@@ -4,10 +4,7 @@ function assertZod<T>(
 	value: unknown,
 	schema: z.ZodSchema<T>,
 ): asserts value is T {
-	const result = schema.safeParse(value);
-	if (!result.success) {
-		throw z.treeifyError(result.error);
-	}
+	schema.parse(value);
 }
 
 export { assertZod };

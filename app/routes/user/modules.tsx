@@ -36,13 +36,19 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/modules";
+import { userAccessContextKey } from "server/contexts/user-access-context";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const userAccessContext = context.get(userAccessContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
+	}
+
+	if (!userAccessContext) {
+		throw new NotFoundResponse("User access context not found");
 	}
 
 	// Use effectiveUser if impersonating, otherwise use authenticatedUser
@@ -69,28 +75,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const profileUser = userResult.value;
 
-	// Fetch activity modules for the target user
-	const modulesResult = await tryGetUserActivityModules(payload, {
-		userId: userId,
-		limit: 50,
-	});
+	const modules = userAccessContext.activityModules;
 
-	const modules = modulesResult.ok ? modulesResult.value.docs : [];
-
-	// Fetch course link counts for each module
-	const modulesWithLinkCounts = await Promise.all(
-		modules.map(async (module) => {
-			const linksResult = await tryFindLinksByActivityModule(
-				payload,
-				module.id,
-			);
-			const linkCount = linksResult.ok ? linksResult.value.length : 0;
-			return {
-				...module,
-				linkCount,
-			};
-		}),
-	);
 
 	// Check if user can create modules (only for own profile)
 	const canCreateModules =
@@ -117,7 +103,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			lastName: profileUser.lastName ?? "",
 		},
 		isOwnProfile: userId === currentUser.id,
-		modules: modulesWithLinkCounts,
+		modules: modules,
 		canCreateModules,
 		canManageModules,
 		canImpersonate,
@@ -134,6 +120,12 @@ export const action = async ({
 	const payload = context.get(globalContextKey).payload;
 	const requestInfo = context.get(globalContextKey).requestInfo;
 	const userSession = context.get(userContextKey);
+	const userAccessContext = context.get(userAccessContextKey);
+
+	if (!userAccessContext) {
+		throw new NotFoundResponse("User access context not found");
+	}
+
 	const { id } = params;
 
 	if (!userSession?.isAuthenticated) {
@@ -212,16 +204,7 @@ export const action = async ({
 	}
 
 	// Verify the module exists and belongs to the target user
-	const modulesResult = await tryGetUserActivityModules(payload, {
-		userId: targetUserId,
-		limit: 100,
-	});
-
-	if (!modulesResult.ok) {
-		return badRequest({ error: "Failed to verify module ownership" });
-	}
-
-	const userModule = modulesResult.value.docs.find((m) => m.id === moduleId);
+	const userModule = userAccessContext.activityModules.find((m) => m.id === moduleId);
 
 	if (!userModule) {
 		return badRequest({
@@ -341,24 +324,7 @@ export default function ModulesPage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-				{/* Impersonation Banner */}
-				{isImpersonating && (
-					<Alert
-						color="orange"
-						title="Impersonating User"
-						icon={<IconUserCheck size={16} />}
-					>
-						You are currently viewing the system as {fullName}. You are logged
-						in as {authenticatedUser.firstName} {authenticatedUser.lastName}.
-						<div style={{ marginLeft: "1rem" }}>
-							<StopImpersonatingButton
-								size="xs"
-								color="orange"
-								variant="light"
-							/>
-						</div>
-					</Alert>
-				)}
+
 
 				{/* Header */}
 				<Paper withBorder shadow="md" p="xl" radius="md">
@@ -374,17 +340,6 @@ export default function ModulesPage({ loaderData }: Route.ComponentProps) {
 							</Text>
 						</div>
 						<Group gap="md">
-							{canImpersonate && (
-								<Button
-									variant="light"
-									color="orange"
-									onClick={handleImpersonate}
-									loading={fetcher.state === "submitting"}
-									leftSection={<IconUserCheck size={16} />}
-								>
-									Impersonate User
-								</Button>
-							)}
 							{isOwnProfile && canCreateModules && (
 								<Button component={Link} to="/user/module/new" size="sm">
 									Create Module
@@ -434,7 +389,7 @@ export default function ModulesPage({ loaderData }: Route.ComponentProps) {
 												</Badge>
 											</Table.Td>
 											<Table.Td>
-												<Text size="sm">{module.linkCount}</Text>
+												<Text size="sm">{module.linkedCourses.length}</Text>
 											</Table.Td>
 											{canManageModules && (
 												<Table.Td>

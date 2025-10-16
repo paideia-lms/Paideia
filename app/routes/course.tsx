@@ -25,38 +25,40 @@ import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetUserAccessibleCourses } from "server/internal/course-management";
+import { getUserAccessContext, userAccessContextKey } from "server/contexts/user-access-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const userAccessContext = context.get(userAccessContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	// Use effectiveUser if impersonating, otherwise use authenticatedUser
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	// Get user's accessible courses
-	const coursesResult = await tryGetUserAccessibleCourses({
-		payload,
-		userId: currentUser.id,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-		overrideAccess: true, // overrideAccess for admin functionality
-	});
-
-	if (!coursesResult.ok) {
-		throw new Error("Failed to fetch courses");
+	if (!userAccessContext) {
+		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const courses = coursesResult.value;
+	const currentUser = userSession.effectiveUser || userSession.authenticatedUser;
+
+	// Extract courses from enrollments
+	const courses = userAccessContext.enrollments.map(enrollment => ({
+		id: enrollment.course.id,
+		title: enrollment.course.title,
+		slug: enrollment.course.slug,
+		status: enrollment.course.status,
+		description: enrollment.course.description,
+		createdAt: enrollment.course.createdAt,
+		updatedAt: enrollment.course.updatedAt,
+		category: enrollment.course.category?.name,
+		enrollmentStatus: enrollment.status,
+		completionPercentage: enrollment.status === "completed" ? 100 : 0,
+		createdBy: 0, // We don't have this info in the enrollment data
+		thumbnailUrl: null, // We don't have this info in the enrollment data
+	}));
 
 	// Check if user can manage courses (admin or content-manager)
 	const canManageCourses =
@@ -325,15 +327,6 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 						<Text size="lg" c="dimmed">
 							No courses available
 						</Text>
-						{canManageCourses && (
-							<Button
-								leftSection={<IconPlus size={16} />}
-								component={Link}
-								to={href("/course/new")}
-							>
-								Create your first course
-							</Button>
-						)}
 					</Stack>
 				)}
 			</Stack>

@@ -3,7 +3,7 @@ import { CourseActivityModuleLinks } from "server/collections/course-activity-mo
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
-import { TransactionIdNotFoundError } from "~/utils/error";
+import { TransactionIdNotFoundError, transformError, UnknownError } from "~/utils/error";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -85,6 +85,7 @@ export const tryFindLinksByCourse = Result.wrap(
 					equals: courseId,
 				},
 			},
+			depth: 2,
 			pagination: false,
 			sort: "-createdAt",
 		});
@@ -110,17 +111,34 @@ export const tryFindLinksByCourse = Result.wrap(
 				}),
 			);
 
+			const moduleCreatedBy = linkActivityModule.createdBy;
+			assertZod(moduleCreatedBy, z.object({
+				id: z.number(),
+			}));
+
+			const moduleCreatedByAvatar = moduleCreatedBy.avatar;
+			assertZod(moduleCreatedByAvatar, z.object({
+				id: z.number(),
+			}).nullish());
+
 			return {
 				...link,
 				course: linkCourse,
-				activityModule: linkActivityModule,
+				activityModule: {
+					...linkActivityModule,
+					createdBy: {
+						...moduleCreatedBy,
+						avatar: moduleCreatedByAvatar,
+					},
+				},
 			};
 		});
 	},
 	(error) =>
-		new Error(
-			`Failed to find links by course: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find links by course", {
+			cause: error,
+		}),
 );
 
 /**

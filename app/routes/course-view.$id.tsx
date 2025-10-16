@@ -12,24 +12,21 @@ import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconEdit } from "@tabler/icons-react";
 import { useState } from "react";
-import { Link, useFetcher, useSearchParams } from "react-router";
-import { courseContextKey } from "server/contexts/course-context";
+import { Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetUserActivityModules } from "server/internal/activity-module-management";
+import { tryGetCourseViewData } from "server/contexts/course-context";
 import {
 	tryCreateCourseActivityModuleLink,
 	tryDeleteCourseActivityModuleLink,
-	tryFindLinksByCourse,
 } from "server/internal/course-activity-module-link-management";
 import {
 	tryCreateEnrollment,
 	tryDeleteEnrollment,
-	tryFindUserEnrollmentInCourse,
-	trySearchEnrollments,
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
-import type { Course, Enrollment } from "server/payload-types";
+import type { Enrollment } from "server/payload-types";
+import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
 import { CourseInfo } from "~/components/course-info";
 import {
@@ -52,10 +49,8 @@ import type { Route } from "./+types/course-view.$id";
 export const loader = async ({
 	context,
 	params,
-	request,
 }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
-	const courseContext = context.get(courseContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -72,118 +67,18 @@ export const loader = async ({
 		});
 	}
 
-	// Course context must be defined, otherwise throw not found response
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found");
-	}
-
-	const course = courseContext.course;
-
-	// Check if user has access to this course
-	const courseCreatedById =
-		typeof course.createdBy === "number"
-			? course.createdBy
-			: course.createdBy.id;
-
-	const hasAccess =
-		currentUser.role === "admin" ||
-		currentUser.role === "content-manager" ||
-		courseCreatedById === currentUser.id;
-
-	if (!hasAccess) {
-		// Check if user is enrolled in the course
-		const enrollmentResult = await tryFindUserEnrollmentInCourse(
-			payload,
-			currentUser.id,
-			courseId,
-			{
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			request,
-			false, // respect access control
-		);
-
-		if (!enrollmentResult.ok || !enrollmentResult.value) {
-			throw new ForbiddenResponse("You don't have access to this course");
-		}
-	}
-
-	const createdByName = course.createdBy
-		? `${course.createdBy.firstName || ""} ${course.createdBy.lastName || ""}`.trim() ||
-			course.createdBy.email
-		: "Unknown";
-
-	// Fetch existing course-activity-module links
-	const linksResult = await tryFindLinksByCourse(payload, courseId);
-	const existingLinks = linksResult.ok ? linksResult.value : [];
-
-	// Fetch available activity modules the user can access
-	const modulesResult = await tryGetUserActivityModules(payload, {
-		userId: currentUser.id,
-		limit: 100,
-	});
-	const availableModules = modulesResult.ok ? modulesResult.value.docs : [];
-
-	// Fetch enrollments with pagination
-	const page = new URL(request.url).searchParams.get("page");
-	const currentPage = page ? Number.parseInt(page, 10) : 1;
-
-	const enrollmentsResult = await trySearchEnrollments({
+	// Get course view data using the new function
+	const courseViewData = await tryGetCourseViewData(
 		payload,
-		course: courseId,
-		limit: 10,
-		page: currentPage,
-		authenticatedUser: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-		req: request,
-		overrideAccess: false,
-	});
+		courseId,
+		currentUser,
+	);
 
-	const enrollments = enrollmentsResult.ok
-		? enrollmentsResult.value
-		: {
-				docs: [],
-				totalDocs: 0,
-				totalPages: 0,
-				page: 1,
-			};
+	if (!courseViewData) {
+		throw new ForbiddenResponse("Course not found or access denied");
+	}
 
-	return {
-		course: {
-			id: course.id,
-			title: course.title,
-			slug: course.slug,
-			description: course.description,
-			status: course.status,
-			createdBy: createdByName,
-			createdById: course.createdBy.id,
-			createdAt: course.createdAt,
-			updatedAt: course.updatedAt,
-			structure: course.structure,
-			enrollmentCount: course.enrollments.length,
-		},
-		currentUser: {
-			id: currentUser.id,
-			role: currentUser.role,
-		},
-		existingLinks,
-		availableModules: availableModules.map((module) => ({
-			id: module.id,
-			title: module.title,
-			type: module.type,
-			status: module.status,
-			description: module.description,
-		})),
-		enrollments: {
-			docs: enrollments.docs,
-			totalDocs: enrollments.totalDocs,
-			totalPages: enrollments.totalPages,
-			currentPage: enrollments.page,
-		},
-	};
+	return courseViewData;
 };
 
 export const action = async ({
@@ -428,7 +323,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 	const fetcher = useFetcher<typeof action>();
-	const [searchParams, setSearchParams] = useSearchParams();
 
 	// Modal states
 	const [
@@ -463,13 +357,12 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		);
 	}
 
-	const { course, currentUser, existingLinks, availableModules, enrollments } =
-		loaderData;
+	const { course, currentUser, availableModules } = loaderData;
 
 	const canEdit =
 		currentUser.role === "admin" ||
 		currentUser.role === "content-manager" ||
-		currentUser.id === course.createdById;
+		course.enrollments.some((enrollment: any) => enrollment.userId === currentUser.id);
 
 	const handleDeleteLink = (linkId: number) => {
 		fetcher.submit(
@@ -507,8 +400,20 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		}
 	};
 
-	const handleEditEnrollment = (enrollment: Enrollment) => {
-		setEditingEnrollment(enrollment);
+	const handleEditEnrollment = (enrollment: CourseEnrollment) => {
+		// Convert CourseEnrollment to payload Enrollment type for the modal
+		const payloadEnrollment: Enrollment = {
+			id: enrollment.id,
+			user: enrollment.userId,
+			course: 0, // This will be set by the modal
+			role: enrollment.role,
+			status: enrollment.status,
+			enrolledAt: enrollment.enrolledAt,
+			completedAt: enrollment.completedAt,
+			updatedAt: "",
+			createdAt: "",
+		};
+		setEditingEnrollment(payloadEnrollment);
 		setSelectedRole(enrollment.role);
 		setSelectedStatus(enrollment.status);
 		openEditModal();
@@ -551,14 +456,9 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		}
 	};
 
-	const handlePageChange = (page: number) => {
-		const newParams = new URLSearchParams(searchParams);
-		newParams.set("page", page.toString());
-		setSearchParams(newParams);
-	};
 
 	// Get enrolled user IDs for exclusion
-	const enrolledUserIds = enrollments.docs.map((enrollment: Enrollment) =>
+	const enrolledUserIds = course.enrollments.map((enrollment: any) =>
 		typeof enrollment.user === "object" ? enrollment.user.id : enrollment.user,
 	);
 
@@ -593,10 +493,22 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 					)}
 				</Group>
 
-				<CourseInfo course={course} />
+				<CourseInfo course={{
+					id: course.id,
+					title: course.title,
+					slug: course.slug,
+					description: course.description,
+					status: course.status,
+					createdBy: course.createdBy ? `${course.createdBy.firstName || ""} ${course.createdBy.lastName || ""}`.trim() || course.createdBy.email : "Unknown",
+					createdById: course.createdBy.id,
+					createdAt: course.createdAt,
+					updatedAt: course.updatedAt,
+					structure: course.structure,
+					enrollmentCount: course.enrollments.length,
+				}} />
 
 				<ActivityModulesSection
-					existingLinks={existingLinks.map((link) => ({
+					existingLinks={course.moduleLinks.map((link) => ({
 						id: link.id,
 						activityModule: {
 							id: String(link.activityModule.id),
@@ -615,13 +527,12 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 				/>
 
 				<EnrollmentsSection
-					enrollments={enrollments}
+					enrollments={course.enrollments as any[]}
 					currentUserRole={currentUser.role || "student"}
 					fetcherState={fetcher.state}
 					onOpenEnrollModal={openEnrollModal}
 					onEditEnrollment={handleEditEnrollment}
 					onDeleteEnrollment={handleDeleteEnrollment}
-					onPageChange={handlePageChange}
 				/>
 			</Stack>
 

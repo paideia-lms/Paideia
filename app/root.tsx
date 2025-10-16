@@ -35,6 +35,7 @@ import { tryFindCourseById } from "server/internal/course-management";
 import { tryHandleImpersonation } from "server/internal/user-management";
 import type { User as PayloadUser } from "server/payload-types";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
+import { getUserAccessContext, userAccessContextKey } from "server/contexts/user-access-context";
 
 export const middleware = [
 	/**
@@ -101,6 +102,16 @@ export const middleware = [
 				);
 				context.set(courseContextKey, courseContext);
 			}
+		}
+	},
+	// set the user access context
+	async ({ request, context }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (userSession?.isAuthenticated) {
+			const userAccessContext = await getUserAccessContext(payload, userSession.effectiveUser || userSession.authenticatedUser || null);
+			context.set(userAccessContextKey, userAccessContext);
 		}
 	},
 ] satisfies Route.MiddlewareFunction[];

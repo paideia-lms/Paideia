@@ -110,6 +110,7 @@ export interface Config {
       quizSubmissions: 'quiz-submissions';
       discussionSubmissions: 'discussion-submissions';
       grants: 'activity-module-grants';
+      linkedCourses: 'course-activity-module-links';
     };
     gradebooks: {
       categories: 'gradebook-categories';
@@ -459,6 +460,11 @@ export interface ActivityModule {
   };
   grants?: {
     docs?: (number | ActivityModuleGrant)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  linkedCourses?: {
+    docs?: (number | CourseActivityModuleLink)[];
     hasNextPage?: boolean;
     totalDocs?: number;
   };
@@ -1160,6 +1166,7 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   quizSubmissions?: T;
   discussionSubmissions?: T;
   grants?: T;
+  linkedCourses?: T;
   updatedAt?: T;
   createdAt?: T;
 }
