@@ -36,7 +36,9 @@ we should only use payload local api. we should not use anything related to next
 
 testing should be simple and easy to read. for complex test, we better just skip and and test manually instead.
 
-each test files should only have one describe block. each test file related to database, s3, redis orpayload should have do a refresh using beforeAll. 
+each test files should only have one describe block. each test file related to database, s3, redis or payload should have do a refresh using beforeAll. 
+
+if you really want a completely isolated test, you should always create a new root describe block and its own beforeAll and AfterAll
 
 ## error handling
 

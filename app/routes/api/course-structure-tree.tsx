@@ -10,11 +10,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
     return badRequest({ error: "Course structure tree API temporarily disabled - needs update for new sections system" });
 };
 
-export async function clientAction({ serverAction }: RouteClientActionArgs) {
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
     // TODO: Implement using new course-sections system
     return { success: false, error: "Course structure tree API temporarily disabled" };
-}
-
-interface RouteClientActionArgs {
-    serverAction: () => Promise<unknown>;
 }

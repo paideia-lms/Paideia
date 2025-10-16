@@ -56,11 +56,19 @@ const pg = postgresAdapter({
 		// change the foreign key constraint to delete cascade
 		({ schema }) => {
 			// console.log(Object.keys(schema.relations));
-			// Modify foreign key constraints for activity_module_grants
+			// Modify foreign key constraints for activity_module_grants, course_sections, and course_activity_module_links
 			const relations = [
 				{
 					relation: "relations_activity_module_grants",
 					foreignTable: "activity_modules",
+				},
+				{
+					relation: "relations_course_sections",
+					foreignTable: "courses",
+				},
+				{
+					relation: "relations_course_activity_module_links",
+					foreignTable: "courses",
 				},
 			];
 
@@ -74,7 +82,7 @@ const pg = postgresAdapter({
 					// @ts-expect-error workaround
 					fkeys.forEach((foreignKey) => {
 						// console.log(foreignKey.reference().foreignTable[Symbol.for("drizzle:Name")]);
-						// Change activityModule foreign key to CASCADE on delete
+						// Change foreign key to CASCADE on delete for both activity_modules and courses
 						if (
 							foreignKey.reference().foreignTable[
 							Symbol.for("drizzle:Name")

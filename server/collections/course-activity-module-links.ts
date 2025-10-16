@@ -64,5 +64,13 @@ export const CourseActivityModuleLinks = {
 			label: "Order",
 			min: 0,
 		},
+		{
+			name: "contentOrder",
+			type: "number",
+			required: true,
+			defaultValue: 0,
+			label: "Content Order",
+			min: 0,
+		},
 	],
 } as const satisfies CollectionConfig;

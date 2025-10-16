@@ -427,6 +427,7 @@ export interface CourseSection {
   parentSection?: (number | null) | CourseSection;
   parentSectionTitle?: string | null;
   order: number;
+  contentOrder: number;
   activityModules?: {
     docs?: (number | CourseActivityModuleLink)[];
     hasNextPage?: boolean;
@@ -455,6 +456,7 @@ export interface CourseActivityModuleLink {
   section: number | CourseSection;
   sectionTitle?: string | null;
   order: number;
+  contentOrder: number;
   updatedAt: string;
   createdAt: string;
 }
@@ -1160,6 +1162,7 @@ export interface CourseSectionsSelect<T extends boolean = true> {
   parentSection?: T;
   parentSectionTitle?: T;
   order?: T;
+  contentOrder?: T;
   activityModules?: T;
   childSections?: T;
   updatedAt?: T;
@@ -1368,6 +1371,7 @@ export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
   section?: T;
   sectionTitle?: T;
   order?: T;
+  contentOrder?: T;
   updatedAt?: T;
   createdAt?: T;
 }

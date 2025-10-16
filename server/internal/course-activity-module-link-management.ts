@@ -9,7 +9,8 @@ export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
 	activityModule: number;
 	section: number;
-	order: number;
+	order?: number;
+	contentOrder?: number;
 	transactionID?: string | number;
 }
 
@@ -29,7 +30,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		request: Request,
 		args: CreateCourseActivityModuleLinkArgs,
 	) => {
-		const { course, activityModule, section, order, transactionID } = args;
+		const { course, activityModule, section, order = 0, contentOrder = 0, transactionID } = args;
 
 		const newLink = await payload.create({
 			collection: CourseActivityModuleLinks.slug,
@@ -38,6 +39,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				activityModule,
 				section,
 				order,
+				contentOrder,
 			},
 			req: {
 				...request,

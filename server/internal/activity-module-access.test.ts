@@ -12,7 +12,7 @@ import {
 	tryTransferActivityModuleOwnership,
 } from "./activity-module-access";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
-import { tryCreateSection } from "./course-section-management";
+import { tryCreateSection, tryAddActivityModuleToSection } from "./course-section-management";
 
 describe("Activity Module Access Control", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -84,14 +84,11 @@ describe("Activity Module Access Control", () => {
 		}
 
 		// Link activity module to course section
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course.id,
-				activityModule: activityModule.id,
-				section: sectionResult.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule.id,
+			sectionId: sectionResult.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});
@@ -1218,14 +1215,11 @@ describe("Activity Module Access Control", () => {
 		}
 
 		// Create course-activity-module link
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course.id,
-				activityModule: activityModule.id,
-				section: sectionResult.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule.id,
+			sectionId: sectionResult.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});
@@ -1358,26 +1352,20 @@ describe("Activity Module Access Control", () => {
 		}
 
 		// Link activity module to both courses
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course1.id,
-				activityModule: activityModule.id,
-				section: section1Result.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule.id,
+			sectionId: section1Result.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});
 
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course2.id,
-				activityModule: activityModule.id,
-				section: section2Result.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule.id,
+			sectionId: section2Result.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});
@@ -1636,26 +1624,20 @@ describe("Activity Module Access Control", () => {
 		}
 
 		// Link activity modules to courses
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course1.id,
-				activityModule: activityModule1.id,
-				section: section1Result.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule1.id,
+			sectionId: section1Result.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});
 
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course2.id,
-				activityModule: activityModule2.id,
-				section: section2Result.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule2.id,
+			sectionId: section2Result.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});
@@ -1770,14 +1752,11 @@ describe("Activity Module Access Control", () => {
 		}
 
 		// Link activity module to course
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course.id,
-				activityModule: activityModule.id,
-				section: sectionResult.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule.id,
+			sectionId: sectionResult.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});
@@ -1859,14 +1838,11 @@ describe("Activity Module Access Control", () => {
 		}
 
 		// Link activity module to course
-		await payload.create({
-			collection: "course-activity-module-links",
-			data: {
-				course: course.id,
-				activityModule: activityModule.id,
-				section: sectionResult.value.id,
-				order: 0,
-			},
+		await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: activityModule.id,
+			sectionId: sectionResult.value.id,
+			order: 0,
 			user: user1,
 			overrideAccess: true,
 		});

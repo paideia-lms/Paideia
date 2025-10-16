@@ -1,7 +1,7 @@
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
 import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
 import searchQueryParser from "search-query-parser";
-import { Courses, Gradebooks, Groups } from "server/payload.config";
+import { Courses, CourseSections, Gradebooks, Groups } from "server/payload.config";
 import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -160,6 +160,22 @@ export const tryCreateCourse = Result.wrap(
 				overrideAccess,
 			});
 
+			// create a default section for the course
+			const defaultSectionResult = await payload.create({
+				collection: CourseSections.slug,
+				data: {
+					course: newCourse.id,
+					title: "Course Content",
+					description: "Default section for course content",
+					order: 1,
+					contentOrder: 0,
+				},
+				depth: 0,
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
+			});
+
 			////////////////////////////////////////////////////
 			// type narrowing
 			////////////////////////////////////////////////////
@@ -199,6 +215,7 @@ export const tryCreateCourse = Result.wrap(
 				...newCourse,
 				createdBy: createdByUser,
 				gradebook: gradebookResult,
+				defaultSection: defaultSectionResult,
 				thumbnail: newCourseThumbnail,
 				category: newCourseCategory,
 			};

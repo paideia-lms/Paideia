@@ -1,8 +1,6 @@
 import type { Payload, PayloadRequest } from "payload";
 import { CourseSections, CourseActivityModuleLinks } from "server/payload.config";
-import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
     InvalidArgumentError,
     TransactionIdNotFoundError,
@@ -23,6 +21,7 @@ export interface CreateSectionArgs {
         description?: string;
         parentSection?: number;
         order?: number;
+        contentOrder?: number;
     };
     user?: User | null;
     req?: Partial<PayloadRequest>;
@@ -113,11 +112,6 @@ export const tryCreateSection = Result.wrap(
                         "Parent section must belong to the same course",
                     );
                 }
-
-                // Prevent circular references
-                if (data.parentSection === data.course) {
-                    throw new InvalidArgumentError("Section cannot be its own parent");
-                }
             }
 
             // Get next order number if not provided
@@ -149,6 +143,74 @@ export const tryCreateSection = Result.wrap(
                 order = siblings.docs.length > 0 ? siblings.docs[0].order + 1 : 1;
             }
 
+            // Calculate contentOrder based on existing content in parent section
+            let contentOrder = data.contentOrder ?? 0;
+            if (contentOrder === 0) {
+                const parentSectionId = data.parentSection;
+
+                if (parentSectionId) {
+                    // Get existing sections in parent
+                    const existingSections = await payload.find({
+                        collection: CourseSections.slug,
+                        where: {
+                            parentSection: {
+                                equals: parentSectionId,
+                            },
+                        },
+                        sort: "-contentOrder",
+                        limit: 1,
+                        user,
+                        req: req ? { ...req, transactionID } : { transactionID },
+                        overrideAccess: true,
+                    });
+
+                    // Get existing modules in parent
+                    const existingModules = await payload.find({
+                        collection: CourseActivityModuleLinks.slug,
+                        where: {
+                            section: {
+                                equals: parentSectionId,
+                            },
+                        },
+                        sort: "-contentOrder",
+                        limit: 1,
+                        user,
+                        req: req ? { ...req, transactionID } : { transactionID },
+                        overrideAccess: true,
+                    });
+
+                    const maxSectionContentOrder = existingSections.docs.length > 0 ? existingSections.docs[0].contentOrder : 0;
+                    const maxModuleContentOrder = existingModules.docs.length > 0 ? existingModules.docs[0].contentOrder : 0;
+                    contentOrder = Math.max(maxSectionContentOrder, maxModuleContentOrder) + 1;
+                } else {
+                    // Root level section
+                    const rootSections = await payload.find({
+                        collection: CourseSections.slug,
+                        where: {
+                            and: [
+                                {
+                                    course: {
+                                        equals: data.course,
+                                    },
+                                },
+                                {
+                                    parentSection: {
+                                        exists: false,
+                                    },
+                                },
+                            ],
+                        },
+                        sort: "-contentOrder",
+                        limit: 1,
+                        user,
+                        req: req ? { ...req, transactionID } : { transactionID },
+                        overrideAccess: true,
+                    });
+
+                    contentOrder = rootSections.docs.length > 0 ? rootSections.docs[0].contentOrder + 1 : 1;
+                }
+            }
+
             const newSection = await payload.create({
                 collection: CourseSections.slug,
                 data: {
@@ -157,6 +219,7 @@ export const tryCreateSection = Result.wrap(
                     description: data.description,
                     parentSection: data.parentSection,
                     order,
+                    contentOrder: contentOrder,
                 },
                 depth: 1,
                 user,
@@ -317,6 +380,17 @@ export const tryDeleteSection = Result.wrap(
         }
 
         try {
+            // Get the section to access its course
+            const section = await payload.findByID({
+                collection: CourseSections.slug,
+                id: sectionId,
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            });
+
+            const courseId = typeof section.course === "number" ? section.course : section.course.id;
+
             // Check if section has child sections
             const childSections = await payload.find({
                 collection: CourseSections.slug,
@@ -354,6 +428,26 @@ export const tryDeleteSection = Result.wrap(
             if (activityModules.docs.length > 0) {
                 throw new InvalidArgumentError(
                     "Cannot delete section with activity modules. Remove modules first.",
+                );
+            }
+
+            // Check if this is the last section in the course
+            const courseSections = await payload.find({
+                collection: CourseSections.slug,
+                where: {
+                    course: {
+                        equals: courseId,
+                    },
+                },
+                limit: 2, // We only need to know if there are more than 1
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            });
+
+            if (courseSections.docs.length <= 1) {
+                throw new InvalidArgumentError(
+                    "Cannot delete the last section in a course. Every course must have at least one section.",
                 );
             }
 
@@ -639,7 +733,7 @@ export const tryGetSectionAncestors = Result.wrap(
         let currentId: number | null = sectionId;
 
         while (currentId !== null) {
-            const section: any = await payload.findByID({
+            const section: CourseSection = await payload.findByID({
                 collection: CourseSections.slug,
                 id: currentId,
                 depth: 0,
@@ -648,7 +742,7 @@ export const tryGetSectionAncestors = Result.wrap(
                 overrideAccess,
             });
 
-            ancestors.unshift(section as CourseSection);
+            ancestors.unshift(section);
 
             currentId =
                 typeof section.parentSection === "number"
@@ -678,7 +772,7 @@ export const tryGetSectionDepth = Result.wrap(
         let currentId: number | null = sectionId;
 
         while (currentId !== null) {
-            const section: any = await payload.findByID({
+            const section: CourseSection = await payload.findByID({
                 collection: CourseSections.slug,
                 id: currentId,
                 depth: 0,
@@ -1410,8 +1504,41 @@ export const tryAddActivityModuleToSection = Result.wrap(
                     overrideAccess: true,
                 });
 
-                linkOrder = existingModules.docs.length > 0 ? existingModules.docs[0].order + 1 : 1;
+                linkOrder = existingModules.docs.length > 0 ? (existingModules.docs[0].order ?? 0) + 1 : 1;
             }
+
+            // Calculate contentOrder based on existing content (both sections and modules)
+            const existingSections = await payload.find({
+                collection: CourseSections.slug,
+                where: {
+                    parentSection: {
+                        equals: sectionId,
+                    },
+                },
+                sort: "-contentOrder",
+                limit: 1,
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            });
+
+            const existingModules = await payload.find({
+                collection: CourseActivityModuleLinks.slug,
+                where: {
+                    section: {
+                        equals: sectionId,
+                    },
+                },
+                sort: "-contentOrder",
+                limit: 1,
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            });
+
+            const maxSectionContentOrder = existingSections.docs.length > 0 ? existingSections.docs[0].contentOrder : 0;
+            const maxModuleContentOrder = existingModules.docs.length > 0 ? existingModules.docs[0].contentOrder : 0;
+            const contentOrder = Math.max(maxSectionContentOrder, maxModuleContentOrder) + 1;
 
             // Create the link
             const newLink = await payload.create({
@@ -1421,6 +1548,7 @@ export const tryAddActivityModuleToSection = Result.wrap(
                     activityModule: activityModuleId,
                     section: sectionId,
                     order: linkOrder,
+                    contentOrder: contentOrder,
                 },
                 depth: 1,
                 user,
@@ -1593,7 +1721,7 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
                     overrideAccess: true,
                 });
 
-                linkOrder = existingModules.docs.length > 0 ? existingModules.docs[0].order + 1 : 1;
+                linkOrder = existingModules.docs.length > 0 ? (existingModules.docs[0].order ?? 0) + 1 : 1;
             }
 
             // Update the link
@@ -1603,6 +1731,7 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
                 data: {
                     section: newSectionId,
                     order: linkOrder,
+                    contentOrder: linkOrder, // Also update contentOrder to match order
                 },
                 user,
                 req: req ? { ...req, transactionID } : { transactionID },
@@ -1643,6 +1772,8 @@ export interface GetSectionModulesCountArgs {
 
 /**
  * Ensures parent change won't create circular reference
+ * 
+ * ! this should only be used in testing and development
  */
 export const tryValidateNoCircularReference = Result.wrap(
     async (args: ValidateNoCircularReferenceArgs) => {
@@ -1701,6 +1832,187 @@ export const tryGetSectionModulesCount = Result.wrap(
 );
 
 // ============================================================================
+// Course Structure Representation
+// ============================================================================
+
+export interface CourseStructureItem {
+    id: number;
+    type: "activity-module";
+    contentOrder: number;
+}
+
+export interface CourseStructureSection {
+    id: number;
+    title: string;
+    description: string;
+    order: number;
+    contentOrder: number;
+    type: "section";
+    content: (CourseStructureItem | CourseStructureSection)[];
+}
+
+export interface CourseStructure {
+    courseId: number;
+    sections: CourseStructureSection[];
+}
+
+export interface GetCourseStructureArgs {
+    payload: Payload;
+    courseId: number;
+    user?: User | null;
+    req?: Partial<PayloadRequest>;
+    overrideAccess?: boolean;
+}
+
+/**
+ * Gets the complete course structure as a hierarchical JSON representation with mixed content ordering
+ */
+export const tryGetCourseStructure = Result.wrap(
+    async (args: GetCourseStructureArgs) => {
+        const { payload, courseId, user, req, overrideAccess = false } = args;
+
+        if (!courseId) {
+            throw new InvalidArgumentError("Course ID is required");
+        }
+
+        // Get all sections for the course
+        const sectionsResult = await tryFindSectionsByCourse({
+            payload,
+            courseId,
+            user,
+            req,
+            overrideAccess,
+        });
+
+        if (!sectionsResult.ok) {
+            throw sectionsResult.error;
+        }
+
+        const sections = sectionsResult.value;
+
+        // Get all activity module links for the course
+        const activityModuleLinks = await payload.find({
+            collection: CourseActivityModuleLinks.slug,
+            where: {
+                course: {
+                    equals: courseId,
+                },
+            },
+            sort: "contentOrder",
+            pagination: false,
+            depth: 1,
+            user,
+            req,
+            overrideAccess,
+        });
+
+        // Create maps for efficient lookup
+        const sectionMap = new Map<number, CourseStructureSection>();
+        const sectionModulesMap = new Map<number, CourseActivityModuleLink[]>();
+        const rootSections: CourseStructureSection[] = [];
+
+        // Group activity modules by section
+        for (const link of activityModuleLinks.docs) {
+            const sectionId = typeof link.section === "number" ? link.section : link.section.id;
+            if (!sectionModulesMap.has(sectionId)) {
+                sectionModulesMap.set(sectionId, []);
+            }
+            const existingLinks = sectionModulesMap.get(sectionId);
+            if (existingLinks) {
+                existingLinks.push(link as CourseActivityModuleLink);
+            }
+        }
+
+        // First pass: create all section nodes
+        for (const section of sections) {
+            const structureSection: CourseStructureSection = {
+                id: section.id,
+                title: section.title,
+                description: section.description || "",
+                order: section.order,
+                contentOrder: section.contentOrder || 0,
+                type: "section",
+                content: [],
+            };
+
+            sectionMap.set(section.id, structureSection);
+        }
+
+        // Second pass: build the hierarchy and populate content
+        for (const section of sections) {
+            const structureSection = sectionMap.get(section.id);
+            if (!structureSection) continue;
+
+            const parentId = typeof section.parentSection === "number"
+                ? section.parentSection
+                : section.parentSection?.id ?? null;
+
+            // Get activity modules for this section
+            const activityModules = sectionModulesMap.get(section.id) || [];
+
+            // Create mixed content array
+            const mixedContent: (CourseStructureItem | CourseStructureSection)[] = [];
+
+            // Add activity modules to content
+            for (const link of activityModules) {
+                mixedContent.push({
+                    id: link.id,
+                    type: "activity-module",
+                    contentOrder: link.contentOrder || 0,
+                });
+            }
+
+            // Add child sections to content
+            for (const childSection of sections) {
+                const childParentId = typeof childSection.parentSection === "number"
+                    ? childSection.parentSection
+                    : childSection.parentSection?.id ?? null;
+
+                if (childParentId === section.id) {
+                    const childStructureSection = sectionMap.get(childSection.id);
+                    if (childStructureSection) {
+                        mixedContent.push(childStructureSection);
+                    }
+                }
+            }
+
+            // Sort content by contentOrder, then by type (sections before activity modules)
+            mixedContent.sort((a, b) => {
+                if (a.contentOrder !== b.contentOrder) {
+                    return a.contentOrder - b.contentOrder;
+                }
+                // When contentOrder is equal, sections come before activity modules
+                if (a.type === "section" && b.type === "activity-module") {
+                    return -1;
+                }
+                if (a.type === "activity-module" && b.type === "section") {
+                    return 1;
+                }
+                return 0;
+            });
+
+            structureSection.content = mixedContent;
+
+            // Add to root sections if no parent
+            if (parentId === null) {
+                rootSections.push(structureSection);
+            }
+        }
+
+        // Sort root sections by order
+        rootSections.sort((a, b) => a.order - b.order);
+
+        return {
+            courseId,
+            sections: rootSections,
+        } as CourseStructure;
+    },
+    (error) =>
+        transformError(error) ??
+        new UnknownError("Failed to get course structure", { cause: error }),
+);
+
+// ============================================================================
 // Helper Functions
 // ============================================================================
 
@@ -1720,7 +2032,7 @@ async function checkCircularReference(
             return true; // Circular reference found
         }
 
-        const section: any = await payload.findByID({
+        const section: CourseSection = await payload.findByID({
             collection: CourseSections.slug,
             id: currentId,
             depth: 0,
@@ -1737,36 +2049,362 @@ async function checkCircularReference(
     return false; // No circular reference
 }
 
-/**
- * Helper function to get all nested sections recursively
- */
-async function getSectionDescendants(
-    payload: Payload,
-    sectionId: number,
-    req?: Partial<PayloadRequest>,
-): Promise<CourseSection[]> {
-    const descendants: CourseSection[] = [];
+export interface GeneralMoveArgs {
+    payload: Payload;
+    user?: User | null;
+    req?: Partial<PayloadRequest>;
+    overrideAccess?: boolean;
+    source: {
+        id: number;
+        type: "section" | "activity-module";
+    };
+    // the target cannot be null, even for move into the root level becasue there is always 1 section, which means there will be reference for below and above
+    target: {
+        id: number;
+        type: "section" | "activity-module";
+    };
+    // we need the inside operation because it is possible that the target is a empty section and we have no reference for below or above
+    location: "below" | "above" | "inside";
+}
 
-    const childSections = await payload.find({
+/**
+ * General move function that handles moving sections and activity modules with automatic order/contentOrder calculation
+ */
+export const tryGeneralMove = Result.wrap(
+    async (args: GeneralMoveArgs) => {
+        const { payload, source, target, location, user, req, overrideAccess = false } = args;
+
+        if (!source.id) {
+            throw new InvalidArgumentError("Source ID is required");
+        }
+
+        if (!target.id) {
+            throw new InvalidArgumentError("Target ID is required");
+        }
+
+        // Cannot move anything inside an activity module
+        if (location === "inside" && target.type === "activity-module") {
+            throw new InvalidArgumentError("Cannot move items inside an activity module");
+        }
+
+        const transactionID = await payload.db.beginTransaction();
+        if (!transactionID) {
+            throw new TransactionIdNotFoundError("Failed to begin transaction");
+        }
+
+        try {
+            // Get source item
+            let sourceItem: CourseSection | CourseActivityModuleLink;
+            if (source.type === "section") {
+                sourceItem = await payload.findByID({
+                    collection: CourseSections.slug,
+                    id: source.id,
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess: true,
+                }) as CourseSection;
+            } else {
+                sourceItem = await payload.findByID({
+                    collection: CourseActivityModuleLinks.slug,
+                    id: source.id,
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess: true,
+                }) as CourseActivityModuleLink;
+            }
+
+            // Get target item
+            let targetItem: CourseSection | CourseActivityModuleLink;
+            if (target.type === "section") {
+                targetItem = await payload.findByID({
+                    collection: CourseSections.slug,
+                    id: target.id,
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess: true,
+                }) as CourseSection;
+            } else {
+                targetItem = await payload.findByID({
+                    collection: CourseActivityModuleLinks.slug,
+                    id: target.id,
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess: true,
+                }) as CourseActivityModuleLink;
+            }
+
+            // Determine course ID
+            const sourceCourseId = source.type === "section"
+                ? (typeof sourceItem.course === "number" ? sourceItem.course : sourceItem.course.id)
+                : (typeof sourceItem.course === "number" ? sourceItem.course : sourceItem.course.id);
+
+            const targetCourseId = target.type === "section"
+                ? (typeof targetItem.course === "number" ? targetItem.course : targetItem.course.id)
+                : (typeof targetItem.course === "number" ? targetItem.course : targetItem.course.id);
+
+            // Verify both items belong to same course
+            if (sourceCourseId !== targetCourseId) {
+                throw new InvalidArgumentError("Source and target must belong to the same course");
+            }
+
+            let newParentSectionId: number | null;
+            let newContentOrder: number;
+
+            if (location === "inside") {
+                // Moving inside a section
+                newParentSectionId = target.id;
+
+                // Get all content in target section to find max contentOrder
+                const targetContent = await payload.find({
+                    collection: CourseSections.slug,
+                    where: {
+                        parentSection: {
+                            equals: target.id,
+                        },
+                    },
+                    sort: "-contentOrder",
+                    limit: 1,
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess: true,
+                });
+
+                const targetActivityModules = await payload.find({
+                    collection: CourseActivityModuleLinks.slug,
+                    where: {
+                        section: {
+                            equals: target.id,
+                        },
+                    },
+                    sort: "-contentOrder",
+                    limit: 1,
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess: true,
+                });
+
+                const maxSectionContentOrder = targetContent.docs.length > 0 ? targetContent.docs[0].contentOrder : 0;
+                const maxModuleContentOrder = targetActivityModules.docs.length > 0 ? targetActivityModules.docs[0].contentOrder : 0;
+                newContentOrder = Math.max(maxSectionContentOrder, maxModuleContentOrder) + 1;
+
+                // Check for circular reference if moving section inside another section
+                if (source.type === "section") {
+                    const hasCircularRef = await checkCircularReference(
+                        payload,
+                        source.id,
+                        target.id,
+                        req ? { ...req, transactionID } : { transactionID },
+                    );
+
+                    if (hasCircularRef) {
+                        throw new InvalidArgumentError("Cannot move section: would create circular reference");
+                    }
+                }
+            } else {
+                // Moving above or below target
+                if (target.type === "section") {
+                    const targetSection = targetItem as CourseSection;
+                    newParentSectionId = typeof targetSection.parentSection === "number"
+                        ? targetSection.parentSection
+                        : targetSection.parentSection?.id ?? null;
+                } else {
+                    const targetLink = targetItem as CourseActivityModuleLink;
+                    newParentSectionId = typeof targetLink.section === "number"
+                        ? targetLink.section
+                        : targetLink.section.id;
+                }
+
+                const targetContentOrder = target.type === "section"
+                    ? (targetItem as CourseSection).contentOrder
+                    : (targetItem as CourseActivityModuleLink).contentOrder;
+
+                if (location === "above") {
+                    newContentOrder = targetContentOrder;
+                } else { // below
+                    newContentOrder = targetContentOrder + 1;
+                }
+
+                // Shift contentOrder of siblings
+                await shiftSiblingsContentOrder(
+                    payload,
+                    newParentSectionId,
+                    newContentOrder,
+                    location === "above",
+                    req ? { ...req, transactionID } : { transactionID },
+                );
+            }
+
+            // Update source item
+            if (source.type === "section") {
+                // Calculate new order among section siblings
+                let newOrder = 0;
+                if (newParentSectionId) {
+                    const siblingSections = await payload.find({
+                        collection: CourseSections.slug,
+                        where: {
+                            parentSection: {
+                                equals: newParentSectionId,
+                            },
+                        },
+                        sort: "-order",
+                        limit: 1,
+                        user,
+                        req: req ? { ...req, transactionID } : { transactionID },
+                        overrideAccess: true,
+                    });
+
+                    newOrder = siblingSections.docs.length > 0 ? siblingSections.docs[0].order + 1 : 1;
+                } else {
+                    // Moving to root level
+                    const rootSections = await payload.find({
+                        collection: CourseSections.slug,
+                        where: {
+                            and: [
+                                {
+                                    course: {
+                                        equals: sourceCourseId,
+                                    },
+                                },
+                                {
+                                    parentSection: {
+                                        exists: false,
+                                    },
+                                },
+                            ],
+                        },
+                        sort: "-order",
+                        limit: 1,
+                        user,
+                        req: req ? { ...req, transactionID } : { transactionID },
+                        overrideAccess: true,
+                    });
+
+                    newOrder = rootSections.docs.length > 0 ? rootSections.docs[0].order + 1 : 1;
+                }
+
+                const updatedSection = await payload.update({
+                    collection: CourseSections.slug,
+                    id: source.id,
+                    data: {
+                        parentSection: newParentSectionId,
+                        contentOrder: newContentOrder,
+                        order: newOrder,
+                    },
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess,
+                });
+
+                await payload.db.commitTransaction(transactionID);
+                return updatedSection;
+            } else {
+                // Update activity module link
+                if (!newParentSectionId) {
+                    throw new InvalidArgumentError("Activity module must be assigned to a section");
+                }
+
+                const updatedLink = await payload.update({
+                    collection: CourseActivityModuleLinks.slug,
+                    id: source.id,
+                    data: {
+                        section: newParentSectionId,
+                        contentOrder: newContentOrder,
+                    },
+                    user,
+                    req: req ? { ...req, transactionID } : { transactionID },
+                    overrideAccess,
+                });
+
+                await payload.db.commitTransaction(transactionID);
+                return updatedLink;
+            }
+        } catch (error) {
+            await payload.db.rollbackTransaction(transactionID);
+            throw error;
+        }
+    },
+    (error) =>
+        transformError(error) ??
+        new UnknownError("Failed to perform general move", { cause: error }),
+);
+
+/**
+ * Helper function to shift contentOrder of siblings when inserting above/below
+ */
+async function shiftSiblingsContentOrder(
+    payload: Payload,
+    parentSectionId: number | null,
+    insertContentOrder: number,
+    insertAbove: boolean,
+    req?: Partial<PayloadRequest>,
+): Promise<void> {
+    // Get all sections with same parent
+    const siblingSections = await payload.find({
         collection: CourseSections.slug,
         where: {
-            parentSection: {
-                equals: sectionId,
-            },
+            parentSection: parentSectionId ? { equals: parentSectionId } : { exists: false },
         },
-        sort: "order",
         pagination: false,
-        depth: 0,
+        user: undefined,
         req,
         overrideAccess: true,
     });
 
-    for (const child of childSections.docs) {
-        descendants.push(child as CourseSection);
-        // Recursively get descendants of this child
-        const childDescendants = await getSectionDescendants(payload, child.id, req);
-        descendants.push(...childDescendants);
+    // Get all activity module links with same parent
+    const siblingModules = await payload.find({
+        collection: CourseActivityModuleLinks.slug,
+        where: {
+            section: parentSectionId ? { equals: parentSectionId } : { exists: false },
+        },
+        pagination: false,
+        user: undefined,
+        req,
+        overrideAccess: true,
+    });
+
+    // Update sections
+    for (const section of siblingSections.docs) {
+        if (insertAbove && section.contentOrder >= insertContentOrder) {
+            await payload.update({
+                collection: CourseSections.slug,
+                id: section.id,
+                data: { contentOrder: section.contentOrder + 1 },
+                user: undefined,
+                req,
+                overrideAccess: true,
+            });
+        } else if (!insertAbove && section.contentOrder > insertContentOrder) {
+            await payload.update({
+                collection: CourseSections.slug,
+                id: section.id,
+                data: { contentOrder: section.contentOrder + 1 },
+                user: undefined,
+                req,
+                overrideAccess: true,
+            });
+        }
     }
 
-    return descendants;
+    // Update activity module links
+    for (const link of siblingModules.docs) {
+        if (insertAbove && link.contentOrder >= insertContentOrder) {
+            await payload.update({
+                collection: CourseActivityModuleLinks.slug,
+                id: link.id,
+                data: { contentOrder: link.contentOrder + 1 },
+                user: undefined,
+                req,
+                overrideAccess: true,
+            });
+        } else if (!insertAbove && link.contentOrder > insertContentOrder) {
+            await payload.update({
+                collection: CourseActivityModuleLinks.slug,
+                id: link.id,
+                data: { contentOrder: link.contentOrder + 1 },
+                user: undefined,
+                req,
+                overrideAccess: true,
+            });
+        }
+    }
 }

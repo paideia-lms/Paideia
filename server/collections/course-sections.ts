@@ -3,7 +3,7 @@ import type { CollectionConfig } from "payload";
 // Course Sections collection - hierarchical sections within courses
 export const CourseSections = {
     slug: "course-sections" as const,
-    defaultSort: "order",
+    defaultSort: "contentOrder",
     access: {
         create: ({ req }) => {
             // must be logged in to create a section
@@ -74,6 +74,14 @@ export const CourseSections = {
             required: true,
             defaultValue: 0,
             label: "Order",
+            min: 0,
+        },
+        {
+            name: "contentOrder",
+            type: "number",
+            required: true,
+            defaultValue: 0,
+            label: "Content Order",
             min: 0,
         },
         {

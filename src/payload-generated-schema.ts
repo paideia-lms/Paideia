@@ -280,6 +280,7 @@ export const course_sections = pgTable(
       },
     ),
     order: numeric("order").notNull().default("0"),
+    contentOrder: numeric("content_order").notNull().default("0"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -881,6 +882,7 @@ export const course_activity_module_links = pgTable(
         onDelete: "set null",
       }),
     order: numeric("order").notNull().default("0"),
+    contentOrder: numeric("content_order").notNull().default("0"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
