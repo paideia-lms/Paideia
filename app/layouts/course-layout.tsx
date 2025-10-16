@@ -2,11 +2,13 @@ import { Container, Group, Tabs, Text, Title } from "@mantine/core";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetCourseViewData } from "server/contexts/course-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
+import { courseContextKey } from "server/contexts/course-context";
+import { RouteParams } from "~/utils/routes-utils";
+import { AdminErrorBoundary } from "~/components/admin-error-boundary";
 
 enum CourseTab {
 	Course = "course",
@@ -25,6 +27,8 @@ export const loader = async ({
 	const { payload, pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
+	const courseContext = context.get(courseContextKey);
+	const { id } = params as RouteParams<"layouts/course-layout">;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -33,28 +37,26 @@ export const loader = async ({
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	const courseId = Number.parseInt(params.id, 10);
+	const courseId = Number.parseInt(id, 10);
 	if (Number.isNaN(courseId)) {
 		throw new ForbiddenResponse("Invalid course ID");
 	}
 
 	// Get course view data for tab context
-	const courseViewData = await tryGetCourseViewData(
-		payload,
-		courseId,
-		currentUser,
-	);
-
-	if (!courseViewData) {
+	if (!courseContext) {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
 	return {
-		course: courseViewData.course,
-		currentUser: courseViewData.currentUser,
+		course: courseContext.course,
+		currentUser: courseContext.currentUser,
 		pageInfo: pageInfo,
 		enrolment: enrolmentContext?.enrolment,
 	};
+};
+
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	return <AdminErrorBoundary error={error} />;
 };
 
 export default function CourseLayout({ loaderData, matches }: Route.ComponentProps) {

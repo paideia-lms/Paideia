@@ -15,7 +15,7 @@ import { useState } from "react";
 import { Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryGetCourseViewData } from "server/contexts/course-context";
+import { courseContextKey } from "server/contexts/course-context";
 import {
 	tryCreateCourseActivityModuleLink,
 	tryDeleteCourseActivityModuleLink,
@@ -52,16 +52,13 @@ export const loader = async ({
 	context,
 	params,
 }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
+	const courseContext = context.get(courseContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
@@ -70,21 +67,15 @@ export const loader = async ({
 		});
 	}
 
-	// Get course view data using the new function
-	const courseViewData = await tryGetCourseViewData(
-		payload,
-		courseId,
-		currentUser,
-	);
-
-	if (!courseViewData) {
+	// Get course view data using the course context
+	if (!courseContext) {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
 	return {
-		...courseViewData,
+		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
-	}
+	};
 };
 
 export const action = async ({
@@ -387,7 +378,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 	const canEdit =
 		currentUser.role === "admin" ||
 		currentUser.role === "content-manager" ||
-		course.enrollments.some((enrollment: any) => enrollment.userId === currentUser.id);
+		course.enrollments.some((enrollment) => enrollment.userId === currentUser.id);
 
 	const handleDeleteLink = (linkId: number) => {
 		fetcher.submit(

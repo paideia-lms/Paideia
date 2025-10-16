@@ -715,12 +715,8 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 
 		return links.map(link => ({
 			...link.activityModule,
-			// replace the ids with courses
-			linkedCourses: link.activityModule.linkedCourses.map(id => {
-				// find the course in autoGrantedCourses 
-				const course = autoGrantedCourses.find(c => c.id === id)!
-				return course;
-			}),
+			// Use the courses from the links directly, not from linkedCourses join field
+			linkedCourses: [link.course],
 		}))
 	},
 	(error) =>

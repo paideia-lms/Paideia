@@ -296,6 +296,8 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: {
 						limit: MOCK_INFINITY,
 					},
+					// ! we are not getting section in this course using join 
+					'sections': false,
 				},
 				populate: {
 					// ! we don't want to populate the course in the enrollments and groups
@@ -309,7 +311,7 @@ export const tryFindCourseById = Result.wrap(
 					'course-categories': {
 						'courses': false,
 						'subcategories': false,
-					}
+					},
 				},
 				depth: 2,
 				user,
@@ -410,6 +412,9 @@ export const tryFindCourseById = Result.wrap(
 				const categorySubcategories = category?.subcategories;
 				assertZod(categorySubcategories, z.undefined());
 
+				const sections = course.sections;
+				assertZod(sections, z.undefined());
+
 				return {
 					...course,
 					groups,
@@ -424,6 +429,7 @@ export const tryFindCourseById = Result.wrap(
 						courses: categoryCourses,
 						subcategories: categorySubcategories
 					} : null,
+					sections,
 				};
 			});
 

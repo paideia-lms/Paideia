@@ -138,6 +138,15 @@ describe("Activity Module Access Control", () => {
 			overrideAccess: true,
 		});
 
+		// Clean up: Remove sections first (to avoid foreign key constraint issues)
+		await payload.delete({
+			collection: "course-sections",
+			where: {
+				course: { equals: course.id },
+			},
+			overrideAccess: true,
+		});
+
 		// Clean up: Remove course
 		await payload.delete({
 			collection: "courses",

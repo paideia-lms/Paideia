@@ -18,9 +18,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
     if (!courseContext) {
         throw new ForbiddenResponse("Course not found");
     }
-    if (!enrolmentContext) {
-        throw new ForbiddenResponse("Enrolment not found");
-    }
     if (!userSession?.isAuthenticated) {
         throw new ForbiddenResponse("User not authenticated");
     }
@@ -59,9 +56,6 @@ export default function CourseContentLayout({ loaderData }: Route.ComponentProps
         <AppShell>
             <AppShell.Main>
                 <Grid>
-                    <Grid.Col span={8}>
-                        <Outlet />
-                    </Grid.Col>
                     <Grid.Col span={4}>
                         <ScrollArea h="100vh" p="md">
                             {/* TODO: Update CourseStructureTree to use new course-sections system */}
@@ -73,6 +67,9 @@ export default function CourseContentLayout({ loaderData }: Route.ComponentProps
                             /> */}
                             <div>Course structure will be updated to use sections</div>
                         </ScrollArea>
+                    </Grid.Col>
+                    <Grid.Col span={8}>
+                        <Outlet />
                     </Grid.Col>
                 </Grid>
             </AppShell.Main>

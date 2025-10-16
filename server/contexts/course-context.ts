@@ -104,10 +104,6 @@ export interface Course {
 export interface CourseContext {
 	course: Course;
 	courseId: number;
-}
-
-export interface CourseViewData {
-	course: Course;
 	currentUser: {
 		id: number;
 		role: string;
@@ -131,6 +127,7 @@ export const tryGetCourseContext = async (
 	courseId: number,
 	user: User | null,
 ): Promise<CourseContext | null> => {
+	console.log("tryGetCourseContext", courseId, user);
 	const courseResult = await tryFindCourseById({
 		payload,
 		courseId: courseId,
@@ -148,6 +145,16 @@ export const tryGetCourseContext = async (
 	}
 
 	const course = courseResult.value;
+
+	// Check access
+	const hasAccess =
+		user?.role === "admin" ||
+		user?.role === "content-manager" ||
+		course.enrollments.some(enrollment => enrollment.user.id === user?.id);
+
+	if (!hasAccess || !user) {
+		return null;
+	}
 
 	// Transform course data to match the Course interface
 	const courseData: Course = {
@@ -209,34 +216,7 @@ export const tryGetCourseContext = async (
 		moduleLinks: [],
 	};
 
-	return {
-		course: courseData,
-		courseId: course.id,
-	};
-};
-
-export const tryGetCourseViewData = async (
-	payload: Payload,
-	courseId: number,
-	currentUser: User,
-): Promise<CourseViewData | null> => {
-	// Get course context first
-	const courseContext = await tryGetCourseContext(payload, courseId, currentUser);
-	if (!courseContext) {
-		return null;
-	}
-
-	const course = courseContext.course;
-
-	// Check access
-	const hasAccess =
-		currentUser.role === "admin" ||
-		currentUser.role === "content-manager" ||
-		course.enrollments.some(enrollment => enrollment.userId === currentUser.id);
-
-	if (!hasAccess) {
-		return null;
-	}
+	console.log("courseData", courseData);
 
 	// Fetch existing course-activity-module links and populate moduleLinks
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
@@ -267,21 +247,22 @@ export const tryGetCourseViewData = async (
 
 	// Update course with moduleLinks
 	const courseWithModuleLinks = {
-		...course,
+		...courseData,
 		moduleLinks,
 	};
 
 	// Fetch available activity modules the user can access
 	const modulesResult = await tryGetUserActivityModules(payload, {
-		userId: currentUser.id,
+		userId: user.id,
 	});
 	const availableModules = modulesResult.ok ? modulesResult.value.modulesOwnedOrGranted : [];
 
 	return {
 		course: courseWithModuleLinks,
+		courseId: course.id,
 		currentUser: {
-			id: currentUser.id,
-			role: currentUser.role || "student",
+			id: user.id,
+			role: user.role || "student",
 		},
 		availableModules: availableModules.map((module) => ({
 			id: module.id,
