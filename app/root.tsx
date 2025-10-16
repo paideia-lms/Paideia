@@ -112,6 +112,7 @@ export const middleware = [
 		// check if the user is in a course
 		if (routeHierarchy.some((route) => route.id === "layouts/course-layout")) {
 			const { id } = params as RouteParams<"layouts/course-layout">;
+
 			if (!Number.isNaN(id)) {
 				const courseContext = await tryGetCourseContext(
 					payload,

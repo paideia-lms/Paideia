@@ -38,7 +38,6 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			course,
 			activityModule,
 			section,
-			order = 0,
 			contentOrder = 0,
 			transactionID,
 		} = args;
@@ -49,7 +48,6 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				course,
 				activityModule,
 				section,
-				order,
 				contentOrder,
 			},
 			req: {

@@ -172,7 +172,6 @@ export const tryCreateCourse = Result.wrap(
 					course: newCourse.id,
 					title: "Course Content",
 					description: "Default section for course content",
-					order: 1,
 					contentOrder: 0,
 				},
 				depth: 0,
@@ -451,11 +450,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-								...category,
-								parent,
-								courses: categoryCourses,
-								subcategories: categorySubcategories,
-							}
+							...category,
+							parent,
+							courses: categoryCourses,
+							subcategories: categorySubcategories,
+						}
 						: null,
 					sections,
 				};

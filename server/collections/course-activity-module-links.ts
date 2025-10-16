@@ -57,14 +57,6 @@ export const CourseActivityModuleLinks = {
 			virtual: `section.title`,
 		},
 		{
-			name: "order",
-			type: "number",
-			required: true,
-			defaultValue: 0,
-			label: "Order",
-			min: 0,
-		},
-		{
 			name: "contentOrder",
 			type: "number",
 			required: true,

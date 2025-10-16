@@ -279,7 +279,6 @@ export const course_sections = pgTable(
         onDelete: "set null",
       },
     ),
-    order: numeric("order").notNull().default("0"),
     contentOrder: numeric("content_order").notNull().default("0"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -881,7 +880,6 @@ export const course_activity_module_links = pgTable(
       .references(() => course_sections.id, {
         onDelete: "set null",
       }),
-    order: numeric("order").notNull().default("0"),
     contentOrder: numeric("content_order").notNull().default("0"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
