@@ -63,8 +63,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-					filename: profileUser.avatar.filename,
-				})
+						filename: profileUser.avatar.filename,
+					})
 				: null;
 		}
 	}
@@ -212,7 +212,6 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-
 				<Paper withBorder shadow="md" p="xl" radius="md">
 					<Stack align="center" gap="lg">
 						<Avatar

@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 const itemSchema = z.object({
-	/** 
-	 * the module link id 
+	/**
+	 * the module link id
 	 */
 	id: z.number(),
 });

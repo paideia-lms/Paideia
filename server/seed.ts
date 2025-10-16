@@ -4,8 +4,8 @@ import { Result } from "typescript-result";
 import { tryCreateActivityModule } from "./internal/activity-module-management";
 import { tryCheckFirstUser } from "./internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "./internal/course-activity-module-link-management";
-import { tryCreateSection } from "./internal/course-section-management";
 import { tryCreateCourse } from "./internal/course-management";
+import { tryCreateSection } from "./internal/course-section-management";
 import { tryCreateEnrollment } from "./internal/enrollment-management";
 import {
 	tryCreateUser,
@@ -304,7 +304,13 @@ export const runSeed = Result.wrap(
 		// Step 9.5: Create additional activity modules
 		console.log("📄 Creating additional activity modules...");
 		const additionalModules = [];
-		const moduleTypes = ["page", "quiz", "assignment", "discussion", "whiteboard"] as const;
+		const moduleTypes = [
+			"page",
+			"quiz",
+			"assignment",
+			"discussion",
+			"whiteboard",
+		] as const;
 
 		for (let i = 0; i < 8; i++) {
 			const moduleResult = await tryCreateActivityModule(payload, {
@@ -326,7 +332,12 @@ export const runSeed = Result.wrap(
 		// Step 10: Create sections for the course
 		console.log("📁 Creating course sections...");
 		const sections = [];
-		const sectionTitles = ["Introduction", "Course Content", "Assignments", "Discussions"];
+		const sectionTitles = [
+			"Introduction",
+			"Course Content",
+			"Assignments",
+			"Discussions",
+		];
 
 		for (let i = 0; i < sectionTitles.length; i++) {
 			const sectionResult = await tryCreateSection({
@@ -341,7 +352,9 @@ export const runSeed = Result.wrap(
 
 			if (sectionResult.ok) {
 				sections.push(sectionResult.value);
-				console.log(`✅ Course section created with ID: ${sectionResult.value.id} (${sectionTitles[i]})`);
+				console.log(
+					`✅ Course section created with ID: ${sectionResult.value.id} (${sectionTitles[i]})`,
+				);
 			}
 		}
 
@@ -369,7 +382,9 @@ export const runSeed = Result.wrap(
 
 			if (linkResult.ok) {
 				links.push(linkResult.value);
-				console.log(`✅ Module ${module.title} linked to section ${section.title}`);
+				console.log(
+					`✅ Module ${module.title} linked to section ${section.title}`,
+				);
 			}
 		}
 
@@ -401,7 +416,9 @@ export const runSeed = Result.wrap(
 		console.log(`   - Page module: ${pageModule.title} (ID: ${pageModule.id})`);
 		console.log(`   - Additional modules: ${additionalModules.length} created`);
 		console.log(`   - Course sections: ${sections.length} created`);
-		console.log(`   - Course links: ${links.length} modules linked to sections`);
+		console.log(
+			`   - Course links: ${links.length} modules linked to sections`,
+		);
 
 		return {
 			adminUser,

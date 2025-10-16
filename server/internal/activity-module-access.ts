@@ -1,5 +1,3 @@
-
-
 import type { Payload, TypedUser, User } from "payload";
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -602,122 +600,154 @@ type FindAutoGrantedModulesForInstructorArgs = {
 	userId: number;
 	user?: User | null;
 	overrideAccess?: boolean;
-}
+};
 
 export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 	async (args: FindAutoGrantedModulesForInstructorArgs) => {
 		const { payload, userId, user = null, overrideAccess = false } = args;
 
 		// get all the enrollments for this user
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where: {
-				and: [
-					{ user: { equals: userId } },
-					{ role: { in: ["teacher", "ta"] } },
-					{ status: { equals: "active" } },
-				]
-			},
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					and: [
+						{ user: { equals: userId } },
+						{ role: { in: ["teacher", "ta"] } },
+						{ status: { equals: "active" } },
+					],
+				},
 
-			depth: 0,
-			user,
-			// ! we don't care about pagination and performance for now
-			pagination: false,
-			overrideAccess,
-		}).then(result => {
-			return result.docs.map(doc => {
-				const course = doc.course;
-				assertZod(course, z.number());
-				return {
-					id: doc.id,
-					course: course,
-				};
+				depth: 0,
+				user,
+				// ! we don't care about pagination and performance for now
+				pagination: false,
+				overrideAccess,
+			})
+			.then((result) => {
+				return result.docs.map((doc) => {
+					const course = doc.course;
+					assertZod(course, z.number());
+					return {
+						id: doc.id,
+						course: course,
+					};
+				});
 			});
-		});
 
-		// unique 
-		const courseIds = enrollments.map(enrollment =>
-			enrollment.course
-		).filter((courseId, index, self) => self.indexOf(courseId) === index);
+		// unique
+		const courseIds = enrollments
+			.map((enrollment) => enrollment.course)
+			.filter((courseId, index, self) => self.indexOf(courseId) === index);
 
 		// get all the course-activity-module-links for these courses
-		const links = await payload.find({
-			collection: "course-activity-module-links",
-			where: {
-				course: { in: courseIds },
-			},
-			overrideAccess,
-			depth: 2,
-			user,
-			// ! we don't care about pagination and performance for now
-			pagination: false,
-		}).then(result => {
-			return result.docs.map(doc => {
-				const course = doc.course;
-				assertZod(course, z.object({
-					id: z.number(),
-				}));
-				const activityModule = doc.activityModule;
-				assertZod(activityModule, z.object({
-					id: z.number(),
-				}));
+		const links = await payload
+			.find({
+				collection: "course-activity-module-links",
+				where: {
+					course: { in: courseIds },
+				},
+				overrideAccess,
+				depth: 2,
+				user,
+				// ! we don't care about pagination and performance for now
+				pagination: false,
+			})
+			.then((result) => {
+				return result.docs
+					.map((doc) => {
+						const course = doc.course;
+						assertZod(
+							course,
+							z.object({
+								id: z.number(),
+							}),
+						);
+						const activityModule = doc.activityModule;
+						assertZod(
+							activityModule,
+							z.object({
+								id: z.number(),
+							}),
+						);
 
+						const activityModuleOwner = activityModule.owner;
+						assertZod(
+							activityModuleOwner,
+							z.object({
+								id: z.number(),
+							}),
+						);
 
-				const activityModuleOwner = activityModule.owner;
-				assertZod(activityModuleOwner, z.object({
-					id: z.number(),
-				}));
+						const activityModuleOwnerAvatar = activityModuleOwner.avatar;
+						assertZod(
+							activityModuleOwnerAvatar,
+							z
+								.object({
+									id: z.number(),
+								})
+								.nullish(),
+						);
 
-				const activityModuleOwnerAvatar = activityModuleOwner.avatar;
-				assertZod(activityModuleOwnerAvatar, z.object({
-					id: z.number(),
-				}).nullish());
+						const activityModuleCreatedBy = activityModule.createdBy;
+						assertZod(
+							activityModuleCreatedBy,
+							z.object({
+								id: z.number(),
+							}),
+						);
 
-				const activityModuleCreatedBy = activityModule.createdBy;
-				assertZod(activityModuleCreatedBy, z.object({
-					id: z.number(),
-				}));
+						const activityModuleCreatedByAvatar =
+							activityModuleCreatedBy.avatar;
+						assertZod(
+							activityModuleCreatedByAvatar,
+							z
+								.object({
+									id: z.number(),
+								})
+								.nullish(),
+						);
 
-				const activityModuleCreatedByAvatar = activityModuleCreatedBy.avatar;
-				assertZod(activityModuleCreatedByAvatar, z.object({
-					id: z.number(),
-				}).nullish());
+						const activityModuleLinkedCourses =
+							activityModule.linkedCourses?.docs?.map((c) => {
+								assertZod(c, z.number());
+								return c;
+							}) ?? [];
 
-				const activityModuleLinkedCourses = activityModule.linkedCourses?.docs?.map(c => {
-					assertZod(c, z.number())
-					return c;
-				}) ?? []
-
-
-				return {
-					...doc,
-					course,
-					activityModule: {
-						...activityModule,
-						owner: {
-							...activityModuleOwner,
-							avatar: activityModuleOwnerAvatar,
-						},
-						createdBy: {
-							...activityModuleCreatedBy,
-							avatar: activityModuleCreatedByAvatar,
-						},
-						linkedCourses: activityModuleLinkedCourses,
-					}
-				};
-			}).filter((link, index, self) => {
-				// unique activity module id
-				return self.findIndex(l => l.activityModule.id === link.activityModule.id) === index;
+						return {
+							...doc,
+							course,
+							activityModule: {
+								...activityModule,
+								owner: {
+									...activityModuleOwner,
+									avatar: activityModuleOwnerAvatar,
+								},
+								createdBy: {
+									...activityModuleCreatedBy,
+									avatar: activityModuleCreatedByAvatar,
+								},
+								linkedCourses: activityModuleLinkedCourses,
+							},
+						};
+					})
+					.filter((link, index, self) => {
+						// unique activity module id
+						return (
+							self.findIndex(
+								(l) => l.activityModule.id === link.activityModule.id,
+							) === index
+						);
+					});
 			});
-		})
 
-		const autoGrantedCourses = links.map(link => link.course)
+		const autoGrantedCourses = links.map((link) => link.course);
 
-		return links.map(link => ({
+		return links.map((link) => ({
 			...link.activityModule,
 			// Use the courses from the links directly, not from linkedCourses join field
 			linkedCourses: [link.course],
-		}))
+		}));
 	},
 	(error) =>
 		transformError(error) ??

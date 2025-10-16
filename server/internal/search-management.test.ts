@@ -209,7 +209,6 @@ describe("Search Management Functions", () => {
 					createdBy: userId2,
 					slug: `temp-course-${Date.now()}`,
 					status: "published",
-
 				},
 				overrideAccess: true,
 			};
@@ -358,7 +357,6 @@ describe("Search Management Functions", () => {
 					createdBy: userId2,
 					slug: `update-course-${Date.now()}`,
 					status: "published",
-
 				},
 				req: newRequest,
 				overrideAccess: true,

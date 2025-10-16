@@ -24,8 +24,11 @@ import {
 import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import {
+	getUserAccessContext,
+	userAccessContextKey,
+} from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
-import { getUserAccessContext, userAccessContextKey } from "server/contexts/user-access-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course";
 
@@ -42,10 +45,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const currentUser = userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Extract courses from enrollments
-	const courses = userAccessContext.enrollments.map(enrollment => ({
+	const courses = userAccessContext.enrollments.map((enrollment) => ({
 		id: enrollment.course.id,
 		title: enrollment.course.title,
 		slug: enrollment.course.slug,

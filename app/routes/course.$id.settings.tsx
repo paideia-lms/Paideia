@@ -28,10 +28,7 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.settings";
 
-export const loader = async ({
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {

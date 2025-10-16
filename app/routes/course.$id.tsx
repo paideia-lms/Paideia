@@ -13,9 +13,11 @@ import { notifications } from "@mantine/notifications";
 import { IconEdit } from "@tabler/icons-react";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
+import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
+import { courseContextKey } from "server/contexts/course-context";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { courseContextKey } from "server/contexts/course-context";
 import {
 	tryCreateCourseActivityModuleLink,
 	tryDeleteCourseActivityModuleLink,
@@ -27,7 +29,6 @@ import {
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
 import type { Enrollment } from "server/payload-types";
-import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
 import { CourseInfo } from "~/components/course-info";
 import {
@@ -46,12 +47,8 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
-export const loader = async ({
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -378,7 +375,9 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 	const canEdit =
 		currentUser.role === "admin" ||
 		currentUser.role === "content-manager" ||
-		course.enrollments.some((enrollment) => enrollment.userId === currentUser.id);
+		course.enrollments.some(
+			(enrollment) => enrollment.userId === currentUser.id,
+		);
 
 	const handleDeleteLink = (linkId: number) => {
 		fetcher.submit(
@@ -472,7 +471,6 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		}
 	};
 
-
 	// Get enrolled user IDs for exclusion
 	const enrolledUserIds = course.enrollments.map((enrollment: any) =>
 		typeof enrollment.user === "object" ? enrollment.user.id : enrollment.user,
@@ -509,18 +507,23 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 					)}
 				</Group>
 
-				<CourseInfo course={{
-					id: course.id,
-					title: course.title,
-					slug: course.slug,
-					description: course.description,
-					status: course.status,
-					createdBy: course.createdBy ? `${course.createdBy.firstName || ""} ${course.createdBy.lastName || ""}`.trim() || course.createdBy.email : "Unknown",
-					createdById: course.createdBy.id,
-					createdAt: course.createdAt,
-					updatedAt: course.updatedAt,
-					enrollmentCount: course.enrollments.length,
-				}} />
+				<CourseInfo
+					course={{
+						id: course.id,
+						title: course.title,
+						slug: course.slug,
+						description: course.description,
+						status: course.status,
+						createdBy: course.createdBy
+							? `${course.createdBy.firstName || ""} ${course.createdBy.lastName || ""}`.trim() ||
+								course.createdBy.email
+							: "Unknown",
+						createdById: course.createdBy.id,
+						createdAt: course.createdAt,
+						updatedAt: course.updatedAt,
+						enrollmentCount: course.enrollments.length,
+					}}
+				/>
 
 				<ActivityModulesSection
 					existingLinks={course.moduleLinks.map((link) => ({

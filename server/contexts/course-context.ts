@@ -6,22 +6,25 @@
 
 import type { Payload } from "payload";
 import { createContext } from "react-router";
-import { tryFindCourseById } from "server/internal/course-management";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
-import { tryGetCourseStructure } from "server/internal/course-section-management";
+import { tryFindCourseById } from "server/internal/course-management";
 import type { CourseStructure } from "server/internal/course-section-management";
-import { generateCourseStructureTree, generateSimpleCourseStructureTree } from "../utils/course-structure-tree";
+import { tryGetCourseStructure } from "server/internal/course-section-management";
+import {
+	generateCourseStructureTree,
+	generateSimpleCourseStructureTree,
+} from "../utils/course-structure-tree";
 import type { User } from "./user-context";
 
 type Group = {
-	id: number,
-	name: string,
-	path: string,
+	id: number;
+	name: string;
+	path: string;
 	description?: string | null;
 	color?: string | null;
 	parent?: number | null;
-}
+};
 
 /**
  * all the user enrollments, the name, id, email, role, status, enrolledAt, completedAt
@@ -49,8 +52,7 @@ type Category = {
 		id: number;
 		name: string;
 	} | null;
-}
-
+};
 
 type ActivityModule = {
 	id: number;
@@ -70,14 +72,14 @@ type ActivityModule = {
 	};
 	updatedAt: string;
 	createdAt: string;
-}
+};
 
 type CourseActivityModuleLink = {
 	id: number;
 	activityModule: ActivityModule;
 	createdAt: string;
 	updatedAt: string;
-}
+};
 
 export interface Course {
 	id: number;
@@ -138,9 +140,9 @@ export const tryGetCourseContext = async (
 		courseId: courseId,
 		user: user
 			? {
-				...user,
-				avatar: user.avatar?.id,
-			}
+					...user,
+					avatar: user.avatar?.id,
+				}
 			: null,
 		// ! we cannot use overrideAccess true here
 	});
@@ -155,7 +157,7 @@ export const tryGetCourseContext = async (
 	const hasAccess =
 		user?.role === "admin" ||
 		user?.role === "content-manager" ||
-		course.enrollments.some(enrollment => enrollment.user.id === user?.id);
+		course.enrollments.some((enrollment) => enrollment.user.id === user?.id);
 
 	if (!hasAccess || !user) {
 		return null;
@@ -173,22 +175,28 @@ export const tryGetCourseContext = async (
 			email: course.createdBy.email,
 			firstName: course.createdBy.firstName,
 			lastName: course.createdBy.lastName,
-			avatar: course.createdBy.avatar ? {
-				id: course.createdBy.avatar.id,
-				filename: course.createdBy.avatar.filename,
-			} : null,
+			avatar: course.createdBy.avatar
+				? {
+						id: course.createdBy.avatar.id,
+						filename: course.createdBy.avatar.filename,
+					}
+				: null,
 		},
-		category: course.category ? {
-			id: course.category.id,
-			name: course.category.name,
-			parent: course.category.parent ? {
-				id: course.category.parent.id,
-				name: course.category.parent.name,
-			} : null,
-		} : null,
+		category: course.category
+			? {
+					id: course.category.id,
+					name: course.category.name,
+					parent: course.category.parent
+						? {
+								id: course.category.parent.id,
+								name: course.category.parent.name,
+							}
+						: null,
+				}
+			: null,
 		updatedAt: course.updatedAt,
 		createdAt: course.createdAt,
-		groups: course.groups.map(g => ({
+		groups: course.groups.map((g) => ({
 			id: g.id,
 			name: g.name,
 			path: g.path,
@@ -208,7 +216,7 @@ export const tryGetCourseContext = async (
 					avatar: e.user.avatar ?? null,
 					enrolledAt: e.enrolledAt,
 					completedAt: e.completedAt,
-					groups: e.groups.map(g => ({
+					groups: e.groups.map((g) => ({
 						id: g.id,
 						name: g.name,
 						path: g.path,
@@ -225,30 +233,42 @@ export const tryGetCourseContext = async (
 
 	// Fetch existing course-activity-module links and populate moduleLinks
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
-	const moduleLinks = linksResult.ok ? linksResult.value.map(link => ({
-		id: link.id,
-		activityModule: {
-			id: link.activityModule.id,
-			title: link.activityModule.title || "",
-			description: link.activityModule.description || "",
-			type: link.activityModule.type as "page" | "whiteboard" | "assignment" | "quiz" | "discussion",
-			status: link.activityModule.status as "draft" | "published" | "archived",
-			createdBy: {
-				id: link.activityModule.createdBy.id,
-				email: link.activityModule.createdBy.email,
-				firstName: link.activityModule.createdBy.firstName,
-				lastName: link.activityModule.createdBy.lastName,
-				avatar: link.activityModule.createdBy.avatar ? {
-					id: link.activityModule.createdBy.avatar.id,
-					filename: link.activityModule.createdBy.avatar.filename,
-				} : null,
-			},
-			updatedAt: link.activityModule.updatedAt,
-			createdAt: link.activityModule.createdAt,
-		},
-		createdAt: link.createdAt,
-		updatedAt: link.updatedAt,
-	})) : [];
+	const moduleLinks = linksResult.ok
+		? linksResult.value.map((link) => ({
+				id: link.id,
+				activityModule: {
+					id: link.activityModule.id,
+					title: link.activityModule.title || "",
+					description: link.activityModule.description || "",
+					type: link.activityModule.type as
+						| "page"
+						| "whiteboard"
+						| "assignment"
+						| "quiz"
+						| "discussion",
+					status: link.activityModule.status as
+						| "draft"
+						| "published"
+						| "archived",
+					createdBy: {
+						id: link.activityModule.createdBy.id,
+						email: link.activityModule.createdBy.email,
+						firstName: link.activityModule.createdBy.firstName,
+						lastName: link.activityModule.createdBy.lastName,
+						avatar: link.activityModule.createdBy.avatar
+							? {
+									id: link.activityModule.createdBy.avatar.id,
+									filename: link.activityModule.createdBy.avatar.filename,
+								}
+							: null,
+					},
+					updatedAt: link.activityModule.updatedAt,
+					createdAt: link.activityModule.createdAt,
+				},
+				createdAt: link.createdAt,
+				updatedAt: link.updatedAt,
+			}))
+		: [];
 
 	// Update course with moduleLinks
 	const courseWithModuleLinks = {
@@ -260,7 +280,9 @@ export const tryGetCourseContext = async (
 	const modulesResult = await tryGetUserActivityModules(payload, {
 		userId: user.id,
 	});
-	const availableModules = modulesResult.ok ? modulesResult.value.modulesOwnedOrGranted : [];
+	const availableModules = modulesResult.ok
+		? modulesResult.value.modulesOwnedOrGranted
+		: [];
 
 	// Fetch course structure
 	const courseStructureResult = await tryGetCourseStructure({
@@ -268,23 +290,32 @@ export const tryGetCourseContext = async (
 		courseId: course.id,
 		user: user
 			? {
-				...user,
-				avatar: user.avatar?.id,
-			}
+					...user,
+					avatar: user.avatar?.id,
+				}
 			: null,
 		overrideAccess: false,
 	});
 
 	if (!courseStructureResult.ok) {
-		console.error("Failed to get course structure:", courseStructureResult.error);
+		console.error(
+			"Failed to get course structure:",
+			courseStructureResult.error,
+		);
 		return null;
 	}
 
 	const courseStructure = courseStructureResult.value;
 
 	// Generate tree representations
-	const courseStructureTree = generateCourseStructureTree(courseStructure, course.title);
-	const courseStructureTreeSimple = generateSimpleCourseStructureTree(courseStructure, course.title);
+	const courseStructureTree = generateCourseStructureTree(
+		courseStructure,
+		course.title,
+	);
+	const courseStructureTreeSimple = generateSimpleCourseStructureTree(
+		courseStructure,
+		course.title,
+	);
 
 	return {
 		course: courseWithModuleLinks,

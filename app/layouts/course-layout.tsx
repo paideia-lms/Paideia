@@ -1,14 +1,14 @@
 import { Container, Group, Tabs, Text, Title } from "@mantine/core";
 import { href, Outlet, useNavigate } from "react-router";
+import { courseContextKey } from "server/contexts/course-context";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { AdminErrorBoundary } from "~/components/admin-error-boundary";
 import { ForbiddenResponse } from "~/utils/responses";
+import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
-import { courseContextKey } from "server/contexts/course-context";
-import { RouteParams } from "~/utils/routes-utils";
-import { AdminErrorBoundary } from "~/components/admin-error-boundary";
 
 enum CourseTab {
 	Course = "course",
@@ -20,10 +20,7 @@ enum CourseTab {
 	Backup = "backup",
 }
 
-export const loader = async ({
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -59,13 +56,15 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <AdminErrorBoundary error={error} />;
 };
 
-export default function CourseLayout({ loaderData, matches }: Route.ComponentProps) {
+export default function CourseLayout({
+	loaderData,
+	matches,
+}: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const { course, pageInfo, enrolment } = loaderData;
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
-
 		if (pageInfo.isCourseSettings) return CourseTab.Settings;
 		if (pageInfo.isCourseParticipants) return CourseTab.Participants;
 		if (pageInfo.isCourseGrades) return CourseTab.Grades;
@@ -132,12 +131,24 @@ export default function CourseLayout({ loaderData, matches }: Route.ComponentPro
 						>
 							<Tabs.List>
 								<Tabs.Tab value={CourseTab.Course}>Course</Tabs.Tab>
-								{enrolment?.role === "teacher" && <Tabs.Tab value={CourseTab.Settings}>Settings</Tabs.Tab>}
-								{enrolment?.role === "teacher" && <Tabs.Tab value={CourseTab.Participants}>Participants</Tabs.Tab>}
+								{enrolment?.role === "teacher" && (
+									<Tabs.Tab value={CourseTab.Settings}>Settings</Tabs.Tab>
+								)}
+								{enrolment?.role === "teacher" && (
+									<Tabs.Tab value={CourseTab.Participants}>
+										Participants
+									</Tabs.Tab>
+								)}
 								<Tabs.Tab value={CourseTab.Grades}>Grades</Tabs.Tab>
-								{enrolment?.role === "teacher" && <Tabs.Tab value={CourseTab.Modules}>Modules</Tabs.Tab>}
-								{enrolment?.role === "teacher" && <Tabs.Tab value={CourseTab.Bin}>Recycle Bin</Tabs.Tab>}
-								{enrolment?.role === "teacher" && <Tabs.Tab value={CourseTab.Backup}>Course Reuse</Tabs.Tab>}
+								{enrolment?.role === "teacher" && (
+									<Tabs.Tab value={CourseTab.Modules}>Modules</Tabs.Tab>
+								)}
+								{enrolment?.role === "teacher" && (
+									<Tabs.Tab value={CourseTab.Bin}>Recycle Bin</Tabs.Tab>
+								)}
+								{enrolment?.role === "teacher" && (
+									<Tabs.Tab value={CourseTab.Backup}>Course Reuse</Tabs.Tab>
+								)}
 							</Tabs.List>
 						</Tabs>
 					</Group>

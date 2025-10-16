@@ -13,14 +13,13 @@ import {
 } from "@mantine/core";
 import { IconEdit, IconTrash, IconUserPlus } from "@tabler/icons-react";
 import { href, Link } from "react-router";
+import type { Enrollment } from "server/contexts/course-context";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
 	getRoleBadgeColor,
 	getRoleLabel,
 } from "./course-view-utils";
-
-import type { Enrollment } from "server/contexts/course-context";
 
 interface EnrollmentsSectionProps {
 	enrollments: Enrollment[];
@@ -30,7 +29,6 @@ interface EnrollmentsSectionProps {
 	onEditEnrollment: (enrollment: Enrollment) => void;
 	onDeleteEnrollment: (enrollmentId: number) => void;
 }
-
 
 export function EnrollmentsSection({
 	enrollments,
@@ -71,9 +69,7 @@ export function EnrollmentsSection({
 									<Table.Th>Role</Table.Th>
 									<Table.Th>Status</Table.Th>
 									<Table.Th>Last Access</Table.Th>
-									{currentUserRole === "admin" && (
-										<Table.Th>Actions</Table.Th>
-									)}
+									{currentUserRole === "admin" && <Table.Th>Actions</Table.Th>}
 								</Table.Tr>
 							</Table.Thead>
 							<Table.Tbody>
@@ -146,9 +142,7 @@ export function EnrollmentsSection({
 															color="red"
 															size="md"
 															aria-label="Delete enrollment"
-															onClick={() =>
-																onDeleteEnrollment(enrollment.id)
-															}
+															onClick={() => onDeleteEnrollment(enrollment.id)}
 															disabled={fetcherState === "submitting"}
 														>
 															<IconTrash size={16} />

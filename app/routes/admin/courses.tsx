@@ -78,7 +78,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			typeof createdBy === "object" && createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-				createdBy.email
+					createdBy.email
 				: "Unknown";
 
 		return {
@@ -258,7 +258,9 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 													</Button>
 													<Button
 														component={Link}
-														to={href("/course/:id/settings", { id: String(course.id) })}
+														to={href("/course/:id/settings", {
+															id: String(course.id),
+														})}
 														size="xs"
 														variant="light"
 														color="blue"

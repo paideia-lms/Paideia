@@ -169,7 +169,7 @@ export const ActivityModules = {
 			collection: "course-activity-module-links",
 			label: "Linked Courses",
 			hasMany: true,
-		}
+		},
 	],
 	indexes: [
 		{

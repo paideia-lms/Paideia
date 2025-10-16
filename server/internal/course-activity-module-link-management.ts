@@ -3,7 +3,11 @@ import { CourseActivityModuleLinks } from "server/collections/course-activity-mo
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
-import { TransactionIdNotFoundError, transformError, UnknownError } from "~/utils/error";
+import {
+	TransactionIdNotFoundError,
+	transformError,
+	UnknownError,
+} from "~/utils/error";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -30,7 +34,14 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		request: Request,
 		args: CreateCourseActivityModuleLinkArgs,
 	) => {
-		const { course, activityModule, section, order = 0, contentOrder = 0, transactionID } = args;
+		const {
+			course,
+			activityModule,
+			section,
+			order = 0,
+			contentOrder = 0,
+			transactionID,
+		} = args;
 
 		const newLink = await payload.create({
 			collection: CourseActivityModuleLinks.slug,
@@ -118,14 +129,22 @@ export const tryFindLinksByCourse = Result.wrap(
 			);
 
 			const moduleCreatedBy = linkActivityModule.createdBy;
-			assertZod(moduleCreatedBy, z.object({
-				id: z.number(),
-			}));
+			assertZod(
+				moduleCreatedBy,
+				z.object({
+					id: z.number(),
+				}),
+			);
 
 			const moduleCreatedByAvatar = moduleCreatedBy.avatar;
-			assertZod(moduleCreatedByAvatar, z.object({
-				id: z.number(),
-			}).nullish());
+			assertZod(
+				moduleCreatedByAvatar,
+				z
+					.object({
+						id: z.number(),
+					})
+					.nullish(),
+			);
 
 			return {
 				...link,

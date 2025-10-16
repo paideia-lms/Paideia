@@ -48,13 +48,13 @@ export interface CreateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -126,13 +126,13 @@ export interface UpdateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -855,84 +855,106 @@ export const tryGetUserActivityModules = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		const modulesOwnedOrGranted = await payload.find({
-			collection: "activity-modules",
-			where: {
-				or: [
-					{ owner: { equals: userId } },
-					{ "grants.grantedTo": { equals: userId } },
-				],
-			},
-			joins: {
-				"linkedCourses": {
-					limit: MOCK_INFINITY
+		const modulesOwnedOrGranted = await payload
+			.find({
+				collection: "activity-modules",
+				where: {
+					or: [
+						{ owner: { equals: userId } },
+						{ "grants.grantedTo": { equals: userId } },
+					],
 				},
-				// ! we don't care about the grants, submissions details here
-				"grants": false,
-				'discussionSubmissions': false,
-				'quizSubmissions': false,
-				'submissions': false,
-			},
-			sort: "-createdAt",
-			// ! we don't care about pagination and performance for now 
-			pagination: false,
-			overrideAccess,
-			user,
-		}).then(result => {
-			const docs = result.docs.map(doc => {
-				const owner = doc.owner;
-				assertZod(owner, z.object({
-					id: z.number(),
-				}));
-				const ownerAvatar = owner.avatar;
-				assertZod(ownerAvatar, z.object({
-					id: z.number(),
-				}).nullish());
-				const createdBy = doc.createdBy;
-				assertZod(createdBy, z.object({
-					id: z.number(),
-				}));
-				const createdByAvatar = createdBy.avatar;
-				assertZod(createdByAvatar, z.object({
-					id: z.number(),
-				}).nullish());
-				const grants = doc.grants;
-				assertZod(grants, z.undefined());
-				const submissions = doc.submissions;
-				assertZod(submissions, z.undefined());
-				const discussionSubmissions = doc.discussionSubmissions;
-				assertZod(discussionSubmissions, z.undefined());
-				const quizSubmissions = doc.quizSubmissions;
-				assertZod(quizSubmissions, z.undefined());
-				const courses = doc.linkedCourses?.docs?.map(link => {
-					assertZod(link, z.object({
-						id: z.number(),
-					}));
-					const course = link.course;
-					assertZod(course, z.number());
-					return course;
-				}) ?? []
+				joins: {
+					linkedCourses: {
+						limit: MOCK_INFINITY,
+					},
+					// ! we don't care about the grants, submissions details here
+					grants: false,
+					discussionSubmissions: false,
+					quizSubmissions: false,
+					submissions: false,
+				},
+				sort: "-createdAt",
+				// ! we don't care about pagination and performance for now
+				pagination: false,
+				overrideAccess,
+				user,
+			})
+			.then((result) => {
+				const docs = result.docs.map((doc) => {
+					const owner = doc.owner;
+					assertZod(
+						owner,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					const ownerAvatar = owner.avatar;
+					assertZod(
+						ownerAvatar,
+						z
+							.object({
+								id: z.number(),
+							})
+							.nullish(),
+					);
+					const createdBy = doc.createdBy;
+					assertZod(
+						createdBy,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					const createdByAvatar = createdBy.avatar;
+					assertZod(
+						createdByAvatar,
+						z
+							.object({
+								id: z.number(),
+							})
+							.nullish(),
+					);
+					const grants = doc.grants;
+					assertZod(grants, z.undefined());
+					const submissions = doc.submissions;
+					assertZod(submissions, z.undefined());
+					const discussionSubmissions = doc.discussionSubmissions;
+					assertZod(discussionSubmissions, z.undefined());
+					const quizSubmissions = doc.quizSubmissions;
+					assertZod(quizSubmissions, z.undefined());
+					const courses =
+						doc.linkedCourses?.docs?.map((link) => {
+							assertZod(
+								link,
+								z.object({
+									id: z.number(),
+								}),
+							);
+							const course = link.course;
+							assertZod(course, z.number());
+							return course;
+						}) ?? [];
 
-				return {
-					...doc,
-					owner: {
-						...owner,
-						avatar: ownerAvatar,
-					},
-					createdBy: {
-						...createdBy,
-						avatar: createdByAvatar,
-					},
-					grants,
-					submissions,
-					discussionSubmissions,
-					quizSubmissions,
-					linkedCourses: courses,
-				};
+					return {
+						...doc,
+						owner: {
+							...owner,
+							avatar: ownerAvatar,
+						},
+						createdBy: {
+							...createdBy,
+							avatar: createdByAvatar,
+						},
+						grants,
+						submissions,
+						discussionSubmissions,
+						quizSubmissions,
+						linkedCourses: courses,
+					};
+				});
+
+				return docs;
 			});
-
-			return docs;
-		});
 
 		const autoGrantedModules = await tryFindAutoGrantedModulesForInstructor({
 			payload,
@@ -946,7 +968,7 @@ export const tryGetUserActivityModules = Result.wrap(
 		return {
 			modulesOwnedOrGranted,
 			autoGrantedModules: autoGrantedModules.value,
-		}
+		};
 	},
 	(error) =>
 		transformError(error) ??

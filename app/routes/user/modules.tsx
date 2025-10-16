@@ -18,6 +18,7 @@ import { IconEdit, IconTrash, IconUserCheck } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteActivityModule,
@@ -36,7 +37,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/modules";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -76,7 +76,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const profileUser = userResult.value;
 
 	const modules = userAccessContext.activityModules;
-
 
 	// Check if user can create modules (only for own profile)
 	const canCreateModules =
@@ -204,7 +203,9 @@ export const action = async ({
 	}
 
 	// Verify the module exists and belongs to the target user
-	const userModule = userAccessContext.activityModules.find((m) => m.id === moduleId);
+	const userModule = userAccessContext.activityModules.find(
+		(m) => m.id === moduleId,
+	);
 
 	if (!userModule) {
 		return badRequest({
@@ -324,8 +325,6 @@ export default function ModulesPage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-
-
 				{/* Header */}
 				<Paper withBorder shadow="md" p="xl" radius="md">
 					<Group justify="space-between" align="center">

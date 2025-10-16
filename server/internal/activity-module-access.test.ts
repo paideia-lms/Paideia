@@ -11,8 +11,11 @@ import {
 	tryRevokeAccessFromActivityModule,
 	tryTransferActivityModuleOwnership,
 } from "./activity-module-access";
+import {
+	tryAddActivityModuleToSection,
+	tryCreateSection,
+} from "./course-section-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
-import { tryCreateSection, tryAddActivityModuleToSection } from "./course-section-management";
 
 describe("Activity Module Access Control", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -36,7 +39,12 @@ describe("Activity Module Access Control", () => {
 	};
 
 	// Helper to create isolated test data for auto-granted modules tests
-	const createIsolatedTestData = async (testName: string, user1: TypedUser, userId: number, role: "teacher" | "ta") => {
+	const createIsolatedTestData = async (
+		testName: string,
+		user1: TypedUser,
+		userId: number,
+		role: "teacher" | "ta",
+	) => {
 		const timestamp = Date.now();
 		const uniqueId = `${testName}-${timestamp}`;
 
@@ -110,15 +118,16 @@ describe("Activity Module Access Control", () => {
 	};
 
 	// Helper to clean up isolated test data
-	const cleanupIsolatedTestData = async (activityModule: { id: number }, course: { id: number }, userId: number) => {
+	const cleanupIsolatedTestData = async (
+		activityModule: { id: number },
+		course: { id: number },
+		userId: number,
+	) => {
 		// Clean up: Remove enrollment
 		await payload.delete({
 			collection: "enrollments",
 			where: {
-				and: [
-					{ user: { equals: userId } },
-					{ course: { equals: course.id } },
-				],
+				and: [{ user: { equals: userId } }, { course: { equals: course.id } }],
 			},
 			overrideAccess: true,
 		});
@@ -170,7 +179,6 @@ describe("Activity Module Access Control", () => {
 		payload = await getPayload({
 			config: sanitizedConfig,
 		});
-
 
 		// Create test users
 		const user1Args: CreateUserArgs = {
@@ -1475,7 +1483,12 @@ describe("Activity Module Access Control", () => {
 		const user1 = await getAuthUser(user1Token);
 
 		// Create isolated test data
-		const { activityModule, course } = await createIsolatedTestData("instructor", user1, testUser2.id, "teacher");
+		const { activityModule, course } = await createIsolatedTestData(
+			"instructor",
+			user1,
+			testUser2.id,
+			"teacher",
+		);
 
 		// Find auto granted modules for user2
 		const autoGrantedResult = await tryFindAutoGrantedModulesForInstructor({
@@ -1487,17 +1500,21 @@ describe("Activity Module Access Control", () => {
 		expect(autoGrantedResult.ok).toBe(true);
 		if (autoGrantedResult.ok) {
 			// Find the specific module we created in this test
-			const ourModule = autoGrantedResult.value.find(module =>
-				module.id === activityModule.id
+			const ourModule = autoGrantedResult.value.find(
+				(module) => module.id === activityModule.id,
 			);
 			expect(ourModule).toBeDefined();
 
 			if (ourModule) {
 				// Check that the course is in the linkedCourses array
-				const linkedCourse = ourModule.linkedCourses.find(c => c.id === course.id);
+				const linkedCourse = ourModule.linkedCourses.find(
+					(c) => c.id === course.id,
+				);
 				expect(linkedCourse).toBeDefined();
 				expect(ourModule.id).toBe(activityModule.id);
-				expect(ourModule.title).toContain("Auto Granted Module Test - instructor");
+				expect(ourModule.title).toContain(
+					"Auto Granted Module Test - instructor",
+				);
 				expect(ourModule.owner.id).toBe(testUser1.id);
 				expect(ourModule.createdBy.id).toBe(testUser1.id);
 			}
@@ -1511,7 +1528,12 @@ describe("Activity Module Access Control", () => {
 		const user1 = await getAuthUser(user1Token);
 
 		// Create isolated test data
-		const { activityModule, course } = await createIsolatedTestData("ta", user1, testUser3.id, "ta");
+		const { activityModule, course } = await createIsolatedTestData(
+			"ta",
+			user1,
+			testUser3.id,
+			"ta",
+		);
 
 		// Find auto granted modules for user3
 		const autoGrantedResult = await tryFindAutoGrantedModulesForInstructor({
@@ -1523,14 +1545,16 @@ describe("Activity Module Access Control", () => {
 		expect(autoGrantedResult.ok).toBe(true);
 		if (autoGrantedResult.ok) {
 			// Find the specific module we created in this test
-			const ourModule = autoGrantedResult.value.find(module =>
-				module.id === activityModule.id
+			const ourModule = autoGrantedResult.value.find(
+				(module) => module.id === activityModule.id,
 			);
 			expect(ourModule).toBeDefined();
 
 			if (ourModule) {
 				// Check that the course is in the linkedCourses array
-				const linkedCourse = ourModule.linkedCourses.find(c => c.id === course.id);
+				const linkedCourse = ourModule.linkedCourses.find(
+					(c) => c.id === course.id,
+				);
 				expect(linkedCourse).toBeDefined();
 				expect(ourModule.id).toBe(activityModule.id);
 				expect(ourModule.title).toContain("Auto Granted Module Test - ta");
@@ -1677,11 +1701,11 @@ describe("Activity Module Access Control", () => {
 		expect(autoGrantedResult.ok).toBe(true);
 		if (autoGrantedResult.ok) {
 			// Find the specific modules we created in this test
-			const module1 = autoGrantedResult.value.find(module =>
-				module.id === activityModule1.id
+			const module1 = autoGrantedResult.value.find(
+				(module) => module.id === activityModule1.id,
 			);
-			const module2 = autoGrantedResult.value.find(module =>
-				module.id === activityModule2.id
+			const module2 = autoGrantedResult.value.find(
+				(module) => module.id === activityModule2.id,
 			);
 
 			expect(module1).toBeDefined();
@@ -1689,7 +1713,9 @@ describe("Activity Module Access Control", () => {
 
 			if (module1) {
 				// Check that course1 is in the linkedCourses array
-				const linkedCourse1 = module1.linkedCourses.find(c => c.id === course1.id);
+				const linkedCourse1 = module1.linkedCourses.find(
+					(c) => c.id === course1.id,
+				);
 				expect(linkedCourse1).toBeDefined();
 				expect(module1.id).toBe(activityModule1.id);
 				expect(module1.title).toBe("Multi Course Module 1");
@@ -1697,7 +1723,9 @@ describe("Activity Module Access Control", () => {
 
 			if (module2) {
 				// Check that course2 is in the linkedCourses array
-				const linkedCourse2 = module2.linkedCourses.find(c => c.id === course2.id);
+				const linkedCourse2 = module2.linkedCourses.find(
+					(c) => c.id === course2.id,
+				);
 				expect(linkedCourse2).toBeDefined();
 				expect(module2.id).toBe(activityModule2.id);
 				expect(module2.title).toBe("Multi Course Module 2");
@@ -1784,8 +1812,8 @@ describe("Activity Module Access Control", () => {
 		expect(autoGrantedResult.ok).toBe(true);
 		if (autoGrantedResult.ok) {
 			// Check that our specific module is not found (inactive enrollment)
-			const ourModule = autoGrantedResult.value.find(module =>
-				module.id === activityModule.id
+			const ourModule = autoGrantedResult.value.find(
+				(module) => module.id === activityModule.id,
 			);
 			expect(ourModule).toBeUndefined();
 		}
@@ -1870,8 +1898,8 @@ describe("Activity Module Access Control", () => {
 		expect(autoGrantedResult.ok).toBe(true);
 		if (autoGrantedResult.ok) {
 			// Check that our specific module is not found (student enrollment)
-			const ourModule = autoGrantedResult.value.find(module =>
-				module.id === activityModule.id
+			const ourModule = autoGrantedResult.value.find(
+				(module) => module.id === activityModule.id,
 			);
 			expect(ourModule).toBeUndefined();
 		}

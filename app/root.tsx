@@ -24,14 +24,17 @@ import "@mantine/tiptap/styles.css";
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
+import {
+	getUserAccessContext,
+	userAccessContextKey,
+} from "server/contexts/user-access-context";
 import {
 	tryGetUserContext,
 	userContextKey,
 } from "server/contexts/user-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
-import { getUserAccessContext, userAccessContextKey } from "server/contexts/user-access-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
 export const middleware = [
 	/**
@@ -58,8 +61,10 @@ export const middleware = [
 			else if (route.id === "routes/login") isLogin = true;
 			else if (route.id === "routes/first-user") isFirstUser = true;
 			else if (route.id === "layouts/course-layout") isInCourse = true;
-			else if (route.id === "routes/course.$id.settings") isCourseSettings = true;
-			else if (route.id === "routes/course.$id.participants") isCourseParticipants = true;
+			else if (route.id === "routes/course.$id.settings")
+				isCourseSettings = true;
+			else if (route.id === "routes/course.$id.participants")
+				isCourseParticipants = true;
 			else if (route.id === "routes/course.$id.grades") isCourseGrades = true;
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
@@ -123,7 +128,10 @@ export const middleware = [
 		const userSession = context.get(userContextKey);
 
 		if (userSession?.isAuthenticated) {
-			const userAccessContext = await getUserAccessContext(payload, userSession.effectiveUser || userSession.authenticatedUser || null);
+			const userAccessContext = await getUserAccessContext(
+				payload,
+				userSession.effectiveUser || userSession.authenticatedUser || null,
+			);
 			context.set(userAccessContextKey, userAccessContext);
 		}
 	},
@@ -133,9 +141,12 @@ export const middleware = [
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (userSession?.isAuthenticated && courseContext) {
-			// get the enrollment 
-			const currentUser = userSession.effectiveUser || userSession.authenticatedUser;
-			const enrollment = courseContext.course.enrollments.find(e => e.userId === currentUser?.id);
+			// get the enrollment
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+			const enrollment = courseContext.course.enrollments.find(
+				(e) => e.userId === currentUser?.id,
+			);
 
 			// set the enrolment context
 			if (enrollment) {

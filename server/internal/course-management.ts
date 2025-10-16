@@ -1,7 +1,12 @@
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
 import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
 import searchQueryParser from "search-query-parser";
-import { Courses, CourseSections, Gradebooks, Groups } from "server/payload.config";
+import {
+	CourseSections,
+	Courses,
+	Gradebooks,
+	Groups,
+} from "server/payload.config";
 import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -313,21 +318,21 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: {
 						limit: MOCK_INFINITY,
 					},
-					// ! we are not getting section in this course using join 
-					'sections': false,
+					// ! we are not getting section in this course using join
+					sections: false,
 				},
 				populate: {
 					// ! we don't want to populate the course in the enrollments and groups
-					'enrollments': {
-						'course': false,
+					enrollments: {
+						course: false,
 					},
-					'groups': {
-						'course': false,
+					groups: {
+						course: false,
 					},
 					// ! we don't need the subcategories and courses in the category
-					'course-categories': {
-						'courses': false,
-						'subcategories': false,
+					"course-categories": {
+						courses: false,
+						subcategories: false,
 					},
 				},
 				depth: 2,
@@ -336,7 +341,6 @@ export const tryFindCourseById = Result.wrap(
 				overrideAccess,
 			})
 			.then((result) => {
-
 				////////////////////////////////////////////////////
 				// type narrowing
 				////////////////////////////////////////////////////
@@ -354,7 +358,10 @@ export const tryFindCourseById = Result.wrap(
 				);
 
 				const courseCreatedByAvatar = courseCreatedBy.avatar;
-				assertZod(courseCreatedByAvatar, z.object({ id: z.number() }).nullish());
+				assertZod(
+					courseCreatedByAvatar,
+					z.object({ id: z.number() }).nullish(),
+				);
 
 				const courseEnrollments =
 					course.enrollments?.docs?.map((e) => {
@@ -377,18 +384,19 @@ export const tryFindCourseById = Result.wrap(
 							}),
 						);
 
-						const groups = e.groups?.map((g) => {
-							assertZod(g, z.object({ id: z.number() }));
-							const parent = g.parent;
-							assertZod(parent, z.number().nullish());
-							const course = g.course;
-							assertZod(course, z.undefined());
-							return {
-								...g,
-								parent,
-								course,
-							};
-						}) ?? []
+						const groups =
+							e.groups?.map((g) => {
+								assertZod(g, z.object({ id: z.number() }));
+								const parent = g.parent;
+								assertZod(parent, z.number().nullish());
+								const course = g.course;
+								assertZod(course, z.undefined());
+								return {
+									...g,
+									parent,
+									course,
+								};
+							}) ?? [];
 
 						const avatar = user.avatar;
 						assertZod(avatar, z.object({ id: z.number() }).nullish());
@@ -404,18 +412,19 @@ export const tryFindCourseById = Result.wrap(
 						};
 					}) ?? [];
 
-				const groups = course.groups?.docs?.map((g) => {
-					assertZod(g, z.object({ id: z.number() }));
-					const parent = g.parent;
-					assertZod(parent, z.object({ id: z.number() }).nullish());
-					const course = g.course;
-					assertZod(course, z.undefined());
-					return {
-						...g,
-						parent,
-						course,
-					};
-				}) ?? []
+				const groups =
+					course.groups?.docs?.map((g) => {
+						assertZod(g, z.object({ id: z.number() }));
+						const parent = g.parent;
+						assertZod(parent, z.object({ id: z.number() }).nullish());
+						const course = g.course;
+						assertZod(course, z.undefined());
+						return {
+							...g,
+							parent,
+							course,
+						};
+					}) ?? [];
 
 				const category = course.category;
 				assertZod(category, z.object({ id: z.number() }).nullish());
@@ -440,12 +449,14 @@ export const tryFindCourseById = Result.wrap(
 						avatar: courseCreatedByAvatar,
 					},
 					enrollments: courseEnrollments,
-					category: category ? {
-						...category,
-						parent,
-						courses: categoryCourses,
-						subcategories: categorySubcategories
-					} : null,
+					category: category
+						? {
+								...category,
+								parent,
+								courses: categoryCourses,
+								subcategories: categorySubcategories,
+							}
+						: null,
 					sections,
 				};
 			});

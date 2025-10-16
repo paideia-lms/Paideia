@@ -13,13 +13,13 @@ import { courseContextKey } from "./contexts/course-context";
 import { courseModuleContextKey } from "./contexts/course-module-context";
 import { enrolmentContextKey } from "./contexts/enrolment-context";
 import { globalContextKey } from "./contexts/global-context";
+import { userAccessContextKey } from "./contexts/user-access-context";
 import { userContextKey } from "./contexts/user-context";
 import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
 import { runSeed } from "./seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { s3Client } from "./utils/s3-client";
-import { userAccessContextKey } from "./contexts/user-access-context";
 
 const unstorage = createStorage({
 	driver: lruCacheDriver({

@@ -85,7 +85,10 @@ export const loader = async ({
 	const module = moduleResult.value;
 
 	// Verify user owns this module
-	if (module.createdBy.id !== currentUser.id && userSession.authenticatedUser.role !== "admin") {
+	if (
+		module.createdBy.id !== currentUser.id &&
+		userSession.authenticatedUser.role !== "admin"
+	) {
 		throw new UnauthorizedResponse(
 			"You don't have permission to edit this module",
 		);
@@ -129,9 +132,11 @@ export const loader = async ({
 		payload,
 		activityModuleId: module.id,
 	});
-	const instructors = instructorsResult.ok ? instructorsResult.value.filter(i => {
-		return i.id !== module.owner.id;
-	}) : [];
+	const instructors = instructorsResult.ok
+		? instructorsResult.value.filter((i) => {
+				return i.id !== module.owner.id;
+			})
+		: [];
 
 	return {
 		user: currentUser,
@@ -343,17 +348,17 @@ export default function EditModulePage() {
 		grantedTo:
 			typeof grant.grantedTo === "object"
 				? {
-					id: grant.grantedTo.id,
-					email: grant.grantedTo.email,
-					firstName: grant.grantedTo.firstName,
-					lastName: grant.grantedTo.lastName,
-				}
+						id: grant.grantedTo.id,
+						email: grant.grantedTo.email,
+						firstName: grant.grantedTo.firstName,
+						lastName: grant.grantedTo.lastName,
+					}
 				: {
-					id: grant.grantedTo,
-					email: "",
-					firstName: "",
-					lastName: "",
-				},
+						id: grant.grantedTo,
+						email: "",
+						firstName: "",
+						lastName: "",
+					},
 		grantedAt: grant.grantedAt,
 	}));
 

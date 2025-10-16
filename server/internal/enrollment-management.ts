@@ -1,5 +1,7 @@
 import type { Payload, PayloadRequest } from "payload";
+import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
+import z from "zod";
 import {
 	DuplicateEnrollmentError,
 	EnrollmentNotFoundError,
@@ -9,8 +11,6 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { Enrollment, User } from "../payload-types";
-import z from "zod";
-import { assertZod } from "server/utils/type-narrowing";
 
 export interface CreateEnrollmentArgs {
 	payload: Payload;
@@ -415,44 +415,56 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where: {
-				user: {
-					equals: userId,
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					user: {
+						equals: userId,
+					},
 				},
-			},
-			sort: "-createdAt",
-			pagination: false,
-			user: authenticatedUser,
-			req: req || {},
-			overrideAccess,
-		}).then(result => {
-			return result.docs.map(doc => {
-				const user = doc.user;
-				assertZod(user, z.object({
-					id: z.number()
-				}));
-				const course = doc.course;
-				assertZod(course, z.object({
-					id: z.number()
-				}));
-				const groups = doc.groups?.map(group => {
-					assertZod(group, z.object({
-						id: z.number()
-					}));
-					return group;
-				}) ?? []
-				return {
-					...doc,
-					user: user.id,
-					course: course,
-					groups
-				}
+				sort: "-createdAt",
+				pagination: false,
+				user: authenticatedUser,
+				req: req || {},
+				overrideAccess,
+			})
+			.then((result) => {
+				return result.docs.map((doc) => {
+					const user = doc.user;
+					assertZod(
+						user,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					const course = doc.course;
+					assertZod(
+						course,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					const groups =
+						doc.groups?.map((group) => {
+							assertZod(
+								group,
+								z.object({
+									id: z.number(),
+								}),
+							);
+							return group;
+						}) ?? [];
+					return {
+						...doc,
+						user: user.id,
+						course: course,
+						groups,
+					};
+				});
 			});
-		});
 
-		return enrollments
+		return enrollments;
 	},
 	(error) =>
 		transformError(error) ??

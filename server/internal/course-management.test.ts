@@ -1029,7 +1029,6 @@ describe("Course Management Functions", () => {
 			}
 		});
 
-
 		test("should work with overrideAccess true even for different user", async () => {
 			// Get test user object for authentication
 			const testUser = await payload.findByID({
