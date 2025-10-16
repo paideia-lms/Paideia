@@ -11,7 +11,6 @@ interface CourseInfoProps {
 		createdById: number;
 		createdAt: string;
 		updatedAt: string;
-		structure: unknown;
 		enrollmentCount: number;
 	};
 }
@@ -56,23 +55,6 @@ export function CourseInfo({ course }: CourseInfoProps) {
 						<Text>{new Date(course.updatedAt).toLocaleDateString()}</Text>
 					</Card>
 				</Group>
-
-				<div>
-					<Text fw={600} size="sm" c="dimmed" mb="xs">
-						Course Structure
-					</Text>
-					<Box
-						p="md"
-						style={{
-							backgroundColor: "var(--mantine-color-gray-0)",
-							borderRadius: "var(--mantine-radius-sm)",
-						}}
-					>
-						<pre style={{ margin: 0, overflow: "auto" }}>
-							{JSON.stringify(course.structure, null, 2)}
-						</pre>
-					</Box>
-				</div>
 			</Stack>
 		</Paper>
 	);

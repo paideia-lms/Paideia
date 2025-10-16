@@ -20,6 +20,7 @@ import {
 	tryCreateCourseActivityModuleLink,
 	tryDeleteCourseActivityModuleLink,
 } from "server/internal/course-activity-module-link-management";
+import { tryCreateSection } from "server/internal/course-section-management";
 import {
 	tryCreateEnrollment,
 	tryDeleteEnrollment,
@@ -152,12 +153,31 @@ export const action = async ({
 		}
 
 		try {
+			// Create a default section if none exists
+			const sectionResult = await tryCreateSection({
+				payload,
+				data: {
+					course: courseId,
+					title: "Default Section",
+					description: "Default section for activity modules",
+				},
+				req: { ...request, transactionID },
+				overrideAccess: true,
+			});
+
+			if (!sectionResult.ok) {
+				await payload.db.rollbackTransaction(transactionID);
+				return badRequest({ error: "Failed to create section" });
+			}
+
 			const createResult = await tryCreateCourseActivityModuleLink(
 				payload,
 				request,
 				{
 					course: courseId,
 					activityModule: activityModuleId,
+					section: sectionResult.value.id,
+					order: 0,
 					transactionID,
 				},
 			);
@@ -508,7 +528,6 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 					createdById: course.createdBy.id,
 					createdAt: course.createdAt,
 					updatedAt: course.updatedAt,
-					structure: course.structure,
 					enrollmentCount: course.enrollments.length,
 				}} />
 

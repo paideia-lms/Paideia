@@ -4,6 +4,7 @@ import { Result } from "typescript-result";
 import { tryCreateActivityModule } from "./internal/activity-module-management";
 import { tryCheckFirstUser } from "./internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "./internal/course-activity-module-link-management";
+import { tryCreateSection } from "./internal/course-section-management";
 import { tryCreateCourse } from "./internal/course-management";
 import { tryCreateEnrollment } from "./internal/enrollment-management";
 import {
@@ -322,14 +323,37 @@ export const runSeed = Result.wrap(
 			}
 		}
 
-		// Step 10: Link page module to course
-		console.log("🔗 Linking page module to course...");
+		// Step 10: Create a section for the course
+		console.log("📁 Creating course section...");
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: course.id,
+				title: "Introduction",
+				description: "Introduction to the course",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error(
+				`Failed to create course section: ${sectionResult.error.message}`,
+			);
+		}
+
+		const section = sectionResult.value;
+		console.log(`✅ Course section created with ID: ${section.id}`);
+
+		// Step 11: Link page module to course section
+		console.log("🔗 Linking page module to course section...");
 		const linkResult = await tryCreateCourseActivityModuleLink(
 			payload,
 			mockRequest,
 			{
 				course: course.id,
 				activityModule: pageModule.id,
+				section: section.id,
+				order: 0,
 			},
 		);
 

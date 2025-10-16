@@ -8,6 +8,8 @@ import { TransactionIdNotFoundError, transformError, UnknownError } from "~/util
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
 	activityModule: number;
+	section: number;
+	order: number;
 	transactionID?: string | number;
 }
 
@@ -27,13 +29,15 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		request: Request,
 		args: CreateCourseActivityModuleLinkArgs,
 	) => {
-		const { course, activityModule, transactionID } = args;
+		const { course, activityModule, section, order, transactionID } = args;
 
 		const newLink = await payload.create({
 			collection: CourseActivityModuleLinks.slug,
 			data: {
 				course,
 				activityModule,
+				section,
+				order,
 			},
 			req: {
 				...request,

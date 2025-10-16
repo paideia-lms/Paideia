@@ -1,6 +1,4 @@
 import type { CollectionConfig, TextFieldValidation } from "payload";
-import { courseStructureSchema } from "server/utils/schema";
-import z from "zod";
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -54,25 +52,6 @@ export const Courses = {
 			name: "description",
 			type: "textarea",
 			required: true,
-		},
-		{
-			name: "structure",
-			type: "json",
-			required: true,
-			label: "Structure",
-
-			validate: (value) => {
-				const result = courseStructureSchema.safeParse(value);
-				if (!result.success) {
-					console.log("test", z.formatError(result.error)._errors.join(", "));
-					return z.formatError(result.error)._errors.join(", ");
-				}
-				return true;
-			},
-			typescriptSchema: [
-				// @ts-expect-error
-				() => "$fix:CourseStructure",
-			],
 		},
 		{
 			name: "status",
@@ -135,6 +114,14 @@ export const Courses = {
 			type: "relationship",
 			relationTo: "course-categories",
 			label: "Category",
+		},
+		{
+			name: "sections",
+			type: "join",
+			on: "course",
+			collection: "course-sections",
+			label: "Sections",
+			maxDepth: 2,
 		},
 	],
 } as const satisfies CollectionConfig;

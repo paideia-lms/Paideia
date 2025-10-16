@@ -18,8 +18,8 @@ import {
   serial,
   boolean,
   numeric,
-  jsonb,
   type AnyPgColumn,
+  jsonb,
   pgEnum,
 } from "@payloadcms/db-postgres/drizzle/pg-core";
 import { sql, relations } from "@payloadcms/db-postgres/drizzle";
@@ -225,7 +225,6 @@ export const courses = pgTable(
     title: varchar("title").notNull(),
     slug: varchar("slug").notNull(),
     description: varchar("description").notNull(),
-    structure: jsonb("structure").notNull(),
     status: enum_courses_status("status").notNull().default("draft"),
     thumbnail: integer("thumbnail_id").references(() => media.id, {
       onDelete: "set null",
@@ -260,6 +259,47 @@ export const courses = pgTable(
     index("courses_category_idx").on(columns.category),
     index("courses_updated_at_idx").on(columns.updatedAt),
     index("courses_created_at_idx").on(columns.createdAt),
+  ],
+);
+
+export const course_sections = pgTable(
+  "course_sections",
+  {
+    id: serial("id").primaryKey(),
+    course: integer("course_id")
+      .notNull()
+      .references(() => courses.id, {
+        onDelete: "set null",
+      }),
+    title: varchar("title").notNull(),
+    description: varchar("description"),
+    parentSection: integer("parent_section_id").references(
+      (): AnyPgColumn => course_sections.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    order: numeric("order").notNull().default("0"),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("course_sections_course_idx").on(columns.course),
+    index("course_sections_parent_section_idx").on(columns.parentSection),
+    index("course_sections_updated_at_idx").on(columns.updatedAt),
+    index("course_sections_created_at_idx").on(columns.createdAt),
   ],
 );
 
@@ -835,6 +875,12 @@ export const course_activity_module_links = pgTable(
       .references(() => activity_modules.id, {
         onDelete: "set null",
       }),
+    section: integer("section_id")
+      .notNull()
+      .references(() => course_sections.id, {
+        onDelete: "set null",
+      }),
+    order: numeric("order").notNull().default("0"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -855,6 +901,7 @@ export const course_activity_module_links = pgTable(
     index("course_activity_module_links_activity_module_idx").on(
       columns.activityModule,
     ),
+    index("course_activity_module_links_section_idx").on(columns.section),
     index("course_activity_module_links_updated_at_idx").on(columns.updatedAt),
     index("course_activity_module_links_created_at_idx").on(columns.createdAt),
   ],
@@ -1822,6 +1869,7 @@ export const payload_locked_documents_rels = pgTable(
     path: varchar("path").notNull(),
     usersID: integer("users_id"),
     coursesID: integer("courses_id"),
+    "course-sectionsID": integer("course_sections_id"),
     "course-categoriesID": integer("course_categories_id"),
     "category-role-assignmentsID": integer("category_role_assignments_id"),
     enrollmentsID: integer("enrollments_id"),
@@ -1852,6 +1900,9 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_path_idx").on(columns.path),
     index("payload_locked_documents_rels_users_id_idx").on(columns.usersID),
     index("payload_locked_documents_rels_courses_id_idx").on(columns.coursesID),
+    index("payload_locked_documents_rels_course_sections_id_idx").on(
+      columns["course-sectionsID"],
+    ),
     index("payload_locked_documents_rels_course_categories_id_idx").on(
       columns["course-categoriesID"],
     ),
@@ -1919,6 +1970,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["coursesID"]],
       foreignColumns: [courses.id],
       name: "payload_locked_documents_rels_courses_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["course-sectionsID"]],
+      foreignColumns: [course_sections.id],
+      name: "payload_locked_documents_rels_course_sections_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["course-categoriesID"]],
@@ -2194,6 +2250,21 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
     relationName: "category",
   }),
 }));
+export const relations_course_sections = relations(
+  course_sections,
+  ({ one }) => ({
+    course: one(courses, {
+      fields: [course_sections.course],
+      references: [courses.id],
+      relationName: "course",
+    }),
+    parentSection: one(course_sections, {
+      fields: [course_sections.parentSection],
+      references: [course_sections.id],
+      relationName: "parentSection",
+    }),
+  }),
+);
 export const relations_course_categories = relations(
   course_categories,
   ({ one }) => ({
@@ -2421,6 +2492,11 @@ export const relations_course_activity_module_links = relations(
       fields: [course_activity_module_links.activityModule],
       references: [activity_modules.id],
       relationName: "activityModule",
+    }),
+    section: one(course_sections, {
+      fields: [course_activity_module_links.section],
+      references: [course_sections.id],
+      relationName: "section",
     }),
   }),
 );
@@ -2781,6 +2857,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [courses.id],
       relationName: "courses",
     }),
+    "course-sectionsID": one(course_sections, {
+      fields: [payload_locked_documents_rels["course-sectionsID"]],
+      references: [course_sections.id],
+      relationName: "course-sections",
+    }),
     "course-categoriesID": one(course_categories, {
       fields: [payload_locked_documents_rels["course-categoriesID"]],
       references: [course_categories.id],
@@ -2966,6 +3047,7 @@ type DatabaseSchema = {
   users: typeof users;
   courses_tags: typeof courses_tags;
   courses: typeof courses;
+  course_sections: typeof course_sections;
   course_categories: typeof course_categories;
   category_role_assignments: typeof category_role_assignments;
   enrollments: typeof enrollments;
@@ -3013,6 +3095,7 @@ type DatabaseSchema = {
   relations_users: typeof relations_users;
   relations_courses_tags: typeof relations_courses_tags;
   relations_courses: typeof relations_courses;
+  relations_course_sections: typeof relations_course_sections;
   relations_course_categories: typeof relations_course_categories;
   relations_category_role_assignments: typeof relations_category_role_assignments;
   relations_enrollments_rels: typeof relations_enrollments_rels;

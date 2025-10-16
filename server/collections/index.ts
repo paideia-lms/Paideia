@@ -8,6 +8,7 @@ export { CategoryRoleAssignments } from "./category-role-assignments";
 export { CourseActivityModuleLinks } from "./course-activity-module-links";
 export { CourseCategories } from "./course-categories";
 export { CourseGradeTables } from "./course-grade-tables";
+export { CourseSections } from "./course-sections";
 export { Courses } from "./courses";
 export { DiscussionSubmissions } from "./discussion-submissions";
 export { Discussions } from "./discussions";

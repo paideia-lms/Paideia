@@ -11,6 +11,7 @@ import {
 	tryCreateCourseActivityModuleLink,
 } from "./course-activity-module-link-management";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
 import {
 	type CreateDiscussionSubmissionArgs,
 	calculateDiscussionGrade,
@@ -192,10 +193,27 @@ describe("Discussion Management - Full Workflow", () => {
 			console.log("Extracted discussion ID:", discussionId);
 		}
 
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: courseId,
+				title: "Test Section",
+				description: "Test section for discussion submissions",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+
 		// Create course-activity-module-link
 		const linkArgs: CreateCourseActivityModuleLinkArgs = {
 			course: courseId,
 			activityModule: activityModuleId,
+			section: sectionResult.value.id,
+			order: 0,
 		};
 
 		const linkResult = await tryCreateCourseActivityModuleLink(

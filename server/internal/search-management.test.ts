@@ -8,6 +8,7 @@ import {
 	tryDeleteCourse,
 	tryUpdateCourse,
 } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
 import { parseQuery, tryGlobalSearch } from "./search-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
@@ -95,19 +96,6 @@ describe("Search Management Functions", () => {
 				createdBy: user1Result.value.id,
 				slug: "intro-javascript",
 				status: "published",
-				structure: {
-					sections: [
-						{
-							title: "Getting Started",
-							description: "Introduction section",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
-				},
 			},
 			overrideAccess: true,
 		};
@@ -120,19 +108,6 @@ describe("Search Management Functions", () => {
 				createdBy: userId2,
 				slug: "advanced-python",
 				status: "published",
-				structure: {
-					sections: [
-						{
-							title: "Advanced Topics",
-							description: "Deep dive into Python",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
-				},
 			},
 			overrideAccess: true,
 		};
@@ -234,19 +209,7 @@ describe("Search Management Functions", () => {
 					createdBy: userId2,
 					slug: `temp-course-${Date.now()}`,
 					status: "published",
-					structure: {
-						sections: [
-							{
-								title: "Test Section",
-								description: "Test section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
+
 				},
 				overrideAccess: true,
 			};
@@ -395,19 +358,7 @@ describe("Search Management Functions", () => {
 					createdBy: userId2,
 					slug: `update-course-${Date.now()}`,
 					status: "published",
-					structure: {
-						sections: [
-							{
-								title: "Test Section",
-								description: "Test section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
+
 				},
 				req: newRequest,
 				overrideAccess: true,

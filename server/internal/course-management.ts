@@ -11,7 +11,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Course, Enrollment, Group, User } from "../payload-types";
+import type { Course, Group, User } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
 
 // e.g. Replace<Enrollment, "groups", number[]>
@@ -24,7 +24,6 @@ export interface CreateCourseArgs {
 		title: string;
 		description: string;
 		slug: string;
-		structure?: Course["structure"];
 		createdBy: number;
 		status?: "draft" | "published" | "archived";
 		thumbnail?: number;
@@ -40,7 +39,6 @@ export interface UpdateCourseArgs {
 	payload: Payload;
 	courseId: number;
 	data: {
-		structure?: Course["structure"];
 		title?: string;
 		description?: string;
 		createdBy?: number; // User ID
@@ -114,7 +112,6 @@ export const tryCreateCourse = Result.wrap(
 				title,
 				description,
 				slug,
-				structure,
 				createdBy,
 				status = "draft",
 				thumbnail,
@@ -138,19 +135,6 @@ export const tryCreateCourse = Result.wrap(
 				data: {
 					title,
 					description,
-					structure: structure ?? {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Introduction to the course",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 					slug,
 					createdBy,
 					status,

@@ -44,5 +44,25 @@ export const CourseActivityModuleLinks = {
 			type: "text",
 			virtual: `activityModule.type`,
 		},
+		{
+			name: "section",
+			type: "relationship",
+			relationTo: "course-sections",
+			label: "Section",
+			required: true,
+		},
+		{
+			name: "sectionTitle",
+			type: "text",
+			virtual: `section.title`,
+		},
+		{
+			name: "order",
+			type: "number",
+			required: true,
+			defaultValue: 0,
+			label: "Order",
+			min: 0,
+		},
 	],
 } as const satisfies CollectionConfig;

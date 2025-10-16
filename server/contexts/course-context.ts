@@ -9,7 +9,7 @@ import { createContext } from "react-router";
 import { tryFindCourseById } from "server/internal/course-management";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
-import type { CourseStructure } from "server/utils/schema";
+// CourseStructure removed - now using course-sections collection
 import type { User } from "./user-context";
 
 type Group = {
@@ -83,7 +83,6 @@ export interface Course {
 	slug: string;
 	description: string;
 	status: "draft" | "published" | "archived";
-	structure: CourseStructure;
 	createdBy: {
 		id: number;
 		email: string;
@@ -157,7 +156,6 @@ export const tryGetCourseContext = async (
 		slug: course.slug,
 		description: course.description,
 		status: course.status,
-		structure: course.structure,
 		createdBy: {
 			id: course.createdBy.id,
 			email: course.createdBy.email,

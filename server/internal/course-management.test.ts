@@ -71,19 +71,6 @@ describe("Course Management Functions", () => {
 					description: "Learn the basics of JavaScript programming",
 					createdBy: instructorId,
 					slug: "introduction-to-javascript",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Learn the basics of JavaScript programming",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 					status: "draft",
 					tags: [{ tag: "javascript" }, { tag: "programming" }],
 				},
@@ -108,19 +95,6 @@ describe("Course Management Functions", () => {
 					description: "Learn HTML fundamentals",
 					createdBy: instructorId,
 					slug: "basic-html",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Learn the basics of HTML programming",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 				},
 				overrideAccess: true,
 			};
@@ -141,19 +115,6 @@ describe("Course Management Functions", () => {
 					description: "This should fail",
 					createdBy: 99999,
 					slug: "non-existent-instructor-course",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Test section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 				},
 				overrideAccess: true,
 			};
@@ -174,19 +135,6 @@ describe("Course Management Functions", () => {
 					description: "Original description",
 					createdBy: instructorId,
 					slug: "original-title",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Original section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 				},
 				overrideAccess: true,
 			};
@@ -227,19 +175,6 @@ describe("Course Management Functions", () => {
 					description: "Test course for finding by ID",
 					createdBy: instructorId,
 					slug: "find-by-id-test",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Test section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 				},
 				overrideAccess: true,
 			};
@@ -299,19 +234,6 @@ describe("Course Management Functions", () => {
 					description: "Learn React",
 					createdBy: instructorId,
 					slug: "react-fundamentals",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "React section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 				},
 				overrideAccess: true,
 			});
@@ -323,19 +245,6 @@ describe("Course Management Functions", () => {
 					description: "Learn Vue",
 					createdBy: instructorId,
 					slug: "vue-js-basics",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Vue section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 				},
 				overrideAccess: true,
 			});
@@ -476,19 +385,6 @@ describe("Course Management Functions", () => {
 					createdBy: instructorId,
 					slug: "lifecycle-test-course",
 					status: "draft",
-					structure: {
-						sections: [
-							{
-								title: "Introduction",
-								description: "Lifecycle test section",
-								items: [
-									{
-										id: 1,
-									},
-								],
-							},
-						],
-					},
 				},
 				overrideAccess: true,
 			};

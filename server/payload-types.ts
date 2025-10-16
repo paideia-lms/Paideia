@@ -70,6 +70,7 @@ export interface Config {
   collections: {
     users: User;
     courses: Course;
+    'course-sections': CourseSection;
     'course-categories': CourseCategory;
     'category-role-assignments': CategoryRoleAssignment;
     enrollments: Enrollment;
@@ -100,6 +101,11 @@ export interface Config {
       gradeTable: 'course-grade-tables';
       enrollments: 'enrollments';
       groups: 'groups';
+      sections: 'course-sections';
+    };
+    'course-sections': {
+      activityModules: 'course-activity-module-links';
+      childSections: 'course-sections';
     };
     'course-categories': {
       subcategories: 'course-categories';
@@ -133,6 +139,7 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     courses: CoursesSelect<false> | CoursesSelect<true>;
+    'course-sections': CourseSectionsSelect<false> | CourseSectionsSelect<true>;
     'course-categories': CourseCategoriesSelect<false> | CourseCategoriesSelect<true>;
     'category-role-assignments': CategoryRoleAssignmentsSelect<false> | CategoryRoleAssignmentsSelect<true>;
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
@@ -280,7 +287,6 @@ export interface Course {
   title: string;
   slug: string;
   description: string;
-  structure: Schemas.CourseStructure;
   status: 'draft' | 'published' | 'archived';
   thumbnail?: (number | null) | Media;
   tags?:
@@ -306,6 +312,11 @@ export interface Course {
     totalDocs?: number;
   };
   category?: (number | null) | CourseCategory;
+  sections?: {
+    docs?: (number | CourseSection)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -404,22 +415,46 @@ export interface CourseCategory {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "category-role-assignments".
+ * via the `definition` "course-sections".
  */
-export interface CategoryRoleAssignment {
+export interface CourseSection {
   id: number;
-  user: number | User;
-  category: number | CourseCategory;
-  /**
-   * Category Admin: Manages category settings, nested subcategories, and direct courses. Category Coordinator: Assigns roles within category, monitors course counts. Category Reviewer: Views analytics and content without edit rights.
-   */
-  role: 'category-admin' | 'category-coordinator' | 'category-reviewer';
-  assignedBy: number | User;
-  assignedAt?: string | null;
-  /**
-   * Optional notes about why this role was assigned
-   */
-  notes?: string | null;
+  course: number | Course;
+  courseName?: string | null;
+  courseSlug?: string | null;
+  title: string;
+  description?: string | null;
+  parentSection?: (number | null) | CourseSection;
+  parentSectionTitle?: string | null;
+  order: number;
+  activityModules?: {
+    docs?: (number | CourseActivityModuleLink)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  childSections?: {
+    docs?: (number | CourseSection)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-activity-module-links".
+ */
+export interface CourseActivityModuleLink {
+  id: number;
+  course: number | Course;
+  courseName?: string | null;
+  courseSlug?: string | null;
+  activityModule: number | ActivityModule;
+  activityModuleName?: string[] | null;
+  activityModuleType?: string | null;
+  section: number | CourseSection;
+  sectionTitle?: string | null;
+  order: number;
   updatedAt: string;
   createdAt: string;
 }
@@ -733,16 +768,22 @@ export interface ActivityModuleGrant {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "course-activity-module-links".
+ * via the `definition` "category-role-assignments".
  */
-export interface CourseActivityModuleLink {
+export interface CategoryRoleAssignment {
   id: number;
-  course: number | Course;
-  courseName?: string | null;
-  courseSlug?: string | null;
-  activityModule: number | ActivityModule;
-  activityModuleName?: string[] | null;
-  activityModuleType?: string | null;
+  user: number | User;
+  category: number | CourseCategory;
+  /**
+   * Category Admin: Manages category settings, nested subcategories, and direct courses. Category Coordinator: Assigns roles within category, monitors course counts. Category Reviewer: Views analytics and content without edit rights.
+   */
+  role: 'category-admin' | 'category-coordinator' | 'category-reviewer';
+  assignedBy: number | User;
+  assignedAt?: string | null;
+  /**
+   * Optional notes about why this role was assigned
+   */
+  notes?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -923,6 +964,10 @@ export interface PayloadLockedDocument {
         value: number | Course;
       } | null)
     | ({
+        relationTo: 'course-sections';
+        value: number | CourseSection;
+      } | null)
+    | ({
         relationTo: 'course-categories';
         value: number | CourseCategory;
       } | null)
@@ -1085,7 +1130,6 @@ export interface CoursesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   description?: T;
-  structure?: T;
   status?: T;
   thumbnail?: T;
   tags?:
@@ -1099,6 +1143,25 @@ export interface CoursesSelect<T extends boolean = true> {
   enrollments?: T;
   groups?: T;
   category?: T;
+  sections?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "course-sections_select".
+ */
+export interface CourseSectionsSelect<T extends boolean = true> {
+  course?: T;
+  courseName?: T;
+  courseSlug?: T;
+  title?: T;
+  description?: T;
+  parentSection?: T;
+  parentSectionTitle?: T;
+  order?: T;
+  activityModules?: T;
+  childSections?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1302,6 +1365,9 @@ export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
   activityModule?: T;
   activityModuleName?: T;
   activityModuleType?: T;
+  section?: T;
+  sectionTitle?: T;
+  order?: T;
   updatedAt?: T;
   createdAt?: T;
 }

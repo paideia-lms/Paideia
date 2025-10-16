@@ -11,7 +11,6 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { extractJWT } from "payload";
 import { redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -24,14 +23,12 @@ import z from "zod";
 import {
 	badRequest,
 	ForbiddenResponse,
-	forbidden,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import type { Route } from "./+types/course-edit.$id";
+import type { Route } from "./+types/course.$id.settings";
 
 export const loader = async ({
-	request,
 	context,
 	params,
 }: Route.LoaderArgs) => {

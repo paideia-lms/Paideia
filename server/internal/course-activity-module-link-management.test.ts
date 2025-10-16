@@ -17,6 +17,7 @@ import {
 	trySearchCourseActivityModuleLinks,
 } from "./course-activity-module-link-management";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 describe("Course Activity Module Link Management Functions", () => {
@@ -24,6 +25,7 @@ describe("Course Activity Module Link Management Functions", () => {
 	let mockRequest: Request;
 	let testUser: { id: number };
 	let testCourse: { id: number };
+	let testSection: { id: number };
 	let testActivityModule: { id: number };
 
 	beforeAll(async () => {
@@ -78,6 +80,21 @@ describe("Course Activity Module Link Management Functions", () => {
 			testCourse = courseResult.value;
 		}
 
+		// Create test section
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: testCourse.id,
+				title: "Test Section",
+				description: "A test section for link management",
+			},
+			overrideAccess: true,
+		});
+		expect(sectionResult.ok).toBe(true);
+		if (sectionResult.ok) {
+			testSection = sectionResult.value;
+		}
+
 		// Create test activity module first
 		const activityModuleArgs: CreateActivityModuleArgs = {
 			title: "Test Activity Module",
@@ -111,6 +128,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
 				activityModule: testActivityModule.id,
+				section: testSection.id,
+				order: 0,
 			};
 
 			const result = await tryCreateCourseActivityModuleLink(
@@ -163,6 +182,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
 				activityModule: activityModuleResult2.value.id,
+				section: testSection.id,
+				order: 1,
 			};
 
 			const result = await tryCreateCourseActivityModuleLink(
@@ -325,6 +346,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
 				activityModule: testActivityModule.id,
+				section: testSection.id,
+				order: 0,
 			};
 
 			const result = await tryCreateCourseActivityModuleLink(
@@ -396,6 +419,19 @@ describe("Course Activity Module Link Management Functions", () => {
 
 			const courseResult = await tryCreateCourse(courseArgs);
 			if (courseResult.ok) {
+				// Create a section for the new course
+				const sectionResult = await tryCreateSection({
+					payload,
+					data: {
+						course: courseResult.value.id,
+						title: "Unlinked Section",
+						description: "A section with no links",
+					},
+					overrideAccess: true,
+				});
+
+				if (!sectionResult.ok) return;
+
 				const activityModuleArgs: CreateActivityModuleArgs = {
 					title: "Unlinked Activity Module",
 					description: "An activity module with no links",
@@ -434,6 +470,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
 				course: testCourse.id,
 				activityModule: testActivityModule.id,
+				section: testSection.id,
+				order: 0,
 			};
 
 			const createResult = await tryCreateCourseActivityModuleLink(

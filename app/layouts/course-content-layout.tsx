@@ -7,7 +7,8 @@ import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import { globalContextKey } from "server/contexts/global-context";
-import { CourseStructureTree } from "~/routes/api/course-structure-tree";
+// TODO: Update CourseStructureTree to use new course-sections system
+// import { CourseStructureTree } from "~/routes/api/course-structure-tree";
 export const loader = async ({ context }: Route.LoaderArgs) => {
     const { pageInfo } = context.get(globalContextKey);
     const courseContext = context.get(courseContextKey);
@@ -63,12 +64,14 @@ export default function CourseContentLayout({ loaderData }: Route.ComponentProps
                     </Grid.Col>
                     <Grid.Col span={4}>
                         <ScrollArea h="100vh" p="md">
-                            <CourseStructureTree
+                            {/* TODO: Update CourseStructureTree to use new course-sections system */}
+                            {/* <CourseStructureTree
                                 structure={course.structure}
                                 moduleLinks={moduleLinks}
                                 readOnly={!canEdit}
                                 courseId={course.id}
-                            />
+                            /> */}
+                            <div>Course structure will be updated to use sections</div>
                         </ScrollArea>
                     </Grid.Col>
                 </Grid>

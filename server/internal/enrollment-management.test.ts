@@ -58,19 +58,6 @@ describe("Enrollment Management Functions", () => {
 				description: "A test course for enrollment testing",
 				createdBy: testUserId,
 				slug: "test-course",
-				structure: {
-					sections: [
-						{
-							title: "Test Section",
-							description: "A test section for enrollment testing",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
-				},
 				status: "published",
 			},
 		});
@@ -772,19 +759,6 @@ describe("Enrollment Management Functions with Authentication", () => {
 				description: "A test course for enrollment testing",
 				createdBy: adminUser.id,
 				slug: "test-course",
-				structure: {
-					sections: [
-						{
-							title: "Test Section",
-							description: "A test section for enrollment testing",
-							items: [
-								{
-									id: 1,
-								},
-							],
-						},
-					],
-				},
 				status: "published",
 			},
 			overrideAccess: true,

@@ -7,16 +7,6 @@ export const ActivityModules = {
 	access: {
 		read: ({ req }): AccessResult => {
 			return true;
-			if (!req.user) return false;
-			if (req.user.role === "admin") return true;
-
-			return {
-				or: [
-					{ owner: { equals: req.user.id } },
-					{ createdBy: { equals: req.user.id } },
-					{ "grants.grantedTo": { equals: req.user.id } },
-				],
-			};
 		},
 		create: ({ req }): AccessResult => {
 			// require login to create activity modules

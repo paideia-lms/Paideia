@@ -12,6 +12,7 @@ import {
 	tryTransferActivityModuleOwnership,
 } from "./activity-module-access";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateSection } from "./course-section-management";
 
 describe("Activity Module Access Control", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -62,18 +63,34 @@ describe("Activity Module Access Control", () => {
 				slug: `test-course-auto-grant-${uniqueId}`,
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
 		});
 
-		// Link activity module to course
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: course.id,
+				title: `Section for ${uniqueId}`,
+				description: "Test section",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+
+		// Link activity module to course section
 		await payload.create({
 			collection: "course-activity-module-links",
 			data: {
 				course: course.id,
 				activityModule: activityModule.id,
+				section: sectionResult.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1171,11 +1188,25 @@ describe("Activity Module Access Control", () => {
 				slug: "test-course",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
 		});
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: course.id,
+				title: "Test Section",
+				description: "Test section for activity module access",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
 
 		// Create course-activity-module link
 		await payload.create({
@@ -1183,6 +1214,8 @@ describe("Activity Module Access Control", () => {
 			data: {
 				course: course.id,
 				activityModule: activityModule.id,
+				section: sectionResult.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1272,7 +1305,6 @@ describe("Activity Module Access Control", () => {
 				slug: "test-course-1",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1286,11 +1318,35 @@ describe("Activity Module Access Control", () => {
 				slug: "test-course-2",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
 		});
+
+		// Create sections for both courses
+		const section1Result = await tryCreateSection({
+			payload,
+			data: {
+				course: course1.id,
+				title: "Test Section 1",
+				description: "Test section 1",
+			},
+			overrideAccess: true,
+		});
+
+		const section2Result = await tryCreateSection({
+			payload,
+			data: {
+				course: course2.id,
+				title: "Test Section 2",
+				description: "Test section 2",
+			},
+			overrideAccess: true,
+		});
+
+		if (!section1Result.ok || !section2Result.ok) {
+			throw new Error("Failed to create sections");
+		}
 
 		// Link activity module to both courses
 		await payload.create({
@@ -1298,6 +1354,8 @@ describe("Activity Module Access Control", () => {
 			data: {
 				course: course1.id,
 				activityModule: activityModule.id,
+				section: section1Result.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1308,6 +1366,8 @@ describe("Activity Module Access Control", () => {
 			data: {
 				course: course2.id,
 				activityModule: activityModule.id,
+				section: section2Result.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1523,7 +1583,6 @@ describe("Activity Module Access Control", () => {
 				slug: "multi-course-1",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1537,11 +1596,35 @@ describe("Activity Module Access Control", () => {
 				slug: "multi-course-2",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
 		});
+
+		// Create sections for both courses
+		const section1Result = await tryCreateSection({
+			payload,
+			data: {
+				course: course1.id,
+				title: "Test Section 1",
+				description: "Test section 1",
+			},
+			overrideAccess: true,
+		});
+
+		const section2Result = await tryCreateSection({
+			payload,
+			data: {
+				course: course2.id,
+				title: "Test Section 2",
+				description: "Test section 2",
+			},
+			overrideAccess: true,
+		});
+
+		if (!section1Result.ok || !section2Result.ok) {
+			throw new Error("Failed to create sections");
+		}
 
 		// Link activity modules to courses
 		await payload.create({
@@ -1549,6 +1632,8 @@ describe("Activity Module Access Control", () => {
 			data: {
 				course: course1.id,
 				activityModule: activityModule1.id,
+				section: section1Result.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1559,6 +1644,8 @@ describe("Activity Module Access Control", () => {
 			data: {
 				course: course2.id,
 				activityModule: activityModule2.id,
+				section: section2Result.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1653,11 +1740,25 @@ describe("Activity Module Access Control", () => {
 				slug: "test-course-inactive",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
 		});
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: course.id,
+				title: "Test Section",
+				description: "Test section for inactive enrollment",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
 
 		// Link activity module to course
 		await payload.create({
@@ -1665,6 +1766,8 @@ describe("Activity Module Access Control", () => {
 			data: {
 				course: course.id,
 				activityModule: activityModule.id,
+				section: sectionResult.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1726,11 +1829,25 @@ describe("Activity Module Access Control", () => {
 				slug: "test-course-student",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
 		});
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: course.id,
+				title: "Test Section",
+				description: "Test section for student enrollment",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
 
 		// Link activity module to course
 		await payload.create({
@@ -1738,6 +1855,8 @@ describe("Activity Module Access Control", () => {
 			data: {
 				course: course.id,
 				activityModule: activityModule.id,
+				section: sectionResult.value.id,
+				order: 0,
 			},
 			user: user1,
 			overrideAccess: true,
@@ -1802,7 +1921,6 @@ describe("Activity Module Access Control", () => {
 				slug: "course-without-modules",
 				createdBy: testUser1.id,
 				status: "published",
-				structure: { sections: [] },
 			},
 			user: user1,
 			overrideAccess: true,
