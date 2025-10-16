@@ -304,13 +304,13 @@ export const runSeed = Result.wrap(
 		// Step 9.5: Create additional activity modules
 		console.log("📄 Creating additional activity modules...");
 		const additionalModules = [];
-		const moduleTypes = ["page", "quiz", "assignment", "discussion"] as const;
+		const moduleTypes = ["page", "quiz", "assignment", "discussion", "whiteboard"] as const;
 
-		for (let i = 0; i < 4; i++) {
+		for (let i = 0; i < 8; i++) {
 			const moduleResult = await tryCreateActivityModule(payload, {
 				title: faker.company.catchPhrase(),
 				description: faker.lorem.paragraph(),
-				type: moduleTypes[i],
+				type: moduleTypes[i % moduleTypes.length],
 				status: faker.helpers.arrayElement(["draft", "published"]),
 				userId: adminUser.id,
 			});
@@ -318,53 +318,60 @@ export const runSeed = Result.wrap(
 			if (moduleResult.ok) {
 				additionalModules.push(moduleResult.value);
 				console.log(
-					`✅ Additional module created with ID: ${moduleResult.value.id}`,
+					`✅ Additional module created with ID: ${moduleResult.value.id} (${moduleResult.value.type})`,
 				);
 			}
 		}
 
-		// Step 10: Create a section for the course
-		console.log("📁 Creating course section...");
-		const sectionResult = await tryCreateSection({
-			payload,
-			data: {
-				course: course.id,
-				title: "Introduction",
-				description: "Introduction to the course",
-			},
-			overrideAccess: true,
-		});
+		// Step 10: Create sections for the course
+		console.log("📁 Creating course sections...");
+		const sections = [];
+		const sectionTitles = ["Introduction", "Course Content", "Assignments", "Discussions"];
 
-		if (!sectionResult.ok) {
-			throw new Error(
-				`Failed to create course section: ${sectionResult.error.message}`,
-			);
+		for (let i = 0; i < sectionTitles.length; i++) {
+			const sectionResult = await tryCreateSection({
+				payload,
+				data: {
+					course: course.id,
+					title: sectionTitles[i],
+					description: faker.lorem.sentence(),
+				},
+				overrideAccess: true,
+			});
+
+			if (sectionResult.ok) {
+				sections.push(sectionResult.value);
+				console.log(`✅ Course section created with ID: ${sectionResult.value.id} (${sectionTitles[i]})`);
+			}
 		}
 
-		const section = sectionResult.value;
-		console.log(`✅ Course section created with ID: ${section.id}`);
+		// Step 11: Link modules to course sections
+		console.log("🔗 Linking modules to course sections...");
+		const links = [];
+		const allModules = [pageModule, ...additionalModules];
 
-		// Step 11: Link page module to course section
-		console.log("🔗 Linking page module to course section...");
-		const linkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
-			{
-				course: course.id,
-				activityModule: pageModule.id,
-				section: section.id,
-				order: 0,
-			},
-		);
+		// Distribute modules across sections
+		for (let i = 0; i < allModules.length; i++) {
+			const module = allModules[i];
+			const sectionIndex = i % sections.length;
+			const section = sections[sectionIndex];
 
-		if (!linkResult.ok) {
-			throw new Error(
-				`Failed to create course-activity-module link: ${linkResult.error.message}`,
+			const linkResult = await tryCreateCourseActivityModuleLink(
+				payload,
+				mockRequest,
+				{
+					course: course.id,
+					activityModule: module.id,
+					section: section.id,
+					order: Math.floor(i / sections.length), // Distribute order within each section
+				},
 			);
-		}
 
-		const link = linkResult.value;
-		console.log(`✅ Course-activity-module link created with ID: ${link.id}`);
+			if (linkResult.ok) {
+				links.push(linkResult.value);
+				console.log(`✅ Module ${module.title} linked to section ${section.title}`);
+			}
+		}
 
 		console.log("🎉 Seed process completed successfully!");
 		console.log("📊 Summary:");
@@ -393,7 +400,8 @@ export const runSeed = Result.wrap(
 		);
 		console.log(`   - Page module: ${pageModule.title} (ID: ${pageModule.id})`);
 		console.log(`   - Additional modules: ${additionalModules.length} created`);
-		console.log(`   - Course link: Course linked to page module`);
+		console.log(`   - Course sections: ${sections.length} created`);
+		console.log(`   - Course links: ${links.length} modules linked to sections`);
 
 		return {
 			adminUser,
@@ -409,7 +417,8 @@ export const runSeed = Result.wrap(
 			additionalEnrollments,
 			pageModule,
 			additionalModules,
-			link,
+			sections,
+			links,
 		};
 	},
 	(error) =>

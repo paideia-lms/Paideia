@@ -2,9 +2,22 @@ import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig } from "vite";
 import devtoolsJson from "vite-plugin-devtools-json";
 import tsconfigPaths from "vite-tsconfig-paths";
+import babel from 'vite-plugin-babel';
+
+// see https://react.dev/learn/react-compiler/installation#usage-with-react-router 
+const ReactCompilerConfig = { /* ... */ };
+
 
 export default defineConfig({
-	plugins: [reactRouter(), tsconfigPaths(), devtoolsJson()],
+	plugins: [reactRouter(), babel({
+		filter: /\.[jt]sx?$/,
+		babelConfig: {
+			presets: ["@babel/preset-typescript"], // if you use TypeScript
+			plugins: [
+				["babel-plugin-react-compiler", ReactCompilerConfig],
+			],
+		},
+	}), tsconfigPaths(), devtoolsJson()],
 	optimizeDeps: {
 		exclude: ["file-type"],
 	},

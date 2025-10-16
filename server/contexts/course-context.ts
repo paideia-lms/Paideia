@@ -9,7 +9,9 @@ import { createContext } from "react-router";
 import { tryFindCourseById } from "server/internal/course-management";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
-// CourseStructure removed - now using course-sections collection
+import { tryGetCourseStructure } from "server/internal/course-section-management";
+import type { CourseStructure } from "server/internal/course-section-management";
+import { generateCourseStructureTree, generateSimpleCourseStructureTree } from "../utils/course-structure-tree";
 import type { User } from "./user-context";
 
 type Group = {
@@ -115,6 +117,9 @@ export interface CourseContext {
 		status: string;
 		description: string;
 	}>;
+	courseStructure: CourseStructure;
+	courseStructureTree: string;
+	courseStructureTreeSimple: string;
 }
 
 export const courseContext = createContext<CourseContext | null>(null);
@@ -216,7 +221,7 @@ export const tryGetCourseContext = async (
 		moduleLinks: [],
 	};
 
-	console.log("courseData", courseData);
+	// console.log("courseData", courseData);
 
 	// Fetch existing course-activity-module links and populate moduleLinks
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
@@ -257,6 +262,30 @@ export const tryGetCourseContext = async (
 	});
 	const availableModules = modulesResult.ok ? modulesResult.value.modulesOwnedOrGranted : [];
 
+	// Fetch course structure
+	const courseStructureResult = await tryGetCourseStructure({
+		payload,
+		courseId: course.id,
+		user: user
+			? {
+				...user,
+				avatar: user.avatar?.id,
+			}
+			: null,
+		overrideAccess: false,
+	});
+
+	if (!courseStructureResult.ok) {
+		console.error("Failed to get course structure:", courseStructureResult.error);
+		return null;
+	}
+
+	const courseStructure = courseStructureResult.value;
+
+	// Generate tree representations
+	const courseStructureTree = generateCourseStructureTree(courseStructure, course.title);
+	const courseStructureTreeSimple = generateSimpleCourseStructureTree(courseStructure, course.title);
+
 	return {
 		course: courseWithModuleLinks,
 		courseId: course.id,
@@ -271,5 +300,8 @@ export const tryGetCourseContext = async (
 			status: module.status,
 			description: module.description || "",
 		})),
+		courseStructure,
+		courseStructureTree,
+		courseStructureTreeSimple,
 	};
 };

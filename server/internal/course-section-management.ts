@@ -8,6 +8,8 @@ import {
     UnknownError,
 } from "~/utils/error";
 import type { CourseSection, CourseActivityModuleLink, User } from "../payload-types";
+import { assertZod } from "server/utils/type-narrowing";
+import z from "zod";
 
 // ============================================================================
 // Basic CRUD Operations
@@ -1835,10 +1837,18 @@ export const tryGetSectionModulesCount = Result.wrap(
 // Course Structure Representation
 // ============================================================================
 
+export interface ActivityModuleSummary {
+    id: number;
+    title: string;
+    type: "page" | "assignment" | "quiz" | "discussion" | "whiteboard";
+    status: "draft" | "published" | "archived";
+}
+
 export interface CourseStructureItem {
     id: number;
     type: "activity-module";
     contentOrder: number;
+    module: ActivityModuleSummary;
 }
 
 export interface CourseStructureSection {
@@ -1955,10 +1965,21 @@ export const tryGetCourseStructure = Result.wrap(
 
             // Add activity modules to content
             for (const link of activityModules) {
+                const activityModule = link.activityModule;
+
+                assertZod(activityModule, z.object({
+                    id: z.number(),
+                }));
                 mixedContent.push({
                     id: link.id,
                     type: "activity-module",
                     contentOrder: link.contentOrder || 0,
+                    module: {
+                        id: activityModule.id,
+                        title: activityModule.title,
+                        type: activityModule.type,
+                        status: activityModule.status,
+                    },
                 });
             }
 

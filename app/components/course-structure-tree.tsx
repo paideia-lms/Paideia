@@ -1,191 +1,110 @@
-import { useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import {
     dragAndDropFeature,
     hotkeysCoreFeature,
     selectionFeature,
+    expandAllFeature,
     syncDataLoaderFeature,
-    type TreeState,
 } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
 import { Box, Text, ActionIcon, Badge, Paper } from "@mantine/core";
-import { IconFolder, IconFolderOpen, IconGripVertical } from "@tabler/icons-react";
+import { IconFolder, IconFolderOpen, IconGripVertical, IconArrowsMaximize, IconArrowsMinimize, IconLibraryMinus, IconLibraryPlus } from "@tabler/icons-react";
+import { useUpdateCourseStructure } from "~/routes/api/course-structure-tree";
+import type { CourseStructure, CourseStructureSection, ActivityModuleSummary } from "server/internal/course-section-management";
+import { useIsFirstRender } from "@mantine/hooks";
 
-// Mock data structure for sections and modules
-interface CourseModule {
-    id: string;
-    title: string;
-    type: "page" | "assignment" | "quiz" | "discussion" | "whiteboard";
-    status: "draft" | "published" | "archived";
-}
-
-interface CourseSection {
-    id: string;
-    title: string;
-    description?: string;
-    modules: CourseModule[];
-    children?: CourseSection[];
-}
-
+// Tree node interface for headless-tree
 interface TreeNode {
     id: string;
     name: string;
     type: "section" | "module";
-    module?: CourseModule;
-    section?: CourseSection;
-    children?: TreeNode[];
+    contentOrder?: number;
+    order?: number;
+    module?: ActivityModuleSummary;
+    children?: string[];
 }
 
-// Mock data
-const mockCourseData: CourseSection[] = [
-    {
-        id: "section-1",
-        title: "Introduction",
-        description: "Getting started with the course",
-        modules: [
-            {
-                id: "module-1",
-                title: "Welcome to the Course",
-                type: "page",
-                status: "published",
-            },
-            {
-                id: "module-2",
-                title: "Course Overview",
-                type: "page",
-                status: "published",
-            },
-        ],
-        children: [
-            {
-                id: "section-1-1",
-                title: "Prerequisites",
-                description: "What you need to know",
-                modules: [
-                    {
-                        id: "module-3",
-                        title: "Required Knowledge",
-                        type: "page",
-                        status: "draft",
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        id: "section-2",
-        title: "Core Concepts",
-        description: "Main learning content",
-        modules: [
-            {
-                id: "module-4",
-                title: "Assignment 1: Basic Concepts",
-                type: "assignment",
-                status: "published",
-            },
-            {
-                id: "module-5",
-                title: "Quiz: Understanding Check",
-                type: "quiz",
-                status: "published",
-            },
-        ],
-        children: [
-            {
-                id: "section-2-1",
-                title: "Advanced Topics",
-                description: "Deeper dive into concepts",
-                modules: [
-                    {
-                        id: "module-6",
-                        title: "Discussion: Real-world Applications",
-                        type: "discussion",
-                        status: "published",
-                    },
-                ],
-            },
-        ],
-    },
-    {
-        id: "section-3",
-        title: "Assessment",
-        description: "Final evaluation",
-        modules: [
-            {
-                id: "module-7",
-                title: "Final Project",
-                type: "assignment",
-                status: "draft",
-            },
-        ],
-    },
-];
-
-// Convert mock data to flat structure for headless-tree
-function convertToFlatData(sections: CourseSection[]): Record<string, TreeNode> {
+// Convert course structure to flat data for headless-tree
+function convertCourseStructureToFlatData(courseStructure: CourseStructure): Record<string, TreeNode> {
     const flatData: Record<string, TreeNode> = {};
 
-    function processSection(section: CourseSection) {
+    function processSection(section: CourseStructureSection, parentId?: string): string {
+        const sectionId = `s${section.id}`;
+
+        // Check if this section already exists (avoid duplicates)
+        if (flatData[sectionId]) {
+            // If it exists, just add it to the parent's children if needed
+            if (parentId && parentId !== "root") {
+                const parentNode = flatData[parentId];
+                if (parentNode && parentNode.children && !parentNode.children.includes(sectionId)) {
+                    parentNode.children.push(sectionId);
+                }
+            }
+            return sectionId;
+        }
+
         const sectionNode: TreeNode = {
-            id: section.id,
+            id: sectionId,
             name: section.title,
             type: "section",
-            section,
+            contentOrder: section.contentOrder,
+            order: section.order,
+            children: [],
         };
-        flatData[section.id] = sectionNode;
+        flatData[sectionId] = sectionNode;
 
-        // Add modules as children
-        section.modules.forEach((module) => {
-            const moduleNode: TreeNode = {
-                id: module.id,
-                name: module.title,
-                type: "module",
-                module,
-            };
-            flatData[module.id] = moduleNode;
+        // Add this section as a child to its parent
+        if (parentId) {
+            const parentNode = flatData[parentId];
+            if (parentNode && parentNode.children && !parentNode.children.includes(sectionId)) {
+                parentNode.children.push(sectionId);
+            }
+        }
+
+        // Process content items
+        section.content.forEach((item) => {
+            if (item.type === "section") {
+                processSection(item, sectionId);
+            } else if (item.type === "activity-module") {
+                const moduleId = `m${item.id}`;
+                const moduleNode: TreeNode = {
+                    id: moduleId,
+                    name: item.module.title,
+                    type: "module",
+                    contentOrder: item.contentOrder,
+                    module: item.module,
+                };
+                flatData[moduleId] = moduleNode;
+
+                // Add module as child to this section
+                sectionNode.children!.push(moduleId);
+            }
         });
 
-        // Process child sections
-        if (section.children) {
-            section.children.forEach((childSection) => {
-                processSection(childSection);
-            });
-        }
+        return sectionId;
     }
 
-    for (const section of sections) {
-        processSection(section);
-    }
+    // Create root container
+    const rootNode: TreeNode = {
+        id: "root",
+        name: "Root",
+        type: "section",
+        children: [],
+    };
+    flatData["root"] = rootNode;
+
+    // Process root sections
+    courseStructure.sections.forEach((section) => {
+        processSection(section, "root");
+    });
+
     return flatData;
 }
 
 // Get children IDs for a given item
 function getChildrenIds(itemId: string, flatData: Record<string, TreeNode>): string[] {
-    const children: string[] = [];
-
-    // Find modules that belong to this section
-    Object.values(flatData).forEach((item) => {
-        if (item.type === "module" && item.module) {
-            // Check if this module belongs to the section
-            const section = Object.values(flatData).find(s =>
-                s.type === "section" && s.section?.modules.some(m => m.id === item.id)
-            );
-            if (section?.id === itemId) {
-                children.push(item.id);
-            }
-        }
-
-        // Find child sections
-        if (item.type === "section" && item.section) {
-            const parentSection = Object.values(flatData).find(s =>
-                s.type === "section" && s.section?.children?.some(c => c.id === item.id)
-            );
-            if (parentSection?.id === itemId) {
-                children.push(item.id);
-            }
-        }
-    });
-
-    return children;
+    const item = flatData[itemId];
+    return item?.children || [];
 }
 
 // Get status color for modules
@@ -220,141 +139,145 @@ function getModuleIcon(type: string) {
     }
 }
 
+
+
+
 interface CourseStructureTreeProps {
     readOnly?: boolean;
+    courseId: number;
+    courseStructure: CourseStructure;
 }
 
 export function CourseStructureTree({
     readOnly = false,
+    courseId,
+    courseStructure,
 }: CourseStructureTreeProps) {
-    const [state, setState] = useState<Partial<TreeState<TreeNode>>>({
-        expandedItems: ["section-1", "section-2"],
-        selectedItems: [],
-    });
-
-    const [flatData, setFlatData] = useState<Record<string, TreeNode>>(() =>
-        convertToFlatData(mockCourseData)
-    );
-
-    // Create data loader functions that have access to current state
-    const dataLoader = useMemo(() => ({
-        getItem: (itemId: string) => flatData[itemId],
-        getChildren: (itemId: string) => {
-            if (itemId === "root") {
-                // Return root sections
-                return Object.values(flatData)
-                    .filter(item => item.type === "section" &&
-                        !Object.values(flatData).some(s =>
-                            s.type === "section" && s.section?.children?.some(c => c.id === item.id)
-                        )
-                    )
-                    .map(item => item.id);
-            }
-            return getChildrenIds(itemId, flatData);
-        },
-    }), [flatData]);
+    const { updateCourseStructure, isLoading } = useUpdateCourseStructure();
+    const isFirstRender = useIsFirstRender();
+    const flatData = convertCourseStructureToFlatData(courseStructure);
 
     const tree = useTree<TreeNode>({
-        state,
-        setState,
         rootItemId: "root",
         getItemName: (item) => item.getItemData().name,
         isItemFolder: (item) => item.getItemData().type === "section",
         canReorder: !readOnly,
-        onDrop: (items, target) => {
-            console.log("Drop:", { items, target });
+        onDrop: async (items, target) => {
+            const dragIds = items.map(i => i.getId());
+            const targetId = target.item.getId() === "root" ? null : target.item.getId();
 
-            setFlatData(prevFlatData => {
-                const newFlatData = { ...prevFlatData };
+            // Get the insertion index from the target
+            const targetIndex = 'insertionIndex' in target ? (target.insertionIndex as number) :
+                'childIndex' in target ? (target.childIndex as number) : 0;
 
-                // Handle the drop logic based on item types and target
-                items.forEach(item => {
-                    const itemData = item.getItemData();
+            console.log("Moving items:", dragIds, "to", targetId, "at index", targetIndex);
 
-                    if (itemData.type === "module") {
-                        // Moving a module - need to update its parent section
-                        const currentModule = itemData.module;
-                        if (currentModule) {
-                            // Find current parent section
-                            const currentParentSection = Object.values(newFlatData).find(section =>
-                                section.type === "section" &&
-                                section.section?.modules?.some(m => m.id === currentModule.id)
-                            );
+            // Convert tree IDs back to actual database IDs and determine move operation
+            const sourceItem = dragIds[0]; // Assuming single item move for now
+            const targetItem = targetId;
 
-                            if (currentParentSection?.section) {
-                                // Remove from current parent
-                                currentParentSection.section.modules = currentParentSection.section.modules.filter(
-                                    m => m.id !== currentModule.id
-                                );
+            // Parse IDs to determine source and target types and actual IDs
+            let sourceType: "section" | "activity-module";
+            let sourceId: number;
+            let targetType: "section" | "activity-module";
+            let targetIdNum: number | null;
 
-                                // Add to new parent or handle as top-level if dropped on root
-                                if (target.item.getId() === "root") {
-                                    // For now, we'll handle root drops differently
-                                    // You might want to create a default section or handle this case
-                                    console.log("Module dropped on root - implement logic for this case");
-                                } else {
-                                    const newParentSection = newFlatData[target.item.getId()];
-                                    if (newParentSection && newParentSection.type === "section" && newParentSection.section) {
-                                        newParentSection.section.modules.push(currentModule);
-                                    }
-                                }
-                            }
-                        }
-                    } else if (itemData.type === "section") {
-                        // Moving a section - need to update parent-child relationships
-                        const currentSection = itemData.section;
-                        if (currentSection) {
-                            // Find current parent section
-                            const currentParentSection = Object.values(newFlatData).find(section =>
-                                section.type === "section" &&
-                                section.section?.children?.some(c => c.id === currentSection.id)
-                            );
+            if (sourceItem.startsWith("s")) {
+                sourceType = "section";
+                sourceId = Number(sourceItem.substring(1));
+            } else {
+                sourceType = "activity-module";
+                sourceId = Number(sourceItem.substring(1));
+            }
 
-                            if (currentParentSection?.section) {
-                                // Remove from current parent
-                                currentParentSection.section.children = currentParentSection.section.children?.filter(
-                                    c => c.id !== currentSection.id
-                                );
+            if (targetItem === null) {
+                targetType = "section";
+                targetIdNum = null; // Moving to root level
+            } else if (targetItem.startsWith("s")) {
+                targetType = "section";
+                targetIdNum = Number(targetItem.substring(1));
+            } else {
+                targetType = "activity-module";
+                targetIdNum = Number(targetItem.substring(1));
+            }
 
-                                // Add to new parent
-                                if (target.item.getId() === "root") {
-                                    // Section is now a root level section
-                                    console.log("Section moved to root level");
-                                } else {
-                                    const newParentSection = newFlatData[target.item.getId()];
-                                    if (newParentSection && newParentSection.type === "section" && newParentSection.section) {
-                                        if (!newParentSection.section.children) {
-                                            newParentSection.section.children = [];
-                                        }
-                                        newParentSection.section.children.push(currentSection);
-                                    }
-                                }
-                            }
-                        }
-                    }
+            // Determine location based on target context
+            let location: "above" | "below" | "inside";
+            if (targetIndex === 0 || targetId === null) {
+                location = "inside";
+            } else if ('insertionIndex' in target) {
+                location = "above";
+            } else {
+                location = "below";
+            }
+
+            try {
+                await updateCourseStructure({
+                    courseId: courseId,
+                    sourceId: sourceId,
+                    sourceType: sourceType,
+                    targetId: targetIdNum || 0,
+                    targetType: targetType,
+                    location,
                 });
-
-                return newFlatData;
-            });
+            } catch (error) {
+                console.error("Failed to update course structure:", error);
+            }
         },
         indent: 20,
-        dataLoader,
+        dataLoader: {
+            getItem: (itemId: string) => flatData[itemId],
+            getChildren: (itemId: string) => getChildrenIds(itemId, flatData),
+        },
         features: [
             syncDataLoaderFeature,
             selectionFeature,
             hotkeysCoreFeature,
             dragAndDropFeature,
+            expandAllFeature,
         ],
     });
 
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+    useEffect(() => {
+        if (isLoading || isFirstRender) return;
+        tree.rebuildTree()
+    }, [isLoading]);
+
+    // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+    useEffect(() => {
+        tree.expandAll()
+    }, []);
+
     return (
         <Paper withBorder p="md" style={{ height: "100%" }}>
-            <Text size="lg" fw={600} mb="md">
-                Course Structure
-            </Text>
+            <Box style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+                <Text size="lg" fw={600}>
+                    Course Structure
+                </Text>
+                <ActionIcon.Group>
+                    <ActionIcon
+                        variant="light"
+                        size="sm"
+                        aria-label="Expand all"
+                        onClick={() => tree.expandAll()}
+                    >
+                        <IconLibraryPlus stroke={1.5} />
+                    </ActionIcon>
+                    <ActionIcon
+                        variant="light"
+                        size="sm"
+                        aria-label="Collapse all"
+                        onClick={() => tree.collapseAll()}
+                    >
+                        <IconLibraryMinus stroke={1.5} />
+                    </ActionIcon>
+                </ActionIcon.Group>
+            </Box>
 
-            <Box style={{ height: "calc(100vh - 200px)", overflow: "auto" }}>
-                <div {...tree.getContainerProps()} style={{ height: "100%" }}>
+            <Box >
+                <div {...tree.getContainerProps()}>
                     {tree.getItems().map((item) => {
                         const itemData = item.getItemData();
                         const isSection = itemData.type === "section";
@@ -365,7 +288,7 @@ export function CourseStructureTree({
                                 {...item.getProps()}
                                 key={item.getId()}
                                 style={{
-                                    paddingLeft: `${item.getItemMeta().level * 20}px`,
+                                    marginLeft: `${item.getItemMeta().level * 20}px`,
                                     display: "flex",
                                     alignItems: "center",
                                     gap: "8px",
@@ -415,7 +338,11 @@ export function CourseStructureTree({
                             </Box>
                         );
                     })}
-                    <div style={tree.getDragLineStyle()} className="dragline" />
+                    <div style={{
+                        ...tree.getDragLineStyle(),
+                        backgroundColor: "var(--mantine-color-blue-6)",
+                        height: "2px",
+                    }} className="dragline" />
                 </div>
             </Box>
         </Paper>
