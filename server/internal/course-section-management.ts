@@ -316,13 +316,19 @@ export const tryFindSectionById = Result.wrap(
         const section = await payload.findByID({
             collection: CourseSections.slug,
             id: sectionId,
-            depth: 1,
             user,
             req,
             overrideAccess,
+        }).then((s) => {
+            const course = s.course;
+            assertZod(course, z.object({ id: z.number() }));
+            return {
+                ...s,
+                course: course.id,
+            };
         });
 
-        return section as CourseSection;
+        return section
     },
     (error) =>
         transformError(error) ??

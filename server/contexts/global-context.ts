@@ -20,6 +20,8 @@ export type PageInfo = {
 	isCourseModules: boolean;
 	isCourseBin: boolean;
 	isCourseBackup: boolean;
+	isCourseModule: boolean;
+	isCourseSection: boolean;
 };
 
 /**

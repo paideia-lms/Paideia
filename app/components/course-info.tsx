@@ -1,4 +1,5 @@
 import { Avatar, Card, Group, Paper, Stack, Text } from "@mantine/core";
+import { href, Link } from "react-router";
 
 interface CourseInfoProps {
 	course: {
@@ -30,7 +31,8 @@ export function CourseInfo({ course }: CourseInfoProps) {
 					<Text fw={600} size="sm" c="dimmed" mb="xs">
 						Description
 					</Text>
-					<Text>{course.description}</Text>
+					{/** biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation> */}
+					<Text dangerouslySetInnerHTML={{ __html: course.description }} />
 				</div>
 
 				<Group grow>
@@ -38,13 +40,13 @@ export function CourseInfo({ course }: CourseInfoProps) {
 						<Text fw={600} size="sm" c="dimmed" mb="xs">
 							Created By
 						</Text>
-						<Group gap="sm">
+						<Group gap="sm" >
 							<Avatar
 								size="sm"
 								src={course.createdBy.avatar ? `/api/media/file/${course.createdBy.avatar.filename}` : undefined}
 								name={course.createdBy.name}
 							/>
-							<Text>{course.createdBy.name}</Text>
+							<Text component={Link} to={href("/user/profile/:id?", { id: String(course.createdBy.id) })}>{course.createdBy.name}</Text>
 						</Group>
 					</Card>
 

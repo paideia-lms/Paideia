@@ -28,6 +28,8 @@ export const routes = [
 		layout("layouts/course-layout.tsx", [
 			layout("layouts/course-content-layout.tsx", [
 				route("course/:id", "routes/course.$id.tsx"),
+				route("course/module/:id", "routes/course/module.$id.tsx"),
+				route("course/section/:id", "routes/course/section.$id.tsx"),
 			]),
 			route("course/:id/settings", "routes/course.$id.settings.tsx"),
 			route("course/:id/participants", "routes/course.$id.participants.tsx"),

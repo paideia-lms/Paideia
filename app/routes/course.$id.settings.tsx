@@ -1,24 +1,21 @@
-import {
-	Button,
-	Container,
-	Group,
-	Paper,
-	Select,
-	Stack,
-	Textarea,
-	TextInput,
-	Title,
-} from "@mantine/core";
+import { Button, Container, Group, Paper, Select, Stack, TextInput, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { redirect, useFetcher } from "react-router";
+import type { FileUpload, FileUploadHandler } from "@remix-run/form-data-parser";
+import { parseFormData } from "@remix-run/form-data-parser";
+import * as cheerio from "cheerio";
+import { useId, useState } from "react";
+import { href, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { tryCreateMedia } from "server/internal/media-management";
 import {
 	tryFindCourseById,
 	tryUpdateCourse,
 } from "server/internal/course-management";
 import type { Course } from "server/payload-types";
+import { RichTextEditor } from "~/components/rich-text-editor";
+import type { ImageFile } from "~/components/rich-text-editor";
 import z from "zod";
 import {
 	badRequest,
@@ -128,8 +125,54 @@ export const action = async ({
 		});
 	}
 
+	// Start transaction for atomic media creation + course update
+	const transactionID = await payload.db.beginTransaction();
+
+	if (!transactionID) {
+		return badRequest({
+			success: false,
+			error: "Failed to begin transaction",
+		});
+	}
+
 	try {
-		const formData = await request.formData();
+		// Store uploaded media info - map fieldName to uploaded filename
+		const uploadedMedia: { fieldName: string; filename: string }[] = [];
+
+		// Parse form data with upload handler
+		const uploadHandler = async (fileUpload: FileUpload) => {
+			if (fileUpload.fieldName.startsWith("image-")) {
+				const arrayBuffer = await fileUpload.arrayBuffer();
+				const fileBuffer = Buffer.from(arrayBuffer);
+
+				// Create media record within transaction
+				const mediaResult = await tryCreateMedia(payload, {
+					file: fileBuffer,
+					filename: fileUpload.name,
+					mimeType: fileUpload.type,
+					alt: "Course description image",
+					userId: currentUser.id,
+					transactionID,
+				});
+
+				if (!mediaResult.ok) {
+					throw mediaResult.error;
+				}
+
+				// Store the field name and filename for later matching
+				uploadedMedia.push({
+					fieldName: fileUpload.fieldName,
+					filename: mediaResult.value.media.filename ?? fileUpload.name,
+				});
+
+				return mediaResult.value.media.id;
+			}
+		};
+
+		const formData = await parseFormData(
+			request,
+			uploadHandler as FileUploadHandler,
+		);
 
 		const parsed = z
 			.object({
@@ -154,10 +197,49 @@ export const action = async ({
 			});
 
 		if (!parsed.success) {
+			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: parsed.error.issues[0]?.message ?? "Validation error",
 			});
+		}
+
+		let description = parsed.data.description;
+
+		// Replace base64 images with actual media URLs
+		if (uploadedMedia.length > 0) {
+			// Build a map of base64 prefix to filename
+			const base64ToFilename = new Map<string, string>();
+
+			uploadedMedia.forEach((media) => {
+				const previewKey = `${media.fieldName}-preview`;
+				const preview = formData.get(previewKey) as string;
+				if (preview) {
+					const base64Prefix = preview.substring(0, 100);
+					base64ToFilename.set(base64Prefix, media.filename);
+				}
+			});
+			const $ = cheerio.load(description);
+			const images = $("img");
+
+			images.each((_i, img) => {
+				const src = $(img).attr("src");
+				if (src?.startsWith("data:image")) {
+					// Find matching uploaded media by comparing base64 prefix
+					const base64Prefix = src.substring(0, 100);
+					const filename = base64ToFilename.get(base64Prefix);
+
+					if (filename) {
+						// Replace with actual media URL
+						const mediaUrl = href("/api/media/file/:filename", {
+							filename,
+						});
+						$(img).attr("src", mediaUrl);
+					}
+				}
+			});
+
+			description = $.html();
 		}
 
 		// Update course
@@ -166,7 +248,7 @@ export const action = async ({
 			courseId,
 			data: {
 				title: parsed.data.title,
-				description: parsed.data.description,
+				description,
 				status: parsed.data.status,
 			},
 			user: {
@@ -176,11 +258,15 @@ export const action = async ({
 			overrideAccess: true,
 		});
 		if (!updateResult.ok) {
+			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: updateResult.error.message,
 			});
 		}
+
+		// Commit the transaction
+		await payload.db.commitTransaction(transactionID);
 
 		return ok({
 			success: true,
@@ -188,6 +274,8 @@ export const action = async ({
 			id: courseId,
 		});
 	} catch (error) {
+		// Rollback on any error
+		await payload.db.rollbackTransaction(transactionID);
 		console.error("Course update error:", error);
 		return badRequest({
 			success: false,
@@ -221,6 +309,15 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 	const fetcher = useFetcher<typeof action>();
+	const descriptionId = useId();
+	const [description, setDescription] = useState(
+		"error" in loaderData ? "" : loaderData.course.description
+	);
+	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+
+	const handleImageAdd = (imageFile: ImageFile) => {
+		setImageFiles((prev) => [...prev, imageFile]);
+	};
 
 	// Initialize form with default values (hooks must be called unconditionally)
 	const form = useForm({
@@ -228,7 +325,6 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		initialValues: {
 			title: "error" in loaderData ? "" : loaderData.course.title,
 			slug: "error" in loaderData ? "" : loaderData.course.slug,
-			description: "error" in loaderData ? "" : loaderData.course.description,
 			status: ("error" in loaderData
 				? "draft"
 				: loaderData.course.status) as Course["status"],
@@ -248,7 +344,6 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 				}
 				return null;
 			},
-			description: (value) => (!value ? "Description is required" : null),
 			status: (value) => (!value ? "Status is required" : null),
 		},
 	});
@@ -270,23 +365,35 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 	const { categories } = loaderData;
 
 	const handleSubmit = (values: typeof form.values) => {
+		// Validate description
+		if (!description || description.trim().length === 0) {
+			return;
+		}
+
 		const formData = new FormData();
 		formData.append("title", values.title);
 		formData.append("slug", values.slug);
-		formData.append("description", values.description);
+		formData.append("description", description);
 		formData.append("status", values.status ?? "draft");
 
 		if (values.category) {
 			formData.append("category", values.category);
 		}
 
+		// Add each image file with a unique field name
+		imageFiles.forEach((imageFile, index) => {
+			formData.append(`image-${index}`, imageFile.file);
+			formData.append(`image-${index}-preview`, imageFile.preview);
+		});
+
 		fetcher.submit(formData, {
 			method: "POST",
+			encType: "multipart/form-data",
 		});
 	};
 
 	return (
-		<Container size="sm" py="xl">
+		<Container size="xl" py="xl">
 			<title>Edit Course | Paideia LMS</title>
 			<meta name="description" content="Edit course in Paideia LMS" />
 			<meta property="og:title" content="Edit Course | Paideia LMS" />
@@ -317,15 +424,27 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							disabled
 						/>
 
-						<Textarea
-							{...form.getInputProps("description")}
-							key={form.key("description")}
-							label="Description"
-							placeholder="Enter course description"
-							required
-							minRows={4}
-							maxRows={8}
-						/>
+						<div>
+							<label
+								htmlFor={descriptionId}
+								style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}
+							>
+								Description *
+							</label>
+							<div id={descriptionId}>
+								<RichTextEditor
+									content={description}
+									onChange={setDescription}
+									onImageAdd={handleImageAdd}
+									placeholder="Enter course description"
+								/>
+							</div>
+							{!description && (
+								<div style={{ color: "red", fontSize: "14px", marginTop: "4px" }}>
+									Description is required
+								</div>
+							)}
+						</div>
 
 						<Select
 							{...form.getInputProps("status")}

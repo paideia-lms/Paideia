@@ -35,6 +35,8 @@ import {
 } from "server/contexts/user-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
+import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
+import { tryFindSectionById } from "server/internal/course-section-management";
 
 export const middleware = [
 	/**
@@ -54,6 +56,8 @@ export const middleware = [
 		let isCourseModules = false;
 		let isCourseBin = false;
 		let isCourseBackup = false;
+		let isCourseModule = false;
+		let isCourseSection = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -69,6 +73,8 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
+			else if (route.id === "routes/course/module.$id") isCourseModule = true;
+			else if (route.id === "routes/course/section.$id") isCourseSection = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -88,6 +94,8 @@ export const middleware = [
 				isCourseModules,
 				isCourseBin,
 				isCourseBackup,
+				isCourseModule,
+				isCourseSection,
 			},
 		});
 	},
@@ -106,21 +114,60 @@ export const middleware = [
 	 * set the course context
 	 */
 	async ({ request, context, params }) => {
-		const { payload, routeHierarchy } = context.get(globalContextKey);
+		const { payload, routeHierarchy, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
+		const currentUser = userSession?.effectiveUser || userSession?.authenticatedUser
 
 		// check if the user is in a course
 		if (routeHierarchy.some((route) => route.id === "layouts/course-layout")) {
 			const { id } = params as RouteParams<"layouts/course-layout">;
 
-			if (!Number.isNaN(id)) {
-				const courseContext = await tryGetCourseContext(
-					payload,
-					Number(id),
-					userSession?.effectiveUser || userSession?.authenticatedUser || null,
-				);
-				context.set(courseContextKey, courseContext);
+			if (Number.isNaN(id)) return;
+
+			// default course id is the id from params
+			let courseId: number = Number(id);
+
+			// in course/module/id , we need to get the module first and then get the course id
+			if (pageInfo.isCourseModule) {
+				const { id: moduleId } = params as RouteParams<"routes/course/module.$id">;
+
+				if (Number.isNaN(moduleId)) return;
+
+				const moduleContext = await tryFindCourseActivityModuleLinkById(payload, Number(moduleId));
+
+				if (!moduleContext.ok) return;
+
+				const module = moduleContext.value;
+				const { course } = module
+				// update the course id to the course id from the module
+				courseId = course.id;
 			}
+
+			// in course/section/id , we need to get the section first and then get the course id
+			if (pageInfo.isCourseSection) {
+				const { id: sectionId } = params as RouteParams<"routes/course/section.$id">;
+
+				if (Number.isNaN(sectionId)) return;
+
+				const sectionContext = await tryFindSectionById({
+					payload,
+					sectionId: Number(sectionId),
+					user: currentUser ? {
+						...currentUser,
+						avatar: currentUser?.avatar?.id,
+					} : null,
+				});
+
+				if (!sectionContext.ok) return;
+
+				const section = sectionContext.value;
+				// update the course id to the course id from the section
+				courseId = section.course;
+			}
+
+			const courseContext = await tryGetCourseContext(payload, courseId, userSession?.effectiveUser || userSession?.authenticatedUser || null);
+
+			context.set(courseContextKey, courseContext);
 		}
 	},
 	// set the user access context
