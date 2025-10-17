@@ -12,7 +12,6 @@ import { IconEdit } from "@tabler/icons-react";
 import { Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
-import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { CourseInfo } from "~/components/course-info";
 import {
@@ -22,8 +21,6 @@ import {
 import {
 	badRequest,
 	ForbiddenResponse,
-	ok,
-	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
 
@@ -48,9 +45,22 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
+	// Get instructors and TAs from course context enrollments
+	const instructors = courseContext.course.enrollments
+		.filter((enrollment) => enrollment.role === "teacher" || enrollment.role === "ta")
+		.filter((enrollment) => enrollment.status === "active")
+		.map((enrollment) => ({
+			id: enrollment.userId,
+			name: enrollment.name,
+			email: enrollment.email,
+			role: enrollment.role as "teacher" | "ta",
+			avatar: enrollment.avatar,
+		}));
+
 	return {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
+		instructors,
 	};
 };
 
@@ -69,7 +79,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		);
 	}
 
-	const { course, currentUser, availableModules } = loaderData;
+	const { course, currentUser, instructors } = loaderData;
 
 	const canEdit =
 		currentUser.role === "admin" ||
@@ -118,14 +128,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 						slug: course.slug,
 						description: course.description,
 						status: course.status,
-						createdBy: {
-							name: `${course.createdBy.firstName || ""} ${course.createdBy.lastName || ""}`.trim() ||
-								course.createdBy.email,
-							email: course.createdBy.email,
-							id: course.createdBy.id.toString(),
-							avatar: course.createdBy.avatar,
-						}
-						,
+						instructors,
 						createdAt: course.createdAt,
 						updatedAt: course.updatedAt,
 						enrollmentCount: course.enrollments.length,

@@ -8,15 +8,16 @@ interface CourseInfoProps {
 		slug: string;
 		description: string;
 		status: string;
-		createdBy: {
-			name: string,
-			email: string,
-			id: string,
+		instructors: Array<{
+			id: number;
+			name: string;
+			email: string;
+			role: "teacher" | "ta";
 			avatar?: {
 				id: number;
 				filename?: string | null;
 			} | null;
-		};
+		}>;
 		createdAt: string;
 		updatedAt: string;
 		enrollmentCount: number;
@@ -31,23 +32,38 @@ export function CourseInfo({ course }: CourseInfoProps) {
 					<Text fw={600} size="sm" c="dimmed" mb="xs">
 						Description
 					</Text>
-					{/** biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation> */}
+					{/* biome-ignore lint/security/noDangerouslySetInnerHtml: HTML content from rich text editor */}
 					<Text dangerouslySetInnerHTML={{ __html: course.description }} />
 				</div>
 
 				<Group grow>
 					<Card withBorder>
 						<Text fw={600} size="sm" c="dimmed" mb="xs">
-							Created By
+							Instructors
 						</Text>
-						<Group gap="sm" >
-							<Avatar
-								size="sm"
-								src={course.createdBy.avatar ? `/api/media/file/${course.createdBy.avatar.filename}` : undefined}
-								name={course.createdBy.name}
-							/>
-							<Text component={Link} to={href("/user/profile/:id?", { id: String(course.createdBy.id) })}>{course.createdBy.name}</Text>
-						</Group>
+						<Stack gap="sm">
+							{course.instructors.length > 0 ? (
+								course.instructors.map((instructor) => (
+									<Group key={instructor.id} gap="sm">
+										<Avatar
+											size="sm"
+											src={instructor.avatar ? `/api/media/file/${instructor.avatar.filename}` : undefined}
+											name={instructor.name}
+										/>
+										<div>
+											<Text component={Link} to={href("/user/profile/:id?", { id: String(instructor.id) })}>
+												{instructor.name}
+											</Text>
+											<Text size="xs" c="dimmed">
+												{instructor.role === "teacher" ? "Teacher" : "Teaching Assistant"}
+											</Text>
+										</div>
+									</Group>
+								))
+							) : (
+								<Text size="sm" c="dimmed">No instructors assigned</Text>
+							)}
+						</Stack>
 					</Card>
 
 					<Card withBorder>
