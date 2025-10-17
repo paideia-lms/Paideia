@@ -32,7 +32,10 @@ export const routes = [
 				route("course/section/:id", "routes/course/section.$id.tsx"),
 			]),
 			route("course/:id/settings", "routes/course.$id.settings.tsx"),
-			route("course/:id/participants", "routes/course.$id.participants.tsx"),
+			layout("layouts/course-participants-layout.tsx", [
+				route("course/:id/participants", "routes/course.$id.participants.tsx"),
+				route("course/:id/groups", "routes/course.$id.groups.tsx"),
+			]),
 			route("course/:id/grades", "routes/course.$id.grades.tsx"),
 			route("course/:id/modules", "routes/course.$id.modules.tsx"),
 			route("course/:id/bin", "routes/course.$id.bin.tsx"),

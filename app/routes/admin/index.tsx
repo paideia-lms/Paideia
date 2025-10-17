@@ -1,7 +1,7 @@
 import { Box, Group, Stack, Tabs, TextInput, Title } from "@mantine/core";
 import { useQueryState } from "nuqs";
 import { href, Link } from "react-router";
-import { AdminErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import type { Route } from "./+types/index";
 
 export const loader = async () => {
@@ -9,7 +9,7 @@ export const loader = async () => {
 };
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-	return <AdminErrorBoundary error={error} />;
+	return <DefaultErrorBoundary error={error} />;
 }
 
 interface AdminItem {

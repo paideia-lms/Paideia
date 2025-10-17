@@ -3,7 +3,7 @@
  * we can use this functions in client side and server side
  */
 
-import { Enrollment } from "server/contexts/course-context";
+import type { Enrollment } from "server/contexts/course-context";
 import type { User } from "server/payload-types";
 
 
@@ -84,4 +84,19 @@ export function canUpdateCourseStructure(user?: {
 	role: Enrollment['role'];
 }) {
 	return enrolment?.role === "teacher" || enrolment?.role === "manager" || user?.role === "admin" || user?.role === "content-manager";
+}
+
+export function canManageCourseGroups(user?: {
+	id: number;
+	role?: User['role'];
+}, courseCreatorId?: number, enrolment?: {
+	role: Enrollment['role'];
+}) {
+	return (
+		user?.role === "admin" ||
+		user?.role === "content-manager" ||
+		enrolment?.role === "teacher" ||
+		enrolment?.role === "manager" ||
+		(courseCreatorId !== undefined && user?.id === courseCreatorId)
+	);
 }

@@ -1,4 +1,4 @@
-import { Button, Group, Modal, Select, Stack } from "@mantine/core";
+import { Button, Group, Modal, MultiSelect, Select, Stack } from "@mantine/core";
 import type { SearchUser } from "~/routes/api/search-users";
 import { SearchUserCombobox } from "~/routes/api/search-users";
 
@@ -11,6 +11,9 @@ interface EnrollUserModalProps {
 	onSelectedRoleChange: (role: string | null) => void;
 	selectedStatus: string | null;
 	onSelectedStatusChange: (status: string | null) => void;
+	selectedGroups: string[];
+	onSelectedGroupsChange: (groups: string[]) => void;
+	availableGroups: Array<{ value: string; label: string }>;
 	enrolledUserIds: number[];
 	fetcherState: string;
 	onEnrollUsers: () => void;
@@ -25,6 +28,9 @@ export function EnrollUserModal({
 	onSelectedRoleChange,
 	selectedStatus,
 	onSelectedStatusChange,
+	selectedGroups,
+	onSelectedGroupsChange,
+	availableGroups,
 	enrolledUserIds,
 	fetcherState,
 	onEnrollUsers,
@@ -70,6 +76,16 @@ export function EnrollUserModal({
 					value={selectedStatus}
 					onChange={onSelectedStatusChange}
 					disabled={fetcherState === "submitting"}
+				/>
+				<MultiSelect
+					label="Groups"
+					placeholder="Select groups (optional)"
+					data={availableGroups}
+					value={selectedGroups}
+					onChange={onSelectedGroupsChange}
+					disabled={fetcherState === "submitting"}
+					searchable
+					clearable
 				/>
 				<Group justify="flex-end" gap="sm">
 					<Button variant="default" onClick={onClose}>

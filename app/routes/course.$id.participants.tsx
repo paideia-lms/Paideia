@@ -1,18 +1,7 @@
-import {
-    Badge,
-    Button,
-    Container,
-    Group,
-    Paper,
-    Stack,
-    Text,
-    Title,
-} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import { IconEdit } from "@tabler/icons-react";
 import { useState } from "react";
-import { Link, useFetcher } from "react-router";
+import { useFetcher } from "react-router";
 import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -28,15 +17,16 @@ import { DeleteEnrollmentModal } from "~/components/delete-enrollment-modal";
 import { EditEnrollmentModal } from "~/components/edit-enrollment-modal";
 import { EnrollUserModal } from "~/components/enroll-user-modal";
 import { EnrollmentsSection } from "~/components/enrollments-section";
-import { getStatusBadgeColor, getStatusLabel } from "~/components/course-view-utils";
 import type { SearchUser } from "~/routes/api/search-users";
 import {
     badRequest,
+    BadRequestResponse,
     ForbiddenResponse,
     ok,
     unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
     const userSession = context.get(userContextKey);
@@ -49,9 +39,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
     const courseId = Number.parseInt(params.id, 10);
     if (Number.isNaN(courseId)) {
-        return badRequest({
-            error: "Invalid course ID",
-        });
+        throw new BadRequestResponse("Invalid course ID");
     }
 
     // Get course view data using the course context
@@ -131,6 +119,9 @@ export const action = async ({
             | "completed"
             | "dropped";
 
+        // Get groups array from formData
+        const groupIds = formData.getAll("groups").map((id) => Number(id)).filter((id) => !Number.isNaN(id));
+
         if (Number.isNaN(userId)) {
             return badRequest({ error: "Invalid user ID" });
         }
@@ -145,6 +136,7 @@ export const action = async ({
             course: courseId,
             role,
             status,
+            groups: groupIds,
             authenticatedUser: {
                 ...currentUser,
                 avatar: currentUser.avatar?.id,
@@ -173,6 +165,9 @@ export const action = async ({
             | "completed"
             | "dropped";
 
+        // Get groups array from formData
+        const groupIds = formData.getAll("groups").map((id) => Number(id)).filter((id) => !Number.isNaN(id));
+
         if (Number.isNaN(enrollmentId)) {
             return badRequest({ error: "Invalid enrollment ID" });
         }
@@ -186,6 +181,7 @@ export const action = async ({
             enrollmentId,
             role,
             status,
+            groups: groupIds,
             authenticatedUser: {
                 ...currentUser,
                 avatar: currentUser.avatar?.id,
@@ -247,6 +243,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
     return actionData;
 }
 
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+    return <DefaultErrorBoundary error={error} />;
+};
+
 export default function CourseParticipantsPage({ loaderData }: Route.ComponentProps) {
     const fetcher = useFetcher<typeof action>();
 
@@ -266,6 +266,7 @@ export default function CourseParticipantsPage({ loaderData }: Route.ComponentPr
     const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([]);
     const [selectedRole, setSelectedRole] = useState<string | null>(null);
     const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+    const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
     const [editingEnrollment, setEditingEnrollment] = useState<Enrollment | null>(
         null,
     );
@@ -273,44 +274,38 @@ export default function CourseParticipantsPage({ loaderData }: Route.ComponentPr
         number | null
     >(null);
 
-    if ("error" in loaderData) {
-        return (
-            <Container size="lg" py="xl">
-                <Paper withBorder shadow="sm" p="xl" radius="md">
-                    <Text c="red">{loaderData.error}</Text>
-                </Paper>
-            </Container>
-        );
-    }
 
     const { course, currentUser } = loaderData;
 
-    const canEdit =
-        currentUser.role === "admin" ||
-        currentUser.role === "content-manager" ||
-        course.enrollments.some(
-            (enrollment) => enrollment.userId === currentUser.id,
-        );
+    // Prepare available groups for selection
+    const availableGroups = course.groups.map((group) => ({
+        value: group.id.toString(),
+        label: `${group.name} (${group.path})`,
+    }));
 
     // Enrollment handlers
     const handleEnrollUsers = () => {
         if (selectedUsers.length > 0 && selectedRole && selectedStatus) {
             // Submit each user enrollment
             selectedUsers.forEach((user) => {
-                fetcher.submit(
-                    {
-                        intent: "enroll",
-                        userId: user.id.toString(),
-                        role: selectedRole,
-                        status: selectedStatus,
-                    },
-                    { method: "post" },
-                );
+                const formData = new FormData();
+                formData.append("intent", "enroll");
+                formData.append("userId", user.id.toString());
+                formData.append("role", selectedRole);
+                formData.append("status", selectedStatus);
+
+                // Add selected groups
+                selectedGroups.forEach((groupId) => {
+                    formData.append("groups", groupId);
+                });
+
+                fetcher.submit(formData, { method: "post" });
             });
             closeEnrollModal();
             setSelectedUsers([]);
             setSelectedRole(null);
             setSelectedStatus(null);
+            setSelectedGroups([]);
         }
     };
 
@@ -330,24 +325,29 @@ export default function CourseParticipantsPage({ loaderData }: Route.ComponentPr
         setEditingEnrollment(payloadEnrollment);
         setSelectedRole(enrollment.role);
         setSelectedStatus(enrollment.status);
+        setSelectedGroups(enrollment.groups.map((g) => g.id.toString()));
         openEditModal();
     };
 
     const handleUpdateEnrollment = () => {
         if (editingEnrollment && selectedRole && selectedStatus) {
-            fetcher.submit(
-                {
-                    intent: "edit-enrollment",
-                    enrollmentId: editingEnrollment.id.toString(),
-                    role: selectedRole,
-                    status: selectedStatus,
-                },
-                { method: "post" },
-            );
+            const formData = new FormData();
+            formData.append("intent", "edit-enrollment");
+            formData.append("enrollmentId", editingEnrollment.id.toString());
+            formData.append("role", selectedRole);
+            formData.append("status", selectedStatus);
+
+            // Add selected groups
+            selectedGroups.forEach((groupId) => {
+                formData.append("groups", groupId);
+            });
+
+            fetcher.submit(formData, { method: "post" });
             closeEditModal();
             setEditingEnrollment(null);
             setSelectedRole(null);
             setSelectedStatus(null);
+            setSelectedGroups([]);
         }
     };
 
@@ -371,24 +371,12 @@ export default function CourseParticipantsPage({ loaderData }: Route.ComponentPr
     };
 
     // Get enrolled user IDs for exclusion
-    const enrolledUserIds = course.enrollments.map((enrollment: any) =>
-        typeof enrollment.user === "object" ? enrollment.user.id : enrollment.user,
-    );
+    const enrolledUserIds = course.enrollments.map((enrollment) => enrollment.userId)
 
     return (
-        <Container size="lg" py="xl">
-            <title>{`${course.title} - Participants | Paideia LMS`}</title>
-            <meta name="description" content={`${course.title} participants management`} />
-            <meta property="og:title" content={`${course.title} - Participants | Paideia LMS`} />
-            <meta
-                property="og:description"
-                content={`${course.title} participants management`}
-            />
-
-
-
+        <>
             <EnrollmentsSection
-                enrollments={course.enrollments as any[]}
+                enrollments={course.enrollments}
                 currentUserRole={currentUser.role || "student"}
                 fetcherState={fetcher.state}
                 onOpenEnrollModal={openEnrollModal}
@@ -405,6 +393,9 @@ export default function CourseParticipantsPage({ loaderData }: Route.ComponentPr
                 onSelectedRoleChange={setSelectedRole}
                 selectedStatus={selectedStatus}
                 onSelectedStatusChange={setSelectedStatus}
+                selectedGroups={selectedGroups}
+                onSelectedGroupsChange={setSelectedGroups}
+                availableGroups={availableGroups}
                 enrolledUserIds={enrolledUserIds}
                 fetcherState={fetcher.state}
                 onEnrollUsers={handleEnrollUsers}
@@ -417,6 +408,9 @@ export default function CourseParticipantsPage({ loaderData }: Route.ComponentPr
                 onSelectedRoleChange={setSelectedRole}
                 selectedStatus={selectedStatus}
                 onSelectedStatusChange={setSelectedStatus}
+                selectedGroups={selectedGroups}
+                onSelectedGroupsChange={setSelectedGroups}
+                availableGroups={availableGroups}
                 fetcherState={fetcher.state}
                 onUpdateEnrollment={handleUpdateEnrollment}
             />
@@ -427,6 +421,6 @@ export default function CourseParticipantsPage({ loaderData }: Route.ComponentPr
                 fetcherState={fetcher.state}
                 onConfirmDelete={handleConfirmDeleteEnrollment}
             />
-        </Container>
+        </>
     );
 }

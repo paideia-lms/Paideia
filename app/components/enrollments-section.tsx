@@ -68,6 +68,7 @@ export function EnrollmentsSection({
 									<Table.Th>Email</Table.Th>
 									<Table.Th>Role</Table.Th>
 									<Table.Th>Status</Table.Th>
+									<Table.Th>Groups</Table.Th>
 									<Table.Th>Last Access</Table.Th>
 									{currentUserRole === "admin" && <Table.Th>Actions</Table.Th>}
 								</Table.Tr>
@@ -118,6 +119,29 @@ export function EnrollmentsSection({
 												>
 													{getEnrollmentStatusLabel(enrollment.status)}
 												</Badge>
+											</Table.Td>
+											<Table.Td>
+												{enrollment.groups.length > 0 ? (
+													<Group gap="xs">
+														{enrollment.groups.map((group) => (
+															<Badge
+																key={group.id}
+																size="sm"
+																styles={{
+																	root: {
+																		"--badge-bg": group.color,
+																	}
+																}}
+															>
+																{group.name}
+															</Badge>
+														))}
+													</Group>
+												) : (
+													<Text size="sm" c="dimmed">
+														No groups
+													</Text>
+												)}
 											</Table.Td>
 											<Table.Td>
 												<Text size="sm" c="dimmed">

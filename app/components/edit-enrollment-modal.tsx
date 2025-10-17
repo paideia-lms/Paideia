@@ -1,4 +1,4 @@
-import { Button, Group, Modal, Select, Stack } from "@mantine/core";
+import { Button, Group, Modal, MultiSelect, Select, Stack } from "@mantine/core";
 
 interface EditEnrollmentModalProps {
 	opened: boolean;
@@ -7,6 +7,9 @@ interface EditEnrollmentModalProps {
 	onSelectedRoleChange: (role: string | null) => void;
 	selectedStatus: string | null;
 	onSelectedStatusChange: (status: string | null) => void;
+	selectedGroups: string[];
+	onSelectedGroupsChange: (groups: string[]) => void;
+	availableGroups: Array<{ value: string; label: string }>;
 	fetcherState: string;
 	onUpdateEnrollment: () => void;
 }
@@ -18,6 +21,9 @@ export function EditEnrollmentModal({
 	onSelectedRoleChange,
 	selectedStatus,
 	onSelectedStatusChange,
+	selectedGroups,
+	onSelectedGroupsChange,
+	availableGroups,
 	fetcherState,
 	onUpdateEnrollment,
 }: EditEnrollmentModalProps) {
@@ -47,6 +53,15 @@ export function EditEnrollmentModal({
 					]}
 					value={selectedStatus}
 					onChange={onSelectedStatusChange}
+				/>
+				<MultiSelect
+					label="Groups"
+					placeholder="Select groups (optional)"
+					data={availableGroups}
+					value={selectedGroups}
+					onChange={onSelectedGroupsChange}
+					searchable
+					clearable
 				/>
 				<Group justify="flex-end" gap="sm">
 					<Button variant="default" onClick={onClose}>

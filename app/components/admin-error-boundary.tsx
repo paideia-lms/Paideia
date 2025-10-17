@@ -1,11 +1,11 @@
 import { Box, Text, Title } from "@mantine/core";
 import { isRouteErrorResponse } from "react-router";
 
-interface AdminErrorBoundaryProps {
+interface DefaultErrorBoundaryProps {
 	error: unknown;
 }
 
-export function AdminErrorBoundary({ error }: AdminErrorBoundaryProps) {
+export function DefaultErrorBoundary({ error }: DefaultErrorBoundaryProps) {
 	return (
 		<Box p="md">
 			{isRouteErrorResponse(error) ? (

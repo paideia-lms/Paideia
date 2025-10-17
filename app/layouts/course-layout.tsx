@@ -4,7 +4,7 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { AdminErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/course-layout";
@@ -54,7 +54,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	return <AdminErrorBoundary error={error} />;
+	return <DefaultErrorBoundary error={error} />;
 };
 
 export default function CourseLayout({
@@ -67,7 +67,7 @@ export default function CourseLayout({
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		if (pageInfo.isCourseSettings) return CourseTab.Settings;
-		if (pageInfo.isCourseParticipants) return CourseTab.Participants;
+		if (pageInfo.isCourseParticipantsLayout) return CourseTab.Participants;
 		if (pageInfo.isCourseGrades) return CourseTab.Grades;
 		if (pageInfo.isCourseModules) return CourseTab.Modules;
 		if (pageInfo.isCourseBin) return CourseTab.Bin;

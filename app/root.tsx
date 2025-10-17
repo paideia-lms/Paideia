@@ -52,6 +52,8 @@ export const middleware = [
 		let isInCourse = false;
 		let isCourseSettings = false;
 		let isCourseParticipants = false;
+		let isCourseParticipantsLayout = false;
+		let isCourseGroups = false;
 		let isCourseGrades = false;
 		let isCourseModules = false;
 		let isCourseBin = false;
@@ -67,8 +69,12 @@ export const middleware = [
 			else if (route.id === "layouts/course-layout") isInCourse = true;
 			else if (route.id === "routes/course.$id.settings")
 				isCourseSettings = true;
+			else if (route.id === "layouts/course-participants-layout")
+				isCourseParticipantsLayout = true;
 			else if (route.id === "routes/course.$id.participants")
 				isCourseParticipants = true;
+			else if (route.id === "routes/course.$id.groups")
+				isCourseGroups = true;
 			else if (route.id === "routes/course.$id.grades") isCourseGrades = true;
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
@@ -90,6 +96,8 @@ export const middleware = [
 				isInCourse,
 				isCourseSettings,
 				isCourseParticipants,
+				isCourseParticipantsLayout,
+				isCourseGroups,
 				isCourseGrades,
 				isCourseModules,
 				isCourseBin,

@@ -16,6 +16,8 @@ export type PageInfo = {
 	isInCourse: boolean;
 	isCourseSettings: boolean;
 	isCourseParticipants: boolean;
+	isCourseParticipantsLayout: boolean;
+	isCourseGroups: boolean;
 	isCourseGrades: boolean;
 	isCourseModules: boolean;
 	isCourseBin: boolean;

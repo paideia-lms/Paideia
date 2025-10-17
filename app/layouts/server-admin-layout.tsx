@@ -1,7 +1,7 @@
 import { Outlet } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { AdminErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import { tryGetContext } from "~/utils/try-get-context";
 import type { Route } from "./+types/server-admin-layout";
@@ -30,7 +30,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 };
 
 export const ErrorBoundary = ({ error }: { error: Error }) => {
-	return <AdminErrorBoundary error={error} />;
+	return <DefaultErrorBoundary error={error} />;
 };
 
 export default function ServerAdminLayout() {

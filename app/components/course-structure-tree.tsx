@@ -552,10 +552,12 @@ export function CourseStructureTree({
                                             style={{
                                                 textDecoration: "none",
                                                 color: "inherit",
+                                                flex: 1,
+                                                width: "100%"
                                             }}
                                             onClick={(e) => e.stopPropagation()}
                                         >
-                                            <Text size="sm" fw={isCurrentItem ? 600 : 400} style={{ cursor: "pointer", width: "min-content" }}>
+                                            <Text size="sm" fw={isCurrentItem ? 600 : 400} style={{ cursor: "pointer", flex: 1 }}>
                                                 {itemData.name}
                                             </Text>
                                         </Link>
