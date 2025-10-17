@@ -14,8 +14,8 @@ import { IconUserCheck } from "@tabler/icons-react";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
-import { StopImpersonatingButton } from "~/routes/api/stop-impersonation";
 import { setImpersonationCookie } from "~/utils/cookie";
 import {
 	badRequest,
@@ -26,11 +26,15 @@ import {
 import type { Route } from "./+types/profile";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const userProfileContext = context.get(userProfileContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
+	}
+
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User profile context not found");
 	}
 
 	// Use effectiveUser if impersonating, otherwise use authenticatedUser
@@ -40,35 +44,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Get user ID from route params, or use current user
 	const userId = params.id ? Number(params.id) : currentUser.id;
 
-	// Fetch the user profile
-	const userResult = await tryFindUserById({
-		payload,
-		userId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-		overrideAccess: false,
-	});
-
-	if (!userResult.ok) {
-		throw new NotFoundResponse("User not found");
-	}
-
-	const profileUser = userResult.value;
-
-	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (profileUser.avatar) {
-		if (typeof profileUser.avatar === "object") {
-			avatarUrl = profileUser.avatar.filename
-				? href(`/api/media/file/:filename`, {
-						filename: profileUser.avatar.filename,
-					})
-				: null;
-		}
-	}
-
 	// Check if user can edit this profile
 	const canEdit = userId === currentUser.id || currentUser.role === "admin";
 
@@ -76,17 +51,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const canImpersonate =
 		userSession.authenticatedUser.role === "admin" &&
 		userId !== userSession.authenticatedUser.id &&
-		profileUser.role !== "admin" &&
+		userProfileContext.profileUser.role !== "admin" &&
 		!userSession.isImpersonating;
 
 	return {
-		user: {
-			id: profileUser.id,
-			firstName: profileUser.firstName ?? "",
-			lastName: profileUser.lastName ?? "",
-			bio: profileUser.bio ?? "",
-			avatarUrl,
-		},
+		user: userProfileContext.profileUser,
 		isOwnProfile: userId === currentUser.id,
 		canEdit,
 		canImpersonate,
@@ -96,8 +65,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const requestInfo = context.get(globalContextKey).requestInfo;
+	const { payload, requestInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {

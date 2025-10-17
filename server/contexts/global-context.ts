@@ -24,6 +24,10 @@ export type PageInfo = {
 	isCourseBackup: boolean;
 	isCourseModule: boolean;
 	isCourseSection: boolean;
+	/**
+	 * viewing the public profile page
+	 */
+	isUserProfile: boolean;
 	isUserLayout: boolean;
 	isUserOverview: boolean;
 	isUserPreference: boolean;
@@ -32,6 +36,7 @@ export type PageInfo = {
 	isUserNotes: boolean;
 	isUserNoteCreate: boolean;
 	isUserNoteEdit: boolean;
+	isInUserModulesLayout: boolean;
 	isUserModuleNew: boolean;
 	isUserModuleEdit: boolean;
 };

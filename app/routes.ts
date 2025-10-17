@@ -21,13 +21,16 @@ export const routes = [
 		layout("layouts/user-layout.tsx", [
 			route("user/overview/:id?", "routes/user/overview.tsx"),
 			route("user/preference/:id?", "routes/user/preference.tsx"),
-			route("user/modules/:id?", "routes/user/modules.tsx"),
 			route("user/grades/:id?", "routes/user/grades.tsx"),
 			route("user/notes/:id?", "routes/user/notes.tsx"),
 			route("user/note/create", "routes/user/note-create.tsx"),
 			route("user/note/edit/:id", "routes/user/note-edit.tsx"),
-			route("user/module/new", "routes/user/module/new.tsx"),
-			route("user/module/edit/:id", "routes/user/module/edit.tsx"),
+			layout("layouts/user-modules-layout.tsx", [
+				//  the id is the user id
+				route("user/modules/:id?", "routes/user/modules.tsx"),
+				route("user/module/new", "routes/user/module/new.tsx"),
+				route("user/module/edit/:moduleId", "routes/user/module/edit.tsx"),
+			]),
 		]),
 		route("course/new", "routes/course-new.tsx"),
 		route("course", "routes/course.tsx"),

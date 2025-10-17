@@ -61,6 +61,11 @@ export const loader = async ({
 }: LoaderFunctionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const { moduleId } = params;
+
+	if (!moduleId) {
+		throw new NotFoundResponse("Module ID is required");
+	}
 
 	if (!userSession?.isAuthenticated) {
 		throw new UnauthorizedResponse("You must be logged in to edit modules");
@@ -68,11 +73,6 @@ export const loader = async ({
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const moduleId = params.id;
-	if (!moduleId) {
-		throw new NotFoundResponse("Module ID is required");
-	}
 
 	const moduleResult = await tryGetActivityModuleById(payload, {
 		id: Number(moduleId),

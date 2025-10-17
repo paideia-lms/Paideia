@@ -33,8 +33,8 @@ import {
 import { useState } from "react";
 import { href, Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
+import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryCreateMedia } from "server/internal/media-management";
 import {
 	tryFindUserById,
@@ -53,10 +53,14 @@ import type { Route } from "./+types/overview";
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
-	const userAccessContext = context.get(userAccessContextKey);
+	const userProfileContext = context.get(userProfileContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
+	}
+
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User profile context not found");
 	}
 
 	// Use effectiveUser if impersonating, otherwise use authenticatedUser
@@ -111,7 +115,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			avatarUrl,
 		},
 		isOwnData: userId === currentUser.id,
-		userAccess: userAccessContext,
+		userProfile: userProfileContext,
 	};
 };
 
@@ -262,7 +266,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
-	const { user, isOwnData, userAccess } = loaderData;
+	const { user, isOwnData, userProfile } = loaderData;
 	const fetcher = useFetcher<typeof action>();
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(
 		user.avatarUrl,
@@ -311,8 +315,8 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	};
 
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const moduleCount = userAccess?.activityModules.length ?? 0;
-	const enrollmentCount = userAccess?.enrollments.length ?? 0;
+	const moduleCount = userProfile?.activityModules.length ?? 0;
+	const enrollmentCount = userProfile?.enrollments.length ?? 0;
 
 	return (
 		<Container size="lg" py="xl">
@@ -468,9 +472,9 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 							<Text size="xl" fw={700} mb="md">
 								{enrollmentCount}
 							</Text>
-							{userAccess && userAccess.enrollments.length > 0 && (
+							{userProfile && userProfile.enrollments.length > 0 && (
 								<Stack gap="xs">
-									{userAccess.enrollments.slice(0, 3).map((enrollment) => (
+									{userProfile.enrollments.slice(0, 3).map((enrollment) => (
 										<Text
 											key={enrollment.id}
 											size="xs"
@@ -484,9 +488,9 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 											• {enrollment.course.title}
 										</Text>
 									))}
-									{userAccess.enrollments.length > 3 && (
+									{userProfile.enrollments.length > 3 && (
 										<Text size="xs" c="dimmed">
-											+{userAccess.enrollments.length - 3} more
+											+{userProfile.enrollments.length - 3} more
 										</Text>
 									)}
 								</Stack>

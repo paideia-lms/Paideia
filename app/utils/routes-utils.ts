@@ -2,7 +2,7 @@ import { routes } from "virtual:react-router/server-build";
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
 import { matchRoutes, type Register } from "react-router";
 
-type RouteId = keyof Register["routeModules"];
+export type RouteId = keyof Register["routeModules"];
 type RoutePage<T extends RouteId> = Simplify<
 	Extract<Register["routeFiles"][keyof Register["routeFiles"]], { id: T }>
 >["page"];

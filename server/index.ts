@@ -15,6 +15,7 @@ import { enrolmentContextKey } from "./contexts/enrolment-context";
 import { globalContextKey } from "./contexts/global-context";
 import { userAccessContextKey } from "./contexts/user-access-context";
 import { userContextKey } from "./contexts/user-context";
+import { userProfileContextKey } from "./contexts/user-profile-context";
 import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
 import { runSeed } from "./seed";
@@ -95,8 +96,10 @@ const frontend = new Elysia()
 							isUserNotes: false,
 							isUserNoteCreate: false,
 							isUserNoteEdit: false,
+							isInUserModulesLayout: false,
 							isUserModuleNew: false,
 							isUserModuleEdit: false,
+							isUserProfile: false,
 						},
 					});
 					// set all the contexts to be null in the beginning??
@@ -105,6 +108,7 @@ const frontend = new Elysia()
 					c.set(enrolmentContextKey, null);
 					c.set(courseModuleContextKey, null);
 					c.set(userAccessContextKey, null);
+					c.set(userProfileContextKey, null);
 					return c;
 				},
 			}),

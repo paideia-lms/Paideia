@@ -63,10 +63,17 @@ export const userAccessContextKey =
 
 export const getUserAccessContext = async (
 	payload: Payload,
+	/**
+	 * the target user id
+	 */
+	userId: number,
+	/**
+	 * the current user, need to verify the access
+	 */
 	user: User,
 ): Promise<UserAccessContext | null> => {
 	const result = await tryGetUserActivityModules(payload, {
-		userId: user.id,
+		userId: userId,
 		user: {
 			...user,
 			collection: "users",

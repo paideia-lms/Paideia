@@ -33,10 +33,19 @@ import {
 	tryGetUserContext,
 	userContextKey,
 } from "server/contexts/user-context";
+import {
+	convertUserAccessContextToUserProfileContext,
+	getUserProfileContext,
+	userProfileContextKey,
+} from "server/contexts/user-profile-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
-import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
+import {
+	RouteId,
+	type RouteParams,
+	tryGetRouteHierarchy,
+} from "./utils/routes-utils";
 
 export const middleware = [
 	/**
@@ -70,6 +79,8 @@ export const middleware = [
 		let isUserNoteEdit = false;
 		let isUserModuleNew = false;
 		let isUserModuleEdit = false;
+		let isUserProfile = false;
+		let isInUserModulesLayout = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -100,6 +111,9 @@ export const middleware = [
 			else if (route.id === "routes/user/note-edit") isUserNoteEdit = true;
 			else if (route.id === "routes/user/module/new") isUserModuleNew = true;
 			else if (route.id === "routes/user/module/edit") isUserModuleEdit = true;
+			else if (route.id === "routes/user/profile") isUserProfile = true;
+			else if (route.id === "layouts/user-modules-layout")
+				isInUserModulesLayout = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -133,6 +147,8 @@ export const middleware = [
 				isUserNoteEdit,
 				isUserModuleNew,
 				isUserModuleEdit,
+				isUserProfile,
+				isInUserModulesLayout,
 			},
 		});
 	},
@@ -224,12 +240,49 @@ export const middleware = [
 		const { payload } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
-		if (userSession?.isAuthenticated) {
+		const currentUser =
+			userSession?.effectiveUser || userSession?.authenticatedUser;
+
+		if (userSession?.isAuthenticated && currentUser) {
 			const userAccessContext = await getUserAccessContext(
 				payload,
-				userSession.effectiveUser || userSession.authenticatedUser || null,
+				currentUser.id,
+				currentUser,
 			);
 			context.set(userAccessContextKey, userAccessContext);
+		}
+	},
+	// set the user profile context
+	async ({ request, context, params }) => {
+		const { payload, pageInfo } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const userAccessContext = context.get(userAccessContextKey);
+
+		const currentUser =
+			userSession?.effectiveUser || userSession?.authenticatedUser;
+
+		// Check if we're in a user profile route (user-layout or user/profile)
+
+		if (
+			userSession?.isAuthenticated &&
+			currentUser &&
+			// if user login, he must have user access context
+			userAccessContext &&
+			(pageInfo.isUserLayout || pageInfo.isUserProfile)
+		) {
+			// Get the profile user id from params, or use current user id
+			const profileUserId = params.id ? Number(params.id) : currentUser.id;
+
+			if (!Number.isNaN(profileUserId)) {
+				const userProfileContext =
+					profileUserId === currentUser.id
+						? convertUserAccessContextToUserProfileContext(
+								userAccessContext,
+								currentUser,
+							)
+						: await getUserProfileContext(payload, profileUserId, currentUser);
+				context.set(userProfileContextKey, userProfileContext);
+			}
 		}
 	},
 	// set the enrolment context
