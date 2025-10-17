@@ -1,4 +1,11 @@
-import { Button, Group, Modal, MultiSelect, Select, Stack } from "@mantine/core";
+import {
+	Button,
+	Group,
+	Modal,
+	MultiSelect,
+	Select,
+	Stack,
+} from "@mantine/core";
 import type { SearchUser } from "~/routes/api/search-users";
 import { SearchUserCombobox } from "~/routes/api/search-users";
 

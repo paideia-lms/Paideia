@@ -34,9 +34,9 @@ import {
 	userContextKey,
 } from "server/contexts/user-context";
 import { tryGetUserCount } from "server/internal/check-first-user";
-import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
+import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 
 export const middleware = [
 	/**
@@ -83,8 +83,7 @@ export const middleware = [
 				isCourseParticipantsLayout = true;
 			else if (route.id === "routes/course.$id.participants")
 				isCourseParticipants = true;
-			else if (route.id === "routes/course.$id.groups")
-				isCourseGroups = true;
+			else if (route.id === "routes/course.$id.groups") isCourseGroups = true;
 			else if (route.id === "routes/course.$id.grades") isCourseGrades = true;
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
@@ -93,7 +92,7 @@ export const middleware = [
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
 			else if (route.id === "layouts/user-layout") isUserLayout = true;
 			else if (route.id === "routes/user/overview") isUserOverview = true;
-			else if (route.id === "routes/user/edit") isUserPreference = true;
+			else if (route.id === "routes/user/preference") isUserPreference = true;
 			else if (route.id === "routes/user/modules") isUserModules = true;
 			else if (route.id === "routes/user/grades") isUserGrades = true;
 			else if (route.id === "routes/user/notes") isUserNotes = true;
@@ -154,7 +153,8 @@ export const middleware = [
 	async ({ request, context, params }) => {
 		const { payload, routeHierarchy, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
-		const currentUser = userSession?.effectiveUser || userSession?.authenticatedUser
+		const currentUser =
+			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		// check if the user is in a course
 		if (routeHierarchy.some((route) => route.id === "layouts/course-layout")) {
@@ -167,33 +167,40 @@ export const middleware = [
 
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isCourseModule) {
-				const { id: moduleId } = params as RouteParams<"routes/course/module.$id">;
+				const { id: moduleId } =
+					params as RouteParams<"routes/course/module.$id">;
 
 				if (Number.isNaN(moduleId)) return;
 
-				const moduleContext = await tryFindCourseActivityModuleLinkById(payload, Number(moduleId));
+				const moduleContext = await tryFindCourseActivityModuleLinkById(
+					payload,
+					Number(moduleId),
+				);
 
 				if (!moduleContext.ok) return;
 
 				const module = moduleContext.value;
-				const { course } = module
+				const { course } = module;
 				// update the course id to the course id from the module
 				courseId = course.id;
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
 			if (pageInfo.isCourseSection) {
-				const { id: sectionId } = params as RouteParams<"routes/course/section.$id">;
+				const { id: sectionId } =
+					params as RouteParams<"routes/course/section.$id">;
 
 				if (Number.isNaN(sectionId)) return;
 
 				const sectionContext = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					user: currentUser ? {
-						...currentUser,
-						avatar: currentUser?.avatar?.id,
-					} : null,
+					user: currentUser
+						? {
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
+						: null,
 				});
 
 				if (!sectionContext.ok) return;
@@ -203,7 +210,11 @@ export const middleware = [
 				courseId = section.course;
 			}
 
-			const courseContext = await tryGetCourseContext(payload, courseId, userSession?.effectiveUser || userSession?.authenticatedUser || null);
+			const courseContext = await tryGetCourseContext(
+				payload,
+				courseId,
+				userSession?.effectiveUser || userSession?.authenticatedUser || null,
+			);
 
 			context.set(courseContextKey, courseContext);
 		}

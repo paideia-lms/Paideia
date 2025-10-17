@@ -244,7 +244,11 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 							{canEdit && (
 								<Button
 									component={Link}
-									to={isOwnProfile ? "/user/edit" : `/user/edit/${user.id}`}
+									to={
+										isOwnProfile
+											? "/user/preference"
+											: `/user/preference/${user.id}`
+									}
 									variant="light"
 									fullWidth
 								>

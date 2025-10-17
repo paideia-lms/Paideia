@@ -18,10 +18,7 @@ import {
 	getStatusBadgeColor,
 	getStatusLabel,
 } from "~/components/course-view-utils";
-import {
-	badRequest,
-	ForbiddenResponse,
-} from "~/utils/responses";
+import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -47,7 +44,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	// Get instructors and TAs from course context enrollments
 	const instructors = courseContext.course.enrollments
-		.filter((enrollment) => enrollment.role === "teacher" || enrollment.role === "ta")
+		.filter(
+			(enrollment) => enrollment.role === "teacher" || enrollment.role === "ta",
+		)
 		.filter((enrollment) => enrollment.status === "active")
 		.map((enrollment) => ({
 			id: enrollment.userId,
@@ -64,11 +63,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-
-
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
-
-
 	if ("error" in loaderData) {
 		return (
 			<Container size="lg" py="xl">
@@ -87,8 +82,6 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		course.enrollments.some(
 			(enrollment) => enrollment.userId === currentUser.id,
 		);
-
-
 
 	return (
 		<Container size="lg" py="xl">
@@ -134,9 +127,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 						enrollmentCount: course.enrollments.length,
 					}}
 				/>
-
 			</Stack>
-
 		</Container>
 	);
 }

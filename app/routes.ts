@@ -15,12 +15,12 @@ export const routes = [
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	layout("layouts/root-layout.tsx", [
 		index("routes/index.tsx"),
-		// every user will see this page the same except some permission difference 
+		// every user will see this page the same except some permission difference
 		route("user/profile/:id?", "routes/user/profile.tsx"),
 		// this should belong to user data management
 		layout("layouts/user-layout.tsx", [
 			route("user/overview/:id?", "routes/user/overview.tsx"),
-			route("user/edit/:id?", "routes/user/edit.tsx"),
+			route("user/preference/:id?", "routes/user/preference.tsx"),
 			route("user/modules/:id?", "routes/user/modules.tsx"),
 			route("user/grades/:id?", "routes/user/grades.tsx"),
 			route("user/notes/:id?", "routes/user/notes.tsx"),

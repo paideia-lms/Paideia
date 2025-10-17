@@ -4,12 +4,19 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import {
+	canSeeCourseBackup,
+	canSeeCourseBin,
+	canSeeCourseGrades,
+	canSeeCourseModules,
+	canSeeCourseParticipants,
+	canSeeCourseSettings,
+} from "server/utils/permissions";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
-import { canSeeCourseBackup, canSeeCourseBin, canSeeCourseGrades, canSeeCourseModules, canSeeCourseParticipants, canSeeCourseSettings } from "server/utils/permissions";
 
 enum CourseTab {
 	Course = "course",

@@ -1,22 +1,34 @@
-import { Button, Container, Group, Paper, Select, Stack, TextInput, Title } from "@mantine/core";
+import {
+	Button,
+	Container,
+	Group,
+	Paper,
+	Select,
+	Stack,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import type { FileUpload, FileUploadHandler } from "@remix-run/form-data-parser";
+import type {
+	FileUpload,
+	FileUploadHandler,
+} from "@remix-run/form-data-parser";
 import { parseFormData } from "@remix-run/form-data-parser";
 import * as cheerio from "cheerio";
 import { useId, useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateMedia } from "server/internal/media-management";
 import {
 	tryFindCourseById,
 	tryUpdateCourse,
 } from "server/internal/course-management";
+import { tryCreateMedia } from "server/internal/media-management";
 import type { Course } from "server/payload-types";
-import { RichTextEditor } from "~/components/rich-text-editor";
-import type { ImageFile } from "~/components/rich-text-editor";
 import z from "zod";
+import type { ImageFile } from "~/components/rich-text-editor";
+import { RichTextEditor } from "~/components/rich-text-editor";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -311,7 +323,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 	const fetcher = useFetcher<typeof action>();
 	const descriptionId = useId();
 	const [description, setDescription] = useState(
-		"error" in loaderData ? "" : loaderData.course.description
+		"error" in loaderData ? "" : loaderData.course.description,
 	);
 	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
 
@@ -427,7 +439,11 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 						<div>
 							<label
 								htmlFor={descriptionId}
-								style={{ display: "block", marginBottom: "8px", fontWeight: 500 }}
+								style={{
+									display: "block",
+									marginBottom: "8px",
+									fontWeight: 500,
+								}}
 							>
 								Description *
 							</label>
@@ -440,7 +456,9 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 								/>
 							</div>
 							{!description && (
-								<div style={{ color: "red", fontSize: "14px", marginTop: "4px" }}>
+								<div
+									style={{ color: "red", fontSize: "14px", marginTop: "4px" }}
+								>
 									Description is required
 								</div>
 							)}

@@ -130,7 +130,7 @@ export function EnrollmentsSection({
 																styles={{
 																	root: {
 																		"--badge-bg": group.color,
-																	}
+																	},
 																}}
 															>
 																{group.name}

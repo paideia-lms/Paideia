@@ -1,20 +1,10 @@
-import {
-	Alert,
-	Container,
-	Paper,
-	Stack,
-	Text,
-	Title,
-} from "@mantine/core";
+import { Alert, Container, Paper, Stack, Text, Title } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { href } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	ForbiddenResponse,
-	NotFoundResponse,
-} from "~/utils/responses";
-import type { Route } from "./+types/edit";
+import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
+import type { Route } from "./+types/preference";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -58,8 +48,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof targetUser.avatar === "object") {
 			avatarUrl = targetUser.avatar.filename
 				? href(`/api/media/file/:filename`, {
-					filename: targetUser.avatar.filename,
-				})
+						filename: targetUser.avatar.filename,
+					})
 				: null;
 		}
 	}
@@ -75,15 +65,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-
 export default function EditProfilePage() {
 	return (
 		<Container size="lg" py="xl">
 			<title>Preferences | Paideia LMS</title>
-			<meta
-				name="description"
-				content="Manage your preferences and settings"
-			/>
+			<meta name="description" content="Manage your preferences and settings" />
 			<meta property="og:title" content="Preferences | Paideia LMS" />
 			<meta
 				property="og:description"

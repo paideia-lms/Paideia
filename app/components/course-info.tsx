@@ -47,21 +47,34 @@ export function CourseInfo({ course }: CourseInfoProps) {
 									<Group key={instructor.id} gap="sm">
 										<Avatar
 											size="sm"
-											src={instructor.avatar ? `/api/media/file/${instructor.avatar.filename}` : undefined}
+											src={
+												instructor.avatar
+													? `/api/media/file/${instructor.avatar.filename}`
+													: undefined
+											}
 											name={instructor.name}
 										/>
 										<div>
-											<Text component={Link} to={href("/user/profile/:id?", { id: String(instructor.id) })}>
+											<Text
+												component={Link}
+												to={href("/user/profile/:id?", {
+													id: String(instructor.id),
+												})}
+											>
 												{instructor.name}
 											</Text>
 											<Text size="xs" c="dimmed">
-												{instructor.role === "teacher" ? "Teacher" : "Teaching Assistant"}
+												{instructor.role === "teacher"
+													? "Teacher"
+													: "Teaching Assistant"}
 											</Text>
 										</div>
 									</Group>
 								))
 							) : (
-								<Text size="sm" c="dimmed">No instructors assigned</Text>
+								<Text size="sm" c="dimmed">
+									No instructors assigned
+								</Text>
 							)}
 						</Stack>
 					</Card>
