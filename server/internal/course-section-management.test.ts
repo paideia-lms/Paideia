@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, test } from "bun:test";
+import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
@@ -104,6 +104,10 @@ describe("Course Section Management Functions", () => {
         }
 
         testActivityModule = activityModuleResult.value;
+    });
+
+    afterAll(async () => {
+        await $`bun run migrate:fresh --force-accept-warning`;
     });
 
     test("should create a nested section with valid parent", async () => {
@@ -2553,11 +2557,7 @@ describe("Course Section Management Functions", () => {
 
         expect(moveAboveResult.ok).toBe(true);
         if (moveAboveResult.ok) {
-            const updatedSection = moveAboveResult.value as CourseSection;
-            expect(updatedSection.contentOrder).toBe(2);
-            console.log(
-                `✓ Moved childSection2 above childSection1, new contentOrder: ${updatedSection.contentOrder}`,
-            );
+
             // log the tree
             const structure = await tryGetCourseStructure({
                 payload,
@@ -2569,6 +2569,12 @@ describe("Course Section Management Functions", () => {
                     generateCourseStructureTree(structure.value, complexCourse.title),
                 );
             }
+
+            const updatedSection = moveAboveResult.value as CourseSection;
+            expect(updatedSection.contentOrder).toBe(1);
+            console.log(
+                `✓ Moved childSection2 above childSection1, new contentOrder: ${updatedSection.contentOrder}`,
+            );
         }
 
         // Test 2: Move section below another section
@@ -2584,11 +2590,7 @@ describe("Course Section Management Functions", () => {
 
         expect(moveBelowResult.ok).toBe(true);
         if (moveBelowResult.ok) {
-            const updatedSection = moveBelowResult.value as CourseSection;
-            expect(updatedSection.contentOrder).toBe(2);
-            console.log(
-                `✓ Moved childSection2 below childSection1, new contentOrder: ${updatedSection.contentOrder}`,
-            );
+
             // log the tree
             const structure = await tryGetCourseStructure({
                 payload,
@@ -2600,6 +2602,11 @@ describe("Course Section Management Functions", () => {
                     generateCourseStructureTree(structure.value, complexCourse.title),
                 );
             }
+            const updatedSection = moveBelowResult.value as CourseSection;
+            expect(updatedSection.contentOrder).toBe(2);
+            console.log(
+                `✓ Moved childSection2 below childSection1, new contentOrder: ${updatedSection.contentOrder}`,
+            );
         }
 
         // Test 3: Move section inside another section
@@ -2615,15 +2622,7 @@ describe("Course Section Management Functions", () => {
 
         expect(moveInsideResult.ok).toBe(true);
         if (moveInsideResult.ok) {
-            const updatedSection = moveInsideResult.value as CourseSection;
-            const parentId =
-                typeof updatedSection.parentSection === "number"
-                    ? updatedSection.parentSection
-                    : updatedSection.parentSection?.id;
-            expect(parentId).toBe(rootSection2.id);
-            console.log(
-                `✓ Moved childSection2 inside rootSection2, new parent: ${parentId}`,
-            );
+
             // log the tree
             const structure = await tryGetCourseStructure({
                 payload,
@@ -2635,6 +2634,15 @@ describe("Course Section Management Functions", () => {
                     generateCourseStructureTree(structure.value, complexCourse.title),
                 );
             }
+            const updatedSection = moveInsideResult.value as CourseSection;
+            const parentId =
+                typeof updatedSection.parentSection === "number"
+                    ? updatedSection.parentSection
+                    : updatedSection.parentSection?.id;
+            expect(parentId).toBe(rootSection2.id);
+            console.log(
+                `✓ Moved childSection2 inside rootSection2, new parent: ${parentId}`,
+            );
         }
 
         // Test 4: Move activity module above section
@@ -2650,13 +2658,7 @@ describe("Course Section Management Functions", () => {
 
         expect(moveModuleAboveResult.ok).toBe(true);
         if (moveModuleAboveResult.ok) {
-            const updatedLink =
-                moveModuleAboveResult.value as CourseActivityModuleLink;
-            // With simplified approach, contentOrder gets recalculated starting from 0
-            expect(updatedLink.contentOrder).toBe(1);
-            console.log(
-                `✓ Moved activity module above childSection1, new contentOrder: ${updatedLink.contentOrder}`,
-            );
+
             // log the tree
             const structure = await tryGetCourseStructure({
                 payload,
@@ -2668,6 +2670,13 @@ describe("Course Section Management Functions", () => {
                     generateCourseStructureTree(structure.value, complexCourse.title),
                 );
             }
+            const updatedLink =
+                moveModuleAboveResult.value as CourseActivityModuleLink;
+            // With simplified approach, contentOrder gets recalculated starting from 0
+            expect(updatedLink.contentOrder).toBe(0);
+            console.log(
+                `✓ Moved activity module above childSection1, new contentOrder: ${updatedLink.contentOrder}`,
+            );
         }
 
         // Test 5: Move activity module below section
@@ -2683,12 +2692,7 @@ describe("Course Section Management Functions", () => {
 
         expect(moveModuleBelowResult.ok).toBe(true);
         if (moveModuleBelowResult.ok) {
-            const updatedLink =
-                moveModuleBelowResult.value as CourseActivityModuleLink;
-            expect(updatedLink.contentOrder).toBe(1);
-            console.log(
-                `✓ Moved activity module below childSection1, new contentOrder: ${updatedLink.contentOrder}`,
-            );
+
             // log the tree
             const structure = await tryGetCourseStructure({
                 payload,
@@ -2700,6 +2704,12 @@ describe("Course Section Management Functions", () => {
                     generateCourseStructureTree(structure.value, complexCourse.title),
                 );
             }
+            const updatedLink =
+                moveModuleBelowResult.value as CourseActivityModuleLink;
+            expect(updatedLink.contentOrder).toBe(1);
+            console.log(
+                `✓ Moved activity module below childSection1, new contentOrder: ${updatedLink.contentOrder}`,
+            );
         }
 
         // Test 6: Move activity module above another activity module
@@ -2717,12 +2727,7 @@ describe("Course Section Management Functions", () => {
 
         expect(moveModuleAboveModuleResult.ok).toBe(true);
         if (moveModuleAboveModuleResult.ok) {
-            const updatedLink =
-                moveModuleAboveModuleResult.value as CourseActivityModuleLink;
-            expect(updatedLink.contentOrder).toBe(1);
-            console.log(
-                `✓ Moved activity module above another activity module, new contentOrder: ${updatedLink.contentOrder}`,
-            );
+
             // log the tree
             const structure = await tryGetCourseStructure({
                 payload,
@@ -2734,6 +2739,12 @@ describe("Course Section Management Functions", () => {
                     generateCourseStructureTree(structure.value, complexCourse.title),
                 );
             }
+            const updatedLink =
+                moveModuleAboveModuleResult.value as CourseActivityModuleLink;
+            expect(updatedLink.contentOrder).toBe(0);
+            console.log(
+                `✓ Moved activity module above another activity module, new contentOrder: ${updatedLink.contentOrder}`,
+            );
         }
 
         // Test 7: Error case - move inside activity module
@@ -2794,5 +2805,236 @@ describe("Course Section Management Functions", () => {
         }
 
         console.log("\n✅ All tryGeneralMove tests passed!");
+    });
+
+    test("should move activity module above another activity module", async () => {
+        // Create a new course for this specific test
+        const moveTestCourseResult = await tryCreateCourse({
+            payload,
+            data: {
+                title: "Move Test Course",
+                description: "Course for testing activity module moves",
+                slug: "move-test-course",
+                createdBy: testUser.id,
+            },
+            overrideAccess: true,
+        });
+
+        expect(moveTestCourseResult.ok).toBe(true);
+        if (!moveTestCourseResult.ok) return;
+
+        const moveTestCourse = moveTestCourseResult.value;
+
+        // create a section 
+        const section1Result = await tryCreateSection({
+            payload,
+            data: {
+                course: moveTestCourse.id,
+                title: "Section 1",
+                description: "First section",
+            },
+            overrideAccess: true,
+        });
+
+        // create a section 2 
+        const section2Result = await tryCreateSection({
+            payload,
+            data: {
+                course: moveTestCourse.id,
+                title: "Section 2",
+                description: "Second section",
+            },
+            overrideAccess: true,
+        });
+
+        // crea 
+        const section3Result = await tryCreateSection({
+            payload,
+            data: {
+                course: moveTestCourse.id,
+                title: "Section 3",
+                description: "Third section",
+            },
+            overrideAccess: true,
+        });
+
+        if (!section3Result.ok || !section1Result.ok || !section2Result.ok) return;
+
+        // Create a section
+        const sectionResult = await tryCreateSection({
+            payload,
+            data: {
+                course: moveTestCourse.id,
+                title: "Discussions",
+                description: "Discussion section",
+            },
+            overrideAccess: true,
+        });
+
+        expect(sectionResult.ok).toBe(true);
+        if (!sectionResult.ok) return;
+
+        // create a module in section 1
+        const module1Result = await tryCreateActivityModule(payload, {
+            title: "Module 1",
+            description: "First module",
+            type: "discussion",
+            userId: testUser.id,
+            discussionData: {
+                instructions: "Test discussion 1",
+            },
+        });
+
+        expect(module1Result.ok).toBe(true);
+        if (!module1Result.ok) return;
+
+        // create a module in section 2
+        const module2Result = await tryCreateActivityModule(payload, {
+
+            title: "Module 2",
+            description: "Second module",
+            type: "discussion",
+            userId: testUser.id,
+            discussionData: {
+                instructions: "Test discussion 2",
+            },
+        });
+
+        expect(module2Result.ok).toBe(true);
+        if (!module2Result.ok) return;
+
+        // Create activity modules
+        const activityModule3Result = await tryCreateActivityModule(payload, {
+            title: "Activity Module 3",
+            description: "Third activity module",
+            type: "discussion",
+            userId: testUser.id,
+            discussionData: {
+                instructions: "Test discussion 3",
+            },
+        });
+
+        const activityModule4Result = await tryCreateActivityModule(payload, {
+            title: "Activity Module 4",
+            description: "Fourth activity module",
+            type: "discussion",
+            userId: testUser.id,
+            discussionData: {
+                instructions: "Test discussion 4",
+            },
+        });
+
+        expect(activityModule3Result.ok).toBe(true);
+        expect(activityModule4Result.ok).toBe(true);
+        if (!activityModule3Result.ok || !activityModule4Result.ok) return;
+
+        // add module 1 to section 1
+        const link1Result = await tryAddActivityModuleToSection({
+            payload,
+            activityModuleId: module1Result.value.id,
+            sectionId: section1Result.value.id,
+            overrideAccess: true,
+        });
+
+        expect(link1Result.ok).toBe(true);
+        if (!link1Result.ok) return;
+
+        // add module 2 to section 2
+        const link2Result = await tryAddActivityModuleToSection({
+            payload,
+            activityModuleId: module2Result.value.id,
+            sectionId: section2Result.value.id,
+            overrideAccess: true,
+        });
+
+        expect(link2Result.ok).toBe(true);
+        if (!link2Result.ok) return;
+
+        // Add modules to section (in order: 4 first, then 3)
+        const link4Result = await tryAddActivityModuleToSection({
+            payload,
+            activityModuleId: activityModule4Result.value.id,
+            sectionId: sectionResult.value.id,
+            overrideAccess: true,
+        });
+
+        const link3Result = await tryAddActivityModuleToSection({
+            payload,
+            activityModuleId: activityModule3Result.value.id,
+            sectionId: sectionResult.value.id,
+            overrideAccess: true,
+        });
+
+        expect(link4Result.ok).toBe(true);
+        expect(link3Result.ok).toBe(true);
+        if (!link4Result.ok || !link3Result.ok) return;
+
+        // Log initial structure
+        const initialStructureResult = await tryGetCourseStructure({
+            payload,
+            courseId: moveTestCourse.id,
+            overrideAccess: true,
+        });
+
+        expect(initialStructureResult.ok).toBe(true);
+        if (initialStructureResult.ok) {
+            console.log("courseStructureTree incubate leading-edge technologies");
+            console.log(generateCourseStructureTree(initialStructureResult.value, moveTestCourse.title));
+        }
+
+        // Move activity-module 3 above activity-module 4
+        console.log(`Moving ${link3Result.value.sectionTitle ?? link3Result.value.activityModuleName} to above ${link4Result.value.sectionTitle ?? link4Result.value.activityModuleName}`);
+
+        console.log(link3Result.value);
+        console.log(link4Result.value);
+
+        const moveResult = await tryGeneralMove({
+            payload,
+            source: { id: link3Result.value.id, type: "activity-module" },
+            target: { id: link4Result.value.id, type: "activity-module" },
+            location: "above",
+            overrideAccess: true,
+        });
+
+        expect(moveResult.ok).toBe(true);
+        if (!moveResult.ok) return;
+
+        // Log final structure
+        const finalStructureResult = await tryGetCourseStructure({
+            payload,
+            courseId: moveTestCourse.id,
+            overrideAccess: true,
+        });
+
+        expect(finalStructureResult.ok).toBe(true);
+        if (finalStructureResult.ok) {
+            console.log("courseStructureTree incubate leading-edge technologies");
+            console.log(generateCourseStructureTree(finalStructureResult.value, moveTestCourse.title));
+
+            // Verify the move worked - Activity Module 3 should now be above Activity Module 4
+            const discussionsSection = finalStructureResult.value.sections.find(s => s.title === "Discussions");
+            expect(discussionsSection).toBeDefined();
+            if (discussionsSection) {
+                expect(discussionsSection.content.length).toBe(2);
+                console.log(discussionsSection.content);
+
+                // Find the modules in the section
+                const module3 = discussionsSection.content.find(item =>
+                    item.type === "activity-module" && "module" in item && item.module.title === "Activity Module 3"
+                );
+                const module4 = discussionsSection.content.find(item =>
+                    item.type === "activity-module" && "module" in item && item.module.title === "Activity Module 4"
+                );
+
+                expect(module3).toBeDefined();
+                expect(module4).toBeDefined();
+
+                if (module3 && module4) {
+                    // Activity Module 3 should now have contentOrder 0, Activity Module 4 should have contentOrder 1
+                    expect(module3.contentOrder).toBe(0);
+                    expect(module4.contentOrder).toBe(1);
+                }
+            }
+        }
     });
 });

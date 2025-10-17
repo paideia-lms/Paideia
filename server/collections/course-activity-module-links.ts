@@ -62,7 +62,7 @@ export const CourseActivityModuleLinks = {
 			required: true,
 			defaultValue: 0,
 			label: "Content Order",
-			min: 0,
+			min: -1,
 		},
 	],
 } as const satisfies CollectionConfig;

@@ -74,7 +74,7 @@ export const CourseSections = {
             required: true,
             defaultValue: 0,
             label: "Content Order",
-            min: 0,
+            min: -1,
         },
         {
             name: "activityModules",

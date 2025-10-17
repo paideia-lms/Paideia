@@ -9,6 +9,7 @@ import { ForbiddenResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
+import { canSeeCourseBackup, canSeeCourseBin, canSeeCourseGrades, canSeeCourseModules, canSeeCourseParticipants, canSeeCourseSettings } from "server/utils/permissions";
 
 enum CourseTab {
 	Course = "course",
@@ -61,7 +62,7 @@ export default function CourseLayout({
 	matches,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { course, pageInfo, enrolment } = loaderData;
+	const { course, pageInfo, enrolment, currentUser } = loaderData;
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -106,6 +107,12 @@ export default function CourseLayout({
 		}
 	};
 
+	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment);
+	const canSeeParticipants = canSeeCourseParticipants(currentUser, enrolment);
+	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment);
+	const canSeeModules = canSeeCourseModules(currentUser, enrolment);
+	const canSeeBin = canSeeCourseBin(currentUser, enrolment);
+	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment);
 	return (
 		<div>
 			<div className={classes.header}>
@@ -131,22 +138,24 @@ export default function CourseLayout({
 						>
 							<Tabs.List>
 								<Tabs.Tab value={CourseTab.Course}>Course</Tabs.Tab>
-								{enrolment?.role === "teacher" && (
+								{canSeeSettings && (
 									<Tabs.Tab value={CourseTab.Settings}>Settings</Tabs.Tab>
 								)}
-								{enrolment?.role === "teacher" && (
+								{canSeeParticipants && (
 									<Tabs.Tab value={CourseTab.Participants}>
 										Participants
 									</Tabs.Tab>
 								)}
-								<Tabs.Tab value={CourseTab.Grades}>Grades</Tabs.Tab>
-								{enrolment?.role === "teacher" && (
+								{canSeeGrades && (
+									<Tabs.Tab value={CourseTab.Grades}>Grades</Tabs.Tab>
+								)}
+								{canSeeModules && (
 									<Tabs.Tab value={CourseTab.Modules}>Modules</Tabs.Tab>
 								)}
-								{enrolment?.role === "teacher" && (
+								{canSeeBin && (
 									<Tabs.Tab value={CourseTab.Bin}>Recycle Bin</Tabs.Tab>
 								)}
-								{enrolment?.role === "teacher" && (
+								{canSeeBackup && (
 									<Tabs.Tab value={CourseTab.Backup}>Course Reuse</Tabs.Tab>
 								)}
 							</Tabs.List>

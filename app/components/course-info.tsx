@@ -1,4 +1,4 @@
-import { Box, Card, Group, Paper, Stack, Text } from "@mantine/core";
+import { Avatar, Card, Group, Paper, Stack, Text } from "@mantine/core";
 
 interface CourseInfoProps {
 	course: {
@@ -7,8 +7,15 @@ interface CourseInfoProps {
 		slug: string;
 		description: string;
 		status: string;
-		createdBy: string;
-		createdById: number;
+		createdBy: {
+			name: string,
+			email: string,
+			id: string,
+			avatar?: {
+				id: number;
+				filename?: string | null;
+			} | null;
+		};
 		createdAt: string;
 		updatedAt: string;
 		enrollmentCount: number;
@@ -31,7 +38,14 @@ export function CourseInfo({ course }: CourseInfoProps) {
 						<Text fw={600} size="sm" c="dimmed" mb="xs">
 							Created By
 						</Text>
-						<Text>{course.createdBy}</Text>
+						<Group gap="sm">
+							<Avatar
+								size="sm"
+								src={course.createdBy.avatar ? `/api/media/file/${course.createdBy.avatar.filename}` : undefined}
+								name={course.createdBy.name}
+							/>
+							<Text>{course.createdBy.name}</Text>
+						</Group>
 					</Card>
 
 					<Card withBorder>

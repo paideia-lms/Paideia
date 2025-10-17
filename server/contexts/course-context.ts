@@ -110,7 +110,7 @@ export interface CourseContext {
 	courseId: number;
 	currentUser: {
 		id: number;
-		role: string;
+		role: "admin" | "content-manager" | "instructor" | "student" | "analytics-viewer";
 	};
 	availableModules: Array<{
 		id: number;
@@ -321,7 +321,7 @@ export const tryGetCourseContext = async (
 		courseId: course.id,
 		currentUser: {
 			id: user.id,
-			role: user.role || "student",
+			role: user.role ?? "student",
 		},
 		availableModules: availableModules.map((module) => ({
 			id: module.id,

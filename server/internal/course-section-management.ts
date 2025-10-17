@@ -1886,6 +1886,26 @@ export interface GetCourseStructureArgs {
     overrideAccess?: boolean;
 }
 
+/** 
+ * recursively assert the content order is correct
+ */
+function assertRightContentOrder(sections: (CourseStructureItem | CourseStructureSection)[]): void {
+    for (let i = 0; i < sections.length; i++) {
+        const section = sections[i];
+        if (section.type === "section") {
+            if (section.contentOrder !== i) {
+                throw new InvalidArgumentError(`Section ${section.title} has incorrect content order: ${section.contentOrder}, expected: ${i}`);
+            }
+            assertRightContentOrder(section.content);
+        }
+        else {
+            if (section.contentOrder !== i) {
+                throw new InvalidArgumentError(`Activity module ${section.module.title} has incorrect content order: ${section.contentOrder}, expected: ${i}`);
+            }
+        }
+    }
+}
+
 /**
  * Gets the complete course structure as a hierarchical JSON representation with mixed content ordering
  */
@@ -2030,54 +2050,12 @@ export const tryGetCourseStructure = Result.wrap(
                 return 0;
             });
 
-            // Ensure no duplicate contentOrder values within the section
-            const usedContentOrders = new Set<number>();
-            for (const item of mixedContent) {
-                if (usedContentOrders.has(item.contentOrder)) {
-                    // Find next available contentOrder
-                    let newContentOrder = item.contentOrder + 1;
-                    while (usedContentOrders.has(newContentOrder)) {
-                        newContentOrder++;
-                    }
-                    item.contentOrder = newContentOrder;
-                }
-                usedContentOrders.add(item.contentOrder);
+            // Normalize contentOrder to start from 0 with no gaps
+            for (let i = 0; i < mixedContent.length; i++) {
+                mixedContent[i].contentOrder = i;
             }
-
-            // Re-sort after fixing duplicates
-            mixedContent.sort((a, b) => {
-                if (a.contentOrder !== b.contentOrder) {
-                    return a.contentOrder - b.contentOrder;
-                }
-                // When contentOrder is equal, sections come before activity modules
-                if (a.type === "section" && b.type === "activity-module") {
-                    return -1;
-                }
-                if (a.type === "activity-module" && b.type === "section") {
-                    return 1;
-                }
-                return 0;
-            });
 
             structureSection.content = mixedContent;
-
-            // Validate that contentOrder starts from 0 and has no gaps
-            if (mixedContent.length > 0) {
-                if (mixedContent[0].contentOrder !== 0) {
-                    throw new InvalidArgumentError(
-                        `Section "${structureSection.title}" (ID: ${structureSection.id}) content order must start from 0, but first item has contentOrder: ${mixedContent[0].contentOrder}`,
-                    );
-                }
-
-                // Check for gaps in contentOrder sequence
-                for (let i = 1; i < mixedContent.length; i++) {
-                    if (mixedContent[i].contentOrder !== i) {
-                        throw new InvalidArgumentError(
-                            `Section "${structureSection.title}" (ID: ${structureSection.id}) has gap in content order at position ${i}, expected contentOrder: ${i}, but found: ${mixedContent[i].contentOrder}`,
-                        );
-                    }
-                }
-            }
 
             // Add to root sections if no parent
             if (parentId === null) {
@@ -2087,6 +2065,13 @@ export const tryGetCourseStructure = Result.wrap(
 
         // Sort root sections by contentOrder
         rootSections.sort((a, b) => a.contentOrder - b.contentOrder);
+
+        // Normalize root sections contentOrder to start from 0
+        for (let i = 0; i < rootSections.length; i++) {
+            rootSections[i].contentOrder = i;
+        }
+
+        assertRightContentOrder(rootSections);
 
         return {
             courseId,
@@ -2172,10 +2157,7 @@ export const tryGeneralMove = Result.wrap(
             throw new InvalidArgumentError("Source ID is required");
         }
 
-        // Special handling for root moves (targetId: 0)
-        const isRootMove = target.id === 0;
-
-        if (!isRootMove && !target.id) {
+        if (!target.id) {
             throw new InvalidArgumentError("Target ID is required");
         }
 
@@ -2193,67 +2175,94 @@ export const tryGeneralMove = Result.wrap(
 
         try {
             // Get source item
-            let sourceItem: CourseSection | CourseActivityModuleLink;
-            if (source.type === "section") {
-                sourceItem = (await payload.findByID({
-                    collection: CourseSections.slug,
-                    id: source.id,
-                    user,
-                    req: req ? { ...req, transactionID } : { transactionID },
-                    overrideAccess: true,
-                })) as CourseSection;
-            } else {
-                sourceItem = (await payload.findByID({
-                    collection: CourseActivityModuleLinks.slug,
-                    id: source.id,
-                    user,
-                    req: req ? { ...req, transactionID } : { transactionID },
-                    overrideAccess: true,
-                })) as CourseActivityModuleLink;
-            }
+            const sourceItem = source.type === "section" ? await payload.findByID({
+                collection: CourseSections.slug,
+                id: source.id,
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            }).then(result => {
+                const parentSection = result.parentSection;
+                assertZod(parentSection, z.object({
+                    id: z.number(),
+                }).nullish());
+                const course = result.course;
+                assertZod(course, z.object({
+                    id: z.number(),
+                }));
+                return {
+                    ...result,
+                    parentSection,
+                    course,
+                }
+            }) : await payload.findByID({
+                collection: CourseActivityModuleLinks.slug,
+                id: source.id,
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            }).then(result => {
+                const section = result.section;
+                assertZod(section, z.object({
+                    id: z.number(),
+                }));
+                const course = result.course;
+                assertZod(course, z.object({
+                    id: z.number(),
+                }));
+                return {
+                    ...result,
+                    section,
+                    course,
+                }
+            })
 
             // Get target item (skip for root moves)
-            let targetItem: CourseSection | CourseActivityModuleLink | null = null;
-            if (!isRootMove) {
-                if (target.type === "section") {
-                    targetItem = (await payload.findByID({
-                        collection: CourseSections.slug,
-                        id: target.id,
-                        user,
-                        req: req ? { ...req, transactionID } : { transactionID },
-                        overrideAccess: true,
-                    })) as CourseSection;
-                } else {
-                    targetItem = (await payload.findByID({
-                        collection: CourseActivityModuleLinks.slug,
-                        id: target.id,
-                        user,
-                        req: req ? { ...req, transactionID } : { transactionID },
-                        overrideAccess: true,
-                    })) as CourseActivityModuleLink;
+            const targetItem = target.type === "section" ? await payload.findByID({
+                collection: CourseSections.slug,
+                id: target.id,
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            }).then(result => {
+                const parentSection = result.parentSection;
+                assertZod(parentSection, z.object({
+                    id: z.number(),
+                }).nullish());
+                const course = result.course;
+                assertZod(course, z.object({
+                    id: z.number(),
+                }));
+                return {
+                    ...result,
+                    parentSection,
+                    course,
                 }
-            }
-
+            }) : await payload.findByID({
+                collection: CourseActivityModuleLinks.slug,
+                id: target.id,
+                user,
+                req: req ? { ...req, transactionID } : { transactionID },
+                overrideAccess: true,
+            }).then(result => {
+                const section = result.section;
+                assertZod(section, z.object({
+                    id: z.number(),
+                }));
+                const course = result.course;
+                assertZod(course, z.object({
+                    id: z.number(),
+                }));
+                return {
+                    ...result,
+                    section,
+                    course,
+                }
+            })
             // Determine course ID
-            const sourceCourseId =
-                source.type === "section"
-                    ? typeof sourceItem.course === "number"
-                        ? sourceItem.course
-                        : sourceItem.course.id
-                    : typeof sourceItem.course === "number"
-                        ? sourceItem.course
-                        : sourceItem.course.id;
+            const sourceCourseId = sourceItem.course.id;
 
-            const targetCourseId = isRootMove
-                ? sourceCourseId // For root moves, target course is same as source
-                : target.type === "section"
-                    ? typeof targetItem!.course === "number"
-                        ? targetItem!.course
-                        : targetItem!.course.id
-                    : typeof targetItem!.course === "number"
-                        ? targetItem!.course
-                        : targetItem!.course.id;
-
+            const targetCourseId = targetItem.course.id;
             // Verify both items belong to same course
             if (sourceCourseId !== targetCourseId) {
                 throw new InvalidArgumentError(
@@ -2266,15 +2275,12 @@ export const tryGeneralMove = Result.wrap(
             assertZod(sourceItem, z.object({
                 id: z.number(),
             }));
-            const oldParentSectionId = source.type === "section"
-                // @ts-ignore
-                ? (sourceItem as CourseSection).parentSection?.id ?? null
-                // @ts-ignore
-                : (sourceItem as CourseActivityModuleLink).section?.id ?? null;
+            const oldParentSection = "parentSection" in sourceItem ? sourceItem.parentSection : "section" in sourceItem ? sourceItem.section : null;
+            const oldParentSectionId = typeof oldParentSection === "number" ? oldParentSection : oldParentSection?.id ?? null;
+            assertZod(oldParentSectionId, z.number().nullable());
 
             if (location === "inside") {
-                // Moving inside a section (or to root level for root moves)
-                newParentSectionId = isRootMove ? null : target.id;
+                newParentSectionId = target.id;
 
                 // Check for circular reference if moving section inside another section
                 if (source.type === "section" && newParentSectionId !== null) {
@@ -2293,22 +2299,32 @@ export const tryGeneralMove = Result.wrap(
                 }
             } else {
                 // Moving above or below target - get target's parent
-                if (target.type === "section") {
-                    const targetSection = targetItem as CourseSection;
+                if (target.type === "section" && "parentSection" in targetItem) {
+                    const targetSection = targetItem
+                    newParentSectionId = targetSection.parentSection?.id ?? null;
+                } else if (target.type === "activity-module" && "section" in targetItem) {
+                    const targetLink = targetItem
                     newParentSectionId =
-                        typeof targetSection.parentSection === "number"
-                            ? targetSection.parentSection
-                            : (targetSection.parentSection?.id ?? null);
+                        targetLink.section.id;
                 } else {
-                    const targetLink = targetItem as CourseActivityModuleLink;
-                    newParentSectionId =
-                        typeof targetLink.section === "number"
-                            ? targetLink.section
-                            : targetLink.section.id;
+                    throw new InvalidArgumentError(
+                        "Invalid target type",
+                    );
                 }
             }
 
-            // Move the item to its new location (with temporary contentOrder)
+            // Calculate appropriate contentOrder based on location
+            let newContentOrder: number;
+            if (location === "above") {
+                newContentOrder = targetItem!.contentOrder - 0.5; // Same as target, stable sort by ID will determine order
+            } else if (location === "below") {
+                newContentOrder = targetItem!.contentOrder + 0.5; // Right after target
+            } else {
+                // "inside" - put at the end
+                newContentOrder = 999999;
+            }
+
+            // Move the item to its new location
             let result: CourseSection | CourseActivityModuleLink;
             if (source.type === "section") {
                 result = await payload.update({
@@ -2317,7 +2333,7 @@ export const tryGeneralMove = Result.wrap(
                     data: {
                         parentSection: newParentSectionId,
                         // Temporary contentOrder, will be recalculated
-                        contentOrder: 999999,
+                        contentOrder: newContentOrder,
                     },
                     user,
                     req: req ? { ...req, transactionID } : { transactionID },
@@ -2337,7 +2353,7 @@ export const tryGeneralMove = Result.wrap(
                     data: {
                         section: newParentSectionId,
                         // Temporary contentOrder, will be recalculated
-                        contentOrder: 999999,
+                        contentOrder: newContentOrder,
                     },
                     user,
                     req: req ? { ...req, transactionID } : { transactionID },
@@ -2429,11 +2445,16 @@ async function recalculateSectionContentOrder(
         overrideAccess: true,
     });
 
-    // Combine and sort all content items by current contentOrder
+    // Combine and sort all content items by current contentOrder, then by ID for stability
     const allContent = [
         ...siblingSections.docs.map(section => ({ type: 'section' as const, item: section })),
         ...siblingModules.docs.map(module => ({ type: 'module' as const, item: module })),
-    ].sort((a, b) => a.item.contentOrder - b.item.contentOrder);
+    ].sort((a, b) => {
+        const orderDiff = a.item.contentOrder - b.item.contentOrder;
+        if (orderDiff !== 0) return orderDiff;
+        // If contentOrder is the same, sort by ID (higher ID first for stability)
+        return b.item.id - a.item.id;
+    });
 
     // Reassign contentOrder starting from 0
     for (let i = 0; i < allContent.length; i++) {

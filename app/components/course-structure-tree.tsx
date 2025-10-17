@@ -419,6 +419,8 @@ export function CourseStructureTree({
         ],
     });
 
+    const items = tree.getItems();
+
     // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
     useEffect(() => {
         if (isLoading || isFirstRender) return;
@@ -460,20 +462,12 @@ export function CourseStructureTree({
                     >
                         <IconLibraryMinus stroke={1.5} />
                     </ActionIcon>
-                    <ActionIcon
-                        variant="light"
-                        size="sm"
-                        aria-label="Collapse all"
-                        onClick={() => tree.rebuildTree()}
-                    >
-                        <IconLibraryMinus stroke={1.5} />
-                    </ActionIcon>
                 </ActionIcon.Group>
             </Box>
 
             <Box>
                 <div {...tree.getContainerProps()}>
-                    {tree.getItems().map((item) => {
+                    {items.map((item) => {
                         const itemData = item.getItemData();
                         const isSection = itemData.type === "section";
                         const isModule = itemData.type === "module";

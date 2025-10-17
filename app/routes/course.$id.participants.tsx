@@ -1,53 +1,432 @@
-import { Container, Paper, Text, Title } from "@mantine/core";
+import {
+    Badge,
+    Button,
+    Container,
+    Group,
+    Paper,
+    Stack,
+    Text,
+    Title,
+} from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
+import { IconEdit } from "@tabler/icons-react";
+import { useState } from "react";
+import { Link, useFetcher } from "react-router";
+import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
 import { courseContextKey } from "server/contexts/course-context";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
+import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse } from "~/utils/responses";
+import {
+    tryCreateEnrollment,
+    tryDeleteEnrollment,
+    tryUpdateEnrollment,
+} from "server/internal/enrollment-management";
+import type { Enrollment } from "server/payload-types";
+import { DeleteEnrollmentModal } from "~/components/delete-enrollment-modal";
+import { EditEnrollmentModal } from "~/components/edit-enrollment-modal";
+import { EnrollUserModal } from "~/components/enroll-user-modal";
+import { EnrollmentsSection } from "~/components/enrollments-section";
+import { getStatusBadgeColor, getStatusLabel } from "~/components/course-view-utils";
+import type { SearchUser } from "~/routes/api/search-users";
+import {
+    badRequest,
+    ForbiddenResponse,
+    ok,
+    unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const userSession = context.get(userContextKey);
-	const courseContext = context.get(courseContextKey);
+    const userSession = context.get(userContextKey);
+    const enrolmentContext = context.get(enrolmentContextKey);
+    const courseContext = context.get(courseContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
-	}
+    if (!userSession?.isAuthenticated) {
+        throw new ForbiddenResponse("Unauthorized");
+    }
 
-	const courseId = Number.parseInt(params.id, 10);
+    const courseId = Number.parseInt(params.id, 10);
+    if (Number.isNaN(courseId)) {
+        return badRequest({
+            error: "Invalid course ID",
+        });
+    }
 
-	if (Number.isNaN(courseId)) {
-		throw new ForbiddenResponse("Invalid course ID");
-	}
+    // Get course view data using the course context
+    if (!courseContext) {
+        throw new ForbiddenResponse("Course not found or access denied");
+    }
 
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found");
-	}
-
-	// TODO: Add course access check and fetch participants data
-	return {
-		courseId,
-		participants: courseContext.course.enrollments,
-	};
+    return {
+        ...courseContext,
+        enrolment: enrolmentContext?.enrolment,
+    };
 };
 
-export default function CourseParticipantsPage() {
-	return (
-		<Container size="lg" py="xl">
-			<title>Participants | Course | Paideia LMS</title>
-			<meta name="description" content="Course participants management" />
-			<meta property="og:title" content="Participants | Course | Paideia LMS" />
-			<meta
-				property="og:description"
-				content="Course participants management"
-			/>
+export const action = async ({
+    request,
+    context,
+    params,
+}: Route.ActionArgs) => {
+    const payload = context.get(globalContextKey).payload;
+    const userSession = context.get(userContextKey);
 
-			<Paper withBorder shadow="md" p="xl" radius="md">
-				<Title order={2} mb="md">
-					Course Participants
-				</Title>
-				<Text c="dimmed">
-					This page will contain participant management functionality.
-				</Text>
-			</Paper>
-		</Container>
-	);
+    if (!userSession?.isAuthenticated) {
+        return unauthorized({ error: "Unauthorized" });
+    }
+
+    const currentUser =
+        userSession.effectiveUser || userSession.authenticatedUser;
+
+    const courseId = Number.parseInt(params.id, 10);
+    if (Number.isNaN(courseId)) {
+        return badRequest({ error: "Invalid course ID" });
+    }
+
+    // Get course to check ownership
+    const course = await payload.findByID({
+        collection: "courses",
+        id: courseId,
+        user: currentUser,
+        req: request,
+        overrideAccess: false,
+    });
+
+    if (!course) {
+        return badRequest({ error: "Course not found" });
+    }
+
+    // Check if user has management access to this course
+    const courseCreatedById =
+        typeof course.createdBy === "number"
+            ? course.createdBy
+            : course.createdBy.id;
+
+    const canManage =
+        currentUser.role === "admin" ||
+        currentUser.role === "content-manager" ||
+        courseCreatedById === currentUser.id;
+
+    if (!canManage) {
+        return unauthorized({
+            error: "You don't have permission to manage this course",
+        });
+    }
+
+    const formData = await request.formData();
+    const intent = formData.get("intent");
+
+    if (intent === "enroll") {
+        const userId = Number(formData.get("userId"));
+        const role = formData.get("role") as
+            | "student"
+            | "teacher"
+            | "ta"
+            | "manager";
+        const status = formData.get("status") as
+            | "active"
+            | "inactive"
+            | "completed"
+            | "dropped";
+
+        if (Number.isNaN(userId)) {
+            return badRequest({ error: "Invalid user ID" });
+        }
+
+        if (!role || !status) {
+            return badRequest({ error: "Role and status are required" });
+        }
+
+        const createResult = await tryCreateEnrollment({
+            payload,
+            user: userId,
+            course: courseId,
+            role,
+            status,
+            authenticatedUser: {
+                ...currentUser,
+                avatar: currentUser.avatar?.id,
+            },
+            req: request,
+            overrideAccess: false,
+        });
+
+        if (!createResult.ok) {
+            return badRequest({ error: createResult.error.message });
+        }
+
+        return ok({ success: true, message: "User enrolled successfully" });
+    }
+
+    if (intent === "edit-enrollment") {
+        const enrollmentId = Number(formData.get("enrollmentId"));
+        const role = formData.get("role") as
+            | "student"
+            | "teacher"
+            | "ta"
+            | "manager";
+        const status = formData.get("status") as
+            | "active"
+            | "inactive"
+            | "completed"
+            | "dropped";
+
+        if (Number.isNaN(enrollmentId)) {
+            return badRequest({ error: "Invalid enrollment ID" });
+        }
+
+        if (!role || !status) {
+            return badRequest({ error: "Role and status are required" });
+        }
+
+        const updateResult = await tryUpdateEnrollment({
+            payload,
+            enrollmentId,
+            role,
+            status,
+            authenticatedUser: {
+                ...currentUser,
+                avatar: currentUser.avatar?.id,
+            },
+            req: request,
+            overrideAccess: false,
+        });
+
+        if (!updateResult.ok) {
+            return badRequest({ error: updateResult.error.message });
+        }
+
+        return ok({ success: true, message: "Enrollment updated successfully" });
+    }
+
+    if (intent === "delete-enrollment") {
+        const enrollmentId = Number(formData.get("enrollmentId"));
+        if (Number.isNaN(enrollmentId)) {
+            return badRequest({ error: "Invalid enrollment ID" });
+        }
+
+        const deleteResult = await tryDeleteEnrollment(
+            payload,
+            enrollmentId,
+            {
+                ...currentUser,
+                avatar: currentUser.avatar?.id,
+            },
+            request,
+            false,
+        );
+
+        if (!deleteResult.ok) {
+            return badRequest({ error: deleteResult.error.message });
+        }
+
+        return ok({ success: true, message: "Enrollment deleted successfully" });
+    }
+
+    return badRequest({ error: "Invalid intent" });
+};
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+    const actionData = await serverAction();
+
+    if (actionData && "success" in actionData && actionData.success) {
+        notifications.show({
+            title: "Success",
+            message: actionData.message,
+            color: "green",
+        });
+    } else if (actionData && "error" in actionData) {
+        notifications.show({
+            title: "Error",
+            message: actionData.error,
+            color: "red",
+        });
+    }
+    return actionData;
+}
+
+export default function CourseParticipantsPage({ loaderData }: Route.ComponentProps) {
+    const fetcher = useFetcher<typeof action>();
+
+    // Modal states
+    const [
+        enrollModalOpened,
+        { open: openEnrollModal, close: closeEnrollModal },
+    ] = useDisclosure(false);
+    const [editModalOpened, { open: openEditModal, close: closeEditModal }] =
+        useDisclosure(false);
+    const [
+        deleteModalOpened,
+        { open: openDeleteModal, close: closeDeleteModal },
+    ] = useDisclosure(false);
+
+    // Form states
+    const [selectedUsers, setSelectedUsers] = useState<SearchUser[]>([]);
+    const [selectedRole, setSelectedRole] = useState<string | null>(null);
+    const [selectedStatus, setSelectedStatus] = useState<string | null>(null);
+    const [editingEnrollment, setEditingEnrollment] = useState<Enrollment | null>(
+        null,
+    );
+    const [deletingEnrollmentId, setDeletingEnrollmentId] = useState<
+        number | null
+    >(null);
+
+    if ("error" in loaderData) {
+        return (
+            <Container size="lg" py="xl">
+                <Paper withBorder shadow="sm" p="xl" radius="md">
+                    <Text c="red">{loaderData.error}</Text>
+                </Paper>
+            </Container>
+        );
+    }
+
+    const { course, currentUser } = loaderData;
+
+    const canEdit =
+        currentUser.role === "admin" ||
+        currentUser.role === "content-manager" ||
+        course.enrollments.some(
+            (enrollment) => enrollment.userId === currentUser.id,
+        );
+
+    // Enrollment handlers
+    const handleEnrollUsers = () => {
+        if (selectedUsers.length > 0 && selectedRole && selectedStatus) {
+            // Submit each user enrollment
+            selectedUsers.forEach((user) => {
+                fetcher.submit(
+                    {
+                        intent: "enroll",
+                        userId: user.id.toString(),
+                        role: selectedRole,
+                        status: selectedStatus,
+                    },
+                    { method: "post" },
+                );
+            });
+            closeEnrollModal();
+            setSelectedUsers([]);
+            setSelectedRole(null);
+            setSelectedStatus(null);
+        }
+    };
+
+    const handleEditEnrollment = (enrollment: CourseEnrollment) => {
+        // Convert CourseEnrollment to payload Enrollment type for the modal
+        const payloadEnrollment: Enrollment = {
+            id: enrollment.id,
+            user: enrollment.userId,
+            course: 0, // This will be set by the modal
+            role: enrollment.role,
+            status: enrollment.status,
+            enrolledAt: enrollment.enrolledAt,
+            completedAt: enrollment.completedAt,
+            updatedAt: "",
+            createdAt: "",
+        };
+        setEditingEnrollment(payloadEnrollment);
+        setSelectedRole(enrollment.role);
+        setSelectedStatus(enrollment.status);
+        openEditModal();
+    };
+
+    const handleUpdateEnrollment = () => {
+        if (editingEnrollment && selectedRole && selectedStatus) {
+            fetcher.submit(
+                {
+                    intent: "edit-enrollment",
+                    enrollmentId: editingEnrollment.id.toString(),
+                    role: selectedRole,
+                    status: selectedStatus,
+                },
+                { method: "post" },
+            );
+            closeEditModal();
+            setEditingEnrollment(null);
+            setSelectedRole(null);
+            setSelectedStatus(null);
+        }
+    };
+
+    const handleDeleteEnrollment = (enrollmentId: number) => {
+        setDeletingEnrollmentId(enrollmentId);
+        openDeleteModal();
+    };
+
+    const handleConfirmDeleteEnrollment = () => {
+        if (deletingEnrollmentId) {
+            fetcher.submit(
+                {
+                    intent: "delete-enrollment",
+                    enrollmentId: deletingEnrollmentId.toString(),
+                },
+                { method: "post" },
+            );
+            closeDeleteModal();
+            setDeletingEnrollmentId(null);
+        }
+    };
+
+    // Get enrolled user IDs for exclusion
+    const enrolledUserIds = course.enrollments.map((enrollment: any) =>
+        typeof enrollment.user === "object" ? enrollment.user.id : enrollment.user,
+    );
+
+    return (
+        <Container size="lg" py="xl">
+            <title>{`${course.title} - Participants | Paideia LMS`}</title>
+            <meta name="description" content={`${course.title} participants management`} />
+            <meta property="og:title" content={`${course.title} - Participants | Paideia LMS`} />
+            <meta
+                property="og:description"
+                content={`${course.title} participants management`}
+            />
+
+
+
+            <EnrollmentsSection
+                enrollments={course.enrollments as any[]}
+                currentUserRole={currentUser.role || "student"}
+                fetcherState={fetcher.state}
+                onOpenEnrollModal={openEnrollModal}
+                onEditEnrollment={handleEditEnrollment}
+                onDeleteEnrollment={handleDeleteEnrollment}
+            />
+
+            <EnrollUserModal
+                opened={enrollModalOpened}
+                onClose={closeEnrollModal}
+                selectedUsers={selectedUsers}
+                onSelectedUsersChange={setSelectedUsers}
+                selectedRole={selectedRole}
+                onSelectedRoleChange={setSelectedRole}
+                selectedStatus={selectedStatus}
+                onSelectedStatusChange={setSelectedStatus}
+                enrolledUserIds={enrolledUserIds}
+                fetcherState={fetcher.state}
+                onEnrollUsers={handleEnrollUsers}
+            />
+
+            <EditEnrollmentModal
+                opened={editModalOpened}
+                onClose={closeEditModal}
+                selectedRole={selectedRole}
+                onSelectedRoleChange={setSelectedRole}
+                selectedStatus={selectedStatus}
+                onSelectedStatusChange={setSelectedStatus}
+                fetcherState={fetcher.state}
+                onUpdateEnrollment={handleUpdateEnrollment}
+            />
+
+            <DeleteEnrollmentModal
+                opened={deleteModalOpened}
+                onClose={closeDeleteModal}
+                fetcherState={fetcher.state}
+                onConfirmDelete={handleConfirmDeleteEnrollment}
+            />
+        </Container>
+    );
 }
