@@ -5,6 +5,7 @@ import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import { tryGetContext } from "~/utils/try-get-context";
 import type { Route } from "./+types/server-admin-layout";
+import { Container } from "@mantine/core";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const contextResult = tryGetContext(context, globalContextKey);
@@ -35,9 +36,9 @@ export const ErrorBoundary = ({ error }: { error: Error }) => {
 
 export default function ServerAdminLayout() {
 	return (
-		<div>
+		<Container size="xl" >
 			Admin
 			<Outlet />
-		</div>
+		</Container>
 	);
 }

@@ -60,6 +60,16 @@ export const middleware = [
 		let isCourseBackup = false;
 		let isCourseModule = false;
 		let isCourseSection = false;
+		let isUserLayout = false;
+		let isUserOverview = false;
+		let isUserPreference = false;
+		let isUserModules = false;
+		let isUserGrades = false;
+		let isUserNotes = false;
+		let isUserNoteCreate = false;
+		let isUserNoteEdit = false;
+		let isUserModuleNew = false;
+		let isUserModuleEdit = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -81,6 +91,16 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
 			else if (route.id === "routes/course/module.$id") isCourseModule = true;
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
+			else if (route.id === "layouts/user-layout") isUserLayout = true;
+			else if (route.id === "routes/user/overview") isUserOverview = true;
+			else if (route.id === "routes/user/edit") isUserPreference = true;
+			else if (route.id === "routes/user/modules") isUserModules = true;
+			else if (route.id === "routes/user/grades") isUserGrades = true;
+			else if (route.id === "routes/user/notes") isUserNotes = true;
+			else if (route.id === "routes/user/note-create") isUserNoteCreate = true;
+			else if (route.id === "routes/user/note-edit") isUserNoteEdit = true;
+			else if (route.id === "routes/user/module/new") isUserModuleNew = true;
+			else if (route.id === "routes/user/module/edit") isUserModuleEdit = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -92,7 +112,7 @@ export const middleware = [
 				isMyCourses,
 				isDashboard,
 				isLogin,
-				isFirstUser,
+				isCreatingFirstUser: isFirstUser,
 				isInCourse,
 				isCourseSettings,
 				isCourseParticipants,
@@ -104,6 +124,16 @@ export const middleware = [
 				isCourseBackup,
 				isCourseModule,
 				isCourseSection,
+				isUserLayout,
+				isUserOverview,
+				isUserPreference,
+				isUserModules,
+				isUserGrades,
+				isUserNotes,
+				isUserNoteCreate,
+				isUserNoteEdit,
+				isUserModuleNew,
+				isUserModuleEdit,
 			},
 		});
 	},
@@ -235,7 +265,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 	// Skip redirect check for essential routes
 	if (
-		pageInfo.isFirstUser ||
+		pageInfo.isCreatingFirstUser ||
 		pageInfo.isLogin ||
 		currentPath.startsWith("/api/")
 	) {

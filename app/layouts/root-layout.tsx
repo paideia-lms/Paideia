@@ -160,9 +160,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filename`, {
-																			filename:
-																				authenticatedUser.avatar.filename,
-																		})
+																		filename:
+																			authenticatedUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -184,8 +184,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filename`, {
-																			filename: currentUser.avatar.filename,
-																		})
+																		filename: currentUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -203,8 +203,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filename`, {
-																filename: currentUser.avatar.filename,
-															})
+															filename: currentUser.avatar.filename,
+														})
 														: null
 												}
 												alt={
@@ -223,7 +223,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+											"Anonymous"
 											: "Not signed in"}
 									</Text>
 									<IconChevronDown size={12} stroke={1.5} />
@@ -236,24 +236,28 @@ export function HeaderTabs({
 									<Menu.Item
 										leftSection={<IconUser size={16} stroke={1.5} />}
 										component={Link}
-										to={href("/user/profile/:id?", { id: undefined })}
+										to={href("/user/overview/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Profile
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
 										component={Link}
-										to={href("/user/modules/:id?", { id: undefined })}
+										to={href("/user/modules/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Modules
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconSchool size={16} stroke={1.5} />}
+										component={Link}
+										to={href("/user/grades/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Grades
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
+									// component={Link}
+									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>
@@ -265,6 +269,8 @@ export function HeaderTabs({
 
 									<Menu.Item
 										leftSection={<IconSettings size={16} stroke={1.5} />}
+										component={Link}
+										to={href("/user/edit/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Preferences
 									</Menu.Item>

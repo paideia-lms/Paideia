@@ -62,6 +62,9 @@ export const ActivityModules = {
 			required: true,
 		},
 		{
+			/** 
+			 * in page and whiteboard, this is basically the content 
+			 */
 			name: "description",
 			type: "textarea",
 		},
