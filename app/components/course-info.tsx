@@ -13,7 +13,7 @@ interface CourseInfoProps {
 			name: string;
 			email: string;
 			role: "teacher" | "ta";
-			avatar?: {
+			avatar?: number | {
 				id: number;
 				filename?: string | null;
 			} | null;
@@ -49,7 +49,7 @@ export function CourseInfo({ course }: CourseInfoProps) {
 											size="sm"
 											src={
 												instructor.avatar
-													? `/api/media/file/${instructor.avatar.filename}`
+													? `/api/media/file/${typeof instructor.avatar === 'object' ? instructor.avatar.filename : instructor.avatar}`
 													: undefined
 											}
 											name={instructor.name}

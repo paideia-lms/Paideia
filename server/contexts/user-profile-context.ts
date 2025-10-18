@@ -3,6 +3,7 @@
  * this context is available when viewing a user's profile
  * it stores all the activity modules that the profile user has access to
  * it stores all the enrollments of the profile user
+ * it stores all the notes created by the profile user with heatmap data
  *
  * Note: This is different from user-access-context which is for the authenticated user
  * This context is for the user whose profile is being viewed (could be self or another user)
@@ -13,7 +14,9 @@ import type { UserAccessContext } from "server/contexts/user-access-context";
 import type { User } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
+import { tryGenerateNoteHeatmap } from "server/internal/note-management";
 import { tryFindUserById } from "server/internal/user-management";
+import type { Note } from "server/payload-types";
 
 type Course = {
 	id: number;
@@ -67,17 +70,23 @@ export interface UserProfileContext {
 		bio: string;
 		email: string;
 		role:
-			| "student"
-			| "instructor"
-			| "admin"
-			| "content-manager"
-			| "analytics-viewer";
+		| "student"
+		| "instructor"
+		| "admin"
+		| "content-manager"
+		| "analytics-viewer";
 		avatarUrl: string | null;
 	};
 	/** Activity modules accessible by the profile user */
 	activityModules: ActivityModule[];
 	/** Enrollments of the profile user */
 	enrollments: Enrollment[];
+	/** Notes created by the profile user */
+	notes: Note[];
+	/** Heatmap data for notes */
+	heatmapData: Record<string, number>;
+	/** Years with available notes */
+	availableYears: number[];
 }
 
 export const userProfileContext = createContext<UserProfileContext | null>(
@@ -102,8 +111,8 @@ export const convertUserAccessContextToUserProfileContext = (
 	// Handle avatar URL
 	let avatarUrl: string | null = null;
 	if (user.avatar?.filename) {
-		avatarUrl = href(`/api/media/file/:filename`, {
-			filename: user.avatar.filename,
+		avatarUrl = href(`/api/media/file/:filenameOrId`, {
+			filenameOrId: user.avatar.filename,
 		});
 	}
 
@@ -120,6 +129,9 @@ export const convertUserAccessContextToUserProfileContext = (
 		},
 		activityModules: userAccessContext.activityModules,
 		enrollments: userAccessContext.enrollments,
+		notes: userAccessContext.notes,
+		heatmapData: userAccessContext.heatmapData,
+		availableYears: userAccessContext.availableYears,
 	};
 };
 
@@ -153,8 +165,8 @@ export const getUserProfileContext = async (
 	let avatarUrl: string | null = null;
 	if (profileUser.avatar) {
 		if (typeof profileUser.avatar === "object" && profileUser.avatar.filename) {
-			avatarUrl = href(`/api/media/file/:filename`, {
-				filename: profileUser.avatar.filename,
+			avatarUrl = href(`/api/media/file/:filenameOrId`, {
+				filenameOrId: profileUser.avatar.filename,
 			});
 		}
 	}
@@ -228,6 +240,22 @@ export const getUserProfileContext = async (
 		})),
 	] satisfies ActivityModule[];
 
+	// Fetch notes and heatmap data
+	const heatmapResult = await tryGenerateNoteHeatmap({
+		payload,
+		userId: profileUserId,
+		user: {
+			...currentUser,
+			collection: "users",
+			avatar: currentUser.avatar?.id,
+		},
+		overrideAccess: false,
+	});
+
+	const { notes, heatmapData, availableYears } = heatmapResult.ok
+		? heatmapResult.value
+		: { notes: [], heatmapData: {}, availableYears: [] };
+
 	return {
 		profileUserId,
 		profileUser: {
@@ -245,5 +273,8 @@ export const getUserProfileContext = async (
 				self.findIndex((m) => m.id === module.id) === index,
 		),
 		enrollments: enrollmentsData,
+		notes,
+		heatmapData,
+		availableYears,
 	};
 };

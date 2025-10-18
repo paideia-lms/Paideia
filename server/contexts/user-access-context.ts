@@ -3,12 +3,15 @@
  * this context is available when user is logged in
  * it stores all the activity modules that user has access to
  * it stores all the enrollments of this users
+ * it stores all the notes created by this user with heatmap data
  */
 import type { Payload } from "payload";
 import { createContext } from "react-router";
 import type { User } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
+import { tryGenerateNoteHeatmap } from "server/internal/note-management";
+import type { Note } from "server/payload-types";
 
 type Course = {
 	id: number;
@@ -54,6 +57,9 @@ export type Enrollment = {
 export interface UserAccessContext {
 	activityModules: ActivityModule[];
 	enrollments: Enrollment[];
+	notes: Note[];
+	heatmapData: Record<string, number>;
+	availableYears: number[];
 }
 
 export const userAccessContext = createContext<UserAccessContext | null>(null);
@@ -81,7 +87,9 @@ export const getUserAccessContext = async (
 		overrideAccess: true,
 	});
 
-	if (!result.ok) throw new Error("Failed to get user activity modules");
+	if (!result.ok) throw new Error(result.error.message, {
+		cause: result.error,
+	});
 
 	const { modulesOwnedOrGranted, autoGrantedModules } = result.value;
 
@@ -141,6 +149,22 @@ export const getUserAccessContext = async (
 		})),
 	] satisfies ActivityModule[];
 
+	// Fetch notes and heatmap data
+	const heatmapResult = await tryGenerateNoteHeatmap({
+		payload,
+		userId,
+		user: {
+			...user,
+			collection: "users",
+			avatar: user.avatar?.id,
+		},
+		overrideAccess: false,
+	});
+
+	const { notes, heatmapData, availableYears } = heatmapResult.ok
+		? heatmapResult.value
+		: { notes: [], heatmapData: {}, availableYears: [] };
+
 	return {
 		activityModules: activityModules.filter(
 			// unique by id
@@ -148,5 +172,8 @@ export const getUserAccessContext = async (
 				self.findIndex((m) => m.id === module.id) === index,
 		),
 		enrollments: enrollmentsData,
+		notes,
+		heatmapData,
+		availableYears,
 	};
 };

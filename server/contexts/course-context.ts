@@ -6,6 +6,11 @@
 
 import type { Payload } from "payload";
 import { createContext } from "react-router";
+import { Result } from "typescript-result";
+import {
+	CourseAccessDeniedError,
+	CourseStructureNotFoundError,
+} from "~/utils/error";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
 import { tryFindCourseById } from "server/internal/course-management";
@@ -36,7 +41,7 @@ export type Enrollment = {
 	email: string;
 	role: "student" | "teacher" | "ta" | "manager";
 	status: "active" | "inactive" | "completed" | "dropped";
-	avatar: {
+	avatar: number | {
 		id: number;
 		filename?: string | null;
 	} | null;
@@ -111,11 +116,11 @@ export interface CourseContext {
 	currentUser: {
 		id: number;
 		role:
-			| "admin"
-			| "content-manager"
-			| "instructor"
-			| "student"
-			| "analytics-viewer";
+		| "admin"
+		| "content-manager"
+		| "instructor"
+		| "student"
+		| "analytics-viewer";
 	};
 	availableModules: Array<{
 		id: number;
@@ -138,33 +143,45 @@ export const tryGetCourseContext = async (
 	payload: Payload,
 	courseId: number,
 	user: User | null,
-): Promise<CourseContext | null> => {
+) => {
+	// Get course
 	const courseResult = await tryFindCourseById({
 		payload,
 		courseId: courseId,
 		user: user
 			? {
-					...user,
-					avatar: user.avatar?.id,
-				}
+				...user,
+				avatar: user.avatar?.id,
+			}
 			: null,
 		// ! we cannot use overrideAccess true here
 	});
 
 	if (!courseResult.ok) {
-		return null;
+		return Result.error(courseResult.error);
 	}
 
 	const course = courseResult.value;
 
+	// Check if user exists
+	if (!user) {
+		return Result.error(
+			new CourseAccessDeniedError("User must be authenticated to access course"),
+		);
+	}
+
 	// Check access
 	const hasAccess =
-		user?.role === "admin" ||
-		user?.role === "content-manager" ||
-		course.enrollments.some((enrollment) => enrollment.user.id === user?.id);
+		user.role === "admin" ||
+		user.role === "content-manager" ||
+		course.enrollments.some((enrollment) => enrollment.user.id === user.id);
 
-	if (!hasAccess || !user) {
-		return null;
+	if (!hasAccess) {
+		return Result.error(
+			new CourseAccessDeniedError(
+				`User ${user.id} does not have access to course ${courseId}`,
+			),
+		);
 	}
 
 	// Transform course data to match the Course interface
@@ -181,22 +198,22 @@ export const tryGetCourseContext = async (
 			lastName: course.createdBy.lastName,
 			avatar: course.createdBy.avatar
 				? {
-						id: course.createdBy.avatar.id,
-						filename: course.createdBy.avatar.filename,
-					}
+					id: course.createdBy.avatar.id,
+					filename: course.createdBy.avatar.filename,
+				}
 				: null,
 		},
 		category: course.category
 			? {
-					id: course.category.id,
-					name: course.category.name,
-					parent: course.category.parent
-						? {
-								id: course.category.parent.id,
-								name: course.category.parent.name,
-							}
-						: null,
-				}
+				id: course.category.id,
+				name: course.category.name,
+				parent: course.category.parent
+					? {
+						id: course.category.parent.id,
+						name: course.category.parent.name,
+					}
+					: null,
+			}
 			: null,
 		updatedAt: course.updatedAt,
 		createdAt: course.createdAt,
@@ -239,39 +256,39 @@ export const tryGetCourseContext = async (
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
 	const moduleLinks = linksResult.ok
 		? linksResult.value.map((link) => ({
-				id: link.id,
-				activityModule: {
-					id: link.activityModule.id,
-					title: link.activityModule.title || "",
-					description: link.activityModule.description || "",
-					type: link.activityModule.type as
-						| "page"
-						| "whiteboard"
-						| "assignment"
-						| "quiz"
-						| "discussion",
-					status: link.activityModule.status as
-						| "draft"
-						| "published"
-						| "archived",
-					createdBy: {
-						id: link.activityModule.createdBy.id,
-						email: link.activityModule.createdBy.email,
-						firstName: link.activityModule.createdBy.firstName,
-						lastName: link.activityModule.createdBy.lastName,
-						avatar: link.activityModule.createdBy.avatar
-							? {
-									id: link.activityModule.createdBy.avatar.id,
-									filename: link.activityModule.createdBy.avatar.filename,
-								}
-							: null,
-					},
-					updatedAt: link.activityModule.updatedAt,
-					createdAt: link.activityModule.createdAt,
+			id: link.id,
+			activityModule: {
+				id: link.activityModule.id,
+				title: link.activityModule.title || "",
+				description: link.activityModule.description || "",
+				type: link.activityModule.type as
+					| "page"
+					| "whiteboard"
+					| "assignment"
+					| "quiz"
+					| "discussion",
+				status: link.activityModule.status as
+					| "draft"
+					| "published"
+					| "archived",
+				createdBy: {
+					id: link.activityModule.createdBy.id,
+					email: link.activityModule.createdBy.email,
+					firstName: link.activityModule.createdBy.firstName,
+					lastName: link.activityModule.createdBy.lastName,
+					avatar: link.activityModule.createdBy.avatar
+						? {
+							id: link.activityModule.createdBy.avatar.id,
+							filename: link.activityModule.createdBy.avatar.filename,
+						}
+						: null,
 				},
-				createdAt: link.createdAt,
-				updatedAt: link.updatedAt,
-			}))
+				updatedAt: link.activityModule.updatedAt,
+				createdAt: link.activityModule.createdAt,
+			},
+			createdAt: link.createdAt,
+			updatedAt: link.updatedAt,
+		}))
 		: [];
 
 	// Update course with moduleLinks
@@ -292,21 +309,20 @@ export const tryGetCourseContext = async (
 	const courseStructureResult = await tryGetCourseStructure({
 		payload,
 		courseId: course.id,
-		user: user
-			? {
-					...user,
-					avatar: user.avatar?.id,
-				}
-			: null,
+		user: {
+			...user,
+			avatar: user.avatar?.id,
+		},
 		overrideAccess: false,
 	});
 
 	if (!courseStructureResult.ok) {
-		console.error(
-			"Failed to get course structure:",
-			courseStructureResult.error,
+		return Result.error(
+			new CourseStructureNotFoundError(
+				`Failed to get course structure for course ${courseId}: ${courseStructureResult.error.message}`,
+				{ cause: courseStructureResult.error },
+			),
 		);
-		return null;
 	}
 
 	const courseStructure = courseStructureResult.value;
@@ -321,7 +337,7 @@ export const tryGetCourseContext = async (
 		course.title,
 	);
 
-	return {
+	return Result.ok({
 		course: courseWithModuleLinks,
 		courseId: course.id,
 		currentUser: {
@@ -338,5 +354,5 @@ export const tryGetCourseContext = async (
 		courseStructure,
 		courseStructureTree,
 		courseStructureTreeSimple,
-	};
+	});
 };

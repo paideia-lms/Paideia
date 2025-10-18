@@ -48,13 +48,13 @@ export interface CreateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -126,13 +126,13 @@ export interface UpdateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -874,6 +874,8 @@ export const tryGetUserActivityModules = Result.wrap(
 					quizSubmissions: false,
 					submissions: false,
 				},
+				// ! we need to fix this. we use depth 2 to get the avatar but this might lead to many unnecessary queries.
+				depth: 2,
 				sort: "-createdAt",
 				// ! we don't care about pagination and performance for now
 				pagination: false,

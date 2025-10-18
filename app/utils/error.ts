@@ -208,6 +208,22 @@ export class InvalidOwnerTransferError extends Error {
 	}
 }
 
+export class CourseAccessDeniedError extends Error {
+	static readonly type = "CourseAccessDeniedError";
+	get type() {
+		return CourseAccessDeniedError.type;
+	}
+}
+
+export class CourseStructureNotFoundError extends Error {
+	static readonly type = "CourseStructureNotFoundError";
+	get type() {
+		return CourseStructureNotFoundError.type;
+	}
+}
+
+
+
 export function transformError(error: unknown) {
 	if (process.env.NODE_ENV === "test") {
 		console.log("transformError", error);
@@ -239,6 +255,8 @@ export function transformError(error: unknown) {
 	else if (error instanceof DuplicateAccessGrantError) return error;
 	else if (error instanceof AccessGrantNotFoundError) return error;
 	else if (error instanceof InvalidOwnerTransferError) return error;
+	else if (error instanceof CourseAccessDeniedError) return error;
+	else if (error instanceof CourseStructureNotFoundError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

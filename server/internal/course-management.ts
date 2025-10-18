@@ -353,13 +353,13 @@ export const tryFindCourseById = Result.wrap(
 					courseCreatedBy,
 					z.object({
 						id: z.number(),
-					}),
+					}, { "error": "Course createdBy is required" }),
 				);
 
 				const courseCreatedByAvatar = courseCreatedBy.avatar;
 				assertZod(
 					courseCreatedByAvatar,
-					z.object({ id: z.number() }).nullish(),
+					z.object({ id: z.number() }, { "error": "Course createdBy avatar is required" }).nullish(),
 				);
 
 				const courseEnrollments =
@@ -368,28 +368,28 @@ export const tryFindCourseById = Result.wrap(
 							e,
 							z.object({
 								id: z.number(),
-							}),
+							}, { "error": "Course enrollment is required" }),
 						);
 
 						const course = e.course;
 						// assert e has no course
-						assertZod(course, z.undefined());
+						assertZod(course, z.undefined({ 'error': 'Course enrollment course is required' }));
 
 						const user = e.user;
 						assertZod(
 							user,
 							z.object({
 								id: z.number(),
-							}),
+							}, { "error": "Course enrollment user is required" }),
 						);
 
 						const groups =
 							e.groups?.map((g) => {
-								assertZod(g, z.object({ id: z.number() }));
+								assertZod(g, z.object({ id: z.number() }, { "error": "Course enrollment group is required" }));
 								const parent = g.parent;
-								assertZod(parent, z.number().nullish());
+								assertZod(parent, z.number({ 'error': 'Course enrollment group parent is required' }).nullish());
 								const course = g.course;
-								assertZod(course, z.undefined());
+								assertZod(course, z.undefined({ 'error': 'Course enrollment group course is required' }));
 								return {
 									...g,
 									parent,
@@ -398,7 +398,7 @@ export const tryFindCourseById = Result.wrap(
 							}) ?? [];
 
 						const avatar = user.avatar;
-						assertZod(avatar, z.object({ id: z.number() }).nullish());
+						assertZod(avatar, z.number({ 'error': 'Course enrollment user avatar is required' }).nullish());
 
 						return {
 							...e,
@@ -413,11 +413,11 @@ export const tryFindCourseById = Result.wrap(
 
 				const groups =
 					course.groups?.docs?.map((g) => {
-						assertZod(g, z.object({ id: z.number() }));
+						assertZod(g, z.object({ id: z.number() }, { "error": "Course group is required" }));
 						const parent = g.parent;
-						assertZod(parent, z.object({ id: z.number() }).nullish());
+						assertZod(parent, z.object({ id: z.number() }, { "error": "Course group parent is required" }).nullish());
 						const course = g.course;
-						assertZod(course, z.undefined());
+						assertZod(course, z.undefined({ 'error': 'Course group course is required' }));
 						return {
 							...g,
 							parent,
@@ -426,19 +426,19 @@ export const tryFindCourseById = Result.wrap(
 					}) ?? [];
 
 				const category = course.category;
-				assertZod(category, z.object({ id: z.number() }).nullish());
+				assertZod(category, z.object({ id: z.number() }, { "error": "Course category is required" }).nullish());
 
 				const categoryCourses = category?.courses;
-				assertZod(categoryCourses, z.undefined());
+				assertZod(categoryCourses, z.undefined({ 'error': 'Course category courses is required' }));
 
 				const parent = category?.parent;
-				assertZod(parent, z.object({ id: z.number() }).nullish());
+				assertZod(parent, z.object({ id: z.number() }, { "error": 'Course category parent is required' }).nullish());
 
 				const categorySubcategories = category?.subcategories;
-				assertZod(categorySubcategories, z.undefined());
+				assertZod(categorySubcategories, z.undefined({ 'error': 'Course category subcategories is required' }));
 
 				const sections = course.sections;
-				assertZod(sections, z.undefined());
+				assertZod(sections, z.undefined({ 'error': 'Course sections is required' }));
 
 				return {
 					...course,
@@ -450,11 +450,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-								...category,
-								parent,
-								courses: categoryCourses,
-								subcategories: categorySubcategories,
-							}
+							...category,
+							parent,
+							courses: categoryCourses,
+							subcategories: categorySubcategories,
+						}
 						: null,
 					sections,
 				};

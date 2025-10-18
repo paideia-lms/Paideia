@@ -172,8 +172,8 @@ export const action = async ({
 
 					if (filename) {
 						// Replace with actual media URL
-						const mediaUrl = href("/api/media/file/:filename", {
-							filename,
+						const mediaUrl = href("/api/media/file/:filenameOrId", {
+							filenameOrId: filename,
 						});
 						$(img).attr("src", mediaUrl);
 					}

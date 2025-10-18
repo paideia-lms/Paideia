@@ -65,9 +65,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	if (targetUser.avatar) {
 		if (typeof targetUser.avatar === "object") {
 			avatarUrl = targetUser.avatar.filename
-				? href(`/api/media/file/:filename`, {
-						filename: targetUser.avatar.filename,
-					})
+				? href(`/api/media/file/:filenameOrId`, {
+					filenameOrId: targetUser.avatar.filename,
+				})
 				: null;
 		}
 	}

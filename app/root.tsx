@@ -46,6 +46,7 @@ import {
 	type RouteParams,
 	tryGetRouteHierarchy,
 } from "./utils/routes-utils";
+import { InternalServerErrorResponse } from "./utils/responses";
 
 export const middleware = [
 	/**
@@ -181,6 +182,7 @@ export const middleware = [
 			// default course id is the id from params
 			let courseId: number = Number(id);
 
+
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isCourseModule) {
 				const { id: moduleId } =
@@ -213,9 +215,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -226,13 +228,19 @@ export const middleware = [
 				courseId = section.course;
 			}
 
-			const courseContext = await tryGetCourseContext(
+			const courseContextResult = await tryGetCourseContext(
 				payload,
 				courseId,
-				userSession?.effectiveUser || userSession?.authenticatedUser || null,
+				currentUser || null,
 			);
 
-			context.set(courseContextKey, courseContext);
+			// Only set the course context if successful
+			if (courseContextResult.ok) {
+				context.set(courseContextKey, courseContextResult.value);
+			} else {
+				console.error(courseContextResult.error);
+				throw new InternalServerErrorResponse("Failed to get course context");
+			}
 		}
 	},
 	// set the user access context
@@ -277,9 +285,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}

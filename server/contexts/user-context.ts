@@ -12,8 +12,8 @@ import { tryHandleImpersonation } from "server/internal/user-management";
 
 export function getAvatarUrl(user: PayloadUser) {
 	if (user.avatar && typeof user.avatar === "object" && user.avatar.filename) {
-		return href(`/api/media/file/:filename`, {
-			filename: user.avatar.filename,
+		return href(`/api/media/file/:filenameOrId`, {
+			filenameOrId: user.avatar.filename,
 		});
 	}
 	return null;
@@ -24,14 +24,14 @@ export interface User {
 	firstName?: string | null;
 	lastName?: string | null;
 	role?:
-		| (
-				| "student"
-				| "instructor"
-				| "admin"
-				| "content-manager"
-				| "analytics-viewer"
-		  )
-		| null;
+	| (
+		| "student"
+		| "instructor"
+		| "admin"
+		| "content-manager"
+		| "analytics-viewer"
+	)
+	| null;
 	bio?: string | null;
 	/**
 	 * the id or file name of the avatar

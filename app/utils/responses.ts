@@ -17,6 +17,7 @@ export const StatusCode = {
 	Forbidden: 403 as const,
 	Redirect: 302 as const,
 	NotFound: 404 as const,
+	InternalServerError: 500 as const,
 };
 
 export function ok<T>(value: T, init?: ResponseInitWithoutStatus) {
@@ -91,5 +92,19 @@ export function notFound<T>(value: T, init?: ResponseInitWithoutStatus) {
 export class NotFoundResponse extends Response {
 	constructor(message: string) {
 		super(message, { status: StatusCode.NotFound, statusText: "Not Found" });
+	}
+}
+
+
+export function internalServerError<T>(value: T, init?: ResponseInitWithoutStatus) {
+	return data(
+		{ ...value, status: StatusCode.InternalServerError },
+		{ ...init, status: StatusCode.InternalServerError },
+	);
+}
+
+export class InternalServerErrorResponse extends Response {
+	constructor(message: string) {
+		super(message, { status: StatusCode.InternalServerError, statusText: "Internal Server Error" });
 	}
 }

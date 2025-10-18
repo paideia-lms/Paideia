@@ -20,14 +20,15 @@ import * as cheerio from "cheerio";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
-import { Notes } from "server/collections";
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
+import { userAccessContextKey } from "server/contexts/user-access-context";
 import {
-	tryDeleteNote,
-	tryGenerateNoteHeatmap,
-} from "server/internal/note-management";
-import { tryFindUserById } from "server/internal/user-management";
+	convertUserAccessContextToUserProfileContext,
+	getUserProfileContext,
+	type UserProfileContext,
+} from "server/contexts/user-profile-context";
+import { userContextKey } from "server/contexts/user-context";
+import { tryDeleteNote } from "server/internal/note-management";
 import type { Note } from "server/payload-types";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
@@ -39,11 +40,7 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/notes";
 
-export const loader = async ({
-	request,
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 	const { id } = params;
@@ -62,63 +59,49 @@ export const loader = async ({
 	// Get user ID from route params, or use current user
 	const userId = id ? Number(id) : currentUser.id;
 
-	// Fetch the user profile
-	const profileUser =
-		userId !== currentUser.id
-			? await tryFindUserById({
-					payload,
-					userId,
-					user: {
-						...currentUser,
-						avatar: currentUser.avatar?.id,
-					},
-					overrideAccess: false,
-				}).then((result) => {
-					if (result.ok) return result.value;
-					throw new NotFoundResponse("User not found");
-				})
-			: currentUser;
+	// Get user profile context
+	let userProfileContext: UserProfileContext | null = null;
+	if (userId === currentUser.id) {
+		// If viewing own profile, use userAccessContext if available
+		const userAccessContext = context.get(userAccessContextKey);
+		if (userAccessContext) {
+			userProfileContext = convertUserAccessContextToUserProfileContext(
+				userAccessContext,
+				currentUser,
+			);
+		} else {
+			// Fallback to fetching directly
+			userProfileContext = await getUserProfileContext(
+				payload,
+				userId,
+				currentUser,
+			);
+		}
+	} else {
+		// Viewing another user's profile
+		userProfileContext = await getUserProfileContext(
+			payload,
+			userId,
+			currentUser,
+		);
+	}
 
-	// Fetch notes and generate heatmap data
-	const heatmapResult = await tryGenerateNoteHeatmap({
-		payload,
-		userId,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
-		overrideAccess: false,
-	});
-
-	const { notes, heatmapData, availableYears } = heatmapResult.ok
-		? heatmapResult.value
-		: { notes: [], heatmapData: {}, availableYears: [] };
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User not found");
+	}
 
 	// user can create notes if he is the user of this profile
 	const canCreateNotes = userId === currentUser.id;
 
 	return {
-		user: {
-			id: profileUser.id,
-			firstName: profileUser.firstName ?? "",
-			lastName: profileUser.lastName ?? "",
-			avatar: profileUser.avatar
-				? {
-						id: profileUser.avatar.id,
-						filename: profileUser.avatar.filename,
-					}
-				: null,
-			bio: profileUser.bio ?? "",
-			email: profileUser.email,
-		},
+		user: userProfileContext.profileUser,
 		isOwnProfile: userId === currentUser.id,
 		canCreateNotes,
 		currentUserId: currentUser.id,
 		currentUserRole: currentUser.role,
-		notes,
-		heatmapData,
-		availableYears,
+		notes: userProfileContext.notes,
+		heatmapData: userProfileContext.heatmapData,
+		availableYears: userProfileContext.availableYears,
 	};
 };
 
@@ -227,10 +210,10 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 	// Filter notes based on selected date from calendar
 	const filteredNotes = selectedDate
 		? notes.filter((note: Note) => {
-				const noteDate = dayjs(note.createdAt).format("YYYY-MM-DD");
-				const selectedDateStr = dayjs(selectedDate).format("YYYY-MM-DD");
-				return noteDate === selectedDateStr;
-			})
+			const noteDate = dayjs(note.createdAt).format("YYYY-MM-DD");
+			const selectedDateStr = dayjs(selectedDate).format("YYYY-MM-DD");
+			return noteDate === selectedDateStr;
+		})
 		: notes;
 
 	// Highlight dates with notes in calendar
@@ -241,7 +224,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 		const isSelected =
 			selectedDate &&
 			dayjs(parsedDate).format("YYYY-MM-DD") ===
-				dayjs(selectedDate).format("YYYY-MM-DD");
+			dayjs(selectedDate).format("YYYY-MM-DD");
 
 		return {
 			style: {
@@ -313,10 +296,9 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 							withWeekdayLabels
 							withMonthLabels
 							getTooltipLabel={({ date, value }) =>
-								`${dayjs(date).format("DD MMM, YYYY")} – ${
-									value === null || value === 0
-										? "No notes"
-										: `${value} note${value > 1 ? "s" : ""}`
+								`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
+									? "No notes"
+									: `${value} note${value > 1 ? "s" : ""}`
 								}`
 							}
 						/>

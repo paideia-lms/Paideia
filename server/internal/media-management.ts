@@ -271,7 +271,7 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 
 		// Convert the stream to a buffer
 		const chunks: Uint8Array[] = [];
-		// @ts-expect-error - Body is a stream in Node.js
+		// @ts-ignore - Body is a stream in Node.js
 		for await (const chunk of response.Body) {
 			chunks.push(chunk);
 		}
@@ -285,6 +285,89 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get media buffer from filename", {
+			cause: error,
+		}),
+);
+
+export interface GetMediaBufferFromIdArgs {
+	id: number | string;
+	depth?: number;
+}
+
+export interface GetMediaBufferFromIdResult {
+	media: Media;
+	buffer: Buffer;
+}
+
+/**
+ * Get a media record by ID and fetch the file buffer from S3
+ *
+ * This function:
+ * 1. Validates the ID
+ * 2. Fetches the media record from the database
+ * 3. Fetches the file buffer from S3 storage using the filename from the media record
+ * 4. Returns both the media record and the buffer
+ */
+export const tryGetMediaBufferFromId = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+		args: GetMediaBufferFromIdArgs,
+	): Promise<GetMediaBufferFromIdResult> => {
+		const { id, depth = 0 } = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Media ID is required");
+		}
+
+		// First, get the media record from the database
+		const mediaResult = await tryGetMediaById(payload, {
+			id,
+			depth,
+		});
+
+		if (!mediaResult.ok) {
+			throw mediaResult.error;
+		}
+
+		const media = mediaResult.value;
+
+		// Fetch the file from S3 using the filename from the media record
+		if (!media.filename) {
+			throw new NonExistingMediaError(
+				`Media with id '${id}' has no associated filename`,
+			);
+		}
+
+		const command = new GetObjectCommand({
+			Bucket: envVars.S3_BUCKET.value,
+			Key: media.filename,
+		});
+
+		const response = await s3Client.send(command);
+
+		if (!response.Body) {
+			throw new NonExistingMediaError(
+				`File not found in storage: ${media.filename}`,
+			);
+		}
+
+		// Convert the stream to a buffer
+		const chunks: Uint8Array[] = [];
+		for await (const chunk of response.Body) {
+			chunks.push(chunk);
+		}
+		const buffer = Buffer.concat(chunks);
+
+		return {
+			media,
+			buffer,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get media buffer from id", {
 			cause: error,
 		}),
 );

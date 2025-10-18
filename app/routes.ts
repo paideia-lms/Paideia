@@ -11,7 +11,7 @@ export const routes = [
 	route("logout", "routes/logout.tsx"),
 	route("api/stop-impersonation", "routes/api/stop-impersonation.tsx"),
 	route("api/search-users", "routes/api/search-users.tsx"),
-	route("api/media/file/:filename", "routes/api/media/file.$filename.tsx"),
+	route("api/media/file/:filenameOrId", "routes/api/media/file.$filenameOrId.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	layout("layouts/root-layout.tsx", [
 		index("routes/index.tsx"),
