@@ -95,8 +95,10 @@ export class NotFoundResponse extends Response {
 	}
 }
 
-
-export function internalServerError<T>(value: T, init?: ResponseInitWithoutStatus) {
+export function internalServerError<T>(
+	value: T,
+	init?: ResponseInitWithoutStatus,
+) {
 	return data(
 		{ ...value, status: StatusCode.InternalServerError },
 		{ ...init, status: StatusCode.InternalServerError },
@@ -105,6 +107,9 @@ export function internalServerError<T>(value: T, init?: ResponseInitWithoutStatu
 
 export class InternalServerErrorResponse extends Response {
 	constructor(message: string) {
-		super(message, { status: StatusCode.InternalServerError, statusText: "Internal Server Error" });
+		super(message, {
+			status: StatusCode.InternalServerError,
+			statusText: "Internal Server Error",
+		});
 	}
 }

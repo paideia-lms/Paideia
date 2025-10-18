@@ -673,7 +673,13 @@ describe("Enrollment Management Functions with Authentication", () => {
 		email: string;
 		firstName?: string | null;
 		lastName?: string | null;
-		role?: "admin" | "content-manager" | "analytics-viewer" | "instructor" | "student" | null;
+		role?:
+			| "admin"
+			| "content-manager"
+			| "analytics-viewer"
+			| "instructor"
+			| "student"
+			| null;
 		theme: "light" | "dark";
 		updatedAt: string;
 		createdAt: string;

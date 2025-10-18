@@ -160,9 +160,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId:
-																			authenticatedUser.avatar.filename,
-																	})
+																			filenameOrId:
+																				authenticatedUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -184,8 +184,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId: currentUser.avatar.filename,
-																	})
+																			filenameOrId: currentUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -203,8 +203,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filenameOrId`, {
-															filenameOrId: currentUser.avatar.filename,
-														})
+																filenameOrId: currentUser.avatar.filename,
+															})
 														: null
 												}
 												alt={
@@ -223,7 +223,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-											"Anonymous"
+												"Anonymous"
 											: "Not signed in"}
 									</Text>
 									<IconChevronDown size={12} stroke={1.5} />
@@ -262,8 +262,8 @@ export function HeaderTabs({
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
-									// component={Link}
-									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>

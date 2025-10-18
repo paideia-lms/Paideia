@@ -12,8 +12,8 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { IconEdit, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useDebouncedCallback } from "@mantine/hooks";
+import { IconEdit, IconPlus, IconSearch } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { href, Link, Outlet } from "react-router";

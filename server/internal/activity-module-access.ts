@@ -482,44 +482,52 @@ export const tryFindGrantsByActivityModule = Result.wrap(
 	async (args: FindGrantsByActivityModuleArgs) => {
 		const { payload, activityModuleId } = args;
 
-		const grants = await payload.find({
-			collection: "activity-module-grants",
-			where: {
-				activityModule: { equals: activityModuleId },
-			},
-			select: {
-				"activityModule": false,
-			},
-			// ! we don't care about performance for now 
-			pagination: false,
-			overrideAccess: true,
-		}).then(result => {
-			return result.docs.map(doc => {
-				const grantedTo = doc.grantedTo;
-				assertZod(grantedTo, z.object({
-					id: z.number(),
-				}));
-				const grantedToAvatar = grantedTo.avatar;
-				assertZod(grantedToAvatar, z.number().nullish());
-				const grantedBy = doc.grantedBy;
-				assertZod(grantedBy, z.object({
-					id: z.number(),
-				}));
-				const grantedByAvatar = grantedBy.avatar;
-				assertZod(grantedByAvatar, z.number().nullish());
-				return {
-					...doc,
-					grantedTo: {
-						...grantedTo,
-						avatar: grantedToAvatar,
-					},
-					grantedBy: {
-						...grantedBy,
-						avatar: grantedByAvatar,
-					},
-				};
+		const grants = await payload
+			.find({
+				collection: "activity-module-grants",
+				where: {
+					activityModule: { equals: activityModuleId },
+				},
+				select: {
+					activityModule: false,
+				},
+				// ! we don't care about performance for now
+				pagination: false,
+				overrideAccess: true,
+			})
+			.then((result) => {
+				return result.docs.map((doc) => {
+					const grantedTo = doc.grantedTo;
+					assertZod(
+						grantedTo,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					const grantedToAvatar = grantedTo.avatar;
+					assertZod(grantedToAvatar, z.number().nullish());
+					const grantedBy = doc.grantedBy;
+					assertZod(
+						grantedBy,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					const grantedByAvatar = grantedBy.avatar;
+					assertZod(grantedByAvatar, z.number().nullish());
+					return {
+						...doc,
+						grantedTo: {
+							...grantedTo,
+							avatar: grantedToAvatar,
+						},
+						grantedBy: {
+							...grantedBy,
+							avatar: grantedByAvatar,
+						},
+					};
+				});
 			});
-		});
 
 		return grants;
 	},
@@ -580,10 +588,13 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				email: string;
 				firstName: string | null;
 				lastName: string | null;
-				avatar?: number | {
-					id: number;
-					filename?: string;
-				} | null;
+				avatar?:
+					| number
+					| {
+							id: number;
+							filename?: string;
+					  }
+					| null;
 				enrollments: {
 					courseId: number;
 					role: "teacher" | "ta";
@@ -604,21 +615,29 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 			assertZod(userAvatar, z.number().nullish());
 			// Narrow the course type
 			const course = enrollment.course;
-			assertZod(course, z.object({
-				id: z.number(),
-			}));
+			assertZod(
+				course,
+				z.object({
+					id: z.number(),
+				}),
+			);
 
 			const existing = instructorMap.get(user.id);
 			if (existing) {
-				existing.enrollments.push({ courseId: course.id, role: enrollment.role as "teacher" | "ta" });
+				existing.enrollments.push({
+					courseId: course.id,
+					role: enrollment.role as "teacher" | "ta",
+				});
 			} else {
 				instructorMap.set(user.id, {
 					id: user.id,
 					email: user.email,
-					firstName: user.firstName ?? '',
-					lastName: user.lastName ?? '',
+					firstName: user.firstName ?? "",
+					lastName: user.lastName ?? "",
 					avatar: userAvatar ?? null,
-					enrollments: [{ courseId: course.id, role: enrollment.role as "teacher" | "ta" }],
+					enrollments: [
+						{ courseId: course.id, role: enrollment.role as "teacher" | "ta" },
+					],
 				});
 			}
 		}

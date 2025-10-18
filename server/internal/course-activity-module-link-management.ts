@@ -169,31 +169,33 @@ export const tryFindLinksByCourse = Result.wrap(
  */
 export const tryFindLinksByActivityModule = Result.wrap(
 	async (payload: Payload, activityModuleId: number) => {
-		const links = await payload.find({
-			collection: CourseActivityModuleLinks.slug,
-			where: {
-				activityModule: {
-					equals: activityModuleId,
+		const links = await payload
+			.find({
+				collection: CourseActivityModuleLinks.slug,
+				where: {
+					activityModule: {
+						equals: activityModuleId,
+					},
 				},
-			},
-			pagination: false,
-			sort: "-createdAt",
-		}).then((result) => {
-			return result.docs.map((doc) => {
-				const course = doc.course;
-				assertZod(course, z.object({ id: z.number() }));
-				const activityModule = doc.activityModule;
-				assertZod(activityModule, z.object({ id: z.number() }));
-				const section = doc.section;
-				assertZod(section, z.object({ id: z.number() }));
-				return {
-					...doc,
-					course,
-					activityModule,
-					section,
-				}
+				pagination: false,
+				sort: "-createdAt",
+			})
+			.then((result) => {
+				return result.docs.map((doc) => {
+					const course = doc.course;
+					assertZod(course, z.object({ id: z.number() }));
+					const activityModule = doc.activityModule;
+					assertZod(activityModule, z.object({ id: z.number() }));
+					const section = doc.section;
+					assertZod(section, z.object({ id: z.number() }));
+					return {
+						...doc,
+						course,
+						activityModule,
+						section,
+					};
+				});
 			});
-		});
 
 		return links;
 	},

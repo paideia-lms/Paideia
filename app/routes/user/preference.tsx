@@ -9,16 +9,27 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import { pick } from "es-toolkit";
 import { data, href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateUser } from "server/internal/user-management";
-import { badRequest, ForbiddenResponse, NotFoundResponse, ok } from "~/utils/responses";
-import type { Route } from "./+types/preference";
-import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { assertRequestMethod, assertRequestMethodInRemix } from "~/utils/assert-request-method";
 import { z } from "zod";
-import { pick } from "es-toolkit";
+import {
+	assertRequestMethod,
+	assertRequestMethodInRemix,
+} from "~/utils/assert-request-method";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
+import {
+	badRequest,
+	ForbiddenResponse,
+	NotFoundResponse,
+	ok,
+} from "~/utils/responses";
+import type { Route } from "./+types/preference";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -57,7 +68,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	return {
-		user: pick(targetUser, ['id', "firstName", "lastName", "bio", "theme"]),
+		user: pick(targetUser, ["id", "firstName", "lastName", "bio", "theme"]),
 	};
 };
 
@@ -106,12 +117,10 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 	});
 
 	if (!updateResult.ok) {
-		return badRequest(
-			{
-				success: false,
-				error: "Failed to update theme preference.",
-			},
-		);
+		return badRequest({
+			success: false,
+			error: "Failed to update theme preference.",
+		});
 	}
 
 	return ok({ success: true });
@@ -142,16 +151,18 @@ export function useUpdateUserPreference() {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const updatePreference = (userId: string, theme: "light" | "dark") => {
-
-		fetcher.submit({
-			theme: theme,
-		}, {
-			method: "POST",
-			action: href("/user/preference/:id?", {
-				id: userId,
-			}),
-			encType: ContentType.JSON,
-		});
+		fetcher.submit(
+			{
+				theme: theme,
+			},
+			{
+				method: "POST",
+				action: href("/user/preference/:id?", {
+					id: userId,
+				}),
+				encType: ContentType.JSON,
+			},
+		);
 	};
 
 	return {
@@ -161,9 +172,7 @@ export function useUpdateUserPreference() {
 	};
 }
 
-export default function PreferencesPage({
-	loaderData,
-}: Route.ComponentProps) {
+export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 	const { user } = loaderData;
 	const { updatePreference, isLoading } = useUpdateUserPreference();
 	const form = useForm({

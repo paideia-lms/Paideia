@@ -70,11 +70,11 @@ export interface UserProfileContext {
 		bio: string;
 		email: string;
 		role:
-		| "student"
-		| "instructor"
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer";
+			| "student"
+			| "instructor"
+			| "admin"
+			| "content-manager"
+			| "analytics-viewer";
 		avatarUrl: string | null;
 	};
 	/** Activity modules accessible by the profile user */

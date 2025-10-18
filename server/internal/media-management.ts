@@ -271,7 +271,7 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 
 		// Convert the stream to a buffer
 		const chunks: Uint8Array[] = [];
-		// @ts-ignore - Body is a stream in Node.js
+		// @ts-expect-error - Body is a stream in Node.js
 		for await (const chunk of response.Body) {
 			chunks.push(chunk);
 		}

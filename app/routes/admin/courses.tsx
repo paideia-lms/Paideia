@@ -14,12 +14,8 @@ import {
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
-import {
-	createLoader,
-	parseAsInteger,
-	parseAsString,
-} from "nuqs/server";
 import { useQueryState } from "nuqs";
+import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -83,7 +79,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			typeof createdBy === "object" && createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-				createdBy.email
+					createdBy.email
 				: "Unknown";
 
 		return {
@@ -107,7 +103,10 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 	const { courses, totalCourses, totalPages, currentPage } = loaderData;
-	const [query, setQuery] = useQueryState("query", parseAsString.withDefault(""));
+	const [query, setQuery] = useQueryState(
+		"query",
+		parseAsString.withDefault(""),
+	);
 	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 
 	// Local search state for immediate UI updates

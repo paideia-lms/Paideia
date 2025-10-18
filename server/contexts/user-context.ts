@@ -24,14 +24,14 @@ export interface User {
 	firstName?: string | null;
 	lastName?: string | null;
 	role?:
-	| (
-		| "student"
-		| "instructor"
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer"
-	)
-	| null;
+		| (
+				| "student"
+				| "instructor"
+				| "admin"
+				| "content-manager"
+				| "analytics-viewer"
+		  )
+		| null;
 	bio?: string | null;
 	/**
 	 * the id or file name of the avatar

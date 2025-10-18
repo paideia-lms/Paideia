@@ -48,13 +48,13 @@ export interface CreateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -126,13 +126,13 @@ export interface UpdateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -440,9 +440,9 @@ export const tryGetActivityModuleById = Result.wrap(
 				const grants = am.grants?.docs?.map((g) => {
 					assertZod(g, z.object({ id: z.number() }));
 					const grantedTo = g.grantedTo;
-					assertZod(grantedTo, z.number({ "error": "Granted to is required" }));
+					assertZod(grantedTo, z.number({ error: "Granted to is required" }));
 					const grantedBy = g.grantedBy;
-					assertZod(grantedBy, z.number({ "error": "Granted by is required" }));
+					assertZod(grantedBy, z.number({ error: "Granted by is required" }));
 					return {
 						...g,
 						grantedTo,

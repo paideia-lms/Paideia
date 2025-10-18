@@ -87,9 +87,10 @@ export const getUserAccessContext = async (
 		overrideAccess: true,
 	});
 
-	if (!result.ok) throw new Error(result.error.message, {
-		cause: result.error,
-	});
+	if (!result.ok)
+		throw new Error(result.error.message, {
+			cause: result.error,
+		});
 
 	const { modulesOwnedOrGranted, autoGrantedModules } = result.value;
 
