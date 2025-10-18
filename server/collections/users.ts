@@ -74,6 +74,17 @@ export const Users = {
 			type: "textarea",
 		},
 		{
+			name: "theme",
+			type: "select",
+			options: [
+				{ label: "Light", value: "light" },
+				{ label: "Dark", value: "dark" },
+			],
+			defaultValue: "light",
+			required: true,
+			saveToJWT: true,
+		},
+		{
 			saveToJWT: true,
 			name: "avatar",
 			type: "relationship",

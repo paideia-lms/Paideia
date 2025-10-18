@@ -40,6 +40,7 @@ export interface User {
 		id: number;
 		filename?: string | null;
 	} | null;
+	theme: "light" | "dark";
 	email: string;
 	updatedAt: string;
 	createdAt: string;

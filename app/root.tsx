@@ -47,6 +47,7 @@ import {
 	tryGetRouteHierarchy,
 } from "./utils/routes-utils";
 import { InternalServerErrorResponse } from "./utils/responses";
+import { tryGetUserModuleContext, userModuleContextKey } from "server/contexts/user-module-context";
 
 export const middleware = [
 	/**
@@ -80,6 +81,9 @@ export const middleware = [
 		let isUserNoteEdit = false;
 		let isUserModuleNew = false;
 		let isUserModuleEdit = false;
+		let isUserModuleEditSetting = false;
+		let isUserModuleEditAccess = false;
+		let isInUserModuleEditLayout = false;
 		let isUserProfile = false;
 		let isInUserModulesLayout = false;
 		for (const route of routeHierarchy) {
@@ -112,6 +116,12 @@ export const middleware = [
 			else if (route.id === "routes/user/note-edit") isUserNoteEdit = true;
 			else if (route.id === "routes/user/module/new") isUserModuleNew = true;
 			else if (route.id === "routes/user/module/edit") isUserModuleEdit = true;
+			else if (route.id === "routes/user/module/edit-setting")
+				isUserModuleEditSetting = true;
+			else if (route.id === "routes/user/module/edit-access")
+				isUserModuleEditAccess = true;
+			else if (route.id === "layouts/user-module-edit-layout")
+				isInUserModuleEditLayout = true;
 			else if (route.id === "routes/user/profile") isUserProfile = true;
 			else if (route.id === "layouts/user-modules-layout")
 				isInUserModulesLayout = true;
@@ -148,8 +158,11 @@ export const middleware = [
 				isUserNoteEdit,
 				isUserModuleNew,
 				isUserModuleEdit,
+				isUserModuleEditSetting,
+				isUserModuleEditAccess,
 				isUserProfile,
 				isInUserModulesLayout,
+				isInUserModuleEditLayout,
 			},
 		});
 	},
@@ -314,10 +327,43 @@ export const middleware = [
 			}
 		}
 	},
+	// set the user module context
+	async ({ request, context, params }) => {
+		const { payload, routeHierarchy } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		// Check if we're in a user module edit layout
+		if (
+			userSession?.isAuthenticated &&
+			routeHierarchy.some((route) => route.id === "layouts/user-module-edit-layout")
+		) {
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+
+			// Get module ID from params
+			const moduleId = params.moduleId ? Number(params.moduleId) : null;
+
+			if (moduleId && !Number.isNaN(moduleId)) {
+				const userModuleContextResult = await tryGetUserModuleContext(
+					payload,
+					moduleId,
+					{
+						...currentUser,
+						avatar: currentUser?.avatar?.id,
+					}
+				);
+
+				if (userModuleContextResult.ok) {
+					context.set(userModuleContextKey, userModuleContextResult.value);
+				}
+			}
+		}
+	},
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
 	const { payload, requestInfo, pageInfo } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
 	// console.log(routes)
 	// ! we can get elysia from context!!!
@@ -329,6 +375,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	}
 
 	const users = result.value;
+
+	// Get current user's theme preference
+	const currentUser =
+		userSession?.effectiveUser || userSession?.authenticatedUser;
+	const theme = currentUser?.theme ?? "light";
 
 	// Check if we need to redirect to first-user creation
 	const url = new URL(request.url);
@@ -346,6 +397,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			domainUrl: requestInfo.domainUrl,
 			timestamp: timestamp,
 			pageInfo: pageInfo,
+			theme: theme,
 		};
 	}
 
@@ -359,12 +411,14 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		domainUrl: requestInfo.domainUrl,
 		timestamp: timestamp,
 		pageInfo: pageInfo,
+		theme: theme,
 	};
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
 	return (
-		<html lang="en" data-mantine-color-scheme="light">
+		<html lang="en" data-mantine-color-scheme={loaderData.theme} style={{ overscrollBehaviorX: "none" }}
+		>
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -377,10 +431,10 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				/>
 				<Meta />
 				<Links />
-				<ColorSchemeScript />
+				<ColorSchemeScript defaultColorScheme={loaderData.theme} />
 			</head>
-			<body>
-				<MantineProvider defaultColorScheme="light">
+			<body style={{ overscrollBehaviorX: "none" }}>
+				<MantineProvider defaultColorScheme={loaderData.theme} >
 					<NuqsAdapter>
 						<Outlet />
 						<Notifications />

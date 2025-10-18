@@ -11,6 +11,7 @@ import {
 import { IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link } from "react-router";
+import { Instructor } from "server/contexts/user-module-context";
 import type { SearchUser } from "~/routes/api/search-users";
 import { SearchUserCombobox } from "~/routes/api/search-users";
 
@@ -23,15 +24,6 @@ interface GrantedUser {
 		lastName?: string | null;
 	};
 	grantedAt: string;
-}
-
-interface Instructor {
-	id: number;
-	email: string;
-	firstName?: string;
-	lastName?: string;
-	role: string;
-	courseCount: number;
 }
 
 interface GrantAccessSectionProps {
@@ -187,8 +179,8 @@ export function GrantAccessSection({
 									</Table.Td>
 									<Table.Td>
 										<Text size="sm" c="dimmed">
-											Instructor in {instructor.courseCount} linked course
-											{instructor.courseCount !== 1 ? "s" : ""}
+											Instructor in {instructor.enrollments.length} linked course
+											{instructor.enrollments.length !== 1 ? "s" : ""}
 										</Text>
 									</Table.Td>
 									<Table.Td>

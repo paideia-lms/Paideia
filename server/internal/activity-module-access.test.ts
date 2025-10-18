@@ -1275,7 +1275,7 @@ describe("Activity Module Access Control", () => {
 			expect(instructorIds).toContain(testUser2.id);
 			expect(instructorIds).toContain(testUser3.id);
 
-			// Check course count
+			// Check enrollments
 			const teacherInstructor = instructorsResult.value.find(
 				(i) => i.id === testUser2.id,
 			);
@@ -1283,10 +1283,10 @@ describe("Activity Module Access Control", () => {
 				(i) => i.id === testUser3.id,
 			);
 
-			expect(teacherInstructor?.courseCount).toBe(1);
-			expect(taInstructor?.courseCount).toBe(1);
-			expect(teacherInstructor?.role).toBe("teacher");
-			expect(taInstructor?.role).toBe("ta");
+			expect(teacherInstructor?.enrollments.length).toBe(1);
+			expect(taInstructor?.enrollments.length).toBe(1);
+			expect(teacherInstructor?.enrollments[0].role).toBe("teacher");
+			expect(taInstructor?.enrollments[0].role).toBe("ta");
 		}
 	});
 
@@ -1413,11 +1413,13 @@ describe("Activity Module Access Control", () => {
 		if (instructorsResult.ok) {
 			expect(instructorsResult.value.length).toBe(1);
 
-			// Check that user2 is instructor with course count 2
+			// Check that user2 is instructor with 2 enrollments
 			const instructor = instructorsResult.value[0];
 			expect(instructor.id).toBe(testUser2.id);
-			expect(instructor.courseCount).toBe(2);
-			expect(instructor.role).toBe("teacher");
+			expect(instructor.enrollments.length).toBe(2);
+			// Both enrollments should be teacher role
+			expect(instructor.enrollments[0].role).toBe("teacher");
+			expect(instructor.enrollments[1].role).toBe("teacher");
 		}
 	});
 

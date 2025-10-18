@@ -1,10 +1,24 @@
-import { Alert, Container, Paper, Stack, Text, Title } from "@mantine/core";
-import { IconInfoCircle } from "@tabler/icons-react";
-import { href } from "react-router";
+import {
+	Button,
+	Container,
+	Group,
+	Paper,
+	Radio,
+	Stack,
+	Title,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
+import { data, href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
+import { tryUpdateUser } from "server/internal/user-management";
+import { badRequest, ForbiddenResponse, NotFoundResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/preference";
+import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { assertRequestMethod, assertRequestMethodInRemix } from "~/utils/assert-request-method";
+import { z } from "zod";
+import { pick } from "es-toolkit";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -42,30 +56,127 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new NotFoundResponse("User not found");
 	}
 
-	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (targetUser.avatar) {
-		if (typeof targetUser.avatar === "object") {
-			avatarUrl = targetUser.avatar.filename
-				? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: targetUser.avatar.filename,
-				})
-				: null;
-		}
-	}
-
 	return {
-		user: {
-			id: targetUser.id,
-			firstName: targetUser.firstName ?? "",
-			lastName: targetUser.lastName ?? "",
-			bio: targetUser.bio ?? "",
-			avatarUrl,
-		},
+		user: pick(targetUser, ['id', "firstName", "lastName", "bio", "theme"]),
 	};
 };
 
-export default function EditProfilePage() {
+const actionSchema = z.object({
+	theme: z.enum(["light", "dark"]),
+});
+
+export const action = async ({ context, request }: Route.ActionArgs) => {
+	assertRequestMethodInRemix(request.method, "POST");
+	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		throw new NotFoundResponse("Unauthorized");
+	}
+
+	// Use effectiveUser if impersonating, otherwise use authenticatedUser
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	// Parse form data
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsed = actionSchema.safeParse(data);
+
+	if (!parsed.success) {
+		return badRequest({
+			success: false,
+			error: parsed.error.message,
+		});
+	}
+
+	const { theme } = parsed.data;
+
+	// Update user theme
+	const updateResult = await tryUpdateUser({
+		payload,
+		userId: currentUser.id,
+		data: {
+			theme,
+		},
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
+		overrideAccess: false,
+	});
+
+	if (!updateResult.ok) {
+		return badRequest(
+			{
+				success: false,
+				error: "Failed to update theme preference.",
+			},
+		);
+	}
+
+	return ok({ success: true });
+};
+
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
+	const actionData = await serverAction();
+
+	if (actionData?.success) {
+		notifications.show({
+			title: "Success",
+			message: "Theme preference updated successfully!",
+			color: "green",
+		});
+	} else if (actionData && "error" in actionData) {
+		notifications.show({
+			title: "Error",
+			message: actionData.error as string,
+			color: "red",
+		});
+	}
+
+	return actionData;
+}
+
+// Custom hook for updating user preferences
+export function useUpdateUserPreference() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const updatePreference = (userId: string, theme: "light" | "dark") => {
+
+		fetcher.submit({
+			theme: theme,
+		}, {
+			method: "POST",
+			action: href("/user/preference/:id?", {
+				id: userId,
+			}),
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		updatePreference,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export default function PreferencesPage({
+	loaderData,
+}: Route.ComponentProps) {
+	const { user } = loaderData;
+	const { updatePreference, isLoading } = useUpdateUserPreference();
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			theme: loaderData.user.theme,
+		},
+	});
+
+	const handleSubmit = (values: { theme: string }) => {
+		updatePreference(String(user.id), values.theme as "light" | "dark");
+	};
+
 	return (
 		<Container size="lg" py="xl">
 			<title>Preferences | Paideia LMS</title>
@@ -82,18 +193,27 @@ export default function EditProfilePage() {
 						Preferences
 					</Title>
 
-					<Alert
-						variant="light"
-						color="blue"
-						title="Coming Soon"
-						icon={<IconInfoCircle />}
-					>
-						<Text size="sm">
-							User preferences and settings management is currently under
-							development. You will be able to customize your experience here,
-							including notification settings, language preferences, and more.
-						</Text>
-					</Alert>
+					<form onSubmit={form.onSubmit(handleSubmit)}>
+						<Stack gap="md">
+							<Radio.Group
+								{...form.getInputProps("theme")}
+								key={form.key("theme")}
+								label="Theme"
+								description="Choose your preferred color scheme"
+							>
+								<Group mt="xs">
+									<Radio value="light" label="Light" />
+									<Radio value="dark" label="Dark" />
+								</Group>
+							</Radio.Group>
+
+							<Group justify="flex-end">
+								<Button type="submit" loading={isLoading}>
+									Save Preferences
+								</Button>
+							</Group>
+						</Stack>
+					</form>
 				</Paper>
 			</Stack>
 		</Container>

@@ -353,6 +353,7 @@ describe("Authentication Functions", () => {
 					password: "password456",
 					firstName: "Second",
 					lastName: "User",
+					theme: "light",
 					role: "student",
 					_verified: true,
 				},

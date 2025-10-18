@@ -30,6 +30,7 @@ export const enum_users_role = pgEnum("enum_users_role", [
   "instructor",
   "student",
 ]);
+export const enum_users_theme = pgEnum("enum_users_theme", ["light", "dark"]);
 export const enum_courses_status = pgEnum("enum_courses_status", [
   "draft",
   "published",
@@ -156,6 +157,7 @@ export const users = pgTable(
     lastName: varchar("last_name"),
     role: enum_users_role("role").default("student"),
     bio: varchar("bio"),
+    theme: enum_users_theme("theme").notNull().default("light"),
     avatar: integer("avatar_id").references(() => media.id, {
       onDelete: "set null",
     }),
@@ -3025,6 +3027,7 @@ export const relations_system_grade_table = relations(
 
 type DatabaseSchema = {
   enum_users_role: typeof enum_users_role;
+  enum_users_theme: typeof enum_users_theme;
   enum_courses_status: typeof enum_courses_status;
   enum_category_role_assignments_role: typeof enum_category_role_assignments_role;
   enum_enrollments_role: typeof enum_enrollments_role;

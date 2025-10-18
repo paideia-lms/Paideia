@@ -29,7 +29,11 @@ export const routes = [
 				//  the id is the user id
 				route("user/modules/:id?", "routes/user/modules.tsx"),
 				route("user/module/new", "routes/user/module/new.tsx"),
-				route("user/module/edit/:moduleId", "routes/user/module/edit.tsx"),
+				layout("layouts/user-module-edit-layout.tsx", [
+					route("user/module/edit/:moduleId", "routes/user/module/edit.tsx"),
+					route("user/module/edit/:moduleId/setting", "routes/user/module/edit-setting.tsx"),
+					route("user/module/edit/:moduleId/access", "routes/user/module/edit-access.tsx"),
+				]),
 			]),
 		]),
 		route("course/new", "routes/course-new.tsx"),

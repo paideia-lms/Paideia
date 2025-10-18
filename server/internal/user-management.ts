@@ -17,6 +17,7 @@ export interface CreateUserArgs {
 		role?: User["role"];
 		bio?: string;
 		avatar?: number;
+		theme?: "light" | "dark";
 	};
 	user?: User | null;
 	req?: Partial<PayloadRequest>;
@@ -33,6 +34,7 @@ export interface UpdateUserArgs {
 		bio?: string;
 		avatar?: number | Media;
 		_verified?: boolean;
+		theme?: "light" | "dark";
 	};
 	user?: User | null;
 	req?: Partial<PayloadRequest>;
@@ -116,6 +118,7 @@ export const tryCreateUser = Result.wrap(
 				role = "student",
 				bio,
 				avatar,
+				theme,
 			},
 			user = null,
 			req,
@@ -151,6 +154,7 @@ export const tryCreateUser = Result.wrap(
 					role,
 					bio,
 					avatar,
+					theme: theme ?? "light",
 				},
 				user,
 				req,
@@ -531,6 +535,7 @@ export const tryRegisterFirstUser = Result.wrap(
 					firstName,
 					lastName,
 					role: "admin",
+					theme: "light",
 				},
 				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,

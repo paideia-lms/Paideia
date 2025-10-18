@@ -409,7 +409,12 @@ export const tryGetActivityModuleById = Result.wrap(
 				const quiz = am.quiz;
 				const discussion = am.discussion;
 				assertZod(createdBy, z.object({ id: z.number() }));
+				const createdByAvatar = createdBy.avatar;
+				assertZod(createdByAvatar, z.number().nullish());
+
 				assertZod(owner, z.object({ id: z.number() }));
+				const ownerAvatar = owner.avatar;
+				assertZod(ownerAvatar, z.number().nullish());
 				// ! assignment, quiz, discussion can be null
 				assertZod(assignment, z.object({ id: z.number() }).nullish());
 				assertZod(quiz, z.object({ id: z.number() }).nullish());
@@ -434,13 +439,37 @@ export const tryGetActivityModuleById = Result.wrap(
 
 				const grants = am.grants?.docs?.map((g) => {
 					assertZod(g, z.object({ id: z.number() }));
-					return g;
+					const grantedTo = g.grantedTo;
+					assertZod(grantedTo, z.object({ id: z.number() }, { "error": "Granted to is required" }));
+					const grantedToAvatar = grantedTo.avatar;
+					assertZod(grantedToAvatar, z.number({ "error": "Granted to avatar is required" }).nullish());
+					const grantedBy = g.grantedBy;
+					assertZod(grantedBy, z.object({ id: z.number() }, { "error": "Granted by is required" }));
+					const grantedByAvatar = grantedBy.avatar;
+					assertZod(grantedByAvatar, z.number({ "error": "Granted by avatar is required" }).nullish());
+					return {
+						...g,
+						grantedTo: {
+							...grantedTo,
+							avatar: grantedToAvatar,
+						},
+						grantedBy: {
+							...grantedBy,
+							avatar: grantedByAvatar,
+						},
+					};
 				});
 
 				return {
 					...am,
-					createdBy,
-					owner,
+					createdBy: {
+						...createdBy,
+						avatar: createdByAvatar,
+					},
+					owner: {
+						...owner,
+						avatar: ownerAvatar,
+					},
 					assignment,
 					quiz,
 					discussion,

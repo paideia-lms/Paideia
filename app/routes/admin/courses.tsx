@@ -12,11 +12,16 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { useDebouncedValue } from "@mantine/hooks";
+import { useDebouncedCallback } from "@mantine/hooks";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
-import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
-import { useEffect, useState } from "react";
-import { href, Link, useSearchParams } from "react-router";
+import {
+	createLoader,
+	parseAsInteger,
+	parseAsString,
+} from "nuqs/server";
+import { useQueryState } from "nuqs";
+import { useState } from "react";
+import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllCourses } from "server/internal/course-management";
@@ -78,7 +83,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			typeof createdBy === "object" && createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		return {
@@ -102,35 +107,29 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 	const { courses, totalCourses, totalPages, currentPage } = loaderData;
-	const [searchParams, setSearchParams] = useSearchParams();
-
-	// Get current query from URL
-	const urlQuery = searchParams.get("query") || "";
+	const [query, setQuery] = useQueryState("query", parseAsString.withDefault(""));
+	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
 
 	// Local search state for immediate UI updates
-	const [searchQuery, setSearchQuery] = useState(urlQuery);
+	const [searchQuery, setSearchQuery] = useState(query);
 
-	// Debounce the search query
-	const [debouncedQuery] = useDebouncedValue(searchQuery, 500);
-
-	// Update URL when debounced query changes
-	useEffect(() => {
-		const newParams = new URLSearchParams(searchParams);
-		if (debouncedQuery) {
-			newParams.set("query", debouncedQuery);
-		} else {
-			newParams.delete("query");
-		}
+	// Debounced function to update URL query state
+	const debouncedSetQuery = useDebouncedCallback((value: string) => {
+		setQuery(value || null);
 		// Reset to page 1 when search changes
-		newParams.set("page", "1");
-		setSearchParams(newParams, { replace: true });
-	}, [debouncedQuery, searchParams, setSearchParams]);
+		setPage(1);
+	}, 500);
+
+	// Handle search input change with immediate feedback
+	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const value = event.currentTarget.value;
+		setSearchQuery(value);
+		debouncedSetQuery(value);
+	};
 
 	// Handle page change
-	const handlePageChange = (page: number) => {
-		const newParams = new URLSearchParams(searchParams);
-		newParams.set("page", page.toString());
-		setSearchParams(newParams);
+	const handlePageChange = (newPage: number) => {
+		setPage(newPage);
 	};
 
 	const getStatusBadgeColor = (status: Course["status"]) => {
@@ -188,7 +187,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 						placeholder="Search by title, slug, description, or use status:published..."
 						leftSection={<IconSearch size={16} />}
 						value={searchQuery}
-						onChange={(event) => setSearchQuery(event.currentTarget.value)}
+						onChange={handleSearchChange}
 						mb="md"
 					/>
 

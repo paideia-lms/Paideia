@@ -39,6 +39,9 @@ export type PageInfo = {
 	isInUserModulesLayout: boolean;
 	isUserModuleNew: boolean;
 	isUserModuleEdit: boolean;
+	isUserModuleEditSetting: boolean;
+	isUserModuleEditAccess: boolean;
+	isInUserModuleEditLayout: boolean;
 };
 
 /**

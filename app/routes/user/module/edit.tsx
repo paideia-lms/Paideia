@@ -2,6 +2,7 @@ import {
 	Button,
 	Checkbox,
 	Container,
+	List,
 	NumberInput,
 	Paper,
 	Select,
@@ -16,28 +17,20 @@ import { DateTimePicker } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
-	type ActionFunctionArgs,
 	href,
-	type LoaderFunctionArgs,
+	Link,
 	redirect,
 	useFetcher,
 	useLoaderData,
 } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { userModuleContextKey } from "server/contexts/user-module-context";
 import {
-	tryFindGrantsByActivityModule,
-	tryFindInstructorsForActivityModule,
 	tryGrantAccessToActivityModule,
 	tryRevokeAccessFromActivityModule,
 } from "server/internal/activity-module-access";
-import {
-	tryGetActivityModuleById,
-	tryUpdateActivityModule,
-} from "server/internal/activity-module-management";
-import { tryFindLinksByActivityModule } from "server/internal/course-activity-module-link-management";
-import { tryFindCourseById } from "server/internal/course-management";
-import { canManageActivityModules } from "server/utils/permissions";
+import { tryUpdateActivityModule } from "server/internal/activity-module-management";
 import { z } from "zod";
 import { GrantAccessSection } from "~/components/grant-access-section";
 import {
@@ -50,105 +43,30 @@ import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
 	badRequest,
 	NotFoundResponse,
-	UnauthorizedResponse,
+	ok,
+	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit";
 
-export const loader = async ({
-	context,
-	request,
-	params,
-}: LoaderFunctionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
-	const { moduleId } = params;
+export const loader = async ({ context }: Route.LoaderArgs) => {
+	const userModuleContext = context.get(userModuleContextKey);
 
-	if (!moduleId) {
-		throw new NotFoundResponse("Module ID is required");
+	if (!userModuleContext) {
+		throw new NotFoundResponse("Module context not found");
 	}
-
-	if (!userSession?.isAuthenticated) {
-		throw new UnauthorizedResponse("You must be logged in to edit modules");
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const moduleResult = await tryGetActivityModuleById(payload, {
-		id: Number(moduleId),
-	});
-
-	if (!moduleResult.ok) {
-		throw new NotFoundResponse("Activity module not found");
-	}
-
-	const module = moduleResult.value;
-
-	// Verify user owns this module
-	if (
-		module.createdBy.id !== currentUser.id &&
-		userSession.authenticatedUser.role !== "admin"
-	) {
-		throw new UnauthorizedResponse(
-			"You don't have permission to edit this module",
-		);
-	}
-
-	// Fetch linked courses for this module
-	const linksResult = await tryFindLinksByActivityModule(payload, module.id);
-
-	const linkedCourses = [];
-	if (linksResult.ok) {
-		// Fetch course details for each link
-		for (const link of linksResult.value) {
-			const courseId =
-				typeof link.course === "object" ? link.course.id : link.course;
-			const courseResult = await tryFindCourseById({
-				payload,
-				courseId,
-				overrideAccess: true,
-			});
-			if (courseResult.ok) {
-				linkedCourses.push({
-					id: courseResult.value.id,
-					title: courseResult.value.title,
-					slug: courseResult.value.slug,
-					linkId: link.id,
-					createdAt: link.createdAt,
-				});
-			}
-		}
-	}
-
-	// Fetch grants for this module
-	const grantsResult = await tryFindGrantsByActivityModule({
-		payload,
-		activityModuleId: module.id,
-	});
-	const grants = grantsResult.ok ? grantsResult.value : [];
-
-	// Fetch instructors from linked courses
-	const instructorsResult = await tryFindInstructorsForActivityModule({
-		payload,
-		activityModuleId: module.id,
-	});
-	const instructors = instructorsResult.ok
-		? instructorsResult.value.filter((i) => {
-				return i.id !== module.owner.id;
-			})
-		: [];
 
 	return {
-		user: currentUser,
-		module,
-		linkedCourses,
-		grants,
-		instructors,
+		module: userModuleContext.module,
+		links: userModuleContext.links,
+		linkedCourses: userModuleContext.linkedCourses,
+		grants: userModuleContext.grants,
+		instructors: userModuleContext.instructors,
 	};
 };
 
 // the schema
 const updateActivityModuleSchema = z.object({
+	intent: z.literal("update-module"),
 	title: z.string().min(1),
 	description: z.string().min(1),
 	status: z.string().min(1),
@@ -156,11 +74,20 @@ const updateActivityModuleSchema = z.object({
 	accessPassword: z.string().min(1),
 });
 
-export const action = async ({
-	request,
-	context,
-	params,
-}: ActionFunctionArgs) => {
+const grantAccessSchema = z.object({
+	intent: z.literal("grant-access"),
+	userId: z.number(),
+	notifyPeople: z.boolean(),
+});
+
+const revokeAccessSchema = z.object({
+	intent: z.literal("revoke-access"),
+	userId: z.number(),
+});
+
+const acitonSchema = z.discriminatedUnion("intent", [updateActivityModuleSchema, grantAccessSchema, revokeAccessSchema]);
+
+export const action = async ({ request, context, params }: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 
@@ -174,7 +101,7 @@ export const action = async ({
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	const moduleId = params.id;
+	const moduleId = params.moduleId;
 	if (!moduleId) {
 		return badRequest({
 			success: false,
@@ -183,13 +110,21 @@ export const action = async ({
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsed = acitonSchema.safeParse(data);
+
+	if (!parsed.success) {
+		return badRequest({
+			success: false,
+			error: parsed.error.message,
+		});
+	}
 
 	// Check if this is a grant/revoke action
-	if ((data as any).intent === "grant-access") {
+	if (parsed.data.intent === "grant-access") {
 		const grantResult = await tryGrantAccessToActivityModule({
 			payload,
 			activityModuleId: Number(moduleId),
-			grantedToUserId: Number((data as any).userId),
+			grantedToUserId: Number(parsed.data.userId),
 			grantedByUserId: currentUser.id,
 			user: {
 				...currentUser,
@@ -207,14 +142,14 @@ export const action = async ({
 			});
 		}
 
-		return { success: true, message: "Access granted successfully" };
+		return ok({ success: true, message: "Access granted successfully" });
 	}
 
-	if ((data as any).intent === "revoke-access") {
+	if (parsed.data.intent === "revoke-access") {
 		const revokeResult = await tryRevokeAccessFromActivityModule({
 			payload,
 			activityModuleId: Number(moduleId),
-			userId: Number((data as any).userId),
+			userId: Number(parsed.data.userId),
 			user: {
 				...currentUser,
 				collection: "users",
@@ -231,7 +166,7 @@ export const action = async ({
 			});
 		}
 
-		return { success: true, message: "Access revoked successfully" };
+		return ok({ success: true, message: "Access revoked successfully" });
 	}
 
 	// Continue with existing module update logic
@@ -265,13 +200,13 @@ export const action = async ({
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.success !== false) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: "Activity module updated successfully",
 			color: "green",
 		});
-	} else if ("error" in actionData) {
+	} else if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
 			message: actionData?.error,
@@ -282,39 +217,18 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function EditModulePage() {
-	const { module, linkedCourses, grants, instructors } =
+	const { module, linkedCourses, links, grants, instructors } =
 		useLoaderData<typeof loader>();
-	const fetcher = useFetcher<typeof action>();
+	const fetcher = useFetcher<typeof clientAction>();
 
 	// Extract activity-specific data
-	const getAssignmentData = () => {
-		if (module.type === "assignment" && typeof module.assignment === "object") {
-			return module.assignment;
-		}
-		return null;
-	};
-
-	const getQuizData = () => {
-		if (module.type === "quiz" && typeof module.quiz === "object") {
-			return module.quiz;
-		}
-		return null;
-	};
-
-	const getDiscussionData = () => {
-		if (module.type === "discussion" && typeof module.discussion === "object") {
-			return module.discussion;
-		}
-		return null;
-	};
-
-	const assignmentData = getAssignmentData();
-	const quizData = getQuizData();
-	const discussionData = getDiscussionData();
+	const assignmentData = module.assignment;
+	const quizData = module.quiz;
+	const discussionData = module.discussion;
 
 	// Grant access handlers
 	const handleGrantAccess = (userIds: number[], notifyPeople: boolean) => {
-		userIds.forEach((userId) => {
+		for (const userId of userIds) {
 			fetcher.submit(
 				{
 					intent: "grant-access",
@@ -323,7 +237,7 @@ export default function EditModulePage() {
 				},
 				{ method: "POST", encType: "application/json" },
 			);
-		});
+		}
 	};
 
 	const handleRevokeAccess = (userId: number) => {
@@ -333,39 +247,17 @@ export default function EditModulePage() {
 		);
 	};
 
-	// Calculate exclude user IDs
-	const grantedUserIds = grants.map((g) =>
-		typeof g.grantedTo === "object" ? g.grantedTo.id : g.grantedTo,
-	);
-	const instructorIds = instructors.map((i) => i.id);
-	const ownerId =
-		typeof module.owner === "object" ? module.owner.id : module.owner;
-	const excludeUserIds = [ownerId, ...grantedUserIds, ...instructorIds];
 
-	// Transform grants to match component interface
-	const transformedGrants = grants.map((grant) => ({
-		id: grant.id,
-		grantedTo:
-			typeof grant.grantedTo === "object"
-				? {
-						id: grant.grantedTo.id,
-						email: grant.grantedTo.email,
-						firstName: grant.grantedTo.firstName,
-						lastName: grant.grantedTo.lastName,
-					}
-				: {
-						id: grant.grantedTo,
-						email: "",
-						firstName: "",
-						lastName: "",
-					},
-		grantedAt: grant.grantedAt,
-	}));
+	// Calculate exclude user IDs
+	const grantedUserIds = grants.map((g) => g.grantedTo.id);
+	const instructorIds = instructors.map((i) => i.id);
+	const ownerId = module.owner.id;
+	const excludeUserIds = [ownerId, ...grantedUserIds, ...instructorIds];
 
 	const form = useForm<ActivityModuleFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
-			title: module.title || "",
+			title: module.title,
 			description: module.description || "",
 			type: module.type,
 			status: module.status,
@@ -389,8 +281,7 @@ export default function EditModulePage() {
 			quizMaxAttempts: quizData?.maxAttempts || 1,
 			quizPoints: quizData?.points || 100,
 			quizTimeLimit: quizData?.timeLimit || 60,
-			quizGradingType:
-				(quizData?.gradingType as "automatic" | "manual") || "automatic",
+			quizGradingType: quizData?.gradingType || "automatic",
 			// Discussion fields
 			discussionInstructions: discussionData?.instructions || "",
 			discussionDueDate: discussionData?.dueDate
@@ -427,7 +318,7 @@ export default function EditModulePage() {
 					<Title order={3} mb="lg">
 						Linked Courses
 					</Title>
-					{linkedCourses.length === 0 ? (
+					{links.length === 0 ? (
 						<Text c="dimmed" ta="center" py="xl">
 							This module is not linked to any courses yet.
 						</Text>
@@ -438,12 +329,12 @@ export default function EditModulePage() {
 									<Table.Tr>
 										<Table.Th>Course Name</Table.Th>
 										<Table.Th>Course Slug</Table.Th>
-										<Table.Th>Linked Date</Table.Th>
+										<Table.Th>Usage</Table.Th>
 									</Table.Tr>
 								</Table.Thead>
 								<Table.Tbody>
 									{linkedCourses.map((course) => (
-										<Table.Tr key={course.linkId}>
+										<Table.Tr key={course.id}>
 											<Table.Td>
 												<Text
 													component="a"
@@ -460,9 +351,18 @@ export default function EditModulePage() {
 												</Text>
 											</Table.Td>
 											<Table.Td>
-												<Text size="sm" c="dimmed">
-													{new Date(course.createdAt).toLocaleDateString()}
-												</Text>
+												<List>
+													{links.filter(l => l.course.id === course.id).map(l => {
+														// show the link to /course/module/:id
+														return (
+															<List.Item key={l.id}>
+																<Text component={Link} to={href("/course/module/:id", { id: String(l.id) })} fw={500}>
+																	{l.activityModule.title}
+																</Text>
+															</List.Item>
+														);
+													})}
+												</List>
 											</Table.Td>
 										</Table.Tr>
 									))}
@@ -474,7 +374,7 @@ export default function EditModulePage() {
 
 				{/* User Access Section */}
 				<GrantAccessSection
-					grants={transformedGrants}
+					grants={grants}
 					instructors={instructors}
 					fetcherState={fetcher.state}
 					onGrantAccess={handleGrantAccess}

@@ -202,6 +202,47 @@ describe("User Management Functions", () => {
 
 			expect(result.ok).toBe(false);
 		});
+
+		test("should create user with explicit theme value", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "theme-dark@example.com",
+					password: "testpassword123",
+					firstName: "Theme",
+					lastName: "Dark",
+					theme: "dark",
+				},
+				overrideAccess: true,
+			};
+
+			const result = await tryCreateUser(userArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.theme).toBe("dark");
+			}
+		});
+
+		test("should create user with default theme as light when not specified", async () => {
+			const userArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "theme-default@example.com",
+					password: "testpassword123",
+					firstName: "Theme",
+					lastName: "Default",
+				},
+				overrideAccess: true,
+			};
+
+			const result = await tryCreateUser(userArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.theme).toBe("light");
+			}
+		});
 	});
 
 	describe("tryUpdateUser", () => {
@@ -313,6 +354,45 @@ describe("User Management Functions", () => {
 			const result = await tryUpdateUser(updateArgs);
 
 			expect(result.ok).toBe(false);
+		});
+
+		test("should update user theme from light to dark", async () => {
+			// Create a user with light theme
+			const createArgs: CreateUserArgs = {
+				payload,
+				data: {
+					email: "theme-update-test@example.com",
+					password: "testpassword123",
+					firstName: "ThemeUpdate",
+					lastName: "Test",
+					theme: "light",
+				},
+				overrideAccess: true,
+			};
+
+			const createResult = await tryCreateUser(createArgs);
+			expect(createResult.ok).toBe(true);
+
+			if (createResult.ok) {
+				expect(createResult.value.theme).toBe("light");
+
+				// Update theme to dark
+				const updateArgs: UpdateUserArgs = {
+					payload,
+					userId: createResult.value.id,
+					data: {
+						theme: "dark",
+					},
+					overrideAccess: true,
+				};
+
+				const updateResult = await tryUpdateUser(updateArgs);
+
+				expect(updateResult.ok).toBe(true);
+				if (updateResult.ok) {
+					expect(updateResult.value.theme).toBe("dark");
+				}
+			}
 		});
 	});
 

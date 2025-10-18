@@ -211,6 +211,7 @@ export interface User {
   lastName?: string | null;
   role?: ('admin' | 'content-manager' | 'analytics-viewer' | 'instructor' | 'student') | null;
   bio?: string | null;
+  theme: 'light' | 'dark';
   avatar?: (number | null) | Media;
   updatedAt: string;
   createdAt: string;
@@ -1102,6 +1103,7 @@ export interface UsersSelect<T extends boolean = true> {
   lastName?: T;
   role?: T;
   bio?: T;
+  theme?: T;
   avatar?: T;
   updatedAt?: T;
   createdAt?: T;

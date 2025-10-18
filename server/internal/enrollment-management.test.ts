@@ -46,6 +46,7 @@ describe("Enrollment Management Functions", () => {
 				password: "testpassword123",
 				firstName: "Test",
 				lastName: "User",
+				theme: "light",
 			},
 		});
 		testUserId = testUser.id;
@@ -176,6 +177,7 @@ describe("Enrollment Management Functions", () => {
 					password: "testpassword123",
 					firstName: "Test2",
 					lastName: "User2",
+					theme: "light",
 				},
 			});
 
@@ -207,8 +209,8 @@ describe("Enrollment Management Functions", () => {
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
-				expect((result.value as any).role).toBe("teacher");
-				expect((result.value as any).status).toBe("completed");
+				expect(result.value.role).toBe("teacher");
+				expect(result.value.status).toBe("completed");
 			}
 		});
 
@@ -251,6 +253,7 @@ describe("Enrollment Management Functions", () => {
 					password: "testpassword123",
 					firstName: "Test3",
 					lastName: "User3",
+					theme: "light",
 				},
 			});
 
@@ -321,6 +324,7 @@ describe("Enrollment Management Functions", () => {
 					password: "testpassword123",
 					firstName: "Test4",
 					lastName: "User4",
+					theme: "light",
 				},
 			});
 
@@ -437,6 +441,7 @@ describe("Enrollment Management Functions", () => {
 					password: "testpassword123",
 					firstName: "Test5",
 					lastName: "User5",
+					theme: "light",
 				},
 			});
 
@@ -465,6 +470,7 @@ describe("Enrollment Management Functions", () => {
 						password: "testpassword123",
 						firstName: "Test6",
 						lastName: "User6",
+						theme: "light",
 					},
 				});
 
@@ -511,7 +517,7 @@ describe("Enrollment Management Functions", () => {
 				if (result.ok) {
 					expect(result.value.groups).toBeDefined();
 					const groupIds =
-						result.value.groups?.map((g: any) =>
+						result.value.groups?.map((g) =>
 							typeof g === "number" ? g : g.id,
 						) || [];
 
@@ -591,7 +597,7 @@ describe("Enrollment Management Functions", () => {
 				expect(result.ok).toBe(true);
 				if (result.ok) {
 					const groupIds =
-						result.value.groups?.map((g: any) =>
+						result.value.groups?.map((g) =>
 							typeof g === "number" ? g : g.id,
 						) || [];
 
@@ -636,7 +642,7 @@ describe("Enrollment Management Functions", () => {
 					// All returned enrollments should be in the econ group
 					for (const enrollment of result.value) {
 						const groupIds =
-							enrollment.groups?.map((g: any) =>
+							enrollment.groups?.map((g) =>
 								typeof g === "number" ? g : g.id,
 							) || [];
 						expect(groupIds).toContain(econGroupId);
@@ -662,20 +668,18 @@ describe("Enrollment Management Functions", () => {
 
 describe("Enrollment Management Functions with Authentication", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let adminUser: any;
+	let adminUser: {
+		id: number;
+		email: string;
+		firstName?: string | null;
+		lastName?: string | null;
+		role?: "admin" | "content-manager" | "analytics-viewer" | "instructor" | "student" | null;
+		theme: "light" | "dark";
+		updatedAt: string;
+		createdAt: string;
+	};
 	let testUserId: number;
 	let testCourseId: number;
-	let adminToken: string;
-
-	// Helper to get authenticated user from token
-	const getAuthUser = async (token: string): Promise<any> => {
-		const authResult = await payload.auth({
-			headers: new Headers({
-				Authorization: `Bearer ${token}`,
-			}),
-		});
-		return authResult.user;
-	};
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -690,16 +694,6 @@ describe("Enrollment Management Functions with Authentication", () => {
 		});
 
 		// Create admin user for testing
-		const adminArgs: CreateEnrollmentArgs = {
-			payload,
-			user: 1, // We'll create this user first
-			course: 1, // We'll create this course first
-			role: "student",
-			status: "active",
-			overrideAccess: true,
-		};
-
-		// Create test user
 		const testUser = await payload.create({
 			collection: "users",
 			data: {
@@ -708,6 +702,7 @@ describe("Enrollment Management Functions with Authentication", () => {
 				firstName: "Admin",
 				lastName: "User",
 				role: "admin",
+				theme: "light",
 			},
 			overrideAccess: true,
 		});
@@ -723,21 +718,6 @@ describe("Enrollment Management Functions with Authentication", () => {
 			overrideAccess: true,
 		});
 
-		// Login to get admin token
-		const adminLogin = await payload.login({
-			collection: "users",
-			data: {
-				email: "admin@example.com",
-				password: "adminpassword123",
-			},
-		});
-
-		if (!adminLogin.token) {
-			throw new Error("Failed to get admin token");
-		}
-
-		adminToken = adminLogin.token;
-
 		// Create test user for enrollment
 		const testUser2 = await payload.create({
 			collection: "users",
@@ -746,6 +726,7 @@ describe("Enrollment Management Functions with Authentication", () => {
 				password: "testpassword123",
 				firstName: "Test",
 				lastName: "User",
+				theme: "light",
 			},
 			overrideAccess: true,
 		});

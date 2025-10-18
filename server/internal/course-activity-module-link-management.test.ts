@@ -258,11 +258,7 @@ describe("Course Activity Module Link Management Functions", () => {
 				expect(result.value.length).toBeGreaterThan(0);
 				result.value.forEach((link) => {
 					// Handle both depth 0 (ID) and depth 1 (object) cases
-					if (link.activityModule && typeof link.activityModule === "object") {
-						expect(link.activityModule.id).toBe(testActivityModule.id);
-					} else {
-						expect(link.activityModule).toBe(testActivityModule.id);
-					}
+					expect(link.activityModule.id).toBe(testActivityModule.id);
 				});
 			}
 		});

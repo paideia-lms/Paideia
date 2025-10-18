@@ -487,11 +487,41 @@ export const tryFindGrantsByActivityModule = Result.wrap(
 			where: {
 				activityModule: { equals: activityModuleId },
 			},
-			depth: 1, // Populate grantedTo and grantedBy user data
+			select: {
+				"activityModule": false,
+			},
+			// ! we don't care about performance for now 
+			pagination: false,
 			overrideAccess: true,
+		}).then(result => {
+			return result.docs.map(doc => {
+				const grantedTo = doc.grantedTo;
+				assertZod(grantedTo, z.object({
+					id: z.number(),
+				}));
+				const grantedToAvatar = grantedTo.avatar;
+				assertZod(grantedToAvatar, z.number().nullish());
+				const grantedBy = doc.grantedBy;
+				assertZod(grantedBy, z.object({
+					id: z.number(),
+				}));
+				const grantedByAvatar = grantedBy.avatar;
+				assertZod(grantedByAvatar, z.number().nullish());
+				return {
+					...doc,
+					grantedTo: {
+						...grantedTo,
+						avatar: grantedToAvatar,
+					},
+					grantedBy: {
+						...grantedBy,
+						avatar: grantedByAvatar,
+					},
+				};
+			});
 		});
 
-		return grants.docs;
+		return grants;
 	},
 	(error) =>
 		transformError(error) ??
@@ -546,47 +576,54 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 		const instructorMap = new Map<
 			number,
 			{
-				user: any;
-				courses: number[];
-				role: string;
+				id: number;
+				email: string;
+				firstName: string | null;
+				lastName: string | null;
+				avatar?: number | {
+					id: number;
+					filename?: string;
+				} | null;
+				enrollments: {
+					courseId: number;
+					role: "teacher" | "ta";
+				}[];
 			}
 		>();
 
 		for (const enrollment of enrollments.docs) {
-			const userId =
-				typeof enrollment.user === "number"
-					? enrollment.user
-					: enrollment.user.id;
+			// Narrow the user type
+			const user = enrollment.user;
+			assertZod(
+				user,
+				z.object({
+					id: z.number(),
+				}),
+			);
+			const userAvatar = user.avatar;
+			assertZod(userAvatar, z.number().nullish());
+			// Narrow the course type
+			const course = enrollment.course;
+			assertZod(course, z.object({
+				id: z.number(),
+			}));
 
-			const courseId =
-				typeof enrollment.course === "number"
-					? enrollment.course
-					: enrollment.course.id;
-
-			if (!instructorMap.has(userId)) {
-				instructorMap.set(userId, {
-					user: typeof enrollment.user === "object" ? enrollment.user : null,
-					courses: [courseId],
-					role: enrollment.role,
-				});
+			const existing = instructorMap.get(user.id);
+			if (existing) {
+				existing.enrollments.push({ courseId: course.id, role: enrollment.role as "teacher" | "ta" });
 			} else {
-				const existing = instructorMap.get(userId)!;
-				if (!existing.courses.includes(courseId)) {
-					existing.courses.push(courseId);
-				}
+				instructorMap.set(user.id, {
+					id: user.id,
+					email: user.email,
+					firstName: user.firstName ?? '',
+					lastName: user.lastName ?? '',
+					avatar: userAvatar ?? null,
+					enrollments: [{ courseId: course.id, role: enrollment.role as "teacher" | "ta" }],
+				});
 			}
 		}
 
-		return Array.from(instructorMap.values())
-			.filter((item) => item.user !== null)
-			.map((item) => ({
-				id: item.user.id,
-				email: item.user.email,
-				firstName: item.user.firstName,
-				lastName: item.user.lastName,
-				role: item.role,
-				courseCount: item.courses.length,
-			}));
+		return Array.from(instructorMap.values());
 	},
 	(error) =>
 		transformError(error) ??

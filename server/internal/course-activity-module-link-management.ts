@@ -178,9 +178,24 @@ export const tryFindLinksByActivityModule = Result.wrap(
 			},
 			pagination: false,
 			sort: "-createdAt",
+		}).then((result) => {
+			return result.docs.map((doc) => {
+				const course = doc.course;
+				assertZod(course, z.object({ id: z.number() }));
+				const activityModule = doc.activityModule;
+				assertZod(activityModule, z.object({ id: z.number() }));
+				const section = doc.section;
+				assertZod(section, z.object({ id: z.number() }));
+				return {
+					...doc,
+					course,
+					activityModule,
+					section,
+				}
+			});
 		});
 
-		return links.docs;
+		return links;
 	},
 	(error) =>
 		new Error(

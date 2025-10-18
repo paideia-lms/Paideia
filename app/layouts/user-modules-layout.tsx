@@ -9,9 +9,13 @@ import {
 	ScrollArea,
 	Stack,
 	Text,
+	TextInput,
 	Title,
 } from "@mantine/core";
-import { IconEdit, IconPlus } from "@tabler/icons-react";
+import { IconEdit, IconPlus, IconSearch } from "@tabler/icons-react";
+import { useDebouncedCallback } from "@mantine/hooks";
+import { useQueryState } from "nuqs";
+import { useState } from "react";
 import { href, Link, Outlet } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -96,6 +100,20 @@ export default function UserModulesLayout({
 	loaderData,
 }: Route.ComponentProps) {
 	const { modules, canCreateModules, canManageModules } = loaderData;
+	const [searchQuery, setSearchQuery] = useQueryState("search");
+	const [inputValue, setInputValue] = useState(searchQuery ?? "");
+
+	// Debounced function to update URL query state
+	const debouncedSetSearchQuery = useDebouncedCallback((value: string) => {
+		setSearchQuery(value || null);
+	}, 500);
+
+	// Handle input change with immediate feedback
+	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const value = event.currentTarget.value;
+		setInputValue(value);
+		debouncedSetSearchQuery(value);
+	};
 
 	// Helper function to get badge color based on status
 	const getStatusColor = (status: string) => {
@@ -118,6 +136,17 @@ export default function UserModulesLayout({
 			.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 			.join(" ");
 	};
+
+	// Filter modules based on search query from URL
+	const filteredModules = modules.filter((module) => {
+		if (!searchQuery) return true;
+		const query = searchQuery.toLowerCase();
+		return (
+			module.title.toLowerCase().includes(query) ||
+			module.type.toLowerCase().includes(query) ||
+			module.status.toLowerCase().includes(query)
+		);
+	});
 
 	return (
 		<AppShell>
@@ -142,15 +171,27 @@ export default function UserModulesLayout({
 									)}
 								</Group>
 
+								<TextInput
+									placeholder="Search modules by title, type, or status..."
+									leftSection={<IconSearch size={16} />}
+									value={inputValue}
+									onChange={handleSearchChange}
+									mb="md"
+								/>
+
 								{modules.length === 0 ? (
 									<Text c="dimmed" ta="center" py="xl" size="sm">
 										No activity modules yet.
 										{canCreateModules && " Create your first one!"}
 									</Text>
+								) : filteredModules.length === 0 ? (
+									<Text c="dimmed" ta="center" py="xl" size="sm">
+										No modules found matching "{inputValue}"
+									</Text>
 								) : (
 									<ScrollArea h={600}>
 										<Stack gap="xs">
-											{modules.map((module) => (
+											{filteredModules.map((module) => (
 												<Paper
 													key={module.id}
 													withBorder
