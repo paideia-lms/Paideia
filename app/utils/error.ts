@@ -225,7 +225,7 @@ export class CourseStructureNotFoundError extends Error {
 
 
 export function transformError(error: unknown) {
-	if (process.env.NODE_ENV === "test") {
+	if (process.env.NODE_ENV === "test" || process.env.NODE_ENV === "development") {
 		console.log("transformError", error);
 	}
 	if (error instanceof NonExistingSourceError) return error;

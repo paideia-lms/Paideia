@@ -440,23 +440,13 @@ export const tryGetActivityModuleById = Result.wrap(
 				const grants = am.grants?.docs?.map((g) => {
 					assertZod(g, z.object({ id: z.number() }));
 					const grantedTo = g.grantedTo;
-					assertZod(grantedTo, z.object({ id: z.number() }, { "error": "Granted to is required" }));
-					const grantedToAvatar = grantedTo.avatar;
-					assertZod(grantedToAvatar, z.number({ "error": "Granted to avatar is required" }).nullish());
+					assertZod(grantedTo, z.number({ "error": "Granted to is required" }));
 					const grantedBy = g.grantedBy;
-					assertZod(grantedBy, z.object({ id: z.number() }, { "error": "Granted by is required" }));
-					const grantedByAvatar = grantedBy.avatar;
-					assertZod(grantedByAvatar, z.number({ "error": "Granted by avatar is required" }).nullish());
+					assertZod(grantedBy, z.number({ "error": "Granted by is required" }));
 					return {
 						...g,
-						grantedTo: {
-							...grantedTo,
-							avatar: grantedToAvatar,
-						},
-						grantedBy: {
-							...grantedBy,
-							avatar: grantedByAvatar,
-						},
+						grantedTo,
+						grantedBy,
 					};
 				});
 
