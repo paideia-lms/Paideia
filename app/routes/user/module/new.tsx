@@ -1,16 +1,4 @@
-import {
-	Button,
-	Checkbox,
-	Container,
-	NumberInput,
-	Paper,
-	Select,
-	Stack,
-	Textarea,
-	TextInput,
-	Title,
-} from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
+import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
@@ -23,18 +11,27 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateActivityModule } from "server/internal/activity-module-management";
 import {
+	AssignmentForm,
+	DiscussionForm,
+	PageForm,
+	QuizForm,
+	WhiteboardForm,
+} from "~/components/activity-module-forms";
+import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
 	getInitialFormValues,
 	transformFormValues,
 	transformToActivityData,
 } from "~/utils/activity-module-schema";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 import { badRequest, UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/new";
 
-export const loader = async ({ context, request }: LoaderFunctionArgs) => {
-	const payload = context.get(globalContextKey).payload;
+export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -153,28 +150,11 @@ export default function NewModulePage() {
 						const submissionData = transformFormValues(values);
 						fetcher.submit(submissionData, {
 							method: "POST",
-							encType: "application/json",
+							encType: ContentType.JSON,
 						});
 					})}
 				>
 					<Stack gap="md">
-						<TextInput
-							{...form.getInputProps("title")}
-							key={form.key("title")}
-							label="Title"
-							placeholder="Enter module title"
-							required
-							withAsterisk
-						/>
-
-						<Textarea
-							{...form.getInputProps("description")}
-							key={form.key("description")}
-							label="Description"
-							placeholder="Enter module description"
-							minRows={3}
-						/>
-
 						<Select
 							{...form.getInputProps("type")}
 							key={form.key("type")}
@@ -191,179 +171,11 @@ export default function NewModulePage() {
 							]}
 						/>
 
-						<Select
-							{...form.getInputProps("status")}
-							key={form.key("status")}
-							label="Status"
-							placeholder="Select status"
-							data={[
-								{ value: "draft", label: "Draft" },
-								{ value: "published", label: "Published" },
-								{ value: "archived", label: "Archived" },
-							]}
-						/>
-
-						<Checkbox
-							{...form.getInputProps("requirePassword", { type: "checkbox" })}
-							key={form.key("requirePassword")}
-							label="Require password to access"
-						/>
-
-						{form.getValues().requirePassword && (
-							<TextInput
-								{...form.getInputProps("accessPassword")}
-								key={form.key("accessPassword")}
-								label="Access Password"
-								placeholder="Enter access password"
-							/>
-						)}
-
-						{/* Assignment-specific fields */}
-						{selectedType === "assignment" && (
-							<>
-								<Title order={4} mt="md">
-									Assignment Settings
-								</Title>
-								<Textarea
-									{...form.getInputProps("assignmentInstructions")}
-									key={form.key("assignmentInstructions")}
-									label="Instructions"
-									placeholder="Enter assignment instructions"
-									minRows={3}
-								/>
-								<DateTimePicker
-									{...form.getInputProps("assignmentDueDate")}
-									key={form.key("assignmentDueDate")}
-									label="Due Date"
-									placeholder="Select due date"
-								/>
-								<NumberInput
-									{...form.getInputProps("assignmentMaxAttempts")}
-									key={form.key("assignmentMaxAttempts")}
-									label="Max Attempts"
-									placeholder="Enter max attempts"
-									min={1}
-								/>
-								<Checkbox
-									{...form.getInputProps("assignmentAllowLateSubmissions", {
-										type: "checkbox",
-									})}
-									key={form.key("assignmentAllowLateSubmissions")}
-									label="Allow late submissions"
-								/>
-								<Checkbox
-									{...form.getInputProps("assignmentRequireTextSubmission", {
-										type: "checkbox",
-									})}
-									key={form.key("assignmentRequireTextSubmission")}
-									label="Require text submission"
-								/>
-								<Checkbox
-									{...form.getInputProps("assignmentRequireFileSubmission", {
-										type: "checkbox",
-									})}
-									key={form.key("assignmentRequireFileSubmission")}
-									label="Require file submission"
-								/>
-							</>
-						)}
-
-						{/* Quiz-specific fields */}
-						{selectedType === "quiz" && (
-							<>
-								<Title order={4} mt="md">
-									Quiz Settings
-								</Title>
-								<Textarea
-									{...form.getInputProps("quizInstructions")}
-									key={form.key("quizInstructions")}
-									label="Instructions"
-									placeholder="Enter quiz instructions"
-									minRows={3}
-								/>
-								<DateTimePicker
-									{...form.getInputProps("quizDueDate")}
-									key={form.key("quizDueDate")}
-									label="Due Date"
-									placeholder="Select due date"
-								/>
-								<NumberInput
-									{...form.getInputProps("quizMaxAttempts")}
-									key={form.key("quizMaxAttempts")}
-									label="Max Attempts"
-									placeholder="Enter max attempts"
-									min={1}
-								/>
-								<NumberInput
-									{...form.getInputProps("quizPoints")}
-									key={form.key("quizPoints")}
-									label="Total Points"
-									placeholder="Enter total points"
-									min={0}
-								/>
-								<NumberInput
-									{...form.getInputProps("quizTimeLimit")}
-									key={form.key("quizTimeLimit")}
-									label="Time Limit (minutes)"
-									placeholder="Enter time limit in minutes"
-									min={1}
-								/>
-								<Select
-									{...form.getInputProps("quizGradingType")}
-									key={form.key("quizGradingType")}
-									label="Grading Type"
-									data={[
-										{ value: "automatic", label: "Automatic" },
-										{ value: "manual", label: "Manual" },
-									]}
-								/>
-							</>
-						)}
-
-						{/* Discussion-specific fields */}
-						{selectedType === "discussion" && (
-							<>
-								<Title order={4} mt="md">
-									Discussion Settings
-								</Title>
-								<Textarea
-									{...form.getInputProps("discussionInstructions")}
-									key={form.key("discussionInstructions")}
-									label="Instructions"
-									placeholder="Enter discussion instructions"
-									minRows={3}
-								/>
-								<DateTimePicker
-									{...form.getInputProps("discussionDueDate")}
-									key={form.key("discussionDueDate")}
-									label="Due Date"
-									placeholder="Select due date"
-								/>
-								<Checkbox
-									{...form.getInputProps("discussionRequireThread", {
-										type: "checkbox",
-									})}
-									key={form.key("discussionRequireThread")}
-									label="Require thread creation"
-								/>
-								<Checkbox
-									{...form.getInputProps("discussionRequireReplies", {
-										type: "checkbox",
-									})}
-									key={form.key("discussionRequireReplies")}
-									label="Require replies"
-								/>
-								{form.getValues().discussionRequireReplies && (
-									<NumberInput
-										{...form.getInputProps("discussionMinReplies")}
-										key={form.key("discussionMinReplies")}
-										label="Minimum Replies"
-										placeholder="Enter minimum number of replies"
-										min={1}
-									/>
-								)}
-							</>
-						)}
+						{selectedType === "page" && <PageForm form={form} />}
+						{selectedType === "whiteboard" && <WhiteboardForm form={form} />}
+						{selectedType === "assignment" && <AssignmentForm form={form} />}
+						{selectedType === "quiz" && <QuizForm form={form} />}
+						{selectedType === "discussion" && <DiscussionForm form={form} />}
 
 						<Button
 							type="submit"

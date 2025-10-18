@@ -20,6 +20,7 @@ import "@mantine/dropzone/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/charts/styles.css";
 import "@mantine/tiptap/styles.css";
+import "tldraw/tldraw.css";
 
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
@@ -34,6 +35,10 @@ import {
 	userContextKey,
 } from "server/contexts/user-context";
 import {
+	tryGetUserModuleContext,
+	userModuleContextKey,
+} from "server/contexts/user-module-context";
+import {
 	convertUserAccessContextToUserProfileContext,
 	getUserProfileContext,
 	userProfileContextKey,
@@ -41,13 +46,12 @@ import {
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
+import { InternalServerErrorResponse } from "./utils/responses";
 import {
 	RouteId,
 	type RouteParams,
 	tryGetRouteHierarchy,
 } from "./utils/routes-utils";
-import { InternalServerErrorResponse } from "./utils/responses";
-import { tryGetUserModuleContext, userModuleContextKey } from "server/contexts/user-module-context";
 
 export const middleware = [
 	/**
@@ -195,7 +199,6 @@ export const middleware = [
 			// default course id is the id from params
 			let courseId: number = Number(id);
 
-
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isCourseModule) {
 				const { id: moduleId } =
@@ -228,9 +231,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -298,9 +301,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -335,7 +338,9 @@ export const middleware = [
 		// Check if we're in a user module edit layout
 		if (
 			userSession?.isAuthenticated &&
-			routeHierarchy.some((route) => route.id === "layouts/user-module-edit-layout")
+			routeHierarchy.some(
+				(route) => route.id === "layouts/user-module-edit-layout",
+			)
 		) {
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
@@ -350,7 +355,7 @@ export const middleware = [
 					{
 						...currentUser,
 						avatar: currentUser?.avatar?.id,
-					}
+					},
 				);
 
 				if (userModuleContextResult.ok) {
@@ -417,7 +422,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export default function App({ loaderData }: Route.ComponentProps) {
 	return (
-		<html lang="en" data-mantine-color-scheme={loaderData.theme} style={{ overscrollBehaviorX: "none" }}
+		<html
+			lang="en"
+			data-mantine-color-scheme={loaderData.theme}
+			style={{ overscrollBehaviorX: "none" }}
 		>
 			<head>
 				<meta charSet="utf-8" />
@@ -434,7 +442,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<ColorSchemeScript defaultColorScheme={loaderData.theme} />
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
-				<MantineProvider defaultColorScheme={loaderData.theme} >
+				<MantineProvider defaultColorScheme={loaderData.theme}>
 					<NuqsAdapter>
 						<Outlet />
 						<Notifications />
