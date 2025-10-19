@@ -488,6 +488,12 @@ export const activity_modules = pgTable(
       }),
     requirePassword: boolean("require_password").default(false),
     accessPassword: varchar("access_password"),
+    page: integer("page_id").references(() => pages.id, {
+      onDelete: "set null",
+    }),
+    whiteboard: integer("whiteboard_id").references(() => whiteboards.id, {
+      onDelete: "set null",
+    }),
     assignment: integer("assignment_id").references(() => assignments.id, {
       onDelete: "set null",
     }),
@@ -515,6 +521,8 @@ export const activity_modules = pgTable(
   (columns) => [
     index("activity_modules_owner_idx").on(columns.owner),
     index("activity_modules_created_by_idx").on(columns.createdBy),
+    index("activity_modules_page_idx").on(columns.page),
+    index("activity_modules_whiteboard_idx").on(columns.whiteboard),
     index("activity_modules_assignment_idx").on(columns.assignment),
     index("activity_modules_quiz_idx").on(columns.quiz),
     index("activity_modules_discussion_idx").on(columns.discussion),
@@ -524,6 +532,8 @@ export const activity_modules = pgTable(
     index("createdBy_idx").on(columns.createdBy),
     index("type_idx").on(columns.type),
     index("status_idx").on(columns.status),
+    index("page_idx").on(columns.page),
+    index("whiteboard_idx").on(columns.whiteboard),
     index("assignment_idx").on(columns.assignment),
     index("quiz_idx").on(columns.quiz),
     index("discussion_idx").on(columns.discussion),
@@ -583,6 +593,72 @@ export const activity_module_grants = pgTable(
     ),
     index("activityModule_idx").on(columns.activityModule),
     index("grantedTo_idx").on(columns.grantedTo),
+  ],
+);
+
+export const pages = pgTable(
+  "pages",
+  {
+    id: serial("id").primaryKey(),
+    content: varchar("content"),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("pages_created_by_idx").on(columns.createdBy),
+    index("pages_updated_at_idx").on(columns.updatedAt),
+    index("pages_created_at_idx").on(columns.createdAt),
+    index("createdBy_1_idx").on(columns.createdBy),
+  ],
+);
+
+export const whiteboards = pgTable(
+  "whiteboards",
+  {
+    id: serial("id").primaryKey(),
+    content: varchar("content"),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("whiteboards_created_by_idx").on(columns.createdBy),
+    index("whiteboards_updated_at_idx").on(columns.updatedAt),
+    index("whiteboards_created_at_idx").on(columns.createdAt),
+    index("createdBy_2_idx").on(columns.createdBy),
   ],
 );
 
@@ -648,7 +724,7 @@ export const assignments = pgTable(
     index("assignments_created_by_idx").on(columns.createdBy),
     index("assignments_updated_at_idx").on(columns.updatedAt),
     index("assignments_created_at_idx").on(columns.createdAt),
-    index("createdBy_1_idx").on(columns.createdBy),
+    index("createdBy_3_idx").on(columns.createdBy),
     index("dueDate_idx").on(columns.dueDate),
   ],
 );
@@ -767,7 +843,7 @@ export const quizzes = pgTable(
     index("quizzes_created_by_idx").on(columns.createdBy),
     index("quizzes_updated_at_idx").on(columns.updatedAt),
     index("quizzes_created_at_idx").on(columns.createdAt),
-    index("createdBy_2_idx").on(columns.createdBy),
+    index("createdBy_4_idx").on(columns.createdBy),
     index("dueDate_1_idx").on(columns.dueDate),
   ],
 );
@@ -857,7 +933,7 @@ export const discussions = pgTable(
     index("discussions_created_by_idx").on(columns.createdBy),
     index("discussions_updated_at_idx").on(columns.updatedAt),
     index("discussions_created_at_idx").on(columns.createdAt),
-    index("createdBy_3_idx").on(columns.createdBy),
+    index("createdBy_5_idx").on(columns.createdBy),
     index("dueDate_2_idx").on(columns.dueDate),
     index("threadSorting_idx").on(columns.threadSorting),
   ],
@@ -1877,6 +1953,8 @@ export const payload_locked_documents_rels = pgTable(
     enrollmentsID: integer("enrollments_id"),
     "activity-modulesID": integer("activity_modules_id"),
     "activity-module-grantsID": integer("activity_module_grants_id"),
+    pagesID: integer("pages_id"),
+    whiteboardsID: integer("whiteboards_id"),
     assignmentsID: integer("assignments_id"),
     quizzesID: integer("quizzes_id"),
     discussionsID: integer("discussions_id"),
@@ -1919,6 +1997,10 @@ export const payload_locked_documents_rels = pgTable(
     ),
     index("payload_locked_documents_rels_activity_module_grants_id_idx").on(
       columns["activity-module-grantsID"],
+    ),
+    index("payload_locked_documents_rels_pages_id_idx").on(columns.pagesID),
+    index("payload_locked_documents_rels_whiteboards_id_idx").on(
+      columns.whiteboardsID,
     ),
     index("payload_locked_documents_rels_assignments_id_idx").on(
       columns.assignmentsID,
@@ -2002,6 +2084,16 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["activity-module-grantsID"]],
       foreignColumns: [activity_module_grants.id],
       name: "payload_locked_documents_rels_activity_module_grants_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["pagesID"]],
+      foreignColumns: [pages.id],
+      name: "payload_locked_documents_rels_pages_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["whiteboardsID"]],
+      foreignColumns: [whiteboards.id],
+      name: "payload_locked_documents_rels_whiteboards_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["assignmentsID"]],
@@ -2343,6 +2435,16 @@ export const relations_activity_modules = relations(
       references: [users.id],
       relationName: "createdBy",
     }),
+    page: one(pages, {
+      fields: [activity_modules.page],
+      references: [pages.id],
+      relationName: "page",
+    }),
+    whiteboard: one(whiteboards, {
+      fields: [activity_modules.whiteboard],
+      references: [whiteboards.id],
+      relationName: "whiteboard",
+    }),
     assignment: one(assignments, {
       fields: [activity_modules.assignment],
       references: [assignments.id],
@@ -2380,6 +2482,20 @@ export const relations_activity_module_grants = relations(
     }),
   }),
 );
+export const relations_pages = relations(pages, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [pages.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
+export const relations_whiteboards = relations(whiteboards, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [whiteboards.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
 export const relations_assignments_allowed_file_types = relations(
   assignments_allowed_file_types,
   ({ one }) => ({
@@ -2889,6 +3005,16 @@ export const relations_payload_locked_documents_rels = relations(
       references: [activity_module_grants.id],
       relationName: "activity-module-grants",
     }),
+    pagesID: one(pages, {
+      fields: [payload_locked_documents_rels.pagesID],
+      references: [pages.id],
+      relationName: "pages",
+    }),
+    whiteboardsID: one(whiteboards, {
+      fields: [payload_locked_documents_rels.whiteboardsID],
+      references: [whiteboards.id],
+      relationName: "whiteboards",
+    }),
     assignmentsID: one(assignments, {
       fields: [payload_locked_documents_rels.assignmentsID],
       references: [assignments.id],
@@ -3057,6 +3183,8 @@ type DatabaseSchema = {
   enrollments_rels: typeof enrollments_rels;
   activity_modules: typeof activity_modules;
   activity_module_grants: typeof activity_module_grants;
+  pages: typeof pages;
+  whiteboards: typeof whiteboards;
   assignments_allowed_file_types: typeof assignments_allowed_file_types;
   assignments: typeof assignments;
   quizzes_questions_options: typeof quizzes_questions_options;
@@ -3105,6 +3233,8 @@ type DatabaseSchema = {
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;
   relations_activity_module_grants: typeof relations_activity_module_grants;
+  relations_pages: typeof relations_pages;
+  relations_whiteboards: typeof relations_whiteboards;
   relations_assignments_allowed_file_types: typeof relations_assignments_allowed_file_types;
   relations_assignments: typeof relations_assignments;
   relations_quizzes_questions_options: typeof relations_quizzes_questions_options;

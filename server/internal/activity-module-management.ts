@@ -11,14 +11,34 @@ import {
 } from "~/utils/error";
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 
-export interface CreateActivityModuleArgs {
+// Base args that are common to all module types
+type BaseCreateActivityModuleArgs = {
 	title: string;
 	description?: string;
-	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
 	status?: "draft" | "published" | "archived";
 	userId: number;
-	// Activity-specific configuration data
-	assignmentData?: {
+	requirePassword?: boolean;
+	accessPassword?: string;
+};
+
+// Discriminated union for create args
+type CreatePageModuleArgs = BaseCreateActivityModuleArgs & {
+	type: "page";
+	pageData: {
+		content?: string;
+	};
+};
+
+type CreateWhiteboardModuleArgs = BaseCreateActivityModuleArgs & {
+	type: "whiteboard";
+	whiteboardData: {
+		content?: string;
+	};
+};
+
+type CreateAssignmentModuleArgs = BaseCreateActivityModuleArgs & {
+	type: "assignment";
+	assignmentData: {
 		instructions?: string;
 		dueDate?: string;
 		maxAttempts?: number;
@@ -29,7 +49,11 @@ export interface CreateActivityModuleArgs {
 		requireTextSubmission?: boolean;
 		requireFileSubmission?: boolean;
 	};
-	quizData?: {
+};
+
+type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
+	type: "quiz";
+	quizData: {
 		description?: string;
 		instructions?: string;
 		dueDate?: string;
@@ -48,13 +72,13 @@ export interface CreateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -66,7 +90,11 @@ export interface CreateActivityModuleArgs {
 			hints?: Array<{ hint: string }>;
 		}>;
 	};
-	discussionData?: {
+};
+
+type CreateDiscussionModuleArgs = BaseCreateActivityModuleArgs & {
+	type: "discussion";
+	discussionData: {
 		description?: string;
 		instructions?: string;
 		dueDate?: string;
@@ -84,19 +112,43 @@ export interface CreateActivityModuleArgs {
 		maxGroupSize?: number;
 		threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
 	};
-	// Access control
-	requirePassword?: boolean;
-	accessPassword?: string;
-}
+};
 
-export interface UpdateActivityModuleArgs {
+export type CreateActivityModuleArgs =
+	| CreatePageModuleArgs
+	| CreateWhiteboardModuleArgs
+	| CreateAssignmentModuleArgs
+	| CreateQuizModuleArgs
+	| CreateDiscussionModuleArgs;
+
+// Base args for update
+type BaseUpdateActivityModuleArgs = {
 	id: number;
 	title?: string;
 	description?: string;
-	type?: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
 	status?: "draft" | "published" | "archived";
-	// Activity-specific configuration data
-	assignmentData?: {
+	requirePassword?: boolean;
+	accessPassword?: string;
+};
+
+// Discriminated union for update args
+type UpdatePageModuleArgs = BaseUpdateActivityModuleArgs & {
+	type: "page";
+	pageData: {
+		content?: string;
+	};
+};
+
+type UpdateWhiteboardModuleArgs = BaseUpdateActivityModuleArgs & {
+	type: "whiteboard";
+	whiteboardData: {
+		content?: string;
+	};
+};
+
+type UpdateAssignmentModuleArgs = BaseUpdateActivityModuleArgs & {
+	type: "assignment";
+	assignmentData: {
 		instructions?: string;
 		dueDate?: string;
 		maxAttempts?: number;
@@ -107,7 +159,11 @@ export interface UpdateActivityModuleArgs {
 		requireTextSubmission?: boolean;
 		requireFileSubmission?: boolean;
 	};
-	quizData?: {
+};
+
+type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
+	type: "quiz";
+	quizData: {
 		description?: string;
 		instructions?: string;
 		dueDate?: string;
@@ -126,13 +182,13 @@ export interface UpdateActivityModuleArgs {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -144,7 +200,11 @@ export interface UpdateActivityModuleArgs {
 			hints?: Array<{ hint: string }>;
 		}>;
 	};
-	discussionData?: {
+};
+
+type UpdateDiscussionModuleArgs = BaseUpdateActivityModuleArgs & {
+	type: "discussion";
+	discussionData: {
 		description?: string;
 		instructions?: string;
 		dueDate?: string;
@@ -162,10 +222,14 @@ export interface UpdateActivityModuleArgs {
 		maxGroupSize?: number;
 		threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
 	};
-	// Access control
-	requirePassword?: boolean;
-	accessPassword?: string;
-}
+};
+
+export type UpdateActivityModuleArgs =
+	| UpdatePageModuleArgs
+	| UpdateWhiteboardModuleArgs
+	| UpdateAssignmentModuleArgs
+	| UpdateQuizModuleArgs
+	| UpdateDiscussionModuleArgs;
 
 export interface GetActivityModuleByIdArgs {
 	id: number | string;
@@ -182,9 +246,6 @@ export const tryCreateActivityModule = Result.wrap(
 			type,
 			status = "draft",
 			userId,
-			assignmentData,
-			quizData,
-			discussionData,
 			requirePassword = false,
 			accessPassword,
 		} = args;
@@ -194,27 +255,8 @@ export const tryCreateActivityModule = Result.wrap(
 			throw new InvalidArgumentError("Title is required");
 		}
 
-		if (!type) {
-			throw new InvalidArgumentError("Type is required");
-		}
-
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
-		}
-
-		// Validate that activity-specific data is provided when needed
-		if (type === "assignment" && !assignmentData) {
-			throw new InvalidArgumentError(
-				"Assignment data is required for assignment type",
-			);
-		}
-		if (type === "quiz" && !quizData) {
-			throw new InvalidArgumentError("Quiz data is required for quiz type");
-		}
-		if (type === "discussion" && !discussionData) {
-			throw new InvalidArgumentError(
-				"Discussion data is required for discussion type",
-			);
 		}
 
 		// Start transaction for creating activity module and related entity
@@ -225,76 +267,96 @@ export const tryCreateActivityModule = Result.wrap(
 		}
 
 		try {
-			// Create the related entity first
+			// Create the related entity first based on discriminated type
 			let relatedEntityId: number | undefined;
 
-			if (type === "assignment" && assignmentData) {
+			if (type === "page") {
+				const page = await payload.create({
+					collection: "pages",
+					data: {
+						content: args.pageData.content || "",
+						createdBy: userId,
+					},
+					req: { transactionID },
+				});
+				relatedEntityId = page.id;
+			} else if (type === "whiteboard") {
+				const whiteboard = await payload.create({
+					collection: "whiteboards",
+					data: {
+						content: args.whiteboardData.content || "",
+						createdBy: userId,
+					},
+					req: { transactionID },
+				});
+				relatedEntityId = whiteboard.id;
+			} else if (type === "assignment") {
 				const assignment = await payload.create({
 					collection: "assignments",
 					data: {
 						title,
-						description: assignmentData.instructions || description,
-						instructions: assignmentData.instructions,
-						dueDate: assignmentData.dueDate,
-						maxAttempts: assignmentData.maxAttempts,
-						allowLateSubmissions: assignmentData.allowLateSubmissions,
-						allowedFileTypes: assignmentData.allowedFileTypes,
-						maxFileSize: assignmentData.maxFileSize,
-						maxFiles: assignmentData.maxFiles,
-						requireTextSubmission: assignmentData.requireTextSubmission,
-						requireFileSubmission: assignmentData.requireFileSubmission,
+						description: args.assignmentData.instructions || description,
+						instructions: args.assignmentData.instructions,
+						dueDate: args.assignmentData.dueDate,
+						maxAttempts: args.assignmentData.maxAttempts,
+						allowLateSubmissions: args.assignmentData.allowLateSubmissions,
+						allowedFileTypes: args.assignmentData.allowedFileTypes,
+						maxFileSize: args.assignmentData.maxFileSize,
+						maxFiles: args.assignmentData.maxFiles,
+						requireTextSubmission: args.assignmentData.requireTextSubmission,
+						requireFileSubmission: args.assignmentData.requireFileSubmission,
 						createdBy: userId,
 					},
 					req: { transactionID },
 				});
 				relatedEntityId = assignment.id;
-			} else if (type === "quiz" && quizData) {
+			} else if (type === "quiz") {
 				const quiz = await payload.create({
 					collection: "quizzes",
 					data: {
 						title,
-						description: quizData.description || description,
-						instructions: quizData.instructions,
-						dueDate: quizData.dueDate,
-						maxAttempts: quizData.maxAttempts,
-						allowLateSubmissions: quizData.allowLateSubmissions,
-						points: quizData.points,
-						gradingType: quizData.gradingType,
-						timeLimit: quizData.timeLimit,
-						showCorrectAnswers: quizData.showCorrectAnswers,
-						allowMultipleAttempts: quizData.allowMultipleAttempts,
-						shuffleQuestions: quizData.shuffleQuestions,
-						shuffleAnswers: quizData.shuffleAnswers,
-						showOneQuestionAtATime: quizData.showOneQuestionAtATime,
-						requirePassword: quizData.requirePassword,
-						accessPassword: quizData.accessPassword,
-						questions: quizData.questions,
+						description: args.quizData.description || description,
+						instructions: args.quizData.instructions,
+						dueDate: args.quizData.dueDate,
+						maxAttempts: args.quizData.maxAttempts,
+						allowLateSubmissions: args.quizData.allowLateSubmissions,
+						points: args.quizData.points,
+						gradingType: args.quizData.gradingType,
+						timeLimit: args.quizData.timeLimit,
+						showCorrectAnswers: args.quizData.showCorrectAnswers,
+						allowMultipleAttempts: args.quizData.allowMultipleAttempts,
+						shuffleQuestions: args.quizData.shuffleQuestions,
+						shuffleAnswers: args.quizData.shuffleAnswers,
+						showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
+						requirePassword: args.quizData.requirePassword,
+						accessPassword: args.quizData.accessPassword,
+						questions: args.quizData.questions,
 						createdBy: userId,
 					},
 					req: { transactionID },
 				});
 				relatedEntityId = quiz.id;
-			} else if (type === "discussion" && discussionData) {
+			} else if (type === "discussion") {
 				const discussion = await payload.create({
 					collection: "discussions",
 					data: {
 						title,
-						description: discussionData.description || description,
-						instructions: discussionData.instructions,
-						dueDate: discussionData.dueDate,
-						requireThread: discussionData.requireThread,
-						requireReplies: discussionData.requireReplies,
-						minReplies: discussionData.minReplies,
-						minWordsPerPost: discussionData.minWordsPerPost,
-						allowAttachments: discussionData.allowAttachments,
-						allowUpvotes: discussionData.allowUpvotes,
-						allowEditing: discussionData.allowEditing,
-						allowDeletion: discussionData.allowDeletion,
-						moderationRequired: discussionData.moderationRequired,
-						anonymousPosting: discussionData.anonymousPosting,
-						groupDiscussion: discussionData.groupDiscussion,
-						maxGroupSize: discussionData.maxGroupSize,
-						threadSorting: discussionData.threadSorting || "recent",
+						description: args.discussionData.description || description,
+						instructions: args.discussionData.instructions,
+						dueDate: args.discussionData.dueDate,
+						requireThread: args.discussionData.requireThread,
+						requireReplies: args.discussionData.requireReplies,
+						minReplies: args.discussionData.minReplies,
+						minWordsPerPost: args.discussionData.minWordsPerPost,
+						allowAttachments: args.discussionData.allowAttachments,
+						allowUpvotes: args.discussionData.allowUpvotes,
+						allowEditing: args.discussionData.allowEditing,
+						allowDeletion: args.discussionData.allowDeletion,
+						moderationRequired: args.discussionData.moderationRequired,
+						anonymousPosting: args.discussionData.anonymousPosting,
+						groupDiscussion: args.discussionData.groupDiscussion,
+						maxGroupSize: args.discussionData.maxGroupSize,
+						threadSorting: args.discussionData.threadSorting || "recent",
 						createdBy: userId,
 					},
 					req: { transactionID },
@@ -312,6 +374,9 @@ export const tryCreateActivityModule = Result.wrap(
 				owner: userId,
 				requirePassword,
 				...(accessPassword && { accessPassword }),
+				...(type === "page" && relatedEntityId && { page: relatedEntityId }),
+				...(type === "whiteboard" &&
+					relatedEntityId && { whiteboard: relatedEntityId }),
 				...(type === "assignment" &&
 					relatedEntityId && { assignment: relatedEntityId }),
 				...(type === "quiz" && relatedEntityId && { quiz: relatedEntityId }),
@@ -405,6 +470,8 @@ export const tryGetActivityModuleById = Result.wrap(
 				const am = r.docs[0];
 				const createdBy = am.createdBy;
 				const owner = am.owner;
+				const page = am.page;
+				const whiteboard = am.whiteboard;
 				const assignment = am.assignment;
 				const quiz = am.quiz;
 				const discussion = am.discussion;
@@ -415,7 +482,9 @@ export const tryGetActivityModuleById = Result.wrap(
 				assertZod(owner, z.object({ id: z.number() }));
 				const ownerAvatar = owner.avatar;
 				assertZod(ownerAvatar, z.number().nullish());
-				// ! assignment, quiz, discussion can be null
+				// ! page, whiteboard, assignment, quiz, discussion can be null
+				assertZod(page, z.object({ id: z.number() }).nullish());
+				assertZod(whiteboard, z.object({ id: z.number() }).nullish());
 				assertZod(assignment, z.object({ id: z.number() }).nullish());
 				assertZod(quiz, z.object({ id: z.number() }).nullish());
 				assertZod(discussion, z.object({ id: z.number() }).nullish());
@@ -460,6 +529,8 @@ export const tryGetActivityModuleById = Result.wrap(
 						...owner,
 						avatar: ownerAvatar,
 					},
+					page,
+					whiteboard,
 					assignment,
 					quiz,
 					discussion,
@@ -491,18 +562,7 @@ export const tryGetActivityModuleById = Result.wrap(
  */
 export const tryUpdateActivityModule = Result.wrap(
 	async (payload: Payload, args: UpdateActivityModuleArgs) => {
-		const {
-			id,
-			title,
-			description,
-			type,
-			status,
-			assignmentData,
-			quizData,
-			discussionData,
-			requirePassword,
-			accessPassword,
-		} = args;
+		const { id, title, description, type, status, requirePassword, accessPassword } = args;
 
 		// Validate ID
 		if (!id) {
@@ -521,6 +581,14 @@ export const tryUpdateActivityModule = Result.wrap(
 			);
 		}
 
+		// Verify type matches if updating content
+		const currentType = existingModule.type as string;
+		if (currentType !== type) {
+			throw new InvalidArgumentError(
+				`Cannot update ${type} data for a ${currentType} module`,
+			);
+		}
+
 		// Start transaction for updating activity module and related entity
 		const transactionID = await payload.db.beginTransaction();
 
@@ -533,17 +601,46 @@ export const tryUpdateActivityModule = Result.wrap(
 			const updateData: Record<string, unknown> = {};
 			if (title !== undefined) updateData.title = title;
 			if (description !== undefined) updateData.description = description;
-			if (type !== undefined) updateData.type = type;
 			if (status !== undefined) updateData.status = status;
-			if (requirePassword !== undefined)
-				updateData.requirePassword = requirePassword;
-			if (accessPassword !== undefined)
-				updateData.accessPassword = accessPassword;
+			if (requirePassword !== undefined) updateData.requirePassword = requirePassword;
+			if (accessPassword !== undefined) updateData.accessPassword = accessPassword;
 
-			// Update related entity if data is provided
-			const currentType = existingModule.type as string;
-			if (assignmentData && currentType === "assignment") {
-				// Update assignment
+			// Update related entity based on discriminated type
+			if (type === "page") {
+				const pageId = existingModule.page;
+				if (
+					pageId &&
+					typeof pageId === "object" &&
+					"id" in pageId &&
+					pageId.id
+				) {
+					await payload.update({
+						collection: "pages",
+						id: pageId.id,
+						data: {
+							content: args.pageData.content,
+						},
+						req: { transactionID },
+					});
+				}
+			} else if (type === "whiteboard") {
+				const whiteboardId = existingModule.whiteboard;
+				if (
+					whiteboardId &&
+					typeof whiteboardId === "object" &&
+					"id" in whiteboardId &&
+					whiteboardId.id
+				) {
+					await payload.update({
+						collection: "whiteboards",
+						id: whiteboardId.id,
+						data: {
+							content: args.whiteboardData.content,
+						},
+						req: { transactionID },
+					});
+				}
+			} else if (type === "assignment") {
 				const assignmentId = existingModule.assignment;
 				if (
 					assignmentId &&
@@ -557,24 +654,23 @@ export const tryUpdateActivityModule = Result.wrap(
 						data: {
 							title: title || existingModule.title,
 							description:
-								assignmentData.instructions ||
+								args.assignmentData.instructions ||
 								description ||
 								existingModule.description,
-							instructions: assignmentData.instructions,
-							dueDate: assignmentData.dueDate,
-							maxAttempts: assignmentData.maxAttempts,
-							allowLateSubmissions: assignmentData.allowLateSubmissions,
-							allowedFileTypes: assignmentData.allowedFileTypes,
-							maxFileSize: assignmentData.maxFileSize,
-							maxFiles: assignmentData.maxFiles,
-							requireTextSubmission: assignmentData.requireTextSubmission,
-							requireFileSubmission: assignmentData.requireFileSubmission,
+							instructions: args.assignmentData.instructions,
+							dueDate: args.assignmentData.dueDate,
+							maxAttempts: args.assignmentData.maxAttempts,
+							allowLateSubmissions: args.assignmentData.allowLateSubmissions,
+							allowedFileTypes: args.assignmentData.allowedFileTypes,
+							maxFileSize: args.assignmentData.maxFileSize,
+							maxFiles: args.assignmentData.maxFiles,
+							requireTextSubmission: args.assignmentData.requireTextSubmission,
+							requireFileSubmission: args.assignmentData.requireFileSubmission,
 						},
 						req: { transactionID },
 					});
 				}
-			} else if (quizData && currentType === "quiz") {
-				// Update quiz
+			} else if (type === "quiz") {
 				const quizId = existingModule.quiz;
 				if (
 					quizId &&
@@ -588,30 +684,29 @@ export const tryUpdateActivityModule = Result.wrap(
 						data: {
 							title: title || existingModule.title,
 							description:
-								quizData.description ||
+								args.quizData.description ||
 								description ||
 								existingModule.description,
-							instructions: quizData.instructions,
-							dueDate: quizData.dueDate,
-							maxAttempts: quizData.maxAttempts,
-							allowLateSubmissions: quizData.allowLateSubmissions,
-							points: quizData.points,
-							gradingType: quizData.gradingType,
-							timeLimit: quizData.timeLimit,
-							showCorrectAnswers: quizData.showCorrectAnswers,
-							allowMultipleAttempts: quizData.allowMultipleAttempts,
-							shuffleQuestions: quizData.shuffleQuestions,
-							shuffleAnswers: quizData.shuffleAnswers,
-							showOneQuestionAtATime: quizData.showOneQuestionAtATime,
-							requirePassword: quizData.requirePassword,
-							accessPassword: quizData.accessPassword,
-							questions: quizData.questions,
+							instructions: args.quizData.instructions,
+							dueDate: args.quizData.dueDate,
+							maxAttempts: args.quizData.maxAttempts,
+							allowLateSubmissions: args.quizData.allowLateSubmissions,
+							points: args.quizData.points,
+							gradingType: args.quizData.gradingType,
+							timeLimit: args.quizData.timeLimit,
+							showCorrectAnswers: args.quizData.showCorrectAnswers,
+							allowMultipleAttempts: args.quizData.allowMultipleAttempts,
+							shuffleQuestions: args.quizData.shuffleQuestions,
+							shuffleAnswers: args.quizData.shuffleAnswers,
+							showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
+							requirePassword: args.quizData.requirePassword,
+							accessPassword: args.quizData.accessPassword,
+							questions: args.quizData.questions,
 						},
 						req: { transactionID },
 					});
 				}
-			} else if (discussionData && currentType === "discussion") {
-				// Update discussion
+			} else if (type === "discussion") {
 				const discussionId = existingModule.discussion;
 				if (
 					discussionId &&
@@ -625,24 +720,24 @@ export const tryUpdateActivityModule = Result.wrap(
 						data: {
 							title: title || existingModule.title,
 							description:
-								discussionData.description ||
+								args.discussionData.description ||
 								description ||
 								existingModule.description,
-							instructions: discussionData.instructions,
-							dueDate: discussionData.dueDate,
-							requireThread: discussionData.requireThread,
-							requireReplies: discussionData.requireReplies,
-							minReplies: discussionData.minReplies,
-							minWordsPerPost: discussionData.minWordsPerPost,
-							allowAttachments: discussionData.allowAttachments,
-							allowUpvotes: discussionData.allowUpvotes,
-							allowEditing: discussionData.allowEditing,
-							allowDeletion: discussionData.allowDeletion,
-							moderationRequired: discussionData.moderationRequired,
-							anonymousPosting: discussionData.anonymousPosting,
-							groupDiscussion: discussionData.groupDiscussion,
-							maxGroupSize: discussionData.maxGroupSize,
-							threadSorting: discussionData.threadSorting,
+							instructions: args.discussionData.instructions,
+							dueDate: args.discussionData.dueDate,
+							requireThread: args.discussionData.requireThread,
+							requireReplies: args.discussionData.requireReplies,
+							minReplies: args.discussionData.minReplies,
+							minWordsPerPost: args.discussionData.minWordsPerPost,
+							allowAttachments: args.discussionData.allowAttachments,
+							allowUpvotes: args.discussionData.allowUpvotes,
+							allowEditing: args.discussionData.allowEditing,
+							allowDeletion: args.discussionData.allowDeletion,
+							moderationRequired: args.discussionData.moderationRequired,
+							anonymousPosting: args.discussionData.anonymousPosting,
+							groupDiscussion: args.discussionData.groupDiscussion,
+							maxGroupSize: args.discussionData.maxGroupSize,
+							threadSorting: args.discussionData.threadSorting,
 						},
 						req: { transactionID },
 					});
@@ -650,12 +745,7 @@ export const tryUpdateActivityModule = Result.wrap(
 			}
 
 			// Validate that at least one field is being updated
-			if (
-				Object.keys(updateData).length === 0 &&
-				!assignmentData &&
-				!quizData &&
-				!discussionData
-			) {
+			if (Object.keys(updateData).length === 0) {
 				throw new InvalidArgumentError(
 					"At least one field must be provided for update",
 				);

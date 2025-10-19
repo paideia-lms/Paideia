@@ -6,27 +6,15 @@
 import type { Enrollment } from "server/contexts/course-context";
 import type { User } from "server/payload-types";
 
-/**
- * Check if user can create/edit activity modules
- */
-export function canManageActivityModules(user?: {
-	id: number;
-	role: User["role"];
-}): boolean {
-	return (
-		user?.role === "admin" ||
-		user?.role === "instructor" ||
-		user?.role === "content-manager"
-	);
-}
 
 export function canSeeCourseSettings(
 	user?: {
 		id: number;
-		role: User["role"];
+		role?: User["role"];
 	},
 	enrolment?: {
-		role: Enrollment["role"];
+		id: number;
+		role?: Enrollment["role"];
 	},
 ) {
 	return (
@@ -40,10 +28,10 @@ export function canSeeCourseSettings(
 export function canSeeCourseParticipants(
 	user?: {
 		id: number;
-		role: User["role"];
+		role?: User["role"];
 	},
 	enrolment?: {
-		role: Enrollment["role"];
+		role?: Enrollment["role"];
 	},
 ) {
 	return (
@@ -57,10 +45,12 @@ export function canSeeCourseParticipants(
 export function canSeeCourseGrades(
 	user?: {
 		id: number;
-		role: User["role"];
+		role?: User["role"];
 	},
 	enrolment?: {
-		role: Enrollment["role"];
+		id: number;
+		userId: number;
+		role?: Enrollment["role"];
 	},
 ) {
 	if (enrolment) return true;
@@ -70,10 +60,12 @@ export function canSeeCourseGrades(
 export function canSeeCourseModules(
 	user?: {
 		id: number;
-		role: User["role"];
+		role?: User["role"];
 	},
 	enrolment?: {
-		role: Enrollment["role"];
+		id: number;
+		userId: number;
+		role?: Enrollment["role"];
 	},
 ) {
 	return (
@@ -87,10 +79,10 @@ export function canSeeCourseModules(
 export function canSeeCourseBin(
 	user?: {
 		id: number;
-		role: User["role"];
+		role?: User["role"];
 	},
 	enrolment?: {
-		role: Enrollment["role"];
+		role?: Enrollment["role"];
 	},
 ) {
 	return (
@@ -104,10 +96,10 @@ export function canSeeCourseBin(
 export function canSeeCourseBackup(
 	user?: {
 		id: number;
-		role: User["role"];
+		role?: User["role"];
 	},
 	enrolment?: {
-		role: Enrollment["role"];
+		role?: Enrollment["role"];
 	},
 ) {
 	return (
@@ -124,7 +116,7 @@ export function canUpdateCourseStructure(
 		role?: User["role"];
 	},
 	enrolment?: {
-		role: Enrollment["role"];
+		role?: Enrollment["role"];
 	},
 ) {
 	return (
@@ -142,7 +134,7 @@ export function canManageCourseGroups(
 	},
 	courseCreatorId?: number,
 	enrolment?: {
-		role: Enrollment["role"];
+		role?: Enrollment["role"];
 	},
 ) {
 	return (
@@ -152,4 +144,22 @@ export function canManageCourseGroups(
 		enrolment?.role === "manager" ||
 		(courseCreatorId !== undefined && user?.id === courseCreatorId)
 	);
+}
+
+
+export function canAccessCourse(user?: {
+	id: number;
+	role?: User["role"];
+},
+	enrolments?: {
+		id: number;
+		userId: number;
+		role?: Enrollment["role"];
+	}[]
+) {
+	return (
+		user?.role === "admin" ||
+		user?.role === "content-manager" ||
+		enrolments?.some((enrolment) => enrolment.userId === user?.id)
+	)
 }

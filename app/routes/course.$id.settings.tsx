@@ -18,14 +18,14 @@ import { parseFormData } from "@remix-run/form-data-parser";
 import * as cheerio from "cheerio";
 import { useId, useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
+import { courseContextKey } from "server/contexts/course-context";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	tryFindCourseById,
-	tryUpdateCourse,
-} from "server/internal/course-management";
+import { tryUpdateCourse } from "server/internal/course-management";
 import { tryCreateMedia } from "server/internal/media-management";
 import type { Course } from "server/payload-types";
+import { canSeeCourseSettings } from "server/utils/permissions";
 import z from "zod";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { RichTextEditor } from "~/components/rich-text-editor";
@@ -40,11 +40,12 @@ import type { Route } from "./+types/course.$id.settings";
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const courseContext = context.get(courseContextKey);
+	const enrolmentContext = context.get(enrolmentContextKey);
+
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
@@ -53,32 +54,27 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		});
 	}
 
-	const courseResult = await tryFindCourseById({
-		payload,
-		courseId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-		overrideAccess: true,
-	});
-
-	if (!courseResult.ok) {
-		return badRequest({
-			error: courseResult.error.message,
-		});
+	// Get course view data using the course context
+	if (!courseContext) {
+		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const course = courseResult.value;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+	const { course } = courseContext;
 
 	// Check if user can edit this course
-	// Admin can edit any course, content-manager can only edit their own
-	if (
-		currentUser.role === "content-manager" &&
-		course.createdBy.id !== currentUser.id
-	) {
+	const canEdit = canSeeCourseSettings(
+		{
+			id: currentUser.id,
+			role: currentUser.role ?? "student",
+		},
+		enrolmentContext?.enrolment,
+	);
+
+	if (!canEdit) {
 		throw new ForbiddenResponse(
-			"Content managers can only edit courses they created",
+			"You don't have permission to edit this course",
 		);
 	}
 
@@ -134,6 +130,36 @@ export const action = async ({
 		return badRequest({
 			success: false,
 			error: "Invalid course ID",
+		});
+	}
+
+	// Get user's enrollment for this course
+	const enrollments = await payload.find({
+		collection: "enrollments",
+		where: {
+			and: [
+				{ user: { equals: currentUser.id } },
+				{ course: { equals: courseId } },
+			],
+		},
+		limit: 1,
+	});
+
+	const enrollment = enrollments.docs[0];
+
+	// Check if user has permission to edit settings
+	const canEdit = canSeeCourseSettings(
+		{
+			id: currentUser.id,
+			role: currentUser.role ?? "student",
+		},
+		enrollment,
+	);
+
+	if (!canEdit) {
+		return unauthorized({
+			success: false,
+			error: "You don't have permission to edit this course",
 		});
 	}
 

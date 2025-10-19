@@ -56,10 +56,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			avatar: enrollment.avatar,
 		}));
 
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
 	return {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		instructors,
+		currentUser: currentUser,
 	};
 };
 
@@ -74,7 +78,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		);
 	}
 
-	const { course, currentUser, instructors } = loaderData;
+	const { course, instructors, currentUser } = loaderData;
 
 	const canEdit =
 		currentUser.role === "admin" ||

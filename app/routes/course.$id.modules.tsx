@@ -1,44 +1,32 @@
-import {
-	Badge,
-	Button,
-	Container,
-	Group,
-	Paper,
-	Stack,
-	Text,
-	Title,
-} from "@mantine/core";
+import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconEdit } from "@tabler/icons-react";
-import { Link, useFetcher } from "react-router";
-import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
+import { useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
+import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateCourseActivityModuleLink,
 	tryDeleteCourseActivityModuleLink,
 } from "server/internal/course-activity-module-link-management";
 import { tryCreateSection } from "server/internal/course-section-management";
-import type { Enrollment } from "server/payload-types";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
 import {
-	getStatusBadgeColor,
-	getStatusLabel,
-} from "~/components/course-view-utils";
-import {
 	badRequest,
+	BadRequestResponse,
 	ForbiddenResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
+import { canSeeCourseModules } from "server/utils/permissions";
 import type { Route } from "./+types/course.$id.modules";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
+	const userAccessContext = context.get(userAccessContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -46,9 +34,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
-		return badRequest({
-			error: "Invalid course ID",
-		});
+		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -56,9 +42,44 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	const canEdit = canSeeCourseModules(
+		{
+			id: currentUser.id,
+			role: currentUser.role ?? "student",
+		},
+		enrolmentContext?.enrolment
+			? {
+				id: enrolmentContext.enrolment.id,
+				userId: enrolmentContext.enrolment.userId,
+				role: enrolmentContext.enrolment.role,
+			}
+			: undefined,
+	);
+
+	if (!canEdit) {
+		throw new ForbiddenResponse(
+			"You don't have permission to manage this course",
+		);
+	}
+
+	// Get available modules from user access context
+	const availableModules =
+		userAccessContext?.activityModules.map((module) => ({
+			id: module.id,
+			title: module.title,
+			description: module.description,
+			type: module.type,
+			status: module.status,
+		})) ?? [];
+
 	return {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
+		canEdit,
+		availableModules,
 	};
 };
 
@@ -82,29 +103,34 @@ export const action = async ({
 		return badRequest({ error: "Invalid course ID" });
 	}
 
-	// Get course to check ownership
-	const course = await payload.findByID({
-		collection: "courses",
-		id: courseId,
-		user: currentUser,
-		req: request,
-		overrideAccess: false,
+	// Get user's enrollment for this course
+	const enrollments = await payload.find({
+		collection: "enrollments",
+		where: {
+			and: [
+				{ user: { equals: currentUser.id } },
+				{ course: { equals: courseId } },
+			],
+		},
+		limit: 1,
 	});
 
-	if (!course) {
-		return badRequest({ error: "Course not found" });
-	}
+	const enrollment = enrollments.docs[0];
 
 	// Check if user has management access to this course
-	const courseCreatedById =
-		typeof course.createdBy === "number"
-			? course.createdBy
-			: course.createdBy.id;
-
-	const canManage =
-		currentUser.role === "admin" ||
-		currentUser.role === "content-manager" ||
-		courseCreatedById === currentUser.id;
+	const canManage = canSeeCourseModules(
+		{
+			id: currentUser.id,
+			role: currentUser.role ?? "student",
+		},
+		enrollment
+			? {
+				id: enrollment.id,
+				userId: enrollment.user as number,
+				role: enrollment.role,
+			}
+			: undefined,
+	);
 
 	if (!canManage) {
 		return unauthorized({
@@ -219,24 +245,7 @@ export default function CourseModulesPage({
 }: Route.ComponentProps) {
 	const fetcher = useFetcher<typeof action>();
 
-	if ("error" in loaderData) {
-		return (
-			<Container size="lg" py="xl">
-				<Paper withBorder shadow="sm" p="xl" radius="md">
-					<Text c="red">{loaderData.error}</Text>
-				</Paper>
-			</Container>
-		);
-	}
-
-	const { course, currentUser, availableModules } = loaderData;
-
-	const canEdit =
-		currentUser.role === "admin" ||
-		currentUser.role === "content-manager" ||
-		course.enrollments.some(
-			(enrollment) => enrollment.userId === currentUser.id,
-		);
+	const { course, canEdit, availableModules } = loaderData;
 
 	const handleDeleteLink = (linkId: number) => {
 		fetcher.submit(
@@ -252,13 +261,15 @@ export default function CourseModulesPage({
 		);
 	};
 
+	const title = `${course.title} - Modules | Paideia LMS`;
+
 	return (
 		<Container size="lg" py="xl">
-			<title>{`${course.title} - Modules | Paideia LMS`}</title>
+			<title>{title}</title>
 			<meta name="description" content={`${course.title} modules management`} />
 			<meta
 				property="og:title"
-				content={`${course.title} - Modules | Paideia LMS`}
+				content={title}
 			/>
 			<meta
 				property="og:description"

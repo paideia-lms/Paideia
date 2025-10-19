@@ -37,6 +37,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
 		throw new BadRequestResponse("Invalid course ID");
@@ -50,6 +53,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	return {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
+		currentUser: currentUser,
 	};
 };
 
@@ -73,29 +77,26 @@ export const action = async ({
 		return badRequest({ error: "Invalid course ID" });
 	}
 
-	// Get course to check ownership
-	const course = await payload.findByID({
-		collection: "courses",
-		id: courseId,
-		user: currentUser,
-		req: request,
-		overrideAccess: false,
+	// Get user's enrollment for this course
+	const enrollments = await payload.find({
+		collection: "enrollments",
+		where: {
+			and: [
+				{ user: { equals: currentUser.id } },
+				{ course: { equals: courseId } },
+			],
+		},
+		limit: 1,
 	});
 
-	if (!course) {
-		return badRequest({ error: "Course not found" });
-	}
+	const enrollment = enrollments.docs[0];
 
 	// Check if user has management access to this course
-	const courseCreatedById =
-		typeof course.createdBy === "number"
-			? course.createdBy
-			: course.createdBy.id;
-
 	const canManage =
 		currentUser.role === "admin" ||
 		currentUser.role === "content-manager" ||
-		courseCreatedById === currentUser.id;
+		enrollment?.role === "teacher" ||
+		enrollment?.role === "manager";
 
 	if (!canManage) {
 		return unauthorized({

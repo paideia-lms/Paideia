@@ -12,6 +12,10 @@ export const activityModuleSchema = z.object({
 	status: z.enum(["draft", "published", "archived"]).optional(),
 	requirePassword: z.boolean().optional(),
 	accessPassword: z.string().optional(),
+	// Page fields
+	pageContent: z.string().optional(),
+	// Whiteboard fields
+	whiteboardContent: z.string().optional(),
 	// Assignment fields
 	assignmentInstructions: z.string().optional(),
 	assignmentDueDate: z.string().optional(),
@@ -41,6 +45,10 @@ export type ActivityModuleFormValues = {
 	status: ActivityModule["status"];
 	requirePassword: boolean;
 	accessPassword: string;
+	// Page fields
+	pageContent: string;
+	// Whiteboard fields
+	whiteboardContent: string;
 	// Assignment fields
 	assignmentInstructions: string;
 	assignmentDueDate: Date | null;
@@ -74,6 +82,10 @@ export function getInitialFormValues(): ActivityModuleFormValues {
 		status: "draft",
 		requirePassword: false,
 		accessPassword: "",
+		// Page fields
+		pageContent: "",
+		// Whiteboard fields
+		whiteboardContent: "",
 		// Assignment fields
 		assignmentInstructions: "",
 		assignmentDueDate: null,
@@ -124,37 +136,55 @@ export function transformFormValues(values: ActivityModuleFormValues) {
 export function transformToActivityData(
 	parsedData: z.infer<typeof activityModuleSchema>,
 ) {
+	let pageData:
+		| {
+			content?: string;
+		}
+		| undefined;
+	let whiteboardData:
+		| {
+			content?: string;
+		}
+		| undefined;
 	let assignmentData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				allowLateSubmissions?: boolean;
-				requireTextSubmission?: boolean;
-				requireFileSubmission?: boolean;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			allowLateSubmissions?: boolean;
+			requireTextSubmission?: boolean;
+			requireFileSubmission?: boolean;
+		}
 		| undefined;
 	let quizData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				points?: number;
-				timeLimit?: number;
-				gradingType?: "automatic" | "manual";
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			points?: number;
+			timeLimit?: number;
+			gradingType?: "automatic" | "manual";
+		}
 		| undefined;
 	let discussionData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				requireThread?: boolean;
-				requireReplies?: boolean;
-				minReplies?: number;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			requireThread?: boolean;
+			requireReplies?: boolean;
+			minReplies?: number;
+		}
 		| undefined;
 
-	if (parsedData.type === "assignment") {
+	if (parsedData.type === "page") {
+		pageData = {
+			content: parsedData.pageContent,
+		};
+	} else if (parsedData.type === "whiteboard") {
+		whiteboardData = {
+			content: parsedData.whiteboardContent,
+		};
+	} else if (parsedData.type === "assignment") {
 		assignmentData = {
 			instructions: parsedData.assignmentInstructions,
 			dueDate: parsedData.assignmentDueDate,
@@ -182,5 +212,5 @@ export function transformToActivityData(
 		};
 	}
 
-	return { assignmentData, quizData, discussionData };
+	return { pageData, whiteboardData, assignmentData, quizData, discussionData };
 }

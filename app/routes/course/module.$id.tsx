@@ -3,27 +3,29 @@ import {
 	Button,
 	Container,
 	Group,
-	Paper,
 	Stack,
 	Text,
 	Title,
 } from "@mantine/core";
 import { Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
+import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
+import { DiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
+import { PagePreview } from "~/components/activity-modules-preview/page-preview";
+import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
+import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,
 } from "~/components/course-view-utils";
-import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
+import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/module.$id";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 	const payload = context.get(globalContextKey).payload;
 
@@ -33,9 +35,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const moduleLinkId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(moduleLinkId)) {
-		return badRequest({
-			error: "Invalid module link ID",
-		});
+		throw new BadRequestResponse("Invalid module link ID");
 	}
 
 	// Get course context to ensure user has access to this course
@@ -63,25 +63,28 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Module does not belong to this course");
 	}
 
-	return ok({
-		moduleLink,
-		course: courseContext.course,
+	// Fetch the full activity module with all relationships
+	const activityModuleId =
+		typeof moduleLink.activityModule === "number"
+			? moduleLink.activityModule
+			: moduleLink.activityModule.id;
+
+	const activityModule = await payload.findByID({
+		collection: "activity-modules",
+		id: activityModuleId,
+		depth: 2, // Ensure we get the page/whiteboard/etc content
 	});
+
+	return {
+		moduleLink: {
+			...moduleLink,
+			activityModule,
+		},
+		course: courseContext.course,
+	};
 };
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
-	if ("error" in loaderData) {
-		return (
-			<Container size="md" py="xl">
-				<Paper withBorder shadow="md" p="xl" radius="md">
-					<Title order={2} mb="md" c="red">
-						Error
-					</Title>
-					<Text>{loaderData.error}</Text>
-				</Paper>
-			</Container>
-		);
-	}
 
 	const { moduleLink, course } = loaderData;
 	const activityModule = moduleLink.activityModule;
@@ -89,65 +92,38 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	// Handle different module types
 	const renderModuleContent = () => {
 		switch (activityModule.type) {
-			case "page":
+			case "page": {
+				const pageContent =
+					typeof activityModule.page === "object" && activityModule.page
+						? activityModule.page.content
+						: null;
 				return (
-					<div>
-						<Title order={3} mb="md">
-							Page Content
-						</Title>
-						<Text>This is a page module. Content rendering would go here.</Text>
-					</div>
+					<PagePreview
+						content={pageContent || "<p>No content available</p>"}
+					/>
 				);
+			}
 			case "assignment":
-				return (
-					<div>
-						<Title order={3} mb="md">
-							Assignment
-						</Title>
-						<Text>
-							This is an assignment module. Assignment details would go here.
-						</Text>
-					</div>
-				);
+				return <AssignmentPreview />;
 			case "quiz":
-				return (
-					<div>
-						<Title order={3} mb="md">
-							Quiz
-						</Title>
-						<Text>This is a quiz module. Quiz questions would go here.</Text>
-					</div>
-				);
+				return <QuizPreview />;
 			case "discussion":
+				return <DiscussionPreview />;
+			case "whiteboard": {
+				const whiteboardContent =
+					typeof activityModule.whiteboard === "object" &&
+						activityModule.whiteboard
+						? activityModule.whiteboard.content
+						: null;
 				return (
-					<div>
-						<Title order={3} mb="md">
-							Discussion
-						</Title>
-						<Text>
-							This is a discussion module. Discussion content would go here.
-						</Text>
-					</div>
+					<WhiteboardPreview content={whiteboardContent || "{}"} />
 				);
-			case "whiteboard":
-				return (
-					<div>
-						<Title order={3} mb="md">
-							Whiteboard
-						</Title>
-						<Text>
-							This is a whiteboard module. Whiteboard content would go here.
-						</Text>
-					</div>
-				);
+			}
 			default:
 				return (
-					<div>
-						<Title order={3} mb="md">
-							Unknown Module Type
-						</Title>
-						<Text>This module type is not yet supported.</Text>
-					</div>
+					<Text c="red">
+						Unknown module type: {activityModule.type}
+					</Text>
 				);
 		}
 	};
@@ -187,9 +163,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					</Button>
 				</Group>
 
-				<Paper withBorder shadow="sm" p="xl">
-					{renderModuleContent()}
-				</Paper>
+				{renderModuleContent()}
 			</Stack>
 		</Container>
 	);

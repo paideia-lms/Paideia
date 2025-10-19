@@ -1,4 +1,4 @@
-import { Stack, Title } from "@mantine/core";
+import { Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useState } from "react";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
@@ -10,22 +10,30 @@ interface PageFormProps {
 }
 
 export function PageForm({ form }: PageFormProps) {
-	const [htmlContent, setHtmlContent] = useState(form.getValues().description);
+	const [htmlContent, setHtmlContent] = useState(form.getValues().pageContent);
 
 	return (
 		<Stack gap="md">
 			<CommonFields form={form} />
 
+			<Textarea
+				{...form.getInputProps("description")}
+				key={form.key("description")}
+				label="Description"
+				placeholder="Enter module description"
+				minRows={3}
+			/>
+
 			<div>
 				<Title order={5} mb="xs">
-					Content
+					Page Content
 				</Title>
 				<RichTextEditor
 					content={htmlContent}
 					placeholder="Enter page content..."
 					onChange={(html) => {
 						setHtmlContent(html);
-						form.setFieldValue("description", html);
+						form.setFieldValue("pageContent", html);
 					}}
 				/>
 			</div>

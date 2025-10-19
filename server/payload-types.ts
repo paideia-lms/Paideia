@@ -76,6 +76,8 @@ export interface Config {
     enrollments: Enrollment;
     'activity-modules': ActivityModule;
     'activity-module-grants': ActivityModuleGrant;
+    pages: Page;
+    whiteboards: Whiteboard;
     assignments: Assignment;
     quizzes: Quiz;
     discussions: Discussion;
@@ -145,6 +147,8 @@ export interface Config {
     enrollments: EnrollmentsSelect<false> | EnrollmentsSelect<true>;
     'activity-modules': ActivityModulesSelect<false> | ActivityModulesSelect<true>;
     'activity-module-grants': ActivityModuleGrantsSelect<false> | ActivityModuleGrantsSelect<true>;
+    pages: PagesSelect<false> | PagesSelect<true>;
+    whiteboards: WhiteboardsSelect<false> | WhiteboardsSelect<true>;
     assignments: AssignmentsSelect<false> | AssignmentsSelect<true>;
     quizzes: QuizzesSelect<false> | QuizzesSelect<true>;
     discussions: DiscussionsSelect<false> | DiscussionsSelect<true>;
@@ -476,6 +480,8 @@ export interface ActivityModule {
   createdBy: number | User;
   requirePassword?: boolean | null;
   accessPassword?: string | null;
+  page?: (number | null) | Page;
+  whiteboard?: (number | null) | Whiteboard;
   assignment?: (number | null) | Assignment;
   quiz?: (number | null) | Quiz;
   discussion?: (number | null) | Discussion;
@@ -504,6 +510,28 @@ export interface ActivityModule {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages".
+ */
+export interface Page {
+  id: number;
+  content?: string | null;
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "whiteboards".
+ */
+export interface Whiteboard {
+  id: number;
+  content?: string | null;
+  createdBy: number | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -989,6 +1017,14 @@ export interface PayloadLockedDocument {
         value: number | ActivityModuleGrant;
       } | null)
     | ({
+        relationTo: 'pages';
+        value: number | Page;
+      } | null)
+    | ({
+        relationTo: 'whiteboards';
+        value: number | Whiteboard;
+      } | null)
+    | ({
         relationTo: 'assignments';
         value: number | Assignment;
       } | null)
@@ -1224,6 +1260,8 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   createdBy?: T;
   requirePassword?: T;
   accessPassword?: T;
+  page?: T;
+  whiteboard?: T;
   assignment?: T;
   quiz?: T;
   discussion?: T;
@@ -1244,6 +1282,26 @@ export interface ActivityModuleGrantsSelect<T extends boolean = true> {
   grantedTo?: T;
   grantedBy?: T;
   grantedAt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "pages_select".
+ */
+export interface PagesSelect<T extends boolean = true> {
+  content?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "whiteboards_select".
+ */
+export interface WhiteboardsSelect<T extends boolean = true> {
+  content?: T;
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }

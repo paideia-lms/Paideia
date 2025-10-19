@@ -1,7 +1,10 @@
 import { faker } from "@faker-js/faker";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
-import { tryCreateActivityModule } from "./internal/activity-module-management";
+import {
+	type CreateActivityModuleArgs,
+	tryCreateActivityModule,
+} from "./internal/activity-module-management";
 import { tryCheckFirstUser } from "./internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "./internal/course-activity-module-link-management";
 import { tryCreateCourse } from "./internal/course-management";
@@ -290,6 +293,9 @@ export const runSeed = Result.wrap(
 			type: "page",
 			status: "published",
 			userId: adminUser.id,
+			pageData: {
+				content: faker.lorem.paragraph(),
+			},
 		});
 
 		if (!pageModuleResult.ok) {
@@ -313,13 +319,60 @@ export const runSeed = Result.wrap(
 		] as const;
 
 		for (let i = 0; i < 8; i++) {
-			const moduleResult = await tryCreateActivityModule(payload, {
+			const moduleType = moduleTypes[i % moduleTypes.length];
+			const baseArgs = {
 				title: faker.company.catchPhrase(),
 				description: faker.lorem.paragraph(),
-				type: moduleTypes[i % moduleTypes.length],
-				status: faker.helpers.arrayElement(["draft", "published"]),
+				status: faker.helpers.arrayElement(["draft", "published"]) as "draft" | "published",
 				userId: adminUser.id,
-			});
+			};
+
+			let moduleArgs: CreateActivityModuleArgs;
+			if (moduleType === "page") {
+				moduleArgs = {
+					...baseArgs,
+					type: "page" as const,
+					pageData: { content: faker.lorem.paragraph() },
+				};
+			} else if (moduleType === "whiteboard") {
+				moduleArgs = {
+					...baseArgs,
+					type: "whiteboard" as const,
+					whiteboardData: { content: JSON.stringify({ shapes: [], bindings: [] }) },
+				};
+			} else if (moduleType === "assignment") {
+				moduleArgs = {
+					...baseArgs,
+					type: "assignment" as const,
+					assignmentData: {
+						instructions: faker.lorem.paragraph(),
+						dueDate: faker.date.future().toISOString(),
+						maxAttempts: faker.number.int({ min: 1, max: 5 }),
+					},
+				};
+			} else if (moduleType === "quiz") {
+				moduleArgs = {
+					...baseArgs,
+					type: "quiz" as const,
+					quizData: {
+						instructions: faker.lorem.paragraph(),
+						points: faker.number.int({ min: 50, max: 100 }),
+						timeLimit: faker.number.int({ min: 30, max: 120 }),
+					},
+				};
+			} else {
+				moduleArgs = {
+					...baseArgs,
+					type: "discussion" as const,
+					discussionData: {
+						instructions: faker.lorem.paragraph(),
+						minReplies: faker.number.int({ min: 1, max: 5 }),
+						threadSorting: "recent" as const,
+					},
+				};
+			}
+
+			const moduleResult = await tryCreateActivityModule(payload, moduleArgs);
 
 			if (moduleResult.ok) {
 				additionalModules.push(moduleResult.value);

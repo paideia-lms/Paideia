@@ -5,7 +5,7 @@ export const ActivityModules = {
 	slug: "activity-modules",
 	defaultSort: "-createdAt",
 	access: {
-		read: ({ req }): AccessResult => {
+		read: (): AccessResult => {
 			return true;
 		},
 		create: ({ req }): AccessResult => {
@@ -115,6 +115,18 @@ export const ActivityModules = {
 		},
 		// Polymorphic relationship to specific activity collections
 		{
+			name: "page",
+			type: "relationship",
+			relationTo: "pages",
+			label: "Page Configuration",
+		},
+		{
+			name: "whiteboard",
+			type: "relationship",
+			relationTo: "whiteboards",
+			label: "Whiteboard Configuration",
+		},
+		{
 			name: "assignment",
 			type: "relationship",
 			relationTo: "assignments",
@@ -186,6 +198,12 @@ export const ActivityModules = {
 		},
 		{
 			fields: ["status"],
+		},
+		{
+			fields: ["page"],
+		},
+		{
+			fields: ["whiteboard"],
 		},
 		{
 			fields: ["assignment"],

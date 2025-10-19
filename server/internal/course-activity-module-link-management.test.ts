@@ -102,6 +102,9 @@ describe("Course Activity Module Link Management Functions", () => {
 			type: "page",
 			status: "draft",
 			userId: testUser.id,
+			pageData: {
+				content: "<p>Test content</p>",
+			},
 		};
 
 		const activityModuleResult = await tryCreateActivityModule(
@@ -434,6 +437,9 @@ describe("Course Activity Module Link Management Functions", () => {
 					type: "page",
 					status: "draft",
 					userId: testUser.id,
+					pageData: {
+						content: "<p>Unlinked module content</p>",
+					},
 				};
 
 				const activityModuleResult = await tryCreateActivityModule(

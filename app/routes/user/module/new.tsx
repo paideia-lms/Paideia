@@ -9,7 +9,10 @@ import {
 } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateActivityModule } from "server/internal/activity-module-management";
+import {
+	type CreateActivityModuleArgs,
+	tryCreateActivityModule,
+} from "server/internal/activity-module-management";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -64,21 +67,38 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	const parsedData = activityModuleSchema.parse(data);
 
-	const { assignmentData, quizData, discussionData } =
+	const { pageData, whiteboardData, assignmentData, quizData, discussionData } =
 		transformToActivityData(parsedData);
 
-	const createResult = await tryCreateActivityModule(payload, {
+	// Build args based on module type (discriminated union)
+	const baseArgs = {
 		title: parsedData.title,
 		description: parsedData.description,
-		type: parsedData.type,
-		status: parsedData.status || "draft",
+		status: parsedData.status || "draft" as const,
 		userId: currentUser.id,
-		assignmentData,
-		quizData,
-		discussionData,
 		requirePassword: parsedData.requirePassword,
 		accessPassword: parsedData.accessPassword,
-	});
+	};
+
+	let createArgs: CreateActivityModuleArgs;
+	if (parsedData.type === "page" && pageData) {
+		createArgs = { ...baseArgs, type: "page" as const, pageData };
+	} else if (parsedData.type === "whiteboard" && whiteboardData) {
+		createArgs = { ...baseArgs, type: "whiteboard" as const, whiteboardData };
+	} else if (parsedData.type === "assignment" && assignmentData) {
+		createArgs = { ...baseArgs, type: "assignment" as const, assignmentData };
+	} else if (parsedData.type === "quiz" && quizData) {
+		createArgs = { ...baseArgs, type: "quiz" as const, quizData };
+	} else if (parsedData.type === "discussion" && discussionData) {
+		createArgs = { ...baseArgs, type: "discussion" as const, discussionData };
+	} else {
+		return badRequest({
+			success: false,
+			error: `Invalid module type or missing data for ${parsedData.type}`,
+		});
+	}
+
+	const createResult = await tryCreateActivityModule(payload, createArgs);
 
 	if (!createResult.ok) {
 		return badRequest({
@@ -172,7 +192,12 @@ export default function NewModulePage() {
 						/>
 
 						{selectedType === "page" && <PageForm form={form} />}
-						{selectedType === "whiteboard" && <WhiteboardForm form={form} />}
+						{selectedType === "whiteboard" && (
+							<WhiteboardForm
+								form={form}
+								isLoading={fetcher.state === "submitting"}
+							/>
+						)}
 						{selectedType === "assignment" && <AssignmentForm form={form} />}
 						{selectedType === "quiz" && <QuizForm form={form} />}
 						{selectedType === "discussion" && <DiscussionForm form={form} />}

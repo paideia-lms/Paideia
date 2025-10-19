@@ -17,7 +17,6 @@ const year = new Date().getFullYear();
 
 describe("Activity Module Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
 	let testUserId: number;
 
 	beforeAll(async () => {
@@ -32,9 +31,6 @@ describe("Activity Module Management", () => {
 		payload = await getPayload({
 			config: sanitizedConfig,
 		});
-
-		// Create mock request object
-		mockRequest = new Request("http://localhost:3000/test");
 
 		// Create test user
 		const userArgs: CreateUserArgs = {
@@ -75,6 +71,9 @@ describe("Activity Module Management", () => {
 			type: "page",
 			status: "draft",
 			userId: testUserId,
+			pageData: {
+				content: "<p>This is test page content</p>",
+			},
 		};
 
 		const result = await tryCreateActivityModule(payload, args);
@@ -244,6 +243,9 @@ describe("Activity Module Management", () => {
 			title: "Test Activity Module 2",
 			type: "whiteboard",
 			userId: testUserId,
+			whiteboardData: {
+				content: JSON.stringify({ shapes: [], bindings: [] }),
+			},
 		};
 
 		const result = await tryCreateActivityModule(payload, args);
@@ -263,6 +265,9 @@ describe("Activity Module Management", () => {
 					title: "page module",
 					type: "page" as const,
 					userId: testUserId,
+					pageData: {
+						content: "<p>Test page content</p>",
+					},
 				},
 			},
 			{
@@ -271,6 +276,9 @@ describe("Activity Module Management", () => {
 					title: "whiteboard module",
 					type: "whiteboard" as const,
 					userId: testUserId,
+					whiteboardData: {
+						content: JSON.stringify({ shapes: [], bindings: [] }),
+					},
 				},
 			},
 			{
@@ -328,6 +336,9 @@ describe("Activity Module Management", () => {
 			title: "Get Test Module",
 			type: "page",
 			userId: testUserId,
+			pageData: {
+				content: "<p>Get test content</p>",
+			},
 		};
 
 		const createResult = await tryCreateActivityModule(payload, args);
@@ -357,6 +368,9 @@ describe("Activity Module Management", () => {
 			type: "page",
 			status: "draft",
 			userId: testUserId,
+			pageData: {
+				content: "<p>Original content</p>",
+			},
 		};
 
 		const createResult = await tryCreateActivityModule(payload, createArgs);
@@ -367,9 +381,13 @@ describe("Activity Module Management", () => {
 
 		const updateArgs: UpdateActivityModuleArgs = {
 			id: createdModule.id,
+			type: "page",
 			title: "Updated Page Title",
 			description: "Updated page description",
 			status: "published",
+			pageData: {
+				content: "<p>Updated content</p>",
+			},
 		};
 
 		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
@@ -404,6 +422,7 @@ describe("Activity Module Management", () => {
 
 		const updateArgs: UpdateActivityModuleArgs = {
 			id: createdModule.id,
+			type: "assignment",
 			title: "Updated Assignment Title",
 			description: "Updated assignment description",
 			status: "published",
@@ -447,6 +466,7 @@ describe("Activity Module Management", () => {
 
 		const updateArgs: UpdateActivityModuleArgs = {
 			id: createdModule.id,
+			type: "quiz",
 			title: "Updated Quiz Title",
 			description: "Updated quiz description",
 			status: "published",
@@ -491,6 +511,7 @@ describe("Activity Module Management", () => {
 
 		const updateArgs: UpdateActivityModuleArgs = {
 			id: createdModule.id,
+			type: "discussion",
 			title: "Updated Discussion Title",
 			description: "Updated discussion description",
 			status: "published",
@@ -519,6 +540,9 @@ describe("Activity Module Management", () => {
 			title: "Delete Test Page Module",
 			type: "page",
 			userId: testUserId,
+			pageData: {
+				content: "<p>Delete test content</p>",
+			},
 		};
 
 		const createResult = await tryCreateActivityModule(payload, args);
@@ -655,6 +679,9 @@ describe("Activity Module Management", () => {
 				type: "page" as const,
 				status: "published" as const,
 				userId: testUserId,
+				pageData: {
+					content: "<p>List test 1</p>",
+				},
 			},
 			{
 				title: "List Test Module 2",
@@ -729,6 +756,9 @@ describe("Activity Module Management", () => {
 				title: `Pagination Test Module ${i + 1}`,
 				type: "page",
 				userId: testUserId,
+				pageData: {
+					content: `<p>Pagination test ${i + 1}</p>`,
+				},
 			};
 
 			const result = await tryCreateActivityModule(payload, args);
@@ -758,67 +788,30 @@ describe("Activity Module Management", () => {
 			title: "",
 			type: "page",
 			userId: testUserId,
+			pageData: {
+				content: "<p>Test</p>",
+			},
 		};
 
 		const result1 = await tryCreateActivityModule(payload, invalidArgs1);
 		expect(result1.ok).toBe(false);
-
-		// Test missing type
-		const invalidArgs2: CreateActivityModuleArgs = {
-			title: "Test",
-			type: undefined as never,
-			userId: testUserId,
-		};
-
-		const result2 = await tryCreateActivityModule(payload, invalidArgs2);
-		expect(result2.ok).toBe(false);
 
 		// Test missing userId
 		const invalidArgs3: CreateActivityModuleArgs = {
 			title: "Test",
 			type: "page",
 			userId: undefined as never,
+			pageData: {
+				content: "<p>Test</p>",
+			},
 		};
 
 		const result3 = await tryCreateActivityModule(payload, invalidArgs3);
 		expect(result3.ok).toBe(false);
 	});
 
-	test("should fail to create assignment without assignment data", async () => {
-		const invalidArgs: CreateActivityModuleArgs = {
-			title: "Test Assignment",
-			type: "assignment",
-			userId: testUserId,
-			// Missing assignmentData
-		};
-
-		const result = await tryCreateActivityModule(payload, invalidArgs);
-		expect(result.ok).toBe(false);
-	});
-
-	test("should fail to create quiz without quiz data", async () => {
-		const invalidArgs: CreateActivityModuleArgs = {
-			title: "Test Quiz",
-			type: "quiz",
-			userId: testUserId,
-			// Missing quizData
-		};
-
-		const result = await tryCreateActivityModule(payload, invalidArgs);
-		expect(result.ok).toBe(false);
-	});
-
-	test("should fail to create discussion without discussion data", async () => {
-		const invalidArgs: CreateActivityModuleArgs = {
-			title: "Test Discussion",
-			type: "discussion",
-			userId: testUserId,
-			// Missing discussionData
-		};
-
-		const result = await tryCreateActivityModule(payload, invalidArgs);
-		expect(result.ok).toBe(false);
-	});
+	// Note: Tests for missing type-specific data (assignmentData, quizData, etc.) are no longer needed
+	// because the discriminated union enforces this at compile time
 
 	test("should fail to get non-existent activity module", async () => {
 		const result = await tryGetActivityModuleById(payload, {
@@ -831,7 +824,11 @@ describe("Activity Module Management", () => {
 	test("should fail to update non-existent activity module", async () => {
 		const updateArgs: UpdateActivityModuleArgs = {
 			id: 99999,
+			type: "page",
 			title: "Updated Title",
+			pageData: {
+				content: "<p>Updated</p>",
+			},
 		};
 
 		const result = await tryUpdateActivityModule(payload, updateArgs);

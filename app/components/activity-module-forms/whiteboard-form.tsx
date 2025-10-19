@@ -1,109 +1,93 @@
-import { Box, Stack, Title } from "@mantine/core";
+import { Box, Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useDebouncedCallback } from "@mantine/hooks";
+import { useLayoutEffect, useMemo } from "react";
 import {
-	createTLStore,
-	DefaultSpinner,
-	getSnapshot,
-	loadSnapshot,
-	type TLEditorSnapshot,
-	Tldraw,
+    createTLStore,
+    DefaultSpinner,
+    getSnapshot,
+    loadSnapshot,
+    type TLEditorSnapshot,
+    Tldraw,
 } from "tldraw";
 import "tldraw/tldraw.css";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { CommonFields } from "./common-fields";
 
 interface WhiteboardFormProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+    form: UseFormReturnType<ActivityModuleFormValues>;
+    isLoading?: boolean;
 }
 
-export function WhiteboardForm({ form }: WhiteboardFormProps) {
-	// Create a store instance
-	const store = useMemo(() => createTLStore(), []);
+export function WhiteboardForm({ form, isLoading = false }: WhiteboardFormProps) {
+    // Create a store instance
+    const store = useMemo(() => createTLStore(), []);
 
-	const [loadingState, setLoadingState] = useState<
-		| { status: "loading" }
-		| { status: "ready" }
-		| { status: "error"; error: string }
-	>({
-		status: "loading",
-	});
+    // Create a debounced callback to save the whiteboard snapshot
+    const saveSnapshot = useDebouncedCallback(() => {
+        const snapshot = getSnapshot(store);
+        form.setFieldValue("whiteboardContent", JSON.stringify(snapshot));
+    }, 200);
 
-	useLayoutEffect(() => {
-		setLoadingState({ status: "loading" });
+    useLayoutEffect(() => {
+        // Get persisted data from form whiteboardContent field
+        const existingContent = form.getValues().whiteboardContent;
 
-		// Get persisted data from form description field
-		const existingDescription = form.getValues().description;
+        if (existingContent && existingContent.trim().length > 0) {
+            try {
+                const snapshot = JSON.parse(
+                    existingContent,
+                ) as Partial<TLEditorSnapshot>;
+                loadSnapshot(store, snapshot);
+            } catch (error: unknown) {
+                console.error("Failed to load whiteboard data:", error);
+                // Continue with empty store on error
+            }
+        }
 
-		if (existingDescription && existingDescription.trim().length > 0) {
-			try {
-				const snapshot = JSON.parse(
-					existingDescription,
-				) as Partial<TLEditorSnapshot>;
-				loadSnapshot(store, snapshot);
-				setLoadingState({ status: "ready" });
-			} catch (error: unknown) {
-				console.error("Failed to load whiteboard data:", error);
-				setLoadingState({ status: "ready" }); // Continue with empty store on error
-			}
-		} else {
-			setLoadingState({ status: "ready" }); // Nothing persisted, continue with empty store
-		}
+        // Each time the store changes, save to form (with debouncing)
+        const cleanupFn = store.listen(() => {
+            saveSnapshot();
+        });
 
-		// Each time the store changes, save to form (with debouncing)
-		let timeoutId: NodeJS.Timeout;
-		const cleanupFn = store.listen(() => {
-			clearTimeout(timeoutId);
-			timeoutId = setTimeout(() => {
-				const snapshot = getSnapshot(store);
-				form.setFieldValue("description", JSON.stringify(snapshot));
-			}, 500);
-		});
+        return () => {
+            cleanupFn();
+        };
+    }, [store, form, saveSnapshot]);
 
-		return () => {
-			clearTimeout(timeoutId);
-			cleanupFn();
-		};
-	}, [store, form]);
+    return (
+        <Stack gap="md">
+            <CommonFields form={form} />
 
-	return (
-		<Stack gap="md">
-			<CommonFields form={form} />
+            <Textarea
+                {...form.getInputProps("description")}
+                key={form.key("description")}
+                label="Description"
+                placeholder="Enter module description"
+                minRows={3}
+            />
 
-			<div>
-				<Title order={5} mb="xs">
-					Whiteboard Canvas
-				</Title>
-				<Box style={{ height: "500px", border: "1px solid #dee2e6" }}>
-					{loadingState.status === "loading" && (
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "100%",
-							}}
-						>
-							<DefaultSpinner />
-						</div>
-					)}
-					{loadingState.status === "error" && (
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "100%",
-								flexDirection: "column",
-							}}
-						>
-							<h3>Error loading whiteboard</h3>
-							<p>{loadingState.error}</p>
-						</div>
-					)}
-					{loadingState.status === "ready" && <Tldraw store={store} />}
-				</Box>
-			</div>
-		</Stack>
-	);
+            <div>
+                <Title order={5} mb="xs">
+                    Whiteboard Canvas
+                </Title>
+                <Box style={{ height: "500px", border: "1px solid #dee2e6" }}>
+                    {isLoading ? (
+                        <div
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                height: "100%",
+                            }}
+                        >
+                            <DefaultSpinner />
+                        </div>
+                    ) : (
+                        <Tldraw store={store} />
+                    )}
+                </Box>
+            </div>
+        </Stack>
+    );
 }

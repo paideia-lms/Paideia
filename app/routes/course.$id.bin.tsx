@@ -1,10 +1,15 @@
 import { Container, Paper, Text, Title } from "@mantine/core";
+import { courseContextKey } from "server/contexts/course-context";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
-import { ForbiddenResponse } from "~/utils/responses";
+import { canSeeCourseBin } from "server/utils/permissions";
+import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.bin";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
+	const courseContext = context.get(courseContextKey);
+	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -12,10 +17,37 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
-		throw new ForbiddenResponse("Invalid course ID");
+		throw new BadRequestResponse("Invalid course ID");
 	}
 
-	// TODO: Add course access check and fetch deleted items data
+	// Get course view data using the course context
+	if (!courseContext) {
+		throw new ForbiddenResponse("Course not found or access denied");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	// Check if user can see course bin
+	const canSeeBin = canSeeCourseBin(
+		{
+			id: currentUser.id,
+			role: currentUser.role ?? "student",
+		},
+		enrolmentContext?.enrolment
+			? {
+				role: enrolmentContext.enrolment.role,
+			}
+			: undefined,
+	);
+
+	if (!canSeeBin) {
+		throw new ForbiddenResponse(
+			"You don't have permission to view course recycle bin",
+		);
+	}
+
+	// TODO: Fetch deleted items data
 	return {
 		courseId,
 		deletedItems: [], // Placeholder data

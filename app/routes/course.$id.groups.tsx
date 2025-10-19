@@ -112,10 +112,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		course: courseContext.course,
 		groups: courseContext.course.groups,
 		enrolment: enrolmentContext?.enrolment,
-		currentUser: {
-			...currentUser,
-			...courseContext.currentUser,
-		},
+		currentUser: currentUser,
 	};
 };
 
@@ -139,26 +136,32 @@ export const action = async ({
 		return badRequest({ error: "Invalid course ID" });
 	}
 
-	// Get course to check ownership
-	const course = await payload.findByID({
-		collection: "courses",
-		id: courseId,
-		user: currentUser,
-		req: request,
-		overrideAccess: false,
+	// Get user's enrollment for this course
+	const enrollments = await payload.find({
+		collection: "enrollments",
+		where: {
+			and: [
+				{ user: { equals: currentUser.id } },
+				{ course: { equals: courseId } },
+			],
+		},
+		limit: 1,
 	});
 
-	if (!course) {
-		return badRequest({ error: "Course not found" });
-	}
+	const enrollment = enrollments.docs[0];
 
 	// Check if user has management access to this course
-	const courseCreatedById =
-		typeof course.createdBy === "number"
-			? course.createdBy
-			: course.createdBy.id;
-
-	if (!canManageCourseGroups(currentUser, courseCreatedById)) {
+	if (
+		!canManageCourseGroups(
+			currentUser,
+			undefined,
+			enrollment
+				? {
+					role: enrollment.role,
+				}
+				: undefined,
+		)
+	) {
 		return unauthorized({
 			error: "You don't have permission to manage this course",
 		});

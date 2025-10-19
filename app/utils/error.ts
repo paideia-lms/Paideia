@@ -222,6 +222,20 @@ export class CourseStructureNotFoundError extends Error {
 	}
 }
 
+export class NonExistingPageError extends Error {
+	static readonly type = "NonExistingPageError";
+	get type() {
+		return NonExistingPageError.type;
+	}
+}
+
+export class NonExistingWhiteboardError extends Error {
+	static readonly type = "NonExistingWhiteboardError";
+	get type() {
+		return NonExistingWhiteboardError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||
@@ -258,6 +272,8 @@ export function transformError(error: unknown) {
 	else if (error instanceof InvalidOwnerTransferError) return error;
 	else if (error instanceof CourseAccessDeniedError) return error;
 	else if (error instanceof CourseStructureNotFoundError) return error;
+	else if (error instanceof NonExistingPageError) return error;
+	else if (error instanceof NonExistingWhiteboardError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }
