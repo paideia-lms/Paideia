@@ -91,6 +91,7 @@
 		"json-schema-library": "^10.3.0",
 		"lefthook": "^1.13.6",
 		"lowlight": "^3.3.0",
+		"lowlight-mermaid": "^0.0.0",
 		"merkletreejs": "^0.6.0",
 		"mime": "^4.1.0",
 		"node-cache": "^5.1.2",

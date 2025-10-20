@@ -22,6 +22,7 @@ import "@mantine/charts/styles.css";
 import "@mantine/tiptap/styles.css";
 import "tldraw/tldraw.css";
 
+
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
@@ -48,7 +49,6 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { InternalServerErrorResponse } from "./utils/responses";
 import {
-	RouteId,
 	type RouteParams,
 	tryGetRouteHierarchy,
 } from "./utils/routes-utils";
@@ -231,9 +231,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -301,9 +301,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -421,10 +421,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
+	const { theme } = loaderData;
+
 	return (
 		<html
 			lang="en"
-			data-mantine-color-scheme={loaderData.theme}
+			data-mantine-color-scheme={theme}
 			style={{ overscrollBehaviorX: "none" }}
 		>
 			<head>
@@ -437,12 +439,16 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					rel="icon"
 					href={`/favicon.ico?timestamp=${loaderData.timestamp}`}
 				/>
+				<link
+					rel="stylesheet"
+					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
+				/>
 				<Meta />
 				<Links />
-				<ColorSchemeScript defaultColorScheme={loaderData.theme} />
+				<ColorSchemeScript defaultColorScheme={theme} />
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
-				<MantineProvider defaultColorScheme={loaderData.theme}>
+				<MantineProvider defaultColorScheme={theme}>
 					<NuqsAdapter>
 						<Outlet />
 						<Notifications />

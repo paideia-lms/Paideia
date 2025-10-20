@@ -12,7 +12,6 @@ import {
 	Stack,
 	Text,
 	Title,
-	Typography,
 } from "@mantine/core";
 import { Calendar } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
@@ -21,6 +20,7 @@ import * as cheerio from "cheerio";
 import dayjs from "dayjs";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
+import { RichTextRenderer } from "~/components/rich-text-renderer";
 import { globalContextKey } from "server/contexts/global-context";
 import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -211,10 +211,10 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 	// Filter notes based on selected date from calendar
 	const filteredNotes = selectedDate
 		? notes.filter((note: Note) => {
-				const noteDate = dayjs(note.createdAt).format("YYYY-MM-DD");
-				const selectedDateStr = dayjs(selectedDate).format("YYYY-MM-DD");
-				return noteDate === selectedDateStr;
-			})
+			const noteDate = dayjs(note.createdAt).format("YYYY-MM-DD");
+			const selectedDateStr = dayjs(selectedDate).format("YYYY-MM-DD");
+			return noteDate === selectedDateStr;
+		})
 		: notes;
 
 	// Highlight dates with notes in calendar
@@ -225,7 +225,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 		const isSelected =
 			selectedDate &&
 			dayjs(parsedDate).format("YYYY-MM-DD") ===
-				dayjs(selectedDate).format("YYYY-MM-DD");
+			dayjs(selectedDate).format("YYYY-MM-DD");
 
 		return {
 			style: {
@@ -297,10 +297,9 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 							withWeekdayLabels
 							withMonthLabels
 							getTooltipLabel={({ date, value }) =>
-								`${dayjs(date).format("DD MMM, YYYY")} – ${
-									value === null || value === 0
-										? "No notes"
-										: `${value} note${value > 1 ? "s" : ""}`
+								`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
+									? "No notes"
+									: `${value} note${value > 1 ? "s" : ""}`
 								}`
 							}
 						/>
@@ -422,15 +421,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 												)}
 											</Group>
 											{/* change all input to disabled */}
-											<Typography
-												className="tiptap"
-												style={{
-													maxWidth: "100%",
-													wordBreak: "break-word",
-												}}
-												/** biome-ignore lint/security/noDangerouslySetInnerHtml: cheerio sanitizes the html */
-												dangerouslySetInnerHTML={{ __html: html }}
-											/>
+											<RichTextRenderer content={html} />
 										</Card>
 									);
 								})}

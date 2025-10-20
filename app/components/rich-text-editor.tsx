@@ -54,7 +54,7 @@ import TipTapTaskList from "@tiptap/extension-task-list";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
-import { useEditor, useEditorState } from "@tiptap/react";
+import { useEditor, useEditorState, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { Editor, EditorEvents } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -75,6 +75,8 @@ import rehypeFormat from "rehype-format";
 import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
 import { unified } from "unified";
+import { mermaidGrammar } from "lowlight-mermaid";
+
 
 
 const lowlight = createLowlight();
@@ -90,6 +92,55 @@ lowlight.register("json", json);
 lowlight.register("bash", bash);
 lowlight.register("sql", sql);
 lowlight.register("markdown", markdown);
+lowlight.register("mermaid", mermaidGrammar);
+
+// Custom Code Block Component with language selector
+function CodeBlockComponent({
+	node,
+	updateAttributes,
+	extension,
+	editor,
+}: {
+	node: {
+		attrs: {
+			language: string;
+		};
+	};
+	updateAttributes: (attrs: { language: string }) => void;
+	extension: {
+		options: {
+			lowlight: typeof lowlight;
+		};
+	};
+	editor: Editor;
+}) {
+	const isEditable = editor.isEditable;
+
+	return (
+		<NodeViewWrapper className="code-block">
+			{isEditable && (
+				<select
+					contentEditable={false}
+					defaultValue={node.attrs.language}
+					onChange={(event) => updateAttributes({ language: event.target.value })}
+				>
+					<option value="null">auto</option>
+					<option disabled>—</option>
+					{extension.options.lowlight.listLanguages().map((lang) => (
+						<option key={lang} value={lang}>
+							{lang}
+						</option>
+					))}
+				</select>
+			)}
+			<pre>
+				<code>
+					<NodeViewContent />
+				</code>
+			</pre>
+		</NodeViewWrapper>
+	);
+}
 
 // Custom Blockquote extension with callout support
 const CalloutBlockquote = Blockquote.extend({
@@ -760,7 +811,12 @@ export function RichTextEditor({
 				},
 				includeChildren: true,
 			}),
-			CodeBlockLowlight.configure({ lowlight }),
+			CodeBlockLowlight.extend({
+				addNodeView() {
+					// @ts-expect-error - ReactNodeViewRenderer types don't perfectly match TipTap's expectations
+					return ReactNodeViewRenderer(CodeBlockComponent);
+				},
+			}).configure({ lowlight }),
 			Details.configure({
 				persist: true,
 				HTMLAttributes: {
