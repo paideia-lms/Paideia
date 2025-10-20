@@ -1,5 +1,6 @@
 import dayjs from "dayjs";
 import type { Payload, TypedUser } from "payload";
+import { Notes } from "server/collections";
 import { assertZod } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -194,7 +195,7 @@ export const tryFindNoteById = Result.wrap(
 		// Find note with access control
 		const note = await payload
 			.findByID({
-				collection: "notes",
+				collection: Notes.slug,
 				id: noteId,
 				user,
 				req,
@@ -202,9 +203,9 @@ export const tryFindNoteById = Result.wrap(
 			})
 			.then((n) => {
 				const createdBy = n.createdBy;
-				assertZod(createdBy, z.object({ id: z.number() }));
+				assertZod(createdBy, z.object({ id: z.number() }, { error: "Note createdBy is required" }));
 				const avatar = createdBy.avatar;
-				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				assertZod(avatar, z.number({ error: "Note createdBy avatar is required" }).nullish());
 				return {
 					...n,
 					createdBy: {

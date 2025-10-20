@@ -1,4 +1,4 @@
-import { Avatar, Card, Group, Paper, Stack, Text } from "@mantine/core";
+import { Avatar, Card, Group, Paper, Stack, Text, Typography } from "@mantine/core";
 import { href, Link } from "react-router";
 
 interface CourseInfoProps {
@@ -14,12 +14,12 @@ interface CourseInfoProps {
 			email: string;
 			role: "teacher" | "ta";
 			avatar?:
-				| number
-				| {
-						id: number;
-						filename?: string | null;
-				  }
-				| null;
+			| number
+			| {
+				id: number;
+				filename?: string | null;
+			}
+			| null;
 		}>;
 		createdAt: string;
 		updatedAt: string;
@@ -35,8 +35,11 @@ export function CourseInfo({ course }: CourseInfoProps) {
 					<Text fw={600} size="sm" c="dimmed" mb="xs">
 						Description
 					</Text>
-					{/* biome-ignore lint/security/noDangerouslySetInnerHtml: HTML content from rich text editor */}
-					<Text dangerouslySetInnerHTML={{ __html: course.description }} />
+					<Typography classNames={{
+						"root": "tiptap",
+					}}
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: HTML content from rich text editor
+						dangerouslySetInnerHTML={{ __html: course.description }} />
 				</div>
 
 				<Group grow>

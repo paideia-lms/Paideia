@@ -18,7 +18,7 @@ import {
 	getStatusBadgeColor,
 	getStatusLabel,
 } from "~/components/course-view-utils";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
+import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -32,9 +32,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
-		return badRequest({
-			error: "Invalid course ID",
-		});
+		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -68,15 +66,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
-	if ("error" in loaderData) {
-		return (
-			<Container size="lg" py="xl">
-				<Paper withBorder shadow="sm" p="xl" radius="md">
-					<Text c="red">{loaderData.error}</Text>
-				</Paper>
-			</Container>
-		);
-	}
 
 	const { course, instructors, currentUser } = loaderData;
 

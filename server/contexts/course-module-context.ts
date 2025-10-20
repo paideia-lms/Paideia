@@ -6,21 +6,25 @@ export interface CourseModule {
 	courseId: number;
 	title: string;
 	description?: string;
-	content?: string;
-	type: "video" | "text" | "quiz" | "assignment" | "discussion";
-	position: number;
-	duration?: number; // in minutes
-	isCompleted: boolean;
-	isLocked: boolean;
-	prerequisites?: string[]; // module IDs
+	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
+	status: "draft" | "published" | "archived";
+	createdBy: {
+		id: number;
+		email: string;
+		firstName?: string | null;
+		lastName?: string | null;
+		avatar: {
+			id: number;
+			filename?: string | null;
+		} | null;
+	};
+	updatedAt: string;
+	createdAt: string;
 }
 
 export interface CourseModuleContext {
 	module: CourseModule;
 	moduleId: string;
-	position: number;
-	isCompleted: boolean;
-	canAccess: boolean;
 	nextModule?: CourseModule;
 	previousModule?: CourseModule;
 }

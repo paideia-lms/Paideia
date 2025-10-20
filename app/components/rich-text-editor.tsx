@@ -1,5 +1,4 @@
-import { useMantineTheme } from "@mantine/core";
-import { useFileDialog } from "@mantine/hooks";
+import { useDebouncedCallback, useFileDialog } from "@mantine/hooks";
 import {
 	getTaskListExtension,
 	Link,
@@ -7,12 +6,18 @@ import {
 	useRichTextEditorContext,
 } from "@mantine/tiptap";
 import {
+	IconAlertCircle,
+	IconAlertTriangle,
 	IconBrandYoutube,
+	IconBulb,
+	IconChevronRight,
 	IconColumnInsertLeft,
 	IconColumnInsertRight,
 	IconColumnRemove,
 	IconColumns3,
 	IconContainer,
+	IconExclamationCircle,
+	IconInfoCircle,
 	IconLayoutNavbar,
 	IconLayoutSidebar,
 	IconPhoto,
@@ -22,8 +27,14 @@ import {
 	IconTable,
 	IconTableOff,
 } from "@tabler/icons-react";
+import Blockquote from "@tiptap/extension-blockquote";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { Color } from "@tiptap/extension-color";
+import {
+	Details,
+	DetailsContent,
+	DetailsSummary,
+} from "@tiptap/extension-details";
 import Dropcursor from "@tiptap/extension-dropcursor";
 import FileHandler from "@tiptap/extension-file-handler";
 import { Gapcursor } from "@tiptap/extension-gapcursor";
@@ -67,6 +78,28 @@ lowlight.register("json", json);
 lowlight.register("bash", bash);
 lowlight.register("sql", sql);
 lowlight.register("markdown", markdown);
+
+// Custom Blockquote extension with callout support
+const CalloutBlockquote = Blockquote.extend({
+	addAttributes() {
+		return {
+			...this.parent?.(),
+			type: {
+				default: null,
+				parseHTML: (element) => element.getAttribute("data-type"),
+				renderHTML: (attributes) => {
+					if (!attributes.type) {
+						return {};
+					}
+					return {
+						"data-type": attributes.type,
+						class: `callout callout-${attributes.type}`,
+					};
+				},
+			},
+		};
+	},
+});
 
 // Custom hook for image resizing
 function useImageResize(editor: Editor | null) {
@@ -313,6 +346,128 @@ function ToggleHeaderRowControl() {
 	);
 }
 
+// Callout Controls
+function CalloutNoteControl() {
+	const { editor } = useRichTextEditorContext();
+	return (
+		<MantineRTE.Control
+			onClick={() =>
+				editor
+					?.chain()
+					.focus()
+					.toggleBlockquote()
+					.updateAttributes("blockquote", { type: "note" })
+					.run()
+			}
+			aria-label="Note callout"
+			title="Note callout"
+			active={editor?.isActive("blockquote", { type: "note" })}
+		>
+			<IconInfoCircle stroke={1.5} size={16} />
+		</MantineRTE.Control>
+	);
+}
+
+function CalloutTipControl() {
+	const { editor } = useRichTextEditorContext();
+	return (
+		<MantineRTE.Control
+			onClick={() =>
+				editor
+					?.chain()
+					.focus()
+					.toggleBlockquote()
+					.updateAttributes("blockquote", { type: "tip" })
+					.run()
+			}
+			aria-label="Tip callout"
+			title="Tip callout"
+			active={editor?.isActive("blockquote", { type: "tip" })}
+		>
+			<IconBulb stroke={1.5} size={16} />
+		</MantineRTE.Control>
+	);
+}
+
+function CalloutImportantControl() {
+	const { editor } = useRichTextEditorContext();
+	return (
+		<MantineRTE.Control
+			onClick={() =>
+				editor
+					?.chain()
+					.focus()
+					.toggleBlockquote()
+					.updateAttributes("blockquote", { type: "important" })
+					.run()
+			}
+			aria-label="Important callout"
+			title="Important callout"
+			active={editor?.isActive("blockquote", { type: "important" })}
+		>
+			<IconExclamationCircle stroke={1.5} size={16} />
+		</MantineRTE.Control>
+	);
+}
+
+function CalloutWarningControl() {
+	const { editor } = useRichTextEditorContext();
+	return (
+		<MantineRTE.Control
+			onClick={() =>
+				editor
+					?.chain()
+					.focus()
+					.toggleBlockquote()
+					.updateAttributes("blockquote", { type: "warning" })
+					.run()
+			}
+			aria-label="Warning callout"
+			title="Warning callout"
+			active={editor?.isActive("blockquote", { type: "warning" })}
+		>
+			<IconAlertTriangle stroke={1.5} size={16} />
+		</MantineRTE.Control>
+	);
+}
+
+function CalloutCautionControl() {
+	const { editor } = useRichTextEditorContext();
+	return (
+		<MantineRTE.Control
+			onClick={() =>
+				editor
+					?.chain()
+					.focus()
+					.toggleBlockquote()
+					.updateAttributes("blockquote", { type: "caution" })
+					.run()
+			}
+			aria-label="Caution callout"
+			title="Caution callout"
+			active={editor?.isActive("blockquote", { type: "caution" })}
+		>
+			<IconAlertCircle stroke={1.5} size={16} />
+		</MantineRTE.Control>
+	);
+}
+
+// Details Control
+function DetailsControl() {
+	const { editor } = useRichTextEditorContext();
+	return (
+		<MantineRTE.Control
+			onClick={() => editor?.chain().focus().setDetails().run()}
+			aria-label="Insert collapsible details"
+			title="Insert collapsible details"
+			active={editor?.isActive("details")}
+			disabled={!editor?.can().setDetails()}
+		>
+			<IconChevronRight stroke={1.5} size={16} />
+		</MantineRTE.Control>
+	);
+}
+
 function AddYoutubeVideoControl() {
 	const { editor } = useRichTextEditorContext();
 
@@ -487,6 +642,7 @@ interface RichTextEditorProps {
 	onChange?: (content: string) => void;
 	onEditorReady?: (editor: Editor) => void;
 	onImageAdd?: (imageFile: ImageFile) => void;
+	readonly?: boolean;
 }
 
 export function RichTextEditor({
@@ -495,23 +651,46 @@ export function RichTextEditor({
 	onChange,
 	onEditorReady,
 	onImageAdd,
+	readonly = false,
 }: RichTextEditorProps) {
 	const [isSourceCodeMode, setIsSourceCodeMode] = useState(false);
 
-	const mantineTheme = useMantineTheme();
+	// Debounce the onChange callback to improve performance
+	const debouncedOnChange = useDebouncedCallback(({ editor }: { editor: Editor }) => {
+		if (onChange) {
+			onChange(editor.getHTML());
+		}
+	}, 300);
 
 	const editor = useEditor({
 		immediatelyRender: false,
 		shouldRerenderOnTransaction: true,
 		extensions: [
-			StarterKit.configure({ link: false, codeBlock: false }),
+			StarterKit.configure({ link: false, codeBlock: false, blockquote: false }),
+			CalloutBlockquote,
 			Link,
 			Highlight,
 			Superscript,
 			SubScript,
 			TextAlign.configure({ types: ["heading", "paragraph"] }),
-			Placeholder.configure({ placeholder }),
+			Placeholder.configure({
+				placeholder: ({ node }) => {
+					if (node.type.name === "detailsSummary") {
+						return "Summary";
+					}
+					return placeholder;
+				},
+				includeChildren: true,
+			}),
 			CodeBlockLowlight.configure({ lowlight }),
+			Details.configure({
+				persist: true,
+				HTMLAttributes: {
+					class: "details",
+				},
+			}),
+			DetailsSummary,
+			DetailsContent,
 			getTaskListExtension(TipTapTaskList),
 			TaskItem.configure({
 				nested: true,
@@ -602,16 +781,14 @@ export function RichTextEditor({
 			}),
 		],
 		content,
-		onUpdate: ({ editor }) => {
-			if (onChange) {
-				onChange(editor.getHTML());
-			}
-		},
+		onUpdate: debouncedOnChange,
 		onCreate: ({ editor }) => {
 			if (onEditorReady) {
 				onEditorReady(editor);
 			}
 		},
+		editable: !readonly,
+
 	});
 
 	// Add image resizing functionality
@@ -619,7 +796,7 @@ export function RichTextEditor({
 
 	return (
 		<MantineRTE editor={editor} onSourceCodeTextSwitch={setIsSourceCodeMode}>
-			{editor && (
+			{editor && !readonly && !isSourceCodeMode && (
 				<BubbleMenu
 					editor={editor}
 					options={{
@@ -649,7 +826,7 @@ export function RichTextEditor({
 				</BubbleMenu>
 			)}
 
-			<MantineRTE.Toolbar sticky stickyOffset="var(--docs-header-height)">
+			{!readonly && <MantineRTE.Toolbar sticky stickyOffset="var(--docs-header-height)">
 				<MantineRTE.ControlsGroup>
 					<MantineRTE.SourceCode />
 				</MantineRTE.ControlsGroup>
@@ -707,6 +884,18 @@ export function RichTextEditor({
 						</MantineRTE.ControlsGroup>
 
 						<MantineRTE.ControlsGroup>
+							<CalloutNoteControl />
+							<CalloutTipControl />
+							<CalloutImportantControl />
+							<CalloutWarningControl />
+							<CalloutCautionControl />
+						</MantineRTE.ControlsGroup>
+
+						<MantineRTE.ControlsGroup>
+							<DetailsControl />
+						</MantineRTE.ControlsGroup>
+
+						<MantineRTE.ControlsGroup>
 							<MantineRTE.TaskList />
 							<MantineRTE.TaskListLift />
 							<MantineRTE.TaskListSink />
@@ -757,7 +946,7 @@ export function RichTextEditor({
 						</MantineRTE.ControlsGroup>
 					</>
 				)}
-			</MantineRTE.Toolbar>
+			</MantineRTE.Toolbar>}
 
 			<MantineRTE.Content />
 		</MantineRTE>

@@ -1,4 +1,4 @@
-import { Paper } from "@mantine/core";
+import { Paper, Typography } from "@mantine/core";
 
 interface PagePreviewProps {
     content: string;
@@ -7,7 +7,8 @@ interface PagePreviewProps {
 export function PagePreview({ content }: PagePreviewProps) {
     return (
         <Paper withBorder p="md" radius="md">
-            <div
+            <Typography
+                className="tiptap"
                 // biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
                 dangerouslySetInnerHTML={{ __html: content }}
                 style={{

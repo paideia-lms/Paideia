@@ -17,8 +17,10 @@ import {
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
-import { badRequest, NotFoundResponse } from "~/utils/responses";
+import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { notifications } from "@mantine/notifications";
 
 export const loader = async ({
 	request,
@@ -142,9 +144,9 @@ export const action = async ({
 
 		if (!content || content.trim().length === 0) {
 			await payload.db.rollbackTransaction(transactionID);
-			return {
+			return badRequest({
 				error: "Note content cannot be empty",
-			};
+			});
 		}
 
 		// Replace base64 images with actual media URLs
@@ -201,9 +203,9 @@ export const action = async ({
 
 		if (!result.ok) {
 			await payload.db.rollbackTransaction(transactionID);
-			return {
+			return badRequest({
 				error: result.error.message,
-			};
+			});
 		}
 
 		// Commit the transaction
@@ -218,6 +220,22 @@ export const action = async ({
 			error: error instanceof Error ? error.message : "Failed to update note",
 		});
 	}
+};
+
+export const clientAction = async ({ serverAction }: Route.ClientActionArgs) => {
+	const actionData = await serverAction();
+	if (actionData?.status === StatusCode.BadRequest) {
+		notifications.show({
+			title: "Error",
+			message: actionData?.error,
+			color: "red",
+		});
+	}
+	return actionData;
+};
+
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	return <DefaultErrorBoundary error={error} />;
 };
 
 export default function NoteEditPage({
