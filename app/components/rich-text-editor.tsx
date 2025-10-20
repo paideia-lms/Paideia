@@ -54,7 +54,7 @@ import TipTapTaskList from "@tiptap/extension-task-list";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
-import { useEditor } from "@tiptap/react";
+import { useEditor, useEditorState } from "@tiptap/react";
 import type { Editor, EditorEvents } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
@@ -688,6 +688,7 @@ interface RichTextEditorProps {
 	onEditorReady?: (editor: Editor) => void;
 	onImageAdd?: (imageFile: ImageFile) => void;
 	readonly?: boolean;
+	showStatus?: boolean; // Show editor status (character count, word count, etc.)
 }
 
 const DEBOUNCE_TIME = 300;
@@ -699,6 +700,7 @@ export function RichTextEditor({
 	onEditorReady,
 	onImageAdd,
 	readonly = false,
+	showStatus = false,
 }: RichTextEditorProps) {
 	const [isSourceCodeMode, setIsSourceCodeMode] = useState(false);
 	const { colorScheme } = useMantineColorScheme();
@@ -869,6 +871,48 @@ export function RichTextEditor({
 	// Add image resizing functionality
 	useImageResize(editor);
 
+	// Use useEditorState to access editor state without causing re-renders
+	// This is more performant than accessing editor state directly in the component
+	// The selector function ensures only selected state changes trigger re-renders
+	// 
+	// ⚠️ IMPORTANT: Only include primitive/stable values in the selector!
+	// DO NOT include editor.getJSON(), editor.getText(), or editor.getHTML() here
+	// as they create new references on every transaction, defeating the purpose.
+	// 
+	// Good for selector: isEditable, isEmpty, isFocused, isActive() checks
+	// Bad for selector: getJSON(), getText(), getHTML(), state.selection (creates new objects)
+	const editorState = useEditorState({
+		editor,
+		selector: ({ editor }) => {
+			if (!editor) return null;
+
+			// For status display, we get character/word counts
+			// Note: These are primitive numbers, so they won't cause unnecessary re-renders
+			const text = editor.state.doc.textContent;
+			const characterCount = text.length;
+			const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+
+			return {
+				// Editor meta state (stable booleans)
+				isEditable: editor.isEditable,
+				isEmpty: editor.isEmpty,
+				isFocused: editor.isFocused,
+
+				// Statistics (primitive numbers - efficient for status display)
+				characterCount,
+				wordCount,
+
+				// Active formatting states (for toolbar button states)
+				// Only include these if you need them - currently Mantine handles this
+				// isBold: editor.isActive('bold'),
+				// isItalic: editor.isActive('italic'),
+				// isInTable: editor.isActive('table'),
+			};
+		},
+	});
+
+
+
 	const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 	const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
 
@@ -881,7 +925,8 @@ export function RichTextEditor({
 
 	return (
 		<MantineRTE editor={editor} onSourceCodeTextSwitch={setIsSourceCodeMode}>
-			{editor && !readonly && !isSourceCodeMode && (
+			{/* Use editorState for conditional rendering to avoid re-renders */}
+			{editor && !readonly && !isSourceCodeMode && editorState && (
 				<BubbleMenu
 					editor={editor}
 					options={{
@@ -1067,6 +1112,30 @@ export function RichTextEditor({
 				/>
 			) : (
 				<MantineRTE.Content />
+			)}
+
+			{/* Optional status bar - demonstrates useEditorState usage */}
+			{showStatus && editorState && !isSourceCodeMode && (
+				<div
+					style={{
+						padding: "8px 12px",
+						fontSize: "12px",
+						color: "var(--mantine-color-dimmed)",
+						borderTop: "1px solid var(--mantine-color-default-border)",
+						display: "flex",
+						gap: "16px",
+						justifyContent: "flex-end",
+						backgroundColor: "var(--mantine-color-body)",
+					}}
+				>
+					<span>
+						{editorState.characterCount} character{editorState.characterCount !== 1 ? "s" : ""}
+					</span>
+					<span>
+						{editorState.wordCount} word{editorState.wordCount !== 1 ? "s" : ""}
+					</span>
+					{editorState.isEmpty && <span style={{ color: "var(--mantine-color-yellow-6)" }}>Empty</span>}
+				</div>
 			)}
 		</MantineRTE>
 	);
