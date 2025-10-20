@@ -1,5 +1,5 @@
 import { Typography, type TypographyProps } from "@mantine/core";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createLowlight } from "lowlight";
 import bash from "highlight.js/lib/languages/bash";
 import css from "highlight.js/lib/languages/css";
@@ -15,6 +15,7 @@ import { mermaidGrammar } from "lowlight-mermaid";
 import { toHtml } from "hast-util-to-html";
 import * as cheerio from "cheerio";
 import { decode } from "entities";
+import mermaid from "mermaid";
 
 const lowlight = createLowlight();
 
@@ -46,6 +47,7 @@ interface RichTextRendererProps extends Omit<TypographyProps, "dangerouslySetInn
  * Component for rendering rich text HTML content created by TipTap editor.
  * Applies the 'tiptap' class to ensure proper styling from app.css.
  * Automatically highlights code blocks using lowlight.
+ * Renders mermaid diagrams.
  * 
  * @example
  * ```tsx
@@ -57,11 +59,35 @@ export function RichTextRenderer({
     className,
     ...boxProps
 }: RichTextRendererProps) {
-    const highlightedContent = useMemo(() => {
-        // Parse the HTML content
-        const $ = cheerio.load(decode(content));
+    const [renderedContent, setRenderedContent] = useState<string>("");
 
-        // Find all code blocks with language classes
+    // Process content and extract mermaid diagrams
+    const { html, mermaidBlocks } = useMemo(() => {
+        const decoded = decode(content);
+        const $ = cheerio.load(decoded);
+        const mermaidBlocks: Array<{ id: string; code: string }> = [];
+
+        // FIRST: Process mermaid code blocks BEFORE lowlight highlights them
+        // This ensures we get the unaltered mermaid code
+        $("pre code.language-mermaid").each((index, element) => {
+            const $code = $(element);
+            const $pre = $code.parent("pre");
+
+            // Extract the raw mermaid code (before any highlighting)
+            const mermaidCode = $code.text();
+            const id = `mermaid-${Date.now()}-${index}`;
+
+            // Store mermaid block for async rendering
+            mermaidBlocks.push({ id, code: mermaidCode });
+
+            // Create a placeholder div with unique ID
+            const placeholder = `<div class="mermaid-wrapper" data-mermaid-id="${id}"><div class="mermaid-placeholder">Loading diagram...</div></div>`;
+
+            // Replace the pre tag with placeholder
+            $pre.replaceWith(placeholder);
+        });
+
+        // SECOND: Process all other code blocks with lowlight
         $("pre code[class*='language-']").each((_, element) => {
             const $code = $(element);
 
@@ -89,10 +115,79 @@ export function RichTextRenderer({
             }
         });
 
-        const html = $.html();
-        return html;
+        // Get the body html if available, otherwise return the full html
+        const html = $("body")?.html() ?? $.html();
 
+        return { html, mermaidBlocks };
     }, [content]);
+
+    // Render mermaid diagrams asynchronously
+    useEffect(() => {
+        if (mermaidBlocks.length === 0) {
+            setRenderedContent(html);
+            return;
+        }
+
+        let isCancelled = false;
+
+        const renderMermaidDiagrams = async () => {
+            try {
+                // Initialize mermaid
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: "default",
+                    securityLevel: "loose",
+                });
+
+                let updatedHtml = html;
+
+                // Render all mermaid diagrams
+                for (const block of mermaidBlocks) {
+                    try {
+                        const { svg } = await mermaid.render(block.id, block.code);
+
+                        if (isCancelled) return;
+
+                        // Replace placeholder with rendered SVG
+                        const $ = cheerio.load(updatedHtml);
+                        const placeholder = $(`[data-mermaid-id="${block.id}"]`);
+                        placeholder.html(svg);
+                        updatedHtml = $("body")?.html() ?? $.html();
+                    } catch (error) {
+                        console.error(`Failed to render mermaid diagram ${block.id}:`, error);
+
+                        if (isCancelled) return;
+
+                        // Replace placeholder with error message
+                        const $ = cheerio.load(updatedHtml);
+                        const placeholder = $(`[data-mermaid-id="${block.id}"]`);
+                        placeholder.html(`
+                            <div style="color: var(--mantine-color-red-6); padding: 1rem; border: 1px solid var(--mantine-color-red-6); border-radius: 4px;">
+                                <strong>Mermaid Rendering Error:</strong><br/>
+                                ${error instanceof Error ? error.message : "Unknown error"}
+                            </div>
+                        `);
+                        updatedHtml = $("body")?.html() ?? $.html();
+                    }
+                }
+
+                if (!isCancelled) {
+                    setRenderedContent(updatedHtml);
+                }
+            } catch (error) {
+                console.error("Failed to initialize mermaid:", error);
+                if (!isCancelled) {
+                    setRenderedContent(html);
+                }
+            }
+        };
+
+        renderMermaidDiagrams();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [html, mermaidBlocks]);
 
     return (
         <Typography
@@ -104,7 +199,7 @@ export function RichTextRenderer({
             }}
             {...boxProps}
             /** biome-ignore lint/security/noDangerouslySetInnerHtml: content should be sanitized before passing to this component */
-            dangerouslySetInnerHTML={{ __html: highlightedContent }}
+            dangerouslySetInnerHTML={{ __html: renderedContent || html }}
         />
     );
 }
