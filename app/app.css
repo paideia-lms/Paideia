@@ -493,4 +493,43 @@
       background: var(--mantine-color-violet-4);
     }
   }
+
+  /* Mention styles */
+  .mention {
+    border-radius: 4px;
+    box-decoration-break: clone;
+    padding: 0.1rem 0.3rem;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+
+  /* User mention (@) - Blue theme */
+  .mention-user {
+    background-color: var(--mantine-color-blue-0);
+    color: var(--mantine-color-blue-9);
+  }
+
+  [data-mantine-color-scheme="dark"] & .mention-user {
+    background-color: color-mix(
+      in srgb,
+      var(--mantine-color-blue-9) 30%,
+      var(--mantine-color-dark-6)
+    );
+    color: var(--mantine-color-blue-3);
+  }
+
+  /* Tag mention (#) - Violet theme */
+  .mention-tag {
+    background-color: var(--mantine-color-violet-0);
+    color: var(--mantine-color-violet-9);
+  }
+
+  [data-mantine-color-scheme="dark"] & .mention-tag {
+    background-color: color-mix(
+      in srgb,
+      var(--mantine-color-violet-9) 30%,
+      var(--mantine-color-dark-6)
+    );
+    color: var(--mantine-color-violet-3);
+  }
 }

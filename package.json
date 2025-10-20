@@ -33,6 +33,7 @@
 		"@elysiajs/eden": "^1.4.4",
 		"@elysiajs/openapi": "^1.4.11",
 		"@elysiajs/static": "^1.4.4",
+		"@floating-ui/dom": "^1.7.4",
 		"@headless-tree/core": "^1.5.1",
 		"@headless-tree/react": "^1.5.1",
 		"@mantine/charts": "^8.3.5",

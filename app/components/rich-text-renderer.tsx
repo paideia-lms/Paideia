@@ -82,7 +82,6 @@ export function RichTextRenderer({
                     // Convert to HTML
                     const highlightedHtml = toHtml(tree);
                     // Update the element with highlighted HTML
-                    console.log("highlightedHtml: ", highlightedHtml);
                     $code.html(highlightedHtml);
                 }
             } catch (error) {

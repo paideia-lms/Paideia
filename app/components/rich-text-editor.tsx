@@ -54,6 +54,7 @@ import TipTapTaskList from "@tiptap/extension-task-list";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
+import Mention from "@tiptap/extension-mention";
 import { useEditor, useEditorState, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
 import type { Editor, EditorEvents } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -76,6 +77,7 @@ import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
 import { unified } from "unified";
 import { mermaidGrammar } from "lowlight-mermaid";
+import { createMentionSuggestion } from "./mention-suggestion";
 
 
 
@@ -911,6 +913,31 @@ export function RichTextEditor({
 						};
 						reader.readAsDataURL(file);
 					});
+				},
+			}),
+			Mention.extend({
+				name: "userMention",
+			}).configure({
+				HTMLAttributes: {
+					class: "mention mention-user",
+				},
+				suggestion: createMentionSuggestion("user"),
+				renderText({ node }) {
+					return `@${node.attrs.label}`;
+				},
+			}),
+			Mention.extend({
+				name: "tagMention",
+			}).configure({
+				HTMLAttributes: {
+					class: "mention mention-tag",
+				},
+				suggestion: {
+					...createMentionSuggestion("tag"),
+					char: "#",
+				},
+				renderText({ node }) {
+					return `#${node.attrs.label}`;
 				},
 			}),
 		],
