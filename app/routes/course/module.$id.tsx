@@ -85,7 +85,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
-
 	const { moduleLink, course } = loaderData;
 	const activityModule = moduleLink.activityModule;
 
@@ -98,9 +97,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						? activityModule.page.content
 						: null;
 				return (
-					<PagePreview
-						content={pageContent || "<p>No content available</p>"}
-					/>
+					<PagePreview content={pageContent || "<p>No content available</p>"} />
 				);
 			}
 			case "assignment":
@@ -112,19 +109,13 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 			case "whiteboard": {
 				const whiteboardContent =
 					typeof activityModule.whiteboard === "object" &&
-						activityModule.whiteboard
+					activityModule.whiteboard
 						? activityModule.whiteboard.content
 						: null;
-				return (
-					<WhiteboardPreview content={whiteboardContent || "{}"} />
-				);
+				return <WhiteboardPreview content={whiteboardContent || "{}"} />;
 			}
 			default:
-				return (
-					<Text c="red">
-						Unknown module type: {activityModule.type}
-					</Text>
-				);
+				return <Text c="red">Unknown module type: {activityModule.type}</Text>;
 		}
 	};
 

@@ -1,3 +1,4 @@
+import { Typography, useMantineColorScheme } from "@mantine/core";
 import { useDebouncedCallback, useFileDialog } from "@mantine/hooks";
 import {
 	getTaskListExtension,
@@ -5,12 +6,18 @@ import {
 	RichTextEditor as MantineRTE,
 	useRichTextEditorContext,
 } from "@mantine/tiptap";
+import MonacoEditor, {
+	type BeforeMount,
+	type OnMount,
+	Theme,
+} from "@monaco-editor/react";
 import {
 	IconAlertCircle,
 	IconAlertTriangle,
 	IconBrandYoutube,
 	IconBulb,
 	IconChevronRight,
+	IconCode,
 	IconColumnInsertLeft,
 	IconColumnInsertRight,
 	IconColumnRemove,
@@ -49,9 +56,10 @@ import TipTapTaskList from "@tiptap/extension-task-list";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
-import { type Editor, useEditor } from "@tiptap/react";
+import { type Editor, type EditorEvents, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
+import { encode } from "entities";
 import bash from "highlight.js/lib/languages/bash";
 import css from "highlight.js/lib/languages/css";
 import java from "highlight.js/lib/languages/java";
@@ -63,7 +71,11 @@ import sql from "highlight.js/lib/languages/sql";
 import ts from "highlight.js/lib/languages/typescript";
 import html from "highlight.js/lib/languages/xml";
 import { createLowlight } from "lowlight";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import rehypeFormat from "rehype-format";
+import rehypeParse from "rehype-parse";
+import rehypeStringify from "rehype-stringify";
+import { unified } from "unified";
 
 const lowlight = createLowlight();
 
@@ -630,6 +642,39 @@ function ImageSizeFullControl() {
 	);
 }
 
+// Format HTML Control
+function FormatHtmlControl({
+	currentContent,
+	onFormatted,
+}: {
+	currentContent: string;
+	onFormatted: (formatted: string) => void;
+}) {
+	const handleFormat = () => {
+		try {
+			const result = unified()
+				.use(rehypeParse, { fragment: true })
+				.use(rehypeFormat)
+				.use(rehypeStringify)
+				.processSync(currentContent);
+			const formatted = result.value.toString().trim();
+			onFormatted(formatted);
+		} catch (error) {
+			console.error("Failed to format HTML:", error);
+		}
+	};
+
+	return (
+		<MantineRTE.Control
+			onClick={handleFormat}
+			aria-label="Format HTML"
+			title="Format HTML"
+		>
+			<IconCode stroke={1.5} size={16} />
+		</MantineRTE.Control>
+	);
+}
+
 export interface ImageFile {
 	id: string;
 	file: File;
@@ -645,6 +690,8 @@ interface RichTextEditorProps {
 	readonly?: boolean;
 }
 
+const DEBOUNCE_TIME = 300;
+
 export function RichTextEditor({
 	content = "",
 	placeholder = "Start typing...",
@@ -654,19 +701,48 @@ export function RichTextEditor({
 	readonly = false,
 }: RichTextEditorProps) {
 	const [isSourceCodeMode, setIsSourceCodeMode] = useState(false);
+	const { colorScheme } = useMantineColorScheme();
 
 	// Debounce the onChange callback to improve performance
-	const debouncedOnChange = useDebouncedCallback(({ editor }: { editor: Editor }) => {
-		if (onChange) {
-			onChange(editor.getHTML());
-		}
-	}, 300);
+	const debouncedOnChange = useDebouncedCallback(
+		({ editor }: EditorEvents["update"]) => {
+			if (onChange) {
+				const html = editor.getHTML();
+				if (isSourceCodeMode) return;
+				const result = unified()
+					.use(rehypeParse, { fragment: true })
+					.use(rehypeFormat)
+					.use(rehypeStringify)
+					.processSync(html);
+				const formatted = result.value.toString().trim();
+				onChange(formatted);
+			}
+		},
+		DEBOUNCE_TIME,
+	);
+
+	// Handle Monaco Editor changes
+	const handleMonacoChange = useDebouncedCallback(
+		(value: string | undefined) => {
+			if (value !== undefined && onChange) {
+				const encoded = encode(value);
+				editor?.commands.setContent(encoded, { emitUpdate: false });
+				// we manually handle the update
+				onChange?.(value);
+			}
+		},
+		DEBOUNCE_TIME,
+	);
 
 	const editor = useEditor({
 		immediatelyRender: false,
 		shouldRerenderOnTransaction: true,
 		extensions: [
-			StarterKit.configure({ link: false, codeBlock: false, blockquote: false }),
+			StarterKit.configure({
+				link: false,
+				codeBlock: false,
+				blockquote: false,
+			}),
 			CalloutBlockquote,
 			Link,
 			Highlight,
@@ -788,11 +864,20 @@ export function RichTextEditor({
 			}
 		},
 		editable: !readonly,
-
 	});
 
 	// Add image resizing functionality
 	useImageResize(editor);
+
+	const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
+	const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
+
+	const handleEditorDidMount: OnMount = (editor, monaco) => {
+		// here is the editor instance
+		// you can store it in `useRef` for further usage
+		editorRef.current = editor;
+		monacoRef.current = monaco;
+	};
 
 	return (
 		<MantineRTE editor={editor} onSourceCodeTextSwitch={setIsSourceCodeMode}>
@@ -826,129 +911,163 @@ export function RichTextEditor({
 				</BubbleMenu>
 			)}
 
-			{!readonly && <MantineRTE.Toolbar sticky stickyOffset="var(--docs-header-height)">
-				<MantineRTE.ControlsGroup>
-					<MantineRTE.SourceCode />
-				</MantineRTE.ControlsGroup>
+			{!readonly && (
+				<MantineRTE.Toolbar sticky stickyOffset="var(--docs-header-height)">
+					<MantineRTE.ControlsGroup>
+						<MantineRTE.SourceCode />
+					</MantineRTE.ControlsGroup>
 
-				{!isSourceCodeMode && (
-					<>
+					{isSourceCodeMode && (
 						<MantineRTE.ControlsGroup>
-							<MantineRTE.Bold />
-							<MantineRTE.Italic />
-							<MantineRTE.Underline />
-							<MantineRTE.Strikethrough />
-							<MantineRTE.ClearFormatting />
-							<MantineRTE.Highlight />
-							<MantineRTE.Code />
+							<FormatHtmlControl
+								currentContent={content}
+								onFormatted={(formatted) => onChange?.(formatted)}
+							/>
 						</MantineRTE.ControlsGroup>
+					)}
 
-						<MantineRTE.ColorPicker
-							colors={[
-								"#25262b",
-								"#868e96",
-								"#fa5252",
-								"#e64980",
-								"#be4bdb",
-								"#7950f2",
-								"#4c6ef5",
-								"#228be6",
-								"#15aabf",
-								"#12b886",
-								"#40c057",
-								"#82c91e",
-								"#fab005",
-								"#fd7e14",
-							]}
-						/>
+					{!isSourceCodeMode && (
+						<>
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.Bold />
+								<MantineRTE.Italic />
+								<MantineRTE.Underline />
+								<MantineRTE.Strikethrough />
+								<MantineRTE.ClearFormatting />
+								<MantineRTE.Highlight />
+								<MantineRTE.Code />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<MantineRTE.UnsetColor />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ColorPicker
+								colors={[
+									"#25262b",
+									"#868e96",
+									"#fa5252",
+									"#e64980",
+									"#be4bdb",
+									"#7950f2",
+									"#4c6ef5",
+									"#228be6",
+									"#15aabf",
+									"#12b886",
+									"#40c057",
+									"#82c91e",
+									"#fab005",
+									"#fd7e14",
+								]}
+							/>
 
-						<MantineRTE.ControlsGroup>
-							<MantineRTE.H1 />
-							<MantineRTE.H2 />
-							<MantineRTE.H3 />
-							<MantineRTE.H4 />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.UnsetColor />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<MantineRTE.Blockquote />
-							<MantineRTE.Hr />
-							<MantineRTE.BulletList />
-							<MantineRTE.OrderedList />
-							<MantineRTE.Subscript />
-							<MantineRTE.Superscript />
-							<MantineRTE.CodeBlock />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.H1 />
+								<MantineRTE.H2 />
+								<MantineRTE.H3 />
+								<MantineRTE.H4 />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<CalloutNoteControl />
-							<CalloutTipControl />
-							<CalloutImportantControl />
-							<CalloutWarningControl />
-							<CalloutCautionControl />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.Blockquote />
+								<MantineRTE.Hr />
+								<MantineRTE.BulletList />
+								<MantineRTE.OrderedList />
+								<MantineRTE.Subscript />
+								<MantineRTE.Superscript />
+								<MantineRTE.CodeBlock />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<DetailsControl />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<CalloutNoteControl />
+								<CalloutTipControl />
+								<CalloutImportantControl />
+								<CalloutWarningControl />
+								<CalloutCautionControl />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<MantineRTE.TaskList />
-							<MantineRTE.TaskListLift />
-							<MantineRTE.TaskListSink />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<DetailsControl />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<InsertTableControl />
-							<AddColumnBeforeControl />
-							<AddColumnAfterControl />
-							<DeleteColumnControl />
-							<AddRowBeforeControl />
-							<AddRowAfterControl />
-							<DeleteRowControl />
-							<DeleteTableControl />
-							<MergeCellsControl />
-							<SplitCellControl />
-							<ToggleHeaderColumnControl />
-							<ToggleHeaderRowControl />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.TaskList />
+								<MantineRTE.TaskListLift />
+								<MantineRTE.TaskListSink />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<MantineRTE.Link />
-							<MantineRTE.Unlink />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<InsertTableControl />
+								<AddColumnBeforeControl />
+								<AddColumnAfterControl />
+								<DeleteColumnControl />
+								<AddRowBeforeControl />
+								<AddRowAfterControl />
+								<DeleteRowControl />
+								<DeleteTableControl />
+								<MergeCellsControl />
+								<SplitCellControl />
+								<ToggleHeaderColumnControl />
+								<ToggleHeaderRowControl />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<AddImageControl onImageAdd={onImageAdd} />
-							<AddYoutubeVideoControl />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.Link />
+								<MantineRTE.Unlink />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<ImageSizeSmallControl />
-							<ImageSizeMediumControl />
-							<ImageSizeLargeControl />
-							<ImageSizeFullControl />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<AddImageControl onImageAdd={onImageAdd} />
+								<AddYoutubeVideoControl />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<MantineRTE.AlignLeft />
-							<MantineRTE.AlignCenter />
-							<MantineRTE.AlignJustify />
-							<MantineRTE.AlignRight />
-						</MantineRTE.ControlsGroup>
+							<MantineRTE.ControlsGroup>
+								<ImageSizeSmallControl />
+								<ImageSizeMediumControl />
+								<ImageSizeLargeControl />
+								<ImageSizeFullControl />
+							</MantineRTE.ControlsGroup>
 
-						<MantineRTE.ControlsGroup>
-							<MantineRTE.Undo />
-							<MantineRTE.Redo />
-						</MantineRTE.ControlsGroup>
-					</>
-				)}
-			</MantineRTE.Toolbar>}
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.AlignLeft />
+								<MantineRTE.AlignCenter />
+								<MantineRTE.AlignJustify />
+								<MantineRTE.AlignRight />
+							</MantineRTE.ControlsGroup>
 
-			<MantineRTE.Content />
+							<MantineRTE.ControlsGroup>
+								<MantineRTE.Undo />
+								<MantineRTE.Redo />
+							</MantineRTE.ControlsGroup>
+						</>
+					)}
+				</MantineRTE.Toolbar>
+			)}
+
+			{isSourceCodeMode ? (
+				<MonacoEditor
+					height="400px"
+					language="html"
+					value={content}
+					onChange={handleMonacoChange}
+					theme={colorScheme === "dark" ? "vs-dark" : "light"}
+					options={{
+						minimap: { enabled: false },
+						scrollBeyondLastLine: false,
+						fontSize: 14,
+						lineNumbers: "on",
+						readOnly: readonly,
+						wordWrap: "on",
+						codeLens: true,
+						autoClosingBrackets: "always",
+						autoClosingQuotes: "always",
+						autoIndent: "full",
+					}}
+					onMount={handleEditorDidMount}
+				/>
+			) : (
+				<MantineRTE.Content />
+			)}
 		</MantineRTE>
 	);
 }

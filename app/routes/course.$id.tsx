@@ -66,7 +66,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
-
 	const { course, instructors, currentUser } = loaderData;
 
 	const canEdit =

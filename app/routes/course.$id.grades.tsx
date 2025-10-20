@@ -36,10 +36,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				userId: enrolmentContext.enrolment.userId,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					userId: enrolmentContext.enrolment.userId,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 

@@ -323,7 +323,9 @@ export const runSeed = Result.wrap(
 			const baseArgs = {
 				title: faker.company.catchPhrase(),
 				description: faker.lorem.paragraph(),
-				status: faker.helpers.arrayElement(["draft", "published"]) as "draft" | "published",
+				status: faker.helpers.arrayElement(["draft", "published"]) as
+					| "draft"
+					| "published",
 				userId: adminUser.id,
 			};
 
@@ -338,7 +340,9 @@ export const runSeed = Result.wrap(
 				moduleArgs = {
 					...baseArgs,
 					type: "whiteboard" as const,
-					whiteboardData: { content: JSON.stringify({ shapes: [], bindings: [] }) },
+					whiteboardData: {
+						content: JSON.stringify({ shapes: [], bindings: [] }),
+					},
 				};
 			} else if (moduleType === "assignment") {
 				moduleArgs = {

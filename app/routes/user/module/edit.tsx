@@ -1,4 +1,4 @@
-import { Container, Paper, Stack, Title, Text } from "@mantine/core";
+import { Container, Paper, Stack, Text, Title } from "@mantine/core";
 import { useLoaderData } from "react-router";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import {

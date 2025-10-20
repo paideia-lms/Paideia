@@ -6,7 +6,6 @@
 import type { Enrollment } from "server/contexts/course-context";
 import type { User } from "server/payload-types";
 
-
 export function canSeeCourseSettings(
 	user?: {
 		id: number;
@@ -146,20 +145,20 @@ export function canManageCourseGroups(
 	);
 }
 
-
-export function canAccessCourse(user?: {
-	id: number;
-	role?: User["role"];
-},
+export function canAccessCourse(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
 	enrolments?: {
 		id: number;
 		userId: number;
 		role?: Enrollment["role"];
-	}[]
+	}[],
 ) {
 	return (
 		user?.role === "admin" ||
 		user?.role === "content-manager" ||
 		enrolments?.some((enrolment) => enrolment.userId === user?.id)
-	)
+	);
 }

@@ -203,9 +203,15 @@ export const tryFindNoteById = Result.wrap(
 			})
 			.then((n) => {
 				const createdBy = n.createdBy;
-				assertZod(createdBy, z.object({ id: z.number() }, { error: "Note createdBy is required" }));
+				assertZod(
+					createdBy,
+					z.object({ id: z.number() }, { error: "Note createdBy is required" }),
+				);
 				const avatar = createdBy.avatar;
-				assertZod(avatar, z.number({ error: "Note createdBy avatar is required" }).nullish());
+				assertZod(
+					avatar,
+					z.number({ error: "Note createdBy avatar is required" }).nullish(),
+				);
 				return {
 					...n,
 					createdBy: {

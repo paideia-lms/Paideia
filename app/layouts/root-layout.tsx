@@ -7,6 +7,7 @@ import {
 	Text,
 	Tooltip,
 	UnstyledButton,
+	useMantineColorScheme,
 } from "@mantine/core";
 import {
 	IconCalendar,
@@ -22,7 +23,7 @@ import {
 	IconUserCheck,
 } from "@tabler/icons-react";
 import cx from "clsx";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { href, Link, Outlet, useNavigate } from "react-router";
 import type { PageInfo } from "server/contexts/global-context";
 import {
@@ -36,9 +37,12 @@ import classes from "./header-tabs.module.css";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
-
+	const currentUser =
+		userSession?.effectiveUser || userSession?.authenticatedUser;
+	const theme = currentUser?.theme ?? "light";
 	return {
 		userSession,
+		theme,
 	};
 };
 
@@ -47,6 +51,13 @@ export default function UserLayout({
 	matches,
 }: Route.ComponentProps) {
 	const { pageInfo } = matches[0].loaderData;
+	const { theme } = loaderData;
+	const { setColorScheme } = useMantineColorScheme();
+
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		setColorScheme(theme);
+	}, [theme]);
 	return (
 		<>
 			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} />

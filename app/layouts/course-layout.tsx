@@ -52,7 +52,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-
 	return {
 		course: courseContext.course,
 		currentUser: currentUser,

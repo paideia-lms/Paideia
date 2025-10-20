@@ -138,42 +138,42 @@ export function transformToActivityData(
 ) {
 	let pageData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let whiteboardData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let assignmentData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			allowLateSubmissions?: boolean;
-			requireTextSubmission?: boolean;
-			requireFileSubmission?: boolean;
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				allowLateSubmissions?: boolean;
+				requireTextSubmission?: boolean;
+				requireFileSubmission?: boolean;
+		  }
 		| undefined;
 	let quizData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			points?: number;
-			timeLimit?: number;
-			gradingType?: "automatic" | "manual";
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				points?: number;
+				timeLimit?: number;
+				gradingType?: "automatic" | "manual";
+		  }
 		| undefined;
 	let discussionData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			requireThread?: boolean;
-			requireReplies?: boolean;
-			minReplies?: number;
-		}
+				instructions?: string;
+				dueDate?: string;
+				requireThread?: boolean;
+				requireReplies?: boolean;
+				minReplies?: number;
+		  }
 		| undefined;
 
 	if (parsedData.type === "page") {

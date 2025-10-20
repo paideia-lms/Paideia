@@ -10,6 +10,7 @@ import { tryFindLinksByCourse } from "server/internal/course-activity-module-lin
 import { tryFindCourseById } from "server/internal/course-management";
 import type { CourseStructure } from "server/internal/course-section-management";
 import { tryGetCourseStructure } from "server/internal/course-section-management";
+import { canAccessCourse } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
@@ -20,7 +21,6 @@ import {
 	generateSimpleCourseStructureTree,
 } from "../utils/course-structure-tree";
 import type { User } from "./user-context";
-import { canAccessCourse } from "server/utils/permissions";
 
 type Group = {
 	id: number;
@@ -42,12 +42,12 @@ export type Enrollment = {
 	role: "student" | "teacher" | "ta" | "manager";
 	status: "active" | "inactive" | "completed" | "dropped";
 	avatar:
-	| number
-	| {
-		id: number;
-		filename?: string | null;
-	}
-	| null;
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+		  }
+		| null;
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	groups: Group[];
@@ -137,9 +137,9 @@ export const tryGetCourseContext = async (
 		courseId: courseId,
 		user: user
 			? {
-				...user,
-				avatar: user.avatar?.id,
-			}
+					...user,
+					avatar: user.avatar?.id,
+				}
 			: null,
 		// ! we cannot use overrideAccess true here
 	});
@@ -160,14 +160,17 @@ export const tryGetCourseContext = async (
 	}
 
 	// Check access
-	const hasAccess = canAccessCourse({
-		id: user.id,
-		role: user.role ?? "student",
-	}, course.enrollments.map((enrollment) => ({
-		id: enrollment.id,
-		userId: enrollment.user.id,
-		role: enrollment.role,
-	})));
+	const hasAccess = canAccessCourse(
+		{
+			id: user.id,
+			role: user.role ?? "student",
+		},
+		course.enrollments.map((enrollment) => ({
+			id: enrollment.id,
+			userId: enrollment.user.id,
+			role: enrollment.role,
+		})),
+	);
 
 	if (!hasAccess) {
 		return Result.error(
@@ -191,22 +194,22 @@ export const tryGetCourseContext = async (
 			lastName: course.createdBy.lastName,
 			avatar: course.createdBy.avatar
 				? {
-					id: course.createdBy.avatar.id,
-					filename: course.createdBy.avatar.filename,
-				}
+						id: course.createdBy.avatar.id,
+						filename: course.createdBy.avatar.filename,
+					}
 				: null,
 		},
 		category: course.category
 			? {
-				id: course.category.id,
-				name: course.category.name,
-				parent: course.category.parent
-					? {
-						id: course.category.parent.id,
-						name: course.category.parent.name,
-					}
-					: null,
-			}
+					id: course.category.id,
+					name: course.category.name,
+					parent: course.category.parent
+						? {
+								id: course.category.parent.id,
+								name: course.category.parent.name,
+							}
+						: null,
+				}
 			: null,
 		updatedAt: course.updatedAt,
 		createdAt: course.createdAt,
@@ -249,39 +252,39 @@ export const tryGetCourseContext = async (
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
 	const moduleLinks = linksResult.ok
 		? linksResult.value.map((link) => ({
-			id: link.id,
-			activityModule: {
-				id: link.activityModule.id,
-				title: link.activityModule.title || "",
-				description: link.activityModule.description || "",
-				type: link.activityModule.type as
-					| "page"
-					| "whiteboard"
-					| "assignment"
-					| "quiz"
-					| "discussion",
-				status: link.activityModule.status as
-					| "draft"
-					| "published"
-					| "archived",
-				createdBy: {
-					id: link.activityModule.createdBy.id,
-					email: link.activityModule.createdBy.email,
-					firstName: link.activityModule.createdBy.firstName,
-					lastName: link.activityModule.createdBy.lastName,
-					avatar: link.activityModule.createdBy.avatar
-						? {
-							id: link.activityModule.createdBy.avatar.id,
-							filename: link.activityModule.createdBy.avatar.filename,
-						}
-						: null,
+				id: link.id,
+				activityModule: {
+					id: link.activityModule.id,
+					title: link.activityModule.title || "",
+					description: link.activityModule.description || "",
+					type: link.activityModule.type as
+						| "page"
+						| "whiteboard"
+						| "assignment"
+						| "quiz"
+						| "discussion",
+					status: link.activityModule.status as
+						| "draft"
+						| "published"
+						| "archived",
+					createdBy: {
+						id: link.activityModule.createdBy.id,
+						email: link.activityModule.createdBy.email,
+						firstName: link.activityModule.createdBy.firstName,
+						lastName: link.activityModule.createdBy.lastName,
+						avatar: link.activityModule.createdBy.avatar
+							? {
+									id: link.activityModule.createdBy.avatar.id,
+									filename: link.activityModule.createdBy.avatar.filename,
+								}
+							: null,
+					},
+					updatedAt: link.activityModule.updatedAt,
+					createdAt: link.activityModule.createdAt,
 				},
-				updatedAt: link.activityModule.updatedAt,
-				createdAt: link.activityModule.createdAt,
-			},
-			createdAt: link.createdAt,
-			updatedAt: link.updatedAt,
-		}))
+				createdAt: link.createdAt,
+				updatedAt: link.updatedAt,
+			}))
 		: [];
 
 	// Update course with moduleLinks

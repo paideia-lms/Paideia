@@ -74,7 +74,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 	const baseArgs = {
 		title: parsedData.title,
 		description: parsedData.description,
-		status: parsedData.status || "draft" as const,
+		status: parsedData.status || ("draft" as const),
 		userId: currentUser.id,
 		requirePassword: parsedData.requirePassword,
 		accessPassword: parsedData.accessPassword,

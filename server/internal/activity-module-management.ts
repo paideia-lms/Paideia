@@ -72,13 +72,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -182,13 +182,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -562,7 +562,15 @@ export const tryGetActivityModuleById = Result.wrap(
  */
 export const tryUpdateActivityModule = Result.wrap(
 	async (payload: Payload, args: UpdateActivityModuleArgs) => {
-		const { id, title, description, type, status, requirePassword, accessPassword } = args;
+		const {
+			id,
+			title,
+			description,
+			type,
+			status,
+			requirePassword,
+			accessPassword,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -602,8 +610,10 @@ export const tryUpdateActivityModule = Result.wrap(
 			if (title !== undefined) updateData.title = title;
 			if (description !== undefined) updateData.description = description;
 			if (status !== undefined) updateData.status = status;
-			if (requirePassword !== undefined) updateData.requirePassword = requirePassword;
-			if (accessPassword !== undefined) updateData.accessPassword = accessPassword;
+			if (requirePassword !== undefined)
+				updateData.requirePassword = requirePassword;
+			if (accessPassword !== undefined)
+				updateData.accessPassword = accessPassword;
 
 			// Update related entity based on discriminated type
 			if (type === "page") {

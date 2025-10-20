@@ -1,4 +1,5 @@
 import { Container, Stack, Title } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import type {
 	FileUpload,
 	FileUploadHandler,
@@ -14,13 +15,12 @@ import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
-import { notifications } from "@mantine/notifications";
 
 export const loader = async ({
 	request,
@@ -222,7 +222,9 @@ export const action = async ({
 	}
 };
 
-export const clientAction = async ({ serverAction }: Route.ClientActionArgs) => {
+export const clientAction = async ({
+	serverAction,
+}: Route.ClientActionArgs) => {
 	const actionData = await serverAction();
 	if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({

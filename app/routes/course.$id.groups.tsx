@@ -157,8 +157,8 @@ export const action = async ({
 			undefined,
 			enrollment
 				? {
-					role: enrollment.role,
-				}
+						role: enrollment.role,
+					}
 				: undefined,
 		)
 	) {

@@ -11,15 +11,15 @@ import {
 	tryDeleteCourseActivityModuleLink,
 } from "server/internal/course-activity-module-link-management";
 import { tryCreateSection } from "server/internal/course-section-management";
+import { canSeeCourseModules } from "server/utils/permissions";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
 import {
-	badRequest,
 	BadRequestResponse,
+	badRequest,
 	ForbiddenResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import { canSeeCourseModules } from "server/utils/permissions";
 import type { Route } from "./+types/course.$id.modules";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -52,10 +52,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				userId: enrolmentContext.enrolment.userId,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					userId: enrolmentContext.enrolment.userId,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -125,10 +125,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				userId: enrollment.user as number,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					userId: enrollment.user as number,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 
@@ -267,10 +267,7 @@ export default function CourseModulesPage({
 		<Container size="lg" py="xl">
 			<title>{title}</title>
 			<meta name="description" content={`${course.title} modules management`} />
-			<meta
-				property="og:title"
-				content={title}
-			/>
+			<meta property="og:title" content={title} />
 			<meta
 				property="og:description"
 				content={`${course.title} modules management`}
