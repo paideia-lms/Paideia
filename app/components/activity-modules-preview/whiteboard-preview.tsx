@@ -1,26 +1,69 @@
-import { Paper } from "@mantine/core";
-import { useLayoutEffect, useMemo } from "react";
-import { createTLStore, loadSnapshot, Tldraw } from "tldraw";
-import "tldraw/tldraw.css";
-import type { TLEditorSnapshot } from "tldraw";
+import type {
+	ExcalidrawImperativeAPI,
+	ExcalidrawInitialDataState,
+} from "@excalidraw/excalidraw/types";
+import { Loader, Paper, useMantineColorScheme } from "@mantine/core";
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
+
+// Dynamically import Excalidraw to avoid SSR issues
+const Excalidraw = lazy(() =>
+	import("@excalidraw/excalidraw").then((module) => ({
+		default: module.Excalidraw,
+	})),
+);
 
 interface WhiteboardPreviewProps {
 	content: string;
 }
 
 export function WhiteboardPreview({ content }: WhiteboardPreviewProps) {
-	const store = useMemo(() => createTLStore(), []);
+	const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
+	const { colorScheme } = useMantineColorScheme();
+	const [initialData, setInitialData] = useState<ExcalidrawInitialDataState>({
+		appState: {
+			collaborators: new Map(),
+		},
+	});
+	const [isClient, setIsClient] = useState(false);
 
+	// Ensure we're on the client side
+	useLayoutEffect(() => {
+		setIsClient(true);
+	}, []);
+
+	// Load content
 	useLayoutEffect(() => {
 		if (content) {
 			try {
-				const snapshot = JSON.parse(content) as TLEditorSnapshot;
-				loadSnapshot(store, snapshot);
+				const data = JSON.parse(content) as ExcalidrawInitialDataState;
+				// Ensure appState has the required structure
+				setInitialData({
+					...data,
+					appState: {
+						...data.appState,
+						collaborators: new Map(),
+					},
+				});
 			} catch (error) {
 				console.error("Failed to load whiteboard content:", error);
+				setInitialData({
+					appState: {
+						collaborators: new Map(),
+					},
+				});
 			}
 		}
-	}, [content, store]);
+	}, [content]);
+
+	// Sync theme with Mantine's color scheme
+	useLayoutEffect(() => {
+		if (excalidrawRef.current) {
+			const theme = colorScheme === "dark" ? "dark" : "light";
+			excalidrawRef.current.updateScene({
+				appState: { theme, viewModeEnabled: true },
+			});
+		}
+	}, [colorScheme]);
 
 	return (
 		<Paper
@@ -28,13 +71,42 @@ export function WhiteboardPreview({ content }: WhiteboardPreviewProps) {
 			radius="md"
 			style={{ height: "600px", overflow: "hidden" }}
 		>
-			<Tldraw
-				store={store}
-				onMount={(editor) => {
-					// Make the editor read-only
-					editor.updateInstanceState({ isReadonly: true });
-				}}
-			/>
+			{!isClient ? (
+				<div
+					style={{
+						display: "flex",
+						alignItems: "center",
+						justifyContent: "center",
+						height: "100%",
+					}}
+				>
+					<Loader />
+				</div>
+			) : (
+				<Suspense
+					fallback={
+						<div
+							style={{
+								display: "flex",
+								alignItems: "center",
+								justifyContent: "center",
+								height: "100%",
+							}}
+						>
+							<Loader />
+						</div>
+					}
+				>
+					<Excalidraw
+						excalidrawAPI={(api) => {
+							excalidrawRef.current = api;
+						}}
+						initialData={initialData}
+						viewModeEnabled={true}
+						theme={colorScheme === "dark" ? "dark" : "light"}
+					/>
+				</Suspense>
+			)}
 		</Paper>
 	);
 }

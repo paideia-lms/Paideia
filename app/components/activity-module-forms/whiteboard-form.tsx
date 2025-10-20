@@ -1,18 +1,27 @@
-import { Box, Stack, Textarea, Title } from "@mantine/core";
+import type {
+	ExcalidrawImperativeAPI,
+	ExcalidrawInitialDataState,
+} from "@excalidraw/excalidraw/types";
+import {
+	Box,
+	Loader,
+	Stack,
+	Textarea,
+	Title,
+	useMantineColorScheme,
+} from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useDebouncedCallback } from "@mantine/hooks";
-import { useLayoutEffect, useMemo } from "react";
-import {
-	createTLStore,
-	DefaultSpinner,
-	getSnapshot,
-	loadSnapshot,
-	type TLEditorSnapshot,
-	Tldraw,
-} from "tldraw";
-import "tldraw/tldraw.css";
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { CommonFields } from "./common-fields";
+
+// Dynamically import Excalidraw to avoid SSR issues
+const Excalidraw = lazy(() =>
+	import("@excalidraw/excalidraw").then((module) => ({
+		default: module.Excalidraw,
+	})),
+);
 
 interface WhiteboardFormProps {
 	form: UseFormReturnType<ActivityModuleFormValues>;
@@ -23,40 +32,66 @@ export function WhiteboardForm({
 	form,
 	isLoading = false,
 }: WhiteboardFormProps) {
-	// Create a store instance
-	const store = useMemo(() => createTLStore(), []);
+	const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
+	const { colorScheme } = useMantineColorScheme();
+	const [initialData, setInitialData] =
+		useState<ExcalidrawInitialDataState | null>(null);
+	const [isClient, setIsClient] = useState(false);
 
-	// Create a debounced callback to save the whiteboard snapshot
-	const saveSnapshot = useDebouncedCallback(() => {
-		const snapshot = getSnapshot(store);
-		form.setFieldValue("whiteboardContent", JSON.stringify(snapshot));
-	}, 200);
-
+	// Ensure we're on the client side
 	useLayoutEffect(() => {
-		// Get persisted data from form whiteboardContent field
+		setIsClient(true);
+	}, []);
+
+	// Load initial data from form
+	useLayoutEffect(() => {
 		const existingContent = form.getValues().whiteboardContent;
 
 		if (existingContent && existingContent.trim().length > 0) {
 			try {
-				const snapshot = JSON.parse(
-					existingContent,
-				) as Partial<TLEditorSnapshot>;
-				loadSnapshot(store, snapshot);
+				const data = JSON.parse(existingContent) as ExcalidrawInitialDataState;
+				// Ensure appState has the required structure
+				setInitialData({
+					...data,
+					appState: {
+						...data.appState,
+						collaborators: new Map(),
+					},
+				});
 			} catch (error: unknown) {
 				console.error("Failed to load whiteboard data:", error);
-				// Continue with empty store on error
+				setInitialData({
+					appState: {
+						collaborators: new Map(),
+					},
+				});
 			}
+		} else {
+			setInitialData({
+				appState: {
+					collaborators: new Map(),
+				},
+			});
 		}
+	}, [form]);
 
-		// Each time the store changes, save to form (with debouncing)
-		const cleanupFn = store.listen(() => {
-			saveSnapshot();
-		});
+	// Sync theme with Mantine's color scheme
+	useLayoutEffect(() => {
+		if (excalidrawRef.current) {
+			const theme = colorScheme === "dark" ? "dark" : "light";
+			excalidrawRef.current.updateScene({ appState: { theme } });
+		}
+	}, [colorScheme]);
 
-		return () => {
-			cleanupFn();
+	// Create a debounced callback to save the whiteboard state
+	const saveSnapshot = useDebouncedCallback((elements, appState, files) => {
+		const data: ExcalidrawInitialDataState = {
+			elements,
+			appState,
+			files,
 		};
-	}, [store, form, saveSnapshot]);
+		form.setFieldValue("whiteboardContent", JSON.stringify(data));
+	}, 500);
 
 	return (
 		<Stack gap="md">
@@ -75,7 +110,7 @@ export function WhiteboardForm({
 					Whiteboard Canvas
 				</Title>
 				<Box style={{ height: "500px", border: "1px solid #dee2e6" }}>
-					{isLoading ? (
+					{isLoading || initialData === null || !isClient ? (
 						<div
 							style={{
 								display: "flex",
@@ -84,10 +119,34 @@ export function WhiteboardForm({
 								height: "100%",
 							}}
 						>
-							<DefaultSpinner />
+							<Loader />
 						</div>
 					) : (
-						<Tldraw store={store} />
+						<Suspense
+							fallback={
+								<div
+									style={{
+										display: "flex",
+										alignItems: "center",
+										justifyContent: "center",
+										height: "100%",
+									}}
+								>
+									<Loader />
+								</div>
+							}
+						>
+							<Excalidraw
+								excalidrawAPI={(api) => {
+									excalidrawRef.current = api;
+								}}
+								initialData={initialData}
+								onChange={(elements, appState, files) => {
+									saveSnapshot(elements, appState, files);
+								}}
+								theme={colorScheme === "dark" ? "dark" : "light"}
+							/>
+						</Suspense>
 					)}
 				</Box>
 			</div>

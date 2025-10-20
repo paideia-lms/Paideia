@@ -24,5 +24,9 @@ export default defineConfig({
 	],
 	optimizeDeps: {
 		exclude: ["file-type"],
+		include: ["@excalidraw/excalidraw"],
+	},
+	ssr: {
+		external: ["@excalidraw/excalidraw"],
 	},
 });

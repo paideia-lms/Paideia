@@ -6,9 +6,7 @@ import {
 	RichTextEditor as MantineRTE,
 	useRichTextEditorContext,
 } from "@mantine/tiptap";
-import MonacoEditor, {
-	type OnMount,
-} from "@monaco-editor/react";
+import MonacoEditor, { type OnMount } from "@monaco-editor/react";
 import {
 	IconAlertCircle,
 	IconAlertTriangle,
@@ -32,6 +30,7 @@ import {
 	IconTable,
 	IconTableOff,
 } from "@tabler/icons-react";
+import type { Editor, EditorEvents } from "@tiptap/core";
 import Blockquote from "@tiptap/extension-blockquote";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { Color } from "@tiptap/extension-color";
@@ -45,6 +44,7 @@ import FileHandler from "@tiptap/extension-file-handler";
 import { Gapcursor } from "@tiptap/extension-gapcursor";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
+import Mention from "@tiptap/extension-mention";
 import Placeholder from "@tiptap/extension-placeholder";
 import SubScript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
@@ -54,9 +54,13 @@ import TipTapTaskList from "@tiptap/extension-task-list";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
-import Mention from "@tiptap/extension-mention";
-import { useEditor, useEditorState, NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
-import type { Editor, EditorEvents } from "@tiptap/core";
+import {
+	NodeViewContent,
+	NodeViewWrapper,
+	ReactNodeViewRenderer,
+	useEditor,
+	useEditorState,
+} from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { encode } from "entities";
@@ -71,15 +75,13 @@ import sql from "highlight.js/lib/languages/sql";
 import ts from "highlight.js/lib/languages/typescript";
 import html from "highlight.js/lib/languages/xml";
 import { createLowlight } from "lowlight";
+import { mermaidGrammar } from "lowlight-mermaid";
 import { useEffect, useRef, useState } from "react";
 import rehypeFormat from "rehype-format";
 import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
 import { unified } from "unified";
-import { mermaidGrammar } from "lowlight-mermaid";
 import { createMentionSuggestion } from "./mention-suggestion";
-
-
 
 const lowlight = createLowlight();
 
@@ -124,7 +126,9 @@ function CodeBlockComponent({
 				<select
 					contentEditable={false}
 					defaultValue={node.attrs.language}
-					onChange={(event) => updateAttributes({ language: event.target.value })}
+					onChange={(event) =>
+						updateAttributes({ language: event.target.value })
+					}
 				>
 					<option value="null">auto</option>
 					<option disabled>—</option>
@@ -413,7 +417,7 @@ function ToggleHeaderRowControl() {
 
 // Callout Controls
 function CalloutNoteControl() {
-	const { editor } = useRichTextEditorContext()
+	const { editor } = useRichTextEditorContext();
 	return (
 		<MantineRTE.Control
 			onClick={() =>
@@ -969,11 +973,11 @@ export function RichTextEditor({
 	// Use useEditorState to access editor state without causing re-renders
 	// This is more performant than accessing editor state directly in the component
 	// The selector function ensures only selected state changes trigger re-renders
-	// 
+	//
 	// ⚠️ IMPORTANT: Only include primitive/stable values in the selector!
 	// DO NOT include editor.getJSON(), editor.getText(), or editor.getHTML() here
 	// as they create new references on every transaction, defeating the purpose.
-	// 
+	//
 	// Good for selector: isEditable, isEmpty, isFocused, isActive() checks
 	// Bad for selector: getJSON(), getText(), getHTML(), state.selection (creates new objects)
 	const editorState = useEditorState({
@@ -985,7 +989,10 @@ export function RichTextEditor({
 			// Note: These are primitive numbers, so they won't cause unnecessary re-renders
 			const text = editor.state.doc.textContent;
 			const characterCount = text.length;
-			const wordCount = text.trim().split(/\s+/).filter(word => word.length > 0).length;
+			const wordCount = text
+				.trim()
+				.split(/\s+/)
+				.filter((word) => word.length > 0).length;
 
 			return {
 				// Editor meta state (stable booleans)
@@ -1005,8 +1012,6 @@ export function RichTextEditor({
 			};
 		},
 	});
-
-
 
 	const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
 	const monacoRef = useRef<Parameters<OnMount>[1] | null>(null);
@@ -1224,12 +1229,17 @@ export function RichTextEditor({
 					}}
 				>
 					<span>
-						{editorState.characterCount} character{editorState.characterCount !== 1 ? "s" : ""}
+						{editorState.characterCount} character
+						{editorState.characterCount !== 1 ? "s" : ""}
 					</span>
 					<span>
 						{editorState.wordCount} word{editorState.wordCount !== 1 ? "s" : ""}
 					</span>
-					{editorState.isEmpty && <span style={{ color: "var(--mantine-color-yellow-6)" }}>Empty</span>}
+					{editorState.isEmpty && (
+						<span style={{ color: "var(--mantine-color-yellow-6)" }}>
+							Empty
+						</span>
+					)}
 				</div>
 			)}
 		</MantineRTE>

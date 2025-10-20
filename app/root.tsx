@@ -20,8 +20,7 @@ import "@mantine/dropzone/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/charts/styles.css";
 import "@mantine/tiptap/styles.css";
-import "tldraw/tldraw.css";
-
+import "@excalidraw/excalidraw/index.css";
 
 import { ColorSchemeScript, MantineProvider } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
@@ -48,10 +47,7 @@ import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { InternalServerErrorResponse } from "./utils/responses";
-import {
-	type RouteParams,
-	tryGetRouteHierarchy,
-} from "./utils/routes-utils";
+import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 
 export const middleware = [
 	/**
@@ -231,9 +227,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -301,9 +297,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
