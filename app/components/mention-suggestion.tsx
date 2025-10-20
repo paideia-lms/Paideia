@@ -51,13 +51,22 @@ const MOCK_TAGS: MentionItem[] = [
     { id: "tag-8", label: "announcement" },
 ];
 
-type MentionType = "user" | "tag";
+const MOCK_PAGES: MentionItem[] = [
+    { id: "page-1", label: "Home" },
+    { id: "page-2", label: "About" },
+    { id: "page-3", label: "Contact" },
+    { id: "page-4", label: "Services" },
+    { id: "page-5", label: "Products" },
+    { id: "page-6", label: "Blog" },
+];
+
+type MentionType = "user" | "tag" | "page";
 
 export const createMentionSuggestion = (
     type: MentionType,
 ): Omit<SuggestionOptions<MentionItem>, "editor"> => ({
     items: ({ query }: { query: string }) => {
-        const items = type === "user" ? MOCK_USERS : MOCK_TAGS;
+        const items = type === "user" ? MOCK_USERS : type === "tag" ? MOCK_TAGS : MOCK_PAGES
         return items
             .filter((item) =>
                 item.label.toLowerCase().startsWith(query.toLowerCase()),

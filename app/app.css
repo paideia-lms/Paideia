@@ -532,4 +532,18 @@
     );
     color: var(--mantine-color-violet-3);
   }
+
+  .mention-page {
+    background-color: var(--mantine-color-yellow-0);
+    color: var(--mantine-color-yellow-9);
+  }
+
+  [data-mantine-color-scheme="dark"] & .mention-page {
+    background-color: color-mix(
+      in srgb,
+      var(--mantine-color-yellow-9) 30%,
+      var(--mantine-color-dark-6)
+    );
+    color: var(--mantine-color-yellow-3);
+  }
 }

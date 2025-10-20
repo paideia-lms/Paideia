@@ -922,8 +922,20 @@ export function RichTextEditor({
 					class: "mention mention-user",
 				},
 				suggestion: createMentionSuggestion("user"),
-				renderText({ node }) {
+				renderHTML({ node }) {
 					return `@${node.attrs.label}`;
+				},
+			}),
+			Mention.configure({
+				HTMLAttributes: {
+					class: "mention mention-page",
+				},
+				suggestion: {
+					...createMentionSuggestion("page"),
+					char: "[[",
+				},
+				renderHTML({ node }) {
+					return `[[${node.attrs.label}]]`;
 				},
 			}),
 			Mention.extend({
@@ -936,7 +948,7 @@ export function RichTextEditor({
 					...createMentionSuggestion("tag"),
 					char: "#",
 				},
-				renderText({ node }) {
+				renderHTML({ node }) {
 					return `#${node.attrs.label}`;
 				},
 			}),
