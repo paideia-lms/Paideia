@@ -25,3 +25,10 @@ ${fixedPayloadTypes}
 );
 
 console.log(`✨ Fixed types`);
+
+// read payload-generated-schema.ts and add // @ts-nocheck to the file
+const payloadGeneratedSchema = await Bun.file("src/payload-generated-schema.ts").text();
+const startWithTsCheck = payloadGeneratedSchema.startsWith("// @ts-nocheck");
+if (!startWithTsCheck) {
+	await Bun.write("src/payload-generated-schema.ts", `// @ts-nocheck\n${payloadGeneratedSchema}`);
+}

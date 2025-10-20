@@ -54,6 +54,7 @@
 		"@scalar/api-reference-react": "^0.7.55",
 		"@standard-community/standard-json": "^0.3.5",
 		"@tabler/icons-react": "^3.35.0",
+		"@tiptap/core": "3.7.2",
 		"@tiptap/extension-blockquote": "^3.7.2",
 		"@tiptap/extension-code-block-lowlight": "^3.7.2",
 		"@tiptap/extension-color": "^3.7.2",
@@ -139,6 +140,12 @@
 		"vite": "^6.4.1",
 		"vite-plugin-devtools-json": "^1.0.0",
 		"vite-tsconfig-paths": "^5.1.4"
+	},
+	"overrides": {
+		"@tiptap/core": "3.7.2"
+	},
+	"resolutions": {
+		"@tiptap/core": "3.7.2"
 	},
 	"patchedDependencies": {
 		"@react-router/dev@7.6.2": "patches/@react-router%2Fdev@7.6.2.patch"

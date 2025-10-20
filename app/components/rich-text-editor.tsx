@@ -1,4 +1,4 @@
-import { Typography, useMantineColorScheme } from "@mantine/core";
+import { useMantineColorScheme } from "@mantine/core";
 import { useDebouncedCallback, useFileDialog } from "@mantine/hooks";
 import {
 	getTaskListExtension,
@@ -7,9 +7,7 @@ import {
 	useRichTextEditorContext,
 } from "@mantine/tiptap";
 import MonacoEditor, {
-	type BeforeMount,
 	type OnMount,
-	Theme,
 } from "@monaco-editor/react";
 import {
 	IconAlertCircle,
@@ -56,7 +54,8 @@ import TipTapTaskList from "@tiptap/extension-task-list";
 import TextAlign from "@tiptap/extension-text-align";
 import { TextStyle } from "@tiptap/extension-text-style";
 import Youtube from "@tiptap/extension-youtube";
-import { type Editor, type EditorEvents, useEditor } from "@tiptap/react";
+import { useEditor } from "@tiptap/react";
+import type { Editor, EditorEvents } from "@tiptap/core";
 import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import { encode } from "entities";
@@ -76,6 +75,7 @@ import rehypeFormat from "rehype-format";
 import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
 import { unified } from "unified";
+
 
 const lowlight = createLowlight();
 
@@ -360,7 +360,7 @@ function ToggleHeaderRowControl() {
 
 // Callout Controls
 function CalloutNoteControl() {
-	const { editor } = useRichTextEditorContext();
+	const { editor } = useRichTextEditorContext()
 	return (
 		<MantineRTE.Control
 			onClick={() =>
@@ -381,7 +381,7 @@ function CalloutNoteControl() {
 }
 
 function CalloutTipControl() {
-	const { editor } = useRichTextEditorContext();
+	const { editor } = useRichTextEditorContext() as { editor: Editor | null };
 	return (
 		<MantineRTE.Control
 			onClick={() =>
@@ -402,7 +402,7 @@ function CalloutTipControl() {
 }
 
 function CalloutImportantControl() {
-	const { editor } = useRichTextEditorContext();
+	const { editor } = useRichTextEditorContext() as { editor: Editor | null };
 	return (
 		<MantineRTE.Control
 			onClick={() =>
@@ -423,7 +423,7 @@ function CalloutImportantControl() {
 }
 
 function CalloutWarningControl() {
-	const { editor } = useRichTextEditorContext();
+	const { editor } = useRichTextEditorContext() as { editor: Editor | null };
 	return (
 		<MantineRTE.Control
 			onClick={() =>
@@ -444,7 +444,7 @@ function CalloutWarningControl() {
 }
 
 function CalloutCautionControl() {
-	const { editor } = useRichTextEditorContext();
+	const { editor } = useRichTextEditorContext() as { editor: Editor | null };
 	return (
 		<MantineRTE.Control
 			onClick={() =>
@@ -466,7 +466,7 @@ function CalloutCautionControl() {
 
 // Details Control
 function DetailsControl() {
-	const { editor } = useRichTextEditorContext();
+	const { editor } = useRichTextEditorContext() as { editor: Editor | null };
 	return (
 		<MantineRTE.Control
 			onClick={() => editor?.chain().focus().setDetails().run()}
@@ -736,7 +736,7 @@ export function RichTextEditor({
 
 	const editor = useEditor({
 		immediatelyRender: false,
-		shouldRerenderOnTransaction: true,
+		shouldRerenderOnTransaction: false,
 		extensions: [
 			StarterKit.configure({
 				link: false,

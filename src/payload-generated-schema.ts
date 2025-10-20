@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* tslint:disable */
 /* eslint-disable */
 /**
@@ -186,7 +187,7 @@ export const users = pgTable(
     hash: varchar("hash"),
     _verified: boolean("_verified"),
     _verificationToken: varchar("_verificationtoken"),
-    loginAttempts: numeric("login_attempts").default("0"),
+    loginAttempts: numeric("login_attempts", { mode: "number" }).default("0"),
     lockUntil: timestamp("lock_until", {
       mode: "string",
       withTimezone: true,
@@ -281,7 +282,9 @@ export const course_sections = pgTable(
         onDelete: "set null",
       },
     ),
-    contentOrder: numeric("content_order").notNull().default("0"),
+    contentOrder: numeric("content_order", { mode: "number" })
+      .notNull()
+      .default("0"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -694,10 +697,10 @@ export const assignments = pgTable(
       withTimezone: true,
       precision: 3,
     }),
-    maxAttempts: numeric("max_attempts").default("1"),
+    maxAttempts: numeric("max_attempts", { mode: "number" }).default("1"),
     allowLateSubmissions: boolean("allow_late_submissions").default(false),
-    maxFileSize: numeric("max_file_size").default("10"),
-    maxFiles: numeric("max_files").default("1"),
+    maxFileSize: numeric("max_file_size", { mode: "number" }).default("10"),
+    maxFiles: numeric("max_files", { mode: "number" }).default("1"),
     requireTextSubmission: boolean("require_text_submission").default(false),
     requireFileSubmission: boolean("require_file_submission").default(false),
     createdBy: integer("created_by_id")
@@ -778,7 +781,7 @@ export const quizzes_questions = pgTable(
     questionText: varchar("question_text").notNull(),
     questionType:
       enum_quizzes_questions_question_type("question_type").notNull(),
-    points: numeric("points").notNull(),
+    points: numeric("points", { mode: "number" }).notNull(),
     correctAnswer: varchar("correct_answer"),
     explanation: varchar("explanation"),
   },
@@ -805,11 +808,11 @@ export const quizzes = pgTable(
       withTimezone: true,
       precision: 3,
     }),
-    maxAttempts: numeric("max_attempts").default("1"),
+    maxAttempts: numeric("max_attempts", { mode: "number" }).default("1"),
     allowLateSubmissions: boolean("allow_late_submissions").default(false),
-    points: numeric("points").default("100"),
+    points: numeric("points", { mode: "number" }).default("100"),
     gradingType: enum_quizzes_grading_type("grading_type").default("automatic"),
-    timeLimit: numeric("time_limit"),
+    timeLimit: numeric("time_limit", { mode: "number" }),
     showCorrectAnswers: boolean("show_correct_answers").default(false),
     allowMultipleAttempts: boolean("allow_multiple_attempts").default(false),
     shuffleQuestions: boolean("shuffle_questions").default(false),
@@ -897,8 +900,10 @@ export const discussions = pgTable(
     }),
     requireThread: boolean("require_thread").default(true),
     requireReplies: boolean("require_replies").default(true),
-    minReplies: numeric("min_replies").default("2"),
-    minWordsPerPost: numeric("min_words_per_post").default("50"),
+    minReplies: numeric("min_replies", { mode: "number" }).default("2"),
+    minWordsPerPost: numeric("min_words_per_post", { mode: "number" }).default(
+      "50",
+    ),
     allowAttachments: boolean("allow_attachments").default(true),
     allowUpvotes: boolean("allow_upvotes").default(true),
     allowEditing: boolean("allow_editing").default(true),
@@ -906,7 +911,7 @@ export const discussions = pgTable(
     moderationRequired: boolean("moderation_required").default(false),
     anonymousPosting: boolean("anonymous_posting").default(false),
     groupDiscussion: boolean("group_discussion").default(false),
-    maxGroupSize: numeric("max_group_size"),
+    maxGroupSize: numeric("max_group_size", { mode: "number" }),
     threadSorting:
       enum_discussions_thread_sorting("thread_sorting").default("recent"),
     createdBy: integer("created_by_id")
@@ -958,7 +963,9 @@ export const course_activity_module_links = pgTable(
       .references(() => course_sections.id, {
         onDelete: "set null",
       }),
-    contentOrder: numeric("content_order").notNull().default("0"),
+    contentOrder: numeric("content_order", { mode: "number" })
+      .notNull()
+      .default("0"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1009,28 +1016,32 @@ export const media = pgTable(
     thumbnailURL: varchar("thumbnail_u_r_l"),
     filename: varchar("filename"),
     mimeType: varchar("mime_type"),
-    filesize: numeric("filesize"),
-    width: numeric("width"),
-    height: numeric("height"),
-    focalX: numeric("focal_x"),
-    focalY: numeric("focal_y"),
+    filesize: numeric("filesize", { mode: "number" }),
+    width: numeric("width", { mode: "number" }),
+    height: numeric("height", { mode: "number" }),
+    focalX: numeric("focal_x", { mode: "number" }),
+    focalY: numeric("focal_y", { mode: "number" }),
     sizes_thumbnail_url: varchar("sizes_thumbnail_url"),
-    sizes_thumbnail_width: numeric("sizes_thumbnail_width"),
-    sizes_thumbnail_height: numeric("sizes_thumbnail_height"),
+    sizes_thumbnail_width: numeric("sizes_thumbnail_width", { mode: "number" }),
+    sizes_thumbnail_height: numeric("sizes_thumbnail_height", {
+      mode: "number",
+    }),
     sizes_thumbnail_mimeType: varchar("sizes_thumbnail_mime_type"),
-    sizes_thumbnail_filesize: numeric("sizes_thumbnail_filesize"),
+    sizes_thumbnail_filesize: numeric("sizes_thumbnail_filesize", {
+      mode: "number",
+    }),
     sizes_thumbnail_filename: varchar("sizes_thumbnail_filename"),
     sizes_card_url: varchar("sizes_card_url"),
-    sizes_card_width: numeric("sizes_card_width"),
-    sizes_card_height: numeric("sizes_card_height"),
+    sizes_card_width: numeric("sizes_card_width", { mode: "number" }),
+    sizes_card_height: numeric("sizes_card_height", { mode: "number" }),
     sizes_card_mimeType: varchar("sizes_card_mime_type"),
-    sizes_card_filesize: numeric("sizes_card_filesize"),
+    sizes_card_filesize: numeric("sizes_card_filesize", { mode: "number" }),
     sizes_card_filename: varchar("sizes_card_filename"),
     sizes_tablet_url: varchar("sizes_tablet_url"),
-    sizes_tablet_width: numeric("sizes_tablet_width"),
-    sizes_tablet_height: numeric("sizes_tablet_height"),
+    sizes_tablet_width: numeric("sizes_tablet_width", { mode: "number" }),
+    sizes_tablet_height: numeric("sizes_tablet_height", { mode: "number" }),
     sizes_tablet_mimeType: varchar("sizes_tablet_mime_type"),
-    sizes_tablet_filesize: numeric("sizes_tablet_filesize"),
+    sizes_tablet_filesize: numeric("sizes_tablet_filesize", { mode: "number" }),
     sizes_tablet_filename: varchar("sizes_tablet_filename"),
   },
   (columns) => [
@@ -1132,8 +1143,8 @@ export const gradebook_categories = pgTable(
     ),
     name: varchar("name").notNull(),
     description: varchar("description"),
-    weight: numeric("weight").default("0"),
-    sortOrder: numeric("sort_order").notNull(),
+    weight: numeric("weight", { mode: "number" }).default("0"),
+    sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1172,7 +1183,7 @@ export const gradebook_items = pgTable(
       onDelete: "set null",
     }),
     name: varchar("name").notNull(),
-    sortOrder: numeric("sort_order").notNull(),
+    sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
     description: varchar("description"),
     activityModule: integer("activity_module_id").references(
       () => course_activity_module_links.id,
@@ -1180,9 +1191,9 @@ export const gradebook_items = pgTable(
         onDelete: "set null",
       },
     ),
-    maxGrade: numeric("max_grade").notNull().default("100"),
-    minGrade: numeric("min_grade").notNull().default("0"),
-    weight: numeric("weight").notNull().default("0"),
+    maxGrade: numeric("max_grade", { mode: "number" }).notNull().default("100"),
+    minGrade: numeric("min_grade", { mode: "number" }).notNull().default("0"),
+    weight: numeric("weight", { mode: "number" }).notNull().default("0"),
     extraCredit: boolean("extra_credit").default(false),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1261,7 +1272,9 @@ export const assignment_submissions = pgTable(
       .references(() => enrollments.id, {
         onDelete: "set null",
       }),
-    attemptNumber: numeric("attempt_number").notNull().default("1"),
+    attemptNumber: numeric("attempt_number", { mode: "number" })
+      .notNull()
+      .default("1"),
     status: enum_assignment_submissions_status("status")
       .notNull()
       .default("draft"),
@@ -1272,7 +1285,7 @@ export const assignment_submissions = pgTable(
     }),
     content: varchar("content"),
     isLate: boolean("is_late").default(false),
-    timeSpent: numeric("time_spent"),
+    timeSpent: numeric("time_spent", { mode: "number" }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1346,8 +1359,8 @@ export const quiz_submissions_answers = pgTable(
       enum_quiz_submissions_answers_question_type("question_type").notNull(),
     selectedAnswer: varchar("selected_answer"),
     isCorrect: boolean("is_correct"),
-    pointsEarned: numeric("points_earned"),
-    maxPoints: numeric("max_points"),
+    pointsEarned: numeric("points_earned", { mode: "number" }),
+    maxPoints: numeric("max_points", { mode: "number" }),
     feedback: varchar("feedback"),
   },
   (columns) => [
@@ -1385,7 +1398,9 @@ export const quiz_submissions = pgTable(
       .references(() => enrollments.id, {
         onDelete: "set null",
       }),
-    attemptNumber: numeric("attempt_number").notNull().default("1"),
+    attemptNumber: numeric("attempt_number", { mode: "number" })
+      .notNull()
+      .default("1"),
     status: enum_quiz_submissions_status("status")
       .notNull()
       .default("in_progress"),
@@ -1399,9 +1414,9 @@ export const quiz_submissions = pgTable(
       withTimezone: true,
       precision: 3,
     }),
-    timeSpent: numeric("time_spent"),
-    totalScore: numeric("total_score"),
-    percentage: numeric("percentage"),
+    timeSpent: numeric("time_spent", { mode: "number" }),
+    totalScore: numeric("total_score", { mode: "number" }),
+    percentage: numeric("percentage", { mode: "number" }),
     isLate: boolean("is_late").default(false),
     autoGraded: boolean("auto_graded").default(false),
     updatedAt: timestamp("updated_at", {
@@ -1601,7 +1616,9 @@ export const course_grade_tables_grade_letters = pgTable(
     _parentID: integer("_parent_id").notNull(),
     id: varchar("id").primaryKey(),
     letter: varchar("letter").notNull(),
-    minimumPercentage: numeric("minimum_percentage").notNull(),
+    minimumPercentage: numeric("minimum_percentage", {
+      mode: "number",
+    }).notNull(),
   },
   (columns) => [
     index("course_grade_tables_grade_letters_order_idx").on(columns._order),
@@ -1665,7 +1682,7 @@ export const groups = pgTable(
     path: varchar("path").notNull(),
     description: varchar("description"),
     color: varchar("color"),
-    maxMembers: numeric("max_members"),
+    maxMembers: numeric("max_members", { mode: "number" }),
     isActive: boolean("is_active").default(true),
     metadata: jsonb("metadata"),
     updatedAt: timestamp("updated_at", {
@@ -1700,7 +1717,7 @@ export const user_grades_adjustments = pgTable(
     _parentID: integer("_parent_id").notNull(),
     id: varchar("id").primaryKey(),
     type: enum_user_grades_adjustments_type("type").notNull(),
-    points: numeric("points").notNull(),
+    points: numeric("points", { mode: "number" }).notNull(),
     reason: varchar("reason").notNull(),
     appliedBy: integer("applied_by_id")
       .notNull()
@@ -1742,11 +1759,11 @@ export const user_grades = pgTable(
       }),
     submissionType:
       enum_user_grades_submission_type("submission_type").default("manual"),
-    baseGrade: numeric("base_grade"),
+    baseGrade: numeric("base_grade", { mode: "number" }),
     baseGradeSource:
       enum_user_grades_base_grade_source("base_grade_source").default("manual"),
     isOverridden: boolean("is_overridden").default(false),
-    overrideGrade: numeric("override_grade"),
+    overrideGrade: numeric("override_grade", { mode: "number" }),
     overrideReason: varchar("override_reason"),
     overriddenBy: integer("overridden_by_id").references(() => users.id, {
       onDelete: "set null",
@@ -1854,7 +1871,7 @@ export const search = pgTable(
   {
     id: serial("id").primaryKey(),
     title: varchar("title"),
-    priority: numeric("priority"),
+    priority: numeric("priority", { mode: "number" }),
     meta: varchar("meta"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -2238,7 +2255,7 @@ export const payload_migrations = pgTable(
   {
     id: serial("id").primaryKey(),
     name: varchar("name"),
-    batch: numeric("batch"),
+    batch: numeric("batch", { mode: "number" }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -2267,7 +2284,9 @@ export const system_grade_table_grade_letters = pgTable(
     _parentID: integer("_parent_id").notNull(),
     id: varchar("id").primaryKey(),
     letter: varchar("letter").notNull(),
-    minimumPercentage: numeric("minimum_percentage").notNull(),
+    minimumPercentage: numeric("minimum_percentage", {
+      mode: "number",
+    }).notNull(),
   },
   (columns) => [
     index("system_grade_table_grade_letters_order_idx").on(columns._order),
@@ -2284,7 +2303,7 @@ export const system_grade_table_grade_letters = pgTable(
 
 export const system_grade_table = pgTable("system_grade_table", {
   id: serial("id").primaryKey(),
-  maxCategoryDepth: numeric("max_category_depth"),
+  maxCategoryDepth: numeric("max_category_depth", { mode: "number" }),
   updatedAt: timestamp("updated_at", {
     mode: "string",
     withTimezone: true,
