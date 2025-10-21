@@ -4,7 +4,6 @@ import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
@@ -131,8 +130,9 @@ export const tryFindLinksByCourse = Result.wrap(
 				assertZodInternal(
 					"tryFindLinksByCourse: Module created by avatar is required",
 					moduleCreatedByAvatar,
-					z.number()
-						.nullish(),
+					z.object({
+						id: z.number(),
+					}).nullish(),
 				);
 
 				return {

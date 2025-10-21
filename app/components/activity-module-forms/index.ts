@@ -5,7 +5,6 @@ export { PagePreview } from "../activity-modules-preview/page-preview";
 export {
     QuizPreview,
     SingleQuizPreview,
-    sampleQuizConfig,
     sampleNestedQuizConfig,
 } from "../activity-modules-preview/quiz-preview";
 export { WhiteboardPreview } from "../activity-modules-preview/whiteboard-preview";
@@ -26,6 +25,15 @@ export type {
     QuestionType,
     QuestionAnswer,
     QuizAnswers,
+    GradingConfig,
+    ScoringConfig,
+    SimpleScoring,
+    WeightedScoring,
+    RubricScoring,
+    ManualScoring,
+    PartialMatchScoring,
+    RankingScoring,
+    MatrixScoring,
     MultipleChoiceQuestion,
     ShortAnswerQuestion,
     LongAnswerQuestion,
@@ -36,12 +44,21 @@ export type {
     SingleSelectionMatrixQuestion,
     MultipleSelectionMatrixQuestion,
     WhiteboardQuestion,
+    PaideiaRubricDefinition,
+    PaideiaRubricCriterion,
+    PaideiaRubricLevel,
+    PaideiaRubricFilling,
+    PaideiaRubricRemark,
 } from "../activity-modules-preview/quiz-config.types";
 
-// Quiz type guards
+// Quiz type guards and helpers
 export {
     isContainerQuiz,
     isRegularQuiz,
+    calculateTotalPoints,
+    getQuestionPoints,
+    getScoringDescription,
+    getDefaultScoring,
 } from "../activity-modules-preview/quiz-config.types";
 
 // Form components

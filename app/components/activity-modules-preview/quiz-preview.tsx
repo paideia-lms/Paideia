@@ -16,7 +16,7 @@ import {
 	Title,
 	Tooltip,
 } from "@mantine/core";
-import { IconClock, IconFlag, IconFlagFilled } from "@tabler/icons-react";
+import { IconClock, IconFlag, IconFlagFilled, IconInfoCircle } from "@tabler/icons-react";
 import { memo, useState } from "react";
 import { RichTextRenderer } from "../rich-text-renderer";
 import { QuestionRenderer } from "./question-renderer";
@@ -28,7 +28,7 @@ import type {
 	QuizResource,
 	NestedQuizConfig,
 } from "./quiz-config.types";
-import { isContainerQuiz, isRegularQuiz } from "./quiz-config.types";
+import { isContainerQuiz, isRegularQuiz, getQuestionPoints, calculateTotalPoints, getScoringDescription } from "./quiz-config.types";
 import { NestedQuizSelector } from "./nested-quiz-selector";
 import { useQuizForm } from "./use-quiz-form";
 import { useQuizTimer } from "./use-quiz-timer";
@@ -253,7 +253,21 @@ export function SingleQuizPreview({
 					{/* Header */}
 					<Group justify="space-between" align="flex-start">
 						<div>
-							<Title order={2}>{quizConfig.title}</Title>
+							<Group gap="md" align="center">
+								<Title order={2}>{quizConfig.title}</Title>
+								{quizConfig.grading?.enabled && (
+									<Tooltip
+										label={`Total: ${calculateTotalPoints(quizConfig)} points${quizConfig.grading.passingScore ? ` • Passing: ${quizConfig.grading.passingScore}%` : ""}`}
+										position="bottom"
+										multiline
+										w={250}
+									>
+										<Badge size="lg" variant="light" color="grape">
+											Total: {calculateTotalPoints(quizConfig)} points
+										</Badge>
+									</Tooltip>
+								)}
+							</Group>
 							<Text size="sm" c="dimmed" mt="xs">
 								Page {quiz.currentPageIndex + 1} of {quizConfig.pages.length}
 							</Text>
@@ -398,12 +412,24 @@ export function SingleQuizPreview({
 													<Badge size="lg" variant="outline">
 														Q{questionNumber}
 													</Badge>
+													{quizConfig.grading?.enabled && (
+														<Tooltip
+															label={getScoringDescription(question.scoring)}
+															position="top"
+															multiline
+															w={300}
+														>
+															<Badge size="lg" variant="light" color="blue" leftSection={<IconInfoCircle size={14} />}>
+																{getQuestionPoints(question)} pt{getQuestionPoints(question) !== 1 ? "s" : ""}
+															</Badge>
+														</Tooltip>
+													)}
 													<Text fw={500} style={{ flex: 1 }}>
 														{question.prompt}
 													</Text>
 												</Group>
-												{!readonly && (
-													<Group gap="xs">
+												<Group gap="xs">
+													{!readonly && (
 														<Tooltip
 															label={
 																isDisabled
@@ -430,8 +456,8 @@ export function SingleQuizPreview({
 																)}
 															</ActionIcon>
 														</Tooltip>
-													</Group>
-												)}
+													)}
+												</Group>
 											</Group>
 
 											{/* Question Renderer */}
@@ -643,304 +669,6 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 	);
 }
 
-// Sample Quiz Config for testing
-export const sampleQuizConfig: QuizConfig = {
-	id: "sample-quiz-1",
-	title: "Sample Quiz: All Question Types",
-	globalTimer: 600, // 10 minutes
-	resources: [
-		{
-			id: "resource-1",
-			title: "Reference Material: Web Technologies",
-			content: `
-				<h3>Common Web Technologies</h3>
-				<p>Here are some commonly used web technologies:</p>
-				<ul>
-					<li><strong>HTML</strong> - Markup language for structuring web content</li>
-					<li><strong>CSS</strong> - Styling language for presentation</li>
-					<li><strong>JavaScript</strong> - Programming language for interactivity</li>
-					<li><strong>Python</strong> - General-purpose programming language</li>
-					<li><strong>Java</strong> - Object-oriented programming language</li>
-				</ul>
-				<p>Note: HTML and CSS are not considered programming languages.</p>
-			`,
-			pages: ["page-1", "page-2"], // Appears on first two pages
-		},
-		{
-			id: "resource-2",
-			title: "Quick Reference: Programming Paradigms",
-			content: `
-				<h3>Popular Programming Paradigms</h3>
-				<ol>
-					<li><strong>Object-Oriented Programming (OOP)</strong> - Most widely used</li>
-					<li><strong>Functional Programming (FP)</strong> - Growing in popularity</li>
-					<li><strong>Procedural Programming</strong> - Traditional approach</li>
-					<li><strong>Logic Programming</strong> - Specialized use cases</li>
-				</ol>
-			`,
-			pages: ["page-3"], // Only appears on third page
-		},
-		{
-			id: "resource-3",
-			title: "連続絞殺事件「折鶴の男」の謎",
-			content: `
-				<p>岐阜県警は本日、過去5年間に渡り全国で発生した未解決連続絞殺事件「折鶴事件」の犯行声明文を公開した。被害者は全て40代男性で、首に金属製ワイヤーを巻かれた状態で発見され、ポケットには赤い折り紙の鶴が残されていた。犯人は現場の監視カメラに毎回「能面のような無表情の仮面」を被った姿を映しており、逃走時にはわざと靴音を響かせていたという。</p>
-				<p>心理分析によれば、犯行は全て満月の深夜帯に集中し、被害者の自宅玄関に「悔い改め」と墨書した和紙が貼られていた。特筆すべきは、犯人が幼少期に虐待を受けた孤児院「暁光園」の元職員をターゲットにしていると推定される点だ。しかし同施設は20年前に閉鎖され、関係者の証言からは「折鶴」との関連性は見出せていない。</p>
-				<p>驚くべきことに、先月行われた精神鑑定では「完全な理性のもと計画性を持って行動し、反社会性パーソナリティ障害の特徴は認められない」との結果が示された。現在も犯人は「次なる審判の時」を予告する暗号文をSNSで発信し続けており、警察は「文学作品『罪と炎』（1923年絶版）の引用パターン」を手掛かりに捜査を進めている。</p>
-			`,
-			pages: ["page-4"], // Japanese reading comprehension quiz
-		},
-	],
-	pages: [
-		{
-			id: "page-1",
-			title: "Multiple Choice and Text Questions",
-			questions: [
-				{
-					id: "q1",
-					type: "multiple-choice",
-					prompt: "What is the capital of France?",
-					options: {
-						a: "London",
-						b: "Berlin",
-						c: "Paris",
-						d: "Madrid",
-					},
-					correctAnswer: "c",
-					feedback: "Paris is the capital and largest city of France.",
-				},
-				{
-					id: "q2",
-					type: "short-answer",
-					prompt: "What is 2 + 2?",
-					correctAnswer: "4",
-				},
-				{
-					id: "q3",
-					type: "long-answer",
-					prompt: "Describe your favorite programming language and why you like it.",
-				},
-			],
-		},
-		{
-			id: "page-2",
-			title: "Advanced Question Types",
-			questions: [
-				{
-					id: "q4",
-					type: "article",
-					prompt: "Write a short article about web development trends in 2025.",
-				},
-				{
-					id: "q5",
-					type: "fill-in-the-blank",
-					prompt:
-						"The capital of France is {{blank}} and the largest city is {{blank}}.",
-					correctAnswers: ["Paris", "Paris"],
-				},
-				{
-					id: "q6",
-					type: "choice",
-					prompt: "Which of the following are programming languages? (Select all that apply)",
-					options: {
-						python: "Python",
-						html: "HTML",
-						javascript: "JavaScript",
-						css: "CSS",
-						java: "Java",
-					},
-					correctAnswers: ["python", "javascript", "java"],
-				},
-			],
-		},
-		{
-			id: "page-3",
-			title: "Interactive Questions",
-			questions: [
-				{
-					id: "q7",
-					type: "ranking",
-					prompt: "Rank these programming paradigms from most to least popular:",
-					items: {
-						oop: "Object-Oriented",
-						fp: "Functional",
-						procedural: "Procedural",
-						logic: "Logic",
-					},
-					correctOrder: ["oop", "fp", "procedural", "logic"],
-				},
-				{
-					id: "q10",
-					type: "whiteboard",
-					prompt: "Draw a diagram showing the relationship between the frontend, backend, and database in a web application:",
-				},
-				{
-					id: "q8",
-					type: "single-selection-matrix",
-					prompt: "Rate your experience with these technologies:",
-					rows: {
-						react: "React",
-						vue: "Vue",
-						angular: "Angular",
-						svelte: "Svelte",
-					},
-					columns: {
-						beginner: "Beginner",
-						intermediate: "Intermediate",
-						advanced: "Advanced",
-						expert: "Expert",
-					},
-				},
-				{
-					id: "324okp",
-					type: "multiple-selection-matrix",
-					prompt: "Select your preferred framework for each use case:",
-					rows: {
-						simple: "Building a simple website",
-						spa: "Creating a complex SPA",
-						mobile: "Developing a mobile app",
-					},
-					columns: {
-						react: "React",
-						vue: "Vue",
-						angular: "Angular",
-						svelte: "Svelte",
-						nextjs: "Next.js",
-					},
-				},
-			],
-		},
-		{
-			id: "page-4",
-			title: "日本語読解テスト - Japanese Reading Comprehension",
-			questions: [
-				{
-					id: "jp-q1",
-					type: "multiple-choice",
-					prompt: "犯人が被害者に残すものは何か？",
-					options: {
-						a: "青い折り紙の船",
-						b: "赤い折り紙の鶴",
-						c: "白い和紙の短冊",
-						d: "黒い金属の指輪",
-					},
-					correctAnswer: "b",
-				},
-				{
-					id: "jp-q2",
-					type: "multiple-choice",
-					prompt: "犯行が行われる時間帯の特徴は？",
-					options: {
-						a: "早朝のラッシュ時",
-						b: "満月の深夜帯",
-						c: "雨の夕暮れ時",
-						d: "平日の昼下がり",
-					},
-					correctAnswer: "b",
-				},
-				{
-					id: "jp-q3",
-					type: "multiple-choice",
-					prompt: "被害者に共通する職業は？",
-					options: {
-						a: "飲食店経営者",
-						b: "元孤児院職員",
-						c: "IT技術者",
-						d: "公務員",
-					},
-					correctAnswer: "b",
-				},
-				{
-					id: "jp-q4",
-					type: "multiple-choice",
-					prompt: "警察が注目する文学作品は？",
-					options: {
-						a: "「罪と炎」",
-						b: "「月と影」",
-						c: "「孤児の祈り」",
-						d: "「仮面の告白」",
-					},
-					correctAnswer: "a",
-				},
-				{
-					id: "jp-q5",
-					type: "multiple-choice",
-					prompt: "精神鑑定で「認められない」とされたのは？",
-					options: {
-						a: "計画性",
-						b: "理性的思考",
-						c: "反社会性パーソナリティ障害",
-						d: "トラウマ反応",
-					},
-					correctAnswer: "c",
-				},
-				{
-					id: "jp-q6",
-					type: "multiple-choice",
-					prompt: "犯人が現場で意図的に行っていた行動は？",
-					options: {
-						a: "照明を消す",
-						b: "靴音を響かせる",
-						c: "窓を破壊する",
-						d: "被害者を縛る",
-					},
-					correctAnswer: "b",
-				},
-				{
-					id: "jp-q7",
-					type: "multiple-choice",
-					prompt: "事件のキーワード「悔い改め」が確認された場所は？",
-					options: {
-						a: "被害者の携帯",
-						b: "玄関に貼られた和紙",
-						c: "SNSのプロフィール",
-						d: "犯行声明文の末尾",
-					},
-					correctAnswer: "b",
-				},
-				{
-					id: "jp-q8",
-					type: "multiple-choice",
-					prompt: "監視カメラに映らない犯人の特徴は？",
-					options: {
-						a: "左利きである",
-						b: "能面のような仮面",
-						c: "足のサイズ",
-						d: "声の高さ",
-					},
-					correctAnswer: "a",
-					feedback: "監視カメラには「能面のような無表情の仮面」を被った姿が映っています。左利きかどうかは記事に記載されていません。",
-				},
-				{
-					id: "jp-q9",
-					type: "multiple-choice",
-					prompt: "捜査の矛盾点として正しいのは？",
-					options: {
-						a: "孤児院は10年前に閉鎖",
-						b: "被害者は全員50代",
-						c: "折鶴と施設の関連不明",
-						d: "金属ワイヤーの材質不一致",
-					},
-					correctAnswer: "c",
-					feedback: "記事によると、孤児院「暁光園」は20年前に閉鎖され、関係者の証言からは「折鶴」との関連性は見出せていません。",
-				},
-				{
-					id: "jp-q10",
-					type: "multiple-choice",
-					prompt: "犯人がSNSで使用する暗号の元ネタは？",
-					options: {
-						a: "2020年代の流行歌",
-						b: "インターネットスラング",
-						c: "絶版書籍の引用",
-						d: "映画の台詞",
-					},
-					correctAnswer: "c",
-					feedback: "警察は「文学作品『罪と炎』（1923年絶版）の引用パターン」を手掛かりに捜査を進めています。",
-				},
-			],
-		},
-	],
-};
 
 // Sample Nested Quiz Config for testing
 export const sampleNestedQuizConfig: QuizConfig = {
@@ -948,12 +676,25 @@ export const sampleNestedQuizConfig: QuizConfig = {
 	title: "Multi-Section Exam",
 	globalTimer: 30, // 30 seconds total for all quizzes
 	sequentialOrder: false, // Must complete quizzes in order
+	grading: {
+		enabled: true,
+		passingScore: 60,
+		showScoreToStudent: true,
+		showCorrectAnswers: false,
+	},
 	nestedQuizzes: [
+
 		{
 			id: "section-1",
 			title: "Section 1: Basic Concepts",
 			description: "Fundamental programming concepts and syntax",
 			globalTimer: 10, // 10 seconds for testing
+			grading: {
+				enabled: true,
+				passingScore: 70,
+				showScoreToStudent: true,
+				showCorrectAnswers: true,
+			},
 			pages: [
 				{
 					id: "s1-page-1",
@@ -970,12 +711,14 @@ export const sampleNestedQuizConfig: QuizConfig = {
 								d: "Boolean",
 							},
 							correctAnswer: "c",
+							scoring: { type: "simple", points: 2 },
 						},
 						{
 							id: "s1-q2",
 							type: "short-answer",
 							prompt: "What keyword is used to declare a constant in JavaScript?",
 							correctAnswer: "const",
+							scoring: { type: "simple", points: 3 },
 						},
 					],
 				},
@@ -1082,5 +825,293 @@ export const sampleNestedQuizConfig: QuizConfig = {
 				},
 			],
 		},
+		{
+			id: "section-4",
+			title: "Section 4: All Question Types",
+			description: "Comprehensive assessment covering all question types with various scoring methods",
+			globalTimer: 600, // 10 minutes
+			grading: {
+				enabled: true,
+				passingScore: 70,
+				showScoreToStudent: true,
+				showCorrectAnswers: true,
+			},
+			pages: [
+				{
+					id: "page-1",
+					title: "Multiple Choice and Text Questions",
+					questions: [
+						{
+							id: "q1",
+							type: "multiple-choice",
+							prompt: "What is the capital of France?",
+							options: {
+								a: "London",
+								b: "Berlin",
+								c: "Paris",
+								d: "Madrid",
+							},
+							correctAnswer: "c",
+							feedback: "Paris is the capital and largest city of France.",
+							scoring: { type: "simple", points: 2 },
+						},
+						{
+							id: "q2",
+							type: "short-answer",
+							prompt: "What is 2 + 2?",
+							correctAnswer: "4",
+							scoring: { type: "simple", points: 1 },
+						},
+						{
+							id: "q3",
+							type: "long-answer",
+							prompt: "Describe your favorite programming language and why you like it.",
+							scoring: { type: "manual", maxPoints: 5 },
+						},
+					],
+				},
+				{
+					id: "page-2",
+					title: "Advanced Question Types",
+					questions: [
+						{
+							id: "q4",
+							type: "article",
+							prompt: "Write a short article about web development trends in 2025.",
+							scoring: { type: "rubric", rubricId: 1, maxPoints: 10 },
+						},
+						{
+							id: "q5",
+							type: "fill-in-the-blank",
+							prompt: "The capital of France is {{blank}} and the largest city is {{blank}}.",
+							correctAnswers: ["Paris", "Paris"],
+							scoring: {
+								type: "weighted",
+								maxPoints: 4,
+								mode: "partial-no-penalty",
+								pointsPerCorrect: 2
+							},
+						},
+						{
+							id: "q6",
+							type: "choice",
+							prompt: "Which of the following are programming languages? (Select all that apply)",
+							options: {
+								python: "Python",
+								html: "HTML",
+								javascript: "JavaScript",
+								css: "CSS",
+								java: "Java",
+							},
+							correctAnswers: ["python", "javascript", "java"],
+							scoring: {
+								type: "weighted",
+								maxPoints: 6,
+								mode: "partial-with-penalty",
+								pointsPerCorrect: 2,
+								penaltyPerIncorrect: 1
+							},
+						},
+					],
+				},
+				{
+					id: "page-3",
+					title: "Interactive Questions",
+					questions: [
+						{
+							id: "q7",
+							type: "ranking",
+							prompt: "Rank these programming paradigms from most to least popular:",
+							items: {
+								oop: "Object-Oriented",
+								fp: "Functional",
+								procedural: "Procedural",
+								logic: "Logic",
+							},
+							correctOrder: ["oop", "fp", "procedural", "logic"],
+							scoring: {
+								type: "ranking",
+								maxPoints: 4,
+								mode: "exact-order",
+							},
+						},
+						{
+							id: "q10",
+							type: "whiteboard",
+							prompt: "Draw a diagram showing the relationship between the frontend, backend, and database in a web application:",
+							scoring: { type: "rubric", rubricId: 2, maxPoints: 8 },
+						},
+						{
+							id: "q8",
+							type: "single-selection-matrix",
+							prompt: "Rate your experience with these technologies:",
+							rows: {
+								react: "React",
+								vue: "Vue",
+								angular: "Angular",
+								svelte: "Svelte",
+							},
+							columns: {
+								beginner: "Beginner",
+								intermediate: "Intermediate",
+								advanced: "Advanced",
+								expert: "Expert",
+							},
+							scoring: { type: "matrix", maxPoints: 4, pointsPerRow: 1, mode: "partial" },
+						},
+						{
+							id: "324okp",
+							type: "multiple-selection-matrix",
+							prompt: "Select your preferred framework for each use case:",
+							rows: {
+								simple: "Building a simple website",
+								spa: "Creating a complex SPA",
+								mobile: "Developing a mobile app",
+							},
+							columns: {
+								react: "React",
+								vue: "Vue",
+								angular: "Angular",
+								svelte: "Svelte",
+								nextjs: "Next.js",
+							},
+							scoring: { type: "matrix", maxPoints: 3, pointsPerRow: 1, mode: "partial" },
+						},
+					],
+				},
+				{
+					id: "page-4",
+					title: "日本語読解テスト - Japanese Reading Comprehension",
+					questions: [
+						{
+							id: "jp-q1",
+							type: "multiple-choice",
+							prompt: "犯人が被害者に残すものは何か？",
+							options: {
+								a: "青い折り紙の船",
+								b: "赤い折り紙の鶴",
+								c: "白い和紙の短冊",
+								d: "黒い金属の指輪",
+							},
+							correctAnswer: "b",
+						},
+						{
+							id: "jp-q2",
+							type: "multiple-choice",
+							prompt: "犯行が行われる時間帯の特徴は？",
+							options: {
+								a: "早朝のラッシュ時",
+								b: "満月の深夜帯",
+								c: "雨の夕暮れ時",
+								d: "平日の昼下がり",
+							},
+							correctAnswer: "b",
+						},
+						{
+							id: "jp-q3",
+							type: "multiple-choice",
+							prompt: "被害者に共通する職業は？",
+							options: {
+								a: "飲食店経営者",
+								b: "元孤児院職員",
+								c: "IT技術者",
+								d: "公務員",
+							},
+							correctAnswer: "b",
+						},
+						{
+							id: "jp-q4",
+							type: "multiple-choice",
+							prompt: "警察が注目する文学作品は？",
+							options: {
+								a: "「罪と炎」",
+								b: "「月と影」",
+								c: "「孤児の祈り」",
+								d: "「仮面の告白」",
+							},
+							correctAnswer: "a",
+						},
+						{
+							id: "jp-q5",
+							type: "multiple-choice",
+							prompt: "精神鑑定で「認められない」とされたのは？",
+							options: {
+								a: "計画性",
+								b: "理性的思考",
+								c: "反社会性パーソナリティ障害",
+								d: "トラウマ反応",
+							},
+							correctAnswer: "c",
+						},
+						{
+							id: "jp-q6",
+							type: "multiple-choice",
+							prompt: "犯人が現場で意図的に行っていた行動は？",
+							options: {
+								a: "照明を消す",
+								b: "靴音を響かせる",
+								c: "窓を破壊する",
+								d: "被害者を縛る",
+							},
+							correctAnswer: "b",
+						},
+						{
+							id: "jp-q7",
+							type: "multiple-choice",
+							prompt: "事件のキーワード「悔い改め」が確認された場所は？",
+							options: {
+								a: "被害者の携帯",
+								b: "玄関に貼られた和紙",
+								c: "SNSのプロフィール",
+								d: "犯行声明文の末尾",
+							},
+							correctAnswer: "b",
+						},
+						{
+							id: "jp-q8",
+							type: "multiple-choice",
+							prompt: "監視カメラに映らない犯人の特徴は？",
+							options: {
+								a: "左利きである",
+								b: "能面のような仮面",
+								c: "足のサイズ",
+								d: "声の高さ",
+							},
+							correctAnswer: "a",
+							feedback: "監視カメラには「能面のような無表情の仮面」を被った姿が映っています。左利きかどうかは記事に記載されていません。",
+						},
+						{
+							id: "jp-q9",
+							type: "multiple-choice",
+							prompt: "捜査の矛盾点として正しいのは？",
+							options: {
+								a: "孤児院は10年前に閉鎖",
+								b: "被害者は全員50代",
+								c: "折鶴と施設の関連不明",
+								d: "金属ワイヤーの材質不一致",
+							},
+							correctAnswer: "c",
+							feedback: "記事によると、孤児院「暁光園」は20年前に閉鎖され、関係者の証言からは「折鶴」との関連性は見出せていません。",
+						},
+						{
+							id: "jp-q10",
+							type: "multiple-choice",
+							prompt: "犯人がSNSで使用する暗号の元ネタは？",
+							options: {
+								a: "2020年代の流行歌",
+								b: "インターネットスラング",
+								c: "絶版書籍の引用",
+								d: "映画の台詞",
+							},
+							correctAnswer: "c",
+							feedback: "警察は「文学作品『罪と炎』（1923年絶版）の引用パターン」を手掛かりに捜査を進めています。",
+						},
+					],
+				},
+			],
+		},
 	],
 };
+
+// Alias for backward compatibility
+export const sampleQuizConfig: QuizConfig = sampleNestedQuizConfig;

@@ -27,11 +27,12 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 export default function EditModulePage() {
 	const { module } = useLoaderData<typeof loader>();
 
+	const title = `${module.title} | Paideia LMS`;
 	return (
 		<Container size="lg" py="xl">
-			<title>{module.title} | Paideia LMS</title>
+			<title>{title}</title>
 			<meta name="description" content={`Preview of ${module.title}`} />
-			<meta property="og:title" content={`${module.title} | Paideia LMS`} />
+			<meta property="og:title" content={title} />
 			<meta property="og:description" content={`Preview of ${module.title}`} />
 
 			{module.type === "page" && module.page && (
