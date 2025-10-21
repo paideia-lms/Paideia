@@ -1,6 +1,6 @@
 import type { Payload } from "payload";
 import { QuizSubmissions } from "server/collections";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -32,13 +32,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -75,13 +75,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -106,11 +106,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -127,11 +127,11 @@ export interface UpdateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -285,7 +285,8 @@ export const tryCreateQuiz = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const createdByUser = quiz.createdBy;
-		assertZod(
+		assertZodInternal(
+			"tryCreateQuiz: Created by user is required",
 			createdByUser,
 			z.object({
 				id: z.number(),
@@ -340,7 +341,8 @@ export const tryGetQuizById = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const createdBy = quiz.createdBy;
-		assertZod(
+		assertZodInternal(
+			"tryGetQuizById: Created by user is required",
 			createdBy,
 			z.object({
 				id: z.number(),
@@ -436,11 +438,10 @@ export const tryUpdateQuiz = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const createdBy = updatedQuiz.createdBy;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateQuiz: Created by user is required",
 			createdBy,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		return {
@@ -573,7 +574,8 @@ export const tryCreateQuizSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = submission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryCreateQuizSubmission: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -581,7 +583,8 @@ export const tryCreateQuizSubmission = Result.wrap(
 		);
 
 		const quizRef = submission.quiz;
-		assertZod(
+		assertZodInternal(
+			"tryCreateQuizSubmission: Quiz is required",
 			quizRef,
 			z.object({
 				id: z.number(),
@@ -589,7 +592,8 @@ export const tryCreateQuizSubmission = Result.wrap(
 		);
 
 		const student = submission.student;
-		assertZod(
+		assertZodInternal(
+			"tryCreateQuizSubmission: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -597,7 +601,8 @@ export const tryCreateQuizSubmission = Result.wrap(
 		);
 
 		const enrollment = submission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryCreateQuizSubmission: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -660,7 +665,8 @@ export const tryUpdateQuizSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = updatedSubmission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateQuizSubmission: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -668,7 +674,8 @@ export const tryUpdateQuizSubmission = Result.wrap(
 		);
 
 		const quiz = updatedSubmission.quiz;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateQuizSubmission: Quiz is required",
 			quiz,
 			z.object({
 				id: z.number(),
@@ -676,7 +683,8 @@ export const tryUpdateQuizSubmission = Result.wrap(
 		);
 
 		const student = updatedSubmission.student;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateQuizSubmission: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -684,7 +692,8 @@ export const tryUpdateQuizSubmission = Result.wrap(
 		);
 
 		const enrollment = updatedSubmission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateQuizSubmission: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -744,7 +753,8 @@ export const tryGetQuizSubmissionById = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = submission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryGetQuizSubmissionById: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -752,7 +762,8 @@ export const tryGetQuizSubmissionById = Result.wrap(
 		);
 
 		const quiz = submission.quiz;
-		assertZod(
+		assertZodInternal(
+			"tryGetQuizSubmissionById: Quiz is required",
 			quiz,
 			z.object({
 				id: z.number(),
@@ -760,7 +771,8 @@ export const tryGetQuizSubmissionById = Result.wrap(
 		);
 
 		const student = submission.student;
-		assertZod(
+		assertZodInternal(
+			"tryGetQuizSubmissionById: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -768,7 +780,8 @@ export const tryGetQuizSubmissionById = Result.wrap(
 		);
 
 		const enrollment = submission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryGetQuizSubmissionById: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -833,7 +846,8 @@ export const trySubmitQuiz = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = updatedSubmission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"trySubmitQuiz: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -841,7 +855,8 @@ export const trySubmitQuiz = Result.wrap(
 		);
 
 		const quiz = updatedSubmission.quiz;
-		assertZod(
+		assertZodInternal(
+			"trySubmitQuiz: Quiz is required",
 			quiz,
 			z.object({
 				id: z.number(),
@@ -849,7 +864,8 @@ export const trySubmitQuiz = Result.wrap(
 		);
 
 		const student = updatedSubmission.student;
-		assertZod(
+		assertZodInternal(
+			"trySubmitQuiz: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -857,7 +873,8 @@ export const trySubmitQuiz = Result.wrap(
 		);
 
 		const enrollment = updatedSubmission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"trySubmitQuiz: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -890,11 +907,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1234,7 +1251,8 @@ export const tryGradeQuizSubmission = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const activityModule = updatedSubmission.activityModule;
-			assertZod(
+			assertZodInternal(
+				"tryGradeQuizSubmission: Activity module is required",
 				activityModule,
 				z.object({
 					id: z.number(),
@@ -1242,7 +1260,8 @@ export const tryGradeQuizSubmission = Result.wrap(
 			);
 
 			const quiz = updatedSubmission.quiz;
-			assertZod(
+			assertZodInternal(
+				"tryGradeQuizSubmission: Quiz is required",
 				quiz,
 				z.object({
 					id: z.number(),
@@ -1250,7 +1269,8 @@ export const tryGradeQuizSubmission = Result.wrap(
 			);
 
 			const student = updatedSubmission.student;
-			assertZod(
+			assertZodInternal(
+				"tryGradeQuizSubmission: Student is required",
 				student,
 				z.object({
 					id: z.number(),
@@ -1258,7 +1278,8 @@ export const tryGradeQuizSubmission = Result.wrap(
 			);
 
 			const enrollment = updatedSubmission.enrollment;
-			assertZod(
+			assertZodInternal(
+				"tryGradeQuizSubmission: Enrollment is required",
 				enrollment,
 				z.object({
 					id: z.number(),
@@ -1350,25 +1371,29 @@ export const tryListQuizSubmissions = Result.wrap(
 
 		// type narrowing
 		const docs = result.docs.map((doc) => {
-			assertZod(
+			assertZodInternal(
+				"tryListQuizSubmissions: Activity module is required",
 				doc.activityModule,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryListQuizSubmissions: Quiz is required",
 				doc.quiz,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryListQuizSubmissions: Student is required",
 				doc.student,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryListQuizSubmissions: Enrollment is required",
 				doc.enrollment,
 				z.object({
 					id: z.number(),

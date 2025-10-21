@@ -1,6 +1,6 @@
 import type { Payload, Where } from "payload";
 import searchQueryParser from "search-query-parser";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import { transformError, UnknownError } from "~/utils/error";
@@ -21,7 +21,7 @@ export function parseQuery(query: string) {
 		return { text: result, in: [] as string[] };
 	}
 
-	assertZod(result, querySchema);
+	assertZodInternal("parseQuery: Result is required", result, querySchema);
 
 	const _result = result as z.infer<typeof querySchema>;
 
@@ -75,17 +75,17 @@ export const tryGlobalSearch = Result.wrap(
 			{
 				or: text
 					? [
-							{
-								title: {
-									contains: text,
-								},
+						{
+							title: {
+								contains: text,
 							},
-							{
-								meta: {
-									contains: text,
-								},
+						},
+						{
+							meta: {
+								contains: text,
 							},
-						]
+						},
+					]
 					: [],
 			},
 		];

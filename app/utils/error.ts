@@ -236,12 +236,14 @@ export class NonExistingWhiteboardError extends Error {
 	}
 }
 
+
+
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||
 		process.env.NODE_ENV === "development"
 	) {
-		console.log("transformError", error);
+		console.error("transformError", error);
 	}
 	if (error instanceof NonExistingSourceError) return error;
 	else if (error instanceof DuplicateBranchError) return error;

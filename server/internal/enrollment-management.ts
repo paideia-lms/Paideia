@@ -1,5 +1,5 @@
 import type { Payload, PayloadRequest } from "payload";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -432,14 +432,16 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 			.then((result) => {
 				return result.docs.map((doc) => {
 					const user = doc.user;
-					assertZod(
+					assertZodInternal(
+						"tryFindEnrollmentsByUser: User is required",
 						user,
 						z.object({
 							id: z.number(),
 						}),
 					);
 					const course = doc.course;
-					assertZod(
+					assertZodInternal(
+						"tryFindEnrollmentsByUser: Course is required",
 						course,
 						z.object({
 							id: z.number(),
@@ -447,7 +449,8 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 					);
 					const groups =
 						doc.groups?.map((group) => {
-							assertZod(
+							assertZodInternal(
+								"tryFindEnrollmentsByUser: Group is required",
 								group,
 								z.object({
 									id: z.number(),

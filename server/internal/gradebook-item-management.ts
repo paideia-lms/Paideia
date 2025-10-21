@@ -1,7 +1,7 @@
 import type { Payload } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import { GradebookItems } from "server/collections/gradebook-items";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -107,7 +107,8 @@ export const tryCreateGradebookItem = Result.wrap(
 
 			// Ensure category belongs to the same gradebook
 			const categoryGradebook = category.gradebook;
-			assertZod(
+			assertZodInternal(
+				'tryCreateGradebookItem: Category gradebook is required',
 				categoryGradebook,
 				z.object({
 					id: z.number(),
@@ -166,7 +167,8 @@ export const tryCreateGradebookItem = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const itemGradebook = newItem.gradebook;
-			assertZod(
+			assertZodInternal(
+				'tryCreateGradebookItem: Item gradebook is required',
 				itemGradebook,
 				z.object({
 					id: z.number(),
@@ -174,7 +176,9 @@ export const tryCreateGradebookItem = Result.wrap(
 			);
 
 			const itemCategory = newItem.category;
-			assertZod(
+			assertZodInternal(
+
+				'tryCreateGradebookItem: Item category is required',
 				itemCategory,
 				z
 					.object({
@@ -184,7 +188,8 @@ export const tryCreateGradebookItem = Result.wrap(
 			);
 
 			const itemActivityModule = newItem.activityModule;
-			assertZod(
+			assertZodInternal(
+				'tryCreateGradebookItem: Item activity module is required',
 				itemActivityModule,
 				z
 					.object({
@@ -485,7 +490,8 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 				return items.docs.map((item) => {
 					const userGrades = item.userGrades?.docs;
 					// user grade should be object
-					assertZod(
+					assertZodInternal(
+						'tryGetItemsWithUserGrades: User grades is required',
 						userGrades,
 						z.array(
 							z.object({

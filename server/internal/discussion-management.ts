@@ -1,7 +1,7 @@
 import type { Payload } from "payload";
 import { DiscussionSubmissions } from "server/collections";
 import type { DiscussionSubmission } from "server/payload-types";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -181,7 +181,8 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = submission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryCreateDiscussionSubmission: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -189,7 +190,8 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 		);
 
 		const discussionRef = submission.discussion;
-		assertZod(
+		assertZodInternal(
+			"tryCreateDiscussionSubmission: Discussion is required",
 			discussionRef,
 			z.object({
 				id: z.number(),
@@ -197,7 +199,8 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 		);
 
 		const student = submission.student;
-		assertZod(
+		assertZodInternal(
+			"tryCreateDiscussionSubmission: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -205,7 +208,8 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 		);
 
 		const enrollment = submission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryCreateDiscussionSubmission: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -271,7 +275,8 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = updatedSubmission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateDiscussionSubmission: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -279,7 +284,8 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
 		);
 
 		const discussion = updatedSubmission.discussion;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateDiscussionSubmission: Discussion is required",
 			discussion,
 			z.object({
 				id: z.number(),
@@ -287,7 +293,8 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
 		);
 
 		const student = updatedSubmission.student;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateDiscussionSubmission: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -295,7 +302,8 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
 		);
 
 		const enrollment = updatedSubmission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateDiscussionSubmission: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -355,7 +363,8 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = submission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryGetDiscussionSubmissionById: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -363,7 +372,8 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
 		);
 
 		const discussion = submission.discussion;
-		assertZod(
+		assertZodInternal(
+			"tryGetDiscussionSubmissionById: Discussion is required",
 			discussion,
 			z.object({
 				id: z.number(),
@@ -371,7 +381,8 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
 		);
 
 		const student = submission.student;
-		assertZod(
+		assertZodInternal(
+			"tryGetDiscussionSubmissionById: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -379,7 +390,8 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
 		);
 
 		const enrollment = submission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryGetDiscussionSubmissionById: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -469,25 +481,29 @@ export const tryGetThreadWithReplies = Result.wrap(
 
 		// Process replies and comments with type narrowing
 		const replies = repliesResult.docs.map((reply) => {
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Activity module is required",
 				reply.activityModule,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Discussion is required",
 				reply.discussion,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Student is required",
 				reply.student,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Enrollment is required",
 				reply.enrollment,
 				z.object({
 					id: z.number(),
@@ -504,25 +520,29 @@ export const tryGetThreadWithReplies = Result.wrap(
 		});
 
 		const processedComments = comments.map((comment) => {
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Activity module is required",
 				comment.activityModule,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Discussion is required",
 				comment.discussion,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Student is required",
 				comment.student,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryGetThreadWithReplies: Enrollment is required",
 				comment.enrollment,
 				z.object({
 					id: z.number(),
@@ -618,7 +638,8 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = updatedSubmission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryUpvoteDiscussionSubmission: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -626,7 +647,8 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 		);
 
 		const discussion = updatedSubmission.discussion;
-		assertZod(
+		assertZodInternal(
+			"tryUpvoteDiscussionSubmission: Discussion is required",
 			discussion,
 			z.object({
 				id: z.number(),
@@ -634,7 +656,8 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 		);
 
 		const student = updatedSubmission.student;
-		assertZod(
+		assertZodInternal(
+			"tryUpvoteDiscussionSubmission: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -642,7 +665,8 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 		);
 
 		const enrollment = updatedSubmission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryUpvoteDiscussionSubmission: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -717,7 +741,8 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = updatedSubmission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryRemoveUpvoteDiscussionSubmission: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -725,7 +750,8 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		);
 
 		const discussion = updatedSubmission.discussion;
-		assertZod(
+		assertZodInternal(
+			"tryRemoveUpvoteDiscussionSubmission: Discussion is required",
 			discussion,
 			z.object({
 				id: z.number(),
@@ -733,7 +759,8 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		);
 
 		const student = updatedSubmission.student;
-		assertZod(
+		assertZodInternal(
+			"tryRemoveUpvoteDiscussionSubmission: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -741,7 +768,8 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		);
 
 		const enrollment = updatedSubmission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryRemoveUpvoteDiscussionSubmission: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -834,25 +862,29 @@ export const tryListDiscussionSubmissions = Result.wrap(
 
 		// type narrowing
 		const docs = result.docs.map((doc) => {
-			assertZod(
+			assertZodInternal(
+				"tryListDiscussionSubmissions: Activity module is required",
 				doc.activityModule,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryListDiscussionSubmissions: Discussion is required",
 				doc.discussion,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryListDiscussionSubmissions: Student is required",
 				doc.student,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				"tryListDiscussionSubmissions: Enrollment is required",
 				doc.enrollment,
 				z.object({
 					id: z.number(),
@@ -984,7 +1016,8 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const activityModule = updatedSubmission.activityModule;
-			assertZod(
+			assertZodInternal(
+				"tryGradeDiscussionSubmission: Activity module is required",
 				activityModule,
 				z.object({
 					id: z.number(),
@@ -992,7 +1025,8 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			);
 
 			const discussion = updatedSubmission.discussion;
-			assertZod(
+			assertZodInternal(
+				"tryGradeDiscussionSubmission: Discussion is required",
 				discussion,
 				z.object({
 					id: z.number(),
@@ -1000,7 +1034,8 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			);
 
 			const student = updatedSubmission.student;
-			assertZod(
+			assertZodInternal(
+				"tryGradeDiscussionSubmission: Student is required",
 				student,
 				z.object({
 					id: z.number(),
@@ -1008,7 +1043,8 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			);
 
 			const enrollment = updatedSubmission.enrollment;
-			assertZod(
+			assertZodInternal(
+				"tryGradeDiscussionSubmission: Enrollment is required",
 				enrollment,
 				z.object({
 					id: z.number(),
@@ -1064,35 +1100,40 @@ export const calculateDiscussionGrade = Result.wrap(
 			.then((result) => {
 				// type narrowing
 				return result.docs.map((doc) => {
-					assertZod(
+					assertZodInternal(
+						"calculateDiscussionGrade: Activity module is required",
 						doc.activityModule,
 						z.object({
 							id: z.number(),
 						}),
 					);
 
-					assertZod(
+					assertZodInternal(
+						"calculateDiscussionGrade: Discussion is required",
 						doc.discussion,
 						z.object({
 							id: z.number(),
 						}),
 					);
 
-					assertZod(
+					assertZodInternal(
+						"calculateDiscussionGrade: Student is required",
 						doc.student,
 						z.object({
 							id: z.number(),
 						}),
 					);
 
-					assertZod(
+					assertZodInternal(
+						"calculateDiscussionGrade: Enrollment is required",
 						doc.enrollment,
 						z.object({
 							id: z.number(),
 						}),
 					);
 
-					assertZod(
+					assertZodInternal(
+						"calculateDiscussionGrade: Parent thread is required",
 						doc.parentThread,
 						z
 							.object({
@@ -1137,7 +1178,8 @@ export const calculateDiscussionGrade = Result.wrap(
 			.then((result) => {
 				return result.docs.map((doc) => {
 					// type narrowing
-					assertZod(
+					assertZodInternal(
+						"calculateDiscussionGrade: Submission is required",
 						doc.submission,
 						z
 							.object({

@@ -1,5 +1,5 @@
 import type { Payload, TypedUser, User } from "payload";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -498,23 +498,33 @@ export const tryFindGrantsByActivityModule = Result.wrap(
 			.then((result) => {
 				return result.docs.map((doc) => {
 					const grantedTo = doc.grantedTo;
-					assertZod(
+					assertZodInternal(
+						"tryFindGrantsByActivityModule: Granted to is required",
 						grantedTo,
 						z.object({
 							id: z.number(),
 						}),
 					);
 					const grantedToAvatar = grantedTo.avatar;
-					assertZod(grantedToAvatar, z.number().nullish());
+					assertZodInternal(
+						"tryFindGrantsByActivityModule: Granted to avatar is required",
+						grantedToAvatar,
+						z.number().nullish(),
+					);
 					const grantedBy = doc.grantedBy;
-					assertZod(
+					assertZodInternal(
+						"tryFindGrantsByActivityModule: Granted by is required",
 						grantedBy,
 						z.object({
 							id: z.number(),
 						}),
 					);
 					const grantedByAvatar = grantedBy.avatar;
-					assertZod(grantedByAvatar, z.number().nullish());
+					assertZodInternal(
+						"tryFindGrantsByActivityModule: Granted by avatar is required",
+						grantedByAvatar,
+						z.number().nullish(),
+					);
 					return {
 						...doc,
 						grantedTo: {
@@ -589,12 +599,12 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				firstName: string | null;
 				lastName: string | null;
 				avatar?:
-					| number
-					| {
-							id: number;
-							filename?: string;
-					  }
-					| null;
+				| number
+				| {
+					id: number;
+					filename?: string;
+				}
+				| null;
 				enrollments: {
 					courseId: number;
 					role: "teacher" | "ta";
@@ -605,17 +615,23 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 		for (const enrollment of enrollments.docs) {
 			// Narrow the user type
 			const user = enrollment.user;
-			assertZod(
+			assertZodInternal(
+				"tryFindInstructorsForActivityModule: User is required",
 				user,
 				z.object({
 					id: z.number(),
 				}),
 			);
 			const userAvatar = user.avatar;
-			assertZod(userAvatar, z.number().nullish());
+			assertZodInternal(
+				"tryFindInstructorsForActivityModule: User avatar is required",
+				userAvatar,
+				z.number().nullish(),
+			);
 			// Narrow the course type
 			const course = enrollment.course;
-			assertZod(
+			assertZodInternal(
+				"tryFindInstructorsForActivityModule: Course is required",
 				course,
 				z.object({
 					id: z.number(),
@@ -683,7 +699,11 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 			.then((result) => {
 				return result.docs.map((doc) => {
 					const course = doc.course;
-					assertZod(course, z.number());
+					assertZodInternal(
+						"tryFindAutoGrantedModulesForInstructor: Course is required",
+						course,
+						z.number(),
+					);
 					return {
 						id: doc.id,
 						course: course,
@@ -713,60 +733,61 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				return result.docs
 					.map((doc) => {
 						const course = doc.course;
-						assertZod(
+						assertZodInternal(
+							"tryFindAutoGrantedModulesForInstructor: Course is required",
 							course,
 							z.object({
 								id: z.number(),
 							}),
 						);
 						const activityModule = doc.activityModule;
-						assertZod(
+						assertZodInternal(
+							"tryFindAutoGrantedModulesForInstructor: Activity module is required",
 							activityModule,
 							z.object({
 								id: z.number(),
-							}),
+							}, { error: "Activity module is required" }),
 						);
 
 						const activityModuleOwner = activityModule.owner;
-						assertZod(
+						assertZodInternal(
+							"tryFindAutoGrantedModulesForInstructor: Activity module owner is required",
 							activityModuleOwner,
 							z.object({
 								id: z.number(),
-							}),
+							}, { error: "Activity module owner is required" }),
 						);
 
 						const activityModuleOwnerAvatar = activityModuleOwner.avatar;
-						assertZod(
+						assertZodInternal(
+							"tryFindAutoGrantedModulesForInstructor: Activity module owner avatar is required",
 							activityModuleOwnerAvatar,
 							z
-								.object({
-									id: z.number(),
-								})
-								.nullish(),
+								.number({ error: "Activity module owner avatar is required" }).nullish()
+							,
 						);
 
 						const activityModuleCreatedBy = activityModule.createdBy;
-						assertZod(
+						assertZodInternal(
+							"tryFindAutoGrantedModulesForInstructor: Activity module created by is required",
 							activityModuleCreatedBy,
 							z.object({
 								id: z.number(),
-							}),
+							}, { error: "Activity module created by is required" }),
 						);
 
 						const activityModuleCreatedByAvatar =
 							activityModuleCreatedBy.avatar;
-						assertZod(
+						assertZodInternal(
+							"tryFindAutoGrantedModulesForInstructor: Activity module created by avatar is required",
 							activityModuleCreatedByAvatar,
 							z
-								.object({
-									id: z.number(),
-								})
-								.nullish(),
+								.number({ error: "Activity module created by avatar is required" }).nullish()
 						);
 
 						const activityModuleLinkedCourses =
 							activityModule.linkedCourses?.docs?.map((c) => {
-								assertZod(c, z.number());
+								assertZodInternal("tryFindAutoGrantedModulesForInstructor: Activity module linked courses is required", c, z.number());
 								return c;
 							}) ?? [];
 

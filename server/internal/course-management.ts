@@ -7,7 +7,7 @@ import {
 	Gradebooks,
 	Groups,
 } from "server/payload.config";
-import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import {
@@ -185,25 +185,22 @@ export const tryCreateCourse = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const createdByUser = newCourse.createdBy;
-			assertZod(
+			assertZodInternal(
+				"tryCreateCourse: Created by user is required",
 				createdByUser,
-				z.object({
-					id: z.number(),
-				}),
+				z.object({ id: z.number() }),
 			);
 
 			const newCourseThumbnail = newCourse.thumbnail;
-			assertZod(
+			assertZodInternal(
+				"tryCreateCourse: New course thumbnail is required",
 				newCourseThumbnail,
-				z
-					.object({
-						id: z.number(),
-					})
-					.nullish(),
+				z.object({ id: z.number() }).nullish(),
 			);
 
 			const newCourseCategory = newCourse.category;
-			assertZod(
+			assertZodInternal(
+				"tryCreateCourse: New course category is required",
 				newCourseCategory,
 				z
 					.object({
@@ -349,81 +346,62 @@ export const tryFindCourseById = Result.wrap(
 					throw new Error("Course not found");
 				}
 				const courseCreatedBy = course.createdBy;
-				assertZod(
+				assertZodInternal(
+					"tryFindCourseById: Course createdBy is required",
 					courseCreatedBy,
 					z.object(
 						{
 							id: z.number(),
 						},
-						{ error: "Course createdBy is required" },
 					),
 				);
 
 				const courseCreatedByAvatar = courseCreatedBy.avatar;
-				assertZod(
+				assertZodInternal(
+					"tryFindCourseById: Course createdBy avatar is required",
 					courseCreatedByAvatar,
-					z
-						.object(
-							{ id: z.number() },
-							{ error: "Course createdBy avatar is required" },
-						)
-						.nullish(),
+					z.object({ id: z.number() }).nullish(),
 				);
 
 				const courseEnrollments =
 					course.enrollments?.docs?.map((e) => {
-						assertZod(
+						assertZodInternal(
+							"tryFindCourseById: Course enrollment is required",
 							e,
-							z.object(
-								{
-									id: z.number(),
-								},
-								{ error: "Course enrollment is required" },
-							),
+							z.object({ id: z.number() }),
 						);
-
 						const course = e.course;
 						// assert e has no course
-						assertZod(
+						assertZodInternal(
+							"tryFindCourseById: Course enrollment course is required",
 							course,
-							z.undefined({ error: "Course enrollment course is required" }),
+							z.undefined(),
 						);
-
 						const user = e.user;
-						assertZod(
+						assertZodInternal(
+							"tryFindCourseById: Course enrollment user is required",
 							user,
-							z.object(
-								{
-									id: z.number(),
-								},
-								{ error: "Course enrollment user is required" },
-							),
+							z.object({ id: z.number() }),
 						);
 
 						const groups =
 							e.groups?.map((g) => {
-								assertZod(
+								assertZodInternal(
+									"tryFindCourseById: Course enrollment group is required",
 									g,
-									z.object(
-										{ id: z.number() },
-										{ error: "Course enrollment group is required" },
-									),
+									z.object({ id: z.number() }),
 								);
 								const parent = g.parent;
-								assertZod(
+								assertZodInternal(
+									"tryFindCourseById: Course enrollment group parent is required",
 									parent,
-									z
-										.number({
-											error: "Course enrollment group parent is required",
-										})
-										.nullish(),
+									z.number().nullish(),
 								);
 								const course = g.course;
-								assertZod(
+								assertZodInternal(
+									"tryFindCourseById: Course enrollment group course is required",
 									course,
-									z.undefined({
-										error: "Course enrollment group course is required",
-									}),
+									z.undefined(),
 								);
 								return {
 									...g,
@@ -433,11 +411,10 @@ export const tryFindCourseById = Result.wrap(
 							}) ?? [];
 
 						const avatar = user.avatar;
-						assertZod(
+						assertZodInternal(
+							"tryFindCourseById: Course enrollment user avatar is required",
 							avatar,
-							z
-								.number({ error: "Course enrollment user avatar is required" })
-								.nullish(),
+							z.number().nullish(),
 						);
 
 						return {
@@ -453,25 +430,20 @@ export const tryFindCourseById = Result.wrap(
 
 				const groups =
 					course.groups?.docs?.map((g) => {
-						assertZod(
+						assertZodInternal(
+							"tryFindCourseById: Course group is required",
 							g,
-							z.object(
-								{ id: z.number() },
-								{ error: "Course group is required" },
-							),
+							z.object({ id: z.number() }),
 						);
 						const parent = g.parent;
-						assertZod(
+						assertZodInternal(
+							"tryFindCourseById: Course group parent is required",
 							parent,
-							z
-								.object(
-									{ id: z.number() },
-									{ error: "Course group parent is required" },
-								)
-								.nullish(),
+							z.object({ id: z.number() }).nullish(),
 						);
 						const course = g.course;
-						assertZod(
+						assertZodInternal(
+							"tryFindCourseById: Course group course is required",
 							course,
 							z.undefined({ error: "Course group course is required" }),
 						);
@@ -483,43 +455,38 @@ export const tryFindCourseById = Result.wrap(
 					}) ?? [];
 
 				const category = course.category;
-				assertZod(
+				assertZodInternal(
+					"tryFindCourseById: Course category is required",
 					category,
-					z
-						.object(
-							{ id: z.number() },
-							{ error: "Course category is required" },
-						)
-						.nullish(),
+					z.object({ id: z.number() }).nullish(),
 				);
 
 				const categoryCourses = category?.courses;
-				assertZod(
+				assertZodInternal(
+					"tryFindCourseById: Course category courses is required",
 					categoryCourses,
-					z.undefined({ error: "Course category courses is required" }),
+					z.undefined(),
 				);
 
 				const parent = category?.parent;
-				assertZod(
+				assertZodInternal(
+					"tryFindCourseById: Course category parent is required",
 					parent,
-					z
-						.object(
-							{ id: z.number() },
-							{ error: "Course category parent is required" },
-						)
-						.nullish(),
+					z.object({ id: z.number() }).nullish(),
 				);
 
 				const categorySubcategories = category?.subcategories;
-				assertZod(
+				assertZodInternal(
+					"tryFindCourseById: Course category subcategories is required",
 					categorySubcategories,
-					z.undefined({ error: "Course category subcategories is required" }),
+					z.undefined(),
 				);
 
 				const sections = course.sections;
-				assertZod(
+				assertZodInternal(
+					"tryFindCourseById: Course sections is required",
 					sections,
-					z.undefined({ error: "Course sections is required" }),
+					z.undefined(),
 				);
 
 				return {
@@ -532,11 +499,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-								...category,
-								parent,
-								courses: categoryCourses,
-								subcategories: categorySubcategories,
-							}
+							...category,
+							parent,
+							courses: categoryCourses,
+							subcategories: categorySubcategories,
+						}
 						: null,
 					sections,
 				};
@@ -860,34 +827,28 @@ export const tryFindAllCourses = Result.wrap(
 				const docs = result.docs.map((doc) => {
 					// Type narrowing for relationships
 					const createdBy = doc.createdBy;
-					assertZod(
+					assertZodInternal(
+						"tryFindAllCourses: Course createdBy is required",
 						createdBy,
 						z.object({
 							id: z.number(),
-							email: z.string(),
-							firstName: z.string().nullable(),
-							lastName: z.string().nullable(),
 						}),
 					);
 
 					const thumbnail = doc.thumbnail;
-					assertZod(
+					assertZodInternal(
+						"tryFindAllCourses: Course thumbnail is required",
 						thumbnail,
-						z
-							.object({
-								id: z.number(),
-								filename: z.string(),
-							})
-							.nullable(),
+						z.object({ id: z.number() }).nullable(),
 					);
 
 					const category = doc.category;
-					assertZod(
+					assertZodInternal(
+						"tryFindAllCourses: Course category is required",
 						category,
 						z
 							.object({
 								id: z.number(),
-								name: z.string(),
 							})
 							.nullable(),
 					);

@@ -1,6 +1,6 @@
 import type { Payload } from "payload";
 import { GradebookCategories } from "server/payload.config";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import {
@@ -85,7 +85,8 @@ export const tryCreateGradebookCategory = Result.wrap(
 
 			// Ensure parent belongs to the same gradebook
 			const parentGradebook = parentCategory.gradebook;
-			assertZod(
+			assertZodInternal(
+				"tryCreateGradebookCategory: Parent gradebook is required",
 				parentGradebook,
 				z.object({
 					id: z.number(),
@@ -125,7 +126,8 @@ export const tryCreateGradebookCategory = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const categoryGradebook = newCategory.gradebook;
-			assertZod(
+			assertZodInternal(
+				"tryCreateGradebookCategory: Category gradebook is required",
 				categoryGradebook,
 				z.object({
 					id: z.number(),
@@ -133,7 +135,8 @@ export const tryCreateGradebookCategory = Result.wrap(
 			);
 
 			const categoryParent = newCategory.parent;
-			assertZod(
+			assertZodInternal(
+				"tryCreateGradebookCategory: Category parent is required",
 				categoryParent,
 				z
 					.object({

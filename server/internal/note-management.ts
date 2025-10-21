@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import type { Payload, TypedUser } from "payload";
 import { Notes } from "server/collections";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
@@ -203,12 +203,14 @@ export const tryFindNoteById = Result.wrap(
 			})
 			.then((n) => {
 				const createdBy = n.createdBy;
-				assertZod(
+				assertZodInternal(
+					"tryFindNoteById: Note createdBy is required",
 					createdBy,
 					z.object({ id: z.number() }, { error: "Note createdBy is required" }),
 				);
 				const avatar = createdBy.avatar;
-				assertZod(
+				assertZodInternal(
+					"tryFindNoteById: Note createdBy avatar is required",
 					avatar,
 					z.number({ error: "Note createdBy avatar is required" }).nullish(),
 				);

@@ -1,6 +1,6 @@
 import type { Payload } from "payload";
 import { AssignmentSubmissions, Assignments } from "server/collections";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -144,7 +144,8 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = submission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryCreateAssignmentSubmission: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -152,27 +153,24 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 		);
 
 		const assignmentRef = submission.assignment;
-		assertZod(
+		assertZodInternal(
+			"tryCreateAssignmentSubmission: Assignment is required",
 			assignmentRef,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		const student = submission.student;
-		assertZod(
+		assertZodInternal(
+			"tryCreateAssignmentSubmission: Student is required",
 			student,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		const enrollment = submission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryCreateAssignmentSubmission: Enrollment is required",
 			enrollment,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		return {
@@ -228,35 +226,31 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = submission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryGetAssignmentSubmissionById: Activity module is required",
 			activityModule,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		const assignment = submission.assignment;
-		assertZod(
+		assertZodInternal(
+			"tryGetAssignmentSubmissionById: Assignment is required",
 			assignment,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		const student = submission.student;
-		assertZod(
+		assertZodInternal(
+			"tryGetAssignmentSubmissionById: Student is required",
 			student,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		const enrollment = submission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryGetAssignmentSubmissionById: Enrollment is required",
 			enrollment,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		return {
@@ -316,23 +310,22 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = updatedSubmission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateAssignmentSubmission: Activity module is required",
 			activityModule,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		const assignment = updatedSubmission.assignment;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateAssignmentSubmission: Assignment is required",
 			assignment,
-			z.object({
-				id: z.number(),
-			}),
+			z.object({ id: z.number() }),
 		);
 
 		const student = updatedSubmission.student;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateAssignmentSubmission: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -340,7 +333,8 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 		);
 
 		const enrollment = updatedSubmission.enrollment;
-		assertZod(
+		assertZodInternal(
+			"tryUpdateAssignmentSubmission: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -403,7 +397,8 @@ export const trySubmitAssignment = Result.wrap(
 		////////////////////////////////////////////////////
 
 		const activityModule = updatedSubmission.activityModule;
-		assertZod(
+		assertZodInternal(
+			"trySubmitAssignment: Activity module is required",
 			activityModule,
 			z.object({
 				id: z.number(),
@@ -411,7 +406,8 @@ export const trySubmitAssignment = Result.wrap(
 		);
 
 		const assignment = updatedSubmission.assignment;
-		assertZod(
+		assertZodInternal(
+			'trySubmitAssignment: Assignment is required',
 			assignment,
 			z.object({
 				id: z.number(),
@@ -419,7 +415,8 @@ export const trySubmitAssignment = Result.wrap(
 		);
 
 		const student = updatedSubmission.student;
-		assertZod(
+		assertZodInternal(
+			'trySubmitAssignment: Student is required',
 			student,
 			z.object({
 				id: z.number(),
@@ -427,7 +424,8 @@ export const trySubmitAssignment = Result.wrap(
 		);
 
 		const enrollment = updatedSubmission.enrollment;
-		assertZod(
+		assertZodInternal(
+			'trySubmitAssignment: Enrollment is required',
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -520,7 +518,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			// Get assignment to verify it exists
 			const assignmentId =
 				typeof currentSubmission.assignment === "object" &&
-				"id" in currentSubmission.assignment
+					"id" in currentSubmission.assignment
 					? currentSubmission.assignment.id
 					: (currentSubmission.assignment as number);
 
@@ -572,7 +570,8 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const activityModule = updatedSubmission.activityModule;
-			assertZod(
+			assertZodInternal(
+				'tryGradeAssignmentSubmission: Activity module is required',
 				activityModule,
 				z.object({
 					id: z.number(),
@@ -580,7 +579,8 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			);
 
 			const assignmentRef = updatedSubmission.assignment;
-			assertZod(
+			assertZodInternal(
+				'tryGradeAssignmentSubmission: Assignment is required',
 				assignmentRef,
 				z.object({
 					id: z.number(),
@@ -588,7 +588,8 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			);
 
 			const student = updatedSubmission.student;
-			assertZod(
+			assertZodInternal(
+				'tryGradeAssignmentSubmission: Student is required',
 				student,
 				z.object({
 					id: z.number(),
@@ -596,7 +597,8 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			);
 
 			const enrollment = updatedSubmission.enrollment;
-			assertZod(
+			assertZodInternal(
+				'tryGradeAssignmentSubmission: Enrollment is required',
 				enrollment,
 				z.object({
 					id: z.number(),
@@ -685,25 +687,29 @@ export const tryListAssignmentSubmissions = Result.wrap(
 
 		// type narrowing
 		const docs = result.docs.map((doc) => {
-			assertZod(
+			assertZodInternal(
+				'tryListAssignmentSubmissions: Activity module is required',
 				doc.activityModule,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				'tryListAssignmentSubmissions: Assignment is required',
 				doc.assignment,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				'tryListAssignmentSubmissions: Student is required',
 				doc.student,
 				z.object({
 					id: z.number(),
 				}),
 			);
-			assertZod(
+			assertZodInternal(
+				'tryListAssignmentSubmissions: Enrollment is required',
 				doc.enrollment,
 				z.object({
 					id: z.number(),

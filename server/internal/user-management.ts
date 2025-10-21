@@ -1,7 +1,7 @@
 import type { Payload, PayloadRequest, Where } from "payload";
 import { getAccessResults } from "payload";
 import searchQueryParser from "search-query-parser";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
@@ -162,7 +162,11 @@ export const tryCreateUser = Result.wrap(
 			})
 			.then((u) => {
 				const avatar = u.avatar;
-				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				assertZodInternal(
+					"tryCreateUser: User avatar is required",
+					avatar,
+					z.object({ id: z.number() }).nullish(),
+				);
 				return {
 					...u,
 					avatar,
@@ -207,7 +211,11 @@ export const tryUpdateUser = Result.wrap(
 			})
 			.then((u) => {
 				const avatar = u.avatar;
-				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				assertZodInternal(
+					"tryFindUserByEmail: User avatar is required",
+					avatar,
+					z.object({ id: z.number() }).nullish(),
+				);
 				return {
 					...u,
 					avatar,
@@ -251,7 +259,11 @@ export const tryFindUserByEmail = Result.wrap(
 				}
 				const user = users.docs[0];
 				const avatar = user.avatar;
-				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				assertZodInternal(
+					"tryFindUserByEmail: User avatar is required",
+					avatar,
+					z.object({ id: z.number() }).nullish(),
+				);
 				return {
 					...user,
 					avatar,
@@ -286,7 +298,11 @@ export const tryFindUserById = Result.wrap(
 			})
 			.then((u) => {
 				const avatar = u.avatar;
-				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				assertZodInternal(
+					"tryFindUserById: User avatar is required",
+					avatar,
+					z.object({ id: z.number() }).nullish(),
+				);
 				return {
 					...u,
 					avatar,
@@ -321,7 +337,11 @@ export const tryDeleteUser = Result.wrap(
 			})
 			.then((u) => {
 				const avatar = u.avatar;
-				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				assertZodInternal(
+					"tryDeleteUser: User avatar is required",
+					avatar,
+					z.object({ id: z.number() }).nullish(),
+				);
 				return {
 					...u,
 					avatar,
@@ -422,7 +442,11 @@ export const tryFindAllUsers = Result.wrap(
 				const docs = result.docs.map((doc) => {
 					const avatar = doc.avatar;
 					// type narrowing - avatar can be null
-					assertZod(avatar, z.object({ id: z.number() }).nullish());
+					assertZodInternal(
+						"tryFindAllUsers: User avatar is required",
+						avatar,
+						z.object({ id: z.number() }).nullish(),
+					);
 					return {
 						...doc,
 						avatar: avatar,
@@ -474,7 +498,11 @@ export const tryLogin = Result.wrap(
 			.then((l) => {
 				const user = l.user;
 				const avatar = user.avatar;
-				assertZod(avatar, z.object({ id: z.number() }).nullish());
+				assertZodInternal(
+					"tryLogin: User avatar is required",
+					avatar,
+					z.object({ id: z.number() }).nullish(),
+				);
 				return {
 					...l,
 					user: { ...user, avatar },
@@ -572,7 +600,11 @@ export const tryRegisterFirstUser = Result.wrap(
 				.then((l) => {
 					const user = l.user;
 					const avatar = user.avatar;
-					assertZod(avatar, z.object({ id: z.number() }).nullish());
+					assertZodInternal(
+						"tryRegisterFirstUser: User avatar is required",
+						avatar,
+						z.object({ id: z.number() }).nullish(),
+					);
 					return {
 						...l,
 						user: { ...user, avatar },

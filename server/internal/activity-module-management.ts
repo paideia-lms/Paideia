@@ -1,5 +1,5 @@
 import type { Payload, User } from "payload";
-import { assertZod, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -72,13 +72,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -182,13 +182,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -398,7 +398,8 @@ export const tryCreateActivityModule = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const createdBy = activityModule.createdBy;
-			assertZod(
+			assertZodInternal(
+				"tryCreateActivityModule: Created by is required",
 				createdBy,
 				z.object({
 					id: z.number(),
@@ -475,43 +476,59 @@ export const tryGetActivityModuleById = Result.wrap(
 				const assignment = am.assignment;
 				const quiz = am.quiz;
 				const discussion = am.discussion;
-				assertZod(createdBy, z.object({ id: z.number() }));
+				assertZodInternal(
+					"tryGetActivityModuleById: Created by is required",
+					createdBy,
+					z.object({ id: z.number() }),
+				);
 				const createdByAvatar = createdBy.avatar;
-				assertZod(createdByAvatar, z.number().nullish());
+				assertZodInternal(
+					"tryGetActivityModuleById: Created by avatar is required",
+					createdByAvatar,
+					z.number().nullish(),
+				);
 
-				assertZod(owner, z.object({ id: z.number() }));
+				assertZodInternal(
+					"tryGetActivityModuleById: Owner is required",
+					owner,
+					z.object({ id: z.number() }),
+				);
 				const ownerAvatar = owner.avatar;
-				assertZod(ownerAvatar, z.number().nullish());
+				assertZodInternal(
+					"tryGetActivityModuleById: Owner avatar is required",
+					ownerAvatar,
+					z.number().nullish(),
+				);
 				// ! page, whiteboard, assignment, quiz, discussion can be null
-				assertZod(page, z.object({ id: z.number() }).nullish());
-				assertZod(whiteboard, z.object({ id: z.number() }).nullish());
-				assertZod(assignment, z.object({ id: z.number() }).nullish());
-				assertZod(quiz, z.object({ id: z.number() }).nullish());
-				assertZod(discussion, z.object({ id: z.number() }).nullish());
+				assertZodInternal("tryGetActivityModuleById: Page is required", page, z.object({ id: z.number() }).nullish());
+				assertZodInternal("tryGetActivityModuleById: Whiteboard is required", whiteboard, z.object({ id: z.number() }).nullish());
+				assertZodInternal("tryGetActivityModuleById: Assignment is required", assignment, z.object({ id: z.number() }).nullish());
+				assertZodInternal("tryGetActivityModuleById: Quiz is required", quiz, z.object({ id: z.number() }).nullish());
+				assertZodInternal("tryGetActivityModuleById: Discussion is required", discussion, z.object({ id: z.number() }).nullish());
 
 				const submissions = am.submissions?.docs?.map((s) => {
-					assertZod(s, z.object({ id: z.number() }));
+					assertZodInternal("tryGetActivityModuleById: Submissions is required", s, z.object({ id: z.number() }));
 					return s;
 				});
 
 				const discussionSubmissions = am.discussionSubmissions?.docs?.map(
 					(s) => {
-						assertZod(s, z.object({ id: z.number() }));
+						assertZodInternal("tryGetActivityModuleById: Discussion submissions is required", s, z.object({ id: z.number() }));
 						return s;
 					},
 				);
 
 				const quizSubmissions = am.quizSubmissions?.docs?.map((s) => {
-					assertZod(s, z.object({ id: z.number() }));
+					assertZodInternal("tryGetActivityModuleById: Quiz submissions is required", s, z.object({ id: z.number() }));
 					return s;
 				});
 
 				const grants = am.grants?.docs?.map((g) => {
-					assertZod(g, z.object({ id: z.number() }));
+					assertZodInternal("tryGetActivityModuleById: Grants is required", g, z.object({ id: z.number() }));
 					const grantedTo = g.grantedTo;
-					assertZod(grantedTo, z.number({ error: "Granted to is required" }));
+					assertZodInternal("tryGetActivityModuleById: Granted to is required", grantedTo, z.number());
 					const grantedBy = g.grantedBy;
-					assertZod(grantedBy, z.number({ error: "Granted by is required" }));
+					assertZodInternal("tryGetActivityModuleById: Granted by is required", grantedBy, z.number());
 					return {
 						...g,
 						grantedTo,
@@ -776,7 +793,8 @@ export const tryUpdateActivityModule = Result.wrap(
 			////////////////////////////////////////////////////
 
 			const createdBy = updatedActivityModule.createdBy;
-			assertZod(
+			assertZodInternal(
+				"tryUpdateActivityModule: Created by is required",
 				createdBy,
 				z.object({
 					id: z.number(),
@@ -1004,55 +1022,50 @@ export const tryGetUserActivityModules = Result.wrap(
 			.then((result) => {
 				const docs = result.docs.map((doc) => {
 					const owner = doc.owner;
-					assertZod(
+					assertZodInternal(
+						"tryGetUserActivityModules: Owner is required",
 						owner,
 						z.object({
 							id: z.number(),
 						}),
 					);
 					const ownerAvatar = owner.avatar;
-					assertZod(
+					assertZodInternal(
+						"tryGetUserActivityModules: Owner avatar is required",
 						ownerAvatar,
-						z
-							.object({
-								id: z.number(),
-							})
-							.nullish(),
+						z.object({ id: z.number() }).nullish(),
 					);
 					const createdBy = doc.createdBy;
-					assertZod(
+					assertZodInternal(
+						"tryGetUserActivityModules: Created by is required",
 						createdBy,
 						z.object({
 							id: z.number(),
-						}),
+						}, { error: "Created by is required" }),
 					);
 					const createdByAvatar = createdBy.avatar;
-					assertZod(
+					assertZodInternal(
+						'tryGetUserActivityModules: Created by avatar is required',
 						createdByAvatar,
 						z
 							.object({
 								id: z.number(),
-							})
+							}, { error: "Created by avatar is required" })
 							.nullish(),
 					);
 					const grants = doc.grants;
-					assertZod(grants, z.undefined());
+					assertZodInternal("tryGetUserActivityModules: Grants is required", grants, z.undefined());
 					const submissions = doc.submissions;
-					assertZod(submissions, z.undefined());
+					assertZodInternal("tryGetUserActivityModules: Submissions is required", submissions, z.undefined());
 					const discussionSubmissions = doc.discussionSubmissions;
-					assertZod(discussionSubmissions, z.undefined());
+					assertZodInternal("tryGetUserActivityModules: Discussion submissions is required", discussionSubmissions, z.undefined());
 					const quizSubmissions = doc.quizSubmissions;
-					assertZod(quizSubmissions, z.undefined());
+					assertZodInternal("tryGetUserActivityModules: Quiz submissions is required", quizSubmissions, z.undefined());
 					const courses =
 						doc.linkedCourses?.docs?.map((link) => {
-							assertZod(
-								link,
-								z.object({
-									id: z.number(),
-								}),
-							);
+							assertZodInternal("tryGetUserActivityModules: Linked courses is required", link, z.object({ id: z.number() }));
 							const course = link.course;
-							assertZod(course, z.number());
+							assertZodInternal("tryGetUserActivityModules: Course is required", course, z.number());
 							return course;
 						}) ?? [];
 

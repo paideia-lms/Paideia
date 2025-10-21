@@ -1,5 +1,5 @@
 import type { Payload, PayloadRequest } from "payload";
-import { assertZod } from "server/utils/type-narrowing";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import {
@@ -72,7 +72,11 @@ export const tryCreateWhiteboard = Result.wrap(
 			})
 			.then((r) => {
 				const createdBy = r.createdBy;
-				assertZod(createdBy, z.object({ id: z.number() }));
+				assertZodInternal(
+					"tryCreateWhiteboard: Created by is required",
+					createdBy,
+					z.object({ id: z.number() }),
+				);
 				return {
 					...r,
 					createdBy,
@@ -183,7 +187,11 @@ export const tryGetWhiteboardById = Result.wrap(
 			})
 			.then((r) => {
 				const createdBy = r.createdBy;
-				assertZod(createdBy, z.object({ id: z.number() }));
+				assertZodInternal(
+					"tryGetWhiteboardById: Created by is required",
+					createdBy,
+					z.object({ id: z.number() }),
+				);
 				return {
 					...r,
 					createdBy,
