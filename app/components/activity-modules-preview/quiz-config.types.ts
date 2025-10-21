@@ -116,14 +116,29 @@ export interface QuizPage {
     questions: Question[];
 }
 
-// Quiz Configuration
+// Nested Quiz Configuration (always has pages, never more nesting)
+export interface NestedQuizConfig {
+    id: string;
+    title: string;
+    description?: string;
+    pages: QuizPage[];
+    globalTimer?: number; // Timer in seconds for the nested quiz
+}
+
+// Quiz Configuration - supports EITHER pages (regular) OR nestedQuizzes (container)
 export interface QuizConfig {
     id: string;
     title: string;
-    pages: QuizPage[];
+
+    // Regular quiz structure
+    pages?: QuizPage[];
+
+    // Container quiz structure
+    nestedQuizzes?: NestedQuizConfig[];
+    sequentialOrder?: boolean; // If true, nested quizzes must be completed in order
+
     resources?: QuizResource[]; // Optional resources (HTML rich text)
-    showImmediateFeedback: boolean;
-    globalTimer?: number; // Timer in seconds for the entire quiz
+    globalTimer?: number; // Timer in seconds for the entire quiz (parent timer)
 }
 
 // Answer types for each question type
@@ -135,3 +150,12 @@ export type QuestionAnswer =
 // Quiz Answers
 export type QuizAnswers = Record<string, QuestionAnswer>;
 
+// Type guard: Check if a quiz is a container quiz with nested quizzes
+export function isContainerQuiz(config: QuizConfig): boolean {
+    return config.nestedQuizzes !== undefined && config.nestedQuizzes.length > 0;
+}
+
+// Type guard: Check if a quiz is a regular quiz with pages
+export function isRegularQuiz(config: QuizConfig): boolean {
+    return config.pages !== undefined && config.pages.length > 0;
+}

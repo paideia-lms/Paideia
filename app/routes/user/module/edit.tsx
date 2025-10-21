@@ -6,6 +6,7 @@ import {
 	DiscussionPreview,
 	PagePreview,
 	QuizPreview,
+	sampleNestedQuizConfig,
 	WhiteboardPreview,
 } from "~/components/activity-module-forms";
 import { NotFoundResponse } from "~/utils/responses";
@@ -43,7 +44,7 @@ export default function EditModulePage() {
 
 			{module.type === "assignment" && <AssignmentPreview />}
 
-			{module.type === "quiz" && <QuizPreview />}
+			{module.type === "quiz" && <QuizPreview quizConfig={sampleNestedQuizConfig} />}
 
 			{module.type === "discussion" && <DiscussionPreview />}
 		</Container>

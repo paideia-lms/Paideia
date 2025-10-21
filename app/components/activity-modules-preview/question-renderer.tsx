@@ -65,7 +65,7 @@ interface QuestionRendererProps {
     question: Question;
     value: unknown;
     onChange: (value: unknown) => void;
-    showFeedback: boolean;
+    showFeedback?: boolean;
     disabled?: boolean;
 }
 
@@ -73,7 +73,7 @@ export function QuestionRenderer({
     question,
     value,
     onChange,
-    showFeedback,
+    showFeedback = false,
     disabled = false,
 }: QuestionRendererProps) {
     switch (question.type) {

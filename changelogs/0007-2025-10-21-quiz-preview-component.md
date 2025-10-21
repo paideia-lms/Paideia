@@ -47,7 +47,6 @@ interface QuizConfig {
   id: string;
   title: string;
   pages: QuizPage[];
-  showImmediateFeedback: boolean;
   globalTimer?: number; // seconds
 }
 
@@ -374,7 +373,6 @@ import { QuizPreview, sampleQuizConfig, type QuizConfig } from "~/components/act
 const myQuiz: QuizConfig = {
   id: "my-quiz",
   title: "My Custom Quiz",
-  showImmediateFeedback: false,
   globalTimer: 1800, // 30 minutes
   pages: [
     {

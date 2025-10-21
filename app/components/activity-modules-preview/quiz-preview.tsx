@@ -1,5 +1,6 @@
 import {
 	ActionIcon,
+	Alert,
 	Badge,
 	Box,
 	Button,
@@ -22,10 +23,16 @@ import { QuestionRenderer } from "./question-renderer";
 import type {
 	Question,
 	QuestionAnswer,
+	QuizAnswers,
 	QuizConfig,
+	QuizResource,
+	NestedQuizConfig,
 } from "./quiz-config.types";
+import { isContainerQuiz, isRegularQuiz } from "./quiz-config.types";
+import { NestedQuizSelector } from "./nested-quiz-selector";
 import { useQuizForm } from "./use-quiz-form";
 import { useQuizTimer } from "./use-quiz-timer";
+import { useNestedQuizState } from "./use-nested-quiz-state";
 import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 
 /**
@@ -101,11 +108,23 @@ const TimerDisplay = memo(({
 
 TimerDisplay.displayName = "TimerDisplay";
 
-interface QuizPreviewProps {
-	quizConfig?: QuizConfig;
+interface SingleQuizPreviewProps {
+	quizConfig?: QuizConfig | NestedQuizConfig;
+	readonly?: boolean;
+	initialAnswers?: QuizAnswers;
+	onSubmit?: (answers: QuizAnswers) => void;
+	onExit?: () => void;
+	disableInteraction?: boolean;
 }
 
-export function QuizPreview({ quizConfig }: QuizPreviewProps) {
+export function SingleQuizPreview({
+	quizConfig,
+	readonly = false,
+	initialAnswers,
+	onSubmit,
+	onExit,
+	disableInteraction = false,
+}: SingleQuizPreviewProps) {
 	const [showResults, setShowResults] = useState(false);
 	const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, unknown> | null>(null);
 	const [isGlobalTimerExpired, setIsGlobalTimerExpired] = useState(false);
@@ -116,21 +135,37 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 		id: "empty",
 		title: "Empty Quiz",
 		pages: [],
-		showImmediateFeedback: false,
 	};
 
-	const quiz = useQuizForm(quizConfig || defaultConfig);
+	const quiz = useQuizForm({
+		quizConfig: quizConfig || defaultConfig,
+		readonly,
+		initialAnswers,
+	});
 
 	const handleSubmit = () => {
 		if (!quizConfig) return;
 		const answers = quiz.form.getValues().answers;
 		setSubmittedAnswers(answers);
 		setShowResults(true);
+
+		// Call onSubmit callback if provided (for nested quiz wrapper)
+		if (onSubmit) {
+			onSubmit(answers);
+		}
 	};
 
 	const handleGlobalTimerExpire = () => {
 		setIsGlobalTimerExpired(true);
-		handleSubmit();
+		if (!readonly) {
+			handleSubmit();
+		}
+	};
+
+	const handleExit = () => {
+		if (onExit) {
+			onExit();
+		}
 	};
 
 	// Guard against undefined config (after all hooks are called)
@@ -200,12 +235,21 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 	const currentQuestionStartNumber =
 		quizConfig.pages
 			.slice(0, quiz.currentPageIndex)
-			.reduce((sum, page) => sum + page.questions.length, 0) + 1;
+			.reduce((sum: number, page) => sum + page.questions.length, 0) + 1;
+
+	const isDisabled = readonly || isGlobalTimerExpired || disableInteraction;
 
 	return (
 		<>
 			<Paper withBorder p="xl" radius="md">
 				<Stack gap="lg">
+					{/* Readonly Banner */}
+					{readonly && (
+						<Alert color="blue" title="Read-only Mode">
+							You are viewing a previously submitted quiz. No changes can be made.
+						</Alert>
+					)}
+
 					{/* Header */}
 					<Group justify="space-between" align="flex-start">
 						<div>
@@ -214,7 +258,7 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 								Page {quiz.currentPageIndex + 1} of {quizConfig.pages.length}
 							</Text>
 						</div>
-						{quizConfig.globalTimer && (
+						{quizConfig.globalTimer && !readonly && (
 							<TimerDisplay
 								initialTime={quizConfig.globalTimer}
 								onExpire={handleGlobalTimerExpire}
@@ -226,7 +270,7 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 					<Progress value={progressValue} size="sm" />
 
 					{/* Timer Expired Warning */}
-					{isGlobalTimerExpired && (
+					{isGlobalTimerExpired && !readonly && (
 						<Paper withBorder p="md" radius="sm" bg="red.0" style={{ borderColor: "var(--mantine-color-red-6)" }}>
 							<Group gap="sm">
 								<IconClock size={20} color="var(--mantine-color-red-6)" />
@@ -269,7 +313,7 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 													variant={isCurrent ? "filled" : isAnswered ? "light" : "default"}
 													color={isCurrent ? "blue" : isAnswered ? "green" : "gray"}
 													onClick={() => quiz.goToPage(item.pageIndex)}
-													disabled={isGlobalTimerExpired}
+													disabled={isDisabled}
 												>
 													{item.questionNumber}
 												</Button>
@@ -322,11 +366,11 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 						</Title>
 
 						{/* Resources for current page */}
-						{quizConfig.resources && quizConfig.resources.length > 0 && (
+						{"resources" in quizConfig && quizConfig.resources && quizConfig.resources.length > 0 && (
 							<Stack gap="md" mb="xl">
 								{quizConfig.resources
-									.filter((resource) => resource.pages.includes(currentPage.id))
-									.map((resource) => (
+									.filter((resource: QuizResource) => resource.pages.includes(currentPage.id))
+									.map((resource: QuizResource) => (
 										<Paper key={resource.id} withBorder p="md" radius="sm" bg="blue.0">
 											{resource.title && (
 												<Title order={4} mb="sm">
@@ -342,7 +386,7 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 						)}
 
 						<Stack gap="xl">
-							{currentPage.questions.map((question, questionIndex) => {
+							{currentPage.questions.map((question: Question, questionIndex: number) => {
 								const questionNumber = currentQuestionStartNumber + questionIndex;
 
 								return (
@@ -358,34 +402,36 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 														{question.prompt}
 													</Text>
 												</Group>
-												<Group gap="xs">
-													<Tooltip
-														label={
-															isGlobalTimerExpired
-																? "Time expired"
-																: quiz.isFlagged(question.id)
-																	? "Remove flag"
-																	: "Flag for review"
-														}
-													>
-														<ActionIcon
-															variant={
-																quiz.isFlagged(question.id) ? "filled" : "light"
+												{!readonly && (
+													<Group gap="xs">
+														<Tooltip
+															label={
+																isDisabled
+																	? "Interaction disabled"
+																	: quiz.isFlagged(question.id)
+																		? "Remove flag"
+																		: "Flag for review"
 															}
-															color={
-																quiz.isFlagged(question.id) ? "red" : "gray"
-															}
-															onClick={() => quiz.toggleFlag(question.id)}
-															disabled={isGlobalTimerExpired}
 														>
-															{quiz.isFlagged(question.id) ? (
-																<IconFlagFilled size={18} />
-															) : (
-																<IconFlag size={18} />
-															)}
-														</ActionIcon>
-													</Tooltip>
-												</Group>
+															<ActionIcon
+																variant={
+																	quiz.isFlagged(question.id) ? "filled" : "light"
+																}
+																color={
+																	quiz.isFlagged(question.id) ? "red" : "gray"
+																}
+																onClick={() => quiz.toggleFlag(question.id)}
+																disabled={isDisabled}
+															>
+																{quiz.isFlagged(question.id) ? (
+																	<IconFlagFilled size={18} />
+																) : (
+																	<IconFlag size={18} />
+																)}
+															</ActionIcon>
+														</Tooltip>
+													</Group>
+												)}
 											</Group>
 
 											{/* Question Renderer */}
@@ -393,8 +439,7 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 												question={question}
 												value={quiz.getAnswer(question.id) as unknown}
 												onChange={(value) => quiz.setAnswer(question.id, value as QuestionAnswer)}
-												showFeedback={quizConfig.showImmediateFeedback}
-												disabled={isGlobalTimerExpired}
+												disabled={isDisabled}
 											/>
 										</Stack>
 									</Paper>
@@ -405,22 +450,50 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 
 					{/* Navigation */}
 					<Group justify="space-between" mt="md">
-						<Button
-							variant="default"
-							onClick={quiz.goToPreviousPage}
-							disabled={quiz.isFirstPage || isGlobalTimerExpired}
-						>
-							Previous
-						</Button>
-
-						{quiz.isLastPage ? (
-							<Button onClick={handleSubmit}>
-								{isGlobalTimerExpired ? "View Results" : "Submit Quiz"}
-							</Button>
+						{readonly ? (
+							<>
+								{onExit && (
+									<Button variant="default" onClick={handleExit}>
+										Exit
+									</Button>
+								)}
+								<div style={{ flex: 1 }} />
+								<Group gap="sm">
+									<Button
+										variant="default"
+										onClick={quiz.goToPreviousPage}
+										disabled={quiz.isFirstPage}
+									>
+										Previous
+									</Button>
+									<Button
+										onClick={quiz.goToNextPage}
+										disabled={quiz.isLastPage}
+									>
+										Next
+									</Button>
+								</Group>
+							</>
 						) : (
-							<Button onClick={quiz.goToNextPage} disabled={isGlobalTimerExpired}>
-								Next
-							</Button>
+							<>
+								<Button
+									variant="default"
+									onClick={quiz.goToPreviousPage}
+									disabled={quiz.isFirstPage || isDisabled}
+								>
+									Previous
+								</Button>
+
+								{quiz.isLastPage ? (
+									<Button onClick={handleSubmit} disabled={isDisabled}>
+										{isGlobalTimerExpired ? "View Results" : "Submit Quiz"}
+									</Button>
+								) : (
+									<Button onClick={quiz.goToNextPage} disabled={isDisabled}>
+										Next
+									</Button>
+								)}
+							</>
 						)}
 					</Group>
 				</Stack>
@@ -453,11 +526,127 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 	);
 }
 
+// Main QuizPreview component - handles both regular and nested quizzes
+interface QuizPreviewProps {
+	quizConfig: QuizConfig;
+}
+
+export function QuizPreview({ quizConfig }: QuizPreviewProps) {
+	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
+
+	// For container quizzes, use nested quiz state
+	const nestedQuizState = useNestedQuizState({ quizConfig });
+
+	const handleParentTimerExpire = () => {
+		setIsParentTimerExpired(true);
+		// If in a nested quiz when parent expires, force exit
+		if (nestedQuizState.currentNestedQuizId) {
+			nestedQuizState.exitToContainer();
+		}
+	};
+
+	// Regular quiz - just render SingleQuizPreview directly
+	if (isRegularQuiz(quizConfig)) {
+		return <SingleQuizPreview quizConfig={quizConfig} />;
+	}
+
+	// Container quiz logic
+	if (!isContainerQuiz(quizConfig)) {
+		return (
+			<Paper withBorder p="xl" radius="md">
+				<Text c="dimmed">
+					Invalid quiz configuration: Must have either pages or nested quizzes.
+				</Text>
+			</Paper>
+		);
+	}
+
+	// Check if viewing a completed nested quiz (readonly mode)
+	const isViewingCompletedQuiz =
+		nestedQuizState.currentNestedQuizId !== null &&
+		nestedQuizState.isQuizCompleted(nestedQuizState.currentNestedQuizId);
+
+	return (
+		<Stack gap="md">
+			{/* Parent Timer (always visible if exists) */}
+			{quizConfig.globalTimer && (
+				<Paper withBorder p="md" radius="sm">
+					<Group justify="space-between">
+						<Text size="sm" fw={500}>
+							Overall Time Limit
+						</Text>
+						<TimerDisplay
+							initialTime={quizConfig.globalTimer}
+							onExpire={handleParentTimerExpire}
+						/>
+					</Group>
+				</Paper>
+			)}
+
+			{/* Parent Timer Expired Warning */}
+			{isParentTimerExpired && (
+				<Alert color="red" title="Time Expired" icon={<IconClock size={20} />}>
+					The overall time limit has expired. All quizzes are now locked.
+				</Alert>
+			)}
+
+			{/* Nested Quiz Timer (only when inside a nested quiz) */}
+			{nestedQuizState.activeNestedQuiz?.globalTimer && !isViewingCompletedQuiz && (
+				<Paper withBorder p="md" radius="sm" bg="blue.0">
+					<Group justify="space-between">
+						<Text size="sm" fw={500}>
+							Current Quiz Time
+						</Text>
+						<TimerDisplay
+							initialTime={nestedQuizState.activeNestedQuiz.globalTimer}
+							onExpire={() => {
+								// Nested timer expired - this will be handled by SingleQuizPreview
+							}}
+						/>
+					</Group>
+				</Paper>
+			)}
+
+			{/* Content: Either selector or nested quiz */}
+			{nestedQuizState.currentNestedQuizId === null ? (
+				<NestedQuizSelector
+					quizConfig={quizConfig}
+					completedQuizIds={nestedQuizState.completedQuizIds}
+					onStartQuiz={nestedQuizState.startNestedQuiz}
+					canAccessQuiz={nestedQuizState.canAccessQuiz}
+					isQuizCompleted={nestedQuizState.isQuizCompleted}
+					completionProgress={nestedQuizState.completionProgress}
+					isParentTimerExpired={isParentTimerExpired}
+				/>
+			) : nestedQuizState.activeNestedQuiz ? (
+				<SingleQuizPreview
+					quizConfig={nestedQuizState.activeNestedQuiz}
+					readonly={isViewingCompletedQuiz}
+					initialAnswers={
+						isViewingCompletedQuiz
+							? nestedQuizState.submittedAnswers[nestedQuizState.currentNestedQuizId]
+							: undefined
+					}
+					onSubmit={(answers: QuizAnswers) => {
+						if (nestedQuizState.currentNestedQuizId) {
+							nestedQuizState.completeNestedQuiz(
+								nestedQuizState.currentNestedQuizId,
+								answers
+							);
+						}
+					}}
+					onExit={nestedQuizState.exitToContainer}
+					disableInteraction={isParentTimerExpired}
+				/>
+			) : null}
+		</Stack>
+	);
+}
+
 // Sample Quiz Config for testing
 export const sampleQuizConfig: QuizConfig = {
 	id: "sample-quiz-1",
 	title: "Sample Quiz: All Question Types",
-	showImmediateFeedback: true,
 	globalTimer: 600, // 10 minutes
 	resources: [
 		{
@@ -747,6 +936,149 @@ export const sampleQuizConfig: QuizConfig = {
 					},
 					correctAnswer: "c",
 					feedback: "警察は「文学作品『罪と炎』（1923年絶版）の引用パターン」を手掛かりに捜査を進めています。",
+				},
+			],
+		},
+	],
+};
+
+// Sample Nested Quiz Config for testing
+export const sampleNestedQuizConfig: QuizConfig = {
+	id: "sample-nested-quiz",
+	title: "Multi-Section Exam",
+	globalTimer: 30, // 30 seconds total for all quizzes
+	sequentialOrder: false, // Must complete quizzes in order
+	nestedQuizzes: [
+		{
+			id: "section-1",
+			title: "Section 1: Basic Concepts",
+			description: "Fundamental programming concepts and syntax",
+			globalTimer: 10, // 10 seconds for testing
+			pages: [
+				{
+					id: "s1-page-1",
+					title: "Variables and Data Types",
+					questions: [
+						{
+							id: "s1-q1",
+							type: "multiple-choice",
+							prompt: "Which of the following is NOT a primitive data type in JavaScript?",
+							options: {
+								a: "String",
+								b: "Number",
+								c: "Array",
+								d: "Boolean",
+							},
+							correctAnswer: "c",
+						},
+						{
+							id: "s1-q2",
+							type: "short-answer",
+							prompt: "What keyword is used to declare a constant in JavaScript?",
+							correctAnswer: "const",
+						},
+					],
+				},
+			],
+		},
+		{
+			id: "section-2",
+			title: "Section 2: Intermediate Topics",
+			description: "Functions, loops, and control structures",
+			globalTimer: 10, // 10 seconds for testing
+			pages: [
+				{
+					id: "s2-page-1",
+					title: "Functions",
+					questions: [
+						{
+							id: "s2-q1",
+							type: "choice",
+							prompt: "Which of the following are valid ways to define a function in JavaScript?",
+							options: {
+								func: "function myFunc() {}",
+								arrow: "const myFunc = () => {}",
+								method: "myFunc: function() {}",
+								class: "class MyFunc {}",
+							},
+							correctAnswers: ["func", "arrow", "method"],
+						},
+						{
+							id: "s2-q2",
+							type: "long-answer",
+							prompt: "Explain the difference between function declarations and arrow functions.",
+						},
+					],
+				},
+				{
+					id: "s2-page-2",
+					title: "Loops and Iteration",
+					questions: [
+						{
+							id: "s2-q3",
+							type: "ranking",
+							prompt: "Rank these loop types by their typical performance (fastest to slowest):",
+							items: {
+								forloop: "for loop",
+								foreach: "forEach",
+								map: "map",
+								reduce: "reduce",
+							},
+						},
+					],
+				},
+			],
+		},
+		{
+			id: "section-3",
+			title: "Section 3: Advanced Concepts",
+			description: "Async programming, closures, and design patterns",
+			globalTimer: 10, // 10 seconds for testing
+			pages: [
+				{
+					id: "s3-page-1",
+					title: "Async Programming",
+					questions: [
+						{
+							id: "s3-q1",
+							type: "fill-in-the-blank",
+							prompt: "To handle asynchronous operations in JavaScript, you can use {{blank}}, {{blank}}, or {{blank}}.",
+							correctAnswers: ["callbacks", "promises", "async/await"],
+						},
+						{
+							id: "s3-q2",
+							type: "article",
+							prompt: "Write a short explanation of how the JavaScript event loop works.",
+						},
+					],
+				},
+				{
+					id: "s3-page-2",
+					title: "Practical Application",
+					questions: [
+						{
+							id: "s3-q3",
+							type: "whiteboard",
+							prompt: "Draw a diagram showing the architecture of a typical React application with state management:",
+						},
+						{
+							id: "s3-q4",
+							type: "single-selection-matrix",
+							prompt: "Match each design pattern to its primary use case:",
+							rows: {
+								singleton: "Singleton",
+								factory: "Factory",
+								observer: "Observer",
+								strategy: "Strategy",
+							},
+							columns: {
+								creation: "Object Creation",
+								behavior: "Behavior Variation",
+								state: "State Management",
+								notification: "Event Notification",
+							},
+						},
+					],
 				},
 			],
 		},

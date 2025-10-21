@@ -15,7 +15,7 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
 import { DiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
-import { QuizPreview, sampleQuizConfig } from "~/components/activity-modules-preview/quiz-preview";
+import { QuizPreview, sampleNestedQuizConfig } from "~/components/activity-modules-preview/quiz-preview";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
 import {
 	getStatusBadgeColor,
@@ -103,7 +103,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 			case "assignment":
 				return <AssignmentPreview />;
 			case "quiz":
-				return <QuizPreview quizConfig={sampleQuizConfig} />;
+				return <QuizPreview quizConfig={sampleNestedQuizConfig} />;
 			case "discussion":
 				return <DiscussionPreview />;
 			case "whiteboard": {

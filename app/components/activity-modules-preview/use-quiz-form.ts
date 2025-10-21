@@ -1,6 +1,12 @@
 import { useForm } from "@mantine/form";
 import { useState } from "react";
-import type { QuestionAnswer, QuizAnswers, QuizConfig } from "./quiz-config.types";
+import type { QuestionAnswer, QuizAnswers, QuizConfig, NestedQuizConfig } from "./quiz-config.types";
+
+interface UseQuizFormOptions {
+    quizConfig: QuizConfig | NestedQuizConfig;
+    readonly?: boolean;
+    initialAnswers?: QuizAnswers;
+}
 
 interface UseQuizFormReturn {
     currentPageIndex: number;
@@ -16,9 +22,14 @@ interface UseQuizFormReturn {
     flaggedQuestions: Set<string>;
     toggleFlag: (questionId: string) => void;
     isFlagged: (questionId: string) => boolean;
+    readonly: boolean;
 }
 
-export function useQuizForm(quizConfig: QuizConfig): UseQuizFormReturn {
+export function useQuizForm({
+    quizConfig,
+    readonly = false,
+    initialAnswers = {},
+}: UseQuizFormOptions): UseQuizFormReturn {
     const [currentPageIndex, setCurrentPageIndex] = useState(0);
     const [flaggedQuestions, setFlaggedQuestions] = useState<Set<string>>(
         new Set(),
@@ -27,12 +38,12 @@ export function useQuizForm(quizConfig: QuizConfig): UseQuizFormReturn {
     const form = useForm<{ answers: QuizAnswers }>({
         mode: "uncontrolled",
         initialValues: {
-            answers: {},
+            answers: initialAnswers,
         },
     });
 
     const goToNextPage = () => {
-        if (currentPageIndex < quizConfig.pages.length - 1) {
+        if (quizConfig.pages && currentPageIndex < quizConfig.pages.length - 1) {
             setCurrentPageIndex((prev) => prev + 1);
         }
     };
@@ -44,7 +55,7 @@ export function useQuizForm(quizConfig: QuizConfig): UseQuizFormReturn {
     };
 
     const goToPage = (pageIndex: number) => {
-        if (pageIndex >= 0 && pageIndex < quizConfig.pages.length) {
+        if (quizConfig.pages && pageIndex >= 0 && pageIndex < quizConfig.pages.length) {
             setCurrentPageIndex(pageIndex);
         }
     };
@@ -74,7 +85,7 @@ export function useQuizForm(quizConfig: QuizConfig): UseQuizFormReturn {
     };
 
     const isFirstPage = currentPageIndex === 0;
-    const isLastPage = currentPageIndex === quizConfig.pages.length - 1;
+    const isLastPage = quizConfig.pages ? currentPageIndex === quizConfig.pages.length - 1 : false;
 
     return {
         currentPageIndex,
@@ -90,6 +101,7 @@ export function useQuizForm(quizConfig: QuizConfig): UseQuizFormReturn {
         flaggedQuestions,
         toggleFlag,
         isFlagged,
+        readonly,
     };
 }
 

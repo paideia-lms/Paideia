@@ -4,13 +4,22 @@ export { DiscussionPreview } from "../activity-modules-preview/discussion-previe
 export { PagePreview } from "../activity-modules-preview/page-preview";
 export {
     QuizPreview,
+    SingleQuizPreview,
     sampleQuizConfig,
+    sampleNestedQuizConfig,
 } from "../activity-modules-preview/quiz-preview";
 export { WhiteboardPreview } from "../activity-modules-preview/whiteboard-preview";
+
+// Nested quiz components
+export { NestedQuizSelector } from "../activity-modules-preview/nested-quiz-selector";
+
+// Nested quiz hooks
+export { useNestedQuizState } from "../activity-modules-preview/use-nested-quiz-state";
 
 // Quiz types
 export type {
     QuizConfig,
+    NestedQuizConfig,
     QuizResource,
     QuizPage,
     Question,
@@ -27,6 +36,12 @@ export type {
     SingleSelectionMatrixQuestion,
     MultipleSelectionMatrixQuestion,
     WhiteboardQuestion,
+} from "../activity-modules-preview/quiz-config.types";
+
+// Quiz type guards
+export {
+    isContainerQuiz,
+    isRegularQuiz,
 } from "../activity-modules-preview/quiz-config.types";
 
 // Form components
