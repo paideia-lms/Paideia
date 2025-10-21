@@ -746,6 +746,9 @@ interface RichTextEditorProps {
 	onImageAdd?: (imageFile: ImageFile) => void;
 	readonly?: boolean;
 	showStatus?: boolean; // Show editor status (character count, word count, etc.)
+	disableImageUpload?: boolean; // Disable image upload (also disables Image, Dropcursor, FileHandler extensions)
+	disableMentions?: boolean; // Disable @ mentions, [[ page links, and # tag mentions
+	disableYoutube?: boolean; // Disable YouTube video embedding
 }
 
 const DEBOUNCE_TIME = 300;
@@ -756,8 +759,11 @@ export function RichTextEditor({
 	onChange,
 	onEditorReady,
 	onImageAdd,
-	readonly = false,
+	readonly = true,
 	showStatus = false,
+	disableImageUpload = false,
+	disableMentions = false,
+	disableYoutube = false,
 }: RichTextEditorProps) {
 	const [isSourceCodeMode, setIsSourceCodeMode] = useState(false);
 	const { colorScheme } = useMantineColorScheme();
@@ -846,116 +852,131 @@ export function RichTextEditor({
 			}),
 			TextStyle,
 			Color,
-			Youtube.configure({
-				controls: false,
-				nocookie: true,
-			}),
-			Image.extend({
-				addAttributes() {
-					return {
-						...this.parent?.(),
-						width: {
-							default: null,
-							renderHTML: (attributes) => {
-								if (!attributes.width) {
-									return {};
-								}
-								return { width: attributes.width };
-							},
+			// Conditionally include Youtube extension
+			...(!disableYoutube
+				? [
+					Youtube.configure({
+						controls: false,
+						nocookie: true,
+					}),
+				]
+				: []),
+			// Conditionally include Image, Dropcursor, and FileHandler extensions
+			...(!disableImageUpload
+				? [
+					Image.extend({
+						addAttributes() {
+							return {
+								...this.parent?.(),
+								width: {
+									default: null,
+									renderHTML: (attributes) => {
+										if (!attributes.width) {
+											return {};
+										}
+										return { width: attributes.width };
+									},
+								},
+								height: {
+									default: null,
+									renderHTML: (attributes) => {
+										if (!attributes.height) {
+											return {};
+										}
+										return { height: attributes.height };
+									},
+								},
+							};
 						},
-						height: {
-							default: null,
-							renderHTML: (attributes) => {
-								if (!attributes.height) {
-									return {};
-								}
-								return { height: attributes.height };
-							},
+					}).configure({
+						inline: false,
+						allowBase64: true,
+					}),
+					Dropcursor,
+					FileHandler.configure({
+						allowedMimeTypes: [
+							"image/jpeg",
+							"image/png",
+							"image/gif",
+							"image/webp",
+						],
+						onDrop: (editor, files) => {
+							files.forEach(async (file) => {
+								const reader = new FileReader();
+								reader.onload = () => {
+									const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+									const preview = reader.result as string;
+
+									if (onImageAdd) {
+										onImageAdd({ id, file, preview });
+									}
+
+									editor.chain().focus().setImage({ src: preview }).run();
+								};
+								reader.readAsDataURL(file);
+							});
 						},
-					};
-				},
-			}).configure({
-				inline: false,
-				allowBase64: true,
-			}),
-			Dropcursor,
-			FileHandler.configure({
-				allowedMimeTypes: [
-					"image/jpeg",
-					"image/png",
-					"image/gif",
-					"image/webp",
-				],
-				onDrop: (editor, files) => {
-					files.forEach(async (file) => {
-						const reader = new FileReader();
-						reader.onload = () => {
-							const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-							const preview = reader.result as string;
+						onPaste: (editor, files) => {
+							files.forEach(async (file) => {
+								const reader = new FileReader();
+								reader.onload = () => {
+									const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+									const preview = reader.result as string;
 
-							if (onImageAdd) {
-								onImageAdd({ id, file, preview });
-							}
+									if (onImageAdd) {
+										onImageAdd({ id, file, preview });
+									}
 
-							editor.chain().focus().setImage({ src: preview }).run();
-						};
-						reader.readAsDataURL(file);
-					});
-				},
-				onPaste: (editor, files) => {
-					files.forEach(async (file) => {
-						const reader = new FileReader();
-						reader.onload = () => {
-							const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-							const preview = reader.result as string;
-
-							if (onImageAdd) {
-								onImageAdd({ id, file, preview });
-							}
-
-							editor.chain().focus().setImage({ src: preview }).run();
-						};
-						reader.readAsDataURL(file);
-					});
-				},
-			}),
-			Mention.extend({
-				name: "userMention",
-			}).configure({
-				HTMLAttributes: {
-					class: "mention mention-user",
-				},
-				suggestion: createMentionSuggestion("user"),
-				renderHTML({ node }) {
-					return `@${node.attrs.label}`;
-				},
-			}),
-			Mention.configure({
-				HTMLAttributes: {
-					class: "mention mention-page",
-				},
-				suggestion: {
-					...createMentionSuggestion("page"),
-					char: "[[",
-				},
-				renderHTML({ node }) {
-					return `[[${node.attrs.label}]]`;
-				},
-			}),
-			Mention.extend({
-				name: "tagMention",
-			}).configure({
-				HTMLAttributes: {
-					class: "mention mention-tag",
-				},
-				suggestion: {
-					...createMentionSuggestion("tag"),
-					char: "#",
-				},
-				renderHTML({ node }) {
-					return `#${node.attrs.label}`;
-				},
-			}),
+									editor.chain().focus().setImage({ src: preview }).run();
+								};
+								reader.readAsDataURL(file);
+							});
+						},
+					}),
+				]
+				: []),
+			// Conditionally include Mention extensions
+			...(!disableMentions
+				? [
+					Mention.extend({
+						name: "userMention",
+					}).configure({
+						HTMLAttributes: {
+							class: "mention mention-user",
+						},
+						suggestion: createMentionSuggestion("user"),
+						renderHTML({ node }) {
+							return `@${node.attrs.label}`;
+						},
+					}),
+					Mention.configure({
+						HTMLAttributes: {
+							class: "mention mention-page",
+						},
+						suggestion: {
+							...createMentionSuggestion("page"),
+							char: "[[",
+						},
+						renderHTML({ node }) {
+							return `[[${node.attrs.label}]]`;
+						},
+					}),
+					Mention.extend({
+						name: "tagMention",
+					}).configure({
+						HTMLAttributes: {
+							class: "mention mention-tag",
+						},
+						suggestion: {
+							...createMentionSuggestion("tag"),
+							char: "#",
+						},
+						renderHTML({ node }) {
+							return `#${node.attrs.label}`;
+						},
+					}),
+				]
+				: []),
 		],
 		content,
 		onUpdate: debouncedOnChange,
@@ -969,6 +990,14 @@ export function RichTextEditor({
 
 	// Add image resizing functionality
 	useImageResize(editor);
+
+	// setEditable
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
+		if (editor) {
+			editor.setEditable(!readonly);
+		}
+	}, [readonly]);
 
 	// Use useEditorState to access editor state without causing re-renders
 	// This is more performant than accessing editor state directly in the component
@@ -995,6 +1024,7 @@ export function RichTextEditor({
 				.filter((word) => word.length > 0).length;
 
 			return {
+
 				// Editor meta state (stable booleans)
 				isEditable: editor.isEditable,
 				isEmpty: editor.isEmpty,
@@ -1024,7 +1054,7 @@ export function RichTextEditor({
 	};
 
 	return (
-		<MantineRTE editor={editor} onSourceCodeTextSwitch={setIsSourceCodeMode}>
+		<MantineRTE editor={editor} onSourceCodeTextSwitch={setIsSourceCodeMode} >
 			{/* Use editorState for conditional rendering to avoid re-renders */}
 			{editor && !readonly && !isSourceCodeMode && editorState && (
 				<BubbleMenu
@@ -1161,17 +1191,23 @@ export function RichTextEditor({
 								<MantineRTE.Unlink />
 							</MantineRTE.ControlsGroup>
 
-							<MantineRTE.ControlsGroup>
-								<AddImageControl onImageAdd={onImageAdd} />
-								<AddYoutubeVideoControl />
-							</MantineRTE.ControlsGroup>
+							{(!disableImageUpload || !disableYoutube) && (
+								<MantineRTE.ControlsGroup>
+									{!disableImageUpload && (
+										<AddImageControl onImageAdd={onImageAdd} />
+									)}
+									{!disableYoutube && <AddYoutubeVideoControl />}
+								</MantineRTE.ControlsGroup>
+							)}
 
-							<MantineRTE.ControlsGroup>
-								<ImageSizeSmallControl />
-								<ImageSizeMediumControl />
-								<ImageSizeLargeControl />
-								<ImageSizeFullControl />
-							</MantineRTE.ControlsGroup>
+							{!disableImageUpload && (
+								<MantineRTE.ControlsGroup>
+									<ImageSizeSmallControl />
+									<ImageSizeMediumControl />
+									<ImageSizeLargeControl />
+									<ImageSizeFullControl />
+								</MantineRTE.ControlsGroup>
+							)}
 
 							<MantineRTE.ControlsGroup>
 								<MantineRTE.AlignLeft />

@@ -15,7 +15,7 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
 import { DiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
-import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
+import { QuizPreview, sampleQuizConfig } from "~/components/activity-modules-preview/quiz-preview";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
 import {
 	getStatusBadgeColor,
@@ -103,13 +103,13 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 			case "assignment":
 				return <AssignmentPreview />;
 			case "quiz":
-				return <QuizPreview />;
+				return <QuizPreview quizConfig={sampleQuizConfig} />;
 			case "discussion":
 				return <DiscussionPreview />;
 			case "whiteboard": {
 				const whiteboardContent =
 					typeof activityModule.whiteboard === "object" &&
-					activityModule.whiteboard
+						activityModule.whiteboard
 						? activityModule.whiteboard.content
 						: null;
 				return <WhiteboardPreview content={whiteboardContent || "{}"} />;
@@ -119,15 +119,19 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 		}
 	};
 
+	const title = `${activityModule.title} | ${course.title} | Paideia LMS`;
+
 	return (
 		<Container size="xl" py="xl">
 			<title>
-				{activityModule.title} | {course.title} | Paideia LMS
+				{title}
 			</title>
 			<meta
 				name="description"
 				content={`View ${activityModule.title} in ${course.title}`}
 			/>
+			<meta property="og:title" content={title} />
+			<meta property="og:description" content={`View ${activityModule.title} in ${course.title}`} />
 
 			<Stack gap="xl">
 				<Group justify="space-between" align="flex-start">

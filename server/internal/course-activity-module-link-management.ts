@@ -131,10 +131,7 @@ export const tryFindLinksByCourse = Result.wrap(
 				assertZodInternal(
 					"tryFindLinksByCourse: Module created by avatar is required",
 					moduleCreatedByAvatar,
-					z
-						.object({
-							id: z.number(),
-						})
+					z.number()
 						.nullish(),
 				);
 
