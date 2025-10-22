@@ -1,13 +1,14 @@
 import { createFormHook, createFormHookContexts } from "@tanstack/react-form";
 import {
     Box,
+    Button as MantineButton,
     Checkbox as MantineCheckbox,
+    Input,
     Loader,
     NumberInput as MantineNumberInput,
     Select as MantineSelect,
     TextInput as MantineTextInput,
     Textarea as MantineTextarea,
-    Title,
     useMantineColorScheme,
 } from "@mantine/core";
 import { DateTimePicker as MantineDateTimePicker } from "@mantine/dates";
@@ -22,6 +23,8 @@ import type { QuizConfig } from "../components/activity-modules-preview/quiz-con
 import type { ActivityModule, Quiz } from "server/payload-types";
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 import { useMounted } from "@mantine/hooks";
+import { RichTextEditor } from "../components/rich-text-editor";
+import { SimpleRichTextEditor } from "../components/simple-rich-text-editor";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
@@ -159,9 +162,54 @@ export function DateTimePickerField({ label, placeholder }: {
     );
 }
 
-export function WhiteboardField({ label, isLoading = false }: {
+export function RichTextEditorField({ label, placeholder, description }: {
+    label?: string;
+    placeholder?: string;
+    description?: string;
+}) {
+    const field = useFieldContext<string>();
+
+    return (
+        <Input.Wrapper
+            label={label}
+            description={description}
+            error={field.state.meta.errors.join(", ") || undefined}
+        >
+            <RichTextEditor
+                content={field.state.value ?? ""}
+                placeholder={placeholder}
+                onChange={(html: string) => field.handleChange(html)}
+            />
+        </Input.Wrapper>
+    );
+}
+
+export function SimpleRichTextEditorField({ label, placeholder, description }: {
+    label?: string;
+    placeholder?: string;
+    description?: string;
+}) {
+    const field = useFieldContext<string>();
+
+    return (
+        <Input.Wrapper
+            label={label}
+            description={description}
+            error={field.state.meta.errors.join(", ") || undefined}
+        >
+            <SimpleRichTextEditor
+                content={field.state.value ?? ""}
+                placeholder={placeholder}
+                onChange={(html: string) => field.handleChange(html)}
+            />
+        </Input.Wrapper>
+    );
+}
+
+export function WhiteboardField({ label, isLoading = false, description }: {
     label?: string;
     isLoading?: boolean;
+    description?: string;
 }) {
     const field = useFieldContext<string>();
     const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
@@ -224,12 +272,11 @@ export function WhiteboardField({ label, isLoading = false }: {
     };
 
     return (
-        <div>
-            {label && (
-                <Title order={5} mb="xs">
-                    {label}
-                </Title>
-            )}
+        <Input.Wrapper
+            label={label}
+            description={description}
+            error={field.state.meta.errors.join(", ") || undefined}
+        >
             <Box style={{ height: '500px', border: '1px solid #dee2e6' }}>
                 {isLoading || !mounted ? (
                     <div
@@ -268,7 +315,44 @@ export function WhiteboardField({ label, isLoading = false }: {
                     </Suspense>
                 )}
             </Box>
-        </div>
+        </Input.Wrapper>
+    );
+}
+
+// Form components that use context - no form prop needed!
+
+export function SubmitButton({
+    label = "Submit",
+    size = "lg",
+    mt = "lg",
+    loadingLabel,
+    fullWidth = false,
+    isLoading = false,
+}: {
+    label?: string;
+    size?: "xs" | "sm" | "md" | "lg" | "xl";
+    mt?: string | number;
+    loadingLabel?: string;
+    isLoading?: boolean;
+    fullWidth?: boolean;
+}) {
+    const form = useFormContext();
+
+    return (
+        <form.Subscribe selector={(state) => [state.isSubmitting, state.canSubmit]}>
+            {([isSubmitting, canSubmit]) => (
+                <MantineButton
+                    type="submit"
+                    size={size}
+                    mt={mt}
+                    loading={isSubmitting || isLoading}
+                    disabled={!canSubmit}
+                    fullWidth={fullWidth}
+                >
+                    {loadingLabel && isSubmitting ? loadingLabel : label}
+                </MantineButton>
+            )}
+        </form.Subscribe>
     );
 }
 
@@ -281,9 +365,13 @@ export const { useAppForm, withFieldGroup, withForm } = createFormHook({
         SelectField,
         CheckboxField,
         DateTimePickerField,
+        RichTextEditorField,
+        SimpleRichTextEditorField,
         WhiteboardField,
     },
-    formComponents: {},
+    formComponents: {
+        SubmitButton,
+    },
     fieldContext,
     formContext,
 });
@@ -327,6 +415,13 @@ const updateModuleForm = false ? useAppForm({
         discussionRequireThread: false,
         discussionRequireReplies: false,
         discussionMinReplies: 1,
+    },
+    onSubmitMeta: {
+        type: "module" as ActivityModule["type"],
+        id: 1 as number,
+    },
+    onSubmit: () => {
+
     },
 }) : undefined;
 

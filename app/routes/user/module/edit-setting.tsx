@@ -1,7 +1,5 @@
-import { Button, Container, Paper, Select, Stack, Switch, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
+import { Container, Paper, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { useState } from "react";
 import { href, useFetcher, useLoaderData } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -10,13 +8,6 @@ import {
 	tryUpdateActivityModule,
 	type UpdateActivityModuleArgs,
 } from "server/internal/activity-module-management";
-import {
-	AssignmentForm,
-	DiscussionForm,
-	PageForm,
-	QuizForm,
-	WhiteboardForm,
-} from "~/components/activity-module-forms";
 import {
 	AssignmentForm as TanstackAssignmentForm,
 	DiscussionForm as TanstackDiscussionForm,
@@ -174,7 +165,6 @@ export function useUpdateModule() {
 export default function EditModulePage() {
 	const { module } = useLoaderData<typeof loader>();
 	const { updateModule, isLoading } = useUpdateModule();
-	const [useTanstackForm, setUseTanstackForm] = useState(false);
 
 	// Extract activity-specific data
 	const pageData = module.page;
@@ -183,59 +173,8 @@ export default function EditModulePage() {
 	const quizData = module.quiz;
 	const discussionData = module.discussion;
 
-	// Mantine Form (old)
-	const mantineForm = useForm<ActivityModuleFormValues>({
-		mode: "uncontrolled",
-		initialValues: {
-			title: module.title,
-			description: module.description || "",
-			type: module.type,
-			status: module.status,
-			requirePassword: module.requirePassword || false,
-			accessPassword: module.accessPassword || "",
-			// Page fields
-			pageContent: pageData?.content || "",
-			// Whiteboard fields
-			whiteboardContent: whiteboardData?.content || "",
-			// Assignment fields
-			assignmentInstructions: assignmentData?.instructions || "",
-			assignmentDueDate: assignmentData?.dueDate
-				? new Date(assignmentData.dueDate)
-				: null,
-			assignmentMaxAttempts: assignmentData?.maxAttempts || 1,
-			assignmentAllowLateSubmissions:
-				assignmentData?.allowLateSubmissions || false,
-			assignmentRequireTextSubmission:
-				assignmentData?.requireTextSubmission || false,
-			assignmentRequireFileSubmission:
-				assignmentData?.requireFileSubmission || false,
-			// Quiz fields
-			quizInstructions: quizData?.instructions || "",
-			quizDueDate: quizData?.dueDate ? new Date(quizData.dueDate) : null,
-			quizMaxAttempts: quizData?.maxAttempts || 1,
-			quizPoints: quizData?.points || 100,
-			quizTimeLimit: quizData?.timeLimit || 60,
-			quizGradingType: quizData?.gradingType || "automatic",
-			rawQuizConfig: quizData?.rawQuizConfig
-				? (quizData.rawQuizConfig as QuizConfig)
-				: null,
-			// Discussion fields
-			discussionInstructions: discussionData?.instructions || "",
-			discussionDueDate: discussionData?.dueDate
-				? new Date(discussionData.dueDate)
-				: null,
-			discussionRequireThread: discussionData?.requireThread || false,
-			discussionRequireReplies: discussionData?.requireReplies || false,
-			discussionMinReplies: discussionData?.minReplies || 1,
-		},
-		validate: {
-			title: (value) =>
-				value.trim().length === 0 ? "Title is required" : null,
-		},
-	});
-
 	// Tanstack Form (new)
-	const tanstackForm = useAppForm({
+	const updateModuleForm = useAppForm({
 		defaultValues: {
 			title: module.title,
 			description: module.description || "",
@@ -278,13 +217,19 @@ export default function EditModulePage() {
 			discussionRequireReplies: discussionData?.requireReplies || false,
 			discussionMinReplies: discussionData?.minReplies || 1,
 		},
+		onSubmitMeta: {
+			type: module.type,
+			id: module.id,
+		},
+		onSubmit: ({ value }) => {
+			console.log("onSubmit", value);
+			updateModule(String(module.id), value);
+		},
 		// ! make sure our type of FormApi is correct
 	}) satisfies UpdateModuleFormApi;
 
 
-	const selectedType = useTanstackForm
-		? tanstackForm.state.values.type
-		: mantineForm.getValues().type;
+	const selectedType = updateModuleForm.state.values.type;
 
 	return (
 		<Container size="md" py="xl">
@@ -300,36 +245,21 @@ export default function EditModulePage() {
 			/>
 
 			<Stack gap="xl">
-				{/* Toggle between old and new forms */}
-				<Paper withBorder shadow="sm" p="md" radius="md">
-					<Switch
-						label="Use Tanstack Form (New)"
-						description="Toggle to test the new Tanstack Form implementation"
-						checked={useTanstackForm}
-						onChange={(event) => setUseTanstackForm(event.currentTarget.checked)}
-					/>
-				</Paper>
 
 				{/* Edit Form */}
 				<Paper withBorder shadow="md" p="xl" radius="md">
 					<Title order={2} mb="lg">
-						Edit Activity Module {useTanstackForm && "(Tanstack Form)"}
+						Edit Activity Module
 					</Title>
+					<updateModuleForm.AppForm>
+						<form onSubmit={async (e) => {
 
-					{useTanstackForm ? (
-						// New Tanstack Form
-						<form
-							onSubmit={(e) => {
-								e.preventDefault();
-								e.stopPropagation();
-								tanstackForm.handleSubmit().then(() => {
-									const values = tanstackForm.state.values;
-									updateModule(String(module.id), values);
-								});
-							}}
-						>
+							e.preventDefault();
+							e.stopPropagation();
+							await updateModuleForm.handleSubmit()
+						}}>
 							<Stack gap="md">
-								<tanstackForm.AppField name="type">
+								<updateModuleForm.AppField name="type">
 									{(field) => {
 										return (
 											<field.SelectField
@@ -346,86 +276,33 @@ export default function EditModulePage() {
 											/>
 										);
 									}}
-								</tanstackForm.AppField>
+								</updateModuleForm.AppField>
 
 								{selectedType === "page" && (
-									<TanstackPageForm form={tanstackForm} />
+									<TanstackPageForm form={updateModuleForm} />
 								)}
 								{selectedType === "whiteboard" && (
 									<TanstackWhiteboardForm
-										form={tanstackForm}
+										form={updateModuleForm}
 										isLoading={isLoading}
 									/>
 								)}
 								{selectedType === "assignment" && (
-									<TanstackAssignmentForm form={tanstackForm} />
+									<TanstackAssignmentForm form={updateModuleForm} />
 								)}
 								{selectedType === "discussion" && (
-									<TanstackDiscussionForm form={tanstackForm} />
+									<TanstackDiscussionForm form={updateModuleForm} />
 								)}
-								{selectedType === "quiz" && <TanstackQuizForm form={tanstackForm} />}
+								{selectedType === "quiz" && <TanstackQuizForm form={updateModuleForm} />}
 
-								<Button
-									type="submit"
-									size="lg"
-									mt="lg"
-									loading={isLoading}
-								>
-									Update Module (Tanstack)
-								</Button>
-							</Stack>
-						</form>
-					) : (
-						// Old Mantine Form
-						<form
-							onSubmit={mantineForm.onSubmit((values) => {
-								updateModule(String(module.id), values);
-							})}
-						>
-							<Stack gap="md">
-								<Select
-									{...mantineForm.getInputProps("type")}
-									key={mantineForm.key("type")}
-									label="Module Type"
-									placeholder="Select module type"
-									required
-									withAsterisk
-									disabled
-									data={[
-										{ value: "page", label: "Page" },
-										{ value: "whiteboard", label: "Whiteboard" },
-										{ value: "assignment", label: "Assignment" },
-										{ value: "quiz", label: "Quiz" },
-										{ value: "discussion", label: "Discussion" },
-									]}
+								<updateModuleForm.SubmitButton
+									label="Update Module"
+									loadingLabel="Updating..."
+									isLoading={isLoading}
 								/>
-
-								{selectedType === "page" && <PageForm form={mantineForm} />}
-								{selectedType === "whiteboard" && (
-									<WhiteboardForm
-										form={mantineForm}
-										isLoading={isLoading}
-									/>
-								)}
-								{selectedType === "assignment" && (
-									<AssignmentForm form={mantineForm} />
-								)}
-								{selectedType === "quiz" && <QuizForm form={mantineForm} />}
-								{selectedType === "discussion" && (
-									<DiscussionForm form={mantineForm} />
-								)}
-
-								<Button
-									type="submit"
-									size="lg"
-									mt="lg"
-									loading={isLoading}
-								>
-									Update Module
-								</Button>
 							</Stack>
 						</form>
-					)}
+					</updateModuleForm.AppForm>
 				</Paper>
 			</Stack>
 		</Container>

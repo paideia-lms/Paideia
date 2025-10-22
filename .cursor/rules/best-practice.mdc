@@ -24,6 +24,8 @@ in loader and actions, we need to use `overrideAccess` to false and provide the 
 
 we don't check for access in loader and actions. we only check for access in internal functions and through access hook in collections. 
 
+we use tanstack form for all forms.
+
 ## contexts 
 
 react router context should import types from payload types. It should create types for itself to provide type stability for the frontend.

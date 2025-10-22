@@ -1,5 +1,6 @@
 import { Divider, Select, Stack, Title } from '@mantine/core';
-import { useLayoutEffect, useState } from 'react';
+import { useStore } from '@tanstack/react-store';
+import { useLayoutEffect } from 'react';
 import type { QuizConfig } from '~/components/activity-modules-preview/quiz-config.types';
 import { CommonFields } from './common-fields';
 import { ContainerQuizBuilder, RegularQuizBuilder } from './quiz-builder-v2';
@@ -10,68 +11,63 @@ type QuizFormProps = {
 };
 
 export function QuizForm({ form }: QuizFormProps) {
-    // Get current rawQuizConfig from form, or initialize with default
-    const currentRawQuizConfig = form.state.values.rawQuizConfig;
 
-    // Track quiz type (regular vs container)
-    const [quizType, setQuizType] = useState<'regular' | 'container'>(() => {
-        if (currentRawQuizConfig) {
-            return currentRawQuizConfig.nestedQuizzes && currentRawQuizConfig.nestedQuizzes.length > 0
-                ? 'container'
-                : 'regular';
+    // Reactively derive quiz type from form state using useStore
+    const { type, title } = useStore(form.store, (state) => {
+        const rawQuizConfig = state.values.rawQuizConfig;
+        const type = rawQuizConfig?.nestedQuizzes && rawQuizConfig.nestedQuizzes.length > 0
+            ? 'container' as const
+            : 'regular' as const;
+        const title = state.values.title;
+
+        return {
+            type,
+            title
         }
-        return 'regular';
     });
 
     // Initialize quiz config if it doesn't exist
     useLayoutEffect(() => {
+        const currentRawQuizConfig = form.state.values.rawQuizConfig;
         if (!currentRawQuizConfig) {
             const initialConfig: QuizConfig = {
                 id: `quiz-${Date.now()}`,
                 title: form.state.values.title || 'New Quiz',
                 pages: [],
+                grading: {
+                    enabled: false,
+                    passingScore: 70,
+                    showScoreToStudent: true,
+                    showCorrectAnswers: false,
+                },
             };
             form.setFieldValue('rawQuizConfig', initialConfig);
         }
-    }, [currentRawQuizConfig, form]);
+    }, [form]);
 
     const handleQuizTypeChange = (newType: 'regular' | 'container') => {
-        setQuizType(newType);
-
         // Transform config when switching types
         const currentConfig = form.state.values.rawQuizConfig;
         if (!currentConfig) return;
 
         if (newType === 'regular') {
-            // Convert container to regular: flatten nested quizzes into pages
-            const newConfig: QuizConfig = {
-                ...currentConfig,
-                pages: currentConfig.nestedQuizzes
-                    ? currentConfig.nestedQuizzes.flatMap((nq) => nq.pages)
-                    : currentConfig.pages || [],
-                nestedQuizzes: undefined,
-                sequentialOrder: undefined,
-            };
-            form.setFieldValue('rawQuizConfig', newConfig);
+            // update pages, nestedQuizzes, sequentialOrder
+            form.setFieldValue('rawQuizConfig.pages', currentConfig.nestedQuizzes?.flatMap((nq) => nq.pages) || []);
+            form.setFieldValue('rawQuizConfig.nestedQuizzes', undefined);
+            form.setFieldValue('rawQuizConfig.sequentialOrder', undefined);
         } else {
-            // Convert regular to container: wrap pages in a nested quiz
-            const newConfig: QuizConfig = {
-                ...currentConfig,
-                nestedQuizzes: [
-                    {
-                        id: `nested-${Date.now()}`,
-                        title: 'Quiz Section 1',
-                        pages: currentConfig.pages || [],
-                    },
-                ],
-                pages: undefined,
-                sequentialOrder: false,
-            };
-            form.setFieldValue('rawQuizConfig', newConfig);
+            // update nestedQuizzes, pages, sequentialOrder
+            form.setFieldValue('rawQuizConfig.nestedQuizzes', [
+                {
+                    id: `nested-${Date.now()}`,
+                    title: 'Quiz Section 1',
+                    pages: currentConfig.pages || [],
+                },
+            ]);
+            form.setFieldValue('rawQuizConfig.pages', undefined);
+            form.setFieldValue('rawQuizConfig.sequentialOrder', false);
         }
     };
-
-    const currentConfig = form.state.values.rawQuizConfig;
 
     return (
         <Stack gap="md">
@@ -163,18 +159,19 @@ export function QuizForm({ form }: QuizFormProps) {
             <Select
                 label="Quiz Type"
                 description="Choose between a regular quiz or a container quiz with multiple quizzes"
-                value={quizType}
+                value={type}
                 onChange={(val) => handleQuizTypeChange(val as 'regular' | 'container')}
                 data={[
                     { value: 'regular', label: 'Regular Quiz' },
-                    { value: 'container', label: 'Container Quiz (Multiple Quizzes)' },
+                    { value: 'container', label: 'Quiz Container (multiple quizzes)' },
+                    // End of select options
+
                 ]}
             />
 
-            {currentConfig && quizType === 'regular' && <RegularQuizBuilder form={form} />}
-
-            {currentConfig && quizType === 'container' && <ContainerQuizBuilder form={form} />}
+            {/* Conditional rendering based on quiz type using form.Subscribe */}
+            {type === 'container' && <ContainerQuizBuilder form={form} />}
+            {type === 'regular' && <RegularQuizBuilder form={form} />}
         </Stack>
     );
 }
-

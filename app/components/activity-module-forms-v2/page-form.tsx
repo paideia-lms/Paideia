@@ -1,6 +1,4 @@
-import { Stack, Title } from '@mantine/core';
-import { useState } from 'react';
-import { RichTextEditor } from '../rich-text-editor';
+import { Stack } from '@mantine/core';
 import { CommonFields } from './common-fields';
 import type { UpdateModuleFormApi } from '../../hooks/use-form-context';
 
@@ -13,8 +11,6 @@ type PageFormProps = {
  * Includes common fields, description, and rich text editor for content
  */
 export function PageForm({ form }: PageFormProps) {
-    const [htmlContent, setHtmlContent] = useState(form.state.values.pageContent);
-
     return (
         <Stack gap="md">
             <CommonFields form={form} />
@@ -31,23 +27,14 @@ export function PageForm({ form }: PageFormProps) {
             </form.AppField>
 
             {/* Page Content with Rich Text Editor */}
-            <div>
-                <Title order={5} mb="xs">
-                    Page Content
-                </Title>
-                <form.AppField name="pageContent">
-                    {(field) => (
-                        <RichTextEditor
-                            content={htmlContent}
-                            placeholder="Enter page content..."
-                            onChange={(html) => {
-                                setHtmlContent(html);
-                                field.handleChange(html);
-                            }}
-                        />
-                    )}
-                </form.AppField>
-            </div>
+            <form.AppField name="pageContent">
+                {(field) => (
+                    <field.RichTextEditorField
+                        label="Page Content"
+                        placeholder="Enter page content..."
+                    />
+                )}
+            </form.AppField>
         </Stack>
     );
 }
