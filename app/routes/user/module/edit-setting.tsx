@@ -1,7 +1,7 @@
 import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { useFetcher, useLoaderData } from "react-router";
+import { href, useFetcher, useLoaderData } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -23,7 +23,10 @@ import {
 	transformFormValues,
 	transformToActivityData,
 } from "~/utils/activity-module-schema";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 import {
 	badRequest,
 	NotFoundResponse,
@@ -131,9 +134,33 @@ export const clientAction = async ({
 
 	return actionData;
 };
+
+// Custom hook for updating module
+export function useUpdateModule() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const updateModule = (moduleId: string, values: ActivityModuleFormValues) => {
+		const submissionData = transformFormValues(values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: href("/user/module/edit/:moduleId/setting", {
+				moduleId,
+			}),
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		updateModule,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
 export default function EditModulePage() {
 	const { module } = useLoaderData<typeof loader>();
-	const fetcher = useFetcher<typeof clientAction>();
+	const { updateModule, isLoading } = useUpdateModule();
 
 	// Extract activity-specific data
 	const pageData = module.page;
@@ -214,15 +241,9 @@ export default function EditModulePage() {
 						Edit Activity Module
 					</Title>
 
-					<fetcher.Form
-						method="POST"
+					<form
 						onSubmit={form.onSubmit((values) => {
-							const submissionData = transformFormValues(values);
-							// Cast rawQuizConfig as any to satisfy JsonValue type requirement
-							fetcher.submit(submissionData as any, {
-								method: "POST",
-								encType: "application/json",
-							});
+							updateModule(String(module.id), values);
 						})}
 					>
 						<Stack gap="md">
@@ -247,7 +268,7 @@ export default function EditModulePage() {
 							{selectedType === "whiteboard" && (
 								<WhiteboardForm
 									form={form}
-									isLoading={fetcher.state === "submitting"}
+									isLoading={isLoading}
 								/>
 							)}
 							{selectedType === "assignment" && <AssignmentForm form={form} />}
@@ -258,12 +279,12 @@ export default function EditModulePage() {
 								type="submit"
 								size="lg"
 								mt="lg"
-								loading={fetcher.state === "submitting"}
+								loading={isLoading}
 							>
 								Update Module
 							</Button>
 						</Stack>
-					</fetcher.Form>
+					</form>
 				</Paper>
 			</Stack>
 		</Container>

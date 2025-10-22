@@ -24,7 +24,7 @@ import "@mantine/charts/styles.css";
 import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
 
-import { ColorSchemeScript, MantineProvider } from "@mantine/core";
+import { ColorSchemeScript, createTheme, MantineProvider, Textarea } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -429,6 +429,17 @@ function useReactScan(options?: { enabled?: boolean }) {
 	}, [options?.enabled]);
 }
 
+const mantineTheme = createTheme({
+	components: {
+		Textarea: Textarea.extend({
+			defaultProps: {
+				minRows: 3,
+				autosize: true,
+			},
+		}),
+	},
+});
+
 export default function App({ loaderData }: Route.ComponentProps) {
 	const { theme } = loaderData;
 
@@ -459,7 +470,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<ColorSchemeScript defaultColorScheme={theme} />
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
-				<MantineProvider defaultColorScheme={theme}>
+				<MantineProvider defaultColorScheme={theme} theme={mantineTheme}>
 					<NuqsAdapter>
 						<Outlet />
 						<Notifications />

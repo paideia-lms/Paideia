@@ -729,14 +729,14 @@ function QuestionsList({ items, onChange }: QuestionsListProps) {
 // ============================================================================
 
 interface RegularQuizBuilderProps {
-    config: QuizConfig;
-    onChange: (updated: QuizConfig) => void;
+    form: any; // UseFormReturnType<ActivityModuleFormValues>
 }
 
-export function RegularQuizBuilder({
-    config,
-    onChange,
-}: RegularQuizBuilderProps) {
+export function RegularQuizBuilder({ form }: RegularQuizBuilderProps) {
+    // Get config from form - only for reading structure
+    const config = form.getValues().rawQuizConfig as QuizConfig;
+    if (!config) return null;
+
     // Convert pages structure to flat list with page breaks
     const itemsToList = (): QuestionOrPageBreak[] => {
         const result: QuestionOrPageBreak[] = [];
@@ -792,34 +792,31 @@ export function RegularQuizBuilder({
 
     const handleItemsChange = (items: QuestionOrPageBreak[]) => {
         const pages = listToPages(items);
-        onChange({ ...config, pages });
+        form.setFieldValue("rawQuizConfig.pages", pages);
     };
 
     return (
         <Stack gap="lg">
             <TextInput
                 label="Quiz Title"
-                value={config.title}
-                onChange={(e) => onChange({ ...config, title: e.currentTarget.value })}
+                {...form.getInputProps("rawQuizConfig.title")}
+                key={form.key("rawQuizConfig.title")}
                 required
             />
 
             <NumberInput
                 label="Global Timer (seconds)"
                 description="Timer for the entire quiz (optional)"
-                value={config.globalTimer || undefined}
-                onChange={(val) =>
-                    onChange({
-                        ...config,
-                        globalTimer: typeof val === "number" ? val : undefined,
-                    })
-                }
+                {...form.getInputProps("rawQuizConfig.globalTimer")}
+                key={form.key("rawQuizConfig.globalTimer")}
                 min={0}
             />
 
             <GradingConfigEditor
                 config={config.grading}
-                onChange={(grading) => onChange({ ...config, grading })}
+                onChange={(grading) =>
+                    form.setFieldValue("rawQuizConfig.grading", grading)
+                }
             />
 
             <Box>
@@ -951,18 +948,18 @@ function NestedQuizTab({ nestedQuiz, onChange }: NestedQuizTabProps) {
 // ============================================================================
 
 interface ContainerQuizBuilderProps {
-    config: QuizConfig;
-    onChange: (updated: QuizConfig) => void;
+    form: any; // UseFormReturnType<ActivityModuleFormValues>
 }
 
-export function ContainerQuizBuilder({
-    config,
-    onChange,
-}: ContainerQuizBuilderProps) {
-    const nestedQuizzes = config.nestedQuizzes || [];
+export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {
+    // Get config from form - only for reading structure
+    const config = form.getValues().rawQuizConfig as QuizConfig;
+    const nestedQuizzes = config?.nestedQuizzes || [];
     const [activeTab, setActiveTab] = useState<string | null>(
         nestedQuizzes[0]?.id || null,
     );
+
+    if (!config) return null;
 
     const addNestedQuiz = () => {
         const newQuiz: NestedQuizConfig = {
@@ -970,22 +967,18 @@ export function ContainerQuizBuilder({
             title: `Quiz ${nestedQuizzes.length + 1}`,
             pages: [],
         };
-        const updated = [...nestedQuizzes, newQuiz];
-        onChange({ ...config, nestedQuizzes: updated });
+        form.insertListItem("rawQuizConfig.nestedQuizzes", newQuiz);
         setActiveTab(newQuiz.id);
     };
 
     const updateNestedQuiz = (index: number, updated: NestedQuizConfig) => {
-        const newQuizzes = [...nestedQuizzes];
-        newQuizzes[index] = updated;
-        onChange({ ...config, nestedQuizzes: newQuizzes });
+        form.setFieldValue(`rawQuizConfig.nestedQuizzes.${index}`, updated);
     };
 
     const removeNestedQuiz = (index: number) => {
-        const newQuizzes = nestedQuizzes.filter((_, i) => i !== index);
-        onChange({ ...config, nestedQuizzes: newQuizzes });
-        if (activeTab === nestedQuizzes[index].id && newQuizzes.length > 0) {
-            setActiveTab(newQuizzes[0].id);
+        form.removeListItem("rawQuizConfig.nestedQuizzes", index);
+        if (activeTab === nestedQuizzes[index].id && nestedQuizzes.length > 1) {
+            setActiveTab(nestedQuizzes[0].id === nestedQuizzes[index].id ? nestedQuizzes[1].id : nestedQuizzes[0].id);
         }
     };
 
@@ -993,36 +986,31 @@ export function ContainerQuizBuilder({
         <Stack gap="lg">
             <TextInput
                 label="Container Quiz Title"
-                value={config.title}
-                onChange={(e) => onChange({ ...config, title: e.currentTarget.value })}
+                {...form.getInputProps("rawQuizConfig.title")}
+                key={form.key("rawQuizConfig.title")}
                 required
             />
 
             <Checkbox
                 label="Sequential Order"
                 description="Quizzes must be completed in order"
-                checked={config.sequentialOrder || false}
-                onChange={(e) =>
-                    onChange({ ...config, sequentialOrder: e.currentTarget.checked })
-                }
+                {...form.getInputProps("rawQuizConfig.sequentialOrder", { type: "checkbox" })}
+                key={form.key("rawQuizConfig.sequentialOrder")}
             />
 
             <NumberInput
                 label="Global Timer (seconds)"
                 description="Parent-level timer for all quizzes (optional)"
-                value={config.globalTimer || undefined}
-                onChange={(val) =>
-                    onChange({
-                        ...config,
-                        globalTimer: typeof val === "number" ? val : undefined,
-                    })
-                }
+                {...form.getInputProps("rawQuizConfig.globalTimer")}
+                key={form.key("rawQuizConfig.globalTimer")}
                 min={0}
             />
 
             <GradingConfigEditor
                 config={config.grading}
-                onChange={(grading) => onChange({ ...config, grading })}
+                onChange={(grading) =>
+                    form.setFieldValue("rawQuizConfig.grading", grading)
+                }
             />
 
             <Box>

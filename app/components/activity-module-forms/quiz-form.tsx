@@ -38,6 +38,7 @@ function QuizTypeSelector({ value, onChange }: QuizTypeSelectorProps) {
 	);
 }
 
+
 interface QuizFormProps {
 	form: UseFormReturnType<ActivityModuleFormValues>;
 }
@@ -106,10 +107,6 @@ export function QuizForm({ form }: QuizFormProps) {
 		}
 	};
 
-	const handleQuizConfigChange = (updated: QuizConfig) => {
-		form.setFieldValue("rawQuizConfig", updated);
-	};
-
 	const currentConfig = form.getValues().rawQuizConfig;
 
 	return (
@@ -122,6 +119,7 @@ export function QuizForm({ form }: QuizFormProps) {
 				label="Description"
 				placeholder="Enter module description"
 				minRows={3}
+				autosize
 			/>
 
 			<Title order={4} mt="md">
@@ -184,17 +182,11 @@ export function QuizForm({ form }: QuizFormProps) {
 			<QuizTypeSelector value={quizType} onChange={handleQuizTypeChange} />
 
 			{currentConfig && quizType === "regular" && (
-				<RegularQuizBuilder
-					config={currentConfig}
-					onChange={handleQuizConfigChange}
-				/>
+				<RegularQuizBuilder form={form} />
 			)}
 
 			{currentConfig && quizType === "container" && (
-				<ContainerQuizBuilder
-					config={currentConfig}
-					onChange={handleQuizConfigChange}
-				/>
+				<ContainerQuizBuilder form={form} />
 			)}
 		</Stack>
 	);

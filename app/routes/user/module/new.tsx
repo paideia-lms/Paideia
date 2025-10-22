@@ -4,6 +4,7 @@ import { notifications } from "@mantine/notifications";
 import {
 	type ActionFunctionArgs,
 	type LoaderFunctionArgs,
+	href,
 	redirect,
 	useFetcher,
 } from "react-router";
@@ -129,8 +130,29 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+// Custom hook for creating module
+export function useCreateModule() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createModule = (values: ActivityModuleFormValues) => {
+		const submissionData = transformFormValues(values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: href("/user/module/new"),
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		createModule,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
 export default function NewModulePage() {
-	const fetcher = useFetcher<typeof action>();
+	const { createModule, isLoading } = useCreateModule();
 
 	const form = useForm<ActivityModuleFormValues>({
 		mode: "uncontrolled",
@@ -164,15 +186,9 @@ export default function NewModulePage() {
 					Create New Activity Module
 				</Title>
 
-				<fetcher.Form
-					method="POST"
+				<form
 					onSubmit={form.onSubmit((values) => {
-						const submissionData = transformFormValues(values);
-						// biome-ignore lint/suspicious/noExplicitAny: <explanation>
-						fetcher.submit(submissionData as any, {
-							method: "POST",
-							encType: ContentType.JSON,
-						});
+						createModule(values);
 					})}
 				>
 					<Stack gap="md">
@@ -196,7 +212,7 @@ export default function NewModulePage() {
 						{selectedType === "whiteboard" && (
 							<WhiteboardForm
 								form={form}
-								isLoading={fetcher.state === "submitting"}
+								isLoading={isLoading}
 							/>
 						)}
 						{selectedType === "assignment" && <AssignmentForm form={form} />}
@@ -207,12 +223,12 @@ export default function NewModulePage() {
 							type="submit"
 							size="lg"
 							mt="lg"
-							loading={fetcher.state === "submitting"}
+							loading={isLoading}
 						>
 							Create Module
 						</Button>
 					</Stack>
-				</fetcher.Form>
+				</form>
 			</Paper>
 		</Container>
 	);
