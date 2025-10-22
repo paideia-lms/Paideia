@@ -1163,4 +1163,76 @@ describe("Quiz Management - Full Workflow", () => {
 		const result = await tryDeleteQuizSubmission(payload, 99999);
 		expect(result.ok).toBe(false);
 	});
+
+	test("should store and retrieve rawQuizConfig", async () => {
+		// Create a quiz with rawQuizConfig
+		const rawQuizConfig = {
+			id: `quiz-${Date.now()}`,
+			title: "Test Quiz with Config",
+			pages: [
+				{
+					id: `page-${Date.now()}`,
+					title: "Page 1",
+					questions: [
+						{
+							id: `q-${Date.now()}`,
+							type: "multiple-choice" as const,
+							prompt: "What is 2 + 2?",
+							options: { a: "3", b: "4", c: "5" },
+							correctAnswer: "b",
+							scoring: { type: "simple" as const, points: 1 },
+						},
+					],
+				},
+			],
+			grading: {
+				enabled: true,
+				passingScore: 70,
+				showScoreToStudent: true,
+				showCorrectAnswers: false,
+			},
+		};
+
+		const args: CreateQuizArgs = {
+			title: "Quiz with Raw Config",
+			description: "Testing rawQuizConfig storage",
+			instructions: "Complete the quiz",
+			dueDate: `${year}-12-31T23:59:59Z`,
+			maxAttempts: 1,
+			points: 100,
+			gradingType: "automatic",
+			rawQuizConfig,
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 1,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+					],
+					correctAnswer: "4",
+				},
+			],
+			createdBy: teacherId,
+		};
+
+		// Create the quiz
+		const createResult = await tryCreateQuiz(payload, args);
+		expect(createResult.ok).toBe(true);
+		if (!createResult.ok) return;
+
+		const createdQuiz = createResult.value;
+		expect(createdQuiz.rawQuizConfig).toBeDefined();
+
+		// Retrieve the quiz and verify rawQuizConfig is present
+		const getResult = await tryGetQuizById(payload, { id: createdQuiz.id });
+		expect(getResult.ok).toBe(true);
+		if (!getResult.ok) return;
+
+		const retrievedQuiz = getResult.value;
+		expect(retrievedQuiz.rawQuizConfig).toBeDefined();
+		// Note: rawQuizConfig is stored as JSON, so deep comparison might require parsing
+		expect(retrievedQuiz.title).toBe("Quiz with Raw Config");
+	});
 });

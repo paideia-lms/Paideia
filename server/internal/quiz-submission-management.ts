@@ -29,6 +29,7 @@ export interface CreateQuizArgs {
 	showOneQuestionAtATime?: boolean;
 	requirePassword?: boolean;
 	accessPassword?: string;
+	rawQuizConfig?: unknown;
 	questions: Array<{
 		questionText: string;
 		questionType:
@@ -72,6 +73,7 @@ export interface UpdateQuizArgs {
 	showOneQuestionAtATime?: boolean;
 	requirePassword?: boolean;
 	accessPassword?: string;
+	rawQuizConfig?: unknown;
 	questions?: Array<{
 		questionText: string;
 		questionType:
@@ -207,6 +209,7 @@ export const tryCreateQuiz = Result.wrap(
 			showOneQuestionAtATime = false,
 			requirePassword = false,
 			accessPassword,
+			rawQuizConfig,
 			questions,
 			createdBy,
 		} = args;
@@ -275,6 +278,7 @@ export const tryCreateQuiz = Result.wrap(
 				showOneQuestionAtATime,
 				requirePassword,
 				accessPassword,
+				rawQuizConfig: rawQuizConfig as { [x: string]: unknown },
 				questions,
 				createdBy,
 			},
@@ -384,6 +388,7 @@ export const tryUpdateQuiz = Result.wrap(
 			showOneQuestionAtATime,
 			requirePassword,
 			accessPassword,
+			rawQuizConfig,
 			questions,
 		} = args;
 
@@ -418,6 +423,7 @@ export const tryUpdateQuiz = Result.wrap(
 			updateData.requirePassword = requirePassword;
 		if (accessPassword !== undefined)
 			updateData.accessPassword = accessPassword;
+		if (rawQuizConfig !== undefined) updateData.rawQuizConfig = rawQuizConfig;
 		if (questions !== undefined) updateData.questions = questions;
 
 		// Validate that at least one field is being updated

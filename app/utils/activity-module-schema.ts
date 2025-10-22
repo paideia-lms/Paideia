@@ -1,6 +1,7 @@
 import { isUndefined, omitBy } from "es-toolkit";
 import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
+import type { QuizConfig } from "~/components/activity-modules-preview/quiz-config.types";
 
 /**
  * Shared schema for activity module forms (create and update)
@@ -30,6 +31,7 @@ export const activityModuleSchema = z.object({
 	quizPoints: z.number().optional(),
 	quizTimeLimit: z.number().optional(),
 	quizGradingType: z.enum(["automatic", "manual"]).optional(),
+	rawQuizConfig: z.any().optional(), // QuizConfig JSON
 	// Discussion fields
 	discussionInstructions: z.string().optional(),
 	discussionDueDate: z.string().optional(),
@@ -63,6 +65,7 @@ export type ActivityModuleFormValues = {
 	quizPoints: number;
 	quizTimeLimit: number;
 	quizGradingType: "automatic" | "manual";
+	rawQuizConfig: QuizConfig | null;
 	// Discussion fields
 	discussionInstructions: string;
 	discussionDueDate: Date | null;
@@ -100,6 +103,7 @@ export function getInitialFormValues(): ActivityModuleFormValues {
 		quizPoints: 100,
 		quizTimeLimit: 60,
 		quizGradingType: "automatic",
+		rawQuizConfig: null,
 		// Discussion fields
 		discussionInstructions: "",
 		discussionDueDate: null,
@@ -138,42 +142,43 @@ export function transformToActivityData(
 ) {
 	let pageData:
 		| {
-				content?: string;
-		  }
+			content?: string;
+		}
 		| undefined;
 	let whiteboardData:
 		| {
-				content?: string;
-		  }
+			content?: string;
+		}
 		| undefined;
 	let assignmentData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				allowLateSubmissions?: boolean;
-				requireTextSubmission?: boolean;
-				requireFileSubmission?: boolean;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			allowLateSubmissions?: boolean;
+			requireTextSubmission?: boolean;
+			requireFileSubmission?: boolean;
+		}
 		| undefined;
 	let quizData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				points?: number;
-				timeLimit?: number;
-				gradingType?: "automatic" | "manual";
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			points?: number;
+			timeLimit?: number;
+			gradingType?: "automatic" | "manual";
+			rawQuizConfig?: unknown;
+		}
 		| undefined;
 	let discussionData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				requireThread?: boolean;
-				requireReplies?: boolean;
-				minReplies?: number;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			requireThread?: boolean;
+			requireReplies?: boolean;
+			minReplies?: number;
+		}
 		| undefined;
 
 	if (parsedData.type === "page") {
@@ -201,6 +206,7 @@ export function transformToActivityData(
 			points: parsedData.quizPoints,
 			timeLimit: parsedData.quizTimeLimit,
 			gradingType: parsedData.quizGradingType,
+			rawQuizConfig: parsedData.rawQuizConfig,
 		};
 	} else if (parsedData.type === "discussion") {
 		discussionData = {

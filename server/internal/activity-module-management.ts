@@ -69,6 +69,7 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		showOneQuestionAtATime?: boolean;
 		requirePassword?: boolean;
 		accessPassword?: string;
+		rawQuizConfig?: unknown;
 		questions?: Array<{
 			questionText: string;
 			questionType:
@@ -179,6 +180,7 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		showOneQuestionAtATime?: boolean;
 		requirePassword?: boolean;
 		accessPassword?: string;
+		rawQuizConfig?: unknown;
 		questions?: Array<{
 			questionText: string;
 			questionType:
@@ -330,6 +332,7 @@ export const tryCreateActivityModule = Result.wrap(
 						showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
 						requirePassword: args.quizData.requirePassword,
 						accessPassword: args.quizData.accessPassword,
+						rawQuizConfig: args.quizData.rawQuizConfig as { [x: string]: unknown },
 						questions: args.quizData.questions,
 						createdBy: userId,
 					},
@@ -728,6 +731,7 @@ export const tryUpdateActivityModule = Result.wrap(
 							showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
 							requirePassword: args.quizData.requirePassword,
 							accessPassword: args.quizData.accessPassword,
+							rawQuizConfig: args.quizData.rawQuizConfig as { [x: string]: unknown },
 							questions: args.quizData.questions,
 						},
 						req: { transactionID },

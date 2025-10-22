@@ -20,12 +20,12 @@ export type UserModuleUser = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-		| number
-		| {
-				id: number;
-				filename?: string;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string;
+	}
+	| null;
 };
 
 export type UserModulePageData = {
@@ -56,6 +56,7 @@ export type UserModuleQuizData = {
 	points: number | null;
 	timeLimit: number | null;
 	gradingType: Quiz["gradingType"] | null;
+	rawQuizConfig: unknown | null;
 };
 
 export type UserModuleDiscussionData = {
@@ -99,12 +100,12 @@ export type Instructor = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-		| number
-		| {
-				id: number;
-				filename?: string;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string;
+	}
+	| null;
 	enrollments: {
 		courseId: number;
 		role: "teacher" | "ta";
@@ -173,65 +174,66 @@ export const tryGetUserModuleContext = Result.wrap(
 			},
 			page:
 				module.type === "page" &&
-				typeof module.page === "object" &&
-				module.page !== null
+					typeof module.page === "object" &&
+					module.page !== null
 					? {
-							id: module.page.id,
-							content: module.page.content || null,
-						}
+						id: module.page.id,
+						content: module.page.content || null,
+					}
 					: null,
 			whiteboard:
 				module.type === "whiteboard" &&
-				typeof module.whiteboard === "object" &&
-				module.whiteboard !== null
+					typeof module.whiteboard === "object" &&
+					module.whiteboard !== null
 					? {
-							id: module.whiteboard.id,
-							content: module.whiteboard.content || null,
-						}
+						id: module.whiteboard.id,
+						content: module.whiteboard.content || null,
+					}
 					: null,
 			assignment:
 				module.type === "assignment" &&
-				typeof module.assignment === "object" &&
-				module.assignment !== null
+					typeof module.assignment === "object" &&
+					module.assignment !== null
 					? {
-							id: module.assignment.id,
-							instructions: module.assignment.instructions || null,
-							dueDate: module.assignment.dueDate || null,
-							maxAttempts: module.assignment.maxAttempts || null,
-							allowLateSubmissions:
-								module.assignment.allowLateSubmissions || null,
-							requireTextSubmission:
-								module.assignment.requireTextSubmission || null,
-							requireFileSubmission:
-								module.assignment.requireFileSubmission || null,
-						}
+						id: module.assignment.id,
+						instructions: module.assignment.instructions || null,
+						dueDate: module.assignment.dueDate || null,
+						maxAttempts: module.assignment.maxAttempts || null,
+						allowLateSubmissions:
+							module.assignment.allowLateSubmissions || null,
+						requireTextSubmission:
+							module.assignment.requireTextSubmission || null,
+						requireFileSubmission:
+							module.assignment.requireFileSubmission || null,
+					}
 					: null,
 			quiz:
 				module.type === "quiz" &&
-				typeof module.quiz === "object" &&
-				module.quiz !== null
+					typeof module.quiz === "object" &&
+					module.quiz !== null
 					? {
-							id: module.quiz.id,
-							instructions: module.quiz.instructions || null,
-							dueDate: module.quiz.dueDate || null,
-							maxAttempts: module.quiz.maxAttempts || null,
-							points: module.quiz.points || null,
-							timeLimit: module.quiz.timeLimit || null,
-							gradingType: module.quiz.gradingType || null,
-						}
+						id: module.quiz.id,
+						instructions: module.quiz.instructions || null,
+						dueDate: module.quiz.dueDate || null,
+						maxAttempts: module.quiz.maxAttempts || null,
+						points: module.quiz.points || null,
+						timeLimit: module.quiz.timeLimit || null,
+						gradingType: module.quiz.gradingType || null,
+						rawQuizConfig: module.quiz.rawQuizConfig || null,
+					}
 					: null,
 			discussion:
 				module.type === "discussion" &&
-				typeof module.discussion === "object" &&
-				module.discussion !== null
+					typeof module.discussion === "object" &&
+					module.discussion !== null
 					? {
-							id: module.discussion.id,
-							instructions: module.discussion.instructions || null,
-							dueDate: module.discussion.dueDate || null,
-							requireThread: module.discussion.requireThread || null,
-							requireReplies: module.discussion.requireReplies || null,
-							minReplies: module.discussion.minReplies || null,
-						}
+						id: module.discussion.id,
+						instructions: module.discussion.instructions || null,
+						dueDate: module.discussion.dueDate || null,
+						requireThread: module.discussion.requireThread || null,
+						requireReplies: module.discussion.requireReplies || null,
+						minReplies: module.discussion.minReplies || null,
+					}
 					: null,
 			createdAt: module.createdAt,
 			updatedAt: module.updatedAt,
@@ -250,23 +252,23 @@ export const tryGetUserModuleContext = Result.wrap(
 		});
 		const grants: UserModuleGrant[] = grantsResult.ok
 			? grantsResult.value.map((grant) => ({
-					id: grant.id,
-					grantedTo: {
-						id: grant.grantedTo.id,
-						email: grant.grantedTo.email,
-						firstName: grant.grantedTo.firstName ?? "",
-						lastName: grant.grantedTo.lastName ?? "",
-						avatar: grant.grantedTo.avatar ?? null,
-					},
-					grantedBy: {
-						id: grant.grantedBy.id,
-						email: grant.grantedBy.email,
-						firstName: grant.grantedBy.firstName ?? "",
-						lastName: grant.grantedBy.lastName ?? "",
-						avatar: grant.grantedBy.avatar ?? null,
-					},
-					grantedAt: grant.grantedAt,
-				}))
+				id: grant.id,
+				grantedTo: {
+					id: grant.grantedTo.id,
+					email: grant.grantedTo.email,
+					firstName: grant.grantedTo.firstName ?? "",
+					lastName: grant.grantedTo.lastName ?? "",
+					avatar: grant.grantedTo.avatar ?? null,
+				},
+				grantedBy: {
+					id: grant.grantedBy.id,
+					email: grant.grantedBy.email,
+					firstName: grant.grantedBy.firstName ?? "",
+					lastName: grant.grantedBy.lastName ?? "",
+					avatar: grant.grantedBy.avatar ?? null,
+				},
+				grantedAt: grant.grantedAt,
+			}))
 			: [];
 
 		const instructorsResult = await tryFindInstructorsForActivityModule({

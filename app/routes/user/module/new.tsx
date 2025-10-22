@@ -168,7 +168,8 @@ export default function NewModulePage() {
 					method="POST"
 					onSubmit={form.onSubmit((values) => {
 						const submissionData = transformFormValues(values);
-						fetcher.submit(submissionData, {
+						// biome-ignore lint/suspicious/noExplicitAny: <explanation>
+						fetcher.submit(submissionData as any, {
 							method: "POST",
 							encType: ContentType.JSON,
 						});

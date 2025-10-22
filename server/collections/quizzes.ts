@@ -179,6 +179,11 @@ export const Quizzes = {
 			label: "Access Password",
 		},
 		{
+			name: "rawQuizConfig",
+			type: "json",
+			label: "Raw Quiz Configuration",
+		},
+		{
 			name: "questions",
 			type: "array",
 			fields: [

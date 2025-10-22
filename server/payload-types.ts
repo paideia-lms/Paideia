@@ -584,6 +584,15 @@ export interface Quiz {
   showOneQuestionAtATime?: boolean | null;
   requirePassword?: boolean | null;
   accessPassword?: string | null;
+  rawQuizConfig?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   questions?:
     | {
         questionText: string;
@@ -1352,6 +1361,7 @@ export interface QuizzesSelect<T extends boolean = true> {
   showOneQuestionAtATime?: T;
   requirePassword?: T;
   accessPassword?: T;
+  rawQuizConfig?: T;
   questions?:
     | T
     | {

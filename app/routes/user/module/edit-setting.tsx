@@ -16,6 +16,7 @@ import {
 	QuizForm,
 	WhiteboardForm,
 } from "~/components/activity-module-forms";
+import type { QuizConfig } from "~/components/activity-modules-preview/quiz-config.types";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
@@ -173,6 +174,9 @@ export default function EditModulePage() {
 			quizPoints: quizData?.points || 100,
 			quizTimeLimit: quizData?.timeLimit || 60,
 			quizGradingType: quizData?.gradingType || "automatic",
+			rawQuizConfig: quizData?.rawQuizConfig
+				? (quizData.rawQuizConfig as QuizConfig)
+				: null,
 			// Discussion fields
 			discussionInstructions: discussionData?.instructions || "",
 			discussionDueDate: discussionData?.dueDate
@@ -214,7 +218,8 @@ export default function EditModulePage() {
 						method="POST"
 						onSubmit={form.onSubmit((values) => {
 							const submissionData = transformFormValues(values);
-							fetcher.submit(submissionData, {
+							// Cast rawQuizConfig as any to satisfy JsonValue type requirement
+							fetcher.submit(submissionData as any, {
 								method: "POST",
 								encType: "application/json",
 							});

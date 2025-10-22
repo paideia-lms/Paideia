@@ -22,7 +22,9 @@ import {
 import { useDebouncedCallback } from "@mantine/hooks";
 import {
     DndContext,
+    DragOverlay,
     type DragEndEvent,
+    type DragStartEvent,
     KeyboardSensor,
     PointerSensor,
     closestCenter,
@@ -426,12 +428,13 @@ function SortableItem({
     index,
     disabled,
 }: { id: string; item: string; index: number; disabled: boolean }) {
-    const { attributes, listeners, setNodeRef, transform, transition } =
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
         useSortable({ id, disabled });
 
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
+        opacity: isDragging ? 0.3 : 1,
     };
 
     return (
@@ -452,7 +455,7 @@ function SortableItem({
                     size={18}
                     {...attributes}
                     {...listeners}
-                    style={{ cursor: "grab" }}
+                    style={{ cursor: isDragging ? "grabbing" : "grab" }}
                 />
             )}
             <Text fw={500} size="sm">
@@ -480,6 +483,7 @@ function RankingRenderer({
     // Initialize with question item keys if no value
     const itemKeys = Object.keys(question.items);
     const items = value && value.length > 0 ? value : itemKeys;
+    const [activeId, setActiveId] = useState<string | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -487,6 +491,10 @@ function RankingRenderer({
             coordinateGetter: sortableKeyboardCoordinates,
         }),
     );
+
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+    };
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
@@ -501,14 +509,25 @@ function RankingRenderer({
 
             onChange(newItems);
         }
+
+        setActiveId(null);
     };
+
+    const handleDragCancel = () => {
+        setActiveId(null);
+    };
+
+    const activeIndex = activeId ? items.indexOf(activeId) : -1;
+    const activeItemLabel = activeId ? question.items[activeId] : null;
 
     return (
         <Stack gap="sm">
             <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onDragCancel={handleDragCancel}
             >
                 <SortableContext items={items} strategy={verticalListSortingStrategy}>
                     <Stack gap="xs">
@@ -523,6 +542,26 @@ function RankingRenderer({
                         ))}
                     </Stack>
                 </SortableContext>
+                <DragOverlay>
+                    {activeId && activeItemLabel ? (
+                        <Group
+                            gap="sm"
+                            p="sm"
+                            style={{
+                                backgroundColor: "var(--mantine-color-default)",
+                                border: "1px solid var(--mantine-color-default-border)",
+                                borderRadius: "var(--mantine-radius-sm)",
+                                cursor: "grabbing",
+                            }}
+                        >
+                            <IconGripVertical size={18} />
+                            <Text fw={500} size="sm">
+                                {activeIndex + 1}.
+                            </Text>
+                            <Text>{activeItemLabel}</Text>
+                        </Group>
+                    ) : null}
+                </DragOverlay>
             </DndContext>
             {showFeedback && question.feedback && (
                 <Text size="sm" c="dimmed">
