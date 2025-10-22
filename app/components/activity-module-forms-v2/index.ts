@@ -10,4 +10,7 @@ export { CommonFields } from './common-fields';
 
 // Form components
 export { PageForm } from './page-form';
+export { DiscussionForm } from './discussion-form';
+export { AssignmentForm } from './assignment-form';
+export { WhiteboardForm } from './whiteboard-form';
 

@@ -17,7 +17,13 @@ import {
 	QuizForm,
 	WhiteboardForm,
 } from "~/components/activity-module-forms";
-import { PageForm as TanstackPageForm, useAppForm } from "~/components/activity-module-forms-v2";
+import {
+	AssignmentForm as TanstackAssignmentForm,
+	DiscussionForm as TanstackDiscussionForm,
+	PageForm as TanstackPageForm,
+	WhiteboardForm as TanstackWhiteboardForm,
+	useAppForm,
+} from "~/components/activity-module-forms-v2";
 import type { QuizConfig } from "~/components/activity-modules-preview/quiz-config.types";
 import {
 	type ActivityModuleFormValues,
@@ -344,7 +350,19 @@ export default function EditModulePage() {
 								{selectedType === "page" && (
 									<TanstackPageForm form={tanstackForm} />
 								)}
-								{/* Other form types will be added later */}
+								{selectedType === "whiteboard" && (
+									<TanstackWhiteboardForm
+										form={tanstackForm}
+										isLoading={isLoading}
+									/>
+								)}
+								{selectedType === "assignment" && (
+									<TanstackAssignmentForm form={tanstackForm} />
+								)}
+								{selectedType === "discussion" && (
+									<TanstackDiscussionForm form={tanstackForm} />
+								)}
+								{/* Quiz form will be added in a separate PR */}
 
 								<Button
 									type="submit"

@@ -124,14 +124,17 @@ export function DateTimePickerField({ label, placeholder }: {
     label?: string;
     placeholder?: string;
 }) {
-    const field = useFieldContext<string | null>();
+    const field = useFieldContext<Date | null>();
     return (
         <MantineDateTimePicker
             label={label}
             placeholder={placeholder}
-            value={field.state.value}
-            onChange={(val) => field.handleChange(val)
-            }
+            value={field.state.value ?? undefined}
+            onChange={(val) => {
+                // Mantine DateTimePicker can return string | null
+                const date = val ? new Date(val) : null;
+                field.handleChange(date);
+            }}
             onBlur={field.handleBlur}
             error={field.state.meta.errors.join(", ") || undefined}
         />
