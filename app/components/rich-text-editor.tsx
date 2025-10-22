@@ -759,7 +759,7 @@ export function RichTextEditor({
 	onChange,
 	onEditorReady,
 	onImageAdd,
-	readonly = true,
+	readonly = false,
 	showStatus = false,
 	disableImageUpload = false,
 	disableMentions = false,

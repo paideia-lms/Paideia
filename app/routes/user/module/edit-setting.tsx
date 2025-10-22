@@ -1,6 +1,7 @@
-import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
+import { Button, Container, Paper, Select, Stack, Switch, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import { useState } from "react";
 import { href, useFetcher, useLoaderData } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -16,6 +17,7 @@ import {
 	QuizForm,
 	WhiteboardForm,
 } from "~/components/activity-module-forms";
+import { PageForm as TanstackPageForm, useAppForm } from "~/components/activity-module-forms-v2";
 import type { QuizConfig } from "~/components/activity-modules-preview/quiz-config.types";
 import {
 	type ActivityModuleFormValues,
@@ -34,6 +36,7 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-setting";
+import type { FormApi } from "~/components/activity-module-forms-v2/use-form-context";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userModuleContext = context.get(userModuleContextKey);
@@ -141,14 +144,16 @@ export function useUpdateModule() {
 
 	const updateModule = (moduleId: string, values: ActivityModuleFormValues) => {
 		const submissionData = transformFormValues(values);
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		fetcher.submit(submissionData as any, {
-			method: "POST",
-			action: href("/user/module/edit/:moduleId/setting", {
-				moduleId,
-			}),
-			encType: ContentType.JSON,
-		});
+		fetcher.submit(
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			submissionData as any,
+			{
+				method: "POST",
+				action: href("/user/module/edit/:moduleId/setting", {
+					moduleId,
+				}),
+				encType: ContentType.JSON,
+			});
 	};
 
 	return {
@@ -158,9 +163,11 @@ export function useUpdateModule() {
 	};
 }
 
+
 export default function EditModulePage() {
 	const { module } = useLoaderData<typeof loader>();
 	const { updateModule, isLoading } = useUpdateModule();
+	const [useTanstackForm, setUseTanstackForm] = useState(false);
 
 	// Extract activity-specific data
 	const pageData = module.page;
@@ -169,7 +176,8 @@ export default function EditModulePage() {
 	const quizData = module.quiz;
 	const discussionData = module.discussion;
 
-	const form = useForm<ActivityModuleFormValues>({
+	// Mantine Form (old)
+	const mantineForm = useForm<ActivityModuleFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
 			title: module.title,
@@ -219,7 +227,57 @@ export default function EditModulePage() {
 		},
 	});
 
-	const selectedType = form.getValues().type;
+	// Tanstack Form (new)
+	const tanstackForm = useAppForm({
+		defaultValues: {
+			title: module.title,
+			description: module.description || "",
+			type: module.type,
+			status: module.status,
+			requirePassword: module.requirePassword || false,
+			accessPassword: module.accessPassword || "",
+			// Page fields
+			pageContent: pageData?.content || "",
+			// Whiteboard fields
+			whiteboardContent: whiteboardData?.content || "",
+			// Assignment fields
+			assignmentInstructions: assignmentData?.instructions || "",
+			assignmentDueDate: assignmentData?.dueDate
+				? new Date(assignmentData.dueDate)
+				: null,
+			assignmentMaxAttempts: assignmentData?.maxAttempts || 1,
+			assignmentAllowLateSubmissions:
+				assignmentData?.allowLateSubmissions || false,
+			assignmentRequireTextSubmission:
+				assignmentData?.requireTextSubmission || false,
+			assignmentRequireFileSubmission:
+				assignmentData?.requireFileSubmission || false,
+			// Quiz fields
+			quizInstructions: quizData?.instructions || "",
+			quizDueDate: quizData?.dueDate ? new Date(quizData.dueDate) : null,
+			quizMaxAttempts: quizData?.maxAttempts || 1,
+			quizPoints: quizData?.points || 100,
+			quizTimeLimit: quizData?.timeLimit || 60,
+			quizGradingType: quizData?.gradingType || "automatic",
+			rawQuizConfig: quizData?.rawQuizConfig
+				? (quizData.rawQuizConfig as QuizConfig)
+				: null,
+			// Discussion fields
+			discussionInstructions: discussionData?.instructions || "",
+			discussionDueDate: discussionData?.dueDate
+				? new Date(discussionData.dueDate)
+				: null,
+			discussionRequireThread: discussionData?.requireThread || false,
+			discussionRequireReplies: discussionData?.requireReplies || false,
+			discussionMinReplies: discussionData?.minReplies || 1,
+		},
+		// ! make sure our type of FormApi is correct
+	}) satisfies FormApi;
+
+
+	const selectedType = useTanstackForm
+		? tanstackForm.state.values.type
+		: mantineForm.getValues().type;
 
 	return (
 		<Container size="md" py="xl">
@@ -235,56 +293,120 @@ export default function EditModulePage() {
 			/>
 
 			<Stack gap="xl">
+				{/* Toggle between old and new forms */}
+				<Paper withBorder shadow="sm" p="md" radius="md">
+					<Switch
+						label="Use Tanstack Form (New)"
+						description="Toggle to test the new Tanstack Form implementation"
+						checked={useTanstackForm}
+						onChange={(event) => setUseTanstackForm(event.currentTarget.checked)}
+					/>
+				</Paper>
+
 				{/* Edit Form */}
 				<Paper withBorder shadow="md" p="xl" radius="md">
 					<Title order={2} mb="lg">
-						Edit Activity Module
+						Edit Activity Module {useTanstackForm && "(Tanstack Form)"}
 					</Title>
 
-					<form
-						onSubmit={form.onSubmit((values) => {
-							updateModule(String(module.id), values);
-						})}
-					>
-						<Stack gap="md">
-							<Select
-								{...form.getInputProps("type")}
-								key={form.key("type")}
-								label="Module Type"
-								placeholder="Select module type"
-								required
-								withAsterisk
-								disabled
-								data={[
-									{ value: "page", label: "Page" },
-									{ value: "whiteboard", label: "Whiteboard" },
-									{ value: "assignment", label: "Assignment" },
-									{ value: "quiz", label: "Quiz" },
-									{ value: "discussion", label: "Discussion" },
-								]}
-							/>
+					{useTanstackForm ? (
+						// New Tanstack Form
+						<form
+							onSubmit={(e) => {
+								e.preventDefault();
+								e.stopPropagation();
+								tanstackForm.handleSubmit().then(() => {
+									const values = tanstackForm.state.values;
+									updateModule(String(module.id), values);
+								});
+							}}
+						>
+							<Stack gap="md">
+								<tanstackForm.AppField name="type">
+									{(field) => {
+										return (
+											<field.SelectField
+												label="Module Type"
+												placeholder="Select module type"
+												disabled
+												data={[
+													{ value: "page", label: "Page" },
+													{ value: "whiteboard", label: "Whiteboard" },
+													{ value: "assignment", label: "Assignment" },
+													{ value: "quiz", label: "Quiz" },
+													{ value: "discussion", label: "Discussion" },
+												]}
+											/>
+										);
+									}}
+								</tanstackForm.AppField>
 
-							{selectedType === "page" && <PageForm form={form} />}
-							{selectedType === "whiteboard" && (
-								<WhiteboardForm
-									form={form}
-									isLoading={isLoading}
+								{selectedType === "page" && (
+									<TanstackPageForm form={tanstackForm} />
+								)}
+								{/* Other form types will be added later */}
+
+								<Button
+									type="submit"
+									size="lg"
+									mt="lg"
+									loading={isLoading}
+								>
+									Update Module (Tanstack)
+								</Button>
+							</Stack>
+						</form>
+					) : (
+						// Old Mantine Form
+						<form
+							onSubmit={mantineForm.onSubmit((values) => {
+								updateModule(String(module.id), values);
+							})}
+						>
+							<Stack gap="md">
+								<Select
+									{...mantineForm.getInputProps("type")}
+									key={mantineForm.key("type")}
+									label="Module Type"
+									placeholder="Select module type"
+									required
+									withAsterisk
+									disabled
+									data={[
+										{ value: "page", label: "Page" },
+										{ value: "whiteboard", label: "Whiteboard" },
+										{ value: "assignment", label: "Assignment" },
+										{ value: "quiz", label: "Quiz" },
+										{ value: "discussion", label: "Discussion" },
+									]}
 								/>
-							)}
-							{selectedType === "assignment" && <AssignmentForm form={form} />}
-							{selectedType === "quiz" && <QuizForm form={form} />}
-							{selectedType === "discussion" && <DiscussionForm form={form} />}
 
-							<Button
-								type="submit"
-								size="lg"
-								mt="lg"
-								loading={isLoading}
-							>
-								Update Module
-							</Button>
-						</Stack>
-					</form>
+								{selectedType === "page" && <PageForm form={mantineForm} />}
+								{selectedType === "whiteboard" && (
+									<WhiteboardForm
+										form={mantineForm}
+										isLoading={isLoading}
+									/>
+								)}
+								{selectedType === "assignment" && (
+									<AssignmentForm form={mantineForm} />
+								)}
+								{selectedType === "quiz" && <QuizForm form={mantineForm} />}
+								{selectedType === "discussion" && (
+									<DiscussionForm form={mantineForm} />
+								)}
+
+								<Button
+									type="submit"
+									size="lg"
+									mt="lg"
+									loading={isLoading}
+								>
+									Update Module
+								</Button>
+							</Stack>
+						</form>
+					)}
 				</Paper>
 			</Stack>
 		</Container>
