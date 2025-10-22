@@ -1,7 +1,7 @@
-import type { FormApi } from './use-form-context';
+import type { UpdateModuleFormApi } from '../../hooks/use-form-context';
 
 interface CommonFieldsProps {
-    form: FormApi;
+    form: UpdateModuleFormApi;
 }
 
 /**

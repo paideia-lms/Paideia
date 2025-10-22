@@ -21,6 +21,7 @@ import {
 	AssignmentForm as TanstackAssignmentForm,
 	DiscussionForm as TanstackDiscussionForm,
 	PageForm as TanstackPageForm,
+	QuizForm as TanstackQuizForm,
 	WhiteboardForm as TanstackWhiteboardForm,
 	useAppForm,
 } from "~/components/activity-module-forms-v2";
@@ -42,7 +43,7 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-setting";
-import type { FormApi } from "~/components/activity-module-forms-v2/use-form-context";
+import type { UpdateModuleFormApi } from "~/hooks/use-form-context";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userModuleContext = context.get(userModuleContextKey);
@@ -278,7 +279,7 @@ export default function EditModulePage() {
 			discussionMinReplies: discussionData?.minReplies || 1,
 		},
 		// ! make sure our type of FormApi is correct
-	}) satisfies FormApi;
+	}) satisfies UpdateModuleFormApi;
 
 
 	const selectedType = useTanstackForm
@@ -362,7 +363,7 @@ export default function EditModulePage() {
 								{selectedType === "discussion" && (
 									<TanstackDiscussionForm form={tanstackForm} />
 								)}
-								{/* Quiz form will be added in a separate PR */}
+								{selectedType === "quiz" && <TanstackQuizForm form={tanstackForm} />}
 
 								<Button
 									type="submit"

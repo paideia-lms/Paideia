@@ -1,9 +1,9 @@
 import { Stack, Title } from '@mantine/core';
 import { CommonFields } from './common-fields';
-import type { FormApi } from './use-form-context';
+import type { UpdateModuleFormApi } from '../../hooks/use-form-context';
 
 type DiscussionFormProps = {
-    form: FormApi;
+    form: UpdateModuleFormApi;
 };
 
 /**

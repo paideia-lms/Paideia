@@ -2,10 +2,10 @@ import { Stack, Title } from '@mantine/core';
 import { useState } from 'react';
 import { RichTextEditor } from '../rich-text-editor';
 import { CommonFields } from './common-fields';
-import type { FormApi } from './use-form-context';
+import type { UpdateModuleFormApi } from '../../hooks/use-form-context';
 
 type PageFormProps = {
-    form: FormApi;
+    form: UpdateModuleFormApi;
 };
 
 /**

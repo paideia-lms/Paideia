@@ -1,20 +1,38 @@
 import { createFormHook, createFormHookContexts } from "@tanstack/react-form";
 import {
+    Box,
     Checkbox as MantineCheckbox,
+    Loader,
     NumberInput as MantineNumberInput,
     Select as MantineSelect,
     TextInput as MantineTextInput,
     Textarea as MantineTextarea,
+    Title,
+    useMantineColorScheme,
 } from "@mantine/core";
 import { DateTimePicker as MantineDateTimePicker } from "@mantine/dates";
-import type { QuizConfig } from "../activity-modules-preview/quiz-config.types";
+import type {
+    AppState,
+    BinaryFiles,
+    ExcalidrawImperativeAPI,
+    ExcalidrawInitialDataState,
+} from '@excalidraw/excalidraw/types';
+import { lazy, Suspense, useLayoutEffect, useMemo, useRef } from 'react';
+import type { QuizConfig } from "../components/activity-modules-preview/quiz-config.types";
 import type { ActivityModule, Quiz } from "server/payload-types";
+import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
+import { useMounted } from "@mantine/hooks";
+
+// Dynamically import Excalidraw to avoid SSR issues
+const Excalidraw = lazy(() =>
+    import('@excalidraw/excalidraw').then((module) => ({
+        default: module.Excalidraw,
+    })),
+);
 
 // Create form hook contexts
 export const { fieldContext, formContext, useFieldContext, useFormContext } =
-    createFormHookContexts(
-
-    );
+    createFormHookContexts();
 
 // Field components that use context - no form prop needed!
 
@@ -141,6 +159,119 @@ export function DateTimePickerField({ label, placeholder }: {
     );
 }
 
+export function WhiteboardField({ label, isLoading = false }: {
+    label?: string;
+    isLoading?: boolean;
+}) {
+    const field = useFieldContext<string>();
+    const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
+    const { colorScheme } = useMantineColorScheme();
+    const mounted = useMounted();
+
+    // Parse initial data from field value (memoized to avoid re-parsing on every render)
+    const initialData = useMemo((): ExcalidrawInitialDataState => {
+        const existingContent = field.state.value;
+
+        if (existingContent && existingContent.trim().length > 0) {
+            try {
+                const data = JSON.parse(existingContent) as ExcalidrawInitialDataState;
+                // Ensure appState has the required structure
+                return {
+                    ...data,
+                    appState: {
+                        ...data.appState,
+                        collaborators: new Map(),
+                    },
+                };
+            } catch (error: unknown) {
+                console.error('Failed to load whiteboard data:', error);
+            }
+        }
+
+        return {
+            appState: {
+                collaborators: new Map(),
+            },
+        };
+    }, [field.state.value]);
+
+    // Sync theme with Mantine's color scheme
+    useLayoutEffect(() => {
+        if (excalidrawRef.current) {
+            const theme = colorScheme === 'dark' ? 'dark' : 'light';
+            excalidrawRef.current.updateScene({ appState: { theme } });
+        }
+    }, [colorScheme]);
+
+    // Handler for Excalidraw changes - will be debounced by Tanstack Form listeners
+    const handleExcalidrawChange = (
+        elements: readonly OrderedExcalidrawElement[],
+        appState: AppState,
+        files: BinaryFiles
+    ) => {
+        const data = {
+            elements,
+            appState,
+            files,
+        };
+        const currentValue = field.state.value;
+        const newValue = JSON.stringify(data);
+        // if value is the same, don't change it
+        if (currentValue === newValue) {
+            return;
+        }
+        field.handleChange(newValue);
+    };
+
+    return (
+        <div>
+            {label && (
+                <Title order={5} mb="xs">
+                    {label}
+                </Title>
+            )}
+            <Box style={{ height: '500px', border: '1px solid #dee2e6' }}>
+                {isLoading || !mounted ? (
+                    <div
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            height: '100%',
+                        }}
+                    >
+                        <Loader />
+                    </div>
+                ) : (
+                    <Suspense
+                        fallback={
+                            <div
+                                style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    height: '100%',
+                                }}
+                            >
+                                <Loader />
+                            </div>
+                        }
+                    >
+                        <Excalidraw
+                            excalidrawAPI={(api) => {
+                                excalidrawRef.current = api;
+                            }}
+                            initialData={initialData}
+                            onChange={handleExcalidrawChange}
+                            theme={colorScheme === 'dark' ? 'dark' : 'light'}
+                        />
+                    </Suspense>
+                )}
+            </Box>
+        </div>
+    );
+}
+
 // Create the form hook with pre-bound field components
 export const { useAppForm, withFieldGroup, withForm } = createFormHook({
     fieldComponents: {
@@ -150,6 +281,7 @@ export const { useAppForm, withFieldGroup, withForm } = createFormHook({
         SelectField,
         CheckboxField,
         DateTimePickerField,
+        WhiteboardField,
     },
     formComponents: {},
     fieldContext,
@@ -161,7 +293,7 @@ export const { useAppForm, withFieldGroup, withForm } = createFormHook({
 
 // biome-ignore lint/correctness/useHookAtTopLevel: This will be treeshaken at the production
 // biome-ignore lint/correctness/noConstantCondition: This will be treeshaken at the production
-const form = false ? useAppForm({
+const updateModuleForm = false ? useAppForm({
     defaultValues: {
         title: "",
         description: "",
@@ -198,4 +330,4 @@ const form = false ? useAppForm({
     },
 }) : undefined;
 
-export type FormApi = NonNullable<typeof form>;
+export type UpdateModuleFormApi = NonNullable<typeof updateModuleForm>;
