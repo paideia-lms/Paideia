@@ -9,7 +9,6 @@ import {
 } from "react-router";
 import type { Route } from "./+types/root";
 import { useEffect } from "react";
-import { scan } from "react-scan";
 import "./app.css";
 import {
 	courseContextKey,
@@ -421,16 +420,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	};
 }
 
-function useReactScan(options?: { enabled?: boolean }) {
-	useEffect(() => {
-		// Only run on client-side after hydration
-		if (typeof window !== "undefined") {
-			scan({
-				enabled: options?.enabled ?? true,
-			});
-		}
-	}, [options?.enabled]);
-}
 
 const mantineTheme = createTheme({
 	components: {
@@ -446,7 +435,6 @@ const mantineTheme = createTheme({
 export default function App({ loaderData }: Route.ComponentProps) {
 	const { theme } = loaderData;
 
-	useReactScan({ enabled: true });
 
 	return (
 		<html

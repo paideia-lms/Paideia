@@ -1,5 +1,4 @@
 import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
 	type ActionFunctionArgs,
@@ -19,8 +18,9 @@ import {
 	DiscussionForm,
 	PageForm,
 	QuizForm,
+	useAppForm,
 	WhiteboardForm,
-} from "~/components/activity-module-forms";
+} from "~/components/activity-module-forms-v2";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
@@ -34,6 +34,7 @@ import {
 } from "~/utils/get-content-type";
 import { badRequest, UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/new";
+import { CreateModuleFormApi } from "~/hooks/use-form-context";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const userSession = context.get(userContextKey);
@@ -154,16 +155,12 @@ export function useCreateModule() {
 export default function NewModulePage() {
 	const { createModule, isLoading } = useCreateModule();
 
-	const form = useForm<ActivityModuleFormValues>({
-		mode: "uncontrolled",
-		initialValues: getInitialFormValues(),
-		validate: {
-			title: (value) =>
-				value.trim().length === 0 ? "Title is required" : null,
+	const createModuleForm = useAppForm({
+		defaultValues: getInitialFormValues(),
+		onSubmit: ({ value }) => {
+			createModule(value);
 		},
-	});
-
-	const selectedType = form.getValues().type;
+	}) satisfies CreateModuleFormApi;
 
 	return (
 		<Container size="md" py="xl">
@@ -186,49 +183,73 @@ export default function NewModulePage() {
 					Create New Activity Module
 				</Title>
 
-				<form
-					onSubmit={form.onSubmit((values) => {
-						createModule(values);
-					})}
-				>
-					<Stack gap="md">
-						<Select
-							{...form.getInputProps("type")}
-							key={form.key("type")}
-							label="Module Type"
-							placeholder="Select module type"
-							required
-							withAsterisk
-							data={[
-								{ value: "page", label: "Page" },
-								{ value: "whiteboard", label: "Whiteboard" },
-								{ value: "assignment", label: "Assignment" },
-								{ value: "quiz", label: "Quiz" },
-								{ value: "discussion", label: "Discussion" },
-							]}
-						/>
 
-						{selectedType === "page" && <PageForm form={form} />}
-						{selectedType === "whiteboard" && (
-							<WhiteboardForm
-								form={form}
+				<createModuleForm.AppForm>
+					<form
+						onSubmit={(e) => {
+							e.preventDefault();
+							e.stopPropagation();
+							createModuleForm.handleSubmit();
+						}}
+					>
+						<Stack gap="md">
+							{/* <Select
+								{...form.getInputProps("type")}
+								key={form.key("type")}
+								label="Module Type"
+								placeholder="Select module type"
+								required
+								withAsterisk
+								data={[
+									{ value: "page", label: "Page" },
+									{ value: "whiteboard", label: "Whiteboard" },
+									{ value: "assignment", label: "Assignment" },
+									{ value: "quiz", label: "Quiz" },
+									{ value: "discussion", label: "Discussion" },
+								]}
+							/> */}
+
+							<createModuleForm.AppField name="type">
+								{(field) => {
+									return (
+										<field.SelectField
+											label="Module Type"
+											placeholder="Select module type"
+											data={[
+												{ value: "page", label: "Page" },
+												{ value: "whiteboard", label: "Whiteboard" },
+												{ value: "assignment", label: "Assignment" },
+												{ value: "quiz", label: "Quiz" },
+												{ value: "discussion", label: "Discussion" },
+											]}
+										/>
+									);
+								}}
+							</createModuleForm.AppField>
+
+							<createModuleForm.Subscribe selector={(state) => state.values.type}>
+
+								{(type) => {
+									return (
+										<>
+											{type === "page" && <PageForm form={createModuleForm} />}
+											{type === "whiteboard" && <WhiteboardForm form={createModuleForm} />}
+											{type === "assignment" && <AssignmentForm form={createModuleForm} />}
+											{type === "quiz" && <QuizForm form={createModuleForm} />}
+											{type === "discussion" && <DiscussionForm form={createModuleForm} />}
+										</>
+									);
+								}}
+							</createModuleForm.Subscribe>
+
+							<createModuleForm.SubmitButton
+								label="Create Module"
+								loadingLabel="Creating..."
 								isLoading={isLoading}
 							/>
-						)}
-						{selectedType === "assignment" && <AssignmentForm form={form} />}
-						{selectedType === "quiz" && <QuizForm form={form} />}
-						{selectedType === "discussion" && <DiscussionForm form={form} />}
-
-						<Button
-							type="submit"
-							size="lg"
-							mt="lg"
-							loading={isLoading}
-						>
-							Create Module
-						</Button>
-					</Stack>
-				</form>
+						</Stack>
+					</form>
+				</createModuleForm.AppForm>
 			</Paper>
 		</Container>
 	);

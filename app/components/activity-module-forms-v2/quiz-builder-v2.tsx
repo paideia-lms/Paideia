@@ -5,18 +5,14 @@ import {
     Card,
     Checkbox,
     Group,
-    NumberInput,
     Paper,
     Select,
     Stack,
     Tabs,
     Text,
-    Textarea,
-    TextInput,
     Title,
-} from '@mantine/core';
-import { useStore } from '@tanstack/react-store';
-import { useState } from 'react';
+} from "@mantine/core";
+import { useMemo, useState } from "react";
 import {
     DndContext,
     DragOverlay,
@@ -27,16 +23,16 @@ import {
     closestCenter,
     useSensor,
     useSensors,
-} from '@dnd-kit/core';
+} from "@dnd-kit/core";
 import {
     SortableContext,
     arrayMove,
     sortableKeyboardCoordinates,
     useSortable,
     verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { useMounted } from '@mantine/hooks';
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { useMounted } from "@mantine/hooks";
 import {
     IconChevronDown,
     IconChevronUp,
@@ -44,24 +40,34 @@ import {
     IconPlus,
     IconSeparator,
     IconTrash,
-} from '@tabler/icons-react';
+} from "@tabler/icons-react";
 import type {
-    GradingConfig,
-    MultipleChoiceQuestion,
     NestedQuizConfig,
     Question,
+    QuestionType,
     QuizConfig,
-    ScoringConfig,
-} from '~/components/activity-modules-preview/quiz-config.types';
-import type { UpdateModuleFormApi } from '../../hooks/use-form-context';
+    QuizPage,
+} from "~/components/activity-modules-preview/quiz-config.types";
+import type { UpdateModuleFormApi } from "../../hooks/use-form-context";
+import { Store, useStore } from "@tanstack/react-store";
+
 
 // ============================================================================
 // TYPES FOR PAGE BREAK
 // ============================================================================
 
 type QuestionOrPageBreak =
-    | { type: 'question'; data: Question, fieldPath: `rawQuizConfig.pages[${number}].questions[${number}]` | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]` }
-    | { type: 'pageBreak'; id: string };
+    | {
+        type: "question";
+        data: {
+            id: string;
+            type: QuestionType;
+        };
+        fieldPath:
+        | `rawQuizConfig.pages[${number}].questions[${number}]`
+        | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`;
+    }
+    | { type: "pageBreak"; id: string };
 
 // ============================================================================
 // GRADING CONFIG EDITOR
@@ -79,13 +85,13 @@ export function GradingConfigEditor({ form }: GradingConfigEditorProps) {
 
                 {/* Enable Grading Checkbox */}
                 <form.AppField name="rawQuizConfig.grading.enabled">
-                    {(field) => (
-                        <field.CheckboxField label="Enable Grading" />
-                    )}
+                    {(field) => <field.CheckboxField label="Enable Grading" />}
                 </form.AppField>
 
                 {/* Conditional Grading Options */}
-                <form.Subscribe selector={(state) => state.values.rawQuizConfig?.grading?.enabled}>
+                <form.Subscribe
+                    selector={(state) => state.values.rawQuizConfig?.grading?.enabled}
+                >
                     {(enabled) =>
                         enabled ? (
                             <>
@@ -122,7 +128,6 @@ export function GradingConfigEditor({ form }: GradingConfigEditorProps) {
     );
 }
 
-// Nested quiz grading editor (uses useStore for reactive grading enabled state)
 function NestedGradingConfigEditor({
     form,
     quizIndex,
@@ -132,12 +137,6 @@ function NestedGradingConfigEditor({
 }) {
     const basePath = `rawQuizConfig.nestedQuizzes[${quizIndex}].grading` as const;
 
-    // Reactively derive grading enabled state using useStore
-    const gradingEnabled = useStore(form.store, (state) => {
-        const grading = state.values.rawQuizConfig?.nestedQuizzes?.[quizIndex]?.grading as GradingConfig | undefined;
-        return grading?.enabled || false;
-    });
-
     return (
         <Paper withBorder p="md" radius="md">
             <Stack gap="sm">
@@ -145,40 +144,47 @@ function NestedGradingConfigEditor({
 
                 {/* Enable Grading Checkbox */}
                 <form.AppField name={`${basePath}.enabled`}>
-                    {(field) => (
-                        <field.CheckboxField label="Enable Grading" />
-                    )}
+                    {(field) => <field.CheckboxField label="Enable Grading" />}
                 </form.AppField>
 
                 {/* Conditional Grading Options */}
-                {gradingEnabled && (
-                    <>
-                        {/* Passing Score */}
-                        <form.AppField name={`${basePath}.passingScore`}>
-                            {(field) => (
-                                <field.NumberInputField
-                                    label="Passing Score (%)"
-                                    placeholder="Minimum percentage to pass (0-100)"
-                                    min={0}
-                                />
-                            )}
-                        </form.AppField>
+                <form.Subscribe
+                    selector={(state) =>
+                        state.values.rawQuizConfig?.nestedQuizzes?.[quizIndex]?.grading
+                            ?.enabled
+                    }
+                >
+                    {(enabled) =>
+                        enabled ? (
+                            <>
+                                {/* Passing Score */}
+                                <form.AppField name={`${basePath}.passingScore`}>
+                                    {(field) => (
+                                        <field.NumberInputField
+                                            label="Passing Score (%)"
+                                            placeholder="Minimum percentage to pass (0-100)"
+                                            min={0}
+                                        />
+                                    )}
+                                </form.AppField>
 
-                        {/* Show Score to Student */}
-                        <form.AppField name={`${basePath}.showScoreToStudent`}>
-                            {(field) => (
-                                <field.CheckboxField label="Show Score to Student Immediately" />
-                            )}
-                        </form.AppField>
+                                {/* Show Score to Student */}
+                                <form.AppField name={`${basePath}.showScoreToStudent`}>
+                                    {(field) => (
+                                        <field.CheckboxField label="Show Score to Student Immediately" />
+                                    )}
+                                </form.AppField>
 
-                        {/* Show Correct Answers */}
-                        <form.AppField name={`${basePath}.showCorrectAnswers`}>
-                            {(field) => (
-                                <field.CheckboxField label="Show Correct Answers After Submission" />
-                            )}
-                        </form.AppField>
-                    </>
-                )}
+                                {/* Show Correct Answers */}
+                                <form.AppField name={`${basePath}.showCorrectAnswers`}>
+                                    {(field) => (
+                                        <field.CheckboxField label="Show Correct Answers After Submission" />
+                                    )}
+                                </form.AppField>
+                            </>
+                        ) : null
+                    }
+                </form.Subscribe>
             </Stack>
         </Paper>
     );
@@ -189,180 +195,247 @@ function NestedGradingConfigEditor({
 // ============================================================================
 
 function ScoringEditor({
-    questionType,
-    scoring,
-    onChange,
+    form,
+    questionFieldPath,
 }: {
-    questionType: Question['type'];
-    scoring: ScoringConfig | undefined;
-    onChange: (scoring: ScoringConfig) => void;
+    form: UpdateModuleFormApi;
+    questionFieldPath:
+    | `rawQuizConfig.pages[${number}].questions[${number}]`
+    | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`;
 }) {
-    const defaultScoring: ScoringConfig =
-        questionType === 'long-answer'
-            ? { type: 'manual', maxPoints: 1 }
-            : { type: 'simple', points: 1 };
-
-    const currentScoring = scoring || defaultScoring;
-
-    if (currentScoring.type === 'simple') {
-        return (
-            <NumberInput
-                label="Points"
-                description="Points awarded for correct answer"
-                value={currentScoring.points}
-                onChange={(val) =>
-                    onChange({ type: 'simple', points: typeof val === 'number' ? val : 1 })
+    return (
+        <form.Subscribe
+            selector={(state) => {
+                const { isNestedQuiz, nestedQuizIndex, pageIndex, questionIndex } =
+                    getFieldPathIndexes(questionFieldPath);
+                const question =
+                    nestedQuizIndex !== undefined
+                        ? state.values.rawQuizConfig?.nestedQuizzes?.[nestedQuizIndex]
+                            ?.pages?.[pageIndex]?.questions?.[questionIndex]
+                        : state.values.rawQuizConfig?.pages?.[pageIndex]?.questions?.[
+                        questionIndex
+                        ];
+                if (!question)
+                    throw new Error(
+                        `ScoringEditor: Question at path ${questionFieldPath} not found`,
+                    );
+                return question?.type;
+            }}
+        >
+            {(questionType) => {
+                if (questionType === "long-answer") {
+                    return (
+                        <form.AppField name={`${questionFieldPath}.scoring.maxPoints`}>
+                            {(field) => (
+                                <field.NumberInputField
+                                    label="Maximum Points"
+                                    placeholder="Maximum points for manual grading"
+                                    min={0}
+                                />
+                            )}
+                        </form.AppField>
+                    );
                 }
-                min={0}
-                size="sm"
-            />
-        );
-    }
-
-    if (currentScoring.type === 'manual') {
-        return (
-            <NumberInput
-                label="Maximum Points"
-                description="Maximum points for manual grading"
-                value={currentScoring.maxPoints}
-                onChange={(val) =>
-                    onChange({
-                        type: 'manual',
-                        maxPoints: typeof val === 'number' ? val : 1,
-                    })
-                }
-                min={0}
-                size="sm"
-            />
-        );
-    }
-
-    return null;
+                // For multiple-choice and short-answer, use simple scoring
+                return (
+                    <form.AppField name={`${questionFieldPath}.scoring.points`}>
+                        {(field) => (
+                            <field.NumberInputField
+                                label="Points"
+                                placeholder="Points awarded for correct answer"
+                                min={0}
+                            />
+                        )}
+                    </form.AppField>
+                );
+            }}
+        </form.Subscribe>
+    );
 }
 
 // ============================================================================
 // MULTIPLE CHOICE EDITOR
 // ============================================================================
 
-function MultipleChoiceEditor({
-    question,
-    onChange,
+function MultipleChoiceDeleteButton({
+    form,
+    questionFieldPath,
+    value,
 }: {
-    question: MultipleChoiceQuestion;
-    onChange: (updated: Question) => void;
+    form: UpdateModuleFormApi;
+    questionFieldPath:
+    | `rawQuizConfig.pages[${number}].questions[${number}]`
+    | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`;
+    value: string;
 }) {
-    const options = question.options || {};
-    const optionKeys = Object.keys(options);
-
-    const addOption = () => {
-        const nextKey = String.fromCharCode(97 + optionKeys.length);
-        onChange({
-            ...question,
-            options: { ...options, [nextKey]: '' },
-        });
+    const { isNestedQuiz, questionIndex, pageIndex, nestedQuizIndex } =
+        getFieldPathIndexes(questionFieldPath);
+    const removeOption = (key: string, isCorrectAnswer: boolean) => {
+        form.deleteField(`${questionFieldPath}.options.${key}`);
+        if (isCorrectAnswer) {
+            form.setFieldValue(`${questionFieldPath}.correctAnswer`, undefined);
+        }
     };
-
-    const removeOption = (key: string) => {
-        const newOptions = { ...options };
-        delete newOptions[key];
-        onChange({
-            ...question,
-            options: newOptions,
-            correctAnswer: question.correctAnswer === key ? undefined : question.correctAnswer,
-        });
-    };
-
-    const updateOption = (key: string, value: string) => {
-        onChange({
-            ...question,
-            options: { ...options, [key]: value },
-        });
-    };
-
     return (
-        <Stack gap="xs">
-            <Group justify="space-between">
-                <Text size="sm" fw={500}>
-                    Answer Options
-                </Text>
-                <Button
-                    size="compact-sm"
+        <form.Subscribe
+            selector={(state) => {
+                const question =
+                    nestedQuizIndex !== undefined
+                        ? state.values.rawQuizConfig?.nestedQuizzes?.[nestedQuizIndex]
+                            ?.pages?.[pageIndex]?.questions?.[questionIndex]
+                        : state.values.rawQuizConfig?.pages?.[pageIndex]?.questions?.[
+                        questionIndex
+                        ];
+                if (!question) {
+                    console.error(
+                        `MultipleChoiceDeleteButton: Question not found. Question path: ${questionFieldPath}`,
+                    );
+                    return undefined;
+                }
+                if (question?.type !== "multiple-choice") {
+                    console.error(
+                        `MultipleChoiceDeleteButton: Question is not a multiple-choice question. Question path: ${questionFieldPath}`,
+                    );
+                    return undefined;
+                }
+                return question.correctAnswer;
+            }}
+        >
+            {(correctAnswer) => (
+                <ActionIcon
+                    color="red"
                     variant="light"
-                    leftSection={<IconPlus size={14} />}
-                    onClick={addOption}
+                    onClick={() => removeOption(value, correctAnswer === value)}
                 >
-                    Add Option
-                </Button>
-            </Group>
-
-            {optionKeys.map((key) => (
-                <Group key={key} gap="xs" wrap="nowrap">
-                    <TextInput
-                        placeholder={`Option ${key.toUpperCase()}`}
-                        value={options[key]}
-                        onChange={(e) => updateOption(key, e.currentTarget.value)}
-                        style={{ flex: 1 }}
-                        size="sm"
-                    />
-                    <Checkbox
-                        label="Correct"
-                        checked={question.correctAnswer === key}
-                        onChange={(e) =>
-                            onChange({
-                                ...question,
-                                correctAnswer: e.currentTarget.checked ? key : undefined,
-                            })
-                        }
-                    />
-                    <ActionIcon
-                        color="red"
-                        variant="subtle"
-                        onClick={() => removeOption(key)}
-                        disabled={optionKeys.length <= 2}
-                    >
-                        <IconTrash size={16} />
-                    </ActionIcon>
-                </Group>
-            ))}
-        </Stack>
+                    <IconTrash size={16} />
+                </ActionIcon>
+            )}
+        </form.Subscribe>
     );
 }
 
+function MultipleChoiceEditor({
+    form,
+    questionFieldPath,
+}: {
+    form: UpdateModuleFormApi;
+    questionFieldPath:
+    | `rawQuizConfig.pages[${number}].questions[${number}]`
+    | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`;
+}) {
+    return (
+        <form.AppField name={`${questionFieldPath}.options`} mode="array">
+            {(optionsObjectField) => {
+                // Convert options object to array for rendering
+                const optionsObject =
+                    (optionsObjectField.state.value as Record<string, string>) || {};
+                const optionEntries = Object.entries(optionsObject);
+
+                const addOption = () => {
+                    const nextKey = String.fromCharCode(97 + optionEntries.length);
+                    optionsObjectField.handleChange({
+                        ...optionsObject,
+                        [nextKey]: "",
+                    });
+                };
+
+                return (
+                    <Stack gap="xs">
+                        <Group justify="space-between">
+                            <Text size="sm" fw={500}>
+                                Answer Options
+                            </Text>
+                            <Button
+                                size="compact-sm"
+                                variant="light"
+                                leftSection={<IconPlus size={14} />}
+                                onClick={addOption}
+                            >
+                                Add Option
+                            </Button>
+                        </Group>
+
+                        {optionEntries.map(([key]) => (
+                            <Group key={key} gap="xs" wrap="nowrap">
+                                <Box style={{ flex: 1 }}>
+                                    <form.AppField name={`${questionFieldPath}.options.${key}`}>
+                                        {(field) => (
+                                            <field.TextInputField
+                                                placeholder={`Option ${key.toUpperCase()}`}
+                                            />
+                                        )}
+                                    </form.AppField>
+                                </Box>
+                                <form.AppField name={`${questionFieldPath}.correctAnswer`}>
+                                    {(field) => (
+                                        <Checkbox
+                                            label="Correct"
+                                            checked={field.state.value === key}
+                                            onChange={(e) =>
+                                                field.handleChange(
+                                                    e.currentTarget.checked ? key : undefined,
+                                                )
+                                            }
+                                        />
+                                    )}
+                                </form.AppField>
+                                <MultipleChoiceDeleteButton
+                                    form={form}
+                                    questionFieldPath={questionFieldPath}
+                                    value={key}
+                                />
+                            </Group>
+                        ))}
+                    </Stack>
+                );
+            }}
+        </form.AppField>
+    );
+}
 
 // ============================================================================
 // SORTABLE PAGE BREAK
 // ============================================================================
 
 type SortablePageBreakItemProps = {
-    item: { type: 'pageBreak'; id: string };
-    onRemove: () => void;
-}
+    id: string;
+    onRemove?: () => void;
+};
 
-function SortablePageBreakItem({ item, onRemove }: SortablePageBreakItemProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+function SortablePageBreakItem({ id, onRemove }: SortablePageBreakItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.3 : 1,
     };
-    return <Box ref={setNodeRef} style={style}>
-        <Paper withBorder p="sm" radius="md" bg="gray.0">
-            <Group justify="space-between">
-                <Group gap="xs">
-                    <ActionIcon {...attributes} {...listeners} variant="subtle">
-                        <IconGripVertical size={16} />
+    return (
+        <Box ref={setNodeRef} style={style}>
+            <Paper withBorder p="sm" radius="md">
+                <Group justify="space-between">
+                    <Group gap="xs">
+                        <ActionIcon {...attributes} {...listeners} variant="subtle">
+                            <IconGripVertical size={16} />
+                        </ActionIcon>
+                        <IconSeparator size={20} />
+                        <Text size="sm" c="dimmed" fw={500}>
+                            Page Break
+                        </Text>
+                    </Group>
+                    <ActionIcon color="red" variant="subtle" onClick={onRemove}>
+                        <IconTrash size={16} />
                     </ActionIcon>
-                    <IconSeparator size={20} />
-                    <Text size="sm" c="dimmed" fw={500}>
-                        Page Break
-                    </Text>
                 </Group>
-                <ActionIcon color="red" variant="subtle" onClick={onRemove}>
-                    <IconTrash size={16} />
-                </ActionIcon>
-            </Group>
-        </Paper>
-    </Box>
+            </Paper>
+        </Box>
+    );
 }
 
 // ============================================================================
@@ -370,21 +443,27 @@ function SortablePageBreakItem({ item, onRemove }: SortablePageBreakItemProps) {
 // ============================================================================
 
 interface DragOverlayPreviewProps {
-    activeItem: QuestionOrPageBreak | null;
-    items: QuestionOrPageBreak[];
+    activeItem:
+    | { type: "pageBreak" }
+    | {
+        type: "question";
+        id: string;
+        questionNumber: number;
+        questionTypeLabel: string;
+    }
+    | null;
 }
 
-function DragOverlayPreview({ activeItem, items }: DragOverlayPreviewProps) {
+function DragOverlayPreview({ activeItem }: DragOverlayPreviewProps) {
     if (!activeItem) return null;
 
-    if (activeItem.type === 'pageBreak') {
+    if (activeItem.type === "pageBreak") {
         return (
             <Paper
                 withBorder
                 p="sm"
                 radius="md"
-                bg="gray.0"
-                style={{ cursor: 'grabbing' }}
+                style={{ cursor: "grabbing" }}
             >
                 <Group justify="space-between">
                     <Group gap="xs">
@@ -399,62 +478,48 @@ function DragOverlayPreview({ activeItem, items }: DragOverlayPreviewProps) {
         );
     }
 
-    // Question preview
-    const questionNumber = items
-        .slice(
-            0,
-            items.findIndex(
-                (i) =>
-                    i.type === 'question' &&
-                    i.data.id === activeItem.data.id,
-            ) + 1,
-        )
-        .filter((i) => i.type === 'question').length;
-
-    const questionTypeLabel =
-        activeItem.data.type === 'multiple-choice'
-            ? 'Multiple Choice'
-            : activeItem.data.type === 'short-answer'
-                ? 'Short Answer'
-                : 'Long Answer';
-
     return (
-        <Card withBorder radius="md" p="md" style={{ cursor: 'grabbing' }}>
+        <Card withBorder radius="md" p="md" style={{ cursor: "grabbing" }}>
             <Group justify="space-between" wrap="nowrap">
                 <Group gap="xs" style={{ flex: 1 }}>
                     <IconGripVertical size={16} />
                     <Text fw={500} size="sm">
-                        Question {questionNumber}: {questionTypeLabel}
+                        Question {activeItem.questionNumber}: {activeItem.questionTypeLabel}
                     </Text>
-                    {activeItem.data.prompt && (
-                        <Text size="sm" c="dimmed" truncate style={{ flex: 1 }}>
-                            {activeItem.data.prompt}
-                        </Text>
-                    )}
                 </Group>
             </Group>
         </Card>
     );
 }
 
-
 // ============================================================================
 // SORTABLE QUESTION ITEM
 // ============================================================================
 
-
-function getNestedQuizIndex(questionFieldPath: `rawQuizConfig.pages[${number}].questions[${number}]` | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`): number | undefined {
-    const match = questionFieldPath.match(/rawQuizConfig\.nestedQuizzes\[(\d+)\]/);
+function getNestedQuizIndex(
+    questionFieldPath:
+        | `rawQuizConfig.pages[${number}].questions[${number}]`
+        | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`,
+): number | undefined {
+    const match = questionFieldPath.match(
+        /rawQuizConfig\.nestedQuizzes\[(\d+)\]/,
+    );
     if (match) {
         return Number.parseInt(match[1], 10);
     }
     return undefined;
 }
 
-function getPageIndex(questionFieldPath: `rawQuizConfig.pages[${number}].questions[${number}]` | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`): number {
-    const isNestedQuiz = questionFieldPath.includes('nestedQuizzes');
+function getPageIndex(
+    questionFieldPath:
+        | `rawQuizConfig.pages[${number}].questions[${number}]`
+        | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`,
+): number {
+    const isNestedQuiz = questionFieldPath.includes("nestedQuizzes");
     if (isNestedQuiz) {
-        const match = questionFieldPath.match(/rawQuizConfig\.nestedQuizzes\[(\d+)\]\.pages\[(\d+)\]/);
+        const match = questionFieldPath.match(
+            /rawQuizConfig\.nestedQuizzes\[(\d+)\]\.pages\[(\d+)\]/,
+        );
         if (match) {
             return Number.parseInt(match[2], 10);
         }
@@ -464,45 +529,115 @@ function getPageIndex(questionFieldPath: `rawQuizConfig.pages[${number}].questio
             return Number.parseInt(match[1], 10);
         }
     }
-    throw new Error(`Page index not found in question field path ${questionFieldPath}`);
+    throw new Error(
+        `Page index not found in question field path ${questionFieldPath}`,
+    );
 }
 
-function getQuestionIndex(questionFieldPath: `rawQuizConfig.pages[${number}].questions[${number}]` | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`): number {
-    const isNestedQuiz = questionFieldPath.includes('nestedQuizzes');
+function getQuestionIndex(
+    questionFieldPath:
+        | `rawQuizConfig.pages[${number}].questions[${number}]`
+        | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`,
+): number {
+    const isNestedQuiz = questionFieldPath.includes("nestedQuizzes");
     if (isNestedQuiz) {
-        const match = questionFieldPath.match(/rawQuizConfig\.nestedQuizzes\[(\d+)\]\.pages\[(\d+)\]\.questions\[(\d+)\]/);
+        const match = questionFieldPath.match(
+            /rawQuizConfig\.nestedQuizzes\[(\d+)\]\.pages\[(\d+)\]\.questions\[(\d+)\]/,
+        );
         if (match) {
             return Number.parseInt(match[3], 10);
         }
     } else {
-        const match = questionFieldPath.match(/rawQuizConfig\.pages\[(\d+)\]\.questions\[(\d+)\]/);
+        const match = questionFieldPath.match(
+            /rawQuizConfig\.pages\[(\d+)\]\.questions\[(\d+)\]/,
+        );
         if (match) {
             return Number.parseInt(match[2], 10);
         }
     }
-    throw new Error(`Question index not found in question field path ${questionFieldPath}`);
+    throw new Error(
+        `Question index not found in question field path ${questionFieldPath}`,
+    );
 }
 
+function getFieldPathIndexes(
+    questionFieldPath:
+        | `rawQuizConfig.pages[${number}].questions[${number}]`
+        | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`,
+) {
+    const isNestedQuiz = questionFieldPath.includes("nestedQuizzes");
+    const nestedQuizIndex = isNestedQuiz
+        ? getNestedQuizIndex(questionFieldPath)
+        : undefined;
+    const pageIndex = getPageIndex(questionFieldPath);
+    const questionIndex = getQuestionIndex(questionFieldPath);
+    return { isNestedQuiz, nestedQuizIndex, pageIndex, questionIndex };
+}
+
+function getQuestionTypeLabel(type: QuestionType) {
+    return type === "multiple-choice"
+        ? "Multiple Choice"
+        : type === "short-answer"
+            ? "Short Answer"
+            : "Long Answer";
+}
 interface SortableQuestionItemProps {
     form: UpdateModuleFormApi;
-    questionFieldPath: `rawQuizConfig.pages[${number}].questions[${number}]` | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`; // e.g., "rawQuizConfig.pages[0].questions[2]"
-    item: Extract<QuestionOrPageBreak, { type: 'question' }>;
-    onRemove: () => void;
+    questionFieldPath:
+    | `rawQuizConfig.pages[${number}].questions[${number}]`
+    | `rawQuizConfig.nestedQuizzes[${number}].pages[${number}].questions[${number}]`; // e.g., "rawQuizConfig.pages[0].questions[2]"
+    id: string;
+    /**
+     * the question number in the quiz
+     */
+    questionNumber: number;
+    onRemove?: () => void;
+}
+
+const store = new Store({
+    expandedQuestionIds: {
+    } as Record<string, boolean>,
+    /** 
+     * can be question id or page id 
+     */
+    activeId: null as string | null,
+})
+
+const toggleQuestionExpansion = (id: string) => {
+    store.setState((prevState) => ({
+        ...prevState,
+        expandedQuestionIds: prevState.expandedQuestionIds[id]
+            ? { ...prevState.expandedQuestionIds, [id]: false }
+            : { ...prevState.expandedQuestionIds, [id]: true },
+    }));
+}
+
+const setActiveId = (id: string | null) => {
+    store.setState((prevState) => ({
+        ...prevState,
+        activeQuestionId: id,
+    }));
 }
 
 function SortableQuestionItem({
     form,
     questionFieldPath,
-    item,
+    id,
     onRemove,
+    questionNumber,
 }: SortableQuestionItemProps) {
-    const isNestedQuiz = questionFieldPath.includes('nestedQuizzes')
-    const nestedQuizIndex = isNestedQuiz ? getNestedQuizIndex(questionFieldPath) : undefined;
-    const pageIndex = getPageIndex(questionFieldPath)
-    const questionIndex = getQuestionIndex(questionFieldPath)
-    const [isExpanded, setIsExpanded] = useState(true);
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-        useSortable({ id: item.data.id });
+    const { isNestedQuiz, nestedQuizIndex, pageIndex, questionIndex } =
+        getFieldPathIndexes(questionFieldPath);
+    // default to true
+    const isExpanded = useStore(store, (state) => state.expandedQuestionIds[id] ?? true);
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
 
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -510,79 +645,52 @@ function SortableQuestionItem({
         opacity: isDragging ? 0.3 : 1,
     };
 
-    // Get question data reactively from form store
-    const question = useStore(form.store, (state) => {
-        const value = nestedQuizIndex ? state.values.rawQuizConfig?.nestedQuizzes?.[nestedQuizIndex]?.pages?.[pageIndex]?.questions?.[questionIndex] : state.values.rawQuizConfig?.pages?.[pageIndex]?.questions?.[questionIndex];
-        if (!value) {
-            console.error(`Question not found at path ${questionFieldPath} for page ${pageIndex} in ${isNestedQuiz ? 'nested quiz' : 'regular quiz'}: ${nestedQuizIndex} ${pageIndex} ${questionIndex}`);
-            console.error('state', state.values.rawQuizConfig);
-        }
-        return value;
-    });
+    function handleQuestionTypeChange({
+        type,
+        id,
+        // prompt,
+        // feedback,
+    }: Pick<Question, "type" | "id">) {
+        if (
+            type !== "multiple-choice" &&
+            type !== "short-answer" &&
+            type !== "long-answer"
+        )
+            return;
 
-    if (!question) {
-        return null; // throw new Error(`Question not found at path ${questionFieldPath} for page ${pageIndex} in ${isNestedQuiz ? 'nested quiz' : 'regular quiz'}: ${nestedQuizIndex} ${pageIndex} ${questionIndex}`);
+        const prompt = form.getFieldValue(`${questionFieldPath}.prompt`) ?? "";
+        const feedback = form.getFieldValue(`${questionFieldPath}.feedback`) ?? "";
+        const baseQuestion = {
+            id,
+            prompt,
+            feedback,
+            type,
+        };
+
+        if (type === "multiple-choice") {
+            form.setFieldValue(questionFieldPath, {
+                ...baseQuestion,
+                type: "multiple-choice",
+                options: { a: "Option A", b: "Option B" },
+                correctAnswer: "a",
+                scoring: { type: "simple", points: 1 },
+            });
+        } else if (type === "short-answer") {
+            form.setFieldValue(questionFieldPath, {
+                ...baseQuestion,
+                type: "short-answer",
+                correctAnswer: "",
+                scoring: { type: "simple", points: 1 },
+            });
+        } else if (type === "long-answer") {
+            form.setFieldValue(questionFieldPath, {
+                ...baseQuestion,
+                type: "long-answer",
+                correctAnswer: "",
+                scoring: { type: "manual", maxPoints: 1 },
+            });
+        }
     }
-
-    // Helper to update question using the field path
-    const updateQuestion = (updated: Question) => {
-        form.setFieldValue(questionFieldPath, updated);
-    };
-
-    const renderQuestionTypeFields = () => {
-        switch (question.type) {
-            case 'multiple-choice':
-                return (
-                    <MultipleChoiceEditor
-                        question={question as MultipleChoiceQuestion}
-                        onChange={updateQuestion}
-                    />
-                );
-
-            case 'short-answer':
-                return (
-                    <TextInput
-                        label="Correct Answer (optional)"
-                        description="For automatic grading (exact match)"
-                        value={question.correctAnswer || ''}
-                        onChange={(e) =>
-                            updateQuestion({
-                                ...question,
-                                correctAnswer: e.currentTarget.value,
-                            })
-                        }
-                        size="sm"
-                    />
-                );
-
-            case 'long-answer':
-                return (
-                    <Textarea
-                        label="Sample/Expected Answer (optional)"
-                        description="For reference purposes (requires manual grading)"
-                        value={question.correctAnswer || ''}
-                        onChange={(e) =>
-                            updateQuestion({
-                                ...question,
-                                correctAnswer: e.currentTarget.value,
-                            })
-                        }
-                        minRows={3}
-                        size="sm"
-                    />
-                );
-
-            default:
-                return <Text c="dimmed">Question type not yet implemented</Text>;
-        }
-    };
-
-    const questionTypeLabel =
-        question.type === 'multiple-choice'
-            ? 'Multiple Choice'
-            : question.type === 'short-answer'
-                ? 'Short Answer'
-                : 'Long Answer';
 
     return (
         <Box ref={setNodeRef} style={style}>
@@ -595,22 +703,50 @@ function SortableQuestionItem({
                                 {...attributes}
                                 {...listeners}
                                 variant="subtle"
-                                style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
+                                style={{ cursor: isDragging ? "grabbing" : "grab" }}
                             >
                                 <IconGripVertical size={16} />
                             </ActionIcon>
-                            <Text fw={500} size="sm">
-                                Question {questionIndex + 1}: {questionTypeLabel}
-                            </Text>
-                            {!isExpanded && question.prompt && (
-                                <Text size="sm" c="dimmed" truncate style={{ flex: 1 }}>
-                                    {question.prompt}
-                                </Text>
-                            )}
+                            <form.Subscribe
+                                selector={(state) => {
+                                    const question =
+                                        nestedQuizIndex !== undefined
+                                            ? state.values.rawQuizConfig?.nestedQuizzes?.[
+                                                nestedQuizIndex
+                                            ]?.pages?.[pageIndex]?.questions?.[questionIndex]
+                                            : state.values.rawQuizConfig?.pages?.[pageIndex]
+                                                ?.questions?.[questionIndex];
+                                    return {
+                                        promptValue: question?.prompt,
+                                        typeValue: question?.type as QuestionType,
+                                    };
+                                }}
+                            >
+                                {({ promptValue, typeValue }) => (
+                                    <>
+                                        <Text fw={500} size="sm">
+                                            Question {questionNumber}:{" "}
+                                            {getQuestionTypeLabel(typeValue)}
+                                        </Text>
+                                        {!isExpanded && promptValue && (
+                                            <Text size="sm" c="dimmed" truncate style={{ flex: 1 }}>
+                                                {promptValue}
+                                            </Text>
+                                        )}
+                                    </>
+                                )}
+                            </form.Subscribe>
                         </Group>
                         <Group gap="xs">
-                            <ActionIcon variant="subtle" onClick={() => setIsExpanded(!isExpanded)}>
-                                {isExpanded ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+                            <ActionIcon
+                                variant="subtle"
+                                onClick={() => toggleQuestionExpansion(id)}
+                            >
+                                {isExpanded ? (
+                                    <IconChevronUp size={16} />
+                                ) : (
+                                    <IconChevronDown size={16} />
+                                )}
                             </ActionIcon>
                             <ActionIcon color="red" variant="subtle" onClick={onRemove}>
                                 <IconTrash size={16} />
@@ -621,73 +757,113 @@ function SortableQuestionItem({
                     {/* Collapsible content */}
                     {isExpanded && (
                         <Stack gap="sm">
-                            <Select
-                                label="Question Type"
-                                value={question.type}
-                                onChange={(val: string | null) => {
-                                    const baseQuestion = {
-                                        id: question.id,
-                                        prompt: question.prompt,
-                                        feedback: question.feedback,
-                                        type: val as Question['type'],
-                                    };
+                            {/* Question Type Selector */}
+                            <form.AppField name={`${questionFieldPath}.type`}>
+                                {(field) => (
+                                    <Select
+                                        label="Question Type"
+                                        value={field.state.value}
+                                        onChange={(value) =>
+                                            handleQuestionTypeChange({
+                                                type: value as QuestionType,
+                                                id,
+                                            })
+                                        }
+                                        data={[
+                                            { value: "multiple-choice", label: "Multiple Choice" },
+                                            { value: "short-answer", label: "Short Answer" },
+                                            { value: "long-answer", label: "Long Answer" },
+                                        ]}
+                                        size="sm"
+                                    />
+                                )}
+                            </form.AppField>
+                            {/* Question Prompt */}
+                            <form.AppField name={`${questionFieldPath}.prompt`}>
+                                {(field) => (
+                                    <field.TextareaField label="Question Prompt" minRows={2} />
+                                )}
+                            </form.AppField>
 
-                                    if (val === 'multiple-choice') {
-                                        updateQuestion({
-                                            ...baseQuestion,
-                                            type: 'multiple-choice',
-                                            options: { a: 'Option A', b: 'Option B' },
-                                            correctAnswer: 'a',
-                                            scoring: { type: 'simple', points: 1 },
-                                        });
-                                    } else if (val === 'short-answer') {
-                                        updateQuestion({
-                                            ...baseQuestion,
-                                            type: 'short-answer',
-                                            correctAnswer: '',
-                                            scoring: { type: 'simple', points: 1 },
-                                        });
-                                    } else if (val === 'long-answer') {
-                                        updateQuestion({
-                                            ...baseQuestion,
-                                            type: 'long-answer',
-                                            correctAnswer: '',
-                                            scoring: { type: 'manual', maxPoints: 1 },
-                                        });
-                                    }
+                            {/* Feedback Field */}
+                            <form.AppField name={`${questionFieldPath}.feedback`}>
+                                {(field) => (
+                                    <field.TextareaField
+                                        label="Feedback (optional)"
+                                        placeholder="Shown to students after answering"
+                                        minRows={2}
+                                    />
+                                )}
+                            </form.AppField>
+
+                            {/* Conditional Question Type Fields */}
+                            <form.Subscribe
+                                selector={(state) => {
+                                    const q =
+                                        nestedQuizIndex !== undefined
+                                            ? state.values.rawQuizConfig?.nestedQuizzes?.[
+                                                nestedQuizIndex
+                                            ]?.pages?.[pageIndex]?.questions?.[questionIndex]
+                                            : state.values.rawQuizConfig?.pages?.[pageIndex]
+                                                ?.questions?.[questionIndex];
+                                    if (!q)
+                                        throw new Error(
+                                            `MultipleChoiceEditor: Question at path ${questionFieldPath} not found`,
+                                        );
+                                    return q.type;
                                 }}
-                                data={[
-                                    { value: 'multiple-choice', label: 'Multiple Choice' },
-                                    { value: 'short-answer', label: 'Short Answer' },
-                                    { value: 'long-answer', label: 'Long Answer' },
-                                ]}
-                                size="sm"
-                            />
+                            >
+                                {(questionType) => {
+                                    if (questionType === "multiple-choice") {
+                                        return (
+                                            <MultipleChoiceEditor
+                                                form={form}
+                                                questionFieldPath={questionFieldPath}
+                                            />
+                                        );
+                                    }
 
-                            <Textarea
-                                label="Question Prompt"
-                                value={question.prompt}
-                                onChange={(e) => updateQuestion({ ...question, prompt: e.currentTarget.value })}
-                                minRows={2}
-                                required
-                                size="sm"
-                            />
+                                    if (questionType === "short-answer") {
+                                        return (
+                                            <form.AppField
+                                                name={`${questionFieldPath}.correctAnswer`}
+                                            >
+                                                {(field) => (
+                                                    <field.TextInputField
+                                                        label="Correct Answer (optional)"
+                                                        placeholder="For automatic grading (exact match)"
+                                                    />
+                                                )}
+                                            </form.AppField>
+                                        );
+                                    }
 
-                            {renderQuestionTypeFields()}
+                                    if (questionType === "long-answer") {
+                                        return (
+                                            <form.AppField
+                                                name={`${questionFieldPath}.correctAnswer`}
+                                            >
+                                                {(field) => (
+                                                    <field.TextareaField
+                                                        label="Sample/Expected Answer (optional)"
+                                                        placeholder="For reference purposes (requires manual grading)"
+                                                        minRows={3}
+                                                    />
+                                                )}
+                                            </form.AppField>
+                                        );
+                                    }
 
-                            <Textarea
-                                label="Feedback (optional)"
-                                description="Shown to students after answering"
-                                value={question.feedback || ''}
-                                onChange={(e) => updateQuestion({ ...question, feedback: e.currentTarget.value })}
-                                minRows={2}
-                                size="sm"
-                            />
+                                    return (
+                                        <Text c="dimmed">Question type not yet implemented</Text>
+                                    );
+                                }}
+                            </form.Subscribe>
 
+                            {/* Scoring Configuration */}
                             <ScoringEditor
-                                questionType={question.type}
-                                scoring={question.scoring}
-                                onChange={(scoring) => updateQuestion({ ...question, scoring })}
+                                form={form}
+                                questionFieldPath={questionFieldPath}
                             />
                         </Stack>
                     )}
@@ -697,20 +873,253 @@ function SortableQuestionItem({
     );
 }
 
-
 // ============================================================================
 // QUESTIONS LIST WITH DRAG AND DROP
 // ============================================================================
 
 interface QuestionsListProps {
     form: UpdateModuleFormApi;
-    pagesFieldName: 'rawQuizConfig.pages' | `rawQuizConfig.nestedQuizzes[${number}].pages`; // e.g., "rawQuizConfig.pages" or "rawQuizConfig.nestedQuizzes[0].pages"
+    pagesFieldName:
+    | "rawQuizConfig.pages"
+    | `rawQuizConfig.nestedQuizzes[${number}].pages`; // e.g., "rawQuizConfig.pages" or "rawQuizConfig.nestedQuizzes[0].pages"
+}
+
+// Convert pages structure to flat list with page breaks
+const pagesToItems = (
+    pages: {
+        id: string;
+        title: string;
+        questions: { id: string; type: QuestionType }[];
+    }[],
+    pagesFieldName:
+        | "rawQuizConfig.pages"
+        | `rawQuizConfig.nestedQuizzes[${number}].pages`,
+): QuestionOrPageBreak[] => {
+    const result: QuestionOrPageBreak[] = [];
+    if (!pages || !Array.isArray(pages)) {
+        console.error("pagesToItems: pages is not an array", pages);
+        return result;
+    }
+
+    pages.forEach((page, pageIndex) => {
+        // Safety check: ensure questions is an array
+        if (!page || !Array.isArray(page.questions)) {
+            console.error(
+                "pagesToItems: page is not an object or questions is not an array",
+                page,
+            );
+            return;
+        }
+
+        page.questions.forEach((question) => {
+            const questionIndex = page.questions.indexOf(question);
+            result.push({
+                type: "question",
+                data: question,
+                fieldPath: `${pagesFieldName}[${pageIndex}].questions[${questionIndex}]`,
+            });
+        });
+
+        // Add page break between pages (but not after the last page)
+        if (pageIndex < pages.length - 1) {
+            result.push({ type: "pageBreak", id: `pageBreak-${pageIndex}` });
+        }
+    });
+
+    return result;
+};
+
+// Convert flat list back to pages structure
+const itemsToPages = (
+    items: QuestionOrPageBreak[],
+): {
+    id: string;
+    title: string;
+    questions: { id: string; type: string }[];
+}[] => {
+    if (items.length === 0) {
+        return [];
+    }
+
+    const pages: {
+        id: string;
+        title: string;
+        questions: { id: string; type: string }[];
+    }[] = [];
+    let currentPage: { id: string; type: string }[] = [];
+
+    items.forEach((item) => {
+        if (item.type === "question") {
+            currentPage.push(item.data);
+        } else if (item.type === "pageBreak") {
+            pages.push({
+                id: `page-${Date.now()}-${pages.length}`,
+                title: `Page ${pages.length + 1}`,
+                questions: currentPage,
+            });
+            currentPage = [];
+        }
+    });
+
+    // Always add the last page
+    pages.push({
+        id: `page-${Date.now()}-${pages.length}`,
+        title: `Page ${pages.length + 1}`,
+        questions: currentPage,
+    });
+
+    return pages;
+};
+
+// construct the new pages from the simplified pages
+function convertSimplifiedPages(
+    pages: {
+        id: string;
+        title: string;
+        questions: { id: string; type: string }[];
+    }[],
+    pages2: QuizPage[],
+) {
+    const items = pages2.flatMap((page) => page.questions);
+    // either a page or a question is removed
+    const results: QuizPage[] = pages.map((page) => ({
+        id: page.id,
+        title: page.title,
+        questions: [],
+    }));
+    // if both array has the page, add to results
+    for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        for (let j = 0; j < page.questions.length; j++) {
+            const question = page.questions[j];
+            const question2 = items.find((q) => q.id === question.id);
+            if (question2) {
+                results[i].questions.push(question2);
+            }
+        }
+    }
+    return results;
+}
+
+function ItemListRenderer({
+    form,
+    pagesFieldName,
+}: {
+    form: UpdateModuleFormApi;
+    pagesFieldName:
+    | "rawQuizConfig.pages"
+    | `rawQuizConfig.nestedQuizzes[${number}].pages`;
+}) {
+    // array mode
+    return (
+        <form.Field name={pagesFieldName} mode="array">
+            {(pageField) => {
+                const pages = pageField.state.value ?? [];
+
+                return pages.map((page, index) => (
+                    <form.Field
+                        key={pages[index].id}
+                        name={`${pagesFieldName}[${index}].questions`}
+                        mode="array"
+                    >
+                        {(questionField) => {
+                            const questions = questionField.state.value ?? [];
+
+                            function removeQuestion(questionIndex: number) {
+                                questionField.removeValue(questionIndex);
+                            }
+                            // when we delete the page break, it means we are deleting the page
+                            // for example, if we have two pages, page 0 and page 1, we have one page break 1
+                            // when we delete page break 1, we should delete page 1
+                            // all the questions in page 1 should be moved to the page before it
+                            function removePageBreak(id: string) {
+                                const deletedPage = pageField.state.value?.findIndex(
+                                    (page) => page.id === id,
+                                );
+                                if (deletedPage !== undefined) {
+                                    const pageBefore = pageField.state.value?.[deletedPage - 1];
+                                    if (!pageBefore)
+                                        throw new Error(
+                                            "Page before should always exist. If not, it means our logic in the code is wrong.",
+                                        );
+                                    const questions =
+                                        pageField.state.value?.[deletedPage]?.questions ?? [];
+                                    for (const q of questions) {
+                                        form
+                                            .getFieldInfo(
+                                                `${pagesFieldName}[${deletedPage - 1}].questions`,
+                                            )
+                                            ?.instance?.pushValue(q);
+                                    }
+                                    pageField.removeValue(deletedPage);
+                                }
+                            }
+
+
+                            return (
+                                <>
+                                    {questions.map((question, questionIndex) => {
+                                        return (
+                                            <form.Subscribe
+                                                key={question.id}
+                                                selector={(s) => {
+                                                    const {
+                                                        isNestedQuiz,
+                                                        nestedQuizIndex,
+                                                        pageIndex,
+                                                        questionIndex: qIndex,
+                                                    } = getFieldPathIndexes(
+                                                        `${pagesFieldName}[${index}].questions[${questionIndex}]`,
+                                                    );
+                                                    const allPages =
+                                                        nestedQuizIndex !== undefined
+                                                            ? (s.values.rawQuizConfig?.nestedQuizzes?.[
+                                                                nestedQuizIndex
+                                                            ]?.pages ?? [])
+                                                            : (s.values.rawQuizConfig?.pages ?? []);
+                                                    // flat map the page.questions
+                                                    const questionNumber =
+                                                        allPages
+                                                            .flatMap((p) => p.questions)
+                                                            .findIndex((q) => q.id === question.id) + 1;
+                                                    return questionNumber;
+                                                }}
+                                            >
+                                                {(questionNumber) => {
+                                                    return (
+                                                        <SortableQuestionItem
+                                                            id={question.id}
+                                                            form={form}
+                                                            questionNumber={questionNumber}
+                                                            questionFieldPath={`${pagesFieldName}[${index}].questions[${questionIndex}]`}
+                                                            onRemove={() => removeQuestion(questionIndex)}
+                                                        />
+                                                    );
+                                                }}
+                                            </form.Subscribe>
+                                        );
+                                    })}
+                                    {/* if not last page index, add page break */}
+                                    {/* you can never remove the first page, the index is always + 1 */}
+                                    {index < pages.length - 1 && (
+                                        <SortablePageBreakItem
+                                            key={pages[index + 1].id}
+                                            id={pages[index + 1].id}
+                                            onRemove={() => removePageBreak(pages[index + 1].id)}
+                                        />
+                                    )}
+                                </>
+                            );
+                        }}
+                    </form.Field>
+                ));
+            }}
+        </form.Field>
+    );
 }
 
 function QuestionsList({ form, pagesFieldName }: QuestionsListProps) {
     const mounted = useMounted();
-    const [activeId, setActiveId] = useState<string | null>(null);
-    const isNestedQuiz = pagesFieldName.includes('nestedQuizzes');
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -719,247 +1128,246 @@ function QuestionsList({ form, pagesFieldName }: QuestionsListProps) {
         }),
     );
 
-    // Use useStore to get pages reactively from form
-    const pages = useStore(form.store, (state) => {
-        // Dynamically access the nested field based on pagesFieldName
-        if (pagesFieldName === 'rawQuizConfig.pages') {
-            return state.values.rawQuizConfig?.pages ?? [];
-        }
-        // For nested quiz pages like "rawQuizConfig.nestedQuizzes[0].pages"
-        const match = pagesFieldName.match(/rawQuizConfig\.nestedQuizzes\[(\d+)\]\.pages/);
-        if (match) {
-            const index = Number.parseInt(match[1], 10);
-            return state.values.rawQuizConfig?.nestedQuizzes?.[index]?.pages ?? [];
-        }
-        return [];
-    });
+    // const itemsString = useQuestionListItems(form, pagesFieldName);
+    // const items = typeof itemsString === "string" ? JSON.parse(itemsString) as QuestionOrPageBreak[] : itemsString;
+    // console.log(items)
+    // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+    // const items = useMemo(() => _items, [JSON.stringify(_items)]);
+    // console.log("items", items);
+    const activeId = useStore(store, (state) => state.activeId);
 
-    // Convert pages structure to flat list with page breaks
-    const pagesToItems = (pages: QuizConfig['pages']): QuestionOrPageBreak[] => {
-        const result: QuestionOrPageBreak[] = [];
-        if (!pages) return result;
+    // // Handler functions at component level
 
-        pages.forEach((page, pageIndex) => {
-            page.questions.forEach((question) => {
-                const questionIndex = page.questions.indexOf(question);
-                result.push({ type: 'question', data: question, fieldPath: `${pagesFieldName}[${pageIndex}].questions[${questionIndex}]` });
-            });
-
-            // Add page break between pages (but not after the last page)
-            if (pageIndex < pages.length - 1) {
-                result.push({ type: 'pageBreak', id: `pageBreak-${pageIndex}` });
-            }
-        });
-
-        return result;
-    };
-
-    // Convert flat list back to pages structure
-    const itemsToPages = (items: QuestionOrPageBreak[]): QuizConfig['pages'] => {
-        if (items.length === 0) {
-            return [];
-        }
-
-        const pages: QuizConfig['pages'] = [];
-        let currentPage: Question[] = [];
-
-        items.forEach((item) => {
-            if (item.type === 'question') {
-                currentPage.push(item.data);
-            } else if (item.type === 'pageBreak') {
-                pages.push({
-                    id: `page-${Date.now()}-${pages.length}`,
-                    title: `Page ${pages.length + 1}`,
-                    questions: currentPage,
-                });
-                currentPage = [];
-            }
-        });
-
-        // Always add the last page
-        pages.push({
-            id: `page-${Date.now()}-${pages.length}`,
-            title: `Page ${pages.length + 1}`,
-            questions: currentPage,
-        });
-
-        return pages;
-    };
-
-    // Compute items from pages
-    const items = pagesToItems(pages);
-
-    // Calculate field path for each question
-    const getQuestionFieldPath = (item: Extract<QuestionOrPageBreak, { type: 'question' }>) => {
-
-        const questionId = item.data.id;
-
-        // Find which page and which question index this question is at
-        for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
-            const page = pages[pageIndex];
-            const questionIndex = page.questions.findIndex((q) => q.id === questionId);
-
-            if (questionIndex !== -1) {
-                return `${pagesFieldName}[${pageIndex}].questions[${questionIndex}]` as const;
-            }
-        }
-
-        throw new Error(`Question not found with id ${questionId} in pages ${pages.map((p) => p.id).join(', ')}`);
-
-    };
-
-    // Handler functions at component level
-    const handleDragStart = (event: DragStartEvent) => {
-        setActiveId(event.active.id as string);
-    };
-
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-
-        if (over && active.id !== over.id) {
-            const oldIndex = items.findIndex((item) =>
-                item.type === 'question' ? item.data.id === active.id : item.id === active.id,
-            );
-            const newIndex = items.findIndex((item) =>
-                item.type === 'question' ? item.data.id === over.id : item.id === over.id,
-            );
-
-            const newItems = arrayMove(items, oldIndex, newIndex);
-            const newPages = itemsToPages(newItems);
-            form.setFieldValue(pagesFieldName, newPages);
-        }
-
-        setActiveId(null);
-    };
-
-    const handleDragCancel = () => {
-        setActiveId(null);
-    };
-
-    const activeItem: QuestionOrPageBreak | null = activeId
-        ? items.find((item) =>
-            item.type === 'question' ? item.data.id === activeId : item.id === activeId,
-        ) || null
-        : null;
-
-    const addQuestion = () => {
-        const questionNumber = items.filter((i) => i.type === 'question').length;
-        const newQuestion: QuestionOrPageBreak = {
-            type: 'question',
-            fieldPath: `${pagesFieldName}[${pages.length}].questions[${questionNumber}]`,
-            data: {
-                id: `question-${Date.now()}`,
-                type: 'multiple-choice',
-                prompt: '',
-                options: { a: 'Option A', b: 'Option B' },
-                correctAnswer: 'a',
-                scoring: { type: 'simple', points: 1 },
-            },
-        };
-        const newItems = [...items, newQuestion];
-        const newPages = itemsToPages(newItems);
-        form.setFieldValue(pagesFieldName, newPages);
-    };
-
-    const addPageBreak = () => {
-        const newPageBreak: QuestionOrPageBreak = {
-            type: 'pageBreak',
-            id: `pageBreak-${Date.now()}`,
-        };
-        const newItems = [...items, newPageBreak];
-        const newPages = itemsToPages(newItems);
-        form.setFieldValue(pagesFieldName, newPages);
-    };
-
-    const removeItem = (index: number) => {
-        const newItems = items.filter((_, i) => i !== index);
-        const newPages = itemsToPages(newItems);
-        form.setFieldValue(pagesFieldName, newPages);
-    };
-
-    function getQuestionNumber(item: Extract<QuestionOrPageBreak, { type: 'question' }>) {
-        return items.findIndex((i) => i.type === 'question' && i.data.id === item.data.id);
-    }
+    // const pagesLength = items.filter((i) => i.type === "pageBreak").length;
+    // const questionIndex = items.filter((i) => i.type === "question").length;
 
     return (
         <Stack gap="md">
-            <Group>
-                <Button leftSection={<IconPlus size={16} />} onClick={addQuestion}>
-                    Add Question
-                </Button>
-                <Button
-                    leftSection={<IconSeparator size={16} />}
-                    variant="light"
-                    onClick={addPageBreak}
-                >
-                    Add Page Break
-                </Button>
-            </Group>
+            {/* for testing only  */}
+            <form.AppField name="quizInstructions">
+                {(field) => (
+                    <field.TextareaField
+                        label="Instructions"
+                        placeholder="Enter quiz instructions"
+                        minRows={3}
+                    />
+                )}
+            </form.AppField>
+            <form.AppField name="description">
+                {(field) => (
+                    <field.TextareaField
+                        label="Description"
+                        placeholder="Enter quiz description"
+                        minRows={3}
+                    />
+                )}
+            </form.AppField>
 
-            {items.length === 0 ? (
-                <Paper withBorder p="xl" radius="md">
-                    <Text ta="center" c="dimmed">
-                        No questions yet. Click "Add Question" to get started.
-                    </Text>
-                </Paper>
-            ) : !mounted ? (
-                // Server-side render: static list without drag-and-drop
-                <Stack gap="sm">
-                    {items.map((item, index) => {
+            {/* pages array mode */}
+            <form.Field name={pagesFieldName} mode="array">
+                {(pagesField) => {
+                    const length = pagesField.state.value?.length ?? 0;
+
+                    function addQuestion() {
+                        form
+                            .getFieldInfo(`${pagesFieldName}[${length - 1}].questions`)
+                            .instance?.pushValue({
+                                id: `question-${Date.now()}`,
+                                type: "multiple-choice",
+                                prompt: "",
+                                feedback: "",
+                                scoring: {
+                                    type: "simple",
+                                    points: 1,
+                                },
+                                options: {
+                                    a: "Option A",
+                                    b: "Option B",
+                                },
+                                correctAnswer: "a",
+                            });
+                    }
+
+                    function addPageBreak() {
+                        pagesField.pushValue({
+                            id: `page-${Date.now()}`,
+                            title: `Page ${length + 1}`,
+                            questions: [],
+                        });
+                    }
+
+                    if (length === 0) {
                         return (
-                            <div key={item.type === 'question' ? item.data.id : item.id}>
-                                {item.type === 'question' ? (
-                                    <SortableQuestionItem
-                                        form={form}
-                                        questionFieldPath={getQuestionFieldPath(item)}
-                                        item={item}
-                                        onRemove={() => removeItem(index)}
-                                    />
-                                ) : (
-                                    <SortablePageBreakItem item={item} onRemove={() => removeItem(index)} />
-                                )}
-                            </div>
+                            <>
+                                <Group>
+                                    <Button
+                                        leftSection={<IconPlus size={16} />}
+                                        onClick={() => addQuestion()}
+                                    >
+                                        Add Question
+                                    </Button>
+                                    <Button
+                                        leftSection={<IconSeparator size={16} />}
+                                        variant="light"
+                                        onClick={() => addPageBreak()}
+                                    >
+                                        Add Page Break
+                                    </Button>
+                                </Group>
+                                <Paper withBorder p="xl" radius="md">
+                                    <Text ta="center" c="dimmed">
+                                        No questions yet. Click "Add Question" to get started.
+                                    </Text>
+                                </Paper>
+                            </>
                         );
-                    })}
-                </Stack>
-            ) : (
-                // Client-side render: drag-and-drop enabled
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    onDragCancel={handleDragCancel}
-                >
-                    <SortableContext
-                        items={items.map((item) =>
-                            item.type === 'question' ? item.data.id : item.id,
-                        )}
-                        strategy={verticalListSortingStrategy}
-                    >
-                        <Stack gap="sm">
-                            {items.map((item, index) => {
+                    }
 
+                    const items = pagesToItems(
+                        pagesField.state.value ?? [],
+                        pagesFieldName,
+                    );
 
-                                return item.type === 'question' ? (
-                                    <SortableQuestionItem
-                                        key={item.data.id}
-                                        form={form}
-                                        questionFieldPath={getQuestionFieldPath(item)}
-                                        item={item}
-                                        onRemove={() => removeItem(index)}
-                                    />
-                                ) : (
-                                    <SortablePageBreakItem key={item.id} item={item} onRemove={() => removeItem(index)} />
-                                );
-                            })}
-                        </Stack>
-                    </SortableContext>
-                    <DragOverlay>
-                        <DragOverlayPreview activeItem={activeItem} items={items} />
-                    </DragOverlay>
-                </DndContext>
-            )}
+                    const handleDragStart = (event: DragStartEvent) => {
+                        setActiveId(event.active.id as string);
+                    };
+
+                    const handleDragEnd = (event: DragEndEvent) => {
+                        const { active, over } = event;
+
+                        if (over && active.id !== over.id) {
+                            const oldIndex = items.findIndex((item) =>
+                                item.type === "question"
+                                    ? item.data.id === active.id
+                                    : item.id === active.id,
+                            );
+                            const newIndex = items.findIndex((item) =>
+                                item.type === "question"
+                                    ? item.data.id === over.id
+                                    : item.id === over.id,
+                            );
+
+                            const oldPages = pagesField.state.value ?? [];
+                            const newItems = arrayMove(items, oldIndex, newIndex);
+                            console.log("newItems", newItems);
+                            const simplifiedPages = itemsToPages(newItems);
+                            console.log("simplifiedPages", simplifiedPages);
+                            const newPages = convertSimplifiedPages(
+                                simplifiedPages,
+                                oldPages,
+                            );
+                            console.log("newPages", newPages);
+                            form.setFieldValue(pagesFieldName, newPages);
+                        }
+
+                        setActiveId(null);
+                    };
+
+                    const handleDragCancel = () => {
+                        setActiveId(null);
+                    };
+
+                    const allQuestions = pagesField.state.value
+                        ?.flatMap((page) => page.questions) ?? []
+
+                    // base on the active id, find the page or question
+                    const activeItem =
+                        pagesField.state.value?.find((page) => page.id === activeId) ??
+                        allQuestions
+                            .find((question) => question.id === activeId) ??
+                        null;
+
+                    // const index = items.findIndex((item) =>
+                    //     item.type === "question" ? item.data.id === activeId : item.id === activeId,
+                    // );
+                    // const activeItem: QuestionOrPageBreak | null =
+                    //     index !== -1 ? items[index] : null;
+
+                    const patchedActiveItem:
+                        { type: "pageBreak" } | { type: "question", id: string, questionNumber: number, questionTypeLabel: string } | null = activeItem
+                            ? "questions" in activeItem
+                                ? { type: "pageBreak" }
+                                : { type: "question", id: activeItem.id, questionNumber: allQuestions.findIndex((i) => i.id === activeItem.id), questionTypeLabel: getQuestionTypeLabel(activeItem.type) }
+                            : null;
+
+                    // const { patchedActiveItem, item } = getItem(items);
+
+                    if (mounted) {
+                        return (
+                            <>
+                                <Group>
+                                    <Button
+                                        leftSection={<IconPlus size={16} />}
+                                        onClick={() => addQuestion()}
+                                    >
+                                        Add Question
+                                    </Button>
+                                    <Button
+                                        leftSection={<IconSeparator size={16} />}
+                                        variant="light"
+                                        onClick={() => addPageBreak()}
+                                    >
+                                        Add Page Break
+                                    </Button>
+                                </Group>
+
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragStart={handleDragStart}
+                                    onDragEnd={handleDragEnd}
+                                    onDragCancel={handleDragCancel}
+                                >
+                                    <SortableContext
+                                        items={items.map((item) =>
+                                            item.type === "question" ? item.data.id : item.id,
+                                        )}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <Stack gap="sm">
+                                            <ItemListRenderer
+                                                form={form}
+                                                pagesFieldName={pagesFieldName}
+                                            />
+                                        </Stack>
+                                        {activeItem && (
+                                            <DragOverlay adjustScale={false}>
+                                                <DragOverlayPreview
+                                                    activeItem={patchedActiveItem}
+                                                />
+                                            </DragOverlay>
+                                        )}
+                                    </SortableContext>
+                                </DndContext>
+                            </>
+                        );
+                    }
+
+                    return (
+                        <>
+                            <Group>
+                                <Button
+                                    leftSection={<IconPlus size={16} />}
+                                    onClick={() => addQuestion()}
+                                >
+                                    Add Question
+                                </Button>
+                                <Button
+                                    leftSection={<IconSeparator size={16} />}
+                                    variant="light"
+                                    // onClick={() => addPageBreak(form, pagesFieldName, pagesLength)}
+                                    onClick={() => addPageBreak()}
+                                >
+                                    Add Page Break
+                                </Button>
+                            </Group>
+                            <Stack gap="sm">
+                                <ItemListRenderer form={form} pagesFieldName={pagesFieldName} />
+                            </Stack>
+                        </>
+                    );
+                }}
+            </form.Field>
         </Stack>
     );
 }
@@ -1019,17 +1427,12 @@ function NestedQuizTab({ form, quizIndex }: NestedQuizTabProps) {
     return (
         <Stack gap="md">
             <form.AppField name={`${basePath}.title`}>
-                {(field) => (
-                    <field.TextInputField label="Quiz Title" />
-                )}
+                {(field) => <field.TextInputField label="Quiz Title" />}
             </form.AppField>
 
             <form.AppField name={`${basePath}.description`}>
                 {(field) => (
-                    <field.TextareaField
-                        label="Description (optional)"
-                        minRows={2}
-                    />
+                    <field.TextareaField label="Description (optional)" minRows={2} />
                 )}
             </form.AppField>
 
@@ -1064,13 +1467,8 @@ interface NestedQuizzesManagerProps {
 }
 
 function NestedQuizzesManager({ form }: NestedQuizzesManagerProps) {
-    // Derive initial active tab from form state
-    const initialTab = useStore(form.store, (state) => {
-        const quizzes = state.values.rawQuizConfig?.nestedQuizzes || [];
-        return quizzes[0]?.id || null;
-    });
-
-    const [activeTab, setActiveTab] = useState<string | null>(initialTab);
+    // when value is null, by default it shows the first tab
+    const [activeTab, setActiveTab] = useState<string | null>(null);
 
     return (
         <form.AppField name="rawQuizConfig.nestedQuizzes" mode="array">
@@ -1124,7 +1522,9 @@ function NestedQuizzesManager({ form }: NestedQuizzesManagerProps) {
                                         <Stack gap="md">
                                             {/* Header with quiz title and remove button */}
                                             <Group justify="space-between">
-                                                <Title order={5}>{quiz.title || `Quiz ${index + 1}`}</Title>
+                                                <Title order={5}>
+                                                    {quiz.title || `Quiz ${index + 1}`}
+                                                </Title>
                                                 <ActionIcon
                                                     color="red"
                                                     variant="subtle"
@@ -1173,7 +1573,9 @@ export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {
     return (
         <Stack gap="lg">
             <form.AppField name="rawQuizConfig.title">
-                {(field) => <field.TextInputField label="Container Quiz Title" required />}
+                {(field) => (
+                    <field.TextInputField label="Container Quiz Title" required />
+                )}
             </form.AppField>
 
             <form.AppField name="rawQuizConfig.sequentialOrder">
@@ -1200,4 +1602,3 @@ export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {
         </Stack>
     );
 }
-

@@ -217,12 +217,7 @@ export default function EditModulePage() {
 			discussionRequireReplies: discussionData?.requireReplies || false,
 			discussionMinReplies: discussionData?.minReplies || 1,
 		},
-		onSubmitMeta: {
-			type: module.type,
-			id: module.id,
-		},
 		onSubmit: ({ value }) => {
-			console.log("onSubmit", value);
 			updateModule(String(module.id), value);
 		},
 		// ! make sure our type of FormApi is correct

@@ -1,5 +1,4 @@
 import { Divider, Select, Stack, Title } from '@mantine/core';
-import { useStore } from '@tanstack/react-store';
 import { useLayoutEffect } from 'react';
 import type { QuizConfig } from '~/components/activity-modules-preview/quiz-config.types';
 import { CommonFields } from './common-fields';
@@ -11,20 +10,6 @@ type QuizFormProps = {
 };
 
 export function QuizForm({ form }: QuizFormProps) {
-
-    // Reactively derive quiz type from form state using useStore
-    const { type, title } = useStore(form.store, (state) => {
-        const rawQuizConfig = state.values.rawQuizConfig;
-        const type = rawQuizConfig?.nestedQuizzes && rawQuizConfig.nestedQuizzes.length > 0
-            ? 'container' as const
-            : 'regular' as const;
-        const title = state.values.title;
-
-        return {
-            type,
-            title
-        }
-    });
 
     // Initialize quiz config if it doesn't exist
     useLayoutEffect(() => {
@@ -45,29 +30,7 @@ export function QuizForm({ form }: QuizFormProps) {
         }
     }, [form]);
 
-    const handleQuizTypeChange = (newType: 'regular' | 'container') => {
-        // Transform config when switching types
-        const currentConfig = form.state.values.rawQuizConfig;
-        if (!currentConfig) return;
 
-        if (newType === 'regular') {
-            // update pages, nestedQuizzes, sequentialOrder
-            form.setFieldValue('rawQuizConfig.pages', currentConfig.nestedQuizzes?.flatMap((nq) => nq.pages) || []);
-            form.setFieldValue('rawQuizConfig.nestedQuizzes', undefined);
-            form.setFieldValue('rawQuizConfig.sequentialOrder', undefined);
-        } else {
-            // update nestedQuizzes, pages, sequentialOrder
-            form.setFieldValue('rawQuizConfig.nestedQuizzes', [
-                {
-                    id: `nested-${Date.now()}`,
-                    title: 'Quiz Section 1',
-                    pages: currentConfig.pages || [],
-                },
-            ]);
-            form.setFieldValue('rawQuizConfig.pages', undefined);
-            form.setFieldValue('rawQuizConfig.sequentialOrder', false);
-        }
-    };
 
     return (
         <Stack gap="md">
@@ -155,8 +118,51 @@ export function QuizForm({ form }: QuizFormProps) {
 
             <Title order={3}>Visual Quiz Builder</Title>
 
-            {/* Quiz Type Selector */}
-            <Select
+            <QuizTypeSelector form={form} />
+
+            {/* Conditional rendering based on quiz type using form.Subscribe */}
+            <form.Subscribe selector={(state) => state.values.rawQuizConfig?.nestedQuizzes && state.values.rawQuizConfig.nestedQuizzes.length > 0 ? 'container' : 'regular'}>
+                {(type) => {
+                    return (
+                        <>
+                            {type === 'container' && <ContainerQuizBuilder form={form} />}
+                            {type === 'regular' && <RegularQuizBuilder form={form} />}
+                        </>
+                    )
+                }}
+            </form.Subscribe>
+        </Stack>
+    );
+}
+
+function QuizTypeSelector({ form }: { form: UpdateModuleFormApi }) {
+    const handleQuizTypeChange = (newType: 'regular' | 'container') => {
+        // Transform config when switching types
+        const currentConfig = form.state.values.rawQuizConfig;
+        if (!currentConfig) return;
+
+        if (newType === 'regular') {
+            // update pages, nestedQuizzes, sequentialOrder
+            form.setFieldValue('rawQuizConfig.pages', currentConfig.nestedQuizzes?.flatMap((nq) => nq.pages) || []);
+            form.setFieldValue('rawQuizConfig.nestedQuizzes', undefined);
+            form.setFieldValue('rawQuizConfig.sequentialOrder', undefined);
+        } else {
+            // update nestedQuizzes, pages, sequentialOrder
+            form.setFieldValue('rawQuizConfig.nestedQuizzes', [
+                {
+                    id: `nested-${Date.now()}`,
+                    title: 'Quiz Section 1',
+                    pages: currentConfig.pages || [],
+                },
+            ]);
+            form.setFieldValue('rawQuizConfig.pages', undefined);
+            form.setFieldValue('rawQuizConfig.sequentialOrder', false);
+        }
+    };
+
+    return (
+        <form.Subscribe selector={(state) => state.values.rawQuizConfig?.nestedQuizzes && state.values.rawQuizConfig.nestedQuizzes.length > 0 ? 'container' : 'regular'}>
+            {type => <Select
                 label="Quiz Type"
                 description="Choose between a regular quiz or a container quiz with multiple quizzes"
                 value={type}
@@ -164,14 +170,8 @@ export function QuizForm({ form }: QuizFormProps) {
                 data={[
                     { value: 'regular', label: 'Regular Quiz' },
                     { value: 'container', label: 'Quiz Container (multiple quizzes)' },
-                    // End of select options
-
                 ]}
-            />
-
-            {/* Conditional rendering based on quiz type using form.Subscribe */}
-            {type === 'container' && <ContainerQuizBuilder form={form} />}
-            {type === 'regular' && <RegularQuizBuilder form={form} />}
-        </Stack>
-    );
+            />}
+        </form.Subscribe>
+    )
 }

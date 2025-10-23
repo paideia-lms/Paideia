@@ -8,7 +8,7 @@ import {
 	QuizPreview,
 	sampleNestedQuizConfig,
 	WhiteboardPreview,
-} from "~/components/activity-module-forms";
+} from "~/components/activity-modules-preview/index";
 import { NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/edit";
 

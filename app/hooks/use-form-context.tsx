@@ -426,3 +426,7 @@ const updateModuleForm = false ? useAppForm({
 }) : undefined;
 
 export type UpdateModuleFormApi = NonNullable<typeof updateModuleForm>;
+
+const createModuleForm = updateModuleForm
+
+export type CreateModuleFormApi = NonNullable<typeof createModuleForm>;
