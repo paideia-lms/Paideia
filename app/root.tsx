@@ -49,8 +49,6 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { InternalServerErrorResponse } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
-import { TanStackDevtools } from '@tanstack/react-devtools'
-import { FormDevtoolsPlugin } from '@tanstack/react-form-devtools'
 
 
 export const middleware = [
@@ -465,7 +463,6 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					<NuqsAdapter>
 						<Outlet />
 						<Notifications />
-						<TanStackDevtools plugins={[FormDevtoolsPlugin()]} />
 					</NuqsAdapter>
 				</MantineProvider>
 				<ScrollRestoration />
