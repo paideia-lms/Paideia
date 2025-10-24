@@ -1,7 +1,7 @@
 import { isUndefined, omitBy } from "es-toolkit";
+import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
-import type { QuizConfig } from "./activity-module-forms";
 
 /**
  * Shared schema for activity module forms (create and update)
@@ -142,43 +142,43 @@ export function transformToActivityData(
 ) {
 	let pageData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let whiteboardData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let assignmentData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			allowLateSubmissions?: boolean;
-			requireTextSubmission?: boolean;
-			requireFileSubmission?: boolean;
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				allowLateSubmissions?: boolean;
+				requireTextSubmission?: boolean;
+				requireFileSubmission?: boolean;
+		  }
 		| undefined;
 	let quizData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			points?: number;
-			timeLimit?: number;
-			gradingType?: "automatic" | "manual";
-			rawQuizConfig?: unknown;
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				points?: number;
+				timeLimit?: number;
+				gradingType?: "automatic" | "manual";
+				rawQuizConfig?: unknown;
+		  }
 		| undefined;
 	let discussionData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			requireThread?: boolean;
-			requireReplies?: boolean;
-			minReplies?: number;
-		}
+				instructions?: string;
+				dueDate?: string;
+				requireThread?: boolean;
+				requireReplies?: boolean;
+				minReplies?: number;
+		  }
 		| undefined;
 
 	if (parsedData.type === "page") {

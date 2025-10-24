@@ -1,4 +1,5 @@
 import type { AccessResult, CollectionConfig } from "payload";
+import { tryResolveQuizConfigToLatest } from "server/json/raw-quiz-config-version-resolver";
 
 // Quizzes collection - quiz-specific configuration
 export const Quizzes = {
@@ -182,6 +183,13 @@ export const Quizzes = {
 			name: "rawQuizConfig",
 			type: "json",
 			label: "Raw Quiz Configuration",
+			hooks: {
+				afterRead: [
+					({ value }) => {
+						return tryResolveQuizConfigToLatest(value);
+					},
+				],
+			},
 		},
 		{
 			name: "questions",

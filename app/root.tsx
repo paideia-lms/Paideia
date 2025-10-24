@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import {
 	href,
 	Links,
@@ -8,7 +9,6 @@ import {
 	ScrollRestoration,
 } from "react-router";
 import type { Route } from "./+types/root";
-import { useEffect } from "react";
 import "./app.css";
 import {
 	courseContextKey,
@@ -23,7 +23,12 @@ import "@mantine/charts/styles.css";
 import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
 
-import { ColorSchemeScript, createTheme, MantineProvider, Textarea } from "@mantine/core";
+import {
+	ColorSchemeScript,
+	createTheme,
+	MantineProvider,
+	Textarea,
+} from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -49,7 +54,6 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { InternalServerErrorResponse } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
-
 
 export const middleware = [
 	/**
@@ -229,9 +233,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -299,9 +303,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -418,7 +422,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	};
 }
 
-
 const mantineTheme = createTheme({
 	components: {
 		Textarea: Textarea.extend({
@@ -432,7 +435,6 @@ const mantineTheme = createTheme({
 
 export default function App({ loaderData }: Route.ComponentProps) {
 	const { theme } = loaderData;
-
 
 	return (
 		<html

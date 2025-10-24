@@ -1,65 +1,62 @@
 // Preview components
-export { AssignmentPreview } from "../activity-modules-preview/assignment-preview";
-export { DiscussionPreview } from "../activity-modules-preview/discussion-preview";
-export { PagePreview } from "../activity-modules-preview/page-preview";
-export {
-    QuizPreview,
-    SingleQuizPreview,
-    sampleNestedQuizConfig,
-} from "../activity-modules-preview/quiz-preview";
-export { WhiteboardPreview } from "../activity-modules-preview/whiteboard-preview";
-
-// Nested quiz components
-export { NestedQuizSelector } from "../activity-modules-preview/nested-quiz-selector";
-
-// Nested quiz hooks
-export { useNestedQuizState } from "../activity-modules-preview/use-nested-quiz-state";
 
 // Quiz types
 export type {
-    QuizConfig,
-    NestedQuizConfig,
-    QuizResource,
-    QuizPage,
-    Question,
-    QuestionType,
-    QuestionAnswer,
-    QuizAnswers,
-    GradingConfig,
-    ScoringConfig,
-    SimpleScoring,
-    WeightedScoring,
-    RubricScoring,
-    ManualScoring,
-    PartialMatchScoring,
-    RankingScoring,
-    MatrixScoring,
-    MultipleChoiceQuestion,
-    ShortAnswerQuestion,
-    LongAnswerQuestion,
-    ArticleQuestion,
-    FillInTheBlankQuestion,
-    ChoiceQuestion,
-    RankingQuestion,
-    SingleSelectionMatrixQuestion,
-    MultipleSelectionMatrixQuestion,
-    WhiteboardQuestion,
-    PaideiaRubricDefinition,
-    PaideiaRubricCriterion,
-    PaideiaRubricLevel,
-    PaideiaRubricFilling,
-    PaideiaRubricRemark,
-} from "../activity-modules-preview/quiz-config.types";
-
+	ArticleQuestion,
+	ChoiceQuestion,
+	FillInTheBlankQuestion,
+	GradingConfig,
+	LongAnswerQuestion,
+	ManualScoring,
+	MatrixScoring,
+	MultipleChoiceQuestion,
+	MultipleSelectionMatrixQuestion,
+	NestedQuizConfig,
+	PaideiaRubricCriterion,
+	PaideiaRubricDefinition,
+	PaideiaRubricFilling,
+	PaideiaRubricLevel,
+	PaideiaRubricRemark,
+	PartialMatchScoring,
+	Question,
+	QuestionAnswer,
+	QuestionType,
+	QuizAnswers,
+	QuizConfig,
+	QuizPage,
+	QuizResource,
+	RankingQuestion,
+	RankingScoring,
+	RubricScoring,
+	ScoringConfig,
+	ShortAnswerQuestion,
+	SimpleScoring,
+	SingleSelectionMatrixQuestion,
+	WeightedScoring,
+	WhiteboardQuestion,
+} from "../../../server/json/raw-quiz-config.types.v2";
 // Quiz type guards and helpers
 export {
-    isContainerQuiz,
-    isRegularQuiz,
-    calculateTotalPoints,
-    getQuestionPoints,
-    getScoringDescription,
-    getDefaultScoring,
-} from "../activity-modules-preview/quiz-config.types";
+	calculateTotalPoints,
+	getDefaultScoring,
+	getQuestionPoints,
+	getScoringDescription,
+	isContainerQuiz,
+	isRegularQuiz,
+} from "../../../server/json/raw-quiz-config.types.v2";
+export { AssignmentPreview } from "../activity-modules-preview/assignment-preview";
+export { DiscussionPreview } from "../activity-modules-preview/discussion-preview";
+// Nested quiz components
+export { NestedQuizSelector } from "../activity-modules-preview/nested-quiz-selector";
+export { PagePreview } from "../activity-modules-preview/page-preview";
+export {
+	QuizPreview,
+	SingleQuizPreview,
+	sampleNestedQuizConfig,
+} from "../activity-modules-preview/quiz-preview";
+// Nested quiz hooks
+export { useNestedQuizState } from "../activity-modules-preview/use-nested-quiz-state";
+export { WhiteboardPreview } from "../activity-modules-preview/whiteboard-preview";
 
 // Form components
 export { AssignmentForm } from "./assignment-form";

@@ -43,12 +43,12 @@ export interface UpdateUserGradeArgs {
 export interface AddAdjustmentArgs {
 	gradeId: number;
 	type:
-	| "bonus"
-	| "penalty"
-	| "late_deduction"
-	| "participation"
-	| "curve"
-	| "other";
+		| "bonus"
+		| "penalty"
+		| "late_deduction"
+		| "participation"
+		| "curve"
+		| "other";
 	points: number;
 	reason: string;
 	appliedBy: number;
@@ -82,12 +82,12 @@ export interface UserGradeItem {
 	item_id: number;
 	item_name: string;
 	item_type:
-	| "manual_item"
-	| "page"
-	| "whiteboard"
-	| "assignment"
-	| "quiz"
-	| "discussion";
+		| "manual_item"
+		| "page"
+		| "whiteboard"
+		| "assignment"
+		| "quiz"
+		| "discussion";
 	category_id?: number | null;
 	category_name?: string | null;
 	weight: number;
@@ -228,14 +228,14 @@ export const tryCreateUserGrade = Result.wrap(
 					baseGradeSource,
 					submission: submission
 						? {
-							relationTo:
-								submissionType === "assignment"
-									? "assignment-submissions"
-									: submissionType === "quiz"
-										? "quiz-submissions"
-										: "discussion-submissions",
-							value: submission,
-						}
+								relationTo:
+									submissionType === "assignment"
+										? "assignment-submissions"
+										: submissionType === "quiz"
+											? "quiz-submissions"
+											: "discussion-submissions",
+								value: submission,
+							}
 						: undefined,
 					submissionType,
 					feedback,
@@ -591,12 +591,12 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 							gradedBy,
 							gradedAt:
 								gradeData.baseGrade !== null &&
-									gradeData.baseGrade !== undefined
+								gradeData.baseGrade !== undefined
 									? now
 									: undefined,
 							status:
 								gradeData.baseGrade !== null &&
-									gradeData.baseGrade !== undefined
+								gradeData.baseGrade !== undefined
 									? "graded"
 									: "draft",
 							submittedAt: gradeData.submittedAt,
@@ -618,12 +618,12 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 							gradedBy,
 							gradedAt:
 								gradeData.baseGrade !== null &&
-									gradeData.baseGrade !== undefined
+								gradeData.baseGrade !== undefined
 									? now
 									: undefined,
 							status:
 								gradeData.baseGrade !== null &&
-									gradeData.baseGrade !== undefined
+								gradeData.baseGrade !== undefined
 									? "graded"
 									: "draft",
 							submittedAt: gradeData.submittedAt,
@@ -678,9 +678,9 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 			const gradebookItem =
 				typeof grade.gradebookItem === "number"
 					? await payload.findByID({
-						collection: "gradebook-items",
-						id: grade.gradebookItem,
-					})
+							collection: "gradebook-items",
+							id: grade.gradebookItem,
+						})
 					: grade.gradebookItem;
 
 			if (!gradebookItem) {
@@ -906,13 +906,13 @@ const buildUserGradeRepresentation = async (
 	enrollment: {
 		id: number;
 		user:
-		| number
-		| {
-			id: number;
-			firstName?: string | null;
-			lastName?: string | null;
-			email: string;
-		};
+			| number
+			| {
+					id: number;
+					firstName?: string | null;
+					lastName?: string | null;
+					email: string;
+			  };
 	},
 	gradebookId: number,
 	gradebookItems: Array<{
@@ -922,9 +922,9 @@ const buildUserGradeRepresentation = async (
 		maxGrade: number;
 		minGrade: number;
 		category?:
-		| number
-		| { id: number; name: string; weight?: number | null }
-		| null;
+			| number
+			| { id: number; name: string; weight?: number | null }
+			| null;
 		activityModuleType?: string | string[] | null;
 	}>,
 	gradesByEnrollment: Map<number, UserGrade[]>,
@@ -965,9 +965,9 @@ const buildUserGradeRepresentation = async (
 		const category =
 			typeof item.category === "number"
 				? await payload.findByID({
-					collection: GradebookCategories.slug,
-					id: item.category,
-				})
+						collection: GradebookCategories.slug,
+						id: item.category,
+					})
 				: item.category;
 
 		// Calculate effective weight
@@ -981,21 +981,21 @@ const buildUserGradeRepresentation = async (
 			: item.activityModuleType;
 		const validItemType =
 			itemType &&
-				[
-					"manual_item",
-					"page",
-					"whiteboard",
-					"assignment",
-					"quiz",
-					"discussion",
-				].includes(itemType)
+			[
+				"manual_item",
+				"page",
+				"whiteboard",
+				"assignment",
+				"quiz",
+				"discussion",
+			].includes(itemType)
 				? (itemType as
-					| "manual_item"
-					| "page"
-					| "whiteboard"
-					| "assignment"
-					| "quiz"
-					| "discussion")
+						| "manual_item"
+						| "page"
+						| "whiteboard"
+						| "assignment"
+						| "quiz"
+						| "discussion")
 				: "manual_item";
 
 		items.push({
@@ -1124,7 +1124,7 @@ export const tryGetUserGradesJsonRepresentation = Result.wrap(
 					gradesByEnrollment,
 				);
 				enrollmentRepresentations.push(enrollmentRep);
-			} catch { }
+			} catch {}
 		}
 
 		const result: UserGradesJsonRepresentation = {

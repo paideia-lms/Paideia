@@ -3,10 +3,7 @@ import { CourseActivityModuleLinks } from "server/collections/course-activity-mo
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
-import {
-	transformError,
-	UnknownError,
-} from "~/utils/error";
+import { transformError, UnknownError } from "~/utils/error";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -93,64 +90,66 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
  */
 export const tryFindLinksByCourse = Result.wrap(
 	async (payload: Payload, courseId: number) => {
-		const links = await payload.find({
-			collection: CourseActivityModuleLinks.slug,
-			where: {
-				course: {
-					equals: courseId,
-				},
-			},
-			depth: 2,
-			pagination: false,
-			sort: "-createdAt",
-		}).then((result) => {
-			return result.docs.map((link) => {
-				const linkCourse = link.course;
-				assertZodInternal(
-					"tryFindLinksByCourse: Course is required",
-					linkCourse,
-					z.object({ id: z.number() }),
-				);
-
-				const linkActivityModule = link.activityModule;
-				assertZodInternal(
-					"tryFindLinksByCourse: Activity module is required",
-					linkActivityModule,
-					z.object({ id: z.number() }),
-				);
-
-				const moduleCreatedBy = linkActivityModule.createdBy;
-				assertZodInternal(
-					"tryFindLinksByCourse: Module created by is required",
-					moduleCreatedBy,
-					z.object({ id: z.number() }),
-				);
-
-				const moduleCreatedByAvatar = moduleCreatedBy.avatar;
-				assertZodInternal(
-					"tryFindLinksByCourse: Module created by avatar is required",
-					moduleCreatedByAvatar,
-					z.object({
-						id: z.number(),
-					}).nullish(),
-				);
-
-				return {
-					...link,
-					course: linkCourse,
-					activityModule: {
-						...linkActivityModule,
-						createdBy: {
-							...moduleCreatedBy,
-							avatar: moduleCreatedByAvatar,
-						},
+		const links = await payload
+			.find({
+				collection: CourseActivityModuleLinks.slug,
+				where: {
+					course: {
+						equals: courseId,
 					},
-				};
+				},
+				depth: 2,
+				pagination: false,
+				sort: "-createdAt",
+			})
+			.then((result) => {
+				return result.docs.map((link) => {
+					const linkCourse = link.course;
+					assertZodInternal(
+						"tryFindLinksByCourse: Course is required",
+						linkCourse,
+						z.object({ id: z.number() }),
+					);
+
+					const linkActivityModule = link.activityModule;
+					assertZodInternal(
+						"tryFindLinksByCourse: Activity module is required",
+						linkActivityModule,
+						z.object({ id: z.number() }),
+					);
+
+					const moduleCreatedBy = linkActivityModule.createdBy;
+					assertZodInternal(
+						"tryFindLinksByCourse: Module created by is required",
+						moduleCreatedBy,
+						z.object({ id: z.number() }),
+					);
+
+					const moduleCreatedByAvatar = moduleCreatedBy.avatar;
+					assertZodInternal(
+						"tryFindLinksByCourse: Module created by avatar is required",
+						moduleCreatedByAvatar,
+						z
+							.object({
+								id: z.number(),
+							})
+							.nullish(),
+					);
+
+					return {
+						...link,
+						course: linkCourse,
+						activityModule: {
+							...linkActivityModule,
+							createdBy: {
+								...moduleCreatedBy,
+								avatar: moduleCreatedByAvatar,
+							},
+						},
+					};
+				});
 			});
-		})
 		return links;
-
-
 	},
 	(error) =>
 		transformError(error) ??
@@ -178,16 +177,28 @@ export const tryFindLinksByActivityModule = Result.wrap(
 			.then((result) => {
 				return result.docs.map((doc) => {
 					const course = doc.course;
-					assertZodInternal("tryFindLinksByActivityModule: Course is required", course, z.object({ id: z.number() }));
+					assertZodInternal(
+						"tryFindLinksByActivityModule: Course is required",
+						course,
+						z.object({ id: z.number() }),
+					);
 					const activityModule = doc.activityModule;
 					assertZodInternal(
 						"tryFindLinksByActivityModule: Activity module is required",
 						activityModule,
 						z.object({ id: z.number() }),
 					);
-					assertZodInternal("tryFindLinksByActivityModule: Activity module is required", activityModule, z.object({ id: z.number() }));
+					assertZodInternal(
+						"tryFindLinksByActivityModule: Activity module is required",
+						activityModule,
+						z.object({ id: z.number() }),
+					);
 					const section = doc.section;
-					assertZodInternal("tryFindLinksByActivityModule: Section is required", section, z.object({ id: z.number() }));
+					assertZodInternal(
+						"tryFindLinksByActivityModule: Section is required",
+						section,
+						z.object({ id: z.number() }),
+					);
 					return {
 						...doc,
 						course,

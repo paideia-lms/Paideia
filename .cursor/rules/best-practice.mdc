@@ -24,7 +24,7 @@ in loader and actions, we need to use `overrideAccess` to false and provide the 
 
 we don't check for access in loader and actions. we only check for access in internal functions and through access hook in collections. 
 
-we only use mantine form uncontrolled mode for all forms. always use `cascadeUpdates` for mantine form. use `useFormWatchValue` for conditional rendering.
+we only use mantine form uncontrolled mode for all forms. always use `cascadeUpdates` for mantine form. use `useFormWatchValue` for conditional rendering. always use `form.getValues()` with `useFormWatchValue`.
 
 ## contexts 
 

@@ -349,11 +349,9 @@ export const tryFindCourseById = Result.wrap(
 				assertZodInternal(
 					"tryFindCourseById: Course createdBy is required",
 					courseCreatedBy,
-					z.object(
-						{
-							id: z.number(),
-						},
-					),
+					z.object({
+						id: z.number(),
+					}),
 				);
 
 				const courseCreatedByAvatar = courseCreatedBy.avatar;
@@ -499,11 +497,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-							...category,
-							parent,
-							courses: categoryCourses,
-							subcategories: categorySubcategories,
-						}
+								...category,
+								parent,
+								courses: categoryCourses,
+								subcategories: categorySubcategories,
+							}
 						: null,
 					sections,
 				};

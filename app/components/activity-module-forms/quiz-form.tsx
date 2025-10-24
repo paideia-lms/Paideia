@@ -1,193 +1,188 @@
 import {
-    Divider,
-    NumberInput,
-    Select,
-    Stack,
-    Textarea,
-    Title,
+	Divider,
+	NumberInput,
+	Select,
+	Stack,
+	Textarea,
+	Title,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import type { UseFormReturnType } from "@mantine/form";
-import { useEffect, useState } from "react";
-import type { QuizConfig } from "~/components/activity-modules-preview/quiz-config.types";
+import { useEffect } from "react";
+import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import { useFormWatchValue } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
-import {
-    ContainerQuizBuilder,
-    RegularQuizBuilder,
-} from "./quiz-builder-v2";
-
-// Quiz Type Selector
-interface QuizTypeSelectorProps {
-    value: "regular" | "container";
-    onChange: (value: "regular" | "container") => void;
-}
-
-function QuizTypeSelector({ value, onChange }: QuizTypeSelectorProps) {
-    return (
-        <Select
-            label="Quiz Type"
-            description="Choose between a regular quiz or a container quiz with multiple quizzes"
-            value={value}
-            onChange={(val) => onChange(val as "regular" | "container")}
-            data={[
-                { value: "regular", label: "Regular Quiz" },
-                { value: "container", label: "Container Quiz (Multiple Quizzes)" },
-            ]}
-        />
-    );
-}
-
+import { ContainerQuizBuilder, RegularQuizBuilder } from "./quiz-builder-v2";
 
 interface QuizFormProps {
-    form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<ActivityModuleFormValues>;
 }
 
 export function QuizForm({ form }: QuizFormProps) {
-    // Get current rawQuizConfig from form, or initialize with default
-    const currentRawQuizConfig = form.getValues().rawQuizConfig;
+	// Get current rawQuizConfig from form, or initialize with default
+	const currentRawQuizConfig = form.getValues().rawQuizConfig;
 
-    // Track quiz type (regular vs container)
-    const [quizType, setQuizType] = useState<"regular" | "container">(() => {
-        if (currentRawQuizConfig) {
-            return currentRawQuizConfig.nestedQuizzes &&
-                currentRawQuizConfig.nestedQuizzes.length > 0
-                ? "container"
-                : "regular";
-        }
-        return "regular";
-    });
+	// Initialize quiz config if it doesn't exist
+	// biome-ignore lint/correctness/useExhaustiveDependencies: initialization only needs to run once on mount
+	useEffect(() => {
+		if (!currentRawQuizConfig) {
+			const initialConfig: QuizConfig = {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: form.getValues().title || "New Quiz",
+				pages: [],
+			};
+			form.setFieldValue("rawQuizConfig", initialConfig);
+		}
+	}, []);
 
-    // Initialize quiz config if it doesn't exist
-    // biome-ignore lint/correctness/useExhaustiveDependencies: initialization only needs to run once on mount
-    useEffect(() => {
-        if (!currentRawQuizConfig) {
-            const initialConfig: QuizConfig = {
-                id: `quiz-${Date.now()}`,
-                title: form.getValues().title || "New Quiz",
-                pages: [],
-            };
-            form.setFieldValue("rawQuizConfig", initialConfig);
-        }
-    }, []);
+	return (
+		<Stack gap="md">
+			<CommonFields form={form} />
 
-    const handleQuizTypeChange = (newType: "regular" | "container") => {
-        setQuizType(newType);
+			<Textarea
+				{...form.getInputProps("description")}
+				key={form.key("description")}
+				label="Description"
+				placeholder="Enter module description"
+				minRows={3}
+				autosize
+			/>
 
-        // Transform config when switching types
-        const currentConfig = form.getValues().rawQuizConfig;
-        if (!currentConfig) return;
+			<Title order={4} mt="md">
+				Legacy Quiz Settings (Optional)
+			</Title>
 
-        if (newType === "regular") {
-            // Convert container to regular: flatten nested quizzes into pages
-            const newConfig: QuizConfig = {
-                ...currentConfig,
-                pages: currentConfig.nestedQuizzes
-                    ? currentConfig.nestedQuizzes.flatMap((nq) => nq.pages)
-                    : currentConfig.pages || [],
-                nestedQuizzes: undefined,
-                sequentialOrder: undefined,
-            };
-            form.setFieldValue("rawQuizConfig", newConfig);
-        } else {
-            // Convert regular to container: wrap pages in a nested quiz
-            const newConfig: QuizConfig = {
-                ...currentConfig,
-                nestedQuizzes: [
-                    {
-                        id: `nested-${Date.now()}`,
-                        title: "Quiz Section 1",
-                        pages: currentConfig.pages || [],
-                    },
-                ],
-                pages: undefined,
-                sequentialOrder: false,
-            };
-            form.setFieldValue("rawQuizConfig", newConfig);
-        }
-    };
+			<Textarea
+				{...form.getInputProps("quizInstructions")}
+				key={form.key("quizInstructions")}
+				label="Instructions"
+				placeholder="Enter quiz instructions"
+				minRows={3}
+			/>
 
-    const currentConfig = form.getValues().rawQuizConfig;
+			<DateTimePicker
+				{...form.getInputProps("quizDueDate")}
+				key={form.key("quizDueDate")}
+				label="Due Date"
+				placeholder="Select due date"
+			/>
 
-    return (
-        <Stack gap="md">
-            <CommonFields form={form} />
+			<NumberInput
+				{...form.getInputProps("quizMaxAttempts")}
+				key={form.key("quizMaxAttempts")}
+				label="Max Attempts"
+				placeholder="Enter max attempts"
+				min={1}
+			/>
 
-            <Textarea
-                {...form.getInputProps("description")}
-                key={form.key("description")}
-                label="Description"
-                placeholder="Enter module description"
-                minRows={3}
-                autosize
-            />
+			<NumberInput
+				{...form.getInputProps("quizPoints")}
+				key={form.key("quizPoints")}
+				label="Total Points"
+				placeholder="Enter total points"
+				min={0}
+			/>
 
-            <Title order={4} mt="md">
-                Legacy Quiz Settings (Optional)
-            </Title>
+			<NumberInput
+				{...form.getInputProps("quizTimeLimit")}
+				key={form.key("quizTimeLimit")}
+				label="Time Limit (minutes)"
+				placeholder="Enter time limit in minutes"
+				min={1}
+			/>
 
-            <Textarea
-                {...form.getInputProps("quizInstructions")}
-                key={form.key("quizInstructions")}
-                label="Instructions"
-                placeholder="Enter quiz instructions"
-                minRows={3}
-            />
+			<Select
+				{...form.getInputProps("quizGradingType")}
+				key={form.key("quizGradingType")}
+				label="Grading Type"
+				data={[
+					{ value: "automatic", label: "Automatic" },
+					{ value: "manual", label: "Manual" },
+				]}
+			/>
 
-            <DateTimePicker
-                {...form.getInputProps("quizDueDate")}
-                key={form.key("quizDueDate")}
-                label="Due Date"
-                placeholder="Select due date"
-            />
+			<Divider my="xl" />
 
-            <NumberInput
-                {...form.getInputProps("quizMaxAttempts")}
-                key={form.key("quizMaxAttempts")}
-                label="Max Attempts"
-                placeholder="Enter max attempts"
-                min={1}
-            />
+			<QuizBuilder form={form} />
+		</Stack>
+	);
+}
 
-            <NumberInput
-                {...form.getInputProps("quizPoints")}
-                key={form.key("quizPoints")}
-                label="Total Points"
-                placeholder="Enter total points"
-                min={0}
-            />
+function QuizBuilder({
+	form,
+}: {
+	form: UseFormReturnType<ActivityModuleFormValues>;
+}) {
+	// Watch the quiz type from form
+	const quizType = useFormWatchValue(form, "rawQuizConfig.type");
 
-            <NumberInput
-                {...form.getInputProps("quizTimeLimit")}
-                key={form.key("quizTimeLimit")}
-                label="Time Limit (minutes)"
-                placeholder="Enter time limit in minutes"
-                min={1}
-            />
+	const handleQuizTypeChange = (newType: "regular" | "container") => {
+		if (quizType === newType) return;
 
-            <Select
-                {...form.getInputProps("quizGradingType")}
-                key={form.key("quizGradingType")}
-                label="Grading Type"
-                data={[
-                    { value: "automatic", label: "Automatic" },
-                    { value: "manual", label: "Manual" },
-                ]}
-            />
+		const config = form.getValues().rawQuizConfig;
 
-            <Divider my="xl" />
+		if (!config) return;
 
-            <Title order={3}>Visual Quiz Builder</Title>
+		if (newType === "regular") {
+			// Convert container to regular
+			const newConfig: QuizConfig = {
+				version: "v2",
+				type: "regular",
+				id: config.id,
+				title: config.title,
+				pages:
+					config.type === "container"
+						? config.nestedQuizzes.flatMap((nq) => nq.pages)
+						: [],
+				resources: config.type === "regular" ? config.resources : undefined,
+				globalTimer: config.globalTimer,
+				grading: config.grading,
+			};
+			form.setFieldValue("rawQuizConfig", newConfig);
+		} else {
+			// Convert regular to container
+			const newConfig: QuizConfig = {
+				version: "v2",
+				type: "container",
+				id: config.id,
+				title: config.title,
+				nestedQuizzes: [
+					{
+						id: `nested-${Date.now()}`,
+						title: "Quiz Section 1",
+						pages: config.type === "regular" ? config.pages : [],
+						resources: config.type === "regular" ? config.resources : undefined,
+					},
+				],
+				sequentialOrder: false,
+				globalTimer: config.globalTimer,
+				grading: config.grading,
+			};
+			form.setFieldValue("rawQuizConfig", newConfig);
+		}
+	};
 
-            <QuizTypeSelector value={quizType} onChange={handleQuizTypeChange} />
+	return (
+		<>
+			<Title order={3}>Visual Quiz Builder</Title>
 
-            {currentConfig && quizType === "regular" && (
-                <RegularQuizBuilder form={form} />
-            )}
+			<Select
+				label="Quiz Type"
+				description="Choose between a regular quiz or a container quiz with multiple quizzes"
+				value={quizType}
+				onChange={(val) => handleQuizTypeChange(val as "regular" | "container")}
+				data={[
+					{ value: "regular", label: "Regular Quiz" },
+					{ value: "container", label: "Container Quiz (Multiple Quizzes)" },
+				]}
+			/>
 
-            {currentConfig && quizType === "container" && (
-                <ContainerQuizBuilder form={form} />
-            )}
-        </Stack>
-    );
+			{quizType === "regular" && <RegularQuizBuilder form={form} />}
+
+			{quizType === "container" && <ContainerQuizBuilder form={form} />}
+		</>
+	);
 }

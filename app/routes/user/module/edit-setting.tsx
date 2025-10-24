@@ -16,7 +16,6 @@ import {
 	QuizForm,
 	WhiteboardForm,
 } from "~/components/activity-module-forms";
-import type { QuizConfig } from "~/components/activity-modules-preview/quiz-config.types";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
@@ -141,15 +140,13 @@ export function useUpdateModule() {
 
 	const updateModule = (moduleId: string, values: ActivityModuleFormValues) => {
 		const submissionData = transformFormValues(values);
-		fetcher.submit(
-			submissionData as any,
-			{
-				method: "POST",
-				action: href("/user/module/edit/:moduleId/setting", {
-					moduleId,
-				}),
-				encType: ContentType.JSON,
-			});
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: href("/user/module/edit/:moduleId/setting", {
+				moduleId,
+			}),
+			encType: ContentType.JSON,
+		});
 	};
 
 	return {
@@ -158,7 +155,6 @@ export function useUpdateModule() {
 		data: fetcher.data,
 	};
 }
-
 
 export default function EditModulePage() {
 	const { module } = useLoaderData<typeof loader>();
@@ -172,7 +168,10 @@ export default function EditModulePage() {
 	const discussionData = module.discussion;
 
 	// Mantine Form
-	const mantineForm = useForm<ActivityModuleFormValues>({
+	const mantineForm = useForm<
+		ActivityModuleFormValues,
+		(values: ActivityModuleFormValues) => ActivityModuleFormValues
+	>({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
@@ -205,9 +204,7 @@ export default function EditModulePage() {
 			quizPoints: quizData?.points || 100,
 			quizTimeLimit: quizData?.timeLimit || 60,
 			quizGradingType: quizData?.gradingType || "automatic",
-			rawQuizConfig: quizData?.rawQuizConfig
-				? (quizData.rawQuizConfig as QuizConfig)
-				: null,
+			rawQuizConfig: quizData?.rawQuizConfig || null,
 			// Discussion fields
 			discussionInstructions: discussionData?.instructions || "",
 			discussionDueDate: discussionData?.dueDate
@@ -269,16 +266,15 @@ export default function EditModulePage() {
 							{selectedType === "whiteboard" && (
 								<WhiteboardForm form={mantineForm} />
 							)}
-							{selectedType === "assignment" && <AssignmentForm form={mantineForm} />}
+							{selectedType === "assignment" && (
+								<AssignmentForm form={mantineForm} />
+							)}
 							{selectedType === "quiz" && <QuizForm form={mantineForm} />}
-							{selectedType === "discussion" && <DiscussionForm form={mantineForm} />}
+							{selectedType === "discussion" && (
+								<DiscussionForm form={mantineForm} />
+							)}
 
-							<Button
-								type="submit"
-								size="lg"
-								mt="lg"
-								loading={isLoading}
-							>
+							<Button type="submit" size="lg" mt="lg" loading={isLoading}>
 								Update Module
 							</Button>
 						</Stack>

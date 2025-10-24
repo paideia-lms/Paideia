@@ -45,7 +45,9 @@ export default function EditModulePage() {
 
 			{module.type === "assignment" && <AssignmentPreview />}
 
-			{module.type === "quiz" && <QuizPreview quizConfig={sampleNestedQuizConfig} />}
+			{module.type === "quiz" && (
+				<QuizPreview quizConfig={sampleNestedQuizConfig} />
+			)}
 
 			{module.type === "discussion" && <DiscussionPreview />}
 		</Container>

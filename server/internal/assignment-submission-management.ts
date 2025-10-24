@@ -407,7 +407,7 @@ export const trySubmitAssignment = Result.wrap(
 
 		const assignment = updatedSubmission.assignment;
 		assertZodInternal(
-			'trySubmitAssignment: Assignment is required',
+			"trySubmitAssignment: Assignment is required",
 			assignment,
 			z.object({
 				id: z.number(),
@@ -416,7 +416,7 @@ export const trySubmitAssignment = Result.wrap(
 
 		const student = updatedSubmission.student;
 		assertZodInternal(
-			'trySubmitAssignment: Student is required',
+			"trySubmitAssignment: Student is required",
 			student,
 			z.object({
 				id: z.number(),
@@ -425,7 +425,7 @@ export const trySubmitAssignment = Result.wrap(
 
 		const enrollment = updatedSubmission.enrollment;
 		assertZodInternal(
-			'trySubmitAssignment: Enrollment is required',
+			"trySubmitAssignment: Enrollment is required",
 			enrollment,
 			z.object({
 				id: z.number(),
@@ -518,7 +518,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			// Get assignment to verify it exists
 			const assignmentId =
 				typeof currentSubmission.assignment === "object" &&
-					"id" in currentSubmission.assignment
+				"id" in currentSubmission.assignment
 					? currentSubmission.assignment.id
 					: (currentSubmission.assignment as number);
 
@@ -571,7 +571,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 			const activityModule = updatedSubmission.activityModule;
 			assertZodInternal(
-				'tryGradeAssignmentSubmission: Activity module is required',
+				"tryGradeAssignmentSubmission: Activity module is required",
 				activityModule,
 				z.object({
 					id: z.number(),
@@ -580,7 +580,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 			const assignmentRef = updatedSubmission.assignment;
 			assertZodInternal(
-				'tryGradeAssignmentSubmission: Assignment is required',
+				"tryGradeAssignmentSubmission: Assignment is required",
 				assignmentRef,
 				z.object({
 					id: z.number(),
@@ -589,7 +589,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 			const student = updatedSubmission.student;
 			assertZodInternal(
-				'tryGradeAssignmentSubmission: Student is required',
+				"tryGradeAssignmentSubmission: Student is required",
 				student,
 				z.object({
 					id: z.number(),
@@ -598,7 +598,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 			const enrollment = updatedSubmission.enrollment;
 			assertZodInternal(
-				'tryGradeAssignmentSubmission: Enrollment is required',
+				"tryGradeAssignmentSubmission: Enrollment is required",
 				enrollment,
 				z.object({
 					id: z.number(),
@@ -688,28 +688,28 @@ export const tryListAssignmentSubmissions = Result.wrap(
 		// type narrowing
 		const docs = result.docs.map((doc) => {
 			assertZodInternal(
-				'tryListAssignmentSubmissions: Activity module is required',
+				"tryListAssignmentSubmissions: Activity module is required",
 				doc.activityModule,
 				z.object({
 					id: z.number(),
 				}),
 			);
 			assertZodInternal(
-				'tryListAssignmentSubmissions: Assignment is required',
+				"tryListAssignmentSubmissions: Assignment is required",
 				doc.assignment,
 				z.object({
 					id: z.number(),
 				}),
 			);
 			assertZodInternal(
-				'tryListAssignmentSubmissions: Student is required',
+				"tryListAssignmentSubmissions: Student is required",
 				doc.student,
 				z.object({
 					id: z.number(),
 				}),
 			);
 			assertZodInternal(
-				'tryListAssignmentSubmissions: Enrollment is required',
+				"tryListAssignmentSubmissions: Enrollment is required",
 				doc.enrollment,
 				z.object({
 					id: z.number(),

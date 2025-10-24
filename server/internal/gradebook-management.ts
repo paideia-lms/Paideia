@@ -34,13 +34,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-	| "manual_item"
-	| "category"
-	| "page"
-	| "whiteboard"
-	| "assignment"
-	| "quiz"
-	| "discussion";
+		| "manual_item"
+		| "category"
+		| "page"
+		| "whiteboard"
+		| "assignment"
+		| "quiz"
+		| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
@@ -315,7 +315,8 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 
 		// Get course ID from gradebook
 		const courseId = gradebook.course;
-		assertZodInternal("tryGetGradebookJsonRepresentation: Course is required",
+		assertZodInternal(
+			"tryGetGradebookJsonRepresentation: Course is required",
 			courseId,
 			z.number(),
 		);
@@ -346,17 +347,20 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 
 				return categories.map((category) => {
 					const parent = category.parent;
-					assertZodInternal("tryGetGradebookJsonRepresentation: Parent is required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: Parent is required",
 						parent,
 						z.number().nullish(),
 					);
 					const subcategories = category.subcategories?.docs ?? [];
-					assertZodInternal("tryGetGradebookJsonRepresentation: Subcategories are required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: Subcategories are required",
 						subcategories,
 						z.array(z.number()),
 					);
 					const items = category.items?.docs ?? [];
-					assertZodInternal("tryGetGradebookJsonRepresentation: Items are required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: Items are required",
 						items,
 						z.array(z.number()),
 					);
@@ -394,19 +398,22 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 				return items.map((item) => {
 					// type narrowing
 					const category = item.category;
-					assertZodInternal("tryGetGradebookJsonRepresentation: Category is required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: Category is required",
 						category,
 						z.number().nullish(),
 					);
 
 					const activityModule = item.activityModule;
-					assertZodInternal("tryGetGradebookJsonRepresentation: Activity module is required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: Activity module is required",
 						activityModule,
 						z.number().nullish(),
 					);
 
 					const userGrades = item.userGrades;
-					assertZodInternal("tryGetGradebookJsonRepresentation: User grades are required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: User grades are required",
 						userGrades,
 						z.undefined(),
 					);
@@ -414,13 +421,18 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 					const type = item.activityModuleType;
 					//   type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
 
-					assertZodInternal("tryGetGradebookJsonRepresentation: Type is required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: Type is required",
 						type,
-						z.enum(["page", "whiteboard", "assignment", "quiz", "discussion"]).array().nullish(),
+						z
+							.enum(["page", "whiteboard", "assignment", "quiz", "discussion"])
+							.array()
+							.nullish(),
 					);
 
 					const activityModuleName = item.activityModuleName;
-					assertZodInternal("tryGetGradebookJsonRepresentation: Activity module name is required",
+					assertZodInternal(
+						"tryGetGradebookJsonRepresentation: Activity module name is required",
 						activityModuleName,
 						z.string().nullish(),
 					);

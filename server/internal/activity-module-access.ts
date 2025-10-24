@@ -599,12 +599,12 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				firstName: string | null;
 				lastName: string | null;
 				avatar?:
-				| number
-				| {
-					id: number;
-					filename?: string;
-				}
-				| null;
+					| number
+					| {
+							id: number;
+							filename?: string;
+					  }
+					| null;
 				enrollments: {
 					courseId: number;
 					role: "teacher" | "ta";
@@ -744,18 +744,24 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 						assertZodInternal(
 							"tryFindAutoGrantedModulesForInstructor: Activity module is required",
 							activityModule,
-							z.object({
-								id: z.number(),
-							}, { error: "Activity module is required" }),
+							z.object(
+								{
+									id: z.number(),
+								},
+								{ error: "Activity module is required" },
+							),
 						);
 
 						const activityModuleOwner = activityModule.owner;
 						assertZodInternal(
 							"tryFindAutoGrantedModulesForInstructor: Activity module owner is required",
 							activityModuleOwner,
-							z.object({
-								id: z.number(),
-							}, { error: "Activity module owner is required" }),
+							z.object(
+								{
+									id: z.number(),
+								},
+								{ error: "Activity module owner is required" },
+							),
 						);
 
 						const activityModuleOwnerAvatar = activityModuleOwner.avatar;
@@ -763,17 +769,20 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 							"tryFindAutoGrantedModulesForInstructor: Activity module owner avatar is required",
 							activityModuleOwnerAvatar,
 							z
-								.number({ error: "Activity module owner avatar is required" }).nullish()
-							,
+								.number({ error: "Activity module owner avatar is required" })
+								.nullish(),
 						);
 
 						const activityModuleCreatedBy = activityModule.createdBy;
 						assertZodInternal(
 							"tryFindAutoGrantedModulesForInstructor: Activity module created by is required",
 							activityModuleCreatedBy,
-							z.object({
-								id: z.number(),
-							}, { error: "Activity module created by is required" }),
+							z.object(
+								{
+									id: z.number(),
+								},
+								{ error: "Activity module created by is required" },
+							),
 						);
 
 						const activityModuleCreatedByAvatar =
@@ -782,12 +791,19 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 							"tryFindAutoGrantedModulesForInstructor: Activity module created by avatar is required",
 							activityModuleCreatedByAvatar,
 							z
-								.number({ error: "Activity module created by avatar is required" }).nullish()
+								.number({
+									error: "Activity module created by avatar is required",
+								})
+								.nullish(),
 						);
 
 						const activityModuleLinkedCourses =
 							activityModule.linkedCourses?.docs?.map((c) => {
-								assertZodInternal("tryFindAutoGrantedModulesForInstructor: Activity module linked courses is required", c, z.number());
+								assertZodInternal(
+									"tryFindAutoGrantedModulesForInstructor: Activity module linked courses is required",
+									c,
+									z.number(),
+								);
 								return c;
 							}) ?? [];
 

@@ -1,3 +1,4 @@
+import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 import {
 	ActionIcon,
 	Alert,
@@ -16,30 +17,44 @@ import {
 	Title,
 	Tooltip,
 } from "@mantine/core";
-import { IconClock, IconFlag, IconFlagFilled, IconInfoCircle } from "@tabler/icons-react";
+import {
+	IconClock,
+	IconFlag,
+	IconFlagFilled,
+	IconInfoCircle,
+} from "@tabler/icons-react";
 import { memo, useState } from "react";
-import { RichTextRenderer } from "../rich-text-renderer";
-import { QuestionRenderer } from "./question-renderer";
 import type {
+	NestedQuizConfig,
 	Question,
 	QuestionAnswer,
 	QuizAnswers,
 	QuizConfig,
 	QuizResource,
-	NestedQuizConfig,
-} from "./quiz-config.types";
-import { isContainerQuiz, isRegularQuiz, getQuestionPoints, calculateTotalPoints, getScoringDescription } from "./quiz-config.types";
+	RegularQuizConfig,
+} from "../../../server/json/raw-quiz-config.types.v2";
+import {
+	calculateTotalPoints,
+	getQuestionPoints,
+	getScoringDescription,
+	isContainerQuiz,
+	isRegularQuiz,
+} from "../../../server/json/raw-quiz-config.types.v2";
+import { RichTextRenderer } from "../rich-text-renderer";
 import { NestedQuizSelector } from "./nested-quiz-selector";
+import { QuestionRenderer } from "./question-renderer";
+import { useNestedQuizState } from "./use-nested-quiz-state";
 import { useQuizForm } from "./use-quiz-form";
 import { useQuizTimer } from "./use-quiz-timer";
-import { useNestedQuizState } from "./use-nested-quiz-state";
-import type { ExcalidrawInitialDataState } from "@excalidraw/excalidraw/types";
 
 /**
  * Helper function to check if a question is truly answered
  * For whiteboard questions, checks if elements array is non-empty
  */
-function isQuestionAnswered(question: Question, value: QuestionAnswer | undefined): boolean {
+function isQuestionAnswered(
+	question: Question,
+	value: QuestionAnswer | undefined,
+): boolean {
 	if (value === undefined || value === null) {
 		return false;
 	}
@@ -51,7 +66,11 @@ function isQuestionAnswered(question: Question, value: QuestionAnswer | undefine
 		}
 		try {
 			const data = JSON.parse(value) as ExcalidrawInitialDataState;
-			return Array.isArray(data.elements) && data.elements.length > 0 && data.elements.filter((element) => !element.isDeleted).length > 0;
+			return (
+				Array.isArray(data.elements) &&
+				data.elements.length > 0 &&
+				data.elements.filter((element) => !element.isDeleted).length > 0
+			);
 		} catch {
 			return false;
 		}
@@ -76,40 +95,42 @@ function isQuestionAnswered(question: Question, value: QuestionAnswer | undefine
 }
 
 // Memoized timer display component to prevent unnecessary re-renders
-const TimerDisplay = memo(({
-	initialTime,
-	onExpire,
-}: {
-	initialTime?: number;
-	onExpire: () => void;
-}) => {
-	const timer = useQuizTimer({ initialTime, onExpire });
+const TimerDisplay = memo(
+	({
+		initialTime,
+		onExpire,
+	}: {
+		initialTime?: number;
+		onExpire: () => void;
+	}) => {
+		const timer = useQuizTimer({ initialTime, onExpire });
 
-	if (!initialTime) return null;
+		if (!initialTime) return null;
 
-	const getTimerColor = (timeLeft: number | null, initial?: number) => {
-		if (timeLeft === null || !initial) return "blue";
-		const percentage = (timeLeft / initial) * 100;
-		if (percentage > 50) return "green";
-		if (percentage > 20) return "yellow";
-		return "red";
-	};
+		const getTimerColor = (timeLeft: number | null, initial?: number) => {
+			if (timeLeft === null || !initial) return "blue";
+			const percentage = (timeLeft / initial) * 100;
+			if (percentage > 50) return "green";
+			if (percentage > 20) return "yellow";
+			return "red";
+		};
 
-	return (
-		<Badge
-			size="lg"
-			color={getTimerColor(timer.timeLeft, initialTime)}
-			leftSection={<IconClock size={16} />}
-		>
-			{timer.formattedTime}
-		</Badge>
-	);
-});
+		return (
+			<Badge
+				size="lg"
+				color={getTimerColor(timer.timeLeft, initialTime)}
+				leftSection={<IconClock size={16} />}
+			>
+				{timer.formattedTime}
+			</Badge>
+		);
+	},
+);
 
 TimerDisplay.displayName = "TimerDisplay";
 
 interface SingleQuizPreviewProps {
-	quizConfig?: QuizConfig | NestedQuizConfig;
+	quizConfig?: RegularQuizConfig | NestedQuizConfig;
 	readonly?: boolean;
 	initialAnswers?: QuizAnswers;
 	onSubmit?: (answers: QuizAnswers) => void;
@@ -126,12 +147,17 @@ export function SingleQuizPreview({
 	disableInteraction = false,
 }: SingleQuizPreviewProps) {
 	const [showResults, setShowResults] = useState(false);
-	const [submittedAnswers, setSubmittedAnswers] = useState<Record<string, unknown> | null>(null);
+	const [submittedAnswers, setSubmittedAnswers] = useState<Record<
+		string,
+		unknown
+	> | null>(null);
 	const [isGlobalTimerExpired, setIsGlobalTimerExpired] = useState(false);
 
 	// Always call hooks - no conditional hook calls
 	// Provide a default empty config to avoid hook issues
 	const defaultConfig: QuizConfig = {
+		version: "v2",
+		type: "regular",
 		id: "empty",
 		title: "Empty Quiz",
 		pages: [],
@@ -145,7 +171,7 @@ export function SingleQuizPreview({
 
 	const handleSubmit = () => {
 		if (!quizConfig) return;
-		const answers = quiz.form.getValues().answers;
+		const answers = quiz.answers;
 		setSubmittedAnswers(answers);
 		setShowResults(true);
 
@@ -177,9 +203,7 @@ export function SingleQuizPreview({
 					<Text c="dimmed">
 						No quiz configuration provided or quiz has no pages.
 					</Text>
-					<Code
-						block
-					>{JSON.stringify(quizConfig, null, 2)}</Code>
+					<Code block>{JSON.stringify(quizConfig, null, 2)}</Code>
 				</Stack>
 			</Paper>
 		);
@@ -193,14 +217,11 @@ export function SingleQuizPreview({
 			<Paper withBorder p="xl" radius="md">
 				<Stack gap="md">
 					<Title order={3}>Quiz Error</Title>
-					<Text c="dimmed">
-						Invalid page index. Please restart the quiz.
-					</Text>
+					<Text c="dimmed">Invalid page index. Please restart the quiz.</Text>
 				</Stack>
 			</Paper>
 		);
 	}
-
 
 	const progressValue =
 		quizConfig.pages.length > 0
@@ -246,7 +267,8 @@ export function SingleQuizPreview({
 					{/* Readonly Banner */}
 					{readonly && (
 						<Alert color="blue" title="Read-only Mode">
-							You are viewing a previously submitted quiz. No changes can be made.
+							You are viewing a previously submitted quiz. No changes can be
+							made.
 						</Alert>
 					)}
 
@@ -285,7 +307,13 @@ export function SingleQuizPreview({
 
 					{/* Timer Expired Warning */}
 					{isGlobalTimerExpired && !readonly && (
-						<Paper withBorder p="md" radius="sm" bg="red.0" style={{ borderColor: "var(--mantine-color-red-6)" }}>
+						<Paper
+							withBorder
+							p="md"
+							radius="sm"
+							bg="red.0"
+							style={{ borderColor: "var(--mantine-color-red-6)" }}
+						>
 							<Group gap="sm">
 								<IconClock size={20} color="var(--mantine-color-red-6)" />
 								<Text size="sm" c="red" fw={500}>
@@ -304,10 +332,12 @@ export function SingleQuizPreview({
 							<Group gap="xs">
 								{questionMap.map((item) => {
 									const answerValue = quiz.getAnswer(item.questionId);
-									const isAnswered = isQuestionAnswered(item.question, answerValue);
+									const isAnswered = isQuestionAnswered(
+										item.question,
+										answerValue,
+									);
 									const isFlagged = quiz.isFlagged(item.questionId);
-									const isCurrent =
-										quiz.currentPageIndex === item.pageIndex;
+									const isCurrent = quiz.currentPageIndex === item.pageIndex;
 
 									return (
 										<Tooltip
@@ -324,8 +354,16 @@ export function SingleQuizPreview({
 											>
 												<Button
 													size="compact-sm"
-													variant={isCurrent ? "filled" : isAnswered ? "light" : "default"}
-													color={isCurrent ? "blue" : isAnswered ? "green" : "gray"}
+													variant={
+														isCurrent
+															? "filled"
+															: isAnswered
+																? "light"
+																: "default"
+													}
+													color={
+														isCurrent ? "blue" : isAnswered ? "green" : "gray"
+													}
 													onClick={() => quiz.goToPage(item.pageIndex)}
 													disabled={isDisabled}
 												>
@@ -380,97 +418,124 @@ export function SingleQuizPreview({
 						</Title>
 
 						{/* Resources for current page */}
-						{"resources" in quizConfig && quizConfig.resources && quizConfig.resources.length > 0 && (
-							<Stack gap="md" mb="xl">
-								{quizConfig.resources
-									.filter((resource: QuizResource) => resource.pages.includes(currentPage.id))
-									.map((resource: QuizResource) => (
-										<Paper key={resource.id} withBorder p="md" radius="sm" bg="blue.0">
-											{resource.title && (
-												<Title order={4} mb="sm">
-													{resource.title}
-												</Title>
-											)}
-											<ScrollArea mah={400}>
-												<RichTextRenderer content={resource.content} />
-											</ScrollArea>
-										</Paper>
-									))}
-							</Stack>
-						)}
+						{"resources" in quizConfig &&
+							quizConfig.resources &&
+							quizConfig.resources.length > 0 && (
+								<Stack gap="md" mb="xl">
+									{quizConfig.resources
+										.filter((resource: QuizResource) =>
+											resource.pages.includes(currentPage.id),
+										)
+										.map((resource: QuizResource) => (
+											<Paper
+												key={resource.id}
+												withBorder
+												p="md"
+												radius="sm"
+												bg="blue.0"
+											>
+												{resource.title && (
+													<Title order={4} mb="sm">
+														{resource.title}
+													</Title>
+												)}
+												<ScrollArea mah={400}>
+													<RichTextRenderer content={resource.content} />
+												</ScrollArea>
+											</Paper>
+										))}
+								</Stack>
+							)}
 
 						<Stack gap="xl">
-							{currentPage.questions.map((question: Question, questionIndex: number) => {
-								const questionNumber = currentQuestionStartNumber + questionIndex;
+							{currentPage.questions.map(
+								(question: Question, questionIndex: number) => {
+									const questionNumber =
+										currentQuestionStartNumber + questionIndex;
 
-								return (
-									<Paper key={question.id} withBorder p="md" radius="sm">
-										<Stack gap="md">
-											{/* Question Header */}
-											<Group justify="space-between" align="flex-start">
-												<Group gap="sm" align="flex-start" style={{ flex: 1 }}>
-													<Badge size="lg" variant="outline">
-														Q{questionNumber}
-													</Badge>
-													{quizConfig.grading?.enabled && (
-														<Tooltip
-															label={getScoringDescription(question.scoring)}
-															position="top"
-															multiline
-															w={300}
-														>
-															<Badge size="lg" variant="light" color="blue" leftSection={<IconInfoCircle size={14} />}>
-																{getQuestionPoints(question)} pt{getQuestionPoints(question) !== 1 ? "s" : ""}
-															</Badge>
-														</Tooltip>
-													)}
-													<Text fw={500} style={{ flex: 1 }}>
-														{question.prompt}
-													</Text>
-												</Group>
-												<Group gap="xs">
-													{!readonly && (
-														<Tooltip
-															label={
-																isDisabled
-																	? "Interaction disabled"
-																	: quiz.isFlagged(question.id)
-																		? "Remove flag"
-																		: "Flag for review"
-															}
-														>
-															<ActionIcon
-																variant={
-																	quiz.isFlagged(question.id) ? "filled" : "light"
-																}
-																color={
-																	quiz.isFlagged(question.id) ? "red" : "gray"
-																}
-																onClick={() => quiz.toggleFlag(question.id)}
-																disabled={isDisabled}
+									return (
+										<Paper key={question.id} withBorder p="md" radius="sm">
+											<Stack gap="md">
+												{/* Question Header */}
+												<Group justify="space-between" align="flex-start">
+													<Group
+														gap="sm"
+														align="flex-start"
+														style={{ flex: 1 }}
+													>
+														<Badge size="lg" variant="outline">
+															Q{questionNumber}
+														</Badge>
+														{quizConfig.grading?.enabled && (
+															<Tooltip
+																label={getScoringDescription(question.scoring)}
+																position="top"
+																multiline
+																w={300}
 															>
-																{quiz.isFlagged(question.id) ? (
-																	<IconFlagFilled size={18} />
-																) : (
-																	<IconFlag size={18} />
-																)}
-															</ActionIcon>
-														</Tooltip>
-													)}
+																<Badge
+																	size="lg"
+																	variant="light"
+																	color="blue"
+																	leftSection={<IconInfoCircle size={14} />}
+																>
+																	{getQuestionPoints(question)} pt
+																	{getQuestionPoints(question) !== 1 ? "s" : ""}
+																</Badge>
+															</Tooltip>
+														)}
+														<Text fw={500} style={{ flex: 1 }}>
+															{question.prompt}
+														</Text>
+													</Group>
+													<Group gap="xs">
+														{!readonly && (
+															<Tooltip
+																label={
+																	isDisabled
+																		? "Interaction disabled"
+																		: quiz.isFlagged(question.id)
+																			? "Remove flag"
+																			: "Flag for review"
+																}
+															>
+																<ActionIcon
+																	variant={
+																		quiz.isFlagged(question.id)
+																			? "filled"
+																			: "light"
+																	}
+																	color={
+																		quiz.isFlagged(question.id) ? "red" : "gray"
+																	}
+																	onClick={() => quiz.toggleFlag(question.id)}
+																	disabled={isDisabled}
+																>
+																	{quiz.isFlagged(question.id) ? (
+																		<IconFlagFilled size={18} />
+																	) : (
+																		<IconFlag size={18} />
+																	)}
+																</ActionIcon>
+															</Tooltip>
+														)}
+													</Group>
 												</Group>
-											</Group>
 
-											{/* Question Renderer */}
-											<QuestionRenderer
-												question={question}
-												value={quiz.getAnswer(question.id) as unknown}
-												onChange={(value) => quiz.setAnswer(question.id, value as QuestionAnswer)}
-												disabled={isDisabled}
-											/>
-										</Stack>
-									</Paper>
-								);
-							})}
+												{/* Question Renderer */}
+												<QuestionRenderer
+													question={question}
+													value={quiz.getAnswer(question.id) as unknown}
+													onChange={(value) =>
+														quiz.setAnswer(question.id, value as QuestionAnswer)
+													}
+													disabled={isDisabled}
+												/>
+											</Stack>
+										</Paper>
+									);
+								},
+							)}
 						</Stack>
 					</div>
 
@@ -617,21 +682,22 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 			)}
 
 			{/* Nested Quiz Timer (only when inside a nested quiz) */}
-			{nestedQuizState.activeNestedQuiz?.globalTimer && !isViewingCompletedQuiz && (
-				<Paper withBorder p="md" radius="sm" bg="blue.0">
-					<Group justify="space-between">
-						<Text size="sm" fw={500}>
-							Current Quiz Time
-						</Text>
-						<TimerDisplay
-							initialTime={nestedQuizState.activeNestedQuiz.globalTimer}
-							onExpire={() => {
-								// Nested timer expired - this will be handled by SingleQuizPreview
-							}}
-						/>
-					</Group>
-				</Paper>
-			)}
+			{nestedQuizState.activeNestedQuiz?.globalTimer &&
+				!isViewingCompletedQuiz && (
+					<Paper withBorder p="md" radius="sm" bg="blue.0">
+						<Group justify="space-between">
+							<Text size="sm" fw={500}>
+								Current Quiz Time
+							</Text>
+							<TimerDisplay
+								initialTime={nestedQuizState.activeNestedQuiz.globalTimer}
+								onExpire={() => {
+									// Nested timer expired - this will be handled by SingleQuizPreview
+								}}
+							/>
+						</Group>
+					</Paper>
+				)}
 
 			{/* Content: Either selector or nested quiz */}
 			{nestedQuizState.currentNestedQuizId === null ? (
@@ -650,14 +716,16 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 					readonly={isViewingCompletedQuiz}
 					initialAnswers={
 						isViewingCompletedQuiz
-							? nestedQuizState.submittedAnswers[nestedQuizState.currentNestedQuizId]
+							? nestedQuizState.submittedAnswers[
+									nestedQuizState.currentNestedQuizId
+								]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {
 						if (nestedQuizState.currentNestedQuizId) {
 							nestedQuizState.completeNestedQuiz(
 								nestedQuizState.currentNestedQuizId,
-								answers
+								answers,
 							);
 						}
 					}}
@@ -669,9 +737,10 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 	);
 }
 
-
 // Sample Nested Quiz Config for testing
 export const sampleNestedQuizConfig: QuizConfig = {
+	version: "v2",
+	type: "container",
 	id: "sample-nested-quiz",
 	title: "Multi-Section Exam",
 	globalTimer: 30, // 30 seconds total for all quizzes
@@ -683,7 +752,6 @@ export const sampleNestedQuizConfig: QuizConfig = {
 		showCorrectAnswers: false,
 	},
 	nestedQuizzes: [
-
 		{
 			id: "section-1",
 			title: "Section 1: Basic Concepts",
@@ -703,7 +771,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "s1-q1",
 							type: "multiple-choice",
-							prompt: "Which of the following is NOT a primitive data type in JavaScript?",
+							prompt:
+								"Which of the following is NOT a primitive data type in JavaScript?",
 							options: {
 								a: "String",
 								b: "Number",
@@ -716,7 +785,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "s1-q2",
 							type: "short-answer",
-							prompt: "What keyword is used to declare a constant in JavaScript?",
+							prompt:
+								"What keyword is used to declare a constant in JavaScript?",
 							correctAnswer: "const",
 							scoring: { type: "simple", points: 3 },
 						},
@@ -737,7 +807,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "s2-q1",
 							type: "choice",
-							prompt: "Which of the following are valid ways to define a function in JavaScript?",
+							prompt:
+								"Which of the following are valid ways to define a function in JavaScript?",
 							options: {
 								func: "function myFunc() {}",
 								arrow: "const myFunc = () => {}",
@@ -749,7 +820,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "s2-q2",
 							type: "long-answer",
-							prompt: "Explain the difference between function declarations and arrow functions.",
+							prompt:
+								"Explain the difference between function declarations and arrow functions.",
 						},
 					],
 				},
@@ -760,7 +832,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "s2-q3",
 							type: "ranking",
-							prompt: "Rank these loop types by their typical performance (fastest to slowest):",
+							prompt:
+								"Rank these loop types by their typical performance (fastest to slowest):",
 							items: {
 								forloop: "for loop",
 								foreach: "forEach",
@@ -785,13 +858,15 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "s3-q1",
 							type: "fill-in-the-blank",
-							prompt: "To handle asynchronous operations in JavaScript, you can use {{blank}}, {{blank}}, or {{blank}}.",
+							prompt:
+								"To handle asynchronous operations in JavaScript, you can use {{blank}}, {{blank}}, or {{blank}}.",
 							correctAnswers: ["callbacks", "promises", "async/await"],
 						},
 						{
 							id: "s3-q2",
 							type: "article",
-							prompt: "Write a short explanation of how the JavaScript event loop works.",
+							prompt:
+								"Write a short explanation of how the JavaScript event loop works.",
 						},
 					],
 				},
@@ -802,7 +877,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "s3-q3",
 							type: "whiteboard",
-							prompt: "Draw a diagram showing the architecture of a typical React application with state management:",
+							prompt:
+								"Draw a diagram showing the architecture of a typical React application with state management:",
 						},
 						{
 							id: "s3-q4",
@@ -828,7 +904,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 		{
 			id: "section-4",
 			title: "Section 4: All Question Types",
-			description: "Comprehensive assessment covering all question types with various scoring methods",
+			description:
+				"Comprehensive assessment covering all question types with various scoring methods",
 			globalTimer: 600, // 10 minutes
 			grading: {
 				enabled: true,
@@ -865,7 +942,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "q3",
 							type: "long-answer",
-							prompt: "Describe your favorite programming language and why you like it.",
+							prompt:
+								"Describe your favorite programming language and why you like it.",
 							scoring: { type: "manual", maxPoints: 5 },
 						},
 					],
@@ -877,25 +955,28 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "q4",
 							type: "article",
-							prompt: "Write a short article about web development trends in 2025.",
+							prompt:
+								"Write a short article about web development trends in 2025.",
 							scoring: { type: "rubric", rubricId: 1, maxPoints: 10 },
 						},
 						{
 							id: "q5",
 							type: "fill-in-the-blank",
-							prompt: "The capital of France is {{blank}} and the largest city is {{blank}}.",
+							prompt:
+								"The capital of France is {{blank}} and the largest city is {{blank}}.",
 							correctAnswers: ["Paris", "Paris"],
 							scoring: {
 								type: "weighted",
 								maxPoints: 4,
 								mode: "partial-no-penalty",
-								pointsPerCorrect: 2
+								pointsPerCorrect: 2,
 							},
 						},
 						{
 							id: "q6",
 							type: "choice",
-							prompt: "Which of the following are programming languages? (Select all that apply)",
+							prompt:
+								"Which of the following are programming languages? (Select all that apply)",
 							options: {
 								python: "Python",
 								html: "HTML",
@@ -909,7 +990,7 @@ export const sampleNestedQuizConfig: QuizConfig = {
 								maxPoints: 6,
 								mode: "partial-with-penalty",
 								pointsPerCorrect: 2,
-								penaltyPerIncorrect: 1
+								penaltyPerIncorrect: 1,
 							},
 						},
 					],
@@ -921,7 +1002,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "q7",
 							type: "ranking",
-							prompt: "Rank these programming paradigms from most to least popular:",
+							prompt:
+								"Rank these programming paradigms from most to least popular:",
 							items: {
 								oop: "Object-Oriented",
 								fp: "Functional",
@@ -938,7 +1020,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 						{
 							id: "q10",
 							type: "whiteboard",
-							prompt: "Draw a diagram showing the relationship between the frontend, backend, and database in a web application:",
+							prompt:
+								"Draw a diagram showing the relationship between the frontend, backend, and database in a web application:",
 							scoring: { type: "rubric", rubricId: 2, maxPoints: 8 },
 						},
 						{
@@ -957,7 +1040,12 @@ export const sampleNestedQuizConfig: QuizConfig = {
 								advanced: "Advanced",
 								expert: "Expert",
 							},
-							scoring: { type: "matrix", maxPoints: 4, pointsPerRow: 1, mode: "partial" },
+							scoring: {
+								type: "matrix",
+								maxPoints: 4,
+								pointsPerRow: 1,
+								mode: "partial",
+							},
 						},
 						{
 							id: "324okp",
@@ -975,7 +1063,12 @@ export const sampleNestedQuizConfig: QuizConfig = {
 								svelte: "Svelte",
 								nextjs: "Next.js",
 							},
-							scoring: { type: "matrix", maxPoints: 3, pointsPerRow: 1, mode: "partial" },
+							scoring: {
+								type: "matrix",
+								maxPoints: 3,
+								pointsPerRow: 1,
+								mode: "partial",
+							},
 						},
 					],
 				},
@@ -1078,7 +1171,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 								d: "声の高さ",
 							},
 							correctAnswer: "a",
-							feedback: "監視カメラには「能面のような無表情の仮面」を被った姿が映っています。左利きかどうかは記事に記載されていません。",
+							feedback:
+								"監視カメラには「能面のような無表情の仮面」を被った姿が映っています。左利きかどうかは記事に記載されていません。",
 						},
 						{
 							id: "jp-q9",
@@ -1091,7 +1185,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 								d: "金属ワイヤーの材質不一致",
 							},
 							correctAnswer: "c",
-							feedback: "記事によると、孤児院「暁光園」は20年前に閉鎖され、関係者の証言からは「折鶴」との関連性は見出せていません。",
+							feedback:
+								"記事によると、孤児院「暁光園」は20年前に閉鎖され、関係者の証言からは「折鶴」との関連性は見出せていません。",
 						},
 						{
 							id: "jp-q10",
@@ -1104,7 +1199,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 								d: "映画の台詞",
 							},
 							correctAnswer: "c",
-							feedback: "警察は「文学作品『罪と炎』（1923年絶版）の引用パターン」を手掛かりに捜査を進めています。",
+							feedback:
+								"警察は「文学作品『罪と炎』（1923年絶版）の引用パターン」を手掛かりに捜査を進めています。",
 						},
 					],
 				},

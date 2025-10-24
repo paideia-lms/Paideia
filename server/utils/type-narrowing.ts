@@ -1,15 +1,15 @@
-import { z, ZodError } from "zod";
+import { ZodError, z } from "zod";
 import { DevelopmentError } from "~/utils/error";
 
 function assertZod<T>(
 	value: unknown,
 	schema: z.ZodSchema<T>,
 ): asserts value is T {
-	// error map 
+	// error map
 	schema.parse(value);
 }
 
-/** 
+/**
  * Add more context to the error message by using the error prefix
  */
 export function assertZodInternal<T>(
@@ -21,9 +21,11 @@ export function assertZodInternal<T>(
 		assertZod(value, schema);
 	} catch (error) {
 		if (error instanceof ZodError) {
-			throw new DevelopmentError(`${errorPrefix}: [${z.treeifyError(error).errors.join(", ")}]`)
+			throw new DevelopmentError(
+				`${errorPrefix}: [${z.treeifyError(error).errors.join(", ")}]`,
+			);
 		}
-		throw error
+		throw error;
 	}
 }
 

@@ -236,8 +236,6 @@ export class NonExistingWhiteboardError extends Error {
 	}
 }
 
-
-
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||

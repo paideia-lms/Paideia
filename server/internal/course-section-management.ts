@@ -326,7 +326,11 @@ export const tryFindSectionById = Result.wrap(
 			})
 			.then((s) => {
 				const course = s.course;
-				assertZodInternal("tryFindSectionById: Course is required", course, z.object({ id: z.number() }));
+				assertZodInternal(
+					"tryFindSectionById: Course is required",
+					course,
+					z.object({ id: z.number() }),
+				);
 				return {
 					...s,
 					course: course.id,
@@ -2020,7 +2024,11 @@ export const tryGetCourseStructure = Result.wrap(
 			for (const link of activityModules) {
 				const activityModule = link.activityModule;
 
-				assertZodInternal("tryGetCourseStructure: Activity module is required", activityModule, z.object({ id: z.number() }));
+				assertZodInternal(
+					"tryGetCourseStructure: Activity module is required",
+					activityModule,
+					z.object({ id: z.number() }),
+				);
 				mixedContent.push({
 					id: link.id,
 					type: "activity-module",
@@ -2192,85 +2200,117 @@ export const tryGeneralMove = Result.wrap(
 			const sourceItem =
 				source.type === "section"
 					? await payload
-						.findByID({
-							collection: CourseSections.slug,
-							id: source.id,
-							user,
-							req: req ? { ...req, transactionID } : { transactionID },
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const parentSection = result.parentSection;
-							assertZodInternal("tryGeneralMove: Parent section is required", parentSection, z.object({ id: z.number() }).nullish());
-							const course = result.course;
-							assertZodInternal("tryGeneralMove: Course is required", course, z.object({ id: z.number() }));
-							return {
-								...result,
-								parentSection,
-								course,
-							};
-						})
+							.findByID({
+								collection: CourseSections.slug,
+								id: source.id,
+								user,
+								req: req ? { ...req, transactionID } : { transactionID },
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const parentSection = result.parentSection;
+								assertZodInternal(
+									"tryGeneralMove: Parent section is required",
+									parentSection,
+									z.object({ id: z.number() }).nullish(),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									parentSection,
+									course,
+								};
+							})
 					: await payload
-						.findByID({
-							collection: CourseActivityModuleLinks.slug,
-							id: source.id,
-							user,
-							req: req ? { ...req, transactionID } : { transactionID },
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const section = result.section;
-							assertZodInternal("tryGeneralMove: Section is required", section, z.object({ id: z.number() }));
-							const course = result.course;
-							assertZodInternal("tryGeneralMove: Course is required", course, z.object({ id: z.number() }));
-							return {
-								...result,
-								section,
-								course,
-							};
-						});
+							.findByID({
+								collection: CourseActivityModuleLinks.slug,
+								id: source.id,
+								user,
+								req: req ? { ...req, transactionID } : { transactionID },
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const section = result.section;
+								assertZodInternal(
+									"tryGeneralMove: Section is required",
+									section,
+									z.object({ id: z.number() }),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									section,
+									course,
+								};
+							});
 
 			// Get target item (skip for root moves)
 			const targetItem =
 				target.type === "section"
 					? await payload
-						.findByID({
-							collection: CourseSections.slug,
-							id: target.id,
-							user,
-							req: req ? { ...req, transactionID } : { transactionID },
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const parentSection = result.parentSection;
-							assertZodInternal("tryGeneralMove: Parent section is required", parentSection, z.object({ id: z.number() }).nullish());
-							const course = result.course;
-							assertZodInternal("tryGeneralMove: Course is required", course, z.object({ id: z.number() }));
-							return {
-								...result,
-								parentSection,
-								course,
-							};
-						})
+							.findByID({
+								collection: CourseSections.slug,
+								id: target.id,
+								user,
+								req: req ? { ...req, transactionID } : { transactionID },
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const parentSection = result.parentSection;
+								assertZodInternal(
+									"tryGeneralMove: Parent section is required",
+									parentSection,
+									z.object({ id: z.number() }).nullish(),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									parentSection,
+									course,
+								};
+							})
 					: await payload
-						.findByID({
-							collection: CourseActivityModuleLinks.slug,
-							id: target.id,
-							user,
-							req: req ? { ...req, transactionID } : { transactionID },
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const section = result.section;
-							assertZodInternal("tryGeneralMove: Section is required", section, z.object({ id: z.number() }));
-							const course = result.course;
-							assertZodInternal("tryGeneralMove: Course is required", course, z.object({ id: z.number() }));
-							return {
-								...result,
-								section,
-								course,
-							};
-						});
+							.findByID({
+								collection: CourseActivityModuleLinks.slug,
+								id: target.id,
+								user,
+								req: req ? { ...req, transactionID } : { transactionID },
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const section = result.section;
+								assertZodInternal(
+									"tryGeneralMove: Section is required",
+									section,
+									z.object({ id: z.number() }),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									section,
+									course,
+								};
+							});
 			// Determine course ID
 			const sourceCourseId = sourceItem.course.id;
 
@@ -2284,7 +2324,11 @@ export const tryGeneralMove = Result.wrap(
 
 			// Determine new parent section
 			let newParentSectionId: number | null;
-			assertZodInternal("tryGeneralMove: Source item is required", sourceItem, z.object({ id: z.number() }));
+			assertZodInternal(
+				"tryGeneralMove: Source item is required",
+				sourceItem,
+				z.object({ id: z.number() }),
+			);
 			const oldParentSection =
 				"parentSection" in sourceItem
 					? sourceItem.parentSection
@@ -2295,7 +2339,11 @@ export const tryGeneralMove = Result.wrap(
 				typeof oldParentSection === "number"
 					? oldParentSection
 					: (oldParentSection?.id ?? null);
-			assertZodInternal("tryGeneralMove: Old parent section ID is required", oldParentSectionId, z.number().nullable());
+			assertZodInternal(
+				"tryGeneralMove: Old parent section ID is required",
+				oldParentSectionId,
+				z.number().nullable(),
+			);
 
 			if (location === "inside") {
 				newParentSectionId = target.id;
@@ -2400,19 +2448,19 @@ export const tryGeneralMove = Result.wrap(
 			const finalResult =
 				source.type === "section"
 					? await payload.findByID({
-						collection: CourseSections.slug,
-						id: source.id,
-						user,
-						req: req ? { ...req, transactionID } : { transactionID },
-						overrideAccess: true,
-					})
+							collection: CourseSections.slug,
+							id: source.id,
+							user,
+							req: req ? { ...req, transactionID } : { transactionID },
+							overrideAccess: true,
+						})
 					: await payload.findByID({
-						collection: CourseActivityModuleLinks.slug,
-						id: source.id,
-						user,
-						req: req ? { ...req, transactionID } : { transactionID },
-						overrideAccess: true,
-					});
+							collection: CourseActivityModuleLinks.slug,
+							id: source.id,
+							user,
+							req: req ? { ...req, transactionID } : { transactionID },
+							overrideAccess: true,
+						});
 
 			await payload.db.commitTransaction(transactionID);
 			return finalResult;

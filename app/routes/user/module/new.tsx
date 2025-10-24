@@ -3,8 +3,8 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
 	type ActionFunctionArgs,
-	type LoaderFunctionArgs,
 	href,
+	type LoaderFunctionArgs,
 	redirect,
 	useFetcher,
 } from "react-router";
@@ -154,7 +154,10 @@ export function useCreateModule() {
 export default function NewModulePage() {
 	const { createModule, isLoading } = useCreateModule();
 
-	const form = useForm<ActivityModuleFormValues>({
+	const form = useForm<
+		ActivityModuleFormValues,
+		(values: ActivityModuleFormValues) => ActivityModuleFormValues
+	>({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: getInitialFormValues(),
@@ -215,12 +218,7 @@ export default function NewModulePage() {
 						{selectedType === "quiz" && <QuizForm form={form} />}
 						{selectedType === "discussion" && <DiscussionForm form={form} />}
 
-						<Button
-							type="submit"
-							size="lg"
-							mt="lg"
-							loading={isLoading}
-						>
+						<Button type="submit" size="lg" mt="lg" loading={isLoading}>
 							Create Module
 						</Button>
 					</Stack>

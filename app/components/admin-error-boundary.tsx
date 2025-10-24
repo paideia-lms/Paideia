@@ -26,9 +26,7 @@ export function DefaultErrorBoundary({ error }: DefaultErrorBoundaryProps) {
 						Error
 					</Title>
 					<Text>{error.message}</Text>
-					<Code block >
-						{error.stack}
-					</Code>
+					<Code block>{error.stack}</Code>
 				</>
 			) : (
 				<Title order={1} c="red">

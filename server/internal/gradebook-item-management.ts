@@ -108,7 +108,7 @@ export const tryCreateGradebookItem = Result.wrap(
 			// Ensure category belongs to the same gradebook
 			const categoryGradebook = category.gradebook;
 			assertZodInternal(
-				'tryCreateGradebookItem: Category gradebook is required',
+				"tryCreateGradebookItem: Category gradebook is required",
 				categoryGradebook,
 				z.object({
 					id: z.number(),
@@ -168,7 +168,7 @@ export const tryCreateGradebookItem = Result.wrap(
 
 			const itemGradebook = newItem.gradebook;
 			assertZodInternal(
-				'tryCreateGradebookItem: Item gradebook is required',
+				"tryCreateGradebookItem: Item gradebook is required",
 				itemGradebook,
 				z.object({
 					id: z.number(),
@@ -177,8 +177,7 @@ export const tryCreateGradebookItem = Result.wrap(
 
 			const itemCategory = newItem.category;
 			assertZodInternal(
-
-				'tryCreateGradebookItem: Item category is required',
+				"tryCreateGradebookItem: Item category is required",
 				itemCategory,
 				z
 					.object({
@@ -189,7 +188,7 @@ export const tryCreateGradebookItem = Result.wrap(
 
 			const itemActivityModule = newItem.activityModule;
 			assertZodInternal(
-				'tryCreateGradebookItem: Item activity module is required',
+				"tryCreateGradebookItem: Item activity module is required",
 				itemActivityModule,
 				z
 					.object({
@@ -491,7 +490,7 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 					const userGrades = item.userGrades?.docs;
 					// user grade should be object
 					assertZodInternal(
-						'tryGetItemsWithUserGrades: User grades is required',
+						"tryGetItemsWithUserGrades: User grades is required",
 						userGrades,
 						z.array(
 							z.object({

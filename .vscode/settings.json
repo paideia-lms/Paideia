@@ -1,7 +1,7 @@
 {
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "biome.enabled": true,
-  "editor.formatOnSave": true,
-  "editor.defaultFormatter": "biomejs.biome",
-  "compile-hero.disable-compile-files-on-did-save-code": true
+	"typescript.tsdk": "node_modules/typescript/lib",
+	"biome.enabled": true,
+	"editor.formatOnSave": true,
+	"editor.defaultFormatter": "biomejs.biome",
+	"compile-hero.disable-compile-files-on-did-save-code": true
 }
