@@ -1,16 +1,15 @@
 import { Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import { useState } from "react";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { RichTextEditor } from "../rich-text-editor";
 import { CommonFields } from "./common-fields";
+import { useFormWatchValue } from "~/utils/form-utils";
 
 interface PageFormProps {
     form: UseFormReturnType<ActivityModuleFormValues>;
 }
 
 export function PageForm({ form }: PageFormProps) {
-    const [htmlContent, setHtmlContent] = useState(form.getValues().pageContent);
 
     return (
         <Stack gap="md">
@@ -28,15 +27,23 @@ export function PageForm({ form }: PageFormProps) {
                 <Title order={5} mb="xs">
                     Page Content
                 </Title>
-                <RichTextEditor
-                    content={htmlContent}
-                    placeholder="Enter page content..."
-                    onChange={(html) => {
-                        setHtmlContent(html);
-                        form.setFieldValue("pageContent", html);
-                    }}
-                />
+                <PageContentEditor form={form} />
             </div>
         </Stack>
+    );
+}
+
+function PageContentEditor({ form }: { form: UseFormReturnType<ActivityModuleFormValues> }) {
+    const pageContent = useFormWatchValue(form, "pageContent", form.getValues().pageContent);
+    return (
+        <div>
+            <RichTextEditor
+                content={pageContent}
+                placeholder="Enter page content..."
+                onChange={(html) => {
+                    form.setFieldValue("pageContent", html);
+                }}
+            />
+        </div>
     );
 }

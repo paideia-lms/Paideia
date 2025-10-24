@@ -1,4 +1,6 @@
 import type {
+    AppState,
+    BinaryFiles,
     ExcalidrawImperativeAPI,
     ExcalidrawInitialDataState,
 } from "@excalidraw/excalidraw/types";
@@ -11,10 +13,12 @@ import {
     useMantineColorScheme,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import { useDebouncedCallback, useMounted } from "@mantine/hooks";
+import { useDebouncedCallback, useMounted, usePrevious } from "@mantine/hooks";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { CommonFields } from "./common-fields";
+import { useFormWatchValue } from "~/utils/form-utils";
+import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
@@ -28,26 +32,24 @@ interface WhiteboardFormProps {
     isLoading?: boolean;
 }
 
-export function WhiteboardForm({
-    form,
-    isLoading = false,
-}: WhiteboardFormProps) {
-    const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
-    const { colorScheme } = useMantineColorScheme();
-    const [initialData, setInitialData] =
-        useState<ExcalidrawInitialDataState | null>(null);
+const useWhiteboardData = (whiteboardContent: string) => {
     const mounted = useMounted();
+    const prevMounted = usePrevious(mounted);
+    const [data, setData] = useState<ExcalidrawInitialDataState | null>(null);
+    const [hasSetData, setHasSetData] = useState(false);
 
 
-    // Load initial data from form
+    // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
     useLayoutEffect(() => {
-        const existingContent = form.getValues().whiteboardContent;
-
-        if (existingContent && existingContent.trim().length > 0) {
+        if (mounted && prevMounted && whiteboardContent && whiteboardContent.trim().length > 0) {
             try {
-                const data = JSON.parse(existingContent) as ExcalidrawInitialDataState;
-                // Ensure appState has the required structure
-                setInitialData({
+                if (hasSetData) {
+                    return;
+                }
+                setHasSetData(true);
+                console.log("Loading whiteboard data",);
+                const data = JSON.parse(whiteboardContent) as ExcalidrawInitialDataState;
+                setData({
                     ...data,
                     appState: {
                         ...data.appState,
@@ -56,20 +58,34 @@ export function WhiteboardForm({
                 });
             } catch (error: unknown) {
                 console.error("Failed to load whiteboard data:", error);
-                setInitialData({
+                setData({
                     appState: {
                         collaborators: new Map(),
                     },
                 });
             }
         } else {
-            setInitialData({
+            setData({
                 appState: {
                     collaborators: new Map(),
                 },
             });
         }
-    }, [form]);
+    }, [mounted, prevMounted, whiteboardContent]);
+
+    return data as ExcalidrawInitialDataState;
+}
+
+export function WhiteboardForm({
+    form,
+}: WhiteboardFormProps) {
+    const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
+    const { colorScheme } = useMantineColorScheme();
+    const whiteboardContent = useFormWatchValue(form, "whiteboardContent", form.getValues().whiteboardContent);
+    const mounted = useMounted();
+
+    //  only calculate when first rendered
+    const initialData = useWhiteboardData(whiteboardContent);
 
     // Sync theme with Mantine's color scheme
     useLayoutEffect(() => {
@@ -80,14 +96,16 @@ export function WhiteboardForm({
     }, [colorScheme]);
 
     // Create a debounced callback to save the whiteboard state
-    const saveSnapshot = useDebouncedCallback((elements, appState, files) => {
+    const saveSnapshot = useDebouncedCallback((elements: readonly OrderedExcalidrawElement[], appState: AppState, files: BinaryFiles) => {
         const data: ExcalidrawInitialDataState = {
             elements,
-            appState,
+            appState: {
+                collaborators: new Map(),
+            },
             files,
         };
         form.setFieldValue("whiteboardContent", JSON.stringify(data));
-    }, 500);
+    }, 200);
 
     return (
         <Stack gap="md">
@@ -106,7 +124,7 @@ export function WhiteboardForm({
                     Whiteboard Canvas
                 </Title>
                 <Box style={{ height: "500px", border: "1px solid #dee2e6" }}>
-                    {isLoading || initialData === null || !mounted ? (
+                    {!mounted ? (
                         <div
                             style={{
                                 display: "flex",

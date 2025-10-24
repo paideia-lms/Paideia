@@ -1,6 +1,7 @@
 import { Checkbox, Select, TextInput } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import { useFormWatchValue } from "~/utils/form-utils";
 
 interface CommonFieldsProps {
     form: UseFormReturnType<ActivityModuleFormValues>;
@@ -36,14 +37,23 @@ export function CommonFields({ form }: CommonFieldsProps) {
                 label="Require password to access"
             />
 
-            {form.getValues().requirePassword && (
-                <TextInput
-                    {...form.getInputProps("accessPassword")}
-                    key={form.key("accessPassword")}
-                    label="Access Password"
-                    placeholder="Enter access password"
-                />
-            )}
+            <RequirePasswordInput form={form} />
         </>
+    );
+}
+
+function RequirePasswordInput({ form }: { form: UseFormReturnType<ActivityModuleFormValues> }) {
+    const requirePassword = useFormWatchValue(form, "requirePassword", form.getValues().requirePassword);
+
+
+    if (!requirePassword) return null;
+
+    return (
+        <TextInput
+            {...form.getInputProps("accessPassword")}
+            key={form.key("accessPassword")}
+            label="Access Password"
+            placeholder="Enter access password"
+        />
     );
 }

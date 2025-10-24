@@ -267,7 +267,7 @@ export default function EditModulePage() {
 
 							{selectedType === "page" && <PageForm form={mantineForm} />}
 							{selectedType === "whiteboard" && (
-								<WhiteboardForm form={mantineForm} isLoading={isLoading} />
+								<WhiteboardForm form={mantineForm} />
 							)}
 							{selectedType === "assignment" && <AssignmentForm form={mantineForm} />}
 							{selectedType === "quiz" && <QuizForm form={mantineForm} />}

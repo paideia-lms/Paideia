@@ -3,6 +3,7 @@ import { DateTimePicker } from "@mantine/dates";
 import type { UseFormReturnType } from "@mantine/form";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { CommonFields } from "./common-fields";
+import { useFormWatchValue } from "~/utils/form-utils";
 
 interface DiscussionFormProps {
     form: UseFormReturnType<ActivityModuleFormValues>;
@@ -56,15 +57,21 @@ export function DiscussionForm({ form }: DiscussionFormProps) {
                 label="Require replies"
             />
 
-            {form.getValues().discussionRequireReplies && (
-                <NumberInput
-                    {...form.getInputProps("discussionMinReplies")}
-                    key={form.key("discussionMinReplies")}
-                    label="Minimum Replies"
-                    placeholder="Enter minimum number of replies"
-                    min={1}
-                />
-            )}
+            <MinimumRepliesInput form={form} />
         </Stack>
+    );
+}
+
+function MinimumRepliesInput({ form }: { form: UseFormReturnType<ActivityModuleFormValues> }) {
+    const discussionRequireReplies = useFormWatchValue(form, "discussionRequireReplies", form.getValues().discussionRequireReplies);
+    if (!discussionRequireReplies) return null;
+    return (
+        <NumberInput
+            {...form.getInputProps("discussionMinReplies")}
+            key={form.key("discussionMinReplies")}
+            label="Minimum Replies"
+            placeholder="Enter minimum number of replies"
+            min={1}
+        />
     );
 }
