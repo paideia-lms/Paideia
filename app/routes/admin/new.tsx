@@ -238,6 +238,7 @@ export default function NewUserPage() {
 
 	const form = useForm({
 		mode: "uncontrolled",
+		cascadeUpdates: true,
 		initialValues: {
 			email: "",
 			password: "",

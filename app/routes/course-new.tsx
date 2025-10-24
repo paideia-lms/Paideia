@@ -171,6 +171,7 @@ export default function NewCoursePage({ loaderData }: Route.ComponentProps) {
 
 	const form = useForm({
 		mode: "uncontrolled",
+		cascadeUpdates: true,
 		initialValues: {
 			title: "",
 			slug: "",

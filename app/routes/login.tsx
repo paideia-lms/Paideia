@@ -118,6 +118,7 @@ export default function LoginPage({
 	const fetcher = useFetcher<typeof action>();
 	const form = useForm({
 		mode: "uncontrolled",
+		cascadeUpdates: true,
 		initialValues: {
 			email: "",
 			password: "",

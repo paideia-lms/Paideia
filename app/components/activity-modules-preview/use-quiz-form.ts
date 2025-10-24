@@ -37,6 +37,7 @@ export function useQuizForm({
 
     const form = useForm<{ answers: QuizAnswers }>({
         mode: "uncontrolled",
+        cascadeUpdates: true,
         initialValues: {
             answers: initialAnswers,
         },

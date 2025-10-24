@@ -138,6 +138,7 @@ export function CreateFirstUserClient({
 
 	const form = useForm({
 		mode: "uncontrolled",
+		cascadeUpdates: true,
 		initialValues: {
 			email: "",
 			password: "",

@@ -177,6 +177,7 @@ export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 	const { updatePreference, isLoading } = useUpdateUserPreference();
 	const form = useForm({
 		mode: "uncontrolled",
+		cascadeUpdates: true,
 		initialValues: {
 			theme: loaderData.user.theme,
 		},

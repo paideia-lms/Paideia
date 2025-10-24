@@ -822,6 +822,7 @@ export const quizzes = pgTable(
     ),
     requirePassword: boolean("require_password").default(false),
     accessPassword: varchar("access_password"),
+    rawQuizConfig: jsonb("raw_quiz_config"),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {

@@ -360,6 +360,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 	// Initialize form with default values (hooks must be called unconditionally)
 	const form = useForm({
 		mode: "uncontrolled",
+		cascadeUpdates: true,
 		initialValues: {
 			title: "error" in loaderData ? "" : loaderData.course.title,
 			slug: "error" in loaderData ? "" : loaderData.course.slug,

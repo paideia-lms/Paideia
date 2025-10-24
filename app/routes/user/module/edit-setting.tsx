@@ -1,4 +1,5 @@
-import { Container, Paper, Stack, Title } from "@mantine/core";
+import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { href, useFetcher, useLoaderData } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -9,13 +10,12 @@ import {
 	type UpdateActivityModuleArgs,
 } from "server/internal/activity-module-management";
 import {
-	AssignmentForm as TanstackAssignmentForm,
-	DiscussionForm as TanstackDiscussionForm,
-	PageForm as TanstackPageForm,
-	QuizForm as TanstackQuizForm,
-	WhiteboardForm as TanstackWhiteboardForm,
-	useAppForm,
-} from "~/components/activity-module-forms-v2";
+	AssignmentForm,
+	DiscussionForm,
+	PageForm,
+	QuizForm,
+	WhiteboardForm,
+} from "~/components/activity-module-forms";
 import type { QuizConfig } from "~/components/activity-modules-preview/quiz-config.types";
 import {
 	type ActivityModuleFormValues,
@@ -34,7 +34,6 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/edit-setting";
-import type { UpdateModuleFormApi } from "~/hooks/use-form-context";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userModuleContext = context.get(userModuleContextKey);
@@ -143,7 +142,6 @@ export function useUpdateModule() {
 	const updateModule = (moduleId: string, values: ActivityModuleFormValues) => {
 		const submissionData = transformFormValues(values);
 		fetcher.submit(
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			submissionData as any,
 			{
 				method: "POST",
@@ -173,9 +171,11 @@ export default function EditModulePage() {
 	const quizData = module.quiz;
 	const discussionData = module.discussion;
 
-	// Tanstack Form (new)
-	const updateModuleForm = useAppForm({
-		defaultValues: {
+	// Mantine Form
+	const mantineForm = useForm<ActivityModuleFormValues>({
+		mode: "uncontrolled",
+		cascadeUpdates: true,
+		initialValues: {
 			title: module.title,
 			description: module.description || "",
 			type: module.type,
@@ -217,14 +217,13 @@ export default function EditModulePage() {
 			discussionRequireReplies: discussionData?.requireReplies || false,
 			discussionMinReplies: discussionData?.minReplies || 1,
 		},
-		onSubmit: ({ value }) => {
-			updateModule(String(module.id), value);
+		validate: {
+			title: (value) =>
+				value.trim().length === 0 ? "Title is required" : null,
 		},
-		// ! make sure our type of FormApi is correct
-	}) satisfies UpdateModuleFormApi;
+	});
 
-
-	const selectedType = updateModuleForm.state.values.type;
+	const selectedType = mantineForm.values.type;
 
 	return (
 		<Container size="md" py="xl">
@@ -240,64 +239,50 @@ export default function EditModulePage() {
 			/>
 
 			<Stack gap="xl">
-
 				{/* Edit Form */}
 				<Paper withBorder shadow="md" p="xl" radius="md">
 					<Title order={2} mb="lg">
 						Edit Activity Module
 					</Title>
-					<updateModuleForm.AppForm>
-						<form onSubmit={async (e) => {
+					<form
+						onSubmit={mantineForm.onSubmit((values) => {
+							updateModule(String(module.id), values);
+						})}
+					>
+						<Stack gap="md">
+							<Select
+								{...mantineForm.getInputProps("type")}
+								key={mantineForm.key("type")}
+								label="Module Type"
+								placeholder="Select module type"
+								disabled
+								data={[
+									{ value: "page", label: "Page" },
+									{ value: "whiteboard", label: "Whiteboard" },
+									{ value: "assignment", label: "Assignment" },
+									{ value: "quiz", label: "Quiz" },
+									{ value: "discussion", label: "Discussion" },
+								]}
+							/>
 
-							e.preventDefault();
-							e.stopPropagation();
-							await updateModuleForm.handleSubmit()
-						}}>
-							<Stack gap="md">
-								<updateModuleForm.AppField name="type">
-									{(field) => {
-										return (
-											<field.SelectField
-												label="Module Type"
-												placeholder="Select module type"
-												disabled
-												data={[
-													{ value: "page", label: "Page" },
-													{ value: "whiteboard", label: "Whiteboard" },
-													{ value: "assignment", label: "Assignment" },
-													{ value: "quiz", label: "Quiz" },
-													{ value: "discussion", label: "Discussion" },
-												]}
-											/>
-										);
-									}}
-								</updateModuleForm.AppField>
+							{selectedType === "page" && <PageForm form={mantineForm} />}
+							{selectedType === "whiteboard" && (
+								<WhiteboardForm form={mantineForm} isLoading={isLoading} />
+							)}
+							{selectedType === "assignment" && <AssignmentForm form={mantineForm} />}
+							{selectedType === "quiz" && <QuizForm form={mantineForm} />}
+							{selectedType === "discussion" && <DiscussionForm form={mantineForm} />}
 
-								{selectedType === "page" && (
-									<TanstackPageForm form={updateModuleForm} />
-								)}
-								{selectedType === "whiteboard" && (
-									<TanstackWhiteboardForm
-										form={updateModuleForm}
-										isLoading={isLoading}
-									/>
-								)}
-								{selectedType === "assignment" && (
-									<TanstackAssignmentForm form={updateModuleForm} />
-								)}
-								{selectedType === "discussion" && (
-									<TanstackDiscussionForm form={updateModuleForm} />
-								)}
-								{selectedType === "quiz" && <TanstackQuizForm form={updateModuleForm} />}
-
-								<updateModuleForm.SubmitButton
-									label="Update Module"
-									loadingLabel="Updating..."
-									isLoading={isLoading}
-								/>
-							</Stack>
-						</form>
-					</updateModuleForm.AppForm>
+							<Button
+								type="submit"
+								size="lg"
+								mt="lg"
+								loading={isLoading}
+							>
+								Update Module
+							</Button>
+						</Stack>
+					</form>
 				</Paper>
 			</Stack>
 		</Container>
