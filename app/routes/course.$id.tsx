@@ -9,7 +9,7 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { IconEdit, IconFolder } from "@tabler/icons-react";
+import { IconEdit, IconFolder, IconPlus } from "@tabler/icons-react";
 import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -125,9 +125,23 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 
 				<Paper shadow="sm" p="md" withBorder>
 					<Stack gap="md">
-						<Group>
-							<IconFolder size={24} />
-							<Title order={2}>Course Sections</Title>
+						<Group justify="space-between">
+							<Group>
+								<IconFolder size={24} />
+								<Title order={2}>Course Sections</Title>
+							</Group>
+							{canEdit && (
+								<Button
+									component={Link}
+									to={href("/course/:id/section/new", {
+										id: course.id.toString(),
+									})}
+									leftSection={<IconPlus size={16} />}
+									size="sm"
+								>
+									Add Section
+								</Button>
+							)}
 						</Group>
 
 						{directSections.length === 0 ? (

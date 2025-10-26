@@ -45,6 +45,7 @@
 		"@mantine/dropzone": "^8.3.5",
 		"@mantine/form": "^8.3.5",
 		"@mantine/hooks": "^8.3.5",
+		"@mantine/modals": "^8.3.5",
 		"@mantine/notifications": "^8.3.5",
 		"@mantine/tiptap": "^8.3.5",
 		"@mermaid-js/mermaid-cli": "^11.12.0",

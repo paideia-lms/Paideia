@@ -7,10 +7,12 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { Link } from "react-router";
+import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { userContextKey } from "server/contexts/user-context";
+import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
 import { DiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
@@ -47,16 +49,45 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Module not found or access denied");
 	}
 
+	// Get flattened list of modules from course structure
+	const flattenedModules = flattenCourseStructureWithModuleInfo(
+		courseContext.courseStructure,
+	);
+
+	// Find current module index
+	const currentIndex = flattenedModules.findIndex(
+		(m) => m.moduleLinkId === moduleLinkId,
+	);
+
+	// Get previous and next modules
+	const previousModule =
+		currentIndex > 0
+			? {
+				id: flattenedModules[currentIndex - 1].moduleLinkId,
+				title: flattenedModules[currentIndex - 1].title,
+				type: flattenedModules[currentIndex - 1].type,
+			}
+			: null;
+
+	const nextModule =
+		currentIndex < flattenedModules.length - 1 && currentIndex !== -1
+			? {
+				id: flattenedModules[currentIndex + 1].moduleLinkId,
+				title: flattenedModules[currentIndex + 1].title,
+				type: flattenedModules[currentIndex + 1].type,
+			}
+			: null;
+
 	return {
 		module: courseModuleContext.module,
 		course: courseContext.course,
-		previousModuleLinkId: courseModuleContext.previousModuleLinkId,
-		nextModuleLinkId: courseModuleContext.nextModuleLinkId,
+		previousModule,
+		nextModule,
 	};
 };
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
-	const { module, course } = loaderData;
+	const { module, course, previousModule, nextModule } = loaderData;
 
 	// Handle different module types
 	const renderModuleContent = () => {
@@ -127,6 +158,38 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				{renderModuleContent()}
+
+				{/* Navigation buttons */}
+				<Group justify="space-between">
+					{previousModule ? (
+						<Button
+							component={Link}
+							to={href("/course/module/:id", {
+								id: previousModule.id.toString(),
+							})}
+							leftSection={<IconChevronLeft size={16} />}
+							variant="light"
+						>
+							Previous: {previousModule.title}
+						</Button>
+					) : (
+						<div />
+					)}
+					{nextModule ? (
+						<Button
+							component={Link}
+							to={href("/course/module/:id", {
+								id: nextModule.id.toString(),
+							})}
+							rightSection={<IconChevronRight size={16} />}
+							variant="light"
+						>
+							Next: {nextModule.title}
+						</Button>
+					) : (
+						<div />
+					)}
+				</Group>
 			</Stack>
 		</Container>
 	);

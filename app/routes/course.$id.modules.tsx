@@ -1,6 +1,6 @@
 import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { useFetcher } from "react-router";
+import { href, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -21,6 +21,44 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.modules";
+import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { z } from "zod";
+
+export function useCreateModuleLink() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createModuleLink = (
+		activityModuleId: number,
+		courseId: number,
+		sectionId?: number,
+	) => {
+		fetcher.submit(
+			{ intent: "create", activityModuleId, ...(sectionId && { sectionId }) },
+			{ method: "post", action: href("/course/:id/modules", { id: courseId.toString() }), encType: ContentType.JSON },
+		);
+	};
+
+	return {
+		createModuleLink,
+		state: fetcher.state,
+	};
+}
+
+function useDeleteModuleLink() {
+	const fetcher = useFetcher<typeof action>();
+
+	const deleteModuleLink = (linkId: number, courseId: number) => {
+		fetcher.submit(
+			{ intent: "delete", linkId },
+			{ method: "post", action: href("/course/:id/modules", { id: courseId.toString() }), encType: ContentType.JSON },
+		);
+	};
+
+	return {
+		deleteModuleLink,
+		state: fetcher.state,
+	};
+}
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -52,10 +90,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					userId: enrolmentContext.enrolment.userId,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				userId: enrolmentContext.enrolment.userId,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -82,6 +120,19 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		availableModules,
 	};
 };
+
+const createSchema = z.object({
+	intent: z.literal("create"),
+	activityModuleId: z.coerce.number(),
+	sectionId: z.coerce.number().optional(),
+});
+
+const deleteSchema = z.object({
+	intent: z.literal("delete"),
+	linkId: z.coerce.number(),
+});
+
+const inputSchema = z.discriminatedUnion("intent", [createSchema, deleteSchema]);
 
 export const action = async ({
 	request,
@@ -125,10 +176,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					userId: enrollment.user as number,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				userId: enrollment.user as number,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -138,15 +189,15 @@ export const action = async ({
 		});
 	}
 
-	const formData = await request.formData();
-	const intent = formData.get("intent");
+	const { data } = await getDataAndContentTypeFromRequest(request);
 
-	if (intent === "create") {
-		const activityModuleId = Number(formData.get("activityModuleId"));
-		if (Number.isNaN(activityModuleId)) {
-			return badRequest({ error: "Invalid activity module ID" });
-		}
+	const parsedData = inputSchema.safeParse(data);
 
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	if (parsedData.data.intent === "create") {
 		// Start transaction
 		const transactionID = await payload.db.beginTransaction();
 		if (!transactionID) {
@@ -154,21 +205,27 @@ export const action = async ({
 		}
 
 		try {
-			// Create a default section if none exists
-			const sectionResult = await tryCreateSection({
-				payload,
-				data: {
-					course: courseId,
-					title: "Default Section",
-					description: "Default section for activity modules",
-				},
-				req: { ...request, transactionID },
-				overrideAccess: true,
-			});
+			// Use provided section ID or create a default section
+			let targetSectionId = parsedData.data.sectionId;
 
-			if (!sectionResult.ok) {
-				await payload.db.rollbackTransaction(transactionID);
-				return badRequest({ error: "Failed to create section" });
+			if (!targetSectionId) {
+				const sectionResult = await tryCreateSection({
+					payload,
+					data: {
+						course: courseId,
+						title: "Default Section",
+						description: "Default section for activity modules",
+					},
+					req: { ...request, transactionID },
+					overrideAccess: true,
+				});
+
+				if (!sectionResult.ok) {
+					await payload.db.rollbackTransaction(transactionID);
+					return badRequest({ error: "Failed to create section" });
+				}
+
+				targetSectionId = sectionResult.value.id;
 			}
 
 			const createResult = await tryCreateCourseActivityModuleLink(
@@ -176,8 +233,8 @@ export const action = async ({
 				request,
 				{
 					course: courseId,
-					activityModule: activityModuleId,
-					section: sectionResult.value.id,
+					activityModule: parsedData.data.activityModuleId,
+					section: targetSectionId,
 					order: 0,
 					transactionID,
 				},
@@ -199,11 +256,8 @@ export const action = async ({
 		}
 	}
 
-	if (intent === "delete") {
-		const linkId = Number(formData.get("linkId"));
-		if (Number.isNaN(linkId)) {
-			return badRequest({ error: "Invalid link ID" });
-		}
+	if (parsedData.data.intent === "delete") {
+		const linkId = parsedData.data.linkId;
 
 		const deleteResult = await tryDeleteCourseActivityModuleLink(
 			payload,
@@ -243,23 +297,12 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export default function CourseModulesPage({
 	loaderData,
 }: Route.ComponentProps) {
-	const fetcher = useFetcher<typeof action>();
+	const { createModuleLink, state: createState } = useCreateModuleLink();
+	const { deleteModuleLink, state: deleteState } = useDeleteModuleLink();
 
 	const { course, canEdit, availableModules } = loaderData;
 
-	const handleDeleteLink = (linkId: number) => {
-		fetcher.submit(
-			{ intent: "delete", linkId: linkId.toString() },
-			{ method: "post" },
-		);
-	};
-
-	const handleCreateLink = (activityModuleId: number) => {
-		fetcher.submit(
-			{ intent: "create", activityModuleId: activityModuleId.toString() },
-			{ method: "post" },
-		);
-	};
+	const fetcherState = createState !== "idle" ? createState : deleteState;
 
 	const title = `${course.title} - Modules | Paideia LMS`;
 
@@ -287,9 +330,9 @@ export default function CourseModulesPage({
 				}))}
 				availableModules={availableModules}
 				canEdit={canEdit}
-				fetcherState={fetcher.state}
-				onAddModule={handleCreateLink}
-				onDeleteLink={handleDeleteLink}
+				fetcherState={fetcherState}
+				onAddModule={(activityModuleId) => createModuleLink(activityModuleId, course.id)}
+				onDeleteLink={(linkId) => deleteModuleLink(linkId, course.id)}
 			/>
 		</Container>
 	);

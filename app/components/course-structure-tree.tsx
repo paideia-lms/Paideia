@@ -6,7 +6,7 @@ import {
 	syncDataLoaderFeature,
 } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { ActionIcon, Badge, Box, Paper, Text } from "@mantine/core";
+import { ActionIcon, Badge, Box, Button, Group, Paper, Text } from "@mantine/core";
 import { useClickOutside, useIsFirstRender } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
@@ -17,13 +17,14 @@ import {
 	IconLibraryPlus,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { href, Link } from "react-router";
 import type {
 	ActivityModuleSummary,
 	CourseStructure,
 	CourseStructureSection,
 } from "server/internal/course-section-management";
 import { useUpdateCourseStructure } from "~/routes/api/course-structure-tree";
+import { getModuleIcon } from "~/utils/module-helper";
 
 // Tree node interface for headless-tree
 export interface TreeNode {
@@ -280,23 +281,6 @@ function getStatusColor(status: string) {
 	}
 }
 
-// Get module type icon
-function getModuleIcon(type: string) {
-	switch (type) {
-		case "page":
-			return "📄";
-		case "assignment":
-			return "📝";
-		case "quiz":
-			return "❓";
-		case "discussion":
-			return "💬";
-		case "whiteboard":
-			return "🎨";
-		default:
-			return "📄";
-	}
-}
 
 interface CourseStructureTreeProps {
 	readOnly?: boolean;
@@ -414,7 +398,15 @@ export function CourseStructureTree({
 		},
 		indent: 20,
 		dataLoader: {
-			getItem: (itemId: string) => flatData[itemId],
+			getItem: (itemId: string) => {
+				// ! we need to provide a defualt value for now because the getChildren does not revalidate the data when the flatData changes
+				return flatData[itemId] ?? {
+					id: itemId,
+					name: itemId,
+					type: "section",
+					children: [],
+				}
+			},
 			getChildren: (itemId: string) => getChildrenIds(itemId, flatData),
 		},
 		features: [
@@ -426,13 +418,14 @@ export function CourseStructureTree({
 		],
 	});
 
+
 	const items = tree.getItems();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
 		if (isLoading || isFirstRender) return;
 		tree.rebuildTree();
-	}, [isLoading]);
+	}, [isLoading, JSON.stringify(flatData)]);
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
 	useEffect(() => {
@@ -449,9 +442,14 @@ export function CourseStructureTree({
 					marginBottom: "16px",
 				}}
 			>
-				<Text size="lg" fw={600}>
-					Course Structure
-				</Text>
+				<Group>
+					<Text size="lg" fw={600}>
+						Course Structure
+					</Text>
+					<Button size="compact-xs" component={Link} to={href("/course/:id", { id: courseId.toString() })} variant="light">
+						Root
+					</Button>
+				</Group>
 				<ActionIcon.Group>
 					<ActionIcon
 						variant="light"
@@ -583,7 +581,7 @@ export function CourseStructureTree({
 											color: "inherit",
 										}}
 									>
-										<Text size="sm">{getModuleIcon(itemData.module.type)}</Text>
+										<Text size="sm">{getModuleIcon(itemData.module.type, 12)}</Text>
 										<Text
 											size="sm"
 											fw={isCurrentItem ? 600 : 400}

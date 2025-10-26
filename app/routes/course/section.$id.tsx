@@ -5,30 +5,39 @@ import {
 	Container,
 	Group,
 	Paper,
+	Select,
 	Stack,
 	Text,
 	Title,
 } from "@mantine/core";
+import { useState } from "react";
+import { modals } from "@mantine/modals";
 import {
 	IconBook,
 	IconClipboardList,
 	IconFolder,
 	IconMessage,
 	IconPencil,
+	IconPlus,
 	IconPresentation,
+	IconTrash,
 	IconWriting,
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
+import { useDeleteCourseSection } from "~/routes/api/section-delete";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
+import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import type {
 	CourseStructureItem,
 	CourseStructureSection,
 } from "server/internal/course-section-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
-import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
+import { BadRequestResponse, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/section.$id";
+import { useCreateModuleLink } from "~/routes/course.$id.modules";
+import { getModuleIcon, getModuleColor } from "~/utils/module-helper";
 
 // Helper function to recursively find a section in the course structure
 function findSectionInStructure(
@@ -54,6 +63,7 @@ function findSectionInStructure(
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
+	const userAccessContext = context.get(userAccessContextKey);
 	const payload = context.get(globalContextKey).payload;
 
 	if (!userSession?.isAuthenticated) {
@@ -65,9 +75,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const sectionId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(sectionId)) {
-		return badRequest({
-			error: "Invalid section ID",
-		});
+		throw new BadRequestResponse("Invalid section ID");
 	}
 
 	// Get course context to ensure user has access to this course
@@ -115,79 +123,84 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		)
 		: [];
 
+	// Get available modules from user access context
+	const availableModules =
+		userAccessContext?.activityModules.map((module) => ({
+			id: module.id,
+			title: module.title,
+			description: module.description,
+			type: module.type,
+			status: module.status,
+		})) ?? [];
+
 	return ok({
 		section,
 		course: courseContext.course,
 		subsections,
 		modules,
+		availableModules,
 	});
 };
 
-// Helper function to get icon for module type
-function getModuleIcon(
-	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion",
-) {
-	switch (type) {
-		case "page":
-			return <IconBook size={20} />;
-		case "whiteboard":
-			return <IconPresentation size={20} />;
-		case "assignment":
-			return <IconPencil size={20} />;
-		case "quiz":
-			return <IconClipboardList size={20} />;
-		case "discussion":
-			return <IconMessage size={20} />;
-		default:
-			return <IconWriting size={20} />;
-	}
-}
 
-// Helper function to get badge color for module type
-function getModuleColor(
-	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion",
-) {
-	switch (type) {
-		case "page":
-			return "blue";
-		case "whiteboard":
-			return "purple";
-		case "assignment":
-			return "orange";
-		case "quiz":
-			return "green";
-		case "discussion":
-			return "cyan";
-		default:
-			return "gray";
-	}
-}
 
 export default function SectionPage({ loaderData }: Route.ComponentProps) {
-	if ("error" in loaderData) {
-		return (
-			<Container size="md" py="xl">
-				<Paper withBorder shadow="md" p="xl" radius="md">
-					<Title order={2} mb="md" c="red">
-						Error
-					</Title>
-					<Text>{loaderData.error}</Text>
-				</Paper>
-			</Container>
-		);
-	}
+	const { deleteSection, isLoading: isDeleting } = useDeleteCourseSection();
+	const { createModuleLink, state: createState } = useCreateModuleLink();
+	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
-	const { section, course, subsections, modules } = loaderData;
+	const { section, course, subsections, modules, availableModules } = loaderData;
+
+	// Check if user can edit
+	const canEdit = true; // User must have access if they can view the section
+
+	// Filter out modules that are already linked
+	const linkedModuleIds = new Set(modules.map((m) => m.module.id));
+	// const unlinkedModules = availableModules.filter(
+	// 	(module) => !linkedModuleIds.has(module.id),
+	// );
+
+	const handleDelete = () => {
+		modals.openConfirmModal({
+			title: "Delete Section",
+			children: (
+				<Text size="sm">
+					Are you sure you want to delete this section? This action cannot be
+					undone. The section must not have any subsections or activity modules.
+				</Text>
+			),
+			labels: { confirm: "Delete", cancel: "Cancel" },
+			confirmProps: { color: "red" },
+			onConfirm: () => {
+				deleteSection({ sectionId: section.id, courseId: course.id });
+			},
+		});
+	};
+
+	const handleLinkModule = () => {
+		if (selectedModuleId) {
+			createModuleLink(
+				Number.parseInt(selectedModuleId, 10),
+				course.id,
+				section.id,
+			);
+			setSelectedModuleId(null);
+		}
+	};
+
+	const title = `${section.title} | ${course.title} | Paideia LMS`;
 
 	return (
 		<Container size="xl" py="xl">
 			<title>
-				{section.title} | {course.title} | Paideia LMS
+				{title}
 			</title>
 			<meta
 				name="description"
 				content={`View ${section.title} section in ${course.title}`}
 			/>
+			<meta property="og:title" content={title} />
+			<meta property="og:description" content={`View ${section.title} section in ${course.title}`} />
 
 			<Stack gap="xl">
 				<Group justify="space-between" align="flex-start">
@@ -199,9 +212,34 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 							Course Section
 						</Text>
 					</div>
-					<Button component={Link} to={`/course/${course.id}`} variant="light">
-						Back to Course
-					</Button>
+					<Group>
+						{canEdit && (
+							<>
+								<Button
+									component={Link}
+									to={href("/course/:id/section/new", {
+										id: course.id.toString(),
+									})}
+									leftSection={<IconPlus size={16} />}
+									variant="light"
+								>
+									Add Subsection
+								</Button>
+								<Button
+									color="red"
+									onClick={handleDelete}
+									leftSection={<IconTrash size={16} />}
+									variant="light"
+									loading={isDeleting}
+								>
+									Delete Section
+								</Button>
+							</>
+						)}
+						<Button component={Link} to={`/course/${course.id}`} variant="light">
+							Back to Course
+						</Button>
+					</Group>
 				</Group>
 
 				<Paper withBorder shadow="sm" p="xl">
@@ -210,6 +248,36 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 					</Title>
 					{section.description && <Text mb="md">{section.description}</Text>}
 				</Paper>
+
+				{/* Link Activity Module */}
+				{canEdit && availableModules.length > 0 && (
+					<Paper withBorder shadow="sm" p="md">
+						<Stack gap="md">
+							<Title order={3}>Link Activity Module</Title>
+							<Group align="flex-end">
+								<Select
+									placeholder="Select a module to link"
+									data={availableModules.map((module) => ({
+										value: module.id.toString(),
+										label: `${module.title} (${module.type})`,
+									}))}
+									value={selectedModuleId}
+									onChange={setSelectedModuleId}
+									style={{ flex: 1 }}
+									searchable
+								/>
+								<Button
+									onClick={handleLinkModule}
+									disabled={!selectedModuleId}
+									loading={createState !== "idle"}
+									leftSection={<IconPlus size={16} />}
+								>
+									Link Module
+								</Button>
+							</Group>
+						</Stack>
+					</Paper>
+				)}
 
 				{/* Subsections */}
 				{subsections.length > 0 && (

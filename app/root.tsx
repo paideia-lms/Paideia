@@ -32,6 +32,7 @@ import {
 	MantineProvider,
 	Textarea,
 } from "@mantine/core";
+import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -80,6 +81,7 @@ export const middleware = [
 		let isCourseBackup = false;
 		let isCourseModule = false;
 		let isCourseSection = false;
+		let isCourseSectionNew = false;
 		let isUserLayout = false;
 		let isUserOverview = false;
 		let isUserPreference = false;
@@ -115,6 +117,7 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
 			else if (route.id === "routes/course/module.$id") isCourseModule = true;
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
+			else if (route.id === "routes/course/section-new") isCourseSectionNew = true;
 			else if (route.id === "layouts/user-layout") isUserLayout = true;
 			else if (route.id === "routes/user/overview") isUserOverview = true;
 			else if (route.id === "routes/user/preference") isUserPreference = true;
@@ -157,6 +160,7 @@ export const middleware = [
 				isCourseBackup,
 				isCourseModule,
 				isCourseSection,
+				isCourseSectionNew,
 				isUserLayout,
 				isUserOverview,
 				isUserPreference,
@@ -510,10 +514,12 @@ export default function App({ loaderData }: Route.ComponentProps) {
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
 				<MantineProvider defaultColorScheme={theme} theme={mantineTheme}>
-					<NuqsAdapter>
-						<Outlet />
-						<Notifications />
-					</NuqsAdapter>
+					<ModalsProvider>
+						<NuqsAdapter>
+							<Outlet />
+							<Notifications />
+						</NuqsAdapter>
+					</ModalsProvider>
 				</MantineProvider>
 				<ScrollRestoration />
 				<Scripts />
