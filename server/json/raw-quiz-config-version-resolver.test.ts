@@ -153,4 +153,102 @@ describe("raw-quiz-config-version-resolver", () => {
 		expect(validConfig).not.toBeNull();
 		expect(validConfig?.version).toBe("v2");
 	});
+
+	test("should convert v1 fill-in-the-blank questions to v2 format", () => {
+		const v1Config: QuizConfigV1 = {
+			id: "quiz-fill-v1",
+			title: "V1 Fill in the Blank Quiz",
+			pages: [
+				{
+					id: "page-1",
+					title: "Page 1",
+					questions: [
+						{
+							id: "q1",
+							type: "fill-in-the-blank",
+							prompt: "The capital of France is {{capital}} and the largest city is also {{capital}}.",
+							correctAnswers: ["Paris"],
+						},
+						{
+							id: "q2",
+							type: "fill-in-the-blank",
+							prompt: "{{country}} has {{capital}} as its capital.",
+							correctAnswers: ["France", "Paris"],
+						},
+					],
+				},
+			],
+		};
+
+		const result = resolveQuizConfigToLatest(v1Config);
+
+		expect(result.version).toBe("v2");
+		expect(result.type).toBe("regular");
+
+		if (result.type === "regular") {
+			expect(result.pages[0].questions).toHaveLength(2);
+
+			const q1 = result.pages[0].questions[0];
+			if (q1.type === "fill-in-the-blank") {
+				expect(q1.prompt).toBe("The capital of France is {{capital}} and the largest city is also {{capital}}.");
+				expect(q1.correctAnswers).toEqual({ capital: "Paris" });
+			}
+
+			const q2 = result.pages[0].questions[1];
+			if (q2.type === "fill-in-the-blank") {
+				expect(q2.prompt).toBe("{{country}} has {{capital}} as its capital.");
+				expect(q2.correctAnswers).toEqual({ country: "France", capital: "Paris" });
+			}
+		}
+	});
+
+	test("should pass through v2 fill-in-the-blank with new blank_id format", () => {
+		const v2Config: QuizConfigV2 = {
+			version: "v2",
+			type: "regular",
+			id: "quiz-fill",
+			title: "Fill in the Blank Quiz",
+			pages: [
+				{
+					id: "page-1",
+					title: "Page 1",
+					questions: [
+						{
+							id: "q1",
+							type: "fill-in-the-blank",
+							prompt: "The capital of France is {{capital}} and the largest city is also {{capital}}.",
+							correctAnswers: { capital: "Paris" },
+						},
+						{
+							id: "q2",
+							type: "fill-in-the-blank",
+							prompt: "{{country}} has {{capital}} as its capital.",
+							correctAnswers: { country: "France", capital: "Paris" },
+						},
+					],
+				},
+			],
+		};
+
+		const result = resolveQuizConfigToLatest(v2Config);
+
+		expect(result.version).toBe("v2");
+		expect(result.type).toBe("regular");
+
+		if (result.type === "regular") {
+			expect(result.pages[0].questions).toHaveLength(2);
+
+			const q1 = result.pages[0].questions[0];
+			if (q1.type === "fill-in-the-blank") {
+				expect(q1.prompt).toBe("The capital of France is {{capital}} and the largest city is also {{capital}}.");
+				expect(q1.correctAnswers).toEqual({ capital: "Paris" });
+			}
+
+			const q2 = result.pages[0].questions[1];
+			if (q2.type === "fill-in-the-blank") {
+				expect(q2.prompt).toBe("{{country}} has {{capital}} as its capital.");
+				expect(q2.correctAnswers).toEqual({ country: "France", capital: "Paris" });
+			}
+		}
+	});
 });

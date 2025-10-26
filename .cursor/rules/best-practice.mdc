@@ -4,6 +4,9 @@ globs:
 alwaysApply: true
 ---
 
+## package manager
+always use bun as package manager.
+
 ## frontend
 
 Should use mantine component all the time. we should use design token from mantine. 

@@ -717,8 +717,8 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 					initialAnswers={
 						isViewingCompletedQuiz
 							? nestedQuizState.submittedAnswers[
-									nestedQuizState.currentNestedQuizId
-								]
+							nestedQuizState.currentNestedQuizId
+							]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {
@@ -859,8 +859,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 							id: "s3-q1",
 							type: "fill-in-the-blank",
 							prompt:
-								"To handle asynchronous operations in JavaScript, you can use {{blank}}, {{blank}}, or {{blank}}.",
-							correctAnswers: ["callbacks", "promises", "async/await"],
+								"To handle asynchronous operations in JavaScript, you can use {{method_one}}, {{method_two}}, or {{method_three}}.",
+							correctAnswers: { method_one: "callbacks", method_two: "promises", method_three: "async/await" },
 						},
 						{
 							id: "s3-q2",
@@ -963,8 +963,8 @@ export const sampleNestedQuizConfig: QuizConfig = {
 							id: "q5",
 							type: "fill-in-the-blank",
 							prompt:
-								"The capital of France is {{blank}} and the largest city is {{blank}}.",
-							correctAnswers: ["Paris", "Paris"],
+								"The capital of France is {{capital}} and the largest city is {{largest_city}}.",
+							correctAnswers: { capital: "Paris", largest_city: "Paris" },
 							scoring: {
 								type: "weighted",
 								maxPoints: 4,

@@ -26,8 +26,10 @@ import {
     Group,
     NumberInput,
     Paper,
+    Radio,
     Select,
     Stack,
+    Table,
     Text,
     Textarea,
     TextInput,
@@ -45,12 +47,19 @@ import {
 } from "@tabler/icons-react";
 import { useState } from "react";
 import type {
+    ChoiceQuestion,
+    FillInTheBlankQuestion,
     MultipleChoiceQuestion,
+    MultipleSelectionMatrixQuestion,
     Question,
+    QuestionType,
     QuizPage,
+    RankingQuestion,
     ScoringConfig,
+    SingleSelectionMatrixQuestion,
 } from "server/json/raw-quiz-config.types.v2";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 
 
@@ -148,17 +157,14 @@ export interface ScoringEditorProps {
 }
 
 export function ScoringEditor({ form, path }: ScoringEditorProps) {
-    const questionType = useFormWatchForceUpdate(form, `${path}.type` as const);
     const scoring = useFormWatchForceUpdate(form, `${path}.scoring` as const);
 
-    const defaultScoring: ScoringConfig =
-        questionType === "long-answer"
-            ? { type: "manual", maxPoints: 1 }
-            : { type: "simple", points: 1 };
-
-    const currentScoring = scoring || defaultScoring;
     const scoringPath = `${path}.scoring` as const;
+    const currentScoring = scoring;
 
+    if (!currentScoring) return null;
+
+    // Simple scoring
     if (currentScoring.type === "simple") {
         return (
             <NumberInput
@@ -172,6 +178,7 @@ export function ScoringEditor({ form, path }: ScoringEditorProps) {
         );
     }
 
+    // Manual scoring
     if (currentScoring.type === "manual") {
         return (
             <NumberInput
@@ -182,6 +189,158 @@ export function ScoringEditor({ form, path }: ScoringEditorProps) {
                 min={0}
                 size="sm"
             />
+        );
+    }
+
+    // Weighted scoring
+    if (currentScoring.type === "weighted") {
+        return (
+            <Stack gap="sm">
+                <Select
+                    label="Scoring Mode"
+                    value={currentScoring.mode}
+                    onChange={(val) => {
+                        if (val === "all-or-nothing") {
+                            form.setFieldValue(scoringPath, {
+                                type: "weighted",
+                                mode: "all-or-nothing",
+                                maxPoints: currentScoring.maxPoints,
+                            });
+                        } else if (val === "partial-with-penalty") {
+                            form.setFieldValue(scoringPath, {
+                                type: "weighted",
+                                mode: "partial-with-penalty",
+                                maxPoints: currentScoring.maxPoints,
+                                pointsPerCorrect: 1,
+                                penaltyPerIncorrect: 0.5,
+                            });
+                        } else if (val === "partial-no-penalty") {
+                            form.setFieldValue(scoringPath, {
+                                type: "weighted",
+                                mode: "partial-no-penalty",
+                                maxPoints: currentScoring.maxPoints,
+                                pointsPerCorrect: 1,
+                            });
+                        }
+                    }}
+                    data={[
+                        { value: "all-or-nothing", label: "All or Nothing" },
+                        { value: "partial-with-penalty", label: "Partial Credit with Penalty" },
+                        { value: "partial-no-penalty", label: "Partial Credit without Penalty" },
+                    ]}
+                    size="sm"
+                />
+                <NumberInput
+                    {...form.getInputProps(`${scoringPath}.maxPoints`)}
+                    key={form.key(`${scoringPath}.maxPoints`)}
+                    label="Maximum Points"
+                    min={0}
+                    size="sm"
+                />
+                {currentScoring.mode !== "all-or-nothing" && (
+                    <NumberInput
+                        {...form.getInputProps(`${scoringPath}.pointsPerCorrect`)}
+                        key={form.key(`${scoringPath}.pointsPerCorrect`)}
+                        label="Points Per Correct"
+                        min={0}
+                        size="sm"
+                        step={0.1}
+                    />
+                )}
+                {currentScoring.mode === "partial-with-penalty" && (
+                    <NumberInput
+                        {...form.getInputProps(`${scoringPath}.penaltyPerIncorrect`)}
+                        key={form.key(`${scoringPath}.penaltyPerIncorrect`)}
+                        label="Penalty Per Incorrect"
+                        min={0}
+                        size="sm"
+                        step={0.1}
+                    />
+                )}
+            </Stack>
+        );
+    }
+
+    // Ranking scoring
+    if (currentScoring.type === "ranking") {
+        return (
+            <Stack gap="sm">
+                <Select
+                    label="Scoring Mode"
+                    value={currentScoring.mode}
+                    onChange={(val) => {
+                        if (val === "exact-order") {
+                            form.setFieldValue(scoringPath, {
+                                type: "ranking",
+                                mode: "exact-order",
+                                maxPoints: currentScoring.maxPoints,
+                            });
+                        } else if (val === "partial-order") {
+                            form.setFieldValue(scoringPath, {
+                                type: "ranking",
+                                mode: "partial-order",
+                                maxPoints: currentScoring.maxPoints,
+                                pointsPerCorrectPosition: 1,
+                            });
+                        }
+                    }}
+                    data={[
+                        { value: "exact-order", label: "Exact Order Required" },
+                        { value: "partial-order", label: "Partial Credit Per Position" },
+                    ]}
+                    size="sm"
+                />
+                <NumberInput
+                    {...form.getInputProps(`${scoringPath}.maxPoints`)}
+                    key={form.key(`${scoringPath}.maxPoints`)}
+                    label="Maximum Points"
+                    min={0}
+                    size="sm"
+                />
+                {currentScoring.mode === "partial-order" && (
+                    <NumberInput
+                        {...form.getInputProps(`${scoringPath}.pointsPerCorrectPosition`)}
+                        key={form.key(`${scoringPath}.pointsPerCorrectPosition`)}
+                        label="Points Per Correct Position"
+                        min={0}
+                        size="sm"
+                        step={0.1}
+                    />
+                )}
+            </Stack>
+        );
+    }
+
+    // Matrix scoring
+    if (currentScoring.type === "matrix") {
+        return (
+            <Stack gap="sm">
+                <Select
+                    {...form.getInputProps(`${scoringPath}.mode`)}
+                    key={form.key(`${scoringPath}.mode`)}
+                    label="Scoring Mode"
+                    data={[
+                        { value: "all-or-nothing", label: "All or Nothing (per row)" },
+                        { value: "partial", label: "Partial Credit (per row)" },
+                    ]}
+                    size="sm"
+                />
+                <NumberInput
+                    {...form.getInputProps(`${scoringPath}.maxPoints`)}
+                    key={form.key(`${scoringPath}.maxPoints`)}
+                    label="Maximum Points"
+                    min={0}
+                    size="sm"
+                />
+                <NumberInput
+                    {...form.getInputProps(`${scoringPath}.pointsPerRow`)}
+                    key={form.key(`${scoringPath}.pointsPerRow`)}
+                    label="Points Per Row"
+                    min={0}
+                    size="sm"
+                    step={0.1}
+                />
+            </Stack>
         );
     }
 
@@ -253,12 +412,9 @@ export function MultipleChoiceEditor({ form, path }: MultipleChoiceEditorProps) 
                         size="sm"
                     />
                     <Checkbox
-                        // {...form.getInputProps(`${path}.correctAnswer`, { type: "checkbox" })}
-                        // key={form.key(`${path}.correctAnswer`)}
                         label="Correct"
                         checked={questionData.correctAnswer === key}
                         onChange={(e) => {
-                            // if same correct answer, don't change it
                             if (questionData.correctAnswer === key) {
                                 return;
                             }
@@ -279,6 +435,757 @@ export function MultipleChoiceEditor({ form, path }: MultipleChoiceEditorProps) 
                     </ActionIcon>
                 </Group>
             ))}
+        </Stack>
+    );
+}
+
+// ============================================================================
+// CHOICE EDITOR (Multiple Selection / Checkboxes)
+// ============================================================================
+
+export interface ChoiceEditorProps {
+    form: UseFormReturnType<ActivityModuleFormValues>;
+    path:
+    | `rawQuizConfig.pages.${number}.questions.${number}`
+    | `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+}
+
+export function ChoiceEditor({ form, path }: ChoiceEditorProps) {
+    const questionData = getPath(path, form.getValues()) as ChoiceQuestion;
+    useFormWatchForceUpdate(form, `${path}.options` as const);
+    useFormWatchForceUpdate(form, `${path}.correctAnswers` as const);
+
+    const options = questionData.options;
+    const optionKeys = Object.keys(options);
+    const correctAnswers = questionData.correctAnswers || [];
+
+    const addOption = () => {
+        const nextKey = String.fromCharCode(97 + optionKeys.length);
+        form.setFieldValue(`${path}.options.${nextKey}` as const, "");
+    };
+
+    const removeOption = (key: string) => {
+        const currentQuestion = getPath(path, form.getValues()) as ChoiceQuestion;
+        const newOptions = { ...currentQuestion.options };
+        delete newOptions[key];
+
+        form.setFieldValue(`${path}.options` as const, newOptions);
+
+        // Remove from correctAnswers if present
+        if (currentQuestion.correctAnswers?.includes(key)) {
+            form.setFieldValue(
+                `${path}.correctAnswers` as const,
+                currentQuestion.correctAnswers.filter((k) => k !== key)
+            );
+        }
+    };
+
+    const toggleCorrectAnswer = (key: string, checked: boolean) => {
+        const current = correctAnswers || [];
+        if (checked) {
+            form.setFieldValue(`${path}.correctAnswers` as const, [...current, key]);
+        } else {
+            form.setFieldValue(
+                `${path}.correctAnswers` as const,
+                current.filter((k) => k !== key)
+            );
+        }
+    };
+
+    return (
+        <Stack gap="xs">
+            <Group justify="space-between">
+                <Text size="sm" fw={500}>
+                    Answer Options (Multiple Selection)
+                </Text>
+                <Button
+                    size="compact-sm"
+                    variant="light"
+                    leftSection={<IconPlus size={14} />}
+                    onClick={addOption}
+                >
+                    Add Option
+                </Button>
+            </Group>
+
+            {optionKeys.map((key) => (
+                <Group key={key} gap="xs" wrap="nowrap">
+                    <TextInput
+                        {...form.getInputProps(`${path}.options.${key}`)}
+                        key={form.key(`${path}.options.${key}`)}
+                        placeholder={`Option ${key.toUpperCase()}`}
+                        style={{ flex: 1 }}
+                        size="sm"
+                    />
+                    <Checkbox
+                        label="Correct"
+                        checked={correctAnswers.includes(key)}
+                        onChange={(e) => toggleCorrectAnswer(key, e.currentTarget.checked)}
+                    />
+                    <ActionIcon
+                        color="red"
+                        variant="subtle"
+                        onClick={() => removeOption(key)}
+                        disabled={optionKeys.length <= 2}
+                    >
+                        <IconTrash size={16} />
+                    </ActionIcon>
+                </Group>
+            ))}
+        </Stack>
+    );
+}
+
+// ============================================================================
+// FILL IN THE BLANK EDITOR
+// ============================================================================
+
+export interface FillInTheBlankEditorProps {
+    form: UseFormReturnType<ActivityModuleFormValues>;
+    path:
+    | `rawQuizConfig.pages.${number}.questions.${number}`
+    | `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+}
+
+export function FillInTheBlankEditor({ form, path }: FillInTheBlankEditorProps) {
+    const questionData = getPath(path, form.getValues()) as FillInTheBlankQuestion;
+    useFormWatchForceUpdate(form, `${path}.prompt` as const);
+    useFormWatchForceUpdate(form, `${path}.correctAnswers` as const);
+
+    // Parse the prompt using the utility function
+    const parsed = parseFillInTheBlank(questionData.prompt || "");
+
+    return (
+        <Stack gap="sm">
+            <Text size="sm" c="dimmed">
+                Use <code>{"{{blank_id}}"}</code> in the prompt to mark blank positions. Each unique
+                ID creates one answer field. Multiple <code>{"{{blank_id}}"}</code> with the same ID
+                share the same answer. Blank IDs must be in <code>snake_case</code> or <code>CONSTANT_CASE</code>.
+            </Text>
+
+            {parsed.uniqueBlankIds.length > 0 && (
+                <Text size="sm" c="dimmed">
+                    Currently {parsed.uniqueBlankIds.length} unique blank(s) detected.
+                </Text>
+            )}
+
+            {/* Validation Errors */}
+            {parsed.invalidBlankIds.length > 0 && (
+                <Paper withBorder p="sm" radius="sm" bg="red.0" style={{ borderColor: "var(--mantine-color-red-6)" }}>
+                    <Text size="sm" c="red" fw={500} mb="xs">
+                        Invalid Blank IDs:
+                    </Text>
+                    <Stack gap="xs">
+                        {parsed.invalidBlankIds.map((id) => (
+                            <Text key={id} size="sm" c="red">
+                                <code>{`{{${id}}}`}</code> - Must be snake_case (e.g., <code>capital_city</code>) or CONSTANT_CASE (e.g., <code>MAX_VALUE</code>)
+                            </Text>
+                        ))}
+                    </Stack>
+                </Paper>
+            )}
+
+            {parsed.uniqueBlankIds.length > 0 && parsed.isValid && (
+                <Stack gap="xs">
+                    <Text size="sm" fw={500}>
+                        Correct Answers for Each Blank
+                    </Text>
+                    {parsed.uniqueBlankIds.map((blankId) => {
+                        const occurrences = parsed.blankIds.filter((id) => id === blankId).length;
+                        return (
+                            <TextInput
+                                {...form.getInputProps(`${path}.correctAnswers.${blankId}`)}
+                                key={form.key(`${path}.correctAnswers.${blankId}`)}
+                                label={`Blank: ${blankId}${occurrences > 1 ? ` (used ${occurrences} times)` : ""}`}
+                                placeholder={`Answer for ${blankId}`}
+                                size="sm"
+                            />
+                        );
+                    })}
+                </Stack>
+            )}
+
+            {parsed.uniqueBlankIds.length === 0 && (
+                <Text size="sm" c="dimmed" ta="center">
+                    Add {"{{blank_id}}"} markers to the prompt above
+                </Text>
+            )}
+        </Stack>
+    );
+}
+
+// ============================================================================
+// RANKING EDITOR
+// ============================================================================
+
+export interface RankingEditorProps {
+    form: UseFormReturnType<ActivityModuleFormValues>;
+    path:
+    | `rawQuizConfig.pages.${number}.questions.${number}`
+    | `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+}
+
+// Sortable Ranking Item
+interface SortableRankingItemProps {
+    id: string;
+    label: string;
+    index: number;
+    onRemove: () => void;
+    canRemove: boolean;
+    form: UseFormReturnType<ActivityModuleFormValues>;
+    path: string;
+}
+
+function SortableRankingItem({
+    id,
+    index,
+    onRemove,
+    canRemove,
+    form,
+    path,
+}: SortableRankingItemProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging,
+    } = useSortable({ id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.3 : 1,
+    };
+
+    return (
+        <Group ref={setNodeRef} style={style} gap="xs" wrap="nowrap">
+            <ActionIcon {...attributes} {...listeners} variant="subtle" style={{ cursor: "grab" }}>
+                <IconGripVertical size={16} />
+            </ActionIcon>
+            <Text size="sm" fw={500} style={{ minWidth: 30 }}>
+                #{index + 1}
+            </Text>
+            <TextInput
+                {...form.getInputProps(`${path}.${id}`)}
+                key={form.key(`${path}.${id}`)}
+                placeholder={`Item ${id.toUpperCase()}`}
+                style={{ flex: 1 }}
+                size="sm"
+            />
+            <ActionIcon
+                color="red"
+                variant="subtle"
+                onClick={onRemove}
+                disabled={!canRemove}
+            >
+                <IconTrash size={16} />
+            </ActionIcon>
+        </Group>
+    );
+}
+
+export function RankingEditor({ form, path }: RankingEditorProps) {
+    const mounted = useMounted();
+    const questionData = getPath(path, form.getValues()) as RankingQuestion;
+    useFormWatchForceUpdate(form, `${path}.items` as const);
+    useFormWatchForceUpdate(form, `${path}.correctOrder` as const);
+
+    const items = questionData.items || {};
+    const itemKeys = Object.keys(items);
+    const correctOrder = questionData.correctOrder || [];
+    const [activeId, setActiveId] = useState<string | null>(null);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    // Initialize correct order with all item keys if empty
+    const orderedKeys = correctOrder.length > 0 ? correctOrder : itemKeys;
+
+    const addItem = () => {
+        const nextKey = String.fromCharCode(97 + itemKeys.length);
+        form.setFieldValue(`${path}.items.${nextKey}` as const, "");
+        // Add to correct order
+        form.setFieldValue(`${path}.correctOrder` as const, [...orderedKeys, nextKey]);
+    };
+
+    const removeItem = (key: string) => {
+        const currentQuestion = getPath(path, form.getValues()) as RankingQuestion;
+        const newItems = { ...currentQuestion.items };
+        delete newItems[key];
+
+        form.setFieldValue(`${path}.items` as const, newItems);
+
+        // Remove from correctOrder
+        form.setFieldValue(
+            `${path}.correctOrder` as const,
+            orderedKeys.filter((k) => k !== key)
+        );
+    };
+
+    const handleDragStart = (event: DragStartEvent) => {
+        setActiveId(event.active.id as string);
+    };
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) {
+            setActiveId(null);
+            return;
+        }
+
+        const oldIndex = orderedKeys.indexOf(active.id as string);
+        const newIndex = orderedKeys.indexOf(over.id as string);
+
+        if (oldIndex === -1 || newIndex === -1) {
+            setActiveId(null);
+            return;
+        }
+
+        const newOrder = arrayMove(orderedKeys, oldIndex, newIndex);
+        form.setFieldValue(`${path}.correctOrder` as const, newOrder);
+        setActiveId(null);
+    };
+
+    const handleDragCancel = () => {
+        setActiveId(null);
+    };
+
+    return (
+        <Stack gap="xs">
+            <Group justify="space-between">
+                <Text size="sm" fw={500}>
+                    Ranking Items (Drag to set correct order)
+                </Text>
+                <Button
+                    size="compact-sm"
+                    variant="light"
+                    leftSection={<IconPlus size={14} />}
+                    onClick={addItem}
+                >
+                    Add Item
+                </Button>
+            </Group>
+
+            {orderedKeys.length === 0 ? (
+                <Text size="sm" c="dimmed" ta="center">
+                    No items yet. Click "Add Item" to get started.
+                </Text>
+            ) : !mounted ? (
+                // Server-side render: static list without drag-and-drop
+                <Stack gap="sm">
+                    {orderedKeys.map((key, index) => (
+                        <Group key={key} gap="xs" wrap="nowrap">
+                            <Text size="sm" fw={500} style={{ minWidth: 30 }}>
+                                #{index + 1}
+                            </Text>
+                            <TextInput
+                                {...form.getInputProps(`${path}.items.${key}`)}
+                                key={form.key(`${path}.items.${key}`)}
+                                placeholder={`Item ${key.toUpperCase()}`}
+                                style={{ flex: 1 }}
+                                size="sm"
+                            />
+                            <ActionIcon
+                                color="red"
+                                variant="subtle"
+                                onClick={() => removeItem(key)}
+                                disabled={itemKeys.length <= 2}
+                            >
+                                <IconTrash size={16} />
+                            </ActionIcon>
+                        </Group>
+                    ))}
+                </Stack>
+            ) : (
+                // Client-side render: drag-and-drop enabled
+                <DndContext
+                    sensors={sensors}
+                    collisionDetection={closestCenter}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onDragCancel={handleDragCancel}
+                >
+                    <SortableContext items={orderedKeys} strategy={verticalListSortingStrategy}>
+                        <Stack gap="sm">
+                            {orderedKeys.map((key, index) => (
+                                <SortableRankingItem
+                                    key={key}
+                                    id={key}
+                                    label={items[key]}
+                                    index={index}
+                                    onRemove={() => removeItem(key)}
+                                    canRemove={itemKeys.length > 2}
+                                    form={form}
+                                    path={`${path}.items`}
+                                />
+                            ))}
+                        </Stack>
+                    </SortableContext>
+                    <DragOverlay>
+                        {activeId && <Text>Dragging: {items[activeId]}</Text>}
+                    </DragOverlay>
+                </DndContext>
+            )}
+        </Stack>
+    );
+}
+
+// ============================================================================
+// MATRIX EDITORS (Single & Multiple Selection)
+// ============================================================================
+
+export interface MatrixEditorProps {
+    form: UseFormReturnType<ActivityModuleFormValues>;
+    path:
+    | `rawQuizConfig.pages.${number}.questions.${number}`
+    | `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+}
+
+export function SingleSelectionMatrixEditor({ form, path }: MatrixEditorProps) {
+    const questionData = getPath(path, form.getValues()) as SingleSelectionMatrixQuestion;
+    useFormWatchForceUpdate(form, `${path}.rows` as const);
+    useFormWatchForceUpdate(form, `${path}.columns` as const);
+    useFormWatchForceUpdate(form, `${path}.correctAnswers` as const);
+
+    const rows = questionData.rows || {};
+    const columns = questionData.columns || {};
+    const correctAnswers = questionData.correctAnswers || {};
+    const rowKeys = Object.keys(rows);
+    const columnKeys = Object.keys(columns);
+
+    const addRow = () => {
+        const nextKey = `row-${rowKeys.length + 1}`;
+        form.setFieldValue(`${path}.rows.${nextKey}` as const, "");
+    };
+
+    const removeRow = (key: string) => {
+        const currentQuestion = getPath(path, form.getValues()) as SingleSelectionMatrixQuestion;
+        const newRows = { ...currentQuestion.rows };
+        delete newRows[key];
+        form.setFieldValue(`${path}.rows` as const, newRows);
+
+        // Remove from correctAnswers
+        const newCorrectAnswers = { ...currentQuestion.correctAnswers };
+        delete newCorrectAnswers[key];
+        form.setFieldValue(`${path}.correctAnswers` as const, newCorrectAnswers);
+    };
+
+    const addColumn = () => {
+        const nextKey = `col-${columnKeys.length + 1}`;
+        form.setFieldValue(`${path}.columns.${nextKey}` as const, "");
+    };
+
+    const removeColumn = (key: string) => {
+        const currentQuestion = getPath(path, form.getValues()) as SingleSelectionMatrixQuestion;
+        const newColumns = { ...currentQuestion.columns };
+        delete newColumns[key];
+        form.setFieldValue(`${path}.columns` as const, newColumns);
+
+        // Update correctAnswers to remove this column
+        const newCorrectAnswers = { ...currentQuestion.correctAnswers };
+        for (const rowKey in newCorrectAnswers) {
+            if (newCorrectAnswers[rowKey] === key) {
+                delete newCorrectAnswers[rowKey];
+            }
+        }
+        form.setFieldValue(`${path}.correctAnswers` as const, newCorrectAnswers);
+    };
+
+    const setCorrectAnswer = (rowKey: string, columnKey: string) => {
+        form.setFieldValue(`${path}.correctAnswers.${rowKey}` as const, columnKey);
+    };
+
+    return (
+        <Stack gap="md">
+            <Stack gap="xs">
+                <Group justify="space-between">
+                    <Text size="sm" fw={500}>
+                        Rows
+                    </Text>
+                    <Button
+                        size="compact-sm"
+                        variant="light"
+                        leftSection={<IconPlus size={14} />}
+                        onClick={addRow}
+                    >
+                        Add Row
+                    </Button>
+                </Group>
+                {rowKeys.map((key) => (
+                    <Group key={key} gap="xs" wrap="nowrap">
+                        <TextInput
+                            {...form.getInputProps(`${path}.rows.${key}`)}
+                            key={form.key(`${path}.rows.${key}`)}
+                            placeholder="Row label"
+                            style={{ flex: 1 }}
+                            size="sm"
+                        />
+                        <ActionIcon
+                            color="red"
+                            variant="subtle"
+                            onClick={() => removeRow(key)}
+                            disabled={rowKeys.length <= 1}
+                        >
+                            <IconTrash size={16} />
+                        </ActionIcon>
+                    </Group>
+                ))}
+            </Stack>
+
+            <Stack gap="xs">
+                <Group justify="space-between">
+                    <Text size="sm" fw={500}>
+                        Columns
+                    </Text>
+                    <Button
+                        size="compact-sm"
+                        variant="light"
+                        leftSection={<IconPlus size={14} />}
+                        onClick={addColumn}
+                    >
+                        Add Column
+                    </Button>
+                </Group>
+                {columnKeys.map((key) => (
+                    <Group key={key} gap="xs" wrap="nowrap">
+                        <TextInput
+                            {...form.getInputProps(`${path}.columns.${key}`)}
+                            key={form.key(`${path}.columns.${key}`)}
+                            placeholder="Column label"
+                            style={{ flex: 1 }}
+                            size="sm"
+                        />
+                        <ActionIcon
+                            color="red"
+                            variant="subtle"
+                            onClick={() => removeColumn(key)}
+                            disabled={columnKeys.length <= 1}
+                        >
+                            <IconTrash size={16} />
+                        </ActionIcon>
+                    </Group>
+                ))}
+            </Stack>
+
+            {rowKeys.length > 0 && columnKeys.length > 0 && (
+                <Stack gap="xs">
+                    <Text size="sm" fw={500}>
+                        Matrix Preview & Correct Answers
+                    </Text>
+                    <Table striped highlightOnHover withTableBorder>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th />
+                                {columnKeys.map((colKey) => (
+                                    <Table.Th key={colKey}>
+                                        {columns[colKey] || colKey}
+                                    </Table.Th>
+                                ))}
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {rowKeys.map((rowKey) => (
+                                <Table.Tr key={rowKey}>
+                                    <Table.Td fw={500}>
+                                        {rows[rowKey] || rowKey}
+                                    </Table.Td>
+                                    {columnKeys.map((colKey) => (
+                                        <Table.Td key={`${rowKey}-${colKey}`}>
+                                            <Radio
+                                                checked={correctAnswers[rowKey] === colKey}
+                                                onChange={() => setCorrectAnswer(rowKey, colKey)}
+                                            />
+                                        </Table.Td>
+                                    ))}
+                                </Table.Tr>
+                            ))}
+                        </Table.Tbody>
+                    </Table>
+                </Stack>
+            )}
+        </Stack>
+    );
+}
+
+export function MultipleSelectionMatrixEditor({ form, path }: MatrixEditorProps) {
+    const questionData = getPath(path, form.getValues()) as MultipleSelectionMatrixQuestion;
+    useFormWatchForceUpdate(form, `${path}.rows` as const);
+    useFormWatchForceUpdate(form, `${path}.columns` as const);
+    useFormWatchForceUpdate(form, `${path}.correctAnswers` as const);
+
+    const rows = questionData.rows || {};
+    const columns = questionData.columns || {};
+    const correctAnswers = questionData.correctAnswers || {};
+    const rowKeys = Object.keys(rows);
+    const columnKeys = Object.keys(columns);
+
+    const addRow = () => {
+        const nextKey = `row-${rowKeys.length + 1}`;
+        form.setFieldValue(`${path}.rows.${nextKey}` as const, "");
+    };
+
+    const removeRow = (key: string) => {
+        const currentQuestion = getPath(path, form.getValues()) as MultipleSelectionMatrixQuestion;
+        const newRows = { ...currentQuestion.rows };
+        delete newRows[key];
+        form.setFieldValue(`${path}.rows` as const, newRows);
+
+        // Remove from correctAnswers
+        const newCorrectAnswers = { ...currentQuestion.correctAnswers };
+        delete newCorrectAnswers[key];
+        form.setFieldValue(`${path}.correctAnswers` as const, newCorrectAnswers);
+    };
+
+    const addColumn = () => {
+        const nextKey = `col-${columnKeys.length + 1}`;
+        form.setFieldValue(`${path}.columns.${nextKey}` as const, "");
+    };
+
+    const removeColumn = (key: string) => {
+        const currentQuestion = getPath(path, form.getValues()) as MultipleSelectionMatrixQuestion;
+        const newColumns = { ...currentQuestion.columns };
+        delete newColumns[key];
+        form.setFieldValue(`${path}.columns` as const, newColumns);
+
+        // Update correctAnswers to remove this column
+        const newCorrectAnswers = { ...currentQuestion.correctAnswers };
+        for (const rowKey in newCorrectAnswers) {
+            if (newCorrectAnswers[rowKey] === key) {
+                delete newCorrectAnswers[rowKey];
+            }
+        }
+        form.setFieldValue(`${path}.correctAnswers` as const, newCorrectAnswers);
+    };
+
+    const setCorrectAnswer = (rowKey: string, selectedValue: string | null) => {
+        if (selectedValue) {
+            form.setFieldValue(`${path}.correctAnswers.${rowKey}` as const, selectedValue);
+        } else {
+            const currentQuestion = getPath(path, form.getValues()) as MultipleSelectionMatrixQuestion;
+            const newCorrectAnswers = { ...currentQuestion.correctAnswers };
+            delete newCorrectAnswers[rowKey];
+            form.setFieldValue(`${path}.correctAnswers` as const, newCorrectAnswers);
+        }
+    };
+
+    // Convert columns object to Mantine Select data format
+    const columnData = columnKeys.map((key) => ({
+        value: key,
+        label: columns[key] || key,
+    }));
+
+    return (
+        <Stack gap="md">
+            <Stack gap="xs">
+                <Group justify="space-between">
+                    <Text size="sm" fw={500}>
+                        Rows
+                    </Text>
+                    <Button
+                        size="compact-sm"
+                        variant="light"
+                        leftSection={<IconPlus size={14} />}
+                        onClick={addRow}
+                    >
+                        Add Row
+                    </Button>
+                </Group>
+                {rowKeys.map((key) => (
+                    <Group key={key} gap="xs" wrap="nowrap">
+                        <TextInput
+                            {...form.getInputProps(`${path}.rows.${key}`)}
+                            key={form.key(`${path}.rows.${key}`)}
+                            placeholder="Row label"
+                            style={{ flex: 1 }}
+                            size="sm"
+                        />
+                        <ActionIcon
+                            color="red"
+                            variant="subtle"
+                            onClick={() => removeRow(key)}
+                            disabled={rowKeys.length <= 1}
+                        >
+                            <IconTrash size={16} />
+                        </ActionIcon>
+                    </Group>
+                ))}
+            </Stack>
+
+            <Stack gap="xs">
+                <Group justify="space-between">
+                    <Text size="sm" fw={500}>
+                        Columns
+                    </Text>
+                    <Button
+                        size="compact-sm"
+                        variant="light"
+                        leftSection={<IconPlus size={14} />}
+                        onClick={addColumn}
+                    >
+                        Add Column
+                    </Button>
+                </Group>
+                {columnKeys.map((key) => (
+                    <Group key={key} gap="xs" wrap="nowrap">
+                        <TextInput
+                            {...form.getInputProps(`${path}.columns.${key}`)}
+                            key={form.key(`${path}.columns.${key}`)}
+                            placeholder="Column label"
+                            style={{ flex: 1 }}
+                            size="sm"
+                        />
+                        <ActionIcon
+                            color="red"
+                            variant="subtle"
+                            onClick={() => removeColumn(key)}
+                            disabled={columnKeys.length <= 1}
+                        >
+                            <IconTrash size={16} />
+                        </ActionIcon>
+                    </Group>
+                ))}
+            </Stack>
+
+            {rowKeys.length > 0 && columnKeys.length > 0 && (
+                <Stack gap="xs">
+                    <Text size="sm" fw={500}>
+                        Matrix Preview & Correct Answers
+                    </Text>
+                    <Table striped highlightOnHover withTableBorder>
+                        <Table.Thead>
+                            <Table.Tr>
+                                <Table.Th>Question</Table.Th>
+                                <Table.Th>Answer</Table.Th>
+                            </Table.Tr>
+                        </Table.Thead>
+                        <Table.Tbody>
+                            {rowKeys.map((rowKey) => (
+                                <Table.Tr key={rowKey}>
+                                    <Table.Td fw={500}>
+                                        {rows[rowKey] || rowKey}
+                                    </Table.Td>
+                                    <Table.Td>
+                                        <Select
+                                            value={correctAnswers[rowKey] || null}
+                                            onChange={(val) => setCorrectAnswer(rowKey, val)}
+                                            data={columnData}
+                                            placeholder="Select correct answer"
+                                            clearable
+                                            size="sm"
+                                        />
+                                    </Table.Td>
+                                </Table.Tr>
+                            ))}
+                        </Table.Tbody>
+                    </Table>
+                </Stack>
+            )}
         </Stack>
     );
 }
@@ -434,6 +1341,9 @@ export function SortableQuestionItem({
             case "multiple-choice":
                 return <MultipleChoiceEditor form={form} path={path} />;
 
+            case "choice":
+                return <ChoiceEditor form={form} path={path} />;
+
             case "short-answer":
                 return (
                     <TextInput
@@ -457,17 +1367,54 @@ export function SortableQuestionItem({
                     />
                 );
 
+            case "article":
+                return (
+                    <Text size="sm" c="dimmed">
+                        Article type uses rich text editor for student responses. No answer configuration needed.
+                    </Text>
+                );
+
+            case "fill-in-the-blank":
+                return <FillInTheBlankEditor form={form} path={path} />;
+
+            case "ranking":
+                return <RankingEditor form={form} path={path} />;
+
+            case "single-selection-matrix":
+                return <SingleSelectionMatrixEditor form={form} path={path} />;
+
+            case "multiple-selection-matrix":
+                return <MultipleSelectionMatrixEditor form={form} path={path} />;
+
+            case "whiteboard":
+                return (
+                    <Text size="sm" c="dimmed">
+                        Whiteboard type uses Excalidraw canvas for drawing. No answer configuration needed.
+                    </Text>
+                );
+
             default:
                 return <Text c="dimmed">Question type not yet implemented</Text>;
         }
     };
 
-    const questionTypeLabel =
-        question.type === "multiple-choice"
-            ? "Multiple Choice"
-            : question.type === "short-answer"
-                ? "Short Answer"
-                : "Long Answer";
+    const getQuestionTypeLabel = (type: QuestionType): string => {
+        const labels: Record<QuestionType, string> = {
+            "multiple-choice": "Multiple Choice",
+            "short-answer": "Short Answer",
+            "long-answer": "Long Answer",
+            "article": "Article",
+            "fill-in-the-blank": "Fill in the Blank",
+            "choice": "Choice (Multiple Selection)",
+            "ranking": "Ranking",
+            "single-selection-matrix": "Single Selection Matrix",
+            "multiple-selection-matrix": "Multiple Selection Matrix",
+            "whiteboard": "Whiteboard",
+        };
+        return labels[type];
+    };
+
+    const questionTypeLabel = getQuestionTypeLabel(question.type);
 
     return (
         <Box ref={setNodeRef} style={style}>
@@ -532,6 +1479,14 @@ export function SortableQuestionItem({
                                             correctAnswer: "a",
                                             scoring: { type: "simple", points: 1 },
                                         });
+                                    } else if (val === "choice") {
+                                        updateQuestion({
+                                            ...baseQuestion,
+                                            type: "choice",
+                                            options: { a: "Option A", b: "Option B" },
+                                            correctAnswers: [],
+                                            scoring: { type: "weighted", mode: "all-or-nothing", maxPoints: 1 },
+                                        });
                                     } else if (val === "short-answer") {
                                         updateQuestion({
                                             ...baseQuestion,
@@ -546,12 +1501,64 @@ export function SortableQuestionItem({
                                             correctAnswer: "",
                                             scoring: { type: "manual", maxPoints: 1 },
                                         });
+                                    } else if (val === "article") {
+                                        updateQuestion({
+                                            ...baseQuestion,
+                                            type: "article",
+                                            scoring: { type: "manual", maxPoints: 1 },
+                                        });
+                                    } else if (val === "fill-in-the-blank") {
+                                        updateQuestion({
+                                            ...baseQuestion,
+                                            type: "fill-in-the-blank",
+                                            correctAnswers: {},
+                                            scoring: { type: "weighted", mode: "partial-no-penalty", maxPoints: 1, pointsPerCorrect: 1 },
+                                        });
+                                    } else if (val === "ranking") {
+                                        updateQuestion({
+                                            ...baseQuestion,
+                                            type: "ranking",
+                                            items: { a: "Item A", b: "Item B" },
+                                            correctOrder: [],
+                                            scoring: { type: "ranking", mode: "exact-order", maxPoints: 1 },
+                                        });
+                                    } else if (val === "single-selection-matrix") {
+                                        updateQuestion({
+                                            ...baseQuestion,
+                                            type: "single-selection-matrix",
+                                            rows: { "row-1": "Row 1" },
+                                            columns: { "col-1": "Column 1", "col-2": "Column 2" },
+                                            correctAnswers: {},
+                                            scoring: { type: "matrix", maxPoints: 1, pointsPerRow: 1, mode: "partial" },
+                                        });
+                                    } else if (val === "multiple-selection-matrix") {
+                                        updateQuestion({
+                                            ...baseQuestion,
+                                            type: "multiple-selection-matrix",
+                                            rows: { "row-1": "Row 1" },
+                                            columns: { "col-1": "Column 1", "col-2": "Column 2" },
+                                            correctAnswers: {},
+                                            scoring: { type: "matrix", maxPoints: 1, pointsPerRow: 1, mode: "partial" },
+                                        });
+                                    } else if (val === "whiteboard") {
+                                        updateQuestion({
+                                            ...baseQuestion,
+                                            type: "whiteboard",
+                                            scoring: { type: "manual", maxPoints: 1 },
+                                        });
                                     }
                                 }}
                                 data={[
                                     { value: "multiple-choice", label: "Multiple Choice" },
+                                    { value: "choice", label: "Choice (Multiple Selection)" },
                                     { value: "short-answer", label: "Short Answer" },
                                     { value: "long-answer", label: "Long Answer" },
+                                    { value: "article", label: "Article" },
+                                    { value: "fill-in-the-blank", label: "Fill in the Blank" },
+                                    { value: "ranking", label: "Ranking" },
+                                    { value: "single-selection-matrix", label: "Single Selection Matrix" },
+                                    { value: "multiple-selection-matrix", label: "Multiple Selection Matrix" },
+                                    { value: "whiteboard", label: "Whiteboard" },
                                 ]}
                                 size="sm"
                             />
@@ -706,15 +1713,20 @@ export function QuestionsList({ form, path }: QuestionsListProps) {
         for (let i = 0; i < reorderedFlatList.length; i++) {
             const item = reorderedFlatList[i];
             if (item.type === "question") {
-                newPages[currentPage].questions.push(questionMap.get(item.id)!);
+                const question = questionMap.get(item.id);
+                if (question) {
+                    newPages[currentPage].questions.push(question);
+                }
             } else if (item.type === "page") {
-                const page = pageMap.get(item.id)!;
-                newPages.push({
-                    id: page.id,
-                    title: page.title,
-                    questions: [],
-                });
-                currentPage++;
+                const page = pageMap.get(item.id);
+                if (page) {
+                    newPages.push({
+                        id: page.id,
+                        title: page.title,
+                        questions: [],
+                    });
+                    currentPage++;
+                }
             }
         }
 

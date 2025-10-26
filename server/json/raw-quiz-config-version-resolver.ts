@@ -1,7 +1,15 @@
-import type { QuizConfig as QuizConfigV1 } from "./raw-quiz-config.types";
 import type {
+	FillInTheBlankQuestion as FillInTheBlankQuestionV1,
+	Question as QuestionV1,
+	QuizConfig as QuizConfigV1,
+	QuizPage as QuizPageV1,
+} from "./raw-quiz-config.types";
+import type {
+	FillInTheBlankQuestion as FillInTheBlankQuestionV2,
 	NestedQuizConfig,
+	Question as QuestionV2,
 	QuizConfig as QuizConfigV2,
+	QuizPage as QuizPageV2,
 } from "./raw-quiz-config.types.v2";
 
 /**
@@ -14,6 +22,59 @@ function isV2Config(config: unknown): config is QuizConfigV2 {
 		"version" in config &&
 		config.version === "v2"
 	);
+}
+
+/**
+ * Converts a v1 fill-in-the-blank question to v2 format
+ * V1 uses string[] for correctAnswers, V2 uses Record<string, string>
+ */
+function convertFillInTheBlankQuestion(
+	question: FillInTheBlankQuestionV1,
+): FillInTheBlankQuestionV2 {
+	const v1Answers = question.correctAnswers || [];
+
+	// Parse blank IDs from the prompt
+	const blankMatches = Array.from(
+		(question.prompt || "").matchAll(/\{\{([^}]+)\}\}/g),
+	);
+	const blankIds = blankMatches.map((match) => match[1]);
+
+	// Get unique blank IDs in order of first appearance
+	const uniqueBlankIds = Array.from(new Set(blankIds));
+
+	// Convert array to record by mapping indices to blank IDs
+	const correctAnswers: Record<string, string> = {};
+	for (let i = 0; i < uniqueBlankIds.length && i < v1Answers.length; i++) {
+		correctAnswers[uniqueBlankIds[i]] = v1Answers[i];
+	}
+
+	return {
+		...question,
+		correctAnswers,
+	};
+}
+
+/**
+ * Converts a v1 question to v2 format
+ */
+function convertQuestion(question: QuestionV1): QuestionV2 {
+	if (question.type === "fill-in-the-blank") {
+		return convertFillInTheBlankQuestion(
+			question as FillInTheBlankQuestionV1,
+		);
+	}
+	// All other question types remain the same
+	return question as QuestionV2;
+}
+
+/**
+ * Converts v1 pages to v2 format
+ */
+function convertPages(pages: QuizPageV1[]): QuizPageV2[] {
+	return pages.map((page) => ({
+		...page,
+		questions: page.questions.map(convertQuestion),
+	}));
 }
 
 /**
@@ -52,7 +113,7 @@ function convertV1ToV2(config: QuizConfigV1): QuizConfigV2 {
 				id: nq.id,
 				title: nq.title,
 				description: nq.description,
-				pages: nq.pages,
+				pages: convertPages(nq.pages),
 				resources: config.resources, // Move resources from parent to nested quizzes in v2
 				globalTimer: nq.globalTimer,
 				grading: nq.grading,
@@ -80,7 +141,7 @@ function convertV1ToV2(config: QuizConfigV1): QuizConfigV2 {
 			type: "regular",
 			id: config.id,
 			title: config.title,
-			pages: pages,
+			pages: convertPages(pages),
 			resources: config.resources,
 			globalTimer: config.globalTimer,
 			grading: config.grading,

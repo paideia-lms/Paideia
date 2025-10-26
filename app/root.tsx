@@ -233,9 +233,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -303,9 +303,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -434,7 +434,7 @@ const mantineTheme = createTheme({
 });
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme } = loaderData;
+	const { theme, } = loaderData;
 
 	return (
 		<html
@@ -455,6 +455,15 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<link
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
+				/>
+				<script
+					crossOrigin="anonymous"
+					src="https://unpkg.com/react-scan/dist/auto.global.js"
+				/>
+				<script
+					src="https://unpkg.com/react-grab/dist/index.global.js"
+					crossOrigin="anonymous"
+					data-enabled="true"
 				/>
 				<Meta />
 				<Links />
