@@ -9,16 +9,12 @@ import {
 } from "@mantine/core";
 import { Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import { globalContextKey } from "server/contexts/global-context";
+import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
 import { DiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
-import {
-	QuizPreview,
-	sampleNestedQuizConfig,
-} from "~/components/activity-modules-preview/quiz-preview";
+import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
 import {
 	getStatusBadgeColor,
@@ -30,7 +26,7 @@ import type { Route } from "./+types/module.$id";
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
-	const payload = context.get(globalContextKey).payload;
+	const courseModuleContext = context.get(courseModuleContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -46,113 +42,81 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	// Fetch the module link with depth to get the activity module
-	const moduleLinkResult = await tryFindCourseActivityModuleLinkById(
-		payload,
-		moduleLinkId,
-	);
-
-	if (!moduleLinkResult.ok) {
+	// Get course module context
+	if (!courseModuleContext) {
 		throw new ForbiddenResponse("Module not found or access denied");
 	}
 
-	const moduleLink = moduleLinkResult.value;
-
-	// Ensure the module link belongs to the current course
-	if (
-		typeof moduleLink.course === "object" &&
-		moduleLink.course.id !== courseContext.course.id
-	) {
-		throw new ForbiddenResponse("Module does not belong to this course");
-	}
-
-	// Fetch the full activity module with all relationships
-	const activityModuleId =
-		typeof moduleLink.activityModule === "number"
-			? moduleLink.activityModule
-			: moduleLink.activityModule.id;
-
-	const activityModule = await payload.findByID({
-		collection: "activity-modules",
-		id: activityModuleId,
-		depth: 2, // Ensure we get the page/whiteboard/etc content
-	});
-
 	return {
-		moduleLink: {
-			...moduleLink,
-			activityModule,
-		},
+		module: courseModuleContext.module,
 		course: courseContext.course,
+		previousModuleLinkId: courseModuleContext.previousModuleLinkId,
+		nextModuleLinkId: courseModuleContext.nextModuleLinkId,
 	};
 };
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
-	const { moduleLink, course } = loaderData;
-	const activityModule = moduleLink.activityModule;
+	const { module, course } = loaderData;
 
 	// Handle different module types
 	const renderModuleContent = () => {
-		switch (activityModule.type) {
+		switch (module.type) {
 			case "page": {
-				const pageContent =
-					typeof activityModule.page === "object" && activityModule.page
-						? activityModule.page.content
-						: null;
+				const pageContent = module.page?.content || null;
 				return (
 					<PagePreview content={pageContent || "<p>No content available</p>"} />
 				);
 			}
 			case "assignment":
 				return <AssignmentPreview />;
-			case "quiz":
-				return <QuizPreview quizConfig={sampleNestedQuizConfig} />;
+			case "quiz": {
+				const quizConfig = module.quiz?.rawQuizConfig || null;
+				if (!quizConfig) {
+					return <Text c="red">No quiz configuration available</Text>;
+				}
+				return <QuizPreview quizConfig={quizConfig} />;
+			}
 			case "discussion":
 				return <DiscussionPreview />;
 			case "whiteboard": {
-				const whiteboardContent =
-					typeof activityModule.whiteboard === "object" &&
-					activityModule.whiteboard
-						? activityModule.whiteboard.content
-						: null;
+				const whiteboardContent = module.whiteboard?.content || null;
 				return <WhiteboardPreview content={whiteboardContent || "{}"} />;
 			}
 			default:
-				return <Text c="red">Unknown module type: {activityModule.type}</Text>;
+				return <Text c="red">Unknown module type: {module.type}</Text>;
 		}
 	};
 
-	const title = `${activityModule.title} | ${course.title} | Paideia LMS`;
+	const title = `${module.title} | ${course.title} | Paideia LMS`;
 
 	return (
 		<Container size="xl" py="xl">
 			<title>{title}</title>
 			<meta
 				name="description"
-				content={`View ${activityModule.title} in ${course.title}`}
+				content={`View ${module.title} in ${course.title}`}
 			/>
 			<meta property="og:title" content={title} />
 			<meta
 				property="og:description"
-				content={`View ${activityModule.title} in ${course.title}`}
+				content={`View ${module.title} in ${course.title}`}
 			/>
 
 			<Stack gap="xl">
 				<Group justify="space-between" align="flex-start">
 					<div>
 						<Title order={1} mb="xs">
-							{activityModule.title}
+							{module.title}
 						</Title>
 						<Group gap="sm">
 							<Badge
-								color={getStatusBadgeColor(activityModule.status)}
+								color={getStatusBadgeColor(module.status)}
 								variant="light"
 							>
-								{getStatusLabel(activityModule.status)}
+								{getStatusLabel(module.status)}
 							</Badge>
 							<Text size="sm" c="dimmed">
-								{activityModule.type.charAt(0).toUpperCase() +
-									activityModule.type.slice(1)}{" "}
+								{module.type.charAt(0).toUpperCase() + module.type.slice(1)}{" "}
 								Module
 							</Text>
 						</Group>

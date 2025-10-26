@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import {
 	href,
 	Links,
@@ -14,6 +13,10 @@ import {
 	courseContextKey,
 	tryGetCourseContext,
 } from "server/contexts/course-context";
+import {
+	courseModuleContextKey,
+	tryGetCourseModuleContext,
+} from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
@@ -186,7 +189,7 @@ export const middleware = [
 	/**
 	 * set the course context
 	 */
-	async ({ request, context, params }) => {
+	async ({ context, params }) => {
 		const { payload, routeHierarchy, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const currentUser =
@@ -262,7 +265,7 @@ export const middleware = [
 		}
 	},
 	// set the user access context
-	async ({ request, context }) => {
+	async ({ context }) => {
 		const { payload } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -279,7 +282,7 @@ export const middleware = [
 		}
 	},
 	// set the user profile context
-	async ({ request, context, params }) => {
+	async ({ context, params }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const userAccessContext = context.get(userAccessContextKey);
@@ -312,8 +315,7 @@ export const middleware = [
 		}
 	},
 	// set the enrolment context
-	async ({ request, context }) => {
-		const { payload } = context.get(globalContextKey);
+	async ({ context }) => {
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 		if (userSession?.isAuthenticated && courseContext) {
@@ -332,8 +334,45 @@ export const middleware = [
 			}
 		}
 	},
+	// set the course module context
+	async ({ context, params }) => {
+		const { payload, pageInfo } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+
+		// Check if user is authenticated, in a course module, and has course context
+		if (
+			userSession?.isAuthenticated &&
+			pageInfo.isCourseModule &&
+			courseContext
+		) {
+			const currentUser =
+				userSession.effectiveUser || userSession.authenticatedUser;
+
+			// Get module link ID from params
+			const moduleLinkId = params.id ? Number(params.id) : null;
+
+			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
+				const courseModuleContextResult = await tryGetCourseModuleContext(
+					payload,
+					moduleLinkId,
+					courseContext.courseId,
+					currentUser
+						? {
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
+						: null,
+				);
+
+				if (courseModuleContextResult.ok) {
+					context.set(courseModuleContextKey, courseModuleContextResult.value);
+				}
+			}
+		}
+	},
 	// set the user module context
-	async ({ request, context, params }) => {
+	async ({ context, params }) => {
 		const { payload, routeHierarchy } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 

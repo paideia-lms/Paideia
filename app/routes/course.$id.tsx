@@ -1,6 +1,7 @@
 import {
 	Badge,
 	Button,
+	Card,
 	Container,
 	Group,
 	Paper,
@@ -8,8 +9,8 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { IconEdit } from "@tabler/icons-react";
-import { Link } from "react-router";
+import { IconEdit, IconFolder } from "@tabler/icons-react";
+import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -66,7 +67,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
-	const { course, instructors, currentUser } = loaderData;
+	const { course, instructors, currentUser, courseStructure } = loaderData;
 
 	const canEdit =
 		currentUser.role === "admin" ||
@@ -74,6 +75,8 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 		course.enrollments.some(
 			(enrollment) => enrollment.userId === currentUser.id,
 		);
+
+	const directSections = courseStructure.sections;
 
 	return (
 		<Container size="lg" py="xl">
@@ -119,6 +122,38 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 						enrollmentCount: course.enrollments.length,
 					}}
 				/>
+
+				<Paper shadow="sm" p="md" withBorder>
+					<Stack gap="md">
+						<Group>
+							<IconFolder size={24} />
+							<Title order={2}>Course Sections</Title>
+						</Group>
+
+						{directSections.length === 0 ? (
+							<Text c="dimmed">No sections available</Text>
+						) : (
+							<Stack gap="sm">
+								{directSections.map((section) => (
+									<Card key={section.id} shadow="xs" padding="md" withBorder component={Link} to={href("/course/section/:id", { id: section.id.toString() })}>
+										<Stack gap="xs">
+											<Group justify="space-between">
+												<Title order={3}>{section.title}</Title>
+												<Badge variant="light">
+													{section.content.length} item
+													{section.content.length !== 1 ? "s" : ""}
+												</Badge>
+											</Group>
+											<Text size="sm" c="dimmed">
+												{section.description}
+											</Text>
+										</Stack>
+									</Card>
+								))}
+							</Stack>
+						)}
+					</Stack>
+				</Paper>
 			</Stack>
 		</Container>
 	);

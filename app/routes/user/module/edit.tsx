@@ -1,4 +1,4 @@
-import { Container, Paper, Stack, Text, Title } from "@mantine/core";
+import { Container, Paper, Stack, Text } from "@mantine/core";
 import { useLoaderData } from "react-router";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import {
@@ -6,7 +6,6 @@ import {
 	DiscussionPreview,
 	PagePreview,
 	QuizPreview,
-	sampleNestedQuizConfig,
 	WhiteboardPreview,
 } from "~/components/activity-modules-preview/index";
 import { NotFoundResponse } from "~/utils/responses";
@@ -45,8 +44,23 @@ export default function EditModulePage() {
 
 			{module.type === "assignment" && <AssignmentPreview />}
 
-			{module.type === "quiz" && (
-				<QuizPreview quizConfig={sampleNestedQuizConfig} />
+			{module.type === "quiz" && module.quiz && (
+				<>
+					{module.quiz.rawQuizConfig ? (
+						<QuizPreview quizConfig={module.quiz.rawQuizConfig} />
+					) : (
+						<Paper withBorder p="xl" radius="md">
+							<Stack align="center" gap="md">
+								<Text size="lg" fw={500}>
+									No Quiz Configuration
+								</Text>
+								<Text c="dimmed">
+									This quiz has not been configured yet.
+								</Text>
+							</Stack>
+						</Paper>
+					)}
+				</>
 			)}
 
 			{module.type === "discussion" && <DiscussionPreview />}
