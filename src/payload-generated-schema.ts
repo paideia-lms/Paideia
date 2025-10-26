@@ -2131,7 +2131,7 @@ export const payload_locked_documents_rels = pgTable(
     foreignKey({
       columns: [columns["course-activity-module-linksID"]],
       foreignColumns: [course_activity_module_links.id],
-      name: "payload_locked_documents_rels_course_activity_module_links_fk",
+      name: "payload_locked_documents_rels_course_activity_module_link_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["mediaID"]],
