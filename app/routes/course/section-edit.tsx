@@ -1,6 +1,7 @@
 import {
     Button,
     Container,
+    Divider,
     Group,
     Paper,
     Stack,
@@ -10,31 +11,24 @@ import {
     Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { IconCheck, IconX } from "@tabler/icons-react";
+import { modals } from "@mantine/modals";
+import { IconCheck, IconTrash } from "@tabler/icons-react";
 import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import { globalContextKey } from "server/contexts/global-context";
+import { courseSectionContextKey } from "server/contexts/course-section-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindSectionById } from "server/internal/course-section-management";
+import { useDeleteCourseSection } from "~/routes/api/section-delete";
 import { useUpdateCourseSection } from "~/routes/api/section-update";
-import { BadRequestResponse, ForbiddenResponse, ok } from "~/utils/responses";
+import { ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/section-edit";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
     const userSession = context.get(userContextKey);
     const courseContext = context.get(courseContextKey);
-    const payload = context.get(globalContextKey).payload;
+    const courseSectionContext = context.get(courseSectionContextKey);
 
     if (!userSession?.isAuthenticated) {
         throw new ForbiddenResponse("Unauthorized");
-    }
-
-    const currentUser =
-        userSession.effectiveUser || userSession.authenticatedUser;
-
-    const sectionId = Number.parseInt(params.id, 10);
-    if (Number.isNaN(sectionId)) {
-        throw new BadRequestResponse("Invalid section ID");
     }
 
     // Get course context to ensure user has access to this course
@@ -42,29 +36,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
         throw new ForbiddenResponse("Course not found or access denied");
     }
 
-    // Fetch the section with depth to get related data
-    const sectionResult = await tryFindSectionById({
-        payload,
-        sectionId,
-        user: {
-            ...currentUser,
-            avatar: currentUser.avatar?.id,
-        },
-    });
-
-    if (!sectionResult.ok) {
+    // Get section context from layout
+    if (!courseSectionContext) {
         throw new ForbiddenResponse("Section not found or access denied");
     }
 
-    const section = sectionResult.value;
-
-    // Ensure the section belongs to the current course
-    if (section.course !== courseContext.course.id) {
-        throw new ForbiddenResponse("Section does not belong to this course");
-    }
-
     return ok({
-        section,
+        section: courseSectionContext.section,
         course: courseContext.course,
     });
 };
@@ -74,6 +52,7 @@ export default function SectionEditPage({
 }: Route.ComponentProps) {
     const { section, course } = loaderData;
     const { updateSection, isLoading } = useUpdateCourseSection();
+    const { deleteSection, isLoading: isDeleting } = useDeleteCourseSection();
 
     const form = useForm({
         mode: "uncontrolled",
@@ -101,6 +80,23 @@ export default function SectionEditPage({
             description: values.description || undefined,
         });
     });
+
+    const handleDelete = () => {
+        modals.openConfirmModal({
+            title: "Delete Section",
+            children: (
+                <Text size="sm">
+                    Are you sure you want to delete this section? This action cannot be
+                    undone. The section must not have any subsections or activity modules.
+                </Text>
+            ),
+            labels: { confirm: "Delete", cancel: "Cancel" },
+            confirmProps: { color: "red" },
+            onConfirm: () => {
+                deleteSection({ sectionId: section.id, courseId: course.id });
+            },
+        });
+    };
 
     const title = `Edit ${section.title} | ${course.title} | Paideia LMS`;
 
@@ -166,6 +162,44 @@ export default function SectionEditPage({
                             </Group>
                         </Stack>
                     </form>
+                </Paper>
+
+                {/* Danger Zone */}
+                <Paper withBorder shadow="sm" p="xl" style={{ borderColor: "var(--mantine-color-red-6)" }}>
+                    <Stack gap="md">
+                        <div>
+                            <Title order={3} c="red">
+                                Danger Zone
+                            </Title>
+                            <Text size="sm" c="dimmed" mt="xs">
+                                Irreversible and destructive actions
+                            </Text>
+                        </div>
+
+                        <Divider color="red" />
+
+                        <Group justify="space-between" align="flex-start">
+                            <div style={{ flex: 1 }}>
+                                <Text fw={500} mb="xs">
+                                    Delete this section
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    Once you delete a section, there is no going back. Please be certain.
+                                    The section must not have any subsections or activity modules to be deleted.
+                                </Text>
+                            </div>
+                            <Button
+                                color="red"
+                                variant="light"
+                                leftSection={<IconTrash size={16} />}
+                                onClick={handleDelete}
+                                loading={isDeleting}
+                                style={{ minWidth: "150px" }}
+                            >
+                                Delete Section
+                            </Button>
+                        </Group>
+                    </Stack>
                 </Paper>
             </Stack>
         </Container>

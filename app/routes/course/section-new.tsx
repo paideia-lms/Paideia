@@ -11,6 +11,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { createLoader, parseAsInteger } from "nuqs/server";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -28,7 +29,18 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/section-new";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+// Define search params for parent section prefill
+export const sectionNewSearchParams = {
+	parentSection: parseAsInteger,
+};
+
+export const loadSearchParams = createLoader(sectionNewSearchParams);
+
+export const loader = async ({
+	request,
+	context,
+	params,
+}: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 
@@ -64,6 +76,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		);
 	}
 
+	// Get search params for parent section prefill
+	const { parentSection } = loadSearchParams(request);
+
 	// Fetch all sections for parent dropdown
 	const { payload } = context.get(globalContextKey);
 	const sectionsResult = await tryFindSectionsByCourse({
@@ -82,6 +97,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		course: courseContext.course,
 		sections,
 		currentUser,
+		parentSectionId: parentSection,
 	};
 };
 
@@ -175,7 +191,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
-	const { course, sections } = loaderData;
+	const { course, sections, parentSectionId } = loaderData;
 	const navigate = useNavigate();
 	const fetcher = useFetcher<typeof action>();
 
@@ -186,6 +202,11 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 			label: section.title,
 		})),
 	];
+
+	// Set default value for parent section if provided via search params
+	const defaultParentSection = parentSectionId
+		? parentSectionId.toString()
+		: "";
 
 	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
@@ -231,6 +252,7 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 								name="parentSection"
 								placeholder="Select parent section (optional)"
 								data={sectionOptions}
+								defaultValue={defaultParentSection}
 								clearable
 								disabled={fetcher.state !== "idle"}
 								description="Leave empty to create a root-level section"

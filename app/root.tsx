@@ -17,6 +17,10 @@ import {
 	courseModuleContextKey,
 	tryGetCourseModuleContext,
 } from "server/contexts/course-module-context";
+import {
+	courseSectionContextKey,
+	tryGetCourseSectionContext,
+} from "server/contexts/course-section-context";
 import { globalContextKey } from "server/contexts/global-context";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
@@ -83,6 +87,7 @@ export const middleware = [
 		let isCourseSection = false;
 		let isCourseSectionNew = false;
 		let isCourseSectionEdit = false;
+		let isInCourseSectionLayout = false;
 		let isUserLayout = false;
 		let isUserOverview = false;
 		let isUserPreference = false;
@@ -122,6 +127,8 @@ export const middleware = [
 				isCourseSectionNew = true;
 			else if (route.id === "routes/course/section-edit")
 				isCourseSectionEdit = true;
+			else if (route.id === "layouts/course-section-layout")
+				isInCourseSectionLayout = true;
 			else if (route.id === "layouts/user-layout") isUserLayout = true;
 			else if (route.id === "routes/user/overview") isUserOverview = true;
 			else if (route.id === "routes/user/preference") isUserPreference = true;
@@ -166,6 +173,7 @@ export const middleware = [
 				isCourseSection,
 				isCourseSectionNew,
 				isCourseSectionEdit,
+				isInCourseSectionLayout,
 				isUserLayout,
 				isUserOverview,
 				isUserPreference,
@@ -271,6 +279,48 @@ export const middleware = [
 			} else {
 				console.error(courseContextResult.error);
 				throw new InternalServerErrorResponse("Failed to get course context");
+			}
+		}
+	},
+	// set the course section context
+	async ({ context, params }) => {
+		const { payload, routeHierarchy } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const courseContext = context.get(courseContextKey);
+
+		const currentUser =
+			userSession?.effectiveUser || userSession?.authenticatedUser;
+
+		// Check if we're in a course section layout
+		if (
+			routeHierarchy.some(
+				(route) => route.id === "layouts/course-section-layout",
+			)
+		) {
+			// Get section ID from params
+			const sectionId = params.id ? Number(params.id) : null;
+
+			if (sectionId && !Number.isNaN(sectionId) && courseContext) {
+				const sectionResult = await tryFindSectionById({
+					payload,
+					sectionId,
+					user: currentUser
+						? {
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
+						: null,
+				});
+
+				if (sectionResult.ok) {
+					const courseSectionContextResult = await tryGetCourseSectionContext(
+						sectionResult,
+					);
+
+					if (courseSectionContextResult.ok) {
+						context.set(courseSectionContextKey, courseSectionContextResult.value);
+					}
+				}
 			}
 		}
 	},

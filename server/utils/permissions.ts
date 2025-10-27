@@ -162,3 +162,20 @@ export function canAccessCourse(
 		enrolments?.some((enrolment) => enrolment.userId === user?.id)
 	);
 }
+
+export function canSeeCourseSectionSettings(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+) {
+	return (
+		enrolment?.role === "teacher" ||
+		enrolment?.role === "manager" ||
+		user?.role === "admin" ||
+		user?.role === "content-manager"
+	);
+}

@@ -11,6 +11,7 @@ import { createStorage } from "unstorage";
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { courseContextKey } from "./contexts/course-context";
 import { courseModuleContextKey } from "./contexts/course-module-context";
+import { courseSectionContextKey } from "./contexts/course-section-context";
 import { enrolmentContextKey } from "./contexts/enrolment-context";
 import { globalContextKey } from "./contexts/global-context";
 import { userAccessContextKey } from "./contexts/user-access-context";
@@ -91,6 +92,7 @@ const frontend = new Elysia()
 							isCourseSection: false,
 							isCourseSectionNew: false,
 							isCourseSectionEdit: false,
+							isInCourseSectionLayout: false,
 							isUserLayout: false,
 							isUserOverview: false,
 							isUserPreference: false,
@@ -113,6 +115,7 @@ const frontend = new Elysia()
 					c.set(courseContextKey, null);
 					c.set(enrolmentContextKey, null);
 					c.set(courseModuleContextKey, null);
+					c.set(courseSectionContextKey, null);
 					c.set(userAccessContextKey, null);
 					c.set(userProfileContextKey, null);
 					c.set(userModuleContextKey, null);

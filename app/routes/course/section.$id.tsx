@@ -10,29 +10,24 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { modals } from "@mantine/modals";
 import {
 	IconFolder,
-	IconPencil,
 	IconPlus,
-	IconTrash,
 	IconWriting,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import { globalContextKey } from "server/contexts/global-context";
+import { courseSectionContextKey } from "server/contexts/course-section-context";
 import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import type {
 	CourseStructureItem,
 	CourseStructureSection,
 } from "server/internal/course-section-management";
-import { tryFindSectionById } from "server/internal/course-section-management";
-import { useDeleteCourseSection } from "~/routes/api/section-delete";
 import { useCreateModuleLink } from "~/routes/course.$id.modules";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
-import { BadRequestResponse, ForbiddenResponse, ok } from "~/utils/responses";
+import { ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/section.$id";
 
 // Helper function to recursively find a section in the course structure
@@ -56,22 +51,14 @@ function findSectionInStructure(
 	return null;
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
+	const courseSectionContext = context.get(courseSectionContextKey);
 	const userAccessContext = context.get(userAccessContextKey);
-	const payload = context.get(globalContextKey).payload;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const sectionId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(sectionId)) {
-		throw new BadRequestResponse("Invalid section ID");
 	}
 
 	// Get course context to ensure user has access to this course
@@ -79,31 +66,17 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	// Fetch the section with depth to get related data
-	const sectionResult = await tryFindSectionById({
-		payload,
-		sectionId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-	});
-
-	if (!sectionResult.ok) {
+	// Get section context from layout
+	if (!courseSectionContext) {
 		throw new ForbiddenResponse("Section not found or access denied");
 	}
 
-	const section = sectionResult.value;
-
-	// Ensure the section belongs to the current course
-	if (section.course !== courseContext.course.id) {
-		throw new ForbiddenResponse("Section does not belong to this course");
-	}
+	const section = courseSectionContext.section;
 
 	// Find the section in the course structure to get its content
 	const structureSection = findSectionInStructure(
 		courseContext.courseStructure.sections,
-		sectionId,
+		section.id,
 	);
 
 	// Extract subsections and modules from the structure section
@@ -139,7 +112,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export default function SectionPage({ loaderData }: Route.ComponentProps) {
-	const { deleteSection, isLoading: isDeleting } = useDeleteCourseSection();
 	const { createModuleLink, state: createState } = useCreateModuleLink();
 	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
@@ -148,23 +120,6 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 
 	// Check if user can edit
 	const canEdit = true; // User must have access if they can view the section
-
-	const handleDelete = () => {
-		modals.openConfirmModal({
-			title: "Delete Section",
-			children: (
-				<Text size="sm">
-					Are you sure you want to delete this section? This action cannot be
-					undone. The section must not have any subsections or activity modules.
-				</Text>
-			),
-			labels: { confirm: "Delete", cancel: "Cancel" },
-			confirmProps: { color: "red" },
-			onConfirm: () => {
-				deleteSection({ sectionId: section.id, courseId: course.id });
-			},
-		});
-	};
 
 	const handleLinkModule = () => {
 		if (selectedModuleId) {
@@ -193,59 +148,6 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-				<Group justify="space-between" align="flex-start">
-					<div>
-						<Title order={1} mb="xs">
-							{section.title}
-						</Title>
-						<Text size="sm" c="dimmed">
-							Course Section
-						</Text>
-					</div>
-					<Group>
-						{canEdit && (
-							<>
-								<Button
-									component={Link}
-									to={href("/course/section/:id/edit", {
-										id: section.id.toString(),
-									})}
-									leftSection={<IconPencil size={16} />}
-									variant="light"
-								>
-									Edit Section
-								</Button>
-								<Button
-									component={Link}
-									to={href("/course/:id/section/new", {
-										id: course.id.toString(),
-									})}
-									leftSection={<IconPlus size={16} />}
-									variant="light"
-								>
-									Add Subsection
-								</Button>
-								<Button
-									color="red"
-									onClick={handleDelete}
-									leftSection={<IconTrash size={16} />}
-									variant="light"
-									loading={isDeleting}
-								>
-									Delete Section
-								</Button>
-							</>
-						)}
-						<Button
-							component={Link}
-							to={`/course/${course.id}`}
-							variant="light"
-						>
-							Back to Course
-						</Button>
-					</Group>
-				</Group>
-
 				<Paper withBorder shadow="sm" p="xl">
 					<Title order={3} mb="md">
 						Section Overview
@@ -253,43 +155,28 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 					{section.description && <Text mb="md">{section.description}</Text>}
 				</Paper>
 
-				{/* Link Activity Module */}
-				{canEdit && availableModules.length > 0 && (
-					<Paper withBorder shadow="sm" p="md">
-						<Stack gap="md">
-							<Title order={3}>Link Activity Module</Title>
-							<Group align="flex-end">
-								<Select
-									placeholder="Select a module to link"
-									data={availableModules.map((module) => ({
-										value: module.id.toString(),
-										label: `${module.title} (${module.type})`,
-									}))}
-									value={selectedModuleId}
-									onChange={setSelectedModuleId}
-									style={{ flex: 1 }}
-									searchable
-								/>
-								<Button
-									onClick={handleLinkModule}
-									disabled={!selectedModuleId}
-									loading={createState !== "idle"}
-									leftSection={<IconPlus size={16} />}
-								>
-									Link Module
-								</Button>
-							</Group>
-						</Stack>
-					</Paper>
-				)}
-
 				{/* Subsections */}
 				<Paper shadow="sm" p="md" withBorder>
 					<Stack gap="md">
-						<Group>
-							<IconFolder size={24} />
-							<Title order={2}>Subsections</Title>
-							<Badge variant="light">{subsections.length}</Badge>
+						<Group justify="space-between">
+							<Group>
+								<IconFolder size={24} />
+								<Title order={2}>Subsections</Title>
+								<Badge variant="light">{subsections.length}</Badge>
+							</Group>
+							{canEdit && (
+								<Button
+									variant="subtle"
+									component={Link}
+									to={`${href("/course/:id/section/new", {
+										id: course.id.toString(),
+									})}?parentSection=${section.id}`}
+									leftSection={<IconPlus size={16} />}
+									size="sm"
+								>
+									Create Subsection
+								</Button>
+							)}
 						</Group>
 
 						{subsections.length > 0 ? (
@@ -325,36 +212,49 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 								))}
 							</Stack>
 						) : (
-							<Stack gap="md" align="center" py="xl">
-								<Text c="dimmed" ta="center">
-									No subsections yet. Create one to organize your content.
-								</Text>
-								{canEdit && (
-									<Button
-										component={Link}
-										to={href("/course/:id/section/new", {
-											id: course.id.toString(),
-										})}
-										leftSection={<IconPlus size={16} />}
-									>
-										Create Subsection
-									</Button>
-								)}
-							</Stack>
+							<Text c="dimmed" ta="center" py="md">
+								No subsections yet. Create one to organize your content.
+							</Text>
 						)}
 					</Stack>
 				</Paper>
 
 				{/* Activity Modules */}
-				{modules.length > 0 && (
-					<Paper shadow="sm" p="md" withBorder>
-						<Stack gap="md">
-							<Group>
-								<IconWriting size={24} />
-								<Title order={2}>Activity Modules</Title>
-								<Badge variant="light">{modules.length}</Badge>
-							</Group>
+				<Paper shadow="sm" p="md" withBorder>
+					<Stack gap="md">
+						<Group>
+							<IconWriting size={24} />
+							<Title order={2}>Activity Modules</Title>
+							<Badge variant="light">{modules.length}</Badge>
+						</Group>
 
+						{/* Link Activity Module */}
+						{canEdit && (
+							<Group align="flex-end">
+								<Select
+									placeholder="Select a module to link"
+									data={availableModules.map((module) => ({
+										value: module.id.toString(),
+										label: `${module.title} (${module.type})`,
+									}))}
+									value={selectedModuleId}
+									onChange={setSelectedModuleId}
+									style={{ flex: 1 }}
+									searchable
+									disabled={availableModules.length === 0}
+								/>
+								<Button
+									onClick={handleLinkModule}
+									disabled={!selectedModuleId || availableModules.length === 0}
+									loading={createState !== "idle"}
+									leftSection={<IconPlus size={16} />}
+								>
+									Link Module
+								</Button>
+							</Group>
+						)}
+
+						{modules.length > 0 ? (
 							<Stack gap="sm">
 								{modules.map((item) => (
 									<Card
@@ -380,19 +280,18 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 									</Card>
 								))}
 							</Stack>
-						</Stack>
-					</Paper>
-				)}
-
-				{/* Empty state */}
-				{subsections.length === 0 && modules.length === 0 && (
-					<Paper withBorder shadow="sm" p="xl">
-						<Text c="dimmed" ta="center">
-							This section is empty. Add subsections or activity modules to get
-							started.
-						</Text>
-					</Paper>
-				)}
+						) : (
+							<Text c="dimmed" ta="center" py="md">
+								No activity modules yet.
+								{canEdit
+									? availableModules.length > 0
+										? " Link a module to get started."
+										: " Create activity modules first to link them here."
+									: ""}
+							</Text>
+						)}
+					</Stack>
+				</Paper>
 			</Stack>
 		</Container>
 	);

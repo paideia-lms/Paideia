@@ -1,0 +1,35 @@
+import { createContext } from "react-router";
+import { Result } from "typescript-result";
+import type {
+    tryFindSectionById,
+} from "../internal/course-section-management";
+import type { CourseSection } from "server/payload-types";
+
+export type CourseSectionContext = {
+    section: CourseSection;
+};
+
+/**
+ * Context for a course section
+ * Available when user is viewing or editing a section
+ */
+export const courseSectionContext = createContext<CourseSectionContext | null>();
+
+export const courseSectionContextKey =
+    "courseSectionContext" as unknown as typeof courseSectionContext;
+
+/**
+ * Get course section context for a section
+ */
+export async function tryGetCourseSectionContext(
+    result: Awaited<ReturnType<typeof tryFindSectionById>>,
+): Promise<Result<CourseSectionContext, Error>> {
+    if (!result.ok) {
+        return result;
+    }
+
+    return Result.ok({
+        section: result.value,
+    });
+}
+
