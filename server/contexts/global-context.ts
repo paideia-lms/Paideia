@@ -13,6 +13,7 @@ export type PageInfo = {
 	isDashboard: boolean;
 	isLogin: boolean;
 	isCreatingFirstUser: boolean;
+	isCatalog: boolean;
 	isInCourse: boolean;
 	isCourseSettings: boolean;
 	isCourseParticipants: boolean;

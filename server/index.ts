@@ -79,6 +79,7 @@ const frontend = new Elysia()
 							isDashboard: false,
 							isLogin: false,
 							isCreatingFirstUser: false,
+							isCatalog: false,
 							isInCourse: false,
 							isCourseSettings: false,
 							isCourseParticipants: false,

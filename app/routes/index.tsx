@@ -296,7 +296,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "COMP 101 FA 2023",
+			section: "A",
+			shortcode: "COMP 101 A FA 2023",
 		},
 		{
 			id: 2,
@@ -307,7 +308,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [],
 			credits: 4,
 			isCompulsory: true,
-			shortcode: "COMP 110 FA 2023",
+			section: "B",
+			shortcode: "COMP 110 B FA 2023",
 		},
 		{
 			id: 3,
@@ -318,7 +320,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "MATH 140 FA 2023",
+			section: "A",
+			shortcode: "MATH 140 A FA 2023",
 		},
 		{
 			id: 4,
@@ -329,7 +332,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "COMM 150 FA 2023",
+			section: "A",
+			shortcode: "COMM 150 A FA 2023",
 		},
 		{
 			id: 5,
@@ -340,7 +344,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "ECON 101 FA 2023",
+			section: "A",
+			shortcode: "ECON 101 A FA 2023",
 		},
 
 		// Year 1 - Spring (Semester 2)
@@ -353,7 +358,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [2],
 			credits: 4,
 			isCompulsory: true,
-			shortcode: "COMP 210 SP 2024",
+			section: "A",
+			shortcode: "COMP 210 A SP 2024",
 		},
 		{
 			id: 7,
@@ -364,7 +370,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [3],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "MATH 250 SP 2024",
+			section: "A",
+			shortcode: "MATH 250 A SP 2024",
 		},
 		{
 			id: 8,
@@ -375,7 +382,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [5],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "ACCT 201 SP 2024",
+			section: "B",
+			shortcode: "ACCT 201 B SP 2024",
 		},
 		{
 			id: 9,
@@ -386,7 +394,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [3],
 			credits: 4,
 			isCompulsory: true,
-			shortcode: "STAT 260 SP 2024",
+			section: "A",
+			shortcode: "STAT 260 A SP 2024",
 		},
 		{
 			id: 10,
@@ -397,7 +406,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [2],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "COMP 180 SP 2024",
+			section: "A",
+			shortcode: "COMP 180 A SP 2024",
 		},
 
 		// Year 2 - Fall (Semester 3)
@@ -410,7 +420,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [6],
 			credits: 4,
 			isCompulsory: true,
-			shortcode: "COMP 310 FA 2024",
+			section: "A",
+			shortcode: "COMP 310 A FA 2024",
 		},
 		{
 			id: 12,
@@ -421,7 +432,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [6],
 			credits: 4,
 			isCompulsory: true,
-			shortcode: "COMP 320 FA 2025",
+			section: "B",
+			shortcode: "COMP 320 B FA 2025",
 		},
 		{
 			id: 13,
@@ -432,7 +444,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [8],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "FINC 301 FA 2025",
+			section: "A",
+			shortcode: "FINC 301 A FA 2025",
 		},
 		{
 			id: 14,
@@ -443,7 +456,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [5],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "MKTG 301 FA 2025",
+			section: "A",
+			shortcode: "MKTG 301 A FA 2025",
 		},
 		{
 			id: 15,
@@ -454,7 +468,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			prerequisites: [6],
 			credits: 3,
 			isCompulsory: true,
-			shortcode: "COMP 330 FA 2025",
+			section: "C",
+			shortcode: "COMP 330 C FA 2025",
 		},
 
 		// Year 2 - Spring (Semester 4)
@@ -786,6 +801,7 @@ function CurriculumMap({
 		prerequisites: number[];
 		credits: number;
 		isCompulsory: boolean;
+		section?: string;
 		shortcode?: string;
 	}>;
 }) {
@@ -938,38 +954,43 @@ function CurriculumMap({
 							withArrow
 							position="top"
 						>
-							<Stack gap={6}>
-								<Text size="xs" fw={600} c="dimmed">
-									{course.status === "completed" || course.status === "in progress"
-										? course.shortcode
-										: course.code}
-								</Text>
-								<Text size="xs" fw={500} lineClamp={2}>
-									{course.title}
-								</Text>
-								<Group gap={4}>
-									<Badge
-										size="xs"
-										color={
-											course.status === "completed"
-												? "green"
-												: course.status === "in progress"
-													? "blue"
-													: "gray"
-										}
-									>
-										{course.status}
-									</Badge>
-									{!course.isCompulsory && (
-										<Badge size="xs" color="violet" variant="light">
-											Elective
+							<Link
+								to={href("/catalog") + `?code=${course.code.replace(/\s+/g, "-")}`}
+								style={{ textDecoration: "none", color: "inherit" }}
+							>
+								<Stack gap={6}>
+									<Text size="xs" fw={600} c="dimmed">
+										{course.status === "completed" || course.status === "in progress"
+											? course.shortcode
+											: course.code}
+									</Text>
+									<Text size="xs" fw={500} lineClamp={2}>
+										{course.title}
+									</Text>
+									<Group gap={4}>
+										<Badge
+											size="xs"
+											color={
+												course.status === "completed"
+													? "green"
+													: course.status === "in progress"
+														? "blue"
+														: "gray"
+											}
+										>
+											{course.status}
 										</Badge>
-									)}
-								</Group>
-								<Text size="xs" c="dimmed">
-									{course.credits} cr
-								</Text>
-							</Stack>
+										{!course.isCompulsory && (
+											<Badge size="xs" color="violet" variant="light">
+												Elective
+											</Badge>
+										)}
+									</Group>
+									<Text size="xs" c="dimmed">
+										{course.credits} cr
+									</Text>
+								</Stack>
+							</Link>
 						</Tooltip>
 					</>
 				),
@@ -1613,25 +1634,17 @@ function PublicDashboard({
 }
 
 export default function Index({ loaderData }: Route.ComponentProps) {
+	const title = loaderData.isAuthenticated
+		? "Dashboard | Paideia LMS"
+		: "Paideia LMS | Learning Management System";
 	return (
 		<>
-			<title>
-				{loaderData.isAuthenticated
-					? "Dashboard | Paideia LMS"
-					: "Paideia LMS | Learning Management System"}
-			</title>
+			<title>{title}</title>
 			<meta
 				name="description"
 				content="Paideia Learning Management System - Modern, flexible, and powerful LMS for education"
 			/>
-			<meta
-				property="og:title"
-				content={
-					loaderData.isAuthenticated
-						? "Dashboard | Paideia LMS"
-						: "Paideia LMS | Learning Management System"
-				}
-			/>
+			<meta property="og:title" content={title} />
 			<meta
 				property="og:description"
 				content="Paideia Learning Management System - Modern, flexible, and powerful LMS for education"

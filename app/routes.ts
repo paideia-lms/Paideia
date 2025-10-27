@@ -20,6 +20,7 @@ export const routes = [
 	route("api/section-update", "routes/api/section-update.tsx"),
 	layout("layouts/root-layout.tsx", [
 		index("routes/index.tsx"),
+		route("catalog", "routes/catalog.tsx"),
 		// every user will see this page the same except some permission difference
 		route("user/profile/:id?", "routes/user/profile.tsx"),
 		// this should belong to user data management

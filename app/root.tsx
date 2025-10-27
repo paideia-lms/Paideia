@@ -74,6 +74,7 @@ export const middleware = [
 		let isDashboard = false;
 		let isLogin = false;
 		let isFirstUser = false;
+		let isCatalog = false;
 		let isInCourse = false;
 		let isCourseSettings = false;
 		let isCourseParticipants = false;
@@ -109,6 +110,7 @@ export const middleware = [
 			else if (route.id === "routes/index") isDashboard = true;
 			else if (route.id === "routes/login") isLogin = true;
 			else if (route.id === "routes/first-user") isFirstUser = true;
+			else if (route.id === "routes/catalog") isCatalog = true;
 			else if (route.id === "layouts/course-layout") isInCourse = true;
 			else if (route.id === "routes/course.$id.settings")
 				isCourseSettings = true;
@@ -160,6 +162,7 @@ export const middleware = [
 				isDashboard,
 				isLogin,
 				isCreatingFirstUser: isFirstUser,
+				isCatalog,
 				isInCourse,
 				isCourseSettings,
 				isCourseParticipants,
