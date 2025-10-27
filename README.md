@@ -104,4 +104,14 @@ We welcome contributions! This project is built with modern development practice
 
 ## License
 
-[MIT License](LICENSE)
+Paideia LMS is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
+
+### What this means:
+
+- ✅ **Free and Open Source**: Use, modify, and distribute freely
+- ✅ **Schools and Educational Institutions**: Can host and use without restrictions
+- ✅ **Modifications Must Be Shared**: If you modify and host this software, you must share your changes
+- ✅ **Same License Required**: All forks and derivatives must use AGPL-3.0
+- ⚠️ **Commercial Hosting Restrictions**: While the license permits commercial use, we strongly discourage organizations from hosting this software for schools as a paid service. The spirit of this project is to remain freely accessible to educational institutions.
+
+If you're interested in commercial partnerships or support services that align with our mission, please reach out to discuss collaboration opportunities.
