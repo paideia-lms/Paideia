@@ -5,9 +5,11 @@ import {
 	Paper,
 	Select,
 	Stack,
+	Text,
 	TextInput,
 	Title,
 } from "@mantine/core";
+import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import type {
@@ -15,6 +17,11 @@ import type {
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
 import { parseFormData } from "@remix-run/form-data-parser";
+import {
+	IconPhoto,
+	IconUpload,
+	IconX,
+} from "@tabler/icons-react";
 import * as cheerio from "cheerio";
 import { useId, useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
@@ -90,6 +97,26 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			? course.category
 			: (course.category?.id ?? null);
 
+	// Handle thumbnail - could be Media object, just ID, or null
+	let thumbnailUrl: string | null = null;
+	if (course.thumbnail) {
+		if (typeof course.thumbnail === "object") {
+			// It's a populated Media object
+			thumbnailUrl = course.thumbnail.filename
+				? href("/api/media/file/:filenameOrId", {
+					filenameOrId: course.thumbnail.filename,
+				})
+				: href("/api/media/file/:filenameOrId", {
+					filenameOrId: course.thumbnail.id.toString(),
+				});
+		} else {
+			// It's just an ID (number)
+			thumbnailUrl = href("/api/media/file/:filenameOrId", {
+				filenameOrId: course.thumbnail.toString(),
+			});
+		}
+	}
+
 	return {
 		success: true,
 		course: {
@@ -99,6 +126,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			description: course.description,
 			status: course.status,
 			category: categoryId,
+			thumbnailUrl,
 		},
 		categories: categories.docs.map((cat) => ({
 			value: cat.id.toString(),
@@ -177,8 +205,33 @@ export const action = async ({
 		// Store uploaded media info - map fieldName to uploaded filename
 		const uploadedMedia: { fieldName: string; filename: string }[] = [];
 
+		// Store thumbnail media ID
+		let thumbnailMediaId: number | undefined;
+
 		// Parse form data with upload handler
 		const uploadHandler = async (fileUpload: FileUpload) => {
+			if (fileUpload.fieldName === "thumbnail") {
+				const arrayBuffer = await fileUpload.arrayBuffer();
+				const fileBuffer = Buffer.from(arrayBuffer);
+
+				// Create media record within transaction
+				const mediaResult = await tryCreateMedia(payload, {
+					file: fileBuffer,
+					filename: fileUpload.name,
+					mimeType: fileUpload.type,
+					alt: "Course thumbnail",
+					userId: currentUser.id,
+					transactionID,
+				});
+
+				if (!mediaResult.ok) {
+					throw mediaResult.error;
+				}
+
+				thumbnailMediaId = mediaResult.value.media.id;
+				return thumbnailMediaId;
+			}
+
 			if (fileUpload.fieldName.startsWith("image-")) {
 				const arrayBuffer = await fileUpload.arrayBuffer();
 				const fileBuffer = Buffer.from(arrayBuffer);
@@ -280,7 +333,7 @@ export const action = async ({
 			description = $.html();
 		}
 
-		// Update course
+		// Update course (within the same transaction)
 		const updateResult = await tryUpdateCourse({
 			payload,
 			courseId,
@@ -288,11 +341,13 @@ export const action = async ({
 				title: parsed.data.title,
 				description,
 				status: parsed.data.status,
+				thumbnail: thumbnailMediaId,
 			},
 			user: {
 				...currentUser,
 				avatar: currentUser.avatar?.id,
 			},
+			req: { transactionID },
 			overrideAccess: true,
 		});
 		if (!updateResult.ok) {
@@ -352,9 +407,25 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		"error" in loaderData ? "" : loaderData.course.description,
 	);
 	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+	const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
+		"error" in loaderData ? null : loaderData.course.thumbnailUrl,
+	);
+	const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
 
 	const handleImageAdd = (imageFile: ImageFile) => {
 		setImageFiles((prev) => [...prev, imageFile]);
+	};
+
+	const handleThumbnailDrop = (files: File[]) => {
+		const file = files[0];
+		if (file) {
+			setSelectedThumbnail(file);
+			const reader = new FileReader();
+			reader.onloadend = () => {
+				setThumbnailPreview(reader.result as string);
+			};
+			reader.readAsDataURL(file);
+		}
 	};
 
 	// Initialize form with default values (hooks must be called unconditionally)
@@ -419,6 +490,11 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			formData.append("category", values.category);
 		}
 
+		// Add thumbnail if selected
+		if (selectedThumbnail) {
+			formData.append("thumbnail", selectedThumbnail);
+		}
+
 		// Add each image file with a unique field name
 		imageFiles.forEach((imageFile, index) => {
 			formData.append(`image-${index}`, imageFile.file);
@@ -462,6 +538,91 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							description="Only lowercase letters, numbers, and hyphens"
 							disabled
 						/>
+
+						<div>
+							<Text size="sm" fw={500} mb="xs">
+								Thumbnail
+							</Text>
+							<Stack align="center" gap="md">
+								{thumbnailPreview && (
+									<div
+										style={{
+											width: "100%",
+											maxWidth: 400,
+											height: 200,
+											borderRadius: 8,
+											overflow: "hidden",
+											backgroundColor: "#f8f9fa",
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+										}}
+									>
+										<img
+											src={thumbnailPreview}
+											alt="Course thumbnail"
+											style={{
+												width: "100%",
+												height: "100%",
+												objectFit: "cover",
+											}}
+										/>
+									</div>
+								)}
+								<Dropzone
+									onDrop={handleThumbnailDrop}
+									onReject={() => {
+										notifications.show({
+											title: "Upload failed",
+											message: "File must be an image under 5MB",
+											color: "red",
+										});
+									}}
+									maxSize={5 * 1024 ** 2}
+									accept={IMAGE_MIME_TYPE}
+									multiple={false}
+									style={{ width: "100%" }}
+								>
+									<Group
+										justify="center"
+										gap="xl"
+										mih={100}
+										style={{ pointerEvents: "none" }}
+									>
+										<Dropzone.Accept>
+											<IconUpload
+												size={32}
+												color="var(--mantine-color-blue-6)"
+												stroke={1.5}
+											/>
+										</Dropzone.Accept>
+										<Dropzone.Reject>
+											<IconX
+												size={32}
+												color="var(--mantine-color-red-6)"
+												stroke={1.5}
+											/>
+										</Dropzone.Reject>
+										<Dropzone.Idle>
+											<IconPhoto
+												size={32}
+												color="var(--mantine-color-dimmed)"
+												stroke={1.5}
+											/>
+										</Dropzone.Idle>
+
+										<div>
+											<Text size="sm" inline>
+												Drag image here or click to select
+											</Text>
+											<Text size="xs" c="dimmed" inline mt={7}>
+												Image should not exceed 5MB
+											</Text>
+										</div>
+									</Group>
+								</Dropzone>
+							</Stack>
+						</div>
 
 						<div>
 							<label

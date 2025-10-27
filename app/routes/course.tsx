@@ -23,17 +23,12 @@ import {
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link, useNavigate } from "react-router";
-import { globalContextKey } from "server/contexts/global-context";
-import {
-	getUserAccessContext,
-	userAccessContextKey,
-} from "server/contexts/user-access-context";
+import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 	const userAccessContext = context.get(userAccessContextKey);
 
@@ -49,20 +44,42 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Extract courses from enrollments
-	const courses = userAccessContext.enrollments.map((enrollment) => ({
-		id: enrollment.course.id,
-		title: enrollment.course.title,
-		slug: enrollment.course.slug,
-		status: enrollment.course.status,
-		description: enrollment.course.description,
-		createdAt: enrollment.course.createdAt,
-		updatedAt: enrollment.course.updatedAt,
-		category: enrollment.course.category?.name,
-		enrollmentStatus: enrollment.status,
-		completionPercentage: enrollment.status === "completed" ? 100 : 0,
-		createdBy: 0, // We don't have this info in the enrollment data
-		thumbnailUrl: null, // We don't have this info in the enrollment data
-	}));
+	const courses = userAccessContext.enrollments.map((enrollment) => {
+		// Handle thumbnail - could be Media object, just ID, or null
+		let thumbnailUrl: string | null = null;
+		if (enrollment.course.thumbnail) {
+			if (typeof enrollment.course.thumbnail === "object") {
+				// It's a populated Media object
+				thumbnailUrl = enrollment.course.thumbnail.filename
+					? href("/api/media/file/:filenameOrId", {
+						filenameOrId: enrollment.course.thumbnail.filename,
+					})
+					: href("/api/media/file/:filenameOrId", {
+						filenameOrId: enrollment.course.thumbnail.id.toString(),
+					});
+			} else {
+				// It's just an ID (number)
+				thumbnailUrl = href("/api/media/file/:filenameOrId", {
+					filenameOrId: enrollment.course.thumbnail.toString(),
+				});
+			}
+		}
+
+		return {
+			id: enrollment.course.id,
+			title: enrollment.course.title,
+			slug: enrollment.course.slug,
+			status: enrollment.course.status,
+			description: enrollment.course.description,
+			createdAt: enrollment.course.createdAt,
+			updatedAt: enrollment.course.updatedAt,
+			category: enrollment.course.category?.name,
+			enrollmentStatus: enrollment.status,
+			completionPercentage: enrollment.status === "completed" ? 100 : 0,
+			createdBy: 0, // We don't have this info in the enrollment data
+			thumbnailUrl,
+		};
+	});
 
 	// Check if user can manage courses (admin or content-manager)
 	const canManageCourses =
@@ -93,9 +110,9 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<Container size="xl" py="md">
-			<title>Course | Paideia LMS</title>
+			<title>My Courses | Paideia LMS</title>
 			<meta name="description" content="Course information and content" />
-			<meta property="og:title" content="Course | Paideia LMS" />
+			<meta property="og:title" content="My Courses | Paideia LMS" />
 
 			<Stack gap="lg">
 				{/* Header Section */}

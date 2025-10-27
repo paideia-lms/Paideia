@@ -32,6 +32,7 @@ import {
 	IconChartBar,
 	IconChevronDown,
 	IconChevronUp,
+	IconClock,
 	IconFileText,
 	IconLogin,
 	IconMap2,
@@ -46,6 +47,38 @@ import { useState } from "react";
 import { href, Link } from "react-router";
 import { userContextKey } from "server/contexts/user-context";
 import type { Route } from "./+types/index";
+
+// Utility function to format schedule string
+export function formatSchedule(schedule: string): string {
+	// Convert day names to abbreviations
+	const dayMap: Record<string, string> = {
+		Monday: "Mon",
+		Tuesday: "Tue",
+		Wednesday: "Wed",
+		Thursday: "Thu",
+		Friday: "Fri",
+		Saturday: "Sat",
+		Sunday: "Sun",
+	};
+
+	// Replace full day names with abbreviations
+	let formatted = schedule;
+	for (const [full, abbr] of Object.entries(dayMap)) {
+		formatted = formatted.replace(new RegExp(full, "g"), abbr);
+	}
+
+	// Remove "and " before the last day
+	formatted = formatted.replace(/and /g, "");
+
+	// Simplify time format: "10:00 AM" -> "10AM"
+	formatted = formatted.replace(/:00/g, "");
+	formatted = formatted.replace(/ /g, "");
+
+	// Convert "," to " •"
+	formatted = formatted.replace(/,/g, " •");
+
+	return formatted;
+}
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -121,42 +154,50 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		{
 			id: 1,
 			title: "Information Security",
+			shortcode: "COMP 301 FA 2025",
 			slug: "cs-301",
 			category: "Computer Science",
 			status: "active" as const,
 			role: "student" as const,
 			completionPercentage: 65,
 			thumbnailUrl: null,
+			schedule: "Monday and Wednesday, 10:00 AM - 12:00 PM",
 		},
 		{
 			id: 2,
 			title: "Databases",
+			shortcode: "COMP 280 FA 2025",
 			slug: "cs-280",
 			category: "Computer Science",
 			status: "active" as const,
 			role: "student" as const,
 			completionPercentage: 45,
 			thumbnailUrl: null,
+			schedule: "Tuesday and Thursday, 2:00 PM - 4:00 PM",
 		},
 		{
 			id: 3,
 			title: "Functional Programming",
+			shortcode: "COMP 330 FA 2025",
 			slug: "cs-330",
 			category: "Computer Science",
 			status: "active" as const,
 			role: "student" as const,
 			completionPercentage: 80,
 			thumbnailUrl: null,
+			schedule: "Monday, Wednesday, and Friday, 9:00 AM - 10:00 AM",
 		},
 		{
 			id: 4,
 			title: "User-Centered Design",
+			shortcode: "COMP 200 SP 2025",
 			slug: "cs-200",
 			category: "Design",
 			status: "completed" as const,
 			role: "student" as const,
 			completionPercentage: 100,
 			thumbnailUrl: null,
+			schedule: "Tuesday and Thursday, 10:00 AM - 12:00 PM",
 		},
 	];
 
@@ -176,6 +217,26 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			id: 3,
 			title: "NoSQL vs SQL Comparison",
 			createdAt: dayjs().subtract(5, "days").toISOString(),
+		},
+	];
+
+	// Mock today's course meetings
+	const todaysCourseMeetings = [
+		{
+			id: 1,
+			shortcode: "COMP 301 FA 2025",
+			title: "Information Security",
+			startTime: "10:00 AM",
+			endTime: "12:00 PM",
+			courseId: 1,
+		},
+		{
+			id: 2,
+			shortcode: "COMP 330 FA 2025",
+			title: "Functional Programming",
+			startTime: "9:00 AM",
+			endTime: "10:00 AM",
+			courseId: 3,
 		},
 	];
 
@@ -219,6 +280,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		id: 1,
 		name: "Bachelor in Business Administration",
 		description: "Comprehensive business administration program",
+		totalCredits: 120,
+		completedCredits: 60,
 	};
 
 	// Mock curriculum map data with prerequisites - organized by semester
@@ -231,6 +294,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 1,
 			prerequisites: [],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "COMP 101 FA 2023",
 		},
 		{
 			id: 2,
@@ -239,6 +305,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 1,
 			prerequisites: [],
+			credits: 4,
+			isCompulsory: true,
+			shortcode: "COMP 110 FA 2023",
 		},
 		{
 			id: 3,
@@ -247,6 +316,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 1,
 			prerequisites: [],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "MATH 140 FA 2023",
 		},
 		{
 			id: 4,
@@ -255,6 +327,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 1,
 			prerequisites: [],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "COMM 150 FA 2023",
 		},
 		{
 			id: 5,
@@ -263,6 +338,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 1,
 			prerequisites: [],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "ECON 101 FA 2023",
 		},
 
 		// Year 1 - Spring (Semester 2)
@@ -273,6 +351,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 2,
 			prerequisites: [2],
+			credits: 4,
+			isCompulsory: true,
+			shortcode: "COMP 210 SP 2024",
 		},
 		{
 			id: 7,
@@ -281,6 +362,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 2,
 			prerequisites: [3],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "MATH 250 SP 2024",
 		},
 		{
 			id: 8,
@@ -289,6 +373,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 2,
 			prerequisites: [5],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "ACCT 201 SP 2024",
 		},
 		{
 			id: 9,
@@ -297,6 +384,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 2,
 			prerequisites: [3],
+			credits: 4,
+			isCompulsory: true,
+			shortcode: "STAT 260 SP 2024",
 		},
 		{
 			id: 10,
@@ -305,6 +395,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 2,
 			prerequisites: [2],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "COMP 180 SP 2024",
 		},
 
 		// Year 2 - Fall (Semester 3)
@@ -315,38 +408,53 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			status: "completed" as const,
 			semester: 3,
 			prerequisites: [6],
+			credits: 4,
+			isCompulsory: true,
+			shortcode: "COMP 310 FA 2024",
 		},
 		{
 			id: 12,
 			code: "COMP 320",
 			title: "Database Systems",
-			status: "active" as const,
+			status: "in progress" as const,
 			semester: 3,
 			prerequisites: [6],
+			credits: 4,
+			isCompulsory: true,
+			shortcode: "COMP 320 FA 2025",
 		},
 		{
 			id: 13,
 			code: "FINC 301",
 			title: "Financial Management",
-			status: "active" as const,
+			status: "in progress" as const,
 			semester: 3,
 			prerequisites: [8],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "FINC 301 FA 2025",
 		},
 		{
 			id: 14,
 			code: "MKTG 301",
 			title: "Marketing Principles",
-			status: "active" as const,
+			status: "in progress" as const,
 			semester: 3,
 			prerequisites: [5],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "MKTG 301 FA 2025",
 		},
 		{
 			id: 15,
 			code: "COMP 330",
 			title: "Operating Systems",
-			status: "active" as const,
+			status: "in progress" as const,
 			semester: 3,
 			prerequisites: [6],
+			credits: 3,
+			isCompulsory: true,
+			shortcode: "COMP 330 FA 2025",
 		},
 
 		// Year 2 - Spring (Semester 4)
@@ -354,41 +462,51 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			id: 16,
 			code: "COMP 340",
 			title: "Software Engineering",
-			status: "active" as const,
+			status: "future" as const,
 			semester: 4,
 			prerequisites: [11],
+			credits: 4,
+			isCompulsory: true,
 		},
 		{
 			id: 17,
 			code: "COMP 350",
 			title: "Computer Networks",
-			status: "active" as const,
+			status: "future" as const,
 			semester: 4,
 			prerequisites: [15],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 18,
 			code: "MGMT 360",
 			title: "Business Analytics",
-			status: "active" as const,
+			status: "future" as const,
 			semester: 4,
 			prerequisites: [9, 12],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 19,
 			code: "MKTG 370",
 			title: "Digital Marketing",
-			status: "active" as const,
+			status: "future" as const,
 			semester: 4,
 			prerequisites: [14],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 20,
 			code: "COMP 280",
 			title: "Human-Computer Interaction",
-			status: "active" as const,
+			status: "future" as const,
 			semester: 4,
 			prerequisites: [10],
+			credits: 3,
+			isCompulsory: true,
 		},
 
 		// Year 3 - Fall (Semester 5)
@@ -396,49 +514,61 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			id: 21,
 			code: "COMP 410",
 			title: "Information Security",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 5,
 			prerequisites: [17],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 22,
 			code: "COMP 420",
 			title: "Machine Learning",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 5,
 			prerequisites: [11, 9],
+			credits: 4,
+			isCompulsory: true,
 		},
 		{
 			id: 23,
 			code: "COMP 430",
 			title: "Cloud Computing",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 5,
 			prerequisites: [17],
+			credits: 3,
+			isCompulsory: false,
 		},
 		{
 			id: 24,
 			code: "MGMT 401",
 			title: "Strategic Management",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 5,
 			prerequisites: [13],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 25,
 			code: "MGMT 410",
 			title: "Entrepreneurship",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 5,
 			prerequisites: [13, 14],
+			credits: 3,
+			isCompulsory: false,
 		},
 		{
 			id: 26,
 			code: "COMP 380",
 			title: "Mobile App Development",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 5,
 			prerequisites: [16],
+			credits: 3,
+			isCompulsory: false,
 		},
 
 		// Year 3 - Spring (Semester 6)
@@ -446,49 +576,61 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			id: 27,
 			code: "COMP 450",
 			title: "Cybersecurity",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 6,
 			prerequisites: [21],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 28,
 			code: "COMP 460",
 			title: "Deep Learning",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 6,
 			prerequisites: [22],
+			credits: 4,
+			isCompulsory: false,
 		},
 		{
 			id: 29,
 			code: "COMP 470",
 			title: "Distributed Systems",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 6,
 			prerequisites: [23],
+			credits: 3,
+			isCompulsory: false,
 		},
 		{
 			id: 30,
 			code: "MGMT 470",
 			title: "E-Commerce Systems",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 6,
 			prerequisites: [18, 19],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 31,
 			code: "MGMT 420",
 			title: "Project Management",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 6,
 			prerequisites: [16],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 32,
 			code: "COMP 385",
 			title: "UX Design",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 6,
 			prerequisites: [20],
+			credits: 3,
+			isCompulsory: false,
 		},
 
 		// Year 4 - Fall (Semester 7)
@@ -496,49 +638,61 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			id: 33,
 			code: "COMP 510",
 			title: "Blockchain Technology",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 7,
 			prerequisites: [27, 29],
+			credits: 3,
+			isCompulsory: false,
 		},
 		{
 			id: 34,
 			code: "COMP 520",
 			title: "Natural Language Processing",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 7,
 			prerequisites: [28],
+			credits: 4,
+			isCompulsory: false,
 		},
 		{
 			id: 35,
 			code: "COMP 530",
 			title: "Big Data Analytics",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 7,
 			prerequisites: [18, 23],
+			credits: 4,
+			isCompulsory: true,
 		},
 		{
 			id: 36,
 			code: "MGMT 501",
 			title: "Business Intelligence",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 7,
 			prerequisites: [18, 24],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 37,
 			code: "MGMT 510",
 			title: "Innovation Management",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 7,
 			prerequisites: [25],
+			credits: 3,
+			isCompulsory: false,
 		},
 		{
 			id: 38,
 			code: "COMP 480",
 			title: "Advanced Web Technologies",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 7,
 			prerequisites: [26],
+			credits: 3,
+			isCompulsory: false,
 		},
 
 		// Year 4 - Spring (Semester 8)
@@ -546,49 +700,61 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			id: 39,
 			code: "COMP 550",
 			title: "IoT Systems",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 8,
 			prerequisites: [33],
+			credits: 3,
+			isCompulsory: false,
 		},
 		{
 			id: 40,
 			code: "COMP 560",
 			title: "Computer Vision",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 8,
 			prerequisites: [34],
+			credits: 4,
+			isCompulsory: false,
 		},
 		{
 			id: 41,
 			code: "COMP 590",
 			title: "Data Science Capstone",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 8,
 			prerequisites: [35],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 42,
 			code: "MGMT 590",
 			title: "Business Strategy Capstone",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 8,
 			prerequisites: [36, 37],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 43,
 			code: "COMP 595",
 			title: "Software Engineering Capstone",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 8,
 			prerequisites: [31, 38],
+			credits: 3,
+			isCompulsory: true,
 		},
 		{
 			id: 44,
 			code: "RSRH 401",
 			title: "Research Methods",
-			status: "inactive" as const,
+			status: "future" as const,
 			semester: 8,
 			prerequisites: [9],
+			credits: 3,
+			isCompulsory: true,
 		},
 	];
 
@@ -602,6 +768,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		curriculumCourses: mockCurriculumCourses,
 		recentCourses,
 		recentNotes,
+		todaysCourseMeetings,
 		todaysDueItems,
 	};
 };
@@ -614,9 +781,12 @@ function CurriculumMap({
 		id: number;
 		code: string;
 		title: string;
-		status: string;
+		status: "completed" | "in progress" | "future";
 		semester: number;
 		prerequisites: number[];
+		credits: number;
+		isCompulsory: boolean;
+		shortcode?: string;
 	}>;
 }) {
 	// Create course lookup map
@@ -728,36 +898,40 @@ function CurriculumMap({
 					<>
 						<Tooltip
 							label={
-								hasPrereqs || hasDependents ? (
-									<Stack gap="xs">
-										{hasPrereqs && (
-											<div>
-												<Text size="xs" fw={700} mb={4}>
-													Prerequisites:
+								<Stack gap="xs">
+									<div>
+										<Text size="xs" fw={700}>
+											{course.isCompulsory ? "Compulsory" : "Elective"} • {course.credits} credits
+										</Text>
+									</div>
+									{hasPrereqs && (
+										<div>
+											<Text size="xs" fw={700} mb={4}>
+												Prerequisites:
+											</Text>
+											{prereqCourses.map((prereq) => (
+												<Text key={prereq.id} size="xs">
+													• {prereq.code}: {prereq.title}
 												</Text>
-												{prereqCourses.map((prereq) => (
-													<Text key={prereq.id} size="xs">
-														• {prereq.code}: {prereq.title}
-													</Text>
-												))}
-											</div>
-										)}
-										{hasDependents && (
-											<div>
-												<Text size="xs" fw={700} mb={4} mt={hasPrereqs ? 8 : 0}>
-													Required for:
+											))}
+										</div>
+									)}
+									{hasDependents && (
+										<div>
+											<Text size="xs" fw={700} mb={4} mt={hasPrereqs ? 8 : 0}>
+												Required for:
+											</Text>
+											{dependentCoursesForThis.map((dep) => (
+												<Text key={dep.id} size="xs">
+													• {dep.code}: {dep.title}
 												</Text>
-												{dependentCoursesForThis.map((dep) => (
-													<Text key={dep.id} size="xs">
-														• {dep.code}: {dep.title}
-													</Text>
-												))}
-											</div>
-										)}
-									</Stack>
-								) : (
-									"No prerequisites or dependent courses"
-								)
+											))}
+										</div>
+									)}
+									{!hasPrereqs && !hasDependents && (
+										<Text size="xs">No prerequisites or dependent courses</Text>
+									)}
+								</Stack>
 							}
 							multiline
 							w={300}
@@ -766,23 +940,35 @@ function CurriculumMap({
 						>
 							<Stack gap={6}>
 								<Text size="xs" fw={600} c="dimmed">
-									{course.code}
+									{course.status === "completed" || course.status === "in progress"
+										? course.shortcode
+										: course.code}
 								</Text>
 								<Text size="xs" fw={500} lineClamp={2}>
 									{course.title}
 								</Text>
-								<Badge
-									size="xs"
-									color={
-										course.status === "completed"
-											? "green"
-											: course.status === "active"
-												? "blue"
-												: "gray"
-									}
-								>
-									{course.status}
-								</Badge>
+								<Group gap={4}>
+									<Badge
+										size="xs"
+										color={
+											course.status === "completed"
+												? "green"
+												: course.status === "in progress"
+													? "blue"
+													: "gray"
+										}
+									>
+										{course.status}
+									</Badge>
+									{!course.isCompulsory && (
+										<Badge size="xs" color="violet" variant="light">
+											Elective
+										</Badge>
+									)}
+								</Group>
+								<Text size="xs" c="dimmed">
+									{course.credits} cr
+								</Text>
 							</Stack>
 						</Tooltip>
 					</>
@@ -810,13 +996,13 @@ function CurriculumMap({
 				id: `${prereqId}-${course.id}`,
 				source: prereqId.toString(),
 				target: course.id.toString(),
-				animated: course.status === "active",
+				animated: course.status === "in progress",
 				type: "default",
 				style: {
 					stroke:
 						course.status === "completed"
 							? "var(--mantine-color-green-6)"
-							: course.status === "active"
+							: course.status === "in progress"
 								? "var(--mantine-color-blue-6)"
 								: "var(--mantine-color-gray-6)",
 					strokeWidth: 2,
@@ -854,6 +1040,7 @@ function AuthenticatedDashboard({
 		curriculumCourses,
 		recentCourses,
 		recentNotes,
+		todaysCourseMeetings,
 		todaysDueItems,
 	} = loaderData;
 
@@ -861,6 +1048,29 @@ function AuthenticatedDashboard({
 	const greeting =
 		hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 	const userName = user.firstName || "there";
+
+	// Sort today's schedule by start time, then end time
+	const sortedScheduleItems = [
+		...todaysCourseMeetings.map((meeting) => ({
+			type: "meeting" as const,
+			data: meeting,
+			startTime: dayjs(`${dayjs().format("YYYY-MM-DD")} ${meeting.startTime}`, "YYYY-MM-DD h:mm A"),
+			endTime: dayjs(`${dayjs().format("YYYY-MM-DD")} ${meeting.endTime}`, "YYYY-MM-DD h:mm A"),
+		})),
+		...todaysDueItems.map((item) => ({
+			type: "due" as const,
+			data: item,
+			startTime: undefined,
+			endTime: dayjs(item.dueDate),
+		})),
+	].sort((a, b) => {
+		// Sort by start time first, if either one has no start time, sort to the end
+		if (!a.startTime || !b.startTime) return a.endTime.valueOf() - b.endTime.valueOf();
+		const startCompare = a.startTime.valueOf() - b.startTime.valueOf();
+		if (startCompare !== 0) return startCompare;
+		// Then by end time
+		return a.endTime.valueOf() - b.endTime.valueOf();
+	});
 
 	return (
 		<Container size="xl" py="xl">
@@ -929,6 +1139,24 @@ function AuthenticatedDashboard({
 							</Button>
 						</Group>
 
+						{/* Credit Progress */}
+						<Stack gap="xs">
+							<Group justify="space-between">
+								<Text size="sm" fw={500}>
+									{program.completedCredits} of {program.totalCredits} credits completed
+								</Text>
+								<Text size="sm" c="dimmed">
+									{program.totalCredits - program.completedCredits} remaining
+								</Text>
+							</Group>
+							<Progress
+								value={(program.completedCredits / program.totalCredits) * 100}
+								size="lg"
+								radius="xl"
+								color="blue"
+							/>
+						</Stack>
+
 						{/* Collapsible Curriculum Map */}
 						{curriculumCourses.length > 0 && (
 							<Collapse in={showCurriculumMap}>
@@ -991,9 +1219,20 @@ function AuthenticatedDashboard({
 													color="var(--mantine-color-dimmed)"
 												/>
 											</Paper>
+											<Text size="xs" c="dimmed" fw={600}>
+												{course.shortcode}
+											</Text>
 											<Text fw={500} lineClamp={2}>
 												{course.title}
 											</Text>
+											{course.schedule && (
+												<Group gap={4}>
+													<IconClock size={14} color="var(--mantine-color-dimmed)" />
+													<Text size="xs" c="dimmed" lineClamp={1}>
+														{formatSchedule(course.schedule)}
+													</Text>
+												</Group>
+											)}
 											{course.category && (
 												<Badge size="sm" variant="light">
 													{course.category}
@@ -1053,31 +1292,60 @@ function AuthenticatedDashboard({
 										</ThemeIcon>
 										<Title order={4}>Today's Schedule</Title>
 									</Group>
-									{todaysDueItems.length > 0 ? (
+									{sortedScheduleItems.length > 0 ? (
 										<Stack gap="xs">
-											{todaysDueItems.map((item) => {
+											{sortedScheduleItems.map((item) => {
+												if (item.type === "meeting") {
+													const meeting = item.data;
+													return (
+														<Paper key={`meeting-${meeting.id}`} withBorder p="sm" radius="md" >
+															<Stack gap={4}>
+																<Group justify="space-between">
+																	<Text size="sm" fw={500} lineClamp={1}>
+																		{meeting.title}
+																	</Text>
+																	<Badge size="xs" color="cyan" variant="light" >
+																		Class
+																	</Badge>
+																</Group>
+																<Text size="xs" c="dimmed" fw={500}>
+																	{meeting.shortcode}
+																</Text>
+																<Group gap={4}>
+																	<IconClock size={12} color="var(--mantine-color-dimmed)" />
+																	<Text size="xs" c="dimmed">
+																		{meeting.startTime} - {meeting.endTime}
+																	</Text>
+																</Group>
+															</Stack>
+														</Paper>
+													);
+												}
+
+												// Due item
+												const dueItem = item.data;
 												const badgeColor =
-													item.type === "assignment"
+													dueItem.type === "assignment"
 														? "blue"
-														: item.type === "quiz"
+														: dueItem.type === "quiz"
 															? "green"
 															: "orange";
 												return (
-													<Paper key={item.id} withBorder p="sm" radius="md">
+													<Paper key={`due-${dueItem.id}`} withBorder p="sm" radius="md">
 														<Stack gap={4}>
 															<Group justify="space-between">
 																<Text size="sm" fw={500} lineClamp={1}>
-																	{item.title}
+																	{dueItem.title}
 																</Text>
 																<Badge size="xs" color={badgeColor}>
-																	{item.type}
+																	{dueItem.type}
 																</Badge>
 															</Group>
 															<Text size="xs" c="dimmed">
-																{item.courseTitle}
+																{dueItem.courseTitle}
 															</Text>
 															<Text size="xs" c="dimmed">
-																Due: {dayjs(item.dueDate).format("h:mm A")}
+																Due: {dayjs(dueItem.dueDate).format("h:mm A")}
 															</Text>
 														</Stack>
 													</Paper>
@@ -1086,7 +1354,7 @@ function AuthenticatedDashboard({
 										</Stack>
 									) : (
 										<Text size="sm" c="dimmed" ta="center" py="md">
-											No items due today
+											No scheduled items today
 										</Text>
 									)}
 								</Stack>

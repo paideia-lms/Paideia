@@ -106,6 +106,10 @@ export interface Course {
 		} | null;
 	};
 	category?: Category | null;
+	thumbnail?: number | {
+		id: number;
+		filename?: string | null;
+	} | null;
 	updatedAt: string;
 	createdAt: string;
 	enrollments: Enrollment[];
@@ -210,6 +214,14 @@ export const tryGetCourseContext = async (
 					}
 					: null,
 			}
+			: null,
+		thumbnail: course.thumbnail
+			? typeof course.thumbnail === "object"
+				? {
+					id: course.thumbnail.id,
+					filename: course.thumbnail.filename,
+				}
+				: course.thumbnail
 			: null,
 		updatedAt: course.updatedAt,
 		createdAt: course.createdAt,

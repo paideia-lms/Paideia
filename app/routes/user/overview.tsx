@@ -49,6 +49,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
+import { ContentType } from "~/utils/get-content-type";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -98,8 +99,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: profileUser.avatar.filename,
-					})
+					filenameOrId: profileUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -265,9 +266,42 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+const useUpdateUser = () => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const updateUser = (userId: string, values: {
+		firstName: string;
+		lastName: string;
+		bio: string;
+		avatar: File | null;
+	}) => {
+		const formData = new FormData();
+		formData.append("firstName", values.firstName);
+		formData.append("lastName", values.lastName);
+		formData.append("bio", values.bio);
+		if (values.avatar) {
+			formData.append("avatar", values.avatar);
+		}
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/user/overview/:id?", {
+				id: userId,
+			}),
+			encType: ContentType.MULTIPART,
+		});
+	};
+
+	return {
+		updateUser,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+		fetcher,
+	};
+};
+
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const { user, isOwnData, userProfile } = loaderData;
-	const fetcher = useFetcher<typeof action>();
+	const { updateUser, isLoading, fetcher } = useUpdateUser();
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(
 		user.avatarUrl,
 	);
@@ -285,6 +319,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 			firstName: (value) => (!value ? "First name is required" : null),
 			lastName: (value) => (!value ? "Last name is required" : null),
 		},
+
 	});
 
 	const handleDrop = (files: File[]) => {
@@ -300,19 +335,13 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	};
 
 	const handleSubmit = (values: typeof form.values) => {
-		const formData = new FormData();
-		formData.append("firstName", values.firstName);
-		formData.append("lastName", values.lastName);
-		formData.append("bio", values.bio);
-
-		if (selectedFile) {
-			formData.append("avatar", selectedFile);
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
-			encType: "multipart/form-data",
+		updateUser(user.id.toString(), {
+			firstName: values.firstName,
+			lastName: values.lastName,
+			bio: values.bio,
+			avatar: selectedFile,
 		});
+
 	};
 
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";

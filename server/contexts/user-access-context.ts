@@ -29,6 +29,10 @@ type Course = {
 			name: string;
 		} | null;
 	} | null;
+	thumbnail?: number | {
+		id: number;
+		filename?: string | null;
+	} | null;
 };
 
 type ActivityModule = {
@@ -123,6 +127,30 @@ export const getUserAccessContext = async (
 					description: enrollment.course.description,
 					createdAt: enrollment.course.createdAt,
 					updatedAt: enrollment.course.updatedAt,
+					category: enrollment.course.category
+						? typeof enrollment.course.category === "object"
+							? {
+								id: enrollment.course.category.id,
+								name: enrollment.course.category.name,
+								parent:
+									enrollment.course.category.parent &&
+										typeof enrollment.course.category.parent === "object"
+										? {
+											id: enrollment.course.category.parent.id,
+											name: enrollment.course.category.parent.name,
+										}
+										: null,
+							}
+							: null
+						: null,
+					thumbnail: enrollment.course.thumbnail
+						? typeof enrollment.course.thumbnail === "object"
+							? {
+								id: enrollment.course.thumbnail.id,
+								filename: enrollment.course.thumbnail.filename ?? null,
+							}
+							: enrollment.course.thumbnail
+						: null,
 				},
 			}) satisfies Enrollment,
 	);
