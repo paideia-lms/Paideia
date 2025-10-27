@@ -294,6 +294,7 @@ interface CourseStructureTreeProps {
 	courseId: number;
 	courseStructure: CourseStructure;
 	currentItemId?: string;
+	canSeeStatus?: boolean;
 }
 
 export function CourseStructureTree({
@@ -301,6 +302,7 @@ export function CourseStructureTree({
 	courseId,
 	courseStructure,
 	currentItemId,
+	canSeeStatus = false,
 }: CourseStructureTreeProps) {
 	const { updateCourseStructure, isLoading } = useUpdateCourseStructure();
 	const isFirstRender = useIsFirstRender();
@@ -604,13 +606,13 @@ export function CourseStructureTree({
 										>
 											{itemData.name}
 										</Text>
-										<Badge
+										{canSeeStatus && <Badge
 											size="xs"
 											color={getStatusColor(itemData.module.status)}
 											variant="light"
 										>
 											{itemData.module.status}
-										</Badge>
+										</Badge>}
 									</Link>
 								)}
 							</Box>

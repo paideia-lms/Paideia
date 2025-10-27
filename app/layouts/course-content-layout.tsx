@@ -70,6 +70,7 @@ export default function CourseContentLayout({
 								readOnly={!canEdit}
 								courseId={course.id}
 								courseStructure={courseStructure}
+								canSeeStatus={canEdit}
 							/>
 						</Box>
 					</Grid.Col>

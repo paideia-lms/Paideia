@@ -25,6 +25,7 @@ export type PageInfo = {
 	isCourseModule: boolean;
 	isCourseSection: boolean;
 	isCourseSectionNew: boolean;
+	isCourseSectionEdit: boolean;
 	/**
 	 * viewing the public profile page
 	 */

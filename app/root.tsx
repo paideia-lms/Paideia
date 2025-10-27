@@ -82,6 +82,7 @@ export const middleware = [
 		let isCourseModule = false;
 		let isCourseSection = false;
 		let isCourseSectionNew = false;
+		let isCourseSectionEdit = false;
 		let isUserLayout = false;
 		let isUserOverview = false;
 		let isUserPreference = false;
@@ -119,6 +120,8 @@ export const middleware = [
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
 			else if (route.id === "routes/course/section-new")
 				isCourseSectionNew = true;
+			else if (route.id === "routes/course/section-edit")
+				isCourseSectionEdit = true;
 			else if (route.id === "layouts/user-layout") isUserLayout = true;
 			else if (route.id === "routes/user/overview") isUserOverview = true;
 			else if (route.id === "routes/user/preference") isUserPreference = true;
@@ -162,6 +165,7 @@ export const middleware = [
 				isCourseModule,
 				isCourseSection,
 				isCourseSectionNew,
+				isCourseSectionEdit,
 				isUserLayout,
 				isUserOverview,
 				isUserPreference,
@@ -230,9 +234,10 @@ export const middleware = [
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
-			if (pageInfo.isCourseSection) {
-				const { id: sectionId } =
-					params as RouteParams<"routes/course/section.$id">;
+			if (pageInfo.isCourseSection || pageInfo.isCourseSectionEdit) {
+				const { id: sectionId } = pageInfo.isCourseSectionEdit
+					? (params as RouteParams<"routes/course/section-edit">)
+					: (params as RouteParams<"routes/course/section.$id">);
 
 				if (Number.isNaN(sectionId)) return;
 
@@ -241,9 +246,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -311,9 +316,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -364,9 +369,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				);
 

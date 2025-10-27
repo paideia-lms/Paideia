@@ -90,6 +90,7 @@ const frontend = new Elysia()
 							isCourseModule: false,
 							isCourseSection: false,
 							isCourseSectionNew: false,
+							isCourseSectionEdit: false,
 							isUserLayout: false,
 							isUserOverview: false,
 							isUserPreference: false,

@@ -17,6 +17,7 @@ export const routes = [
 	),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	route("api/section-delete", "routes/api/section-delete.tsx"),
+	route("api/section-update", "routes/api/section-update.tsx"),
 	layout("layouts/root-layout.tsx", [
 		index("routes/index.tsx"),
 		// every user will see this page the same except some permission difference
@@ -53,6 +54,7 @@ export const routes = [
 				route("course/:id", "routes/course.$id.tsx"),
 				route("course/module/:id", "routes/course/module.$id.tsx"),
 				route("course/section/:id", "routes/course/section.$id.tsx"),
+				route("course/section/:id/edit", "routes/course/section-edit.tsx"),
 			]),
 			route("course/:id/section/new", "routes/course/section-new.tsx"),
 			route("course/:id/settings", "routes/course.$id.settings.tsx"),

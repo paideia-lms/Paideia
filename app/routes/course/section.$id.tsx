@@ -12,13 +12,9 @@ import {
 } from "@mantine/core";
 import { modals } from "@mantine/modals";
 import {
-	IconBook,
-	IconClipboardList,
 	IconFolder,
-	IconMessage,
 	IconPencil,
 	IconPlus,
-	IconPresentation,
 	IconTrash,
 	IconWriting,
 } from "@tabler/icons-react";
@@ -113,14 +109,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureSection => item.type === "section",
-			)
+			(item): item is CourseStructureSection => item.type === "section",
+		)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureItem => item.type === "activity-module",
-			)
+			(item): item is CourseStructureItem => item.type === "activity-module",
+		)
 		: [];
 
 	// Get available modules from user access context
@@ -152,12 +148,6 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 
 	// Check if user can edit
 	const canEdit = true; // User must have access if they can view the section
-
-	// Filter out modules that are already linked
-	const linkedModuleIds = new Set(modules.map((m) => m.module.id));
-	// const unlinkedModules = availableModules.filter(
-	// 	(module) => !linkedModuleIds.has(module.id),
-	// );
 
 	const handleDelete = () => {
 		modals.openConfirmModal({
@@ -215,6 +205,16 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 					<Group>
 						{canEdit && (
 							<>
+								<Button
+									component={Link}
+									to={href("/course/section/:id/edit", {
+										id: section.id.toString(),
+									})}
+									leftSection={<IconPencil size={16} />}
+									variant="light"
+								>
+									Edit Section
+								</Button>
 								<Button
 									component={Link}
 									to={href("/course/:id/section/new", {
@@ -284,15 +284,15 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 				)}
 
 				{/* Subsections */}
-				{subsections.length > 0 && (
-					<Paper shadow="sm" p="md" withBorder>
-						<Stack gap="md">
-							<Group>
-								<IconFolder size={24} />
-								<Title order={2}>Subsections</Title>
-								<Badge variant="light">{subsections.length}</Badge>
-							</Group>
+				<Paper shadow="sm" p="md" withBorder>
+					<Stack gap="md">
+						<Group>
+							<IconFolder size={24} />
+							<Title order={2}>Subsections</Title>
+							<Badge variant="light">{subsections.length}</Badge>
+						</Group>
 
+						{subsections.length > 0 ? (
 							<Stack gap="sm">
 								{subsections.map((subsection) => (
 									<Card
@@ -324,9 +324,26 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 									</Card>
 								))}
 							</Stack>
-						</Stack>
-					</Paper>
-				)}
+						) : (
+							<Stack gap="md" align="center" py="xl">
+								<Text c="dimmed" ta="center">
+									No subsections yet. Create one to organize your content.
+								</Text>
+								{canEdit && (
+									<Button
+										component={Link}
+										to={href("/course/:id/section/new", {
+											id: course.id.toString(),
+										})}
+										leftSection={<IconPlus size={16} />}
+									>
+										Create Subsection
+									</Button>
+								)}
+							</Stack>
+						)}
+					</Stack>
+				</Paper>
 
 				{/* Activity Modules */}
 				{modules.length > 0 && (

@@ -3,6 +3,7 @@ import {
 	Box,
 	Button,
 	Card,
+	Collapse,
 	Container,
 	Grid,
 	Group,
@@ -13,6 +14,7 @@ import {
 	Text,
 	ThemeIcon,
 	Title,
+	Tooltip,
 } from "@mantine/core";
 import {
 	Background,
@@ -28,8 +30,11 @@ import {
 	IconBooks,
 	IconCalendar,
 	IconChartBar,
+	IconChevronDown,
+	IconChevronUp,
 	IconFileText,
 	IconLogin,
+	IconMap2,
 	IconMessageCircle,
 	IconNotes,
 	IconSchool,
@@ -37,6 +42,7 @@ import {
 	IconUsers,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
+import { useState } from "react";
 import { href, Link } from "react-router";
 import { userContextKey } from "server/contexts/user-context";
 import type { Route } from "./+types/index";
@@ -182,31 +188,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		courseTitle: string;
 		courseId: number;
 	}> = [
-		{
-			id: 1,
-			title: "Databases CW1",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(10).minute(0).toISOString(),
-			courseTitle: "Databases",
-			courseId: 2,
-		},
-		{
-			id: 2,
-			title: "Functional Programming CW2",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(16).minute(0).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-		{
-			id: 3,
-			title: "Week 1: Object Oriented vs Functional Programming",
-			type: "discussion" as const,
-			dueDate: dayjs().hour(23).minute(59).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-	];
+			{
+				id: 1,
+				title: "Databases CW1",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(10).minute(0).toISOString(),
+				courseTitle: "Databases",
+				courseId: 2,
+			},
+			{
+				id: 2,
+				title: "Functional Programming CW2",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(16).minute(0).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+			{
+				id: 3,
+				title: "Week 1: Object Oriented vs Functional Programming",
+				type: "discussion" as const,
+				dueDate: dayjs().hour(23).minute(59).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+		];
 
 	// Mock program data
 	const mockProgram = {
@@ -613,6 +619,23 @@ function CurriculumMap({
 		prerequisites: number[];
 	}>;
 }) {
+	// Create course lookup map
+	const courseMap = new Map(courses.map((c) => [c.id, c]));
+
+	// Build reverse prerequisite map (courses that depend on this course)
+	const dependentCourses = new Map<number, number[]>();
+	for (const course of courses) {
+		for (const prereqId of course.prerequisites) {
+			if (!dependentCourses.has(prereqId)) {
+				dependentCourses.set(prereqId, []);
+			}
+			const deps = dependentCourses.get(prereqId);
+			if (deps) {
+				deps.push(course.id);
+			}
+		}
+	}
+
 	// Group courses by semester
 	const semesterGroups = new Map<number, typeof courses>();
 	for (const course of courses) {
@@ -667,6 +690,7 @@ function CurriculumMap({
 			},
 			draggable: false,
 			selectable: false,
+
 		};
 	});
 
@@ -678,6 +702,21 @@ function CurriculumMap({
 			(c) => c.id === course.id,
 		);
 
+		// Get prerequisite courses
+		const prereqCourses = course.prerequisites
+			.map((id) => courseMap.get(id))
+			.filter(Boolean);
+
+		// Get dependent courses (courses that require this course)
+		const dependents = dependentCourses.get(course.id) || [];
+		const dependentCoursesForThis = dependents
+			.map((id) => courseMap.get(id))
+			.filter(Boolean);
+
+		// Build tooltip content
+		const hasPrereqs = prereqCourses.length > 0;
+		const hasDependents = dependentCoursesForThis.length > 0;
+
 		return {
 			id: course.id.toString(),
 			position: {
@@ -686,26 +725,67 @@ function CurriculumMap({
 			},
 			data: {
 				label: (
-					<Stack gap={6}>
-						<Text size="xs" fw={600} c="dimmed">
-							{course.code}
-						</Text>
-						<Text size="xs" fw={500} lineClamp={2}>
-							{course.title}
-						</Text>
-						<Badge
-							size="xs"
-							color={
-								course.status === "completed"
-									? "green"
-									: course.status === "active"
-										? "blue"
-										: "gray"
+					<>
+						<Tooltip
+							label={
+								hasPrereqs || hasDependents ? (
+									<Stack gap="xs">
+										{hasPrereqs && (
+											<div>
+												<Text size="xs" fw={700} mb={4}>
+													Prerequisites:
+												</Text>
+												{prereqCourses.map((prereq) => (
+													<Text key={prereq.id} size="xs">
+														• {prereq.code}: {prereq.title}
+													</Text>
+												))}
+											</div>
+										)}
+										{hasDependents && (
+											<div>
+												<Text size="xs" fw={700} mb={4} mt={hasPrereqs ? 8 : 0}>
+													Required for:
+												</Text>
+												{dependentCoursesForThis.map((dep) => (
+													<Text key={dep.id} size="xs">
+														• {dep.code}: {dep.title}
+													</Text>
+												))}
+											</div>
+										)}
+									</Stack>
+								) : (
+									"No prerequisites or dependent courses"
+								)
 							}
+							multiline
+							w={300}
+							withArrow
+							position="top"
 						>
-							{course.status}
-						</Badge>
-					</Stack>
+							<Stack gap={6}>
+								<Text size="xs" fw={600} c="dimmed">
+									{course.code}
+								</Text>
+								<Text size="xs" fw={500} lineClamp={2}>
+									{course.title}
+								</Text>
+								<Badge
+									size="xs"
+									color={
+										course.status === "completed"
+											? "green"
+											: course.status === "active"
+												? "blue"
+												: "gray"
+									}
+								>
+									{course.status}
+								</Badge>
+							</Stack>
+						</Tooltip>
+					</>
 				),
 			},
 			style: {
@@ -764,6 +844,8 @@ function AuthenticatedDashboard({
 		{ isAuthenticated: false }
 	>;
 }) {
+	const [showCurriculumMap, setShowCurriculumMap] = useState(false);
+
 	if (!loaderData.isAuthenticated) return null;
 
 	const {
@@ -813,38 +895,56 @@ function AuthenticatedDashboard({
 					</Group>
 				</Group>
 
-				{/* Program Card */}
+				{/* Program Card with Expandable Curriculum Map */}
 				<Paper withBorder shadow="sm" p="lg" radius="md">
-					<Group>
-						<ThemeIcon size="xl" radius="md" variant="light" color="blue">
-							<IconSchool size={28} />
-						</ThemeIcon>
-						<Stack gap={4}>
-							<Text size="sm" c="dimmed">
-								Current Program
-							</Text>
-							<Title order={3}>{program.name}</Title>
-							<Text size="sm" c="dimmed">
-								{program.description}
-							</Text>
-						</Stack>
-					</Group>
-				</Paper>
-
-				{/* Curriculum Map */}
-				{curriculumCourses.length > 0 && (
-					<Paper withBorder shadow="sm" p="lg" radius="md">
-						<Stack gap="md">
-							<Group justify="space-between">
-								<Title order={3}>Curriculum Map</Title>
-								<Text size="sm" c="dimmed">
-									Track your program progress
-								</Text>
+					<Stack gap="md">
+						<Group justify="space-between" align="center">
+							<Group>
+								<ThemeIcon size="xl" radius="md" variant="light" color="blue">
+									<IconSchool size={28} />
+								</ThemeIcon>
+								<Stack gap={4}>
+									<Text size="sm" c="dimmed">
+										Current Program
+									</Text>
+									<Title order={3}>{program.name}</Title>
+									<Text size="sm" c="dimmed">
+										{program.description}
+									</Text>
+								</Stack>
 							</Group>
-							<CurriculumMap courses={curriculumCourses} />
-						</Stack>
-					</Paper>
-				)}
+							<Button
+								variant="transparent"
+								leftSection={<IconMap2 size={16} />}
+								rightSection={
+									showCurriculumMap ? (
+										<IconChevronUp size={16} />
+									) : (
+										<IconChevronDown size={16} />
+									)
+								}
+								onClick={() => setShowCurriculumMap(!showCurriculumMap)}
+							>
+								{showCurriculumMap ? "Hide" : "Show"} Curriculum Map
+							</Button>
+						</Group>
+
+						{/* Collapsible Curriculum Map */}
+						{curriculumCourses.length > 0 && (
+							<Collapse in={showCurriculumMap}>
+								<Stack gap="md" pt="md">
+									<Group justify="space-between">
+										<Title order={4}>Curriculum Map</Title>
+										<Text size="sm" c="dimmed">
+											Track your program progress
+										</Text>
+									</Group>
+									<CurriculumMap courses={curriculumCourses} />
+								</Stack>
+							</Collapse>
+						)}
+					</Stack>
+				</Paper>
 
 				<Grid>
 					{/* Recent Courses */}
