@@ -717,8 +717,8 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 					initialAnswers={
 						isViewingCompletedQuiz
 							? nestedQuizState.submittedAnswers[
-							nestedQuizState.currentNestedQuizId
-							]
+									nestedQuizState.currentNestedQuizId
+								]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {
@@ -860,7 +860,11 @@ export const sampleNestedQuizConfig: QuizConfig = {
 							type: "fill-in-the-blank",
 							prompt:
 								"To handle asynchronous operations in JavaScript, you can use {{method_one}}, {{method_two}}, or {{method_three}}.",
-							correctAnswers: { method_one: "callbacks", method_two: "promises", method_three: "async/await" },
+							correctAnswers: {
+								method_one: "callbacks",
+								method_two: "promises",
+								method_three: "async/await",
+							},
 						},
 						{
 							id: "s3-q2",

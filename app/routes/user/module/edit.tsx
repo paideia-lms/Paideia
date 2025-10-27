@@ -54,9 +54,7 @@ export default function EditModulePage() {
 								<Text size="lg" fw={500}>
 									No Quiz Configuration
 								</Text>
-								<Text c="dimmed">
-									This quiz has not been configured yet.
-								</Text>
+								<Text c="dimmed">This quiz has not been configured yet.</Text>
 							</Stack>
 						</Paper>
 					)}

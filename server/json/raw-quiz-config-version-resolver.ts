@@ -59,9 +59,7 @@ function convertFillInTheBlankQuestion(
  */
 function convertQuestion(question: QuestionV1): QuestionV2 {
 	if (question.type === "fill-in-the-blank") {
-		return convertFillInTheBlankQuestion(
-			question as FillInTheBlankQuestionV1,
-		);
+		return convertFillInTheBlankQuestion(question as FillInTheBlankQuestionV1);
 	}
 	// All other question types remain the same
 	return question as QuestionV2;

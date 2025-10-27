@@ -82,6 +82,7 @@
 		"@tiptap/react": "^3.8.0",
 		"@tiptap/starter-kit": "^3.8.0",
 		"@tiptap/suggestion": "^3.8.0",
+		"@xyflow/react": "^12.9.0",
 		"cheerio": "^1.1.2",
 		"concurrently": "^9.2.1",
 		"dayjs": "^1.11.18",

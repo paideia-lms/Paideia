@@ -5,7 +5,6 @@ import type {
 	LooseKeys,
 } from "~/packages/@mantine/form/lib/paths.types";
 
-
 /**
  * https://github.com/mantinedev/mantine/blob/master/packages/%40mantine/form/src/paths/get-splitted-path.ts
  */
@@ -47,11 +46,7 @@ export function getPath<V, T extends LooseKeys<V>>(
 	return value as FormPathValue<V, T>;
 }
 
-
-export function useFormWatchForceUpdate<
-	Values,
-	T extends LooseKeys<Values>,
->(
+export function useFormWatchForceUpdate<Values, T extends LooseKeys<Values>>(
 	form: UseFormReturnType<Values>,
 	path: T,
 	shouldUpdate: (values: {
@@ -63,7 +58,7 @@ export function useFormWatchForceUpdate<
 ) {
 	const forceUpdate = useForceUpdate();
 	form.watch(path, (values) => {
-		// @ts-ignore
+		// @ts-expect-error
 		if (shouldUpdate(values)) {
 			forceUpdate();
 		}
@@ -71,9 +66,12 @@ export function useFormWatchForceUpdate<
 	return getPath(path, form.getValues());
 }
 
-export function triggerFormUpdate<Values, T extends LooseKeys<Values>>(form: UseFormReturnType<Values>, path: T) {
+export function triggerFormUpdate<Values, T extends LooseKeys<Values>>(
+	form: UseFormReturnType<Values>,
+	path: T,
+) {
 	// this line does not do anything, but it will trigger a re-render at a particular path
 	const value = getPath(path, form.getValues());
-	// @ts-ignore
+	// @ts-expect-error
 	form.setFieldValue(path, value, { forceUpdate: true });
 }

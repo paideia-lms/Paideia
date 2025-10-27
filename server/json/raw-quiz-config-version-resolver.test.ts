@@ -166,7 +166,8 @@ describe("raw-quiz-config-version-resolver", () => {
 						{
 							id: "q1",
 							type: "fill-in-the-blank",
-							prompt: "The capital of France is {{capital}} and the largest city is also {{capital}}.",
+							prompt:
+								"The capital of France is {{capital}} and the largest city is also {{capital}}.",
 							correctAnswers: ["Paris"],
 						},
 						{
@@ -190,14 +191,19 @@ describe("raw-quiz-config-version-resolver", () => {
 
 			const q1 = result.pages[0].questions[0];
 			if (q1.type === "fill-in-the-blank") {
-				expect(q1.prompt).toBe("The capital of France is {{capital}} and the largest city is also {{capital}}.");
+				expect(q1.prompt).toBe(
+					"The capital of France is {{capital}} and the largest city is also {{capital}}.",
+				);
 				expect(q1.correctAnswers).toEqual({ capital: "Paris" });
 			}
 
 			const q2 = result.pages[0].questions[1];
 			if (q2.type === "fill-in-the-blank") {
 				expect(q2.prompt).toBe("{{country}} has {{capital}} as its capital.");
-				expect(q2.correctAnswers).toEqual({ country: "France", capital: "Paris" });
+				expect(q2.correctAnswers).toEqual({
+					country: "France",
+					capital: "Paris",
+				});
 			}
 		}
 	});
@@ -216,7 +222,8 @@ describe("raw-quiz-config-version-resolver", () => {
 						{
 							id: "q1",
 							type: "fill-in-the-blank",
-							prompt: "The capital of France is {{capital}} and the largest city is also {{capital}}.",
+							prompt:
+								"The capital of France is {{capital}} and the largest city is also {{capital}}.",
 							correctAnswers: { capital: "Paris" },
 						},
 						{
@@ -240,14 +247,19 @@ describe("raw-quiz-config-version-resolver", () => {
 
 			const q1 = result.pages[0].questions[0];
 			if (q1.type === "fill-in-the-blank") {
-				expect(q1.prompt).toBe("The capital of France is {{capital}} and the largest city is also {{capital}}.");
+				expect(q1.prompt).toBe(
+					"The capital of France is {{capital}} and the largest city is also {{capital}}.",
+				);
 				expect(q1.correctAnswers).toEqual({ capital: "Paris" });
 			}
 
 			const q2 = result.pages[0].questions[1];
 			if (q2.type === "fill-in-the-blank") {
 				expect(q2.prompt).toBe("{{country}} has {{capital}} as its capital.");
-				expect(q2.correctAnswers).toEqual({ country: "France", capital: "Paris" });
+				expect(q2.correctAnswers).toEqual({
+					country: "France",
+					capital: "Paris",
+				});
 			}
 		}
 	});

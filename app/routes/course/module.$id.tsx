@@ -63,19 +63,19 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const previousModule =
 		currentIndex > 0
 			? {
-				id: flattenedModules[currentIndex - 1].moduleLinkId,
-				title: flattenedModules[currentIndex - 1].title,
-				type: flattenedModules[currentIndex - 1].type,
-			}
+					id: flattenedModules[currentIndex - 1].moduleLinkId,
+					title: flattenedModules[currentIndex - 1].title,
+					type: flattenedModules[currentIndex - 1].type,
+				}
 			: null;
 
 	const nextModule =
 		currentIndex < flattenedModules.length - 1 && currentIndex !== -1
 			? {
-				id: flattenedModules[currentIndex + 1].moduleLinkId,
-				title: flattenedModules[currentIndex + 1].title,
-				type: flattenedModules[currentIndex + 1].type,
-			}
+					id: flattenedModules[currentIndex + 1].moduleLinkId,
+					title: flattenedModules[currentIndex + 1].title,
+					type: flattenedModules[currentIndex + 1].type,
+				}
 			: null;
 
 	return {
@@ -140,10 +140,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 							{module.title}
 						</Title>
 						<Group gap="sm">
-							<Badge
-								color={getStatusBadgeColor(module.status)}
-								variant="light"
-							>
+							<Badge color={getStatusBadgeColor(module.status)} variant="light">
 								{getStatusLabel(module.status)}
 							</Badge>
 							<Text size="sm" c="dimmed">

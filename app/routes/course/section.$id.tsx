@@ -10,7 +10,6 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { useState } from "react";
 import { modals } from "@mantine/modals";
 import {
 	IconBook,
@@ -23,8 +22,8 @@ import {
 	IconTrash,
 	IconWriting,
 } from "@tabler/icons-react";
+import { useState } from "react";
 import { href, Link } from "react-router";
-import { useDeleteCourseSection } from "~/routes/api/section-delete";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userAccessContextKey } from "server/contexts/user-access-context";
@@ -34,10 +33,11 @@ import type {
 	CourseStructureSection,
 } from "server/internal/course-section-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
+import { useDeleteCourseSection } from "~/routes/api/section-delete";
+import { useCreateModuleLink } from "~/routes/course.$id.modules";
+import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { BadRequestResponse, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/section.$id";
-import { useCreateModuleLink } from "~/routes/course.$id.modules";
-import { getModuleIcon, getModuleColor } from "~/utils/module-helper";
 
 // Helper function to recursively find a section in the course structure
 function findSectionInStructure(
@@ -113,14 +113,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-			(item): item is CourseStructureSection => item.type === "section",
-		)
+				(item): item is CourseStructureSection => item.type === "section",
+			)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-			(item): item is CourseStructureItem => item.type === "activity-module",
-		)
+				(item): item is CourseStructureItem => item.type === "activity-module",
+			)
 		: [];
 
 	// Get available modules from user access context
@@ -142,14 +142,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	});
 };
 
-
-
 export default function SectionPage({ loaderData }: Route.ComponentProps) {
 	const { deleteSection, isLoading: isDeleting } = useDeleteCourseSection();
 	const { createModuleLink, state: createState } = useCreateModuleLink();
 	const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
 
-	const { section, course, subsections, modules, availableModules } = loaderData;
+	const { section, course, subsections, modules, availableModules } =
+		loaderData;
 
 	// Check if user can edit
 	const canEdit = true; // User must have access if they can view the section
@@ -192,15 +191,16 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<Container size="xl" py="xl">
-			<title>
-				{title}
-			</title>
+			<title>{title}</title>
 			<meta
 				name="description"
 				content={`View ${section.title} section in ${course.title}`}
 			/>
 			<meta property="og:title" content={title} />
-			<meta property="og:description" content={`View ${section.title} section in ${course.title}`} />
+			<meta
+				property="og:description"
+				content={`View ${section.title} section in ${course.title}`}
+			/>
 
 			<Stack gap="xl">
 				<Group justify="space-between" align="flex-start">
@@ -236,7 +236,11 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 								</Button>
 							</>
 						)}
-						<Button component={Link} to={`/course/${course.id}`} variant="light">
+						<Button
+							component={Link}
+							to={`/course/${course.id}`}
+							variant="light"
+						>
 							Back to Course
 						</Button>
 					</Group>
@@ -336,7 +340,14 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 
 							<Stack gap="sm">
 								{modules.map((item) => (
-									<Card key={item.id} shadow="xs" padding="md" withBorder component={Link} to={href("/course/module/:id", { id: item.id.toString() })}>
+									<Card
+										key={item.id}
+										shadow="xs"
+										padding="md"
+										withBorder
+										component={Link}
+										to={href("/course/module/:id", { id: item.id.toString() })}
+									>
 										<Group justify="space-between">
 											<Group>
 												{getModuleIcon(item.module.type)}

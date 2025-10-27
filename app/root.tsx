@@ -117,7 +117,8 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
 			else if (route.id === "routes/course/module.$id") isCourseModule = true;
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
-			else if (route.id === "routes/course/section-new") isCourseSectionNew = true;
+			else if (route.id === "routes/course/section-new")
+				isCourseSectionNew = true;
 			else if (route.id === "layouts/user-layout") isUserLayout = true;
 			else if (route.id === "routes/user/overview") isUserOverview = true;
 			else if (route.id === "routes/user/preference") isUserPreference = true;
@@ -240,9 +241,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -310,9 +311,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -363,9 +364,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				);
 
@@ -477,7 +478,7 @@ const mantineTheme = createTheme({
 });
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme, } = loaderData;
+	const { theme } = loaderData;
 
 	return (
 		<html

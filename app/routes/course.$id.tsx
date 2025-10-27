@@ -149,7 +149,16 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 						) : (
 							<Stack gap="sm">
 								{directSections.map((section) => (
-									<Card key={section.id} shadow="xs" padding="md" withBorder component={Link} to={href("/course/section/:id", { id: section.id.toString() })}>
+									<Card
+										key={section.id}
+										shadow="xs"
+										padding="md"
+										withBorder
+										component={Link}
+										to={href("/course/section/:id", {
+											id: section.id.toString(),
+										})}
+									>
 										<Stack gap="xs">
 											<Group justify="space-between">
 												<Title order={3}>{section.title}</Title>

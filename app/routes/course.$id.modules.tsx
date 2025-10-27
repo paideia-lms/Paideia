@@ -12,7 +12,12 @@ import {
 } from "server/internal/course-activity-module-link-management";
 import { tryCreateSection } from "server/internal/course-section-management";
 import { canSeeCourseModules } from "server/utils/permissions";
+import { z } from "zod";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 import {
 	BadRequestResponse,
 	badRequest,
@@ -21,8 +26,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.modules";
-import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { z } from "zod";
 
 export function useCreateModuleLink() {
 	const fetcher = useFetcher<typeof clientAction>();
@@ -34,7 +37,11 @@ export function useCreateModuleLink() {
 	) => {
 		fetcher.submit(
 			{ intent: "create", activityModuleId, ...(sectionId && { sectionId }) },
-			{ method: "post", action: href("/course/:id/modules", { id: courseId.toString() }), encType: ContentType.JSON },
+			{
+				method: "post",
+				action: href("/course/:id/modules", { id: courseId.toString() }),
+				encType: ContentType.JSON,
+			},
 		);
 	};
 
@@ -50,7 +57,11 @@ function useDeleteModuleLink() {
 	const deleteModuleLink = (linkId: number, courseId: number) => {
 		fetcher.submit(
 			{ intent: "delete", linkId },
-			{ method: "post", action: href("/course/:id/modules", { id: courseId.toString() }), encType: ContentType.JSON },
+			{
+				method: "post",
+				action: href("/course/:id/modules", { id: courseId.toString() }),
+				encType: ContentType.JSON,
+			},
 		);
 	};
 
@@ -90,10 +101,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				userId: enrolmentContext.enrolment.userId,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					userId: enrolmentContext.enrolment.userId,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -132,7 +143,10 @@ const deleteSchema = z.object({
 	linkId: z.coerce.number(),
 });
 
-const inputSchema = z.discriminatedUnion("intent", [createSchema, deleteSchema]);
+const inputSchema = z.discriminatedUnion("intent", [
+	createSchema,
+	deleteSchema,
+]);
 
 export const action = async ({
 	request,
@@ -176,10 +190,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				userId: enrollment.user as number,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					userId: enrollment.user as number,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 
@@ -331,7 +345,9 @@ export default function CourseModulesPage({
 				availableModules={availableModules}
 				canEdit={canEdit}
 				fetcherState={fetcherState}
-				onAddModule={(activityModuleId) => createModuleLink(activityModuleId, course.id)}
+				onAddModule={(activityModuleId) =>
+					createModuleLink(activityModuleId, course.id)
+				}
 				onDeleteLink={(linkId) => deleteModuleLink(linkId, course.id)}
 			/>
 		</Container>

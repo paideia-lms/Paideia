@@ -6,77 +6,77 @@ import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
 
 interface DiscussionFormProps {
-    form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<ActivityModuleFormValues>;
 }
 
 export function DiscussionForm({ form }: DiscussionFormProps) {
-    return (
-        <Stack gap="md">
-            <CommonFields form={form} />
+	return (
+		<Stack gap="md">
+			<CommonFields form={form} />
 
-            <Textarea
-                {...form.getInputProps("description")}
-                key={form.key("description")}
-                label="Description"
-                placeholder="Enter module description"
-                minRows={3}
-            />
+			<Textarea
+				{...form.getInputProps("description")}
+				key={form.key("description")}
+				label="Description"
+				placeholder="Enter module description"
+				minRows={3}
+			/>
 
-            <Title order={4} mt="md">
-                Discussion Settings
-            </Title>
+			<Title order={4} mt="md">
+				Discussion Settings
+			</Title>
 
-            <Textarea
-                {...form.getInputProps("discussionInstructions")}
-                key={form.key("discussionInstructions")}
-                label="Instructions"
-                placeholder="Enter discussion instructions"
-                minRows={3}
-            />
+			<Textarea
+				{...form.getInputProps("discussionInstructions")}
+				key={form.key("discussionInstructions")}
+				label="Instructions"
+				placeholder="Enter discussion instructions"
+				minRows={3}
+			/>
 
-            <DateTimePicker
-                {...form.getInputProps("discussionDueDate")}
-                key={form.key("discussionDueDate")}
-                label="Due Date"
-                placeholder="Select due date"
-            />
+			<DateTimePicker
+				{...form.getInputProps("discussionDueDate")}
+				key={form.key("discussionDueDate")}
+				label="Due Date"
+				placeholder="Select due date"
+			/>
 
-            <Checkbox
-                {...form.getInputProps("discussionRequireThread", {
-                    type: "checkbox",
-                })}
-                key={form.key("discussionRequireThread")}
-                label="Require thread creation"
-            />
+			<Checkbox
+				{...form.getInputProps("discussionRequireThread", {
+					type: "checkbox",
+				})}
+				key={form.key("discussionRequireThread")}
+				label="Require thread creation"
+			/>
 
-            <Checkbox
-                {...form.getInputProps("discussionRequireReplies", {
-                    type: "checkbox",
-                })}
-                key={form.key("discussionRequireReplies")}
-                label="Require replies"
-            />
+			<Checkbox
+				{...form.getInputProps("discussionRequireReplies", {
+					type: "checkbox",
+				})}
+				key={form.key("discussionRequireReplies")}
+				label="Require replies"
+			/>
 
-            <MinimumRepliesInput form={form} />
-        </Stack>
-    );
+			<MinimumRepliesInput form={form} />
+		</Stack>
+	);
 }
 
 function MinimumRepliesInput({
-    form,
+	form,
 }: {
-    form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<ActivityModuleFormValues>;
 }) {
-    useFormWatchForceUpdate(form, "discussionRequireReplies");
-    const discussionRequireReplies = form.getValues().discussionRequireReplies;
-    if (!discussionRequireReplies) return null;
-    return (
-        <NumberInput
-            {...form.getInputProps("discussionMinReplies")}
-            key={form.key("discussionMinReplies")}
-            label="Minimum Replies"
-            placeholder="Enter minimum number of replies"
-            min={1}
-        />
-    );
+	useFormWatchForceUpdate(form, "discussionRequireReplies");
+	const discussionRequireReplies = form.getValues().discussionRequireReplies;
+	if (!discussionRequireReplies) return null;
+	return (
+		<NumberInput
+			{...form.getInputProps("discussionMinReplies")}
+			key={form.key("discussionMinReplies")}
+			label="Minimum Replies"
+			placeholder="Enter minimum number of replies"
+			min={1}
+		/>
+	);
 }

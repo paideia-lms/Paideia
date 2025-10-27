@@ -6,7 +6,15 @@ import {
 	syncDataLoaderFeature,
 } from "@headless-tree/core";
 import { useTree } from "@headless-tree/react";
-import { ActionIcon, Badge, Box, Button, Group, Paper, Text } from "@mantine/core";
+import {
+	ActionIcon,
+	Badge,
+	Box,
+	Button,
+	Group,
+	Paper,
+	Text,
+} from "@mantine/core";
 import { useClickOutside, useIsFirstRender } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
@@ -281,7 +289,6 @@ function getStatusColor(status: string) {
 	}
 }
 
-
 interface CourseStructureTreeProps {
 	readOnly?: boolean;
 	courseId: number;
@@ -400,12 +407,14 @@ export function CourseStructureTree({
 		dataLoader: {
 			getItem: (itemId: string) => {
 				// ! we need to provide a defualt value for now because the getChildren does not revalidate the data when the flatData changes
-				return flatData[itemId] ?? {
-					id: itemId,
-					name: itemId,
-					type: "section",
-					children: [],
-				}
+				return (
+					flatData[itemId] ?? {
+						id: itemId,
+						name: itemId,
+						type: "section",
+						children: [],
+					}
+				);
 			},
 			getChildren: (itemId: string) => getChildrenIds(itemId, flatData),
 		},
@@ -417,7 +426,6 @@ export function CourseStructureTree({
 			expandAllFeature,
 		],
 	});
-
 
 	const items = tree.getItems();
 
@@ -446,7 +454,12 @@ export function CourseStructureTree({
 					<Text size="lg" fw={600}>
 						Course Structure
 					</Text>
-					<Button size="compact-xs" component={Link} to={href("/course/:id", { id: courseId.toString() })} variant="light">
+					<Button
+						size="compact-xs"
+						component={Link}
+						to={href("/course/:id", { id: courseId.toString() })}
+						variant="light"
+					>
 						Root
 					</Button>
 				</Group>
@@ -581,7 +594,9 @@ export function CourseStructureTree({
 											color: "inherit",
 										}}
 									>
-										<Text size="sm">{getModuleIcon(itemData.module.type, 12)}</Text>
+										<Text size="sm">
+											{getModuleIcon(itemData.module.type, 12)}
+										</Text>
 										<Text
 											size="sm"
 											fw={isCurrentItem ? 600 : 400}
