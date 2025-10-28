@@ -169,17 +169,6 @@ export const Quizzes = {
 			label: "Show One Question at a Time",
 		},
 		{
-			name: "requirePassword",
-			type: "checkbox",
-			defaultValue: false,
-			label: "Require Password to Access",
-		},
-		{
-			name: "accessPassword",
-			type: "text",
-			label: "Access Password",
-		},
-		{
 			name: "rawQuizConfig",
 			type: "json",
 			label: "Raw Quiz Configuration",

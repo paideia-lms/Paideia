@@ -11,8 +11,6 @@ export const activityModuleSchema = z.object({
 	description: z.string().optional(),
 	type: z.enum(["page", "whiteboard", "assignment", "quiz", "discussion"]),
 	status: z.enum(["draft", "published", "archived"]).optional(),
-	requirePassword: z.boolean().optional(),
-	accessPassword: z.string().optional(),
 	// Page fields
 	pageContent: z.string().optional(),
 	// Whiteboard fields
@@ -45,8 +43,6 @@ export type ActivityModuleFormValues = {
 	description: string;
 	type: ActivityModule["type"];
 	status: ActivityModule["status"];
-	requirePassword: boolean;
-	accessPassword: string;
 	// Page fields
 	pageContent: string;
 	// Whiteboard fields
@@ -83,8 +79,6 @@ export function getInitialFormValues(): ActivityModuleFormValues {
 		description: "",
 		type: "page",
 		status: "draft",
-		requirePassword: false,
-		accessPassword: "",
 		// Page fields
 		pageContent: "",
 		// Whiteboard fields
@@ -142,43 +136,43 @@ export function transformToActivityData(
 ) {
 	let pageData:
 		| {
-				content?: string;
-		  }
+			content?: string;
+		}
 		| undefined;
 	let whiteboardData:
 		| {
-				content?: string;
-		  }
+			content?: string;
+		}
 		| undefined;
 	let assignmentData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				allowLateSubmissions?: boolean;
-				requireTextSubmission?: boolean;
-				requireFileSubmission?: boolean;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			allowLateSubmissions?: boolean;
+			requireTextSubmission?: boolean;
+			requireFileSubmission?: boolean;
+		}
 		| undefined;
 	let quizData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				points?: number;
-				timeLimit?: number;
-				gradingType?: "automatic" | "manual";
-				rawQuizConfig?: unknown;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			points?: number;
+			timeLimit?: number;
+			gradingType?: "automatic" | "manual";
+			rawQuizConfig?: unknown;
+		}
 		| undefined;
 	let discussionData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				requireThread?: boolean;
-				requireReplies?: boolean;
-				minReplies?: number;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			requireThread?: boolean;
+			requireReplies?: boolean;
+			minReplies?: number;
+		}
 		| undefined;
 
 	if (parsedData.type === "page") {

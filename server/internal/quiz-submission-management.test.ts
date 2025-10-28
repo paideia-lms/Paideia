@@ -163,8 +163,6 @@ describe("Quiz Management - Full Workflow", () => {
 				shuffleQuestions: false,
 				shuffleAnswers: false,
 				showOneQuestionAtATime: false,
-				requirePassword: false,
-				accessPassword: "",
 				questions: [
 					{
 						questionText: "What is 2 + 2?",
@@ -347,7 +345,6 @@ describe("Quiz Management - Full Workflow", () => {
 			shuffleQuestions: false,
 			shuffleAnswers: false,
 			showOneQuestionAtATime: false,
-			requirePassword: false,
 			questions: [
 				{
 					questionText: "What is 2 + 2?",

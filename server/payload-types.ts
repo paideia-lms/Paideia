@@ -478,8 +478,6 @@ export interface ActivityModule {
   type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
   status: 'draft' | 'published' | 'archived';
   createdBy: number | User;
-  requirePassword?: boolean | null;
-  accessPassword?: string | null;
   page?: (number | null) | Page;
   whiteboard?: (number | null) | Whiteboard;
   assignment?: (number | null) | Assignment;
@@ -582,8 +580,6 @@ export interface Quiz {
   shuffleQuestions?: boolean | null;
   shuffleAnswers?: boolean | null;
   showOneQuestionAtATime?: boolean | null;
-  requirePassword?: boolean | null;
-  accessPassword?: string | null;
   rawQuizConfig?:
     | {
         [k: string]: unknown;
@@ -1267,8 +1263,6 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   type?: T;
   status?: T;
   createdBy?: T;
-  requirePassword?: T;
-  accessPassword?: T;
   page?: T;
   whiteboard?: T;
   assignment?: T;
@@ -1359,8 +1353,6 @@ export interface QuizzesSelect<T extends boolean = true> {
   shuffleQuestions?: T;
   shuffleAnswers?: T;
   showOneQuestionAtATime?: T;
-  requirePassword?: T;
-  accessPassword?: T;
   rawQuizConfig?: T;
   questions?:
     | T

@@ -81,8 +81,6 @@ export const action = async ({
 		title: parsedData.title,
 		description: parsedData.description,
 		status: parsedData.status,
-		requirePassword: parsedData.requirePassword,
-		accessPassword: parsedData.accessPassword,
 	};
 
 	let updateArgs: UpdateActivityModuleArgs;
@@ -179,8 +177,6 @@ export default function EditModulePage() {
 			description: module.description || "",
 			type: module.type,
 			status: module.status,
-			requirePassword: module.requirePassword || false,
-			accessPassword: module.accessPassword || "",
 			// Page fields
 			pageContent: pageData?.content || "",
 			// Whiteboard fields

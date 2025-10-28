@@ -489,8 +489,6 @@ export const activity_modules = pgTable(
       .references(() => users.id, {
         onDelete: "set null",
       }),
-    requirePassword: boolean("require_password").default(false),
-    accessPassword: varchar("access_password"),
     page: integer("page_id").references(() => pages.id, {
       onDelete: "set null",
     }),
@@ -820,8 +818,6 @@ export const quizzes = pgTable(
     showOneQuestionAtATime: boolean("show_one_question_at_a_time").default(
       false,
     ),
-    requirePassword: boolean("require_password").default(false),
-    accessPassword: varchar("access_password"),
     rawQuizConfig: jsonb("raw_quiz_config"),
     createdBy: integer("created_by_id")
       .notNull()

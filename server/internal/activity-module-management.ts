@@ -18,8 +18,6 @@ type BaseCreateActivityModuleArgs = {
 	description?: string;
 	status?: "draft" | "published" | "archived";
 	userId: number;
-	requirePassword?: boolean;
-	accessPassword?: string;
 };
 
 // Discriminated union for create args
@@ -68,19 +66,17 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		shuffleQuestions?: boolean;
 		shuffleAnswers?: boolean;
 		showOneQuestionAtATime?: boolean;
-		requirePassword?: boolean;
-		accessPassword?: string;
 		rawQuizConfig?: QuizConfig;
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -129,8 +125,6 @@ type BaseUpdateActivityModuleArgs = {
 	title?: string;
 	description?: string;
 	status?: "draft" | "published" | "archived";
-	requirePassword?: boolean;
-	accessPassword?: string;
 };
 
 // Discriminated union for update args
@@ -179,19 +173,17 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		shuffleQuestions?: boolean;
 		shuffleAnswers?: boolean;
 		showOneQuestionAtATime?: boolean;
-		requirePassword?: boolean;
-		accessPassword?: string;
 		rawQuizConfig?: QuizConfig;
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -249,8 +241,6 @@ export const tryCreateActivityModule = Result.wrap(
 			type,
 			status = "draft",
 			userId,
-			requirePassword = false,
-			accessPassword,
 		} = args;
 
 		// Validate required fields
@@ -331,8 +321,6 @@ export const tryCreateActivityModule = Result.wrap(
 						shuffleQuestions: args.quizData.shuffleQuestions,
 						shuffleAnswers: args.quizData.shuffleAnswers,
 						showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
-						requirePassword: args.quizData.requirePassword,
-						accessPassword: args.quizData.accessPassword,
 						rawQuizConfig: args.quizData.rawQuizConfig as unknown as {
 							[x: string]: unknown;
 						},
@@ -378,8 +366,6 @@ export const tryCreateActivityModule = Result.wrap(
 				status,
 				createdBy: userId,
 				owner: userId,
-				requirePassword,
-				...(accessPassword && { accessPassword }),
 				...(type === "page" && relatedEntityId && { page: relatedEntityId }),
 				...(type === "whiteboard" &&
 					relatedEntityId && { whiteboard: relatedEntityId }),
@@ -635,8 +621,6 @@ export const tryUpdateActivityModule = Result.wrap(
 			description,
 			type,
 			status,
-			requirePassword,
-			accessPassword,
 		} = args;
 
 		// Validate ID
@@ -677,10 +661,6 @@ export const tryUpdateActivityModule = Result.wrap(
 			if (title !== undefined) updateData.title = title;
 			if (description !== undefined) updateData.description = description;
 			if (status !== undefined) updateData.status = status;
-			if (requirePassword !== undefined)
-				updateData.requirePassword = requirePassword;
-			if (accessPassword !== undefined)
-				updateData.accessPassword = accessPassword;
 
 			// Update related entity based on discriminated type
 			if (type === "page") {
@@ -776,8 +756,6 @@ export const tryUpdateActivityModule = Result.wrap(
 							shuffleQuestions: args.quizData.shuffleQuestions,
 							shuffleAnswers: args.quizData.shuffleAnswers,
 							showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
-							requirePassword: args.quizData.requirePassword,
-							accessPassword: args.quizData.accessPassword,
 							rawQuizConfig: args.quizData.rawQuizConfig as unknown as {
 								[x: string]: unknown;
 							},

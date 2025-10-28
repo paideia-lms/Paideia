@@ -27,19 +27,17 @@ export interface CreateQuizArgs {
 	shuffleQuestions?: boolean;
 	shuffleAnswers?: boolean;
 	showOneQuestionAtATime?: boolean;
-	requirePassword?: boolean;
-	accessPassword?: string;
 	rawQuizConfig?: unknown;
 	questions: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -71,19 +69,17 @@ export interface UpdateQuizArgs {
 	shuffleQuestions?: boolean;
 	shuffleAnswers?: boolean;
 	showOneQuestionAtATime?: boolean;
-	requirePassword?: boolean;
-	accessPassword?: string;
 	rawQuizConfig?: unknown;
 	questions?: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -108,11 +104,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -129,11 +125,11 @@ export interface UpdateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -207,8 +203,6 @@ export const tryCreateQuiz = Result.wrap(
 			shuffleQuestions = false,
 			shuffleAnswers = false,
 			showOneQuestionAtATime = false,
-			requirePassword = false,
-			accessPassword,
 			rawQuizConfig,
 			questions,
 			createdBy,
@@ -276,8 +270,6 @@ export const tryCreateQuiz = Result.wrap(
 				shuffleQuestions,
 				shuffleAnswers,
 				showOneQuestionAtATime,
-				requirePassword,
-				accessPassword,
 				rawQuizConfig: rawQuizConfig as { [x: string]: unknown },
 				questions,
 				createdBy,
@@ -386,8 +378,6 @@ export const tryUpdateQuiz = Result.wrap(
 			shuffleQuestions,
 			shuffleAnswers,
 			showOneQuestionAtATime,
-			requirePassword,
-			accessPassword,
 			rawQuizConfig,
 			questions,
 		} = args;
@@ -419,10 +409,6 @@ export const tryUpdateQuiz = Result.wrap(
 			updateData.shuffleAnswers = shuffleAnswers;
 		if (showOneQuestionAtATime !== undefined)
 			updateData.showOneQuestionAtATime = showOneQuestionAtATime;
-		if (requirePassword !== undefined)
-			updateData.requirePassword = requirePassword;
-		if (accessPassword !== undefined)
-			updateData.accessPassword = accessPassword;
 		if (rawQuizConfig !== undefined) updateData.rawQuizConfig = rawQuizConfig;
 		if (questions !== undefined) updateData.questions = questions;
 
@@ -913,11 +899,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;

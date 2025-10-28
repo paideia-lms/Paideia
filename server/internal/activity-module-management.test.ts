@@ -159,7 +159,6 @@ describe("Activity Module Management", () => {
 				shuffleQuestions: false,
 				shuffleAnswers: true,
 				showOneQuestionAtATime: false,
-				requirePassword: false,
 				questions: [
 					{
 						questionText: "What is 2 + 2?",

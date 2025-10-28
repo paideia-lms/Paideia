@@ -102,17 +102,6 @@ export const ActivityModules = {
 			relationTo: "users",
 			required: true,
 		},
-		{
-			name: "requirePassword",
-			type: "checkbox",
-			defaultValue: false,
-			label: "Require Password to Access",
-		},
-		{
-			name: "accessPassword",
-			type: "text",
-			label: "Access Password",
-		},
 		// Polymorphic relationship to specific activity collections
 		{
 			name: "page",
