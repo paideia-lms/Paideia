@@ -1,11 +1,9 @@
 import {
-	Badge,
 	Button,
 	Container,
 	Group,
 	Stack,
 	Text,
-	Title,
 } from "@mantine/core";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { href, Link } from "react-router";
@@ -18,10 +16,6 @@ import { DiscussionPreview } from "~/components/activity-modules-preview/discuss
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
-import {
-	getStatusBadgeColor,
-	getStatusLabel,
-} from "~/components/course-view-utils";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/module.$id";
 
@@ -80,6 +74,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	return {
 		module: courseModuleContext.module,
+		moduleSettings: courseModuleContext.moduleLinkSettings,
 		course: courseContext.course,
 		previousModule,
 		nextModule,
@@ -87,7 +82,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
-	const { module, course, previousModule, nextModule } = loaderData;
+	const { module, moduleSettings, course, previousModule, nextModule } = loaderData;
 
 	// Handle different module types
 	const renderModuleContent = () => {
@@ -118,7 +113,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 		}
 	};
 
-	const title = `${module.title} | ${course.title} | Paideia LMS`;
+	const title = `${moduleSettings?.settings.name ?? module.title} | ${course.title} | Paideia LMS`;
 
 	return (
 		<Container size="xl" py="xl">
@@ -134,26 +129,6 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-				<Group justify="space-between" align="flex-start">
-					<div>
-						<Title order={1} mb="xs">
-							{module.title}
-						</Title>
-						<Group gap="sm">
-							<Badge color={getStatusBadgeColor(module.status)} variant="light">
-								{getStatusLabel(module.status)}
-							</Badge>
-							<Text size="sm" c="dimmed">
-								{module.type.charAt(0).toUpperCase() + module.type.slice(1)}{" "}
-								Module
-							</Text>
-						</Group>
-					</div>
-					<Button component={Link} to={`/course/${course.id}`} variant="light">
-						Back to Course
-					</Button>
-				</Group>
-
 				{renderModuleContent()}
 
 				{/* Navigation buttons */}

@@ -85,6 +85,8 @@ export const middleware = [
 		let isCourseBin = false;
 		let isCourseBackup = false;
 		let isCourseModule = false;
+		let isCourseModuleEdit = false;
+		let isInCourseModuleLayout = false;
 		let isCourseSection = false;
 		let isCourseSectionNew = false;
 		let isCourseSectionEdit = false;
@@ -124,6 +126,9 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
 			else if (route.id === "routes/course/module.$id") isCourseModule = true;
+			else if (route.id === "routes/course/module.$id.edit") isCourseModuleEdit = true;
+			else if (route.id === "layouts/course-module-layout")
+				isInCourseModuleLayout = true;
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
 			else if (route.id === "routes/course/section-new")
 				isCourseSectionNew = true;
@@ -173,6 +178,8 @@ export const middleware = [
 				isCourseBin,
 				isCourseBackup,
 				isCourseModule,
+				isCourseModuleEdit,
+				isInCourseModuleLayout,
 				isCourseSection,
 				isCourseSectionNew,
 				isCourseSectionEdit,
@@ -225,9 +232,9 @@ export const middleware = [
 			let courseId: number = Number(id);
 
 			// in course/module/id , we need to get the module first and then get the course id
-			if (pageInfo.isCourseModule) {
+			if (pageInfo.isCourseModule || pageInfo.isCourseModuleEdit) {
 				const { id: moduleId } =
-					params as RouteParams<"routes/course/module.$id">;
+					params as RouteParams<"routes/course/module.$id" | "routes/course/module.$id.edit">;
 
 				if (Number.isNaN(moduleId)) return;
 
@@ -406,19 +413,19 @@ export const middleware = [
 		// Check if user is authenticated, in a course module, and has course context
 		if (
 			userSession?.isAuthenticated &&
-			pageInfo.isCourseModule &&
+			(pageInfo.isCourseModule || pageInfo.isCourseModuleEdit) &&
 			courseContext
 		) {
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
 
-			// Get module link ID from params
-			const moduleLinkId = params.id ? Number(params.id) : null;
+			const { id: moduleId } = params as RouteParams<"routes/course/module.$id" | "routes/course/module.$id.edit">;
 
-			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
+			// Get module link ID from params
+			if (moduleId && !Number.isNaN(moduleId)) {
 				const courseModuleContextResult = await tryGetCourseModuleContext(
 					payload,
-					moduleLinkId,
+					Number(moduleId),
 					courseContext.courseId,
 					currentUser
 						? {

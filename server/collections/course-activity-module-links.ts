@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload";
+import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-module-settings-version-resolver";
 
 /**
  * we need a new collection rather than just a relationship field on the course and activity module
@@ -63,6 +64,19 @@ export const CourseActivityModuleLinks = {
 			defaultValue: 0,
 			label: "Content Order",
 			min: -1,
+		},
+		{
+			name: "settings",
+			type: "json",
+			label: "Course Module Settings",
+			hooks: {
+				afterRead: [
+					({ value }) => {
+						if (!value) return null;
+						return tryResolveCourseModuleSettingsToLatest(value);
+					},
+				],
+			},
 		},
 	],
 } as const satisfies CollectionConfig;

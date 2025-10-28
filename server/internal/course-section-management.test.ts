@@ -3050,4 +3050,196 @@ describe("Course Section Management Functions", () => {
 			}
 		}
 	});
+
+	test("should respect custom module names from course module settings", async () => {
+		// Create a new course for this test
+		const customNameCourseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Custom Name Test Course",
+				description: "Course for testing custom module names",
+				slug: "custom-name-test-course",
+				createdBy: testUser.id,
+			},
+			overrideAccess: true,
+		});
+
+		expect(customNameCourseResult.ok).toBe(true);
+		if (!customNameCourseResult.ok) return;
+
+		const customNameCourse = customNameCourseResult.value;
+
+		// Create a section
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: customNameCourse.id,
+				title: "Week 1",
+				description: "First week content",
+			},
+			overrideAccess: true,
+		});
+
+		expect(sectionResult.ok).toBe(true);
+		if (!sectionResult.ok) return;
+
+		// Create activity modules
+		const assignmentResult = await tryCreateActivityModule(payload, {
+			title: "Generic Assignment Title",
+			description: "A reusable assignment",
+			type: "assignment",
+			userId: testUser.id,
+			assignmentData: {
+				instructions: "Complete the assignment",
+			},
+		});
+
+		const quizResult = await tryCreateActivityModule(payload, {
+			title: "Generic Quiz Title",
+			description: "A reusable quiz",
+			type: "quiz",
+			userId: testUser.id,
+			quizData: {
+				instructions: "Complete the quiz",
+			},
+		});
+
+		expect(assignmentResult.ok).toBe(true);
+		expect(quizResult.ok).toBe(true);
+		if (!assignmentResult.ok || !quizResult.ok) return;
+
+		// Add modules to section WITHOUT custom names first
+		const link1Result = await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: assignmentResult.value.id,
+			sectionId: sectionResult.value.id,
+			overrideAccess: true,
+		});
+
+		const link2Result = await tryAddActivityModuleToSection({
+			payload,
+			activityModuleId: quizResult.value.id,
+			sectionId: sectionResult.value.id,
+			overrideAccess: true,
+		});
+
+		expect(link1Result.ok).toBe(true);
+		expect(link2Result.ok).toBe(true);
+		if (!link1Result.ok || !link2Result.ok) return;
+
+		// Get initial structure (should show original titles)
+		const initialStructureResult = await tryGetCourseStructure({
+			payload,
+			courseId: customNameCourse.id,
+			overrideAccess: true,
+		});
+
+		expect(initialStructureResult.ok).toBe(true);
+		if (!initialStructureResult.ok) return;
+
+		console.log("\n=== Initial Structure (No Custom Names) ===");
+		console.log(
+			generateCourseStructureTree(
+				initialStructureResult.value,
+				customNameCourse.title,
+			),
+		);
+
+		// Verify original titles are used
+		const initialSection = initialStructureResult.value.sections.find(
+			(s) => s.title === "Week 1",
+		);
+		expect(initialSection).toBeDefined();
+		if (initialSection) {
+			const module1 = initialSection.content.find(
+				(item) => item.type === "activity-module" && item.id === link1Result.value.id,
+			);
+			const module2 = initialSection.content.find(
+				(item) => item.type === "activity-module" && item.id === link2Result.value.id,
+			);
+
+			expect(module1).toBeDefined();
+			expect(module2).toBeDefined();
+			if (module1 && module1.type === "activity-module") {
+				expect(module1.module.title).toBe("Generic Assignment Title");
+			}
+			if (module2 && module2.type === "activity-module") {
+				expect(module2.module.title).toBe("Generic Quiz Title");
+			}
+		}
+
+		// Now update the links with custom names
+		await payload.update({
+			collection: "course-activity-module-links",
+			id: link1Result.value.id,
+			data: {
+				settings: {
+					version: "v1",
+					settings: {
+						type: "assignment",
+						name: "Week 1 Reflection Assignment",
+					},
+				},
+			},
+			overrideAccess: true,
+		});
+
+		await payload.update({
+			collection: "course-activity-module-links",
+			id: link2Result.value.id,
+			data: {
+				settings: {
+					version: "v1",
+					settings: {
+						type: "quiz",
+						name: "Week 1 Comprehension Quiz",
+					},
+				},
+			},
+			overrideAccess: true,
+		});
+
+		// Get updated structure (should show custom names)
+		const updatedStructureResult = await tryGetCourseStructure({
+			payload,
+			courseId: customNameCourse.id,
+			overrideAccess: true,
+		});
+
+		expect(updatedStructureResult.ok).toBe(true);
+		if (!updatedStructureResult.ok) return;
+
+		console.log("\n=== Updated Structure (With Custom Names) ===");
+		console.log(
+			generateCourseStructureTree(
+				updatedStructureResult.value,
+				customNameCourse.title,
+			),
+		);
+
+		// Verify custom names are used
+		const updatedSection = updatedStructureResult.value.sections.find(
+			(s) => s.title === "Week 1",
+		);
+		expect(updatedSection).toBeDefined();
+		if (updatedSection) {
+			const customModule1 = updatedSection.content.find(
+				(item) => item.type === "activity-module" && item.id === link1Result.value.id,
+			);
+			const customModule2 = updatedSection.content.find(
+				(item) => item.type === "activity-module" && item.id === link2Result.value.id,
+			);
+
+			expect(customModule1).toBeDefined();
+			expect(customModule2).toBeDefined();
+			if (customModule1 && customModule1.type === "activity-module") {
+				expect(customModule1.module.title).toBe("Week 1 Reflection Assignment");
+			}
+			if (customModule2 && customModule2.type === "activity-module") {
+				expect(customModule2.module.title).toBe("Week 1 Comprehension Quiz");
+			}
+		}
+
+		console.log("\n✅ Custom module names test passed!");
+	});
 });

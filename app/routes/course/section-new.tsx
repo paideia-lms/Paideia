@@ -10,6 +10,7 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { createLoader, parseAsInteger } from "nuqs/server";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
@@ -190,10 +191,34 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+interface CreateSectionFormValues {
+	title: string;
+	description: string;
+	parentSection: string;
+}
+
+function useCreateNewSection() {
+	const fetcher = useFetcher<typeof action>();
+
+	const handleSubmit = (values: CreateSectionFormValues) => {
+		const formData = new FormData();
+		formData.append("title", values.title);
+		formData.append("description", values.description);
+		formData.append("parentSection", values.parentSection);
+		fetcher.submit(formData, { method: "POST" });
+	};
+
+	return {
+		handleSubmit,
+		isLoading: fetcher.state !== "idle",
+		state: fetcher.state,
+	};
+}
+
 export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 	const { course, sections, parentSectionId } = loaderData;
 	const navigate = useNavigate();
-	const fetcher = useFetcher<typeof action>();
+	const { handleSubmit, isLoading } = useCreateNewSection();
 
 	const sectionOptions = [
 		{ value: "", label: "None (Root Level)" },
@@ -203,16 +228,22 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 		})),
 	];
 
-	// Set default value for parent section if provided via search params
-	const defaultParentSection = parentSectionId
-		? parentSectionId.toString()
-		: "";
-
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-		const formData = new FormData(event.currentTarget);
-		fetcher.submit(formData, { method: "POST" });
-	};
+	const form = useForm<CreateSectionFormValues>({
+		mode: "uncontrolled",
+		initialValues: {
+			title: "",
+			description: "",
+			parentSection: parentSectionId ? parentSectionId.toString() : "",
+		},
+		validate: {
+			title: (value) =>
+				!value || value.trim().length === 0 ? "Section title is required" : null,
+			description: (value) =>
+				!value || value.trim().length === 0
+					? "Section description is required"
+					: null,
+		},
+	});
 
 	return (
 		<Container size="md" py="xl">
@@ -228,33 +259,35 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 				</div>
 
 				<Paper shadow="sm" p="xl" withBorder>
-					<form onSubmit={handleSubmit}>
+					<form onSubmit={form.onSubmit(handleSubmit)}>
 						<Stack gap="md">
 							<TextInput
+								{...form.getInputProps("title")}
+								key={form.key("title")}
 								label="Section Title"
-								name="title"
 								placeholder="Enter section title"
 								required
-								disabled={fetcher.state !== "idle"}
+								disabled={isLoading}
 							/>
 
 							<Textarea
+								{...form.getInputProps("description")}
+								key={form.key("description")}
 								label="Description"
-								name="description"
 								placeholder="Enter section description"
 								required
 								minRows={3}
-								disabled={fetcher.state !== "idle"}
+								disabled={isLoading}
 							/>
 
 							<Select
+								{...form.getInputProps("parentSection")}
+								key={form.key("parentSection")}
 								label="Parent Section"
-								name="parentSection"
 								placeholder="Select parent section (optional)"
 								data={sectionOptions}
-								defaultValue={defaultParentSection}
 								clearable
-								disabled={fetcher.state !== "idle"}
+								disabled={isLoading}
 								description="Leave empty to create a root-level section"
 							/>
 
@@ -264,11 +297,11 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 									onClick={() =>
 										navigate(href("/course/:id", { id: course.id.toString() }))
 									}
-									disabled={fetcher.state !== "idle"}
+									disabled={isLoading}
 								>
 									Cancel
 								</Button>
-								<Button type="submit" loading={fetcher.state !== "idle"}>
+								<Button type="submit" loading={isLoading}>
 									Create Section
 								</Button>
 							</Group>

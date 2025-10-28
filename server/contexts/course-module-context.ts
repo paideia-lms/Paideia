@@ -1,5 +1,6 @@
 import type { BasePayload } from "payload";
 import { createContext } from "react-router";
+import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { Result } from "typescript-result";
 import {
@@ -88,6 +89,7 @@ export type CourseModuleContext = {
 	moduleLinkId: number;
 	moduleLinkCreatedAt: string;
 	moduleLinkUpdatedAt: string;
+	moduleLinkSettings: CourseModuleSettingsV1 | null;
 	previousModuleLinkId: number | null;
 	nextModuleLinkId: number | null;
 };
@@ -295,6 +297,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 			moduleLinkId: moduleLink.id,
 			moduleLinkCreatedAt: moduleLink.createdAt,
 			moduleLinkUpdatedAt: moduleLink.updatedAt,
+			moduleLinkSettings: (moduleLink.settings as unknown as CourseModuleSettingsV1) ?? null,
 			previousModuleLinkId,
 			nextModuleLinkId,
 		} satisfies CourseModuleContext;

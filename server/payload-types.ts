@@ -460,6 +460,15 @@ export interface CourseActivityModuleLink {
   section: number | CourseSection;
   sectionTitle?: string | null;
   contentOrder: number;
+  settings?:
+    | {
+        [k: string]: unknown;
+      }
+    | unknown[]
+    | string
+    | number
+    | boolean
+    | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1430,6 +1439,7 @@ export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
   section?: T;
   sectionTitle?: T;
   contentOrder?: T;
+  settings?: T;
   updatedAt?: T;
   createdAt?: T;
 }

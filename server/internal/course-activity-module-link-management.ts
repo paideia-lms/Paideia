@@ -1,9 +1,10 @@
 import type { Payload, Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
+import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
-import { transformError, UnknownError } from "~/utils/error";
+import { InvalidArgumentError, transformError, UnknownError } from "~/utils/error";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -11,6 +12,7 @@ export interface CreateCourseActivityModuleLinkArgs {
 	section: number;
 	order?: number;
 	contentOrder?: number;
+	settings?: CourseModuleSettingsV1;
 	transactionID?: string | number;
 }
 
@@ -35,6 +37,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			activityModule,
 			section,
 			contentOrder = 0,
+			settings,
 			transactionID,
 		} = args;
 
@@ -45,6 +48,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				activityModule,
 				section,
 				contentOrder,
+				settings: settings as unknown as { [key: string]: unknown },
 			},
 			req: {
 				...request,
@@ -321,6 +325,160 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to find course-activity-module-link by ID", {
+			cause: error,
+		}),
+);
+
+/**
+ * Updates course module settings for a specific link
+ */
+export const tryUpdateCourseModuleSettings = Result.wrap(
+	async (
+		payload: Payload,
+		request: Request,
+		linkId: number,
+		settings?: CourseModuleSettingsV1,
+		transactionID?: string | number,
+	) => {
+		// Validate date logic based on module type
+		if (settings?.settings.type === "assignment") {
+			const { allowSubmissionsFrom, dueDate, cutoffDate } = settings.settings;
+
+			if (allowSubmissionsFrom && dueDate) {
+				if (new Date(allowSubmissionsFrom) > new Date(dueDate)) {
+					throw new InvalidArgumentError(
+						"Allow submissions from date must be before due date",
+					);
+				}
+			}
+
+			if (dueDate && cutoffDate) {
+				if (new Date(dueDate) > new Date(cutoffDate)) {
+					throw new InvalidArgumentError("Due date must be before cutoff date");
+				}
+			}
+
+			if (allowSubmissionsFrom && cutoffDate) {
+				if (new Date(allowSubmissionsFrom) > new Date(cutoffDate)) {
+					throw new InvalidArgumentError(
+						"Allow submissions from date must be before cutoff date",
+					);
+				}
+			}
+		}
+
+		if (settings?.settings.type === "quiz") {
+			const { openingTime, closingTime } = settings.settings;
+
+			if (openingTime && closingTime) {
+				if (new Date(openingTime) > new Date(closingTime)) {
+					throw new InvalidArgumentError("Opening time must be before closing time");
+				}
+			}
+		}
+
+		if (settings?.settings.type === "discussion") {
+			const { dueDate, cutoffDate } = settings.settings;
+
+			if (dueDate && cutoffDate) {
+				if (new Date(dueDate) > new Date(cutoffDate)) {
+					throw new InvalidArgumentError("Due date must be before cutoff date");
+				}
+			}
+		}
+
+		const updatedLink = await payload.update({
+			collection: CourseActivityModuleLinks.slug,
+			id: linkId,
+			data: {
+				settings: settings as unknown as { [key: string]: unknown },
+			},
+			req: {
+				...request,
+				transactionID,
+			},
+		});
+
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
+
+		const linkCourse = updatedLink.course;
+		assertZodInternal(
+			"tryUpdateCourseModuleSettings: Course is required",
+			linkCourse,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const linkActivityModule = updatedLink.activityModule;
+		assertZodInternal(
+			"tryUpdateCourseModuleSettings: Activity module is required",
+			linkActivityModule,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		return {
+			...updatedLink,
+			course: linkCourse,
+			activityModule: linkActivityModule,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update course module settings", {
+			cause: error,
+		}),
+);
+
+/**
+ * Retrieves course module settings for a specific link
+ */
+export const tryGetCourseModuleSettings = Result.wrap(
+	async (payload: Payload, linkId: number) => {
+		const link = await payload.findByID({
+			collection: CourseActivityModuleLinks.slug,
+			id: linkId,
+		});
+
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
+
+		const linkCourse = link.course;
+		assertZodInternal(
+			"tryGetCourseModuleSettings: Course is required",
+			linkCourse,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const linkActivityModule = link.activityModule;
+		assertZodInternal(
+			"tryGetCourseModuleSettings: Activity module is required",
+			linkActivityModule,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		// Settings can be null if not configured
+		const settings = link.settings as CourseModuleSettingsV1 | null;
+
+		return {
+			...link,
+			course: linkCourse,
+			activityModule: linkActivityModule,
+			settings,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get course module settings", {
 			cause: error,
 		}),
 );

@@ -15,6 +15,7 @@ export const routes = [
 		"api/media/file/:filenameOrId",
 		"routes/api/media/file.$filenameOrId.tsx",
 	),
+	route("api/d2-render", "routes/api/d2-render.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	route("api/section-delete", "routes/api/section-delete.tsx"),
 	route("api/section-update", "routes/api/section-update.tsx"),
@@ -53,7 +54,10 @@ export const routes = [
 		layout("layouts/course-layout.tsx", [
 			layout("layouts/course-content-layout.tsx", [
 				route("course/:id", "routes/course.$id.tsx"),
-				route("course/module/:id", "routes/course/module.$id.tsx"),
+				layout("layouts/course-module-layout.tsx", [
+					route("course/module/:id", "routes/course/module.$id.tsx"),
+					route("course/module/:id/edit", "routes/course/module.$id.edit.tsx"),
+				]),
 				layout("layouts/course-section-layout.tsx", [
 					route("course/section/:id", "routes/course/section.$id.tsx"),
 					route("course/section/:id/edit", "routes/course/section-edit.tsx"),

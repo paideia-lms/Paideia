@@ -179,3 +179,20 @@ export function canSeeCourseSectionSettings(
 		user?.role === "content-manager"
 	);
 }
+
+export function canSeeCourseModuleSettings(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+) {
+	return (
+		enrolment?.role === "teacher" ||
+		enrolment?.role === "manager" ||
+		user?.role === "admin" ||
+		user?.role === "content-manager"
+	);
+}

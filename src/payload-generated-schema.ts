@@ -963,6 +963,7 @@ export const course_activity_module_links = pgTable(
     contentOrder: numeric("content_order", { mode: "number" })
       .notNull()
       .default("0"),
+    settings: jsonb("settings"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,

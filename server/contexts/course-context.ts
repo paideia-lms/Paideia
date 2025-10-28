@@ -85,6 +85,14 @@ type ActivityModule = {
 type CourseActivityModuleLink = {
 	id: number;
 	activityModule: ActivityModule;
+	settings?: {
+		version: "v1";
+		settings: {
+			type: string;
+			name?: string;
+			[key: string]: unknown;
+		};
+	} | null;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -290,6 +298,7 @@ export const tryGetCourseContext = async (
 				updatedAt: link.activityModule.updatedAt,
 				createdAt: link.activityModule.createdAt,
 			},
+			settings: link.settings as CourseActivityModuleLink["settings"],
 			createdAt: link.createdAt,
 			updatedAt: link.updatedAt,
 		}))

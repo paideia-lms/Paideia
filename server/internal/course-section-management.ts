@@ -12,6 +12,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import type { CourseModuleSettingsV1 } from "../json/course-module-settings.types";
 import type {
 	CourseActivityModuleLink,
 	CourseSection,
@@ -2029,13 +2030,18 @@ export const tryGetCourseStructure = Result.wrap(
 					activityModule,
 					z.object({ id: z.number() }),
 				);
+
+				// Use custom name from settings if available, otherwise use module title
+				const linkSettings = link.settings as CourseModuleSettingsV1 | null;
+				const moduleTitle = linkSettings?.settings?.name ?? activityModule.title;
+
 				mixedContent.push({
 					id: link.id,
 					type: "activity-module",
 					contentOrder: link.contentOrder || 0,
 					module: {
 						id: activityModule.id,
-						title: activityModule.title,
+						title: moduleTitle,
 						type: activityModule.type,
 						status: activityModule.status,
 					},

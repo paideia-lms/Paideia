@@ -578,4 +578,36 @@
 			color: var(--mantine-color-dark-3);
 		}
 	}
+
+	/* D2 diagram wrapper */
+	.d2-wrapper {
+		margin: 1.5rem 0;
+		padding: 1rem;
+		border: 1px solid var(--mantine-color-gray-3);
+		border-radius: 4px;
+		background-color: var(--mantine-color-gray-0);
+		overflow-x: auto;
+		text-align: center;
+
+		svg {
+			max-width: 100%;
+			height: auto;
+			display: inline-block;
+		}
+
+		.d2-placeholder {
+			padding: 2rem;
+			color: var(--mantine-color-gray-6);
+			font-style: italic;
+		}
+	}
+
+	[data-mantine-color-scheme="dark"] & .d2-wrapper {
+		border-color: var(--mantine-color-dark-4);
+		background-color: var(--mantine-color-dark-7);
+
+		.d2-placeholder {
+			color: var(--mantine-color-dark-3);
+		}
+	}
 }
