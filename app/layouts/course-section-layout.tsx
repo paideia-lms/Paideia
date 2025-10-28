@@ -93,7 +93,7 @@ export default function CourseSectionLayout({
                                 {section.title}
                             </Title>
                             <Text c="dimmed" size="sm">
-                                {course.title}
+                                {section.description}
                             </Text>
                         </div>
                         <Tabs

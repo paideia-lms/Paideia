@@ -1,8 +1,15 @@
-import { Checkbox, NumberInput, Stack, Textarea, Title } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
+import {
+	Checkbox,
+	Input,
+	NumberInput,
+	Stack,
+	Textarea,
+	Title,
+} from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { CommonFields } from "./common-fields";
 
 interface DiscussionFormProps {
@@ -26,22 +33,17 @@ export function DiscussionForm({ form }: DiscussionFormProps) {
 				Discussion Settings
 			</Title>
 
-			<Textarea
-				{...form.getInputProps("discussionInstructions")}
-				key={form.key("discussionInstructions")}
-				label="Instructions"
-				placeholder="Enter discussion instructions"
-				minRows={3}
-			/>
+			<InstructionsEditor form={form} />
 
-			<DateTimePicker
+			{/* TODO: move to course module specific settings */}
+			{/* <DateTimePicker
 				{...form.getInputProps("discussionDueDate")}
 				key={form.key("discussionDueDate")}
 				label="Due Date"
 				placeholder="Select due date"
-			/>
+			/> */}
 
-			<Checkbox
+			{/* <Checkbox
 				{...form.getInputProps("discussionRequireThread", {
 					type: "checkbox",
 				})}
@@ -57,8 +59,31 @@ export function DiscussionForm({ form }: DiscussionFormProps) {
 				label="Require replies"
 			/>
 
-			<MinimumRepliesInput form={form} />
+			<MinimumRepliesInput form={form} /> */}
 		</Stack>
+	);
+}
+
+function InstructionsEditor({
+	form,
+}: {
+	form: UseFormReturnType<ActivityModuleFormValues>;
+}) {
+	const instructions = useFormWatchForceUpdate(
+		form,
+		"discussionInstructions" as const,
+	);
+
+	return (
+		<Input.Wrapper label="Instructions">
+			<SimpleRichTextEditor
+				content={instructions || ""}
+				onChange={(content) => {
+					form.setFieldValue("discussionInstructions" as const, content);
+				}}
+				placeholder="Enter discussion instructions..."
+			/>
+		</Input.Wrapper>
 	);
 }
 

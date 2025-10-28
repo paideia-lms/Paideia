@@ -31,7 +31,7 @@ export function QuizForm({ form }: QuizFormProps) {
 				minRows={3}
 				autosize
 			/>
-
+			{/* 
 			<Title order={4} mt="md">
 				Legacy Quiz Settings (Optional)
 			</Title>
@@ -85,7 +85,7 @@ export function QuizForm({ form }: QuizFormProps) {
 				]}
 			/>
 
-			<Divider my="xl" />
+			<Divider my="xl" /> */}
 
 			<QuizBuilder form={form} />
 		</Stack>

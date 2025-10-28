@@ -148,12 +148,12 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-				<Paper withBorder shadow="sm" p="xl">
+				{/* <Paper withBorder shadow="sm" p="xl">
 					<Title order={3} mb="md">
 						Section Overview
 					</Title>
 					{section.description && <Text mb="md">{section.description}</Text>}
-				</Paper>
+				</Paper> */}
 
 				{/* Subsections */}
 				<Paper shadow="sm" p="md" withBorder>

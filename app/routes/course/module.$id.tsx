@@ -63,19 +63,19 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const previousModule =
 		currentIndex > 0
 			? {
-					id: flattenedModules[currentIndex - 1].moduleLinkId,
-					title: flattenedModules[currentIndex - 1].title,
-					type: flattenedModules[currentIndex - 1].type,
-				}
+				id: flattenedModules[currentIndex - 1].moduleLinkId,
+				title: flattenedModules[currentIndex - 1].title,
+				type: flattenedModules[currentIndex - 1].type,
+			}
 			: null;
 
 	const nextModule =
 		currentIndex < flattenedModules.length - 1 && currentIndex !== -1
 			? {
-					id: flattenedModules[currentIndex + 1].moduleLinkId,
-					title: flattenedModules[currentIndex + 1].title,
-					type: flattenedModules[currentIndex + 1].type,
-				}
+				id: flattenedModules[currentIndex + 1].moduleLinkId,
+				title: flattenedModules[currentIndex + 1].title,
+				type: flattenedModules[currentIndex + 1].type,
+			}
 			: null;
 
 	return {
@@ -99,7 +99,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				);
 			}
 			case "assignment":
-				return <AssignmentPreview />;
+				return <AssignmentPreview assignment={module.assignment || null} />;
 			case "quiz": {
 				const quizConfig = module.quiz?.rawQuizConfig || null;
 				if (!quizConfig) {
@@ -108,7 +108,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				return <QuizPreview quizConfig={quizConfig} />;
 			}
 			case "discussion":
-				return <DiscussionPreview />;
+				return <DiscussionPreview discussion={module.discussion || null} />;
 			case "whiteboard": {
 				const whiteboardContent = module.whiteboard?.content || null;
 				return <WhiteboardPreview content={whiteboardContent || "{}"} />;

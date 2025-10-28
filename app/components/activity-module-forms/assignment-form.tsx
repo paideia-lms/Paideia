@@ -1,7 +1,8 @@
-import { Checkbox, NumberInput, Stack, Textarea, Title } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
+import { Checkbox, Input, Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { CommonFields } from "./common-fields";
 
 interface AssignmentFormProps {
@@ -25,36 +26,32 @@ export function AssignmentForm({ form }: AssignmentFormProps) {
 				Assignment Settings
 			</Title>
 
-			<Textarea
-				{...form.getInputProps("assignmentInstructions")}
-				key={form.key("assignmentInstructions")}
-				label="Instructions"
-				placeholder="Enter assignment instructions"
-				minRows={3}
-			/>
+			<InstructionsEditor form={form} />
 
-			<DateTimePicker
+
+			{/* TODO: move to course module specific settings */}
+			{/* <DateTimePicker
 				{...form.getInputProps("assignmentDueDate")}
 				key={form.key("assignmentDueDate")}
 				label="Due Date"
 				placeholder="Select due date"
-			/>
+			/> */}
 
-			<NumberInput
+			{/* <NumberInput
 				{...form.getInputProps("assignmentMaxAttempts")}
 				key={form.key("assignmentMaxAttempts")}
 				label="Max Attempts"
 				placeholder="Enter max attempts"
 				min={1}
-			/>
+			/> */}
 
-			<Checkbox
+			{/* <Checkbox
 				{...form.getInputProps("assignmentAllowLateSubmissions", {
 					type: "checkbox",
 				})}
 				key={form.key("assignmentAllowLateSubmissions")}
 				label="Allow late submissions"
-			/>
+			/> */}
 
 			<Checkbox
 				{...form.getInputProps("assignmentRequireTextSubmission", {
@@ -72,5 +69,29 @@ export function AssignmentForm({ form }: AssignmentFormProps) {
 				label="Require file submission"
 			/>
 		</Stack>
+	);
+}
+
+
+export function InstructionsEditor({
+	form,
+}: {
+	form: UseFormReturnType<ActivityModuleFormValues>;
+}) {
+	const instructions = useFormWatchForceUpdate(
+		form,
+		"assignmentInstructions" as const,
+	);
+
+	return (
+		<Input.Wrapper label="Instructions">
+			<SimpleRichTextEditor
+				content={instructions || ""}
+				onChange={(content) => {
+					form.setFieldValue("assignmentInstructions" as const, content);
+				}}
+				placeholder="Enter assignment instructions..."
+			/>
+		</Input.Wrapper>
 	);
 }

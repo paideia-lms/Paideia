@@ -114,17 +114,6 @@ export default function SectionEditPage({
             />
 
             <Stack gap="xl">
-                <Group justify="space-between" align="flex-start">
-                    <div>
-                        <Title order={1} mb="xs">
-                            Edit Section
-                        </Title>
-                        <Text size="sm" c="dimmed">
-                            Update section information
-                        </Text>
-                    </div>
-                </Group>
-
                 <Paper withBorder shadow="sm" p="xl">
                     <form onSubmit={handleSubmit}>
                         <Stack gap="md">

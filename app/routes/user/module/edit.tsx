@@ -42,26 +42,28 @@ export default function EditModulePage() {
 				<WhiteboardPreview content={module.whiteboard.content || ""} />
 			)}
 
-			{module.type === "assignment" && <AssignmentPreview />}
-
-			{module.type === "quiz" && module.quiz && (
-				<>
-					{module.quiz.rawQuizConfig ? (
-						<QuizPreview quizConfig={module.quiz.rawQuizConfig} />
-					) : (
-						<Paper withBorder p="xl" radius="md">
-							<Stack align="center" gap="md">
-								<Text size="lg" fw={500}>
-									No Quiz Configuration
-								</Text>
-								<Text c="dimmed">This quiz has not been configured yet.</Text>
-							</Stack>
-						</Paper>
-					)}
-				</>
+			{module.type === "assignment" && (
+				<AssignmentPreview assignment={module.assignment || null} />
 			)}
 
-			{module.type === "discussion" && <DiscussionPreview />}
+			{module.type === "quiz" && module.quiz && (
+				module.quiz.rawQuizConfig ? (
+					<QuizPreview quizConfig={module.quiz.rawQuizConfig} />
+				) : (
+					<Paper withBorder p="xl" radius="md">
+						<Stack align="center" gap="md">
+							<Text size="lg" fw={500}>
+								No Quiz Configuration
+							</Text>
+							<Text c="dimmed">This quiz has not been configured yet.</Text>
+						</Stack>
+					</Paper>
+				)
+			)}
+
+			{module.type === "discussion" && (
+				<DiscussionPreview discussion={module.discussion || null} />
+			)}
 		</Container>
 	);
 }
