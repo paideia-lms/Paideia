@@ -228,6 +228,11 @@ export default function UserModulesLayout({
 														>
 															{module.status}
 														</Badge>
+														{module.accessType === "readonly" && (
+															<Badge size="xs" color="gray" variant="outline">
+																Read Only
+															</Badge>
+														)}
 													</Group>
 													<Text size="xs" c="dimmed">
 														{module.linkedCourses.length} linked course

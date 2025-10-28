@@ -1,4 +1,5 @@
 import {
+    Anchor,
     Button,
     Container,
     Group,
@@ -294,6 +295,18 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
             <meta property="og:description" content="Edit course module settings" />
 
             <Stack gap="xl">
+                <Group justify="space-between" align="center">
+                    <Text size="sm" c="dimmed">
+                        Editing course-specific settings for this module.
+                        <Anchor
+                            href={href("/user/module/edit/:moduleId", { moduleId: module.id.toString() })}
+                            ml="xs"
+                        >
+                            Edit module content →
+                        </Anchor>
+                    </Text>
+                </Group>
+
                 <Paper shadow="sm" p="xl" withBorder>
                     <form onSubmit={form.onSubmit(handleSubmit)}>
                         <Stack gap="md">

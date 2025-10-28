@@ -23,6 +23,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	return {
 		pageInfo,
 		module: userModuleContext.module,
+		accessType: userModuleContext.accessType,
 	};
 };
 
@@ -31,7 +32,10 @@ export default function UserModuleEditLayout({
 	params,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { pageInfo, module } = loaderData;
+	const { pageInfo, module, accessType } = loaderData;
+
+	// Only show Setting and Access tabs if user can edit
+	const canEdit = accessType === "owned" || accessType === "granted";
 
 	// Helper function to get badge color based on status
 	const getStatusColor = (status: string) => {
@@ -112,8 +116,8 @@ export default function UserModuleEditLayout({
 						>
 							<Tabs.List>
 								<Tabs.Tab value={ModuleEditTab.Preview}>Preview</Tabs.Tab>
-								<Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>
-								<Tabs.Tab value={ModuleEditTab.Access}>Access</Tabs.Tab>
+								{canEdit && <Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>}
+								{canEdit && <Tabs.Tab value={ModuleEditTab.Access}>Access</Tabs.Tab>}
 							</Tabs.List>
 						</Tabs>
 					</Group>

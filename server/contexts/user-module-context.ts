@@ -113,6 +113,7 @@ export type Instructor = {
 
 export type UserModuleContext = {
 	module: UserModule;
+	accessType: "owned" | "granted" | "readonly";
 	linkedCourses: {
 		id: number;
 		title: string;
@@ -137,7 +138,7 @@ export const userModuleContextKey =
  * This includes the module data, linked courses, grants, and instructors
  */
 export const tryGetUserModuleContext = Result.wrap(
-	async (payload: BasePayload, moduleId: number, _currentUser: User | null) => {
+	async (payload: BasePayload, moduleId: number, currentUser: User | null) => {
 		// Fetch the activity module
 		const moduleResult = await tryGetActivityModuleById(payload, {
 			id: moduleId,
@@ -295,8 +296,27 @@ export const tryGetUserModuleContext = Result.wrap(
 				updatedAt: course.updatedAt,
 			}));
 
+		// Determine access type
+		let accessType: "owned" | "granted" | "readonly" = "readonly";
+
+		if (currentUser) {
+			// Check if user is the owner
+			if (module.owner.id === currentUser.id) {
+				accessType = "owned";
+			}
+			// Check if user has been explicitly granted access
+			else if (grants.some((grant) => grant.grantedTo.id === currentUser.id)) {
+				accessType = "granted";
+			}
+			// Otherwise, they must be an instructor (readonly access)
+			else {
+				accessType = "readonly";
+			}
+		}
+
 		return {
 			module: transformedModule,
+			accessType,
 			linkedCourses: uniqueCourses,
 			grants,
 			instructors,

@@ -31,6 +31,7 @@ import {
 } from "~/utils/get-content-type";
 import {
 	badRequest,
+	ForbiddenResponse,
 	NotFoundResponse,
 	ok,
 	StatusCode,
@@ -42,6 +43,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	if (!userModuleContext) {
 		throw new NotFoundResponse("Module context not found");
+	}
+
+	// Check if user can edit this module
+	if (userModuleContext.accessType === "readonly") {
+		throw new ForbiddenResponse("You only have read-only access to this module");
 	}
 
 	return {
@@ -335,16 +341,12 @@ function LinkedCoursesSection({
 export default function UserModuleEditAccess() {
 	const { module, linkedCourses, links, grants, instructors } =
 		useLoaderData<typeof loader>();
-	const { grantAccess, isLoading: isGranting } = useGrantModuleAccess();
-	const { revokeAccess, isLoading: isRevoking } = useRevokeModuleAccess();
 
 	// Calculate exclude user IDs
 	const grantedUserIds = grants.map((g) => g.grantedTo.id);
 	const instructorIds = instructors.map((i) => i.id);
 	const ownerId = module.owner.id;
 	const excludeUserIds = [ownerId, ...grantedUserIds, ...instructorIds];
-
-	const isLoading = isGranting || isRevoking;
 
 	const title = `Access Control | ${module.title} | Paideia LMS`;
 	return (

@@ -196,3 +196,17 @@ export function canSeeCourseModuleSettings(
 		user?.role === "content-manager"
 	);
 }
+
+export function canEditUserModule(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	moduleAccessType?: "owned" | "granted" | "readonly",
+) {
+	// Admin can always edit
+	if (user?.role === "admin") return true;
+
+	// Only owned or granted modules can be edited (not readonly)
+	return moduleAccessType === "owned" || moduleAccessType === "granted";
+}

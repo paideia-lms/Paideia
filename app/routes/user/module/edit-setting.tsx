@@ -28,6 +28,7 @@ import {
 } from "~/utils/get-content-type";
 import {
 	badRequest,
+	ForbiddenResponse,
 	NotFoundResponse,
 	ok,
 	StatusCode,
@@ -39,6 +40,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	if (!userModuleContext) {
 		throw new NotFoundResponse("Module context not found");
+	}
+
+	// Check if user can edit this module
+	if (userModuleContext.accessType === "readonly") {
+		throw new ForbiddenResponse("You only have read-only access to this module");
 	}
 
 	return {
@@ -138,7 +144,7 @@ export function useUpdateModule() {
 
 	const updateModule = (moduleId: string, values: ActivityModuleFormValues) => {
 		const submissionData = transformFormValues(values);
-		fetcher.submit(submissionData as any, {
+		fetcher.submit(submissionData as Record<string, unknown>, {
 			method: "POST",
 			action: href("/user/module/edit/:moduleId/setting", {
 				moduleId,

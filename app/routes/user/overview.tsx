@@ -1,12 +1,12 @@
 import {
 	Avatar,
-	Badge,
 	Button,
 	Card,
 	Container,
 	Grid,
 	Group,
 	Paper,
+	Select,
 	Stack,
 	Text,
 	Textarea,
@@ -28,6 +28,7 @@ import {
 	IconPhoto,
 	IconTrophy,
 	IconUpload,
+	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
 import { useState } from "react";
@@ -48,6 +49,7 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
+import { useImpersonate } from "~/routes/user/profile";
 import type { Route } from "./+types/overview";
 import { ContentType } from "~/utils/get-content-type";
 
@@ -105,6 +107,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		}
 	}
 
+	// Check if user can impersonate (admin viewing someone else's profile, not an admin, and not already impersonating)
+	const canImpersonate =
+		userSession.authenticatedUser.role === "admin" &&
+		userId !== userSession.authenticatedUser.id &&
+		profileUser.role !== "admin" &&
+		!userSession.isImpersonating;
+
 	return {
 		user: {
 			id: profileUser.id,
@@ -116,6 +125,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			avatarUrl,
 		},
 		isOwnData: userId === currentUser.id,
+		isAdmin: currentUser.role === "admin",
+		canImpersonate,
 		userProfile: userProfileContext,
 	};
 };
@@ -184,36 +195,63 @@ export const action = async ({
 			uploadHandler as FileUploadHandler,
 		);
 
+		const isAdmin = currentUser.role === "admin";
+
 		const parsed = z
 			.object({
 				firstName: z.string(),
 				lastName: z.string(),
 				bio: z.string(),
 				avatar: z.coerce.number().nullish(),
+				email: z.email().nullish(),
+				role: z.enum(["student", "instructor", "content-manager", "analytics-viewer", "admin"]).nullish(),
 			})
 			.safeParse({
 				firstName: formData.get("firstName"),
 				lastName: formData.get("lastName"),
 				bio: formData.get("bio"),
 				avatar: formData.get("avatar"),
+				email: formData.get("email"),
+				role: formData.get("role"),
 			});
 
 		if (!parsed.success) {
+			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: parsed.error.message,
 			});
 		}
 
+		// Build update data
+		const updateData: {
+			firstName: string;
+			lastName: string;
+			bio: string;
+			avatar?: number;
+			email?: string;
+			role?: "student" | "instructor" | "content-manager" | "analytics-viewer" | "admin";
+		} = {
+			firstName: parsed.data.firstName,
+			lastName: parsed.data.lastName,
+			bio: parsed.data.bio,
+			avatar: parsed.data.avatar ?? undefined,
+		};
+
+		// Only admins can update email and role
+		if (isAdmin) {
+			if (parsed.data.email !== null && parsed.data.email !== undefined) {
+				updateData.email = parsed.data.email;
+			}
+			if (parsed.data.role !== null && parsed.data.role !== undefined) {
+				updateData.role = parsed.data.role;
+			}
+		}
+
 		const updateResult = await tryUpdateUser({
 			payload,
 			userId: userId,
-			data: {
-				firstName: parsed.data.firstName,
-				lastName: parsed.data.lastName,
-				bio: parsed.data.bio,
-				avatar: parsed.data.avatar ?? undefined,
-			},
+			data: updateData,
 			user: {
 				...currentUser,
 				avatar: currentUser.avatar?.id,
@@ -274,6 +312,8 @@ const useUpdateUser = () => {
 		lastName: string;
 		bio: string;
 		avatar: File | null;
+		email?: string;
+		role?: string;
 	}) => {
 		const formData = new FormData();
 		formData.append("firstName", values.firstName);
@@ -281,6 +321,12 @@ const useUpdateUser = () => {
 		formData.append("bio", values.bio);
 		if (values.avatar) {
 			formData.append("avatar", values.avatar);
+		}
+		if (values.email) {
+			formData.append("email", values.email);
+		}
+		if (values.role) {
+			formData.append("role", values.role);
 		}
 		fetcher.submit(formData, {
 			method: "POST",
@@ -300,8 +346,9 @@ const useUpdateUser = () => {
 };
 
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
-	const { user, isOwnData, userProfile } = loaderData;
-	const { updateUser, isLoading, fetcher } = useUpdateUser();
+	const { user, isOwnData, isAdmin, canImpersonate, userProfile } = loaderData;
+	const { updateUser, fetcher } = useUpdateUser();
+	const { impersonate, isLoading: isImpersonating } = useImpersonate();
 	const [avatarPreview, setAvatarPreview] = useState<string | null>(
 		user.avatarUrl,
 	);
@@ -309,17 +356,26 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 
 	const form = useForm({
 		mode: "uncontrolled",
-		cascadeUpdates: true,
 		initialValues: {
 			firstName: user.firstName,
 			lastName: user.lastName,
 			bio: user.bio,
+			email: user.email,
+			role: user.role ?? "student",
 		},
 		validate: {
 			firstName: (value) => (!value ? "First name is required" : null),
 			lastName: (value) => (!value ? "Last name is required" : null),
+			email: (value) => {
+				if (isAdmin) {
+					if (!value) return "Email is required";
+					if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+						return "Invalid email address";
+					}
+				}
+				return null;
+			},
 		},
-
 	});
 
 	const handleDrop = (files: File[]) => {
@@ -340,24 +396,27 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 			lastName: values.lastName,
 			bio: values.bio,
 			avatar: selectedFile,
+			email: isAdmin ? values.email : undefined,
+			role: isAdmin ? values.role : undefined,
 		});
-
 	};
 
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const moduleCount = userProfile?.activityModules.length ?? 0;
 	const enrollmentCount = userProfile?.enrollments.length ?? 0;
 
+	const title = `${fullName} | Profile | Paideia LMS`;
+
 	return (
 		<Container size="lg" py="xl">
-			<title>{`${fullName} | Profile | Paideia LMS`}</title>
+			<title>{title}</title>
 			<meta
 				name="description"
 				content={`Edit ${isOwnData ? "your" : fullName + "'s"} profile`}
 			/>
 			<meta
 				property="og:title"
-				content={`${fullName} | Profile | Paideia LMS`}
+				content={title}
 			/>
 			<meta
 				property="og:description"
@@ -375,6 +434,17 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 					>
 						View Public Profile
 					</Button>
+					{canImpersonate && (
+						<Button
+							variant="light"
+							color="orange"
+							onClick={() => impersonate(user.id)}
+							loading={isImpersonating}
+							leftSection={<IconUserCheck size={16} />}
+						>
+							Impersonate User
+						</Button>
+					)}
 				</Group>
 
 				{/* Edit Profile Form */}
@@ -465,6 +535,35 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								label="Last Name"
 								placeholder="Enter your last name"
 								required
+							/>
+
+							<TextInput
+								{...form.getInputProps("email")}
+								key={form.key("email")}
+								label="Email"
+								placeholder="user@example.com"
+								type="email"
+								required={isAdmin}
+								readOnly={!isAdmin}
+								disabled={!isAdmin}
+								description={!isAdmin ? "Email cannot be changed by users" : undefined}
+							/>
+
+							<Select
+								{...form.getInputProps("role")}
+								key={form.key("role")}
+								label="System Role"
+								placeholder="Select user role"
+								disabled={!isAdmin}
+								required
+								data={[
+									{ value: "student", label: "Student" },
+									{ value: "instructor", label: "Instructor" },
+									{ value: "content-manager", label: "Content Manager" },
+									{ value: "analytics-viewer", label: "Analytics Viewer" },
+									{ value: "admin", label: "Administrator" },
+								]}
+								description="System-wide role that determines user permissions"
 							/>
 
 							<Textarea

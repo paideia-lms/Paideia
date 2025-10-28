@@ -44,6 +44,7 @@ type ActivityModule = {
 	type: "quiz" | "assignment" | "discussion" | "page" | "whiteboard";
 	status: "draft" | "published" | "archived";
 	linkedCourses: number[];
+	accessType: "owned" | "granted" | "readonly";
 };
 
 /**
@@ -165,6 +166,7 @@ export const getUserAccessContext = async (
 			type: module.type,
 			status: module.status,
 			linkedCourses: module.linkedCourses,
+			accessType: (module.owner.id === userId ? "owned" as const : "granted" as const),
 		})),
 		...autoGrantedModules.map((module) => ({
 			id: module.id,
@@ -175,6 +177,7 @@ export const getUserAccessContext = async (
 			type: module.type,
 			status: module.status,
 			linkedCourses: module.linkedCourses.map((c) => c.id),
+			accessType: "readonly" as const,
 		})),
 	] satisfies ActivityModule[];
 

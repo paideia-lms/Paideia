@@ -1,5 +1,4 @@
 import {
-	Alert,
 	Avatar,
 	Button,
 	Container,
@@ -11,7 +10,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconUserCheck } from "@tabler/icons-react";
-import { href, Link, redirect, useFetcher } from "react-router";
+import { Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
@@ -143,25 +142,37 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+// Reusable hook for impersonation functionality
+export const useImpersonate = () => {
+	const fetcher = useFetcher();
+
+	const impersonate = (targetUserId: number) => {
+		const formData = new FormData();
+		formData.append("intent", "impersonate");
+		formData.append("targetUserId", String(targetUserId));
+		// Submit to profile route action which handles impersonation
+		fetcher.submit(formData, {
+			method: "POST",
+			action: "/user/profile"
+		});
+	};
+
+	return {
+		impersonate,
+		isLoading: fetcher.state === "submitting",
+		fetcher,
+	};
+};
+
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 	const {
 		user,
 		isOwnProfile,
 		canEdit,
 		canImpersonate,
-		isImpersonating,
-		authenticatedUser,
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const fetcher = useFetcher();
-
-	// Handler for impersonation
-	const handleImpersonate = () => {
-		const formData = new FormData();
-		formData.append("intent", "impersonate");
-		formData.append("targetUserId", String(user.id));
-		fetcher.submit(formData, { method: "POST" });
-	};
+	const { impersonate, isLoading } = useImpersonate();
 
 	return (
 		<Container size="md" py="xl">
@@ -227,8 +238,8 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 								<Button
 									variant="light"
 									color="orange"
-									onClick={handleImpersonate}
-									loading={fetcher.state === "submitting"}
+									onClick={() => impersonate(user.id)}
+									loading={isLoading}
 									fullWidth
 									leftSection={<IconUserCheck size={16} />}
 								>

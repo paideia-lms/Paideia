@@ -34,6 +34,7 @@ import {
 } from "~/utils/get-content-type";
 import { badRequest, UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/new";
+import { useFormWatchForceUpdate } from "~/utils/form-utils";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const userSession = context.get(userContextKey);
@@ -165,7 +166,7 @@ export default function NewModulePage() {
 		},
 	});
 
-	const selectedType = form.values.type;
+	const selectedType = useFormWatchForceUpdate(form, "type");
 
 	return (
 		<Container size="md" py="xl">
