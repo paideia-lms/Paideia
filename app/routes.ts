@@ -15,6 +15,7 @@ export const routes = [
 		"api/media/file/:filenameOrId",
 		"routes/api/media/file.$filenameOrId.tsx",
 	),
+	route("api/d2-render", "routes/api/d2-render.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	route("api/section-delete", "routes/api/section-delete.tsx"),
 	route("api/section-update", "routes/api/section-update.tsx"),
