@@ -23,6 +23,8 @@ import {
 	type Node,
 	Position,
 	ReactFlow,
+	ReactFlowProvider,
+	useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import {
@@ -43,7 +45,7 @@ import {
 	IconUsers,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { userContextKey } from "server/contexts/user-context";
 import type { Route } from "./+types/index";
@@ -791,6 +793,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 // Curriculum Map Component with Semester-based Layout (Left to Right)
 function CurriculumMap({
 	courses,
+	isVisible,
 }: {
 	courses: Array<{
 		id: number;
@@ -804,7 +807,22 @@ function CurriculumMap({
 		section?: string;
 		shortcode?: string;
 	}>;
+	isVisible: boolean;
 }) {
+	// Get ReactFlow instance to access its methods
+	const reactFlowInstance = useReactFlow();
+
+	// Fit view when map becomes visible
+	useEffect(() => {
+		if (isVisible) {
+			// Small timeout to ensure ReactFlow is fully rendered
+			const timeoutId = setTimeout(() => {
+				reactFlowInstance.fitView({ padding: 0.1, duration: 400 });
+			}, 50);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [isVisible, reactFlowInstance]);
+
 	// Create course lookup map
 	const courseMap = new Map(courses.map((c) => [c.id, c]));
 
@@ -1003,6 +1021,9 @@ function CurriculumMap({
 			},
 			sourcePosition: Position.Right,
 			targetPosition: Position.Left,
+			"connectable": false,
+			'deletable': false,
+			'draggable': false,
 		};
 	});
 
@@ -1034,9 +1055,9 @@ function CurriculumMap({
 
 	return (
 		<Box style={{ height: 700, width: "100%" }}>
-			<ReactFlow nodes={allNodes} edges={edges} fitView>
+			<ReactFlow nodes={allNodes} edges={edges} fitView >
 				<Background />
-				<Controls />
+				<Controls showInteractive={false} />
 			</ReactFlow>
 		</Box>
 	);
@@ -1188,7 +1209,9 @@ function AuthenticatedDashboard({
 											Track your program progress
 										</Text>
 									</Group>
-									<CurriculumMap courses={curriculumCourses} />
+									<ReactFlowProvider>
+										<CurriculumMap courses={curriculumCourses} isVisible={showCurriculumMap} />
+									</ReactFlowProvider>
 								</Stack>
 							</Collapse>
 						)}

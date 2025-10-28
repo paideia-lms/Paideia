@@ -6,19 +6,27 @@ import type {
 	ExcalidrawInitialDataState,
 } from "@excalidraw/excalidraw/types";
 import {
+	ActionIcon,
 	Box,
 	Loader,
 	Stack,
 	Textarea,
 	Title,
+	Tooltip,
 	useMantineColorScheme,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import { useDebouncedCallback, useMounted, usePrevious } from "@mantine/hooks";
-import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
+import {
+	useDebouncedCallback,
+	useFullscreen,
+	useMounted,
+} from "@mantine/hooks";
+import { IconMaximize, IconMinimize } from "@tabler/icons-react";
+import { lazy, Suspense, useLayoutEffect, useRef } from "react";
 import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
+import { useWhiteboardData } from "./useWhiteboardData";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
@@ -32,59 +40,10 @@ interface WhiteboardFormProps {
 	isLoading?: boolean;
 }
 
-const useWhiteboardData = (whiteboardContent: string) => {
-	const mounted = useMounted();
-	const prevMounted = usePrevious(mounted);
-	const [data, setData] = useState<ExcalidrawInitialDataState | null>(null);
-	const [hasSetData, setHasSetData] = useState(false);
-
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
-	useLayoutEffect(() => {
-		if (
-			mounted &&
-			prevMounted &&
-			whiteboardContent &&
-			whiteboardContent.trim().length > 0
-		) {
-			try {
-				if (hasSetData) {
-					return;
-				}
-				setHasSetData(true);
-				console.log("Loading whiteboard data");
-				const data = JSON.parse(
-					whiteboardContent,
-				) as ExcalidrawInitialDataState;
-				setData({
-					...data,
-					appState: {
-						...data.appState,
-						collaborators: new Map(),
-					},
-				});
-			} catch (error: unknown) {
-				console.error("Failed to load whiteboard data:", error);
-				setData({
-					appState: {
-						collaborators: new Map(),
-					},
-				});
-			}
-		} else {
-			setData({
-				appState: {
-					collaborators: new Map(),
-				},
-			});
-		}
-	}, [mounted, prevMounted, whiteboardContent]);
-
-	return data as ExcalidrawInitialDataState;
-};
-
 export function WhiteboardForm({ form }: WhiteboardFormProps) {
 	const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
 	const { colorScheme } = useMantineColorScheme();
+	const { ref: fullscreenRef, toggle, fullscreen } = useFullscreen();
 	useFormWatchForceUpdate(form, "whiteboardContent");
 	const whiteboardContent = form.getValues().whiteboardContent;
 	const mounted = useMounted();
@@ -135,7 +94,10 @@ export function WhiteboardForm({ form }: WhiteboardFormProps) {
 				<Title order={5} mb="xs">
 					Whiteboard Canvas
 				</Title>
-				<Box style={{ height: "500px", border: "1px solid #dee2e6" }}>
+				<Box
+					ref={fullscreenRef}
+					style={{ height: "500px", border: "1px solid #dee2e6" }}
+				>
 					{!mounted ? (
 						<div
 							style={{
@@ -171,6 +133,26 @@ export function WhiteboardForm({ form }: WhiteboardFormProps) {
 									saveSnapshot(elements, appState, files);
 								}}
 								theme={colorScheme === "dark" ? "dark" : "light"}
+								renderTopRightUI={() => (
+									<Tooltip
+										label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+									>
+										<ActionIcon
+											onClick={toggle}
+											variant="default"
+											size="lg"
+											aria-label={
+												fullscreen ? "Exit fullscreen" : "Enter fullscreen"
+											}
+										>
+											{fullscreen ? (
+												<IconMinimize size={18} />
+											) : (
+												<IconMaximize size={18} />
+											)}
+										</ActionIcon>
+									</Tooltip>
+								)}
 							/>
 						</Suspense>
 					)}

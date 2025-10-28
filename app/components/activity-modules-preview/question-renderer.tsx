@@ -21,10 +21,9 @@ import type {
 	AppState,
 	BinaryFiles,
 	ExcalidrawImperativeAPI,
-	ExcalidrawInitialDataState,
-	ExcalidrawProps,
 } from "@excalidraw/excalidraw/types";
 import {
+	ActionIcon,
 	Box,
 	Checkbox,
 	Group,
@@ -36,10 +35,11 @@ import {
 	Text,
 	Textarea,
 	TextInput,
+	Tooltip,
 	useMantineColorScheme,
 } from "@mantine/core";
-import { useDebouncedCallback } from "@mantine/hooks";
-import { IconGripVertical } from "@tabler/icons-react";
+import { useDebouncedCallback, useFullscreen, useMounted } from "@mantine/hooks";
+import { IconGripVertical, IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import type {
 	ArticleQuestion,
@@ -56,6 +56,7 @@ import type {
 } from "server/json/raw-quiz-config.types.v2";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
+import { useWhiteboardData } from "../activity-module-forms/useWhiteboardData";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
@@ -720,59 +721,15 @@ function WhiteboardRenderer({
 }) {
 	const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
 	const { colorScheme } = useMantineColorScheme();
-	const [initialData, setInitialData] =
-		useState<ExcalidrawInitialDataState | null>(null);
-	const [isClient, setIsClient] = useState(false);
-
-	// Ensure we're on the client side
-	useLayoutEffect(() => {
-		setIsClient(true);
-	}, []);
-
-	// Load initial data from value
-	// biome-ignore lint/correctness/useExhaustiveDependencies: only load when question changes
-	useLayoutEffect(() => {
-		if (value && value.trim().length > 0) {
-			try {
-				const data = JSON.parse(value) as ExcalidrawInitialDataState;
-				// Ensure appState has the required structure
-				setInitialData({
-					...data,
-					appState: {
-						...data.appState,
-						collaborators: new Map(),
-						viewBackgroundColor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-					},
-				});
-			} catch {
-				console.error("Failed to load whiteboard data");
-				setInitialData({
-					appState: {
-						collaborators: new Map(),
-						viewBackgroundColor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-					},
-				});
-			}
-		} else {
-			setInitialData({
-				appState: {
-					collaborators: new Map(),
-					viewBackgroundColor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-				},
-			});
-		}
-	}, [question.id, colorScheme]);
+	const { ref: fullscreenRef, toggle, fullscreen } = useFullscreen();
+	const mounted = useMounted();
+	const initialData = useWhiteboardData(value);
 
 	// Sync theme with Mantine's color scheme
 	useLayoutEffect(() => {
 		if (excalidrawRef.current) {
 			const theme = colorScheme === "dark" ? "dark" : "light";
-			excalidrawRef.current.updateScene({
-				appState: {
-					theme,
-					viewBackgroundColor: colorScheme === "dark" ? "#1a1b1e" : "#ffffff",
-				},
-			});
+			excalidrawRef.current.updateScene({ appState: { theme } });
 		}
 	}, [colorScheme]);
 
@@ -808,13 +765,14 @@ function WhiteboardRenderer({
 	return (
 		<Stack gap="sm">
 			<Box
+				ref={fullscreenRef}
 				style={{
 					height: "500px",
 					border: "1px solid var(--mantine-color-default-border)",
 					borderRadius: "var(--mantine-radius-sm)",
 				}}
 			>
-				{initialData === null || !isClient ? (
+				{!mounted ? (
 					<div
 						style={{
 							display: "flex",
@@ -852,6 +810,26 @@ function WhiteboardRenderer({
 							}}
 							theme={colorScheme === "dark" ? "dark" : "light"}
 							viewModeEnabled={disabled}
+							renderTopRightUI={() => (
+								<Tooltip
+									label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+								>
+									<ActionIcon
+										onClick={toggle}
+										variant="default"
+										size="lg"
+										aria-label={
+											fullscreen ? "Exit fullscreen" : "Enter fullscreen"
+										}
+									>
+										{fullscreen ? (
+											<IconMinimize size={18} />
+										) : (
+											<IconMaximize size={18} />
+										)}
+									</ActionIcon>
+								</Tooltip>
+							)}
 						/>
 					</Suspense>
 				)}

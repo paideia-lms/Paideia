@@ -73,7 +73,7 @@ export default function CourseParticipantsLayout({
 	};
 
 	return (
-		<Container size="lg" py="xl">
+		<Container size="xl" py="xl">
 			<title>{`${course.title} - Participants | Paideia LMS`}</title>
 			<meta
 				name="description"
