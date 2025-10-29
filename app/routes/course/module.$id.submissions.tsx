@@ -29,12 +29,13 @@ import {
 import { useState } from "react";
 import { href, Link, useFetcher } from "react-router";
 import { notifications } from "@mantine/notifications";
+import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryDeleteAssignmentSubmission } from "server/internal/assignment-submission-management";
+import { tryDeleteAssignmentSubmission, tryGetAssignmentSubmissionById } from "server/internal/assignment-submission-management";
 import { canDeleteSubmissions, canSeeModuleSubmissions } from "server/utils/permissions";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
@@ -43,9 +44,19 @@ import {
     type SubmissionData,
 } from "~/components/submission-history";
 import { badRequest, ForbiddenResponse, StatusCode, unauthorized } from "~/utils/responses";
+import { AssignmentActions } from "~/utils/module-actions";
+import { GradingView } from "~/components/grading-view";
 import type { Route } from "./+types/module.$id.submissions";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+// Define search params
+export const submissionsSearchParams = {
+    action: parseAsString,
+    submissionId: parseAsInteger,
+};
+
+export const loadSearchParams = createLoader(submissionsSearchParams);
+
+export const loader = async ({ context, request }: Route.LoaderArgs) => {
     const userSession = context.get(userContextKey);
     const courseContext = context.get(courseContextKey);
     const courseModuleContext = context.get(courseModuleContextKey);
@@ -87,6 +98,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
     // Get all enrollments for this course to show all students, filter out students
     const enrollments = courseContext.course.enrollments.filter(enrollment => enrollment.role === "student");
 
+    // Parse search params to check if we're in grading mode
+    const { action, submissionId } = loadSearchParams(request);
+
+    // If we're in grading mode, fetch the submission
+    let gradingSubmission = null;
+    if (action === AssignmentActions.GRADE_SUBMISSION && submissionId) {
+        const submissionResult = await tryGetAssignmentSubmissionById(
+            context.get(globalContextKey).payload,
+            { id: submissionId }
+        );
+
+        if (!submissionResult.ok) {
+            throw badRequest({ error: submissionResult.error.message });
+        }
+
+        const submission = submissionResult.value;
+
+        // Verify the submission belongs to this module
+        if (submission.courseModuleLink.id !== courseModuleContext.moduleLinkId) {
+            throw new ForbiddenResponse("Submission does not belong to this module");
+        }
+
+        gradingSubmission = submission;
+    }
+
     return {
         module: courseModuleContext.module,
         moduleSettings: courseModuleContext.moduleLinkSettings,
@@ -95,6 +131,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
         submissions: courseModuleContext.submissions,
         moduleLinkId: courseModuleContext.moduleLinkId,
         canDelete,
+        gradingSubmission,
+        action,
     };
 };
 
@@ -189,6 +227,7 @@ type SubmissionType = SubmissionData & {
 // ============================================================================
 
 function StudentSubmissionRow({
+    courseId,
     enrollment,
     studentSubmissions,
     isSelected,
@@ -197,6 +236,7 @@ function StudentSubmissionRow({
     onDeleteSubmission,
     moduleLinkId,
 }: {
+    courseId: number,
     enrollment: Route.ComponentProps["loaderData"]["enrollments"][number];
     studentSubmissions: SubmissionType[] | undefined;
     isSelected: boolean;
@@ -209,7 +249,6 @@ function StudentSubmissionRow({
 
     const latestSubmission = studentSubmissions?.[0];
     const email = enrollment.email || "-";
-    const studentId = enrollment.userId;
 
     // Sort submissions by attempt number (newest first)
     const sortedSubmissions = studentSubmissions
@@ -260,7 +299,7 @@ function StudentSubmissionRow({
                         <div>
                             <Anchor
                                 component={Link}
-                                to={href("/user/profile/:id?", { id: studentId.toString() })}
+                                to={href("/course/:id/participants/profile", { id: courseId.toString() }) + `?userId=${enrollment.userId}`}
                                 size="sm"
                             >
                                 {enrollment.name}
@@ -313,9 +352,9 @@ function StudentSubmissionRow({
                             component={Link}
                             to={
                                 hasSubmissions && latestSubmission
-                                    ? href("/course/module/:id/grading", {
+                                    ? href("/course/module/:id/submissions", {
                                         id: moduleLinkId.toString(),
-                                    }) + `?submissionId=${latestSubmission.id}`
+                                    }) + `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
                                     : "#"
                             }
                             size="xs"
@@ -347,7 +386,7 @@ function StudentSubmissionRow({
                                     }).map((submission, index) => (
                                         <SubmissionHistoryItem
                                             key={submission.id}
-                                            attemptNumber={submittedSubmissions.length - index}
+                                            attemptNumber={submission.attemptNumber ?? submittedSubmissions.length - index}
                                             submission={submission}
                                             showDelete={canDelete}
                                             onDelete={(submissionId) => {
@@ -398,11 +437,25 @@ const useDeleteSubmission = () => {
 export default function ModuleSubmissionsPage({
     loaderData,
 }: Route.ComponentProps) {
-    const { module, moduleSettings, course, enrollments, submissions, canDelete } =
+    const { module, moduleSettings, course, enrollments, submissions, canDelete, gradingSubmission, action } =
         loaderData;
 
+    // Call hooks unconditionally at the top
     const [selectedRows, setSelectedRows] = useState<number[]>([]);
     const { deleteSubmission } = useDeleteSubmission();
+
+    // If we're in grading mode, show the grading view
+    if (action === AssignmentActions.GRADE_SUBMISSION && gradingSubmission) {
+        return (
+            <GradingView
+                submission={gradingSubmission}
+                module={module}
+                moduleSettings={moduleSettings}
+                course={course}
+                moduleLinkId={loaderData.moduleLinkId}
+            />
+        );
+    }
 
     const title = `${moduleSettings?.settings.name ?? module.title} - ${module.type === "quiz" ? "Results" : "Submissions"} | ${course.title} | Paideia LMS`;
 
@@ -539,6 +592,7 @@ export default function ModuleSubmissionsPage({
                                         return (
                                             <StudentSubmissionRow
                                                 key={enrollment.id}
+                                                courseId={course.id}
                                                 enrollment={enrollment}
                                                 studentSubmissions={studentSubmissions}
                                                 isSelected={selectedRows.includes(enrollment.id)}

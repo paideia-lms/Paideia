@@ -1,5 +1,7 @@
-import { AppShell, Box, Container, Grid, Paper, Text } from "@mantine/core";
-import { Outlet, useNavigation } from "react-router";
+import { ActionIcon, AppShell, Box, Container, Grid, Tooltip } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
+import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
+import { Outlet } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -52,15 +54,21 @@ export default function CourseContentLayout({
 	const { id } = params;
 
 	const canEdit = canUpdateCourseStructure(currentUser, enrolment);
+	const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
 
 	return (
 		<Container size="xl" p='xs'>
 			<AppShell>
 				<AppShell.Main>
-					<Grid>
-						<Grid.Col span={4}>
-							<Box p="md">
-								<CourseStructureTree
+					<Grid columns={24}>
+						<Grid.Col span={navbarOpened ? 8 : 1}>
+							<Box p="xs">
+								<Tooltip label="Toggle sidebar">
+									<ActionIcon variant="light" onClick={toggleNavbar}>
+										{navbarOpened ? <IconLayoutSidebarLeftCollapse /> : <IconLayoutSidebarLeftExpand />}
+									</ActionIcon>
+								</Tooltip>
+								{navbarOpened && <CourseStructureTree
 									currentItemId={
 										isCourseSection
 											? `s${id}`
@@ -72,15 +80,15 @@ export default function CourseContentLayout({
 									courseId={course.id}
 									courseStructure={courseStructure}
 									canSeeStatus={canEdit}
-								/>
+								/>}
 							</Box>
 						</Grid.Col>
-						<Grid.Col span={8}>
+						<Grid.Col span={navbarOpened ? 16 : 23}>
 							<Outlet />
 						</Grid.Col>
 					</Grid>
 				</AppShell.Main>
 			</AppShell>
-		</Container>
+		</Container >
 	);
 }

@@ -2,15 +2,19 @@ import {
     Anchor,
     Button,
     Container,
+    Divider,
     Group,
     Paper,
     Stack,
     Text,
     TextInput,
+    Title,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import { useForm } from "@mantine/form";
+import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
+import { IconTrash } from "@tabler/icons-react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -26,6 +30,7 @@ import {
     unauthorized,
 } from "~/utils/responses";
 import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import { useDeleteModuleLink } from "~/routes/course.$id.modules";
 import type { Route } from "./+types/module.$id.edit";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -263,6 +268,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
     const { course, module, moduleLinkId, settings } = loaderData;
     const navigate = useNavigate();
     const { updateModule, isLoading } = useUpdateCourseModule();
+    const { deleteModuleLink, isLoading: isDeleting } = useDeleteModuleLink();
 
     // Parse existing settings
     const existingSettings = settings?.settings;
@@ -305,6 +311,28 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 
     const handleSubmit = (values: typeof form.values) => {
         updateModule(values);
+    };
+
+    const handleDelete = () => {
+        modals.openConfirmModal({
+            title: "Remove Module from Course",
+            children: (
+                <Text size="sm">
+                    Are you sure you want to remove this module from the course? This action cannot be
+                    undone. This will only remove the link between the module and the course, not delete
+                    the module itself.
+                </Text>
+            ),
+            labels: { confirm: "Remove", cancel: "Cancel" },
+            confirmProps: { color: "red" },
+            onConfirm: () => {
+                deleteModuleLink(
+                    moduleLinkId,
+                    course.id,
+                    href("/course/:id", { id: course.id.toString() })
+                );
+            },
+        });
     };
 
     const title = `Edit Module Settings | ${displayName} | ${course.title} | Paideia LMS`;
@@ -441,6 +469,45 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                             </Group>
                         </Stack>
                     </form>
+                </Paper>
+
+                {/* Danger Zone */}
+                <Paper withBorder shadow="sm" p="xl" style={{ borderColor: "var(--mantine-color-red-6)" }}>
+                    <Stack gap="md">
+                        <div>
+                            <Title order={3} c="red">
+                                Danger Zone
+                            </Title>
+                            <Text size="sm" c="dimmed" mt="xs">
+                                Irreversible and destructive actions
+                            </Text>
+                        </div>
+
+                        <Divider color="red" />
+
+                        <Group justify="space-between" align="flex-start">
+                            <div style={{ flex: 1 }}>
+                                <Text fw={500} mb="xs">
+                                    Remove module from course
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    Once you remove this module from the course, there is no going back.
+                                    This will only remove the link between the module and the course,
+                                    not delete the module itself.
+                                </Text>
+                            </div>
+                            <Button
+                                color="red"
+                                variant="light"
+                                leftSection={<IconTrash size={16} />}
+                                onClick={handleDelete}
+                                loading={isDeleting}
+                                style={{ minWidth: "150px" }}
+                            >
+                                Remove Module
+                            </Button>
+                        </Group>
+                    </Stack>
                 </Paper>
             </Stack>
         </Container>

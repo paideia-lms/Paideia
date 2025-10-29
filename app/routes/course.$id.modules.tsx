@@ -1,6 +1,6 @@
 import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { href, useFetcher } from "react-router";
+import { href, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -51,12 +51,12 @@ export function useCreateModuleLink() {
 	};
 }
 
-function useDeleteModuleLink() {
-	const fetcher = useFetcher<typeof action>();
+export function useDeleteModuleLink() {
+	const fetcher = useFetcher<typeof clientAction>();
 
-	const deleteModuleLink = (linkId: number, courseId: number) => {
+	const deleteModuleLink = (linkId: number, courseId: number, redirectTo?: string) => {
 		fetcher.submit(
-			{ intent: "delete", linkId },
+			{ intent: "delete", linkId, ...(redirectTo && { redirectTo }) },
 			{
 				method: "post",
 				action: href("/course/:id/modules", { id: courseId.toString() }),
@@ -68,6 +68,7 @@ function useDeleteModuleLink() {
 	return {
 		deleteModuleLink,
 		state: fetcher.state,
+		isLoading: fetcher.state !== "idle",
 	};
 }
 
@@ -142,6 +143,7 @@ const createSchema = z.object({
 const deleteSchema = z.object({
 	intent: z.literal("delete"),
 	linkId: z.coerce.number(),
+	redirectTo: z.string().nullish(),
 });
 
 const inputSchema = z.discriminatedUnion("intent", [
@@ -273,6 +275,7 @@ export const action = async ({
 
 	if (parsedData.data.intent === "delete") {
 		const linkId = parsedData.data.linkId;
+		const redirectTo = parsedData.data.redirectTo;
 
 		const deleteResult = await tryDeleteCourseActivityModuleLink(
 			payload,
@@ -282,6 +285,11 @@ export const action = async ({
 
 		if (!deleteResult.ok) {
 			return badRequest({ error: deleteResult.error.message });
+		}
+
+		// If redirectTo is provided, throw redirect instead of returning response
+		if (redirectTo) {
+			throw redirect(redirectTo);
 		}
 
 		return ok({ success: true, message: "Link deleted successfully" });

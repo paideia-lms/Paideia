@@ -52,7 +52,7 @@ export function canSeeCourseGrades(
 		role?: Enrollment["role"];
 	},
 ) {
-	if (enrolment) return true;
+	if (enrolment) return enrolment.role === "teacher" || enrolment.role === "manager" || enrolment.role === "ta";
 	return user?.role === "admin" || user?.role === "content-manager";
 }
 
@@ -271,5 +271,24 @@ export function canImpersonateUser(
 		targetUser.id !== authenticatedUser.id &&
 		targetUser.role !== "admin" &&
 		!isImpersonating
+	);
+}
+
+export function canEditCourse(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolments?: {
+		userId: number;
+		role?: Enrollment["role"];
+	}[],
+) {
+	if (!user) return false;
+
+	return (
+		user.role === "admin" ||
+		user.role === "content-manager" ||
+		enrolments?.some((enrollment) => enrollment.userId === user.id && (enrollment.role === "teacher" || enrollment.role === "manager" || enrollment.role === "ta"))
 	);
 }

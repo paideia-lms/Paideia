@@ -52,11 +52,26 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
+	const enrolment = enrolmentContext?.enrolment;
+
+	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment);
+	const canSeeParticipants = canSeeCourseParticipants(currentUser, enrolment);
+	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment);
+	const canSeeModules = canSeeCourseModules(currentUser, enrolment);
+	const canSeeBin = canSeeCourseBin(currentUser, enrolment);
+	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment);
+
 	return {
 		course: courseContext.course,
 		currentUser: currentUser,
 		pageInfo: pageInfo,
-		enrolment: enrolmentContext?.enrolment,
+		enrolment: enrolment,
+		canSeeSettings: canSeeSettings,
+		canSeeParticipants: canSeeParticipants,
+		canSeeGrades: canSeeGrades,
+		canSeeModules: canSeeModules,
+		canSeeBin: canSeeBin,
+		canSeeBackup: canSeeBackup,
 	};
 };
 
@@ -67,9 +82,10 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function CourseLayout({
 	loaderData,
 	matches,
+
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { course, pageInfo, enrolment, currentUser } = loaderData;
+	const { course, pageInfo, canSeeSettings, canSeeParticipants, canSeeGrades, canSeeModules, canSeeBin, canSeeBackup } = loaderData;
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -114,12 +130,7 @@ export default function CourseLayout({
 		}
 	};
 
-	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment);
-	const canSeeParticipants = canSeeCourseParticipants(currentUser, enrolment);
-	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment);
-	const canSeeModules = canSeeCourseModules(currentUser, enrolment);
-	const canSeeBin = canSeeCourseBin(currentUser, enrolment);
-	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment);
+
 	return (
 		<div>
 			<div className={classes.header}>

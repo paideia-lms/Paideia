@@ -89,7 +89,6 @@ export const middleware = [
 		let isCourseModule = false;
 		let isCourseModuleEdit = false;
 		let isCourseModuleSubmissions = false;
-		let isCourseModuleGrading = false;
 		let isInCourseModuleLayout = false;
 		let isCourseSection = false;
 		let isCourseSectionNew = false;
@@ -136,7 +135,6 @@ export const middleware = [
 			else if (route.id === "routes/course/module.$id") isCourseModule = true;
 			else if (route.id === "routes/course/module.$id.edit") isCourseModuleEdit = true;
 			else if (route.id === "routes/course/module.$id.submissions") isCourseModuleSubmissions = true;
-			else if (route.id === "routes/course/module.$id.grading") isCourseModuleGrading = true;
 			else if (route.id === "layouts/course-module-layout")
 				isInCourseModuleLayout = true;
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
@@ -192,7 +190,6 @@ export const middleware = [
 				isCourseModule,
 				isCourseModuleEdit,
 				isCourseModuleSubmissions,
-				isCourseModuleGrading,
 				isInCourseModuleLayout,
 				isCourseSection,
 				isCourseSectionNew,

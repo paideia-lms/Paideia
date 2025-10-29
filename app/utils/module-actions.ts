@@ -5,6 +5,7 @@
 
 export const AssignmentActions = {
     EDIT_SUBMISSION: "editsubmission",
+	GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
 export const DiscussionActions = {

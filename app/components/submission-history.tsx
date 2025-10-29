@@ -9,14 +9,26 @@ import {
 	ScrollArea,
 	Stack,
 	Text,
+	Tooltip,
 	Typography,
 } from "@mantine/core";
-import { IconDots, IconFile, IconPencil, IconTrash } from "@tabler/icons-react";
+import {
+	IconDots,
+	IconFile,
+	IconFileText,
+	IconFileTypePdf,
+	IconPhoto,
+	IconPencil,
+	IconTrash,
+} from "@tabler/icons-react";
 import { href, Link } from "react-router";
+import { AssignmentActions } from "~/utils/module-actions";
 
 // ============================================================================
 // Types
 // ============================================================================
+
+type FileType = "image" | "pdf" | "text" | "other";
 
 export interface SubmissionData {
 	id: number;
@@ -25,9 +37,88 @@ export interface SubmissionData {
 	submittedAt?: string | null;
 	attemptNumber: number;
 	attachments?: Array<{
-		file: number | { id: number; filename: string };
+		file: number | {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}> | null;
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+function getFileExtension(filename: string): string {
+	const parts = filename.split(".");
+	return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
+}
+
+function getFileType(filename?: string | null, mimeType?: string | null): FileType {
+	// Check MIME type first
+	if (mimeType) {
+		if (mimeType.startsWith("image/")) return "image";
+		if (mimeType === "application/pdf") return "pdf";
+		if (
+			mimeType.startsWith("text/") ||
+			mimeType === "application/json" ||
+			mimeType === "application/xml"
+		) {
+			return "text";
+		}
+	}
+
+	// Fallback to extension
+	if (filename) {
+		const ext = getFileExtension(filename);
+		if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
+			return "image";
+		}
+		if (ext === "pdf") return "pdf";
+		if (
+			["txt", "md", "json", "xml", "csv", "log", "yml", "yaml", "ini"].includes(
+				ext,
+			)
+		) {
+			return "text";
+		}
+	}
+
+	return "other";
+}
+
+function getFileIcon(fileType: FileType) {
+	switch (fileType) {
+		case "image":
+			return IconPhoto;
+		case "pdf":
+			return IconFileTypePdf;
+		case "text":
+			return IconFileText;
+		default:
+			return IconFile;
+	}
+}
+
+function formatFileSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function getFileTypeLabel(fileType: FileType): string {
+	switch (fileType) {
+		case "image":
+			return "Image";
+		case "pdf":
+			return "PDF";
+		case "text":
+			return "Text";
+		default:
+			return "File";
+	}
 }
 
 // ============================================================================
@@ -38,7 +129,12 @@ function SubmissionAttachments({
 	attachments,
 }: {
 	attachments: Array<{
-		file: number | { id: number; filename: string };
+		file: number | {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}>;
 }) {
@@ -48,33 +144,53 @@ function SubmissionAttachments({
 				Attachments ({attachments.length}):
 			</Text>
 			{attachments.map((attachment) => {
-				const fileId =
-					typeof attachment.file === "object"
-						? attachment.file.id
-						: attachment.file;
-				const filename =
-					typeof attachment.file === "object"
-						? attachment.file.filename
-						: `File ${fileId}`;
+				const file = attachment.file;
+				const fileId = typeof file === "object" ? file.id : file;
+				const filename = typeof file === "object"
+					? (file.filename || `File ${fileId}`)
+					: `File ${fileId}`;
+				const mimeType = typeof file === "object" ? file.mimeType : null;
+				const filesize = typeof file === "object" ? file.filesize : null;
+				const fileType = getFileType(filename, mimeType);
+				const FileIcon = getFileIcon(fileType);
 
 				return (
-					<Paper key={fileId} withBorder p="xs" >
-						<Group gap="xs">
-							<IconFile size={16} />
-							<Anchor
-								href={href("/api/media/file/:filenameOrId", {
-									filenameOrId: fileId.toString(),
-								})}
-								target="_blank"
-								size="sm"
-							>
-								{filename}
-							</Anchor>
-							{attachment.description && (
-								<Text size="xs" c="dimmed">
-									- {attachment.description}
-								</Text>
-							)}
+					<Paper key={fileId} withBorder p="xs">
+						<Group gap="xs" wrap="nowrap">
+							<Tooltip label={getFileTypeLabel(fileType)}>
+								<Box>
+									<FileIcon size={16} />
+								</Box>
+							</Tooltip>
+							<Box style={{ flex: 1, minWidth: 0 }}>
+								<Anchor
+									href={href("/api/media/file/:filenameOrId", {
+										filenameOrId: fileId.toString(),
+									})}
+									target="_blank"
+									size="sm"
+									style={{
+										display: "block",
+										overflow: "hidden",
+										textOverflow: "ellipsis",
+										whiteSpace: "nowrap",
+									}}
+								>
+									{filename}
+								</Anchor>
+								<Group gap="xs">
+									{filesize && (
+										<Text size="xs" c="dimmed">
+											{formatFileSize(filesize)}
+										</Text>
+									)}
+									{attachment.description && (
+										<Text size="xs" c="dimmed">
+											• {attachment.description}
+										</Text>
+									)}
+								</Group>
+							</Box>
 						</Group>
 					</Paper>
 				);
@@ -188,33 +304,53 @@ export function SubmissionHistoryItem({
 							</Text>
 							<Stack gap="xs">
 								{attachments.map((attachment) => {
-									const fileId =
-										typeof attachment.file === "object"
-											? attachment.file.id
-											: attachment.file;
-									const filename =
-										typeof attachment.file === "object"
-											? attachment.file.filename
-											: `File ${fileId}`;
+									const file = attachment.file;
+									const fileId = typeof file === "object" ? file.id : file;
+									const filename = typeof file === "object"
+										? (file.filename || `File ${fileId}`)
+										: `File ${fileId}`;
+									const mimeType = typeof file === "object" ? file.mimeType : null;
+									const filesize = typeof file === "object" ? file.filesize : null;
+									const fileType = getFileType(filename, mimeType);
+									const FileIcon = getFileIcon(fileType);
 
 									return (
-										<Paper key={fileId} withBorder p="xs" >
-											<Group gap="xs">
-												<IconFile size={16} />
-												<Anchor
-													href={href("/api/media/file/:filenameOrId", {
-														filenameOrId: fileId.toString(),
-													})}
-													target="_blank"
-													size="sm"
-												>
-													{filename}
-												</Anchor>
-												{attachment.description && (
-													<Text size="xs" c="dimmed">
-														- {attachment.description}
-													</Text>
-												)}
+										<Paper key={fileId} withBorder p="xs">
+											<Group gap="xs" wrap="nowrap">
+												<Tooltip label={getFileTypeLabel(fileType)}>
+													<Box>
+														<FileIcon size={16} />
+													</Box>
+												</Tooltip>
+												<Box style={{ flex: 1, minWidth: 0 }}>
+													<Anchor
+														href={href("/api/media/file/:filenameOrId", {
+															filenameOrId: fileId.toString(),
+														})}
+														target="_blank"
+														size="sm"
+														style={{
+															display: "block",
+															overflow: "hidden",
+															textOverflow: "ellipsis",
+															whiteSpace: "nowrap",
+														}}
+													>
+														{filename}
+													</Anchor>
+													<Group gap="xs">
+														{filesize && (
+															<Text size="xs" c="dimmed">
+																{formatFileSize(filesize)}
+															</Text>
+														)}
+														{attachment.description && (
+															<Text size="xs" c="dimmed">
+																• {attachment.description}
+															</Text>
+														)}
+													</Group>
+												</Box>
 											</Group>
 										</Paper>
 									);
@@ -272,9 +408,9 @@ export function SubmissionHistoryItem({
 										<Menu.Item
 											component={Link}
 											to={
-												href("/course/module/:id/grading", {
+												href("/course/module/:id/submissions", {
 													id: moduleLinkId.toString(),
-												}) + `?submissionId=${submission.id}`
+												}) + `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
 											}
 											leftSection={<IconPencil size={16} />}
 										>
@@ -344,7 +480,7 @@ export function SubmissionHistory({
 			}).map((sub, index) => (
 				<SubmissionHistoryItem
 					key={sub.id}
-					attemptNumber={sortedSubmissions.length - index}
+					attemptNumber={sub.attemptNumber ?? sortedSubmissions.length - index}
 					submission={sub}
 					variant={variant}
 					showDelete={showDelete}

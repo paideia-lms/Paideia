@@ -14,6 +14,7 @@ import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
+import { canEditCourse } from "server/utils/permissions";
 import { CourseInfo } from "~/components/course-info";
 import {
 	getStatusBadgeColor,
@@ -58,28 +59,31 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
+	// Check if user can edit the course
+	const canEdit = canEditCourse(
+		currentUser,
+		courseContext.course.enrollments.map((e) => ({
+			userId: e.userId,
+			role: e.role,
+		})),
+	);
+
 	return {
 		...courseContext,
 		enrolment: enrolmentContext?.enrolment,
 		instructors,
 		currentUser: currentUser,
+		canEdit,
 	};
 };
 
 export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
-	const { course, instructors, currentUser, courseStructure } = loaderData;
-
-	const canEdit =
-		currentUser.role === "admin" ||
-		currentUser.role === "content-manager" ||
-		course.enrollments.some(
-			(enrollment) => enrollment.userId === currentUser.id,
-		);
+	const { course, instructors, courseStructure, canEdit } = loaderData;
 
 	const directSections = courseStructure.sections;
 
 	return (
-		<Container size="lg" py="xl">
+		<Container size="xl" py="sm">
 			<title>{`${course.title} | Paideia LMS`}</title>
 			<meta name="description" content={course.description} />
 			<meta property="og:title" content={`${course.title} | Paideia LMS`} />
@@ -90,9 +94,11 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 					<div>
 						<Group gap="sm" mb="xs">
 							<Title order={1}>{course.title}</Title>
-							<Badge color={getStatusBadgeColor(course.status)} size="lg">
-								{getStatusLabel(course.status)}
-							</Badge>
+							{canEdit && (
+								<Badge color={getStatusBadgeColor(course.status)} size="lg">
+									{getStatusLabel(course.status)}
+								</Badge>
+							)}
 						</Group>
 						<Text c="dimmed" size="sm">
 							{course.slug}

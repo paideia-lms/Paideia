@@ -235,7 +235,6 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 											: `/user/preference/${user.id}`
 									}
 									variant="light"
-									fullWidth
 								>
 									Edit Profile
 								</Button>
@@ -246,7 +245,6 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 									color="orange"
 									onClick={() => impersonate(user.id)}
 									loading={isLoading}
-									fullWidth
 									leftSection={<IconUserCheck size={16} />}
 								>
 									Impersonate User
