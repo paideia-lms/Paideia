@@ -197,6 +197,8 @@ export const action = async ({
 
 		const isAdmin = currentUser.role === "admin";
 
+
+
 		const parsed = z
 			.object({
 				firstName: z.string(),
@@ -459,7 +461,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								<Text size="sm" fw={500} mb="xs">
 									Avatar
 								</Text>
-								<Stack align="center" gap="md">
+								<Group gap="md">
 									<Avatar
 										src={avatarPreview}
 										alt="Profile"
@@ -478,7 +480,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 										maxSize={5 * 1024 ** 2}
 										accept={IMAGE_MIME_TYPE}
 										multiple={false}
-										style={{ width: "100%" }}
+
 									>
 										<Group
 											justify="center"
@@ -518,7 +520,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 											</div>
 										</Group>
 									</Dropzone>
-								</Stack>
+								</Group>
 							</div>
 
 							<TextInput

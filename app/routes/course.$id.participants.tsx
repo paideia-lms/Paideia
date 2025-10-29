@@ -386,6 +386,7 @@ export default function CourseParticipantsPage({
 	return (
 		<>
 			<EnrollmentsSection
+				courseId={course.id}
 				enrollments={course.enrollments}
 				currentUserRole={currentUser.role || "student"}
 				fetcherState={fetcher.state}

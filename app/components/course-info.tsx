@@ -2,9 +2,11 @@ import {
 	Avatar,
 	Card,
 	Group,
+	Image,
 	Paper,
 	Stack,
 	Text,
+	Tooltip,
 	Typography,
 } from "@mantine/core";
 import { href, Link } from "react-router";
@@ -16,18 +18,25 @@ interface CourseInfoProps {
 		slug: string;
 		description: string;
 		status: string;
+		thumbnail?:
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+		}
+		| null;
 		instructors: Array<{
 			id: number;
 			name: string;
 			email: string;
 			role: "teacher" | "ta";
 			avatar?:
-				| number
-				| {
-						id: number;
-						filename?: string | null;
-				  }
-				| null;
+			| number
+			| {
+				id: number;
+				filename?: string | null;
+			}
+			| null;
 		}>;
 		createdAt: string;
 		updatedAt: string;
@@ -39,6 +48,16 @@ export function CourseInfo({ course }: CourseInfoProps) {
 	return (
 		<Paper withBorder shadow="sm" p="xl" radius="md">
 			<Stack gap="xl">
+				{course.thumbnail && (
+					<Image
+						src={`/api/media/file/${typeof course.thumbnail === "object" ? course.thumbnail.filename : course.thumbnail}`}
+						alt={course.title}
+						radius="md"
+						h={200}
+						fit="cover"
+					/>
+				)}
+
 				<div>
 					<Text fw={600} size="sm" c="dimmed" mb="xs">
 						Description
@@ -57,42 +76,46 @@ export function CourseInfo({ course }: CourseInfoProps) {
 						<Text fw={600} size="sm" c="dimmed" mb="xs">
 							Instructors
 						</Text>
-						<Stack gap="sm">
-							{course.instructors.length > 0 ? (
-								course.instructors.map((instructor) => (
-									<Group key={instructor.id} gap="sm">
+						{course.instructors.length > 0 ? (
+							<Avatar.Group>
+								{course.instructors.map((instructor) => (
+									<Tooltip
+										key={instructor.id}
+										label={
+											<div>
+												<Text size="sm" fw={500}>
+													{instructor.name}
+												</Text>
+												<Text size="xs" c="dimmed">
+													{instructor.role === "teacher"
+														? "Teacher"
+														: "Teaching Assistant"}
+												</Text>
+											</div>
+										}
+										withArrow
+									>
 										<Avatar
-											size="sm"
+											component={Link}
+											to={href("/user/profile/:id?", {
+												id: String(instructor.id),
+											})}
 											src={
 												instructor.avatar
 													? `/api/media/file/${typeof instructor.avatar === "object" ? instructor.avatar.filename : instructor.avatar}`
 													: undefined
 											}
 											name={instructor.name}
+											style={{ cursor: "pointer" }}
 										/>
-										<div>
-											<Text
-												component={Link}
-												to={href("/user/profile/:id?", {
-													id: String(instructor.id),
-												})}
-											>
-												{instructor.name}
-											</Text>
-											<Text size="xs" c="dimmed">
-												{instructor.role === "teacher"
-													? "Teacher"
-													: "Teaching Assistant"}
-											</Text>
-										</div>
-									</Group>
-								))
-							) : (
-								<Text size="sm" c="dimmed">
-									No instructors assigned
-								</Text>
-							)}
-						</Stack>
+									</Tooltip>
+								))}
+							</Avatar.Group>
+						) : (
+							<Text size="sm" c="dimmed">
+								No instructors assigned
+							</Text>
+						)}
 					</Card>
 
 					<Card withBorder>

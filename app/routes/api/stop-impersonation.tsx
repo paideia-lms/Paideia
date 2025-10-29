@@ -21,8 +21,12 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		return badRequest({ error: "Not currently impersonating" });
 	}
 
-	// Remove impersonation cookie and redirect to admin's profile
-	throw redirect("/", {
+	// Get redirect URL from form data, default to "/"
+	const formData = await request.formData();
+	const redirectTo = (formData.get("redirectTo") as string) || "/";
+
+	// Remove impersonation cookie and redirect
+	throw redirect(redirectTo, {
 		headers: {
 			"Set-Cookie": removeImpersonationCookie(
 				requestInfo.domainUrl,
@@ -54,11 +58,15 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useStopImpersonating() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const stopImpersonating = () => {
-		fetcher.submit(
-			{},
-			{ method: "POST", action: href("/api/stop-impersonation") },
-		);
+	const stopImpersonating = (redirectTo?: string) => {
+		const formData = new FormData();
+		if (redirectTo) {
+			formData.append("redirectTo", redirectTo);
+		}
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/api/stop-impersonation"),
+		});
 	};
 
 	return {
@@ -72,11 +80,13 @@ export function StopImpersonatingButton({
 	size = "xs",
 	variant = "light",
 	color = "orange",
+	redirectTo,
 	...props
 }: {
 	size?: "xs" | "sm" | "md" | "lg" | "xl";
 	variant?: "filled" | "light" | "outline" | "subtle" | "default";
 	color?: string;
+	redirectTo?: string;
 } & React.ComponentProps<typeof Button>) {
 	const { stopImpersonating, isLoading } = useStopImpersonating();
 
@@ -85,7 +95,7 @@ export function StopImpersonatingButton({
 			size={size}
 			color={color}
 			variant={variant}
-			onClick={stopImpersonating}
+			onClick={() => stopImpersonating(redirectTo)}
 			loading={isLoading}
 			{...props}
 		>
@@ -100,8 +110,9 @@ export const StopImpersonatingMenuItem = React.forwardRef<
 	{
 		leftSection?: React.ReactNode;
 		color?: string;
+		redirectTo?: string;
 	} & React.ComponentProps<typeof Menu.Item>
->(({ leftSection, color = "orange", ...props }, ref) => {
+>(({ leftSection, color = "orange", redirectTo, ...props }, ref) => {
 	const { stopImpersonating, isLoading } = useStopImpersonating();
 
 	return (
@@ -109,7 +120,7 @@ export const StopImpersonatingMenuItem = React.forwardRef<
 			ref={ref}
 			leftSection={leftSection}
 			color={color}
-			onClick={stopImpersonating}
+			onClick={() => stopImpersonating(redirectTo)}
 			disabled={isLoading}
 			{...props}
 		>

@@ -83,6 +83,7 @@ const frontend = new Elysia()
 							isInCourse: false,
 							isCourseSettings: false,
 							isCourseParticipants: false,
+							isCourseParticipantsProfile: false,
 							isCourseParticipantsLayout: false,
 							isCourseGroups: false,
 							isCourseGrades: false,
@@ -93,6 +94,7 @@ const frontend = new Elysia()
 							isCourseModule: false,
 							isCourseModuleEdit: false,
 							isCourseModuleSubmissions: false,
+							isCourseModuleGrading: false,
 							isInCourseModuleLayout: false,
 							isCourseSection: false,
 							isCourseSectionNew: false,
@@ -113,6 +115,7 @@ const frontend = new Elysia()
 							isUserModuleEditAccess: false,
 							isUserProfile: false,
 							isInUserModuleEditLayout: false,
+							params: {},
 						},
 					});
 					// set all the contexts to be null in the beginning??

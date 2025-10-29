@@ -11,6 +11,7 @@ import classes from "./header-tabs.module.css";
 
 enum ParticipantsTab {
 	Participants = "participants",
+	Profile = "profile",
 	Groups = "groups",
 }
 
@@ -53,6 +54,7 @@ export default function CourseParticipantsLayout({
 
 	// Determine current tab based on page info
 	const getCurrentTab = () => {
+		if (pageInfo.isCourseParticipantsProfile) return ParticipantsTab.Profile;
 		if (pageInfo.isCourseGroups) return ParticipantsTab.Groups;
 		return ParticipantsTab.Participants;
 	};
@@ -65,6 +67,9 @@ export default function CourseParticipantsLayout({
 		switch (value) {
 			case ParticipantsTab.Participants:
 				navigate(href("/course/:id/participants", { id: courseId }));
+				break;
+			case ParticipantsTab.Profile:
+				navigate(href("/course/:id/participants/profile", { id: courseId }));
 				break;
 			case ParticipantsTab.Groups:
 				navigate(href("/course/:id/groups", { id: courseId }));
@@ -99,10 +104,11 @@ export default function CourseParticipantsLayout({
 					tab: classes.tab,
 				}}
 			>
-				<Tabs.List>
-					<Tabs.Tab value={ParticipantsTab.Participants}>Participants</Tabs.Tab>
-					<Tabs.Tab value={ParticipantsTab.Groups}>Groups</Tabs.Tab>
-				</Tabs.List>
+			<Tabs.List>
+				<Tabs.Tab value={ParticipantsTab.Participants}>Participants</Tabs.Tab>
+				<Tabs.Tab value={ParticipantsTab.Profile}>Profile</Tabs.Tab>
+				<Tabs.Tab value={ParticipantsTab.Groups}>Groups</Tabs.Tab>
+			</Tabs.List>
 			</Tabs>
 
 			<Outlet />

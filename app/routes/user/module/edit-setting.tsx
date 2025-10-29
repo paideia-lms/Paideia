@@ -1,7 +1,7 @@
 import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, useFetcher, useLoaderData } from "react-router";
+import { href, SubmitTarget, useFetcher, useLoaderData } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -144,7 +144,7 @@ export function useUpdateModule() {
 
 	const updateModule = (moduleId: string, values: ActivityModuleFormValues) => {
 		const submissionData = transformFormValues(values);
-		fetcher.submit(submissionData as Record<string, unknown>, {
+		fetcher.submit(submissionData as SubmitTarget, {
 			method: "POST",
 			action: href("/user/module/edit/:moduleId/setting", {
 				moduleId,

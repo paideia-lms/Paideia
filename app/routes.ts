@@ -58,6 +58,7 @@ export const routes = [
 					route("course/module/:id", "routes/course/module.$id.tsx"),
 					route("course/module/:id/edit", "routes/course/module.$id.edit.tsx"),
 					route("course/module/:id/submissions", "routes/course/module.$id.submissions.tsx"),
+					route("course/module/:id/grading", "routes/course/module.$id.grading.tsx"),
 				]),
 				layout("layouts/course-section-layout.tsx", [
 					route("course/section/:id", "routes/course/section.$id.tsx"),
@@ -66,10 +67,11 @@ export const routes = [
 			]),
 			route("course/:id/section/new", "routes/course/section-new.tsx"),
 			route("course/:id/settings", "routes/course.$id.settings.tsx"),
-			layout("layouts/course-participants-layout.tsx", [
-				route("course/:id/participants", "routes/course.$id.participants.tsx"),
-				route("course/:id/groups", "routes/course.$id.groups.tsx"),
-			]),
+		layout("layouts/course-participants-layout.tsx", [
+			route("course/:id/participants", "routes/course.$id.participants.tsx"),
+			route("course/:id/participants/profile", "routes/course.$id.participants.profile.tsx"),
+			route("course/:id/groups", "routes/course.$id.groups.tsx"),
+		]),
 			layout("layouts/course-grades-layout.tsx", [
 				route("course/:id/grades", "routes/course.$id.grades.tsx"),
 			]),

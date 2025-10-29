@@ -116,6 +116,7 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 						slug: course.slug,
 						description: course.description,
 						status: course.status,
+						thumbnail: course.thumbnail,
 						instructors,
 						createdAt: course.createdAt,
 						updatedAt: course.updatedAt,

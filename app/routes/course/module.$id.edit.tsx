@@ -25,6 +25,7 @@ import {
     StatusCode,
     unauthorized,
 } from "~/utils/responses";
+import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import type { Route } from "./+types/module.$id.edit";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -90,13 +91,22 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
         return badRequest({ error: "Invalid module link ID" });
     }
 
-    const formData = await request.formData();
-    const moduleType = formData.get("moduleType") as string;
-    const name = formData.get("name") as string;
+    const { data } = await getDataAndContentTypeFromRequest(request);
+    const requestData = data as {
+        moduleType: string;
+        name?: string | null;
+        allowSubmissionsFrom?: string | null;
+        dueDate?: string | null;
+        cutoffDate?: string | null;
+        openingTime?: string | null;
+        closingTime?: string | null;
+    };
 
-    if (!moduleType) {
+    if (!requestData.moduleType) {
         return badRequest({ error: "Module type is required" });
     }
+
+    const { moduleType, name, ...dateFields } = requestData;
 
     // Build settings based on module type
     let settings: CourseModuleSettingsV1;
@@ -114,50 +124,40 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
             break;
 
         case "assignment": {
-            const allowSubmissionsFrom = formData.get("allowSubmissionsFrom") as string;
-            const dueDate = formData.get("dueDate") as string;
-            const cutoffDate = formData.get("cutoffDate") as string;
-
             settings = {
                 version: "v1",
                 settings: {
                     type: "assignment",
                     name: name || undefined,
-                    allowSubmissionsFrom: allowSubmissionsFrom || undefined,
-                    dueDate: dueDate || undefined,
-                    cutoffDate: cutoffDate || undefined,
+                    allowSubmissionsFrom: dateFields.allowSubmissionsFrom || undefined,
+                    dueDate: dateFields.dueDate || undefined,
+                    cutoffDate: dateFields.cutoffDate || undefined,
                 },
             };
             break;
         }
 
         case "quiz": {
-            const openingTime = formData.get("openingTime") as string;
-            const closingTime = formData.get("closingTime") as string;
-
             settings = {
                 version: "v1",
                 settings: {
                     type: "quiz",
                     name: name || undefined,
-                    openingTime: openingTime || undefined,
-                    closingTime: closingTime || undefined,
+                    openingTime: dateFields.openingTime || undefined,
+                    closingTime: dateFields.closingTime || undefined,
                 },
             };
             break;
         }
 
         case "discussion": {
-            const dueDate = formData.get("dueDate") as string;
-            const cutoffDate = formData.get("cutoffDate") as string;
-
             settings = {
                 version: "v1",
                 settings: {
                     type: "discussion",
                     name: name || undefined,
-                    dueDate: dueDate || undefined,
-                    cutoffDate: cutoffDate || undefined,
+                    dueDate: dateFields.dueDate || undefined,
+                    cutoffDate: dateFields.cutoffDate || undefined,
                 },
             };
             break;
@@ -204,56 +204,50 @@ type UpdateModuleValues = {
     moduleType: string;
     name?: string;
     // Assignment fields
-    allowSubmissionsFrom?: Date | null;
-    assignmentDueDate?: Date | null;
-    assignmentCutoffDate?: Date | null;
+    allowSubmissionsFrom?: Date | string | null;
+    assignmentDueDate?: Date | string | null;
+    assignmentCutoffDate?: Date | string | null;
     // Quiz fields
-    quizOpeningTime?: Date | null;
-    quizClosingTime?: Date | null;
+    quizOpeningTime?: Date | string | null;
+    quizClosingTime?: Date | string | null;
     // Discussion fields
-    discussionDueDate?: Date | null;
-    discussionCutoffDate?: Date | null;
+    discussionDueDate?: Date | string | null;
+    discussionCutoffDate?: Date | string | null;
 };
 
 const useUpdateCourseModule = () => {
     const fetcher = useFetcher<typeof action>();
 
-    const updateModule = (values: UpdateModuleValues) => {
-        const formData = new FormData();
-        formData.append("moduleType", values.moduleType);
+    const toISOStringOrNull = (value: Date | string | null | undefined): string | null => {
+        if (!value) return null;
+        if (value instanceof Date) return value.toISOString();
+        if (typeof value === "string") return value;
+        return null;
+    };
 
-        if (values.name) {
-            formData.append("name", values.name);
-        }
+    const updateModule = (values: UpdateModuleValues) => {
+        const payload: Record<string, string | null> = {
+            moduleType: values.moduleType,
+            name: values.name || null,
+        };
 
         // Add module-specific fields
         if (values.moduleType === "assignment") {
-            if (values.allowSubmissionsFrom) {
-                formData.append("allowSubmissionsFrom", values.allowSubmissionsFrom.toISOString());
-            }
-            if (values.assignmentDueDate) {
-                formData.append("dueDate", values.assignmentDueDate.toISOString());
-            }
-            if (values.assignmentCutoffDate) {
-                formData.append("cutoffDate", values.assignmentCutoffDate.toISOString());
-            }
+            payload.allowSubmissionsFrom = toISOStringOrNull(values.allowSubmissionsFrom);
+            payload.dueDate = toISOStringOrNull(values.assignmentDueDate);
+            payload.cutoffDate = toISOStringOrNull(values.assignmentCutoffDate);
         } else if (values.moduleType === "quiz") {
-            if (values.quizOpeningTime) {
-                formData.append("openingTime", values.quizOpeningTime.toISOString());
-            }
-            if (values.quizClosingTime) {
-                formData.append("closingTime", values.quizClosingTime.toISOString());
-            }
+            payload.openingTime = toISOStringOrNull(values.quizOpeningTime);
+            payload.closingTime = toISOStringOrNull(values.quizClosingTime);
         } else if (values.moduleType === "discussion") {
-            if (values.discussionDueDate) {
-                formData.append("dueDate", values.discussionDueDate.toISOString());
-            }
-            if (values.discussionCutoffDate) {
-                formData.append("cutoffDate", values.discussionCutoffDate.toISOString());
-            }
+            payload.dueDate = toISOStringOrNull(values.discussionDueDate);
+            payload.cutoffDate = toISOStringOrNull(values.discussionCutoffDate);
         }
 
-        fetcher.submit(formData, { method: "POST" });
+        fetcher.submit(payload, {
+            method: "POST",
+            encType: ContentType.JSON,
+        });
     };
 
     return {

@@ -107,8 +107,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			return badRequest({ error: "Cannot impersonate admin users" });
 		}
 
+		// Get redirect URL from form data, default to "/"
+		const redirectTo = (formData.get("redirectTo") as string) || "/";
+
 		// Set impersonation cookie and redirect
-		throw redirect("/", {
+		throw redirect(redirectTo, {
 			headers: {
 				"Set-Cookie": setImpersonationCookie(
 					targetUserId,
@@ -146,10 +149,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export const useImpersonate = () => {
 	const fetcher = useFetcher();
 
-	const impersonate = (targetUserId: number) => {
+	const impersonate = (targetUserId: number, redirectTo?: string) => {
 		const formData = new FormData();
 		formData.append("intent", "impersonate");
 		formData.append("targetUserId", String(targetUserId));
+		if (redirectTo) {
+			formData.append("redirectTo", redirectTo);
+		}
 		// Submit to profile route action which handles impersonation
 		fetcher.submit(formData, {
 			method: "POST",

@@ -26,10 +26,7 @@ import { isHtmlEmpty } from "../rich-text-editor";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { AssignmentActions } from "~/utils/module-actions";
-import {
-	SubmissionHistory,
-	type SubmissionData,
-} from "../submission-history";
+import type { SubmissionData } from "../submission-history";
 
 // ============================================================================
 // Types
@@ -438,8 +435,6 @@ function InstructionsView({
 				) : (
 					<Text c="dimmed">No instructions provided.</Text>
 				)}
-
-				<SubmissionHistory submissions={allSubmissions} variant="compact" />
 			</Stack>
 		</Paper>
 	);

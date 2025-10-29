@@ -23,17 +23,14 @@ import {
 	IconUserCheck,
 } from "@tabler/icons-react";
 import cx from "clsx";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useState } from "react";
 import { href, Link, Outlet, useNavigate } from "react-router";
 import type { PageInfo } from "server/contexts/global-context";
-import {
-	type User,
-	type UserSession,
-	userContextKey,
-} from "server/contexts/user-context";
+import { type UserSession, userContextKey } from "server/contexts/user-context";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
+import { RouteParams } from "~/utils/routes-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -54,7 +51,7 @@ export default function UserLayout({
 	const { theme } = loaderData;
 	const { setColorScheme } = useMantineColorScheme();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	// biome-ignore lint/correctness/useExhaustiveDependencies: theme is intentionally the only dependency
 	useEffect(() => {
 		setColorScheme(theme);
 	}, [theme]);
@@ -87,6 +84,16 @@ export function HeaderTabs({
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const isImpersonating = userSession?.isImpersonating ?? false;
 	const authenticatedUser = userSession?.authenticatedUser;
+
+	// Determine redirect URL based on current location
+	// If in a course, redirect back to that course after stopping impersonation
+	const getStopImpersonationRedirect = () => {
+		if (pageInfo.isInCourse) {
+			const { id } = pageInfo.params as RouteParams<"layouts/course-layout">;
+			return href("/course/:id", { id });
+		}
+		return href("/"); // Default to dashboard
+	};
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -171,9 +178,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId:
-																				authenticatedUser.avatar.filename,
-																		})
+																		filenameOrId:
+																			authenticatedUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -195,8 +202,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId: currentUser.avatar.filename,
-																		})
+																		filenameOrId: currentUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -214,8 +221,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filenameOrId`, {
-																filenameOrId: currentUser.avatar.filename,
-															})
+															filenameOrId: currentUser.avatar.filename,
+														})
 														: null
 												}
 												alt={
@@ -234,7 +241,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+											"Anonymous"
 											: "Not signed in"}
 									</Text>
 									<IconChevronDown size={12} stroke={1.5} />
@@ -273,8 +280,8 @@ export function HeaderTabs({
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
-										// component={Link}
-										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+									// component={Link}
+									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>
@@ -305,6 +312,7 @@ export function HeaderTabs({
 										<StopImpersonatingMenuItem
 											leftSection={<IconUserCheck size={16} stroke={1.5} />}
 											color="orange"
+											redirectTo={getStopImpersonationRedirect()}
 										/>
 									)}
 									<Menu.Item

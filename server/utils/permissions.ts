@@ -236,3 +236,40 @@ export function canSubmitAssignment(
 ) {
 	return enrolment?.role === "student";
 }
+
+export function canDeleteSubmissions(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+) {
+	return (
+		user?.role === "admin" ||
+		enrolment?.role === "manager" ||
+		enrolment?.role === "teacher"
+	);
+}
+
+export function canImpersonateUser(
+	authenticatedUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	targetUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	isImpersonating?: boolean,
+) {
+	if (!authenticatedUser || !targetUser) return false;
+
+	return (
+		authenticatedUser.role === "admin" &&
+		targetUser.id !== authenticatedUser.id &&
+		targetUser.role !== "admin" &&
+		!isImpersonating
+	);
+}

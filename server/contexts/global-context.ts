@@ -17,6 +17,7 @@ export type PageInfo = {
 	isInCourse: boolean;
 	isCourseSettings: boolean;
 	isCourseParticipants: boolean;
+	isCourseParticipantsProfile: boolean;
 	isCourseParticipantsLayout: boolean;
 	isCourseGroups: boolean;
 	isCourseGrades: boolean;
@@ -27,6 +28,7 @@ export type PageInfo = {
 	isCourseModule: boolean;
 	isCourseModuleEdit: boolean;
 	isCourseModuleSubmissions: boolean;
+	isCourseModuleGrading: boolean;
 	isInCourseModuleLayout: boolean;
 	isCourseSection: boolean;
 	isCourseSectionNew: boolean;
@@ -50,6 +52,10 @@ export type PageInfo = {
 	isUserModuleEditSetting: boolean;
 	isUserModuleEditAccess: boolean;
 	isInUserModuleEditLayout: boolean;
+	/** 
+	 * the params of the current route
+	 */
+	params: Record<string, string>;
 };
 
 /**

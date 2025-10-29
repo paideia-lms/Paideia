@@ -699,8 +699,8 @@ export const assignments = pgTable(
     allowLateSubmissions: boolean("allow_late_submissions").default(false),
     maxFileSize: numeric("max_file_size", { mode: "number" }).default("10"),
     maxFiles: numeric("max_files", { mode: "number" }).default("1"),
-    requireTextSubmission: boolean("require_text_submission").default(false),
-    requireFileSubmission: boolean("require_file_submission").default(false),
+    requireTextSubmission: boolean("require_text_submission").default(true),
+    requireFileSubmission: boolean("require_file_submission").default(true),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {

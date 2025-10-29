@@ -1,4 +1,5 @@
-import { Badge, Container, Group, Tabs, Text, Title } from "@mantine/core";
+import { Alert, Badge, Container, Group, Tabs, Text, Title } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -91,8 +92,8 @@ export default function UserModuleEditLayout({
 		<div>
 			<div className={classes.header}>
 				<Container size="xl" className={classes.mainSection}>
-					<Group justify="space-between">
-						<div>
+					<Group justify="space-between" align="flex-start">
+						<div style={{ flex: 1 }}>
 							<Group gap="sm" mb="xs">
 								<Title order={2}>{module.title}</Title>
 								<Badge color={getStatusColor(module.status)}>
@@ -100,27 +101,38 @@ export default function UserModuleEditLayout({
 								</Badge>
 								<Badge variant="light">{formatType(module.type)}</Badge>
 							</Group>
-							<Text c="dimmed" size="sm">
+							<Text c="dimmed" size="sm" mb="sm">
 								{module.description || "No description provided"}
 							</Text>
+							{accessType === "readonly" && (
+								<Alert
+									icon={<IconInfoCircle size={16} />}
+									title="Read-only Access"
+									color="yellow"
+									variant="light"
+								>
+									You have auto-granted read-only access because you have a teaching role in a course that uses this module.
+								</Alert>
+							)}
 						</div>
-						<Tabs
-							value={getCurrentTab()}
-							onChange={handleTabChange}
-							variant="outline"
-							classNames={{
-								root: classes.tabs,
-								list: classes.tabsList,
-								tab: classes.tab,
-							}}
-						>
-							<Tabs.List>
-								<Tabs.Tab value={ModuleEditTab.Preview}>Preview</Tabs.Tab>
-								{canEdit && <Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>}
-								{canEdit && <Tabs.Tab value={ModuleEditTab.Access}>Access</Tabs.Tab>}
-							</Tabs.List>
-						</Tabs>
 					</Group>
+					<Tabs
+						value={getCurrentTab()}
+						onChange={handleTabChange}
+						variant="outline"
+						classNames={{
+							root: classes.tabs,
+							list: classes.tabsList,
+							tab: classes.tab,
+						}}
+						mt="sm"
+					>
+						<Tabs.List>
+							<Tabs.Tab value={ModuleEditTab.Preview}>Preview</Tabs.Tab>
+							{canEdit && <Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>}
+							{canEdit && <Tabs.Tab value={ModuleEditTab.Access}>Access</Tabs.Tab>}
+						</Tabs.List>
+					</Tabs>
 				</Container>
 			</div>
 			<Outlet />

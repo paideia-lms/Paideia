@@ -29,6 +29,10 @@ we don't check for access in loader and actions. we only check for access in int
 
 we only use mantine form uncontrolled mode for all forms. never use `cascadeUpdates` for mantine form.
 
+### styling
+
+we should not hardcode `bg` color in mantine components unless it's absolutely necessary. we should provide comment to explain.
+
 ## contexts 
 
 react router context should **not** import types from payload types. It should create types for itself to provide type stability for the frontend.

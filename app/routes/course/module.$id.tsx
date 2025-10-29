@@ -2,9 +2,16 @@ import {
 	Button,
 	Container,
 	Group,
+	Paper,
 	Stack,
 	Text,
+	Title,
 } from "@mantine/core";
+import {
+	IconCalendar,
+	IconClock,
+	IconInfoCircle,
+} from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import type {
 	FileUpload,
@@ -14,6 +21,7 @@ import { parseFormData } from "@remix-run/form-data-parser";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
+import type { CourseModuleContext } from "server/contexts/course-module-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -33,6 +41,7 @@ import { DiscussionPreview } from "~/components/activity-modules-preview/discuss
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
+import { SubmissionHistory } from "~/components/submission-history";
 import {
 	badRequest,
 	BadRequestResponse,
@@ -51,6 +60,93 @@ const courseModuleSearchParams = {
 }
 
 export const loadSearchParams = createLoader(courseModuleSearchParams);
+
+// Helper to format dates consistently on the server
+const formatDateForDisplay = (dateString: string) => {
+	const date = new Date(dateString);
+	return date.toLocaleString("en-US", {
+		weekday: "short",
+		year: "numeric",
+		month: "short",
+		day: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+};
+
+// Helper to format module settings with date strings
+const formatModuleSettingsForDisplay = (
+	moduleSettings: CourseModuleContext["moduleLinkSettings"]
+) => {
+	if (!moduleSettings?.settings) return null;
+
+	const settings = moduleSettings.settings;
+	const now = new Date();
+
+	if (settings.type === "assignment") {
+		return {
+			type: "assignment" as const,
+			name: settings.name,
+			dates: [
+				settings.allowSubmissionsFrom && {
+					label: "Available from",
+					value: formatDateForDisplay(settings.allowSubmissionsFrom),
+					isOverdue: false,
+				},
+				settings.dueDate && {
+					label: "Due",
+					value: formatDateForDisplay(settings.dueDate),
+					isOverdue: new Date(settings.dueDate) < now,
+				},
+				settings.cutoffDate && {
+					label: "Final deadline",
+					value: formatDateForDisplay(settings.cutoffDate),
+					isOverdue: new Date(settings.cutoffDate) < now,
+				},
+			].filter(Boolean),
+		};
+	}
+
+	if (settings.type === "quiz") {
+		return {
+			type: "quiz" as const,
+			name: settings.name,
+			dates: [
+				settings.openingTime && {
+					label: "Opens",
+					value: formatDateForDisplay(settings.openingTime),
+					isOverdue: false,
+				},
+				settings.closingTime && {
+					label: "Closes",
+					value: formatDateForDisplay(settings.closingTime),
+					isOverdue: new Date(settings.closingTime) < now,
+				},
+			].filter(Boolean),
+		};
+	}
+
+	if (settings.type === "discussion") {
+		return {
+			type: "discussion" as const,
+			name: settings.name,
+			dates: [
+				settings.dueDate && {
+					label: "Due",
+					value: formatDateForDisplay(settings.dueDate),
+					isOverdue: new Date(settings.dueDate) < now,
+				},
+				settings.cutoffDate && {
+					label: "Final deadline",
+					value: formatDateForDisplay(settings.cutoffDate),
+					isOverdue: new Date(settings.cutoffDate) < now,
+				},
+			].filter(Boolean),
+		};
+	}
+
+	return null;
+};
 
 export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -117,11 +213,17 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 		throw new ForbiddenResponse("You cannot edit submissions");
 	}
 
+	// Format module settings with dates for display
+	const formattedModuleSettings = formatModuleSettingsForDisplay(
+		courseModuleContext.moduleLinkSettings
+	);
+
 	// If this is an assignment module and user cannot submit, they can't see submissions
 	if (courseModuleContext.module.type === "assignment" && !canSubmit) {
 		return {
 			module: courseModuleContext.module,
 			moduleSettings: courseModuleContext.moduleLinkSettings,
+			formattedModuleSettings,
 			course: courseContext.course,
 			previousModule,
 			nextModule,
@@ -146,6 +248,7 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 	return {
 		module: courseModuleContext.module,
 		moduleSettings: courseModuleContext.moduleLinkSettings,
+		formattedModuleSettings,
 		course: courseContext.course,
 		previousModule,
 		nextModule,
@@ -388,8 +491,47 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
+// Component to display module dates/times
+function ModuleDatesInfo({
+	moduleSettings,
+}: {
+	moduleSettings: Route.ComponentProps["loaderData"]["formattedModuleSettings"]
+}) {
+	if (!moduleSettings || moduleSettings.dates.length === 0) return null;
+
+	return (
+		<Paper withBorder p="md" radius="md" >
+			<Stack gap="sm">
+				<Group gap="xs">
+					<IconInfoCircle size={20} />
+					<Title order={5}>Important Dates</Title>
+				</Group>
+
+				<Stack gap="xs">
+					{moduleSettings.dates.map((dateInfo) => (
+						<Group gap="xs" key={dateInfo.label}>
+							{dateInfo.label.includes("Opens") || dateInfo.label.includes("Available") ? (
+								<IconCalendar size={16} />
+							) : (
+								<IconClock size={16} />
+							)}
+							<Text size="sm" fw={500} c={dateInfo.isOverdue ? "red" : undefined}>
+								{dateInfo.label}:
+							</Text>
+							<Text size="sm" c={dateInfo.isOverdue ? "red" : undefined}>
+								{dateInfo.value}
+								{dateInfo.isOverdue && (dateInfo.label.includes("Closes") || dateInfo.label.includes("deadline") ? " (Closed)" : " (Overdue)")}
+							</Text>
+						</Group>
+					))}
+				</Stack>
+			</Stack>
+		</Paper>
+	);
+}
+
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
-	const { module, moduleSettings, course, previousModule, nextModule, userSubmission, userSubmissions, canSubmit } = loaderData;
+	const { module, moduleSettings, formattedModuleSettings, course, previousModule, nextModule, userSubmission, userSubmissions, canSubmit } = loaderData;
 	const { submitAssignment, isSubmitting } = useSubmitAssignment();
 
 	// Handle different module types
@@ -398,7 +540,10 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 			case "page": {
 				const pageContent = module.page?.content || null;
 				return (
-					<PagePreview content={pageContent || "<p>No content available</p>"} />
+					<>
+						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
+						<PagePreview content={pageContent || "<p>No content available</p>"} />
+					</>
 				);
 			}
 			case "assignment": {
@@ -434,16 +579,25 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					}));
 
 				return (
-					<AssignmentPreview
-						assignment={module.assignment || null}
-						submission={assignmentSubmission}
-						allSubmissions={allSubmissionsForDisplay}
-						onSubmit={({ textContent, files }) => {
-							submitAssignment(textContent, files);
-						}}
-						isSubmitting={isSubmitting}
-						canSubmit={canSubmit}
-					/>
+					<>
+						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
+						<AssignmentPreview
+							assignment={module.assignment || null}
+							submission={assignmentSubmission}
+							allSubmissions={allSubmissionsForDisplay}
+							onSubmit={({ textContent, files }) => {
+								submitAssignment(textContent, files);
+							}}
+							isSubmitting={isSubmitting}
+							canSubmit={canSubmit}
+						/>
+						{allSubmissionsForDisplay.length > 0 && (
+							<SubmissionHistory
+								submissions={allSubmissionsForDisplay}
+								variant="compact"
+							/>
+						)}
+					</>
 				);
 			}
 			case "quiz": {
@@ -451,13 +605,28 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				if (!quizConfig) {
 					return <Text c="red">No quiz configuration available</Text>;
 				}
-				return <QuizPreview quizConfig={quizConfig} />;
+				return (
+					<>
+						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
+						<QuizPreview quizConfig={quizConfig} />
+					</>
+				);
 			}
 			case "discussion":
-				return <DiscussionPreview discussion={module.discussion || null} />;
+				return (
+					<>
+						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
+						<DiscussionPreview discussion={module.discussion || null} />
+					</>
+				);
 			case "whiteboard": {
 				const whiteboardContent = module.whiteboard?.content || null;
-				return <WhiteboardPreview content={whiteboardContent || "{}"} />;
+				return (
+					<>
+						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
+						<WhiteboardPreview content={whiteboardContent || "{}"} />
+					</>
+				);
 			}
 			default:
 				return <Text c="red">Unknown module type: {module.type}</Text>;
