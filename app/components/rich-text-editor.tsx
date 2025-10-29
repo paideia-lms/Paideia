@@ -82,6 +82,71 @@ import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
 import { unified } from "unified";
 import { createMentionSuggestion } from "./mention-suggestion";
+import { getTextContentFromHtmlServer } from "~/utils/html-utils";
+
+export function getTextContentFromHtmlClient(html: string): string {
+
+	if (getTextContentFromHtmlServer) {
+		return getTextContentFromHtmlServer(html);
+	}
+
+	// use DOM parser
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(html, 'text/html');
+	const text = doc.body.textContent || '';
+	return text.trim().replace(/\s+/g, ' ');
+}
+
+/**
+ * Calculate character count from text
+ */
+export function getCharacterCount(text: string): number {
+	return text.length;
+}
+
+/**
+ * Calculate word count from text
+ */
+export function getWordCount(text: string): number {
+	return text
+		.trim()
+		.split(/\s+/)
+		.filter((word) => word.length > 0).length;
+}
+
+/**
+ * Check if text content is empty (after trimming)
+ */
+export function isTextEmpty(text: string): boolean {
+	return text.trim().length === 0;
+}
+
+/**
+ * Check if HTML content is empty (after extracting text and trimming)
+ */
+export function isHtmlEmpty(html: string): boolean {
+	const textContent = getTextContentFromHtmlClient(html);
+	return isTextEmpty(textContent);
+}
+
+/**
+ * Get text statistics for a given text
+ */
+export function getTextStats(text: string) {
+	return {
+		characterCount: getCharacterCount(text),
+		wordCount: getWordCount(text),
+		isEmpty: isTextEmpty(text),
+	};
+}
+
+/**
+ * Get text statistics from HTML content
+ */
+export function getTextStatsFromHtml(html: string) {
+	const textContent = getTextContentFromHtmlClient(html);
+	return getTextStats(textContent);
+}
 
 const lowlight = createLowlight();
 
@@ -743,7 +808,7 @@ export interface ImageFile {
 interface RichTextEditorProps {
 	content?: string;
 	placeholder?: string;
-	onChange?: (content: string) => void;
+	onChange?: (html: string) => void;
 	onEditorReady?: (editor: Editor) => void;
 	onImageAdd?: (imageFile: ImageFile) => void;
 	readonly?: boolean;
@@ -1016,14 +1081,14 @@ export function RichTextEditor({
 		selector: ({ editor }) => {
 			if (!editor) return null;
 
-			// For status display, we get character/word counts
+			// For status display, we get character/word counts from HTML
 			// Note: These are primitive numbers, so they won't cause unnecessary re-renders
-			const text = editor.state.doc.textContent;
-			const characterCount = text.length;
-			const wordCount = text
-				.trim()
-				.split(/\s+/)
-				.filter((word) => word.length > 0).length;
+			// const textContent = editor.state.doc.textContent;
+			const html = editor.getHTML();
+			const textContent = getTextContentFromHtmlClient(html);
+
+			const characterCount = getCharacterCount(textContent);
+			const wordCount = getWordCount(textContent);
 
 			return {
 				// Editor meta state (stable booleans)

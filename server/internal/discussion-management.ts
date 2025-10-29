@@ -781,6 +781,7 @@ export const tryListDiscussionSubmissions = Result.wrap(
 			page,
 			sort,
 			depth: 1, // Fetch related data
+			pagination: false,
 		});
 
 		// type narrowing

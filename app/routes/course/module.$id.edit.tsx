@@ -200,11 +200,75 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
     return actionData;
 }
 
+type UpdateModuleValues = {
+    moduleType: string;
+    name?: string;
+    // Assignment fields
+    allowSubmissionsFrom?: Date | null;
+    assignmentDueDate?: Date | null;
+    assignmentCutoffDate?: Date | null;
+    // Quiz fields
+    quizOpeningTime?: Date | null;
+    quizClosingTime?: Date | null;
+    // Discussion fields
+    discussionDueDate?: Date | null;
+    discussionCutoffDate?: Date | null;
+};
+
+const useUpdateCourseModule = () => {
+    const fetcher = useFetcher<typeof action>();
+
+    const updateModule = (values: UpdateModuleValues) => {
+        const formData = new FormData();
+        formData.append("moduleType", values.moduleType);
+
+        if (values.name) {
+            formData.append("name", values.name);
+        }
+
+        // Add module-specific fields
+        if (values.moduleType === "assignment") {
+            if (values.allowSubmissionsFrom) {
+                formData.append("allowSubmissionsFrom", values.allowSubmissionsFrom.toISOString());
+            }
+            if (values.assignmentDueDate) {
+                formData.append("dueDate", values.assignmentDueDate.toISOString());
+            }
+            if (values.assignmentCutoffDate) {
+                formData.append("cutoffDate", values.assignmentCutoffDate.toISOString());
+            }
+        } else if (values.moduleType === "quiz") {
+            if (values.quizOpeningTime) {
+                formData.append("openingTime", values.quizOpeningTime.toISOString());
+            }
+            if (values.quizClosingTime) {
+                formData.append("closingTime", values.quizClosingTime.toISOString());
+            }
+        } else if (values.moduleType === "discussion") {
+            if (values.discussionDueDate) {
+                formData.append("dueDate", values.discussionDueDate.toISOString());
+            }
+            if (values.discussionCutoffDate) {
+                formData.append("cutoffDate", values.discussionCutoffDate.toISOString());
+            }
+        }
+
+        fetcher.submit(formData, { method: "POST" });
+    };
+
+    return {
+        updateModule,
+        isLoading: fetcher.state !== "idle",
+        state: fetcher.state,
+        data: fetcher.data,
+    };
+};
+
 export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 
     const { course, module, moduleLinkId, settings } = loaderData;
     const navigate = useNavigate();
-    const fetcher = useFetcher<typeof action>();
+    const { updateModule, isLoading } = useUpdateCourseModule();
 
     // Parse existing settings
     const existingSettings = settings?.settings;
@@ -246,41 +310,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
     });
 
     const handleSubmit = (values: typeof form.values) => {
-        const formData = new FormData();
-        formData.append("moduleType", values.moduleType);
-
-        if (values.name) {
-            formData.append("name", values.name);
-        }
-
-        // Add module-specific fields
-        if (values.moduleType === "assignment") {
-            if (values.allowSubmissionsFrom) {
-                formData.append("allowSubmissionsFrom", values.allowSubmissionsFrom.toISOString());
-            }
-            if (values.assignmentDueDate) {
-                formData.append("dueDate", values.assignmentDueDate.toISOString());
-            }
-            if (values.assignmentCutoffDate) {
-                formData.append("cutoffDate", values.assignmentCutoffDate.toISOString());
-            }
-        } else if (values.moduleType === "quiz") {
-            if (values.quizOpeningTime) {
-                formData.append("openingTime", values.quizOpeningTime.toISOString());
-            }
-            if (values.quizClosingTime) {
-                formData.append("closingTime", values.quizClosingTime.toISOString());
-            }
-        } else if (values.moduleType === "discussion") {
-            if (values.discussionDueDate) {
-                formData.append("dueDate", values.discussionDueDate.toISOString());
-            }
-            if (values.discussionCutoffDate) {
-                formData.append("cutoffDate", values.discussionCutoffDate.toISOString());
-            }
-        }
-
-        fetcher.submit(formData, { method: "POST" });
+        updateModule(values);
     };
 
     const title = `Edit Module Settings | ${displayName} | ${course.title} | Paideia LMS`;
@@ -313,7 +343,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                             <TextInput
                                 label="Custom Module Name"
                                 placeholder="Leave empty to use default module name"
-                                disabled={fetcher.state !== "idle"}
+                                disabled={isLoading}
                                 description="Override the module name for this course"
                                 {...form.getInputProps("name")}
                             />
@@ -323,7 +353,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                     <DateTimePicker
                                         label="Allow Submissions From"
                                         placeholder="Select date and time"
-                                        disabled={fetcher.state !== "idle"}
+                                        disabled={isLoading}
                                         clearable
                                         description="When students can start submitting"
                                         {...form.getInputProps("allowSubmissionsFrom")}
@@ -332,7 +362,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                     <DateTimePicker
                                         label="Due Date"
                                         placeholder="Select date and time"
-                                        disabled={fetcher.state !== "idle"}
+                                        disabled={isLoading}
                                         clearable
                                         description="Assignment due date"
                                         {...form.getInputProps("assignmentDueDate")}
@@ -341,7 +371,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                     <DateTimePicker
                                         label="Cutoff Date"
                                         placeholder="Select date and time"
-                                        disabled={fetcher.state !== "idle"}
+                                        disabled={isLoading}
                                         clearable
                                         description="Latest possible submission time"
                                         {...form.getInputProps("assignmentCutoffDate")}
@@ -354,7 +384,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                     <DateTimePicker
                                         label="Opening Time"
                                         placeholder="Select date and time"
-                                        disabled={fetcher.state !== "idle"}
+                                        disabled={isLoading}
                                         clearable
                                         description="When quiz becomes available"
                                         {...form.getInputProps("quizOpeningTime")}
@@ -363,7 +393,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                     <DateTimePicker
                                         label="Closing Time"
                                         placeholder="Select date and time"
-                                        disabled={fetcher.state !== "idle"}
+                                        disabled={isLoading}
                                         clearable
                                         description="When quiz closes"
                                         {...form.getInputProps("quizClosingTime")}
@@ -376,7 +406,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                     <DateTimePicker
                                         label="Due Date"
                                         placeholder="Select date and time"
-                                        disabled={fetcher.state !== "idle"}
+                                        disabled={isLoading}
                                         clearable
                                         description="Discussion due date"
                                         {...form.getInputProps("discussionDueDate")}
@@ -385,7 +415,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                     <DateTimePicker
                                         label="Cutoff Date"
                                         placeholder="Select date and time"
-                                        disabled={fetcher.state !== "idle"}
+                                        disabled={isLoading}
                                         clearable
                                         description="Discussion cutoff date"
                                         {...form.getInputProps("discussionCutoffDate")}
@@ -407,11 +437,11 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
                                             href("/course/module/:id", { id: moduleLinkId.toString() }),
                                         )
                                     }
-                                    disabled={fetcher.state !== "idle"}
+                                    disabled={isLoading}
                                 >
                                     Cancel
                                 </Button>
-                                <Button type="submit" loading={fetcher.state !== "idle"}>
+                                <Button type="submit" loading={isLoading}>
                                     Save Settings
                                 </Button>
                             </Group>

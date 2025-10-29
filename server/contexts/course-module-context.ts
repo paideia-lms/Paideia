@@ -8,10 +8,32 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import { tryListAssignmentSubmissions } from "../internal/assignment-submission-management";
 import { tryFindCourseActivityModuleLinkById } from "../internal/course-activity-module-link-management";
+import { tryListDiscussionSubmissions } from "../internal/discussion-management";
 import { tryGetCourseStructure } from "../internal/course-section-management";
-import type { ActivityModule, User } from "../payload-types";
+import { tryListQuizSubmissions } from "../internal/quiz-submission-management";
+import type { ActivityModule, AssignmentSubmission, DiscussionSubmission, Enrollment, QuizSubmission, User } from "../payload-types";
 import { flattenCourseStructure } from "../utils/course-structure-utils";
+
+// Submission types with resolved relationships
+export type AssignmentSubmissionResolved = Omit<AssignmentSubmission, "courseModuleLink" | "student" | "enrollment"> & {
+	courseModuleLink: number;
+	student: User;
+	enrollment: Enrollment;
+};
+
+export type QuizSubmissionResolved = Omit<QuizSubmission, "courseModuleLink" | "student" | "enrollment"> & {
+	courseModuleLink: number;
+	student: User;
+	enrollment: Enrollment;
+};
+
+export type DiscussionSubmissionResolved = Omit<DiscussionSubmission, "courseModuleLink" | "student" | "enrollment"> & {
+	courseModuleLink: number;
+	student: User;
+	enrollment: Enrollment;
+};
 
 export type CourseModuleUser = {
 	id: number;
@@ -92,6 +114,7 @@ export type CourseModuleContext = {
 	moduleLinkSettings: CourseModuleSettingsV1 | null;
 	previousModuleLinkId: number | null;
 	nextModuleLinkId: number | null;
+	submissions: Array<AssignmentSubmissionResolved | QuizSubmissionResolved | DiscussionSubmissionResolved>;
 };
 
 export const courseModuleContext = createContext<CourseModuleContext | null>(
@@ -292,6 +315,35 @@ export const tryGetCourseModuleContext = Result.wrap(
 				? flatModuleLinkIds[currentIndex + 1]
 				: null;
 
+		// Fetch submissions based on module type
+		let submissions: Array<AssignmentSubmissionResolved | QuizSubmissionResolved | DiscussionSubmissionResolved> = [];
+
+		if (transformedModule.type === "assignment") {
+			const submissionsResult = await tryListAssignmentSubmissions(payload, {
+				courseModuleLinkId: moduleLinkId,
+				limit: 1000,
+			});
+			if (submissionsResult.ok) {
+				submissions = submissionsResult.value.docs as AssignmentSubmissionResolved[];
+			}
+		} else if (transformedModule.type === "quiz") {
+			const submissionsResult = await tryListQuizSubmissions(payload, {
+				courseModuleLinkId: moduleLinkId,
+				limit: 1000,
+			});
+			if (submissionsResult.ok) {
+				submissions = submissionsResult.value.docs as QuizSubmissionResolved[];
+			}
+		} else if (transformedModule.type === "discussion") {
+			const submissionsResult = await tryListDiscussionSubmissions(payload, {
+				courseModuleLinkId: moduleLinkId,
+				limit: 1000,
+			});
+			if (submissionsResult.ok) {
+				submissions = submissionsResult.value.docs as DiscussionSubmissionResolved[];
+			}
+		}
+
 		return {
 			module: transformedModule,
 			moduleLinkId: moduleLink.id,
@@ -300,6 +352,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 			moduleLinkSettings: (moduleLink.settings as unknown as CourseModuleSettingsV1) ?? null,
 			previousModuleLinkId,
 			nextModuleLinkId,
+			submissions,
 		} satisfies CourseModuleContext;
 	},
 	(error) =>

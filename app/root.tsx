@@ -87,6 +87,7 @@ export const middleware = [
 		let isCourseBackup = false;
 		let isCourseModule = false;
 		let isCourseModuleEdit = false;
+		let isCourseModuleSubmissions = false;
 		let isInCourseModuleLayout = false;
 		let isCourseSection = false;
 		let isCourseSectionNew = false;
@@ -130,6 +131,7 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
 			else if (route.id === "routes/course/module.$id") isCourseModule = true;
 			else if (route.id === "routes/course/module.$id.edit") isCourseModuleEdit = true;
+			else if (route.id === "routes/course/module.$id.submissions") isCourseModuleSubmissions = true;
 			else if (route.id === "layouts/course-module-layout")
 				isInCourseModuleLayout = true;
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
@@ -183,6 +185,7 @@ export const middleware = [
 				isCourseBackup,
 				isCourseModule,
 				isCourseModuleEdit,
+				isCourseModuleSubmissions,
 				isInCourseModuleLayout,
 				isCourseSection,
 				isCourseSectionNew,
@@ -236,7 +239,7 @@ export const middleware = [
 			let courseId: number = Number(id);
 
 			// in course/module/id , we need to get the module first and then get the course id
-			if (pageInfo.isCourseModule || pageInfo.isCourseModuleEdit) {
+			if (pageInfo.isInCourseModuleLayout) {
 				const { id: moduleId } =
 					params as RouteParams<"routes/course/module.$id" | "routes/course/module.$id.edit">;
 
@@ -417,13 +420,13 @@ export const middleware = [
 		// Check if user is authenticated, in a course module, and has course context
 		if (
 			userSession?.isAuthenticated &&
-			(pageInfo.isCourseModule || pageInfo.isCourseModuleEdit) &&
+			(pageInfo.isInCourseModuleLayout) &&
 			courseContext
 		) {
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
 
-			const { id: moduleId } = params as RouteParams<"routes/course/module.$id" | "routes/course/module.$id.edit">;
+			const { id: moduleId } = params as RouteParams<"layouts/course-module-layout">;
 
 			// Get module link ID from params
 			if (moduleId && !Number.isNaN(moduleId)) {

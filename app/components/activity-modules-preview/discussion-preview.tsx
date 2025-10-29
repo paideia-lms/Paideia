@@ -32,6 +32,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
+import { DiscussionActions } from "~/utils/module-actions";
 
 dayjs.extend(relativeTime);
 
@@ -498,7 +499,7 @@ export function DiscussionPreview({ discussion }: DiscussionPreviewProps) {
 			sortBy={sortBy}
 			setSortBy={setSortBy}
 			onThreadClick={(id) => setThreadId(id)}
-			onCreateThread={() => setAction("createthread")}
+			onCreateThread={() => setAction(DiscussionActions.CREATE_THREAD)}
 			action={action}
 			setAction={setAction}
 		/>
@@ -557,7 +558,7 @@ function ThreadListView({
 		}
 	});
 
-	if (action === "createthread") {
+	if (action === DiscussionActions.CREATE_THREAD) {
 		return (
 			<Paper withBorder p="xl" radius="md">
 				<Stack gap="lg">
@@ -844,7 +845,7 @@ function ThreadDetailView({
 						<Button
 							variant="light"
 							leftSection={<IconMessage size={16} />}
-							onClick={() => setAction("reply")}
+							onClick={() => setAction(DiscussionActions.REPLY)}
 						>
 							Reply
 						</Button>
@@ -854,7 +855,7 @@ function ThreadDetailView({
 				<Divider />
 
 				{/* Reply Form */}
-				{action === "reply" && (
+				{action === DiscussionActions.REPLY && (
 					<Paper withBorder p="md" radius="sm" bg="gray.0">
 						<Stack gap="md">
 							<Text size="sm" fw={500}>
@@ -895,7 +896,7 @@ function ThreadDetailView({
 								allReplies={replies}
 								onReply={(id) => {
 									setReplyTo(id);
-									setAction("reply");
+									setAction(DiscussionActions.REPLY);
 								}}
 								allowUpvotes={true}
 								level={0}

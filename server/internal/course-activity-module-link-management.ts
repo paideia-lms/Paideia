@@ -98,7 +98,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		});
 
 		const moduleType = activityModuleDoc.type;
-		const gradeableTypes = ["assignment", "quiz", "discussion"];
+		const gradeableTypes = ["assignment", "quiz", "discussion"] as const
 
 		if (gradeableTypes.includes(moduleType)) {
 			// Try to get the gradebook for this course

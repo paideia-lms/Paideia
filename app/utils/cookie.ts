@@ -79,7 +79,7 @@ export function setImpersonationCookie(
 		// ! When working on localhost, the cookie domain must be omitted entirely. You should not set it to "" or NULL or FALSE instead of "localhost". It is not enough. see https://stackoverflow.com/a/1188145
 		domain: isLocalhost ? "" : domain,
 		path: "/", // Make cookie available site-wide
-		maxAge: 60 * 60 * 24, // 24 hours
+		maxAge: 60 * 60 * 24 * 7, // 1 week
 		httpOnly: true,
 		sameSite: "Strict",
 		secure: true,

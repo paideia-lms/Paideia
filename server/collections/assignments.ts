@@ -159,13 +159,13 @@ export const Assignments = {
 			name: "requireTextSubmission",
 			type: "checkbox",
 			label: "Require Text Submission",
-			defaultValue: false,
+			defaultValue: true,
 		},
 		{
 			name: "requireFileSubmission",
 			type: "checkbox",
 			label: "Require File Submission",
-			defaultValue: false,
+			defaultValue: true,
 		},
 		{
 			name: "createdBy",

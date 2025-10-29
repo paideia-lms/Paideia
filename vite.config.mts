@@ -1,13 +1,14 @@
 import { reactRouter } from "@react-router/dev/vite";
 import { defineConfig } from "vite";
-import babel from "vite-plugin-babel";
+// import babel from "vite-plugin-babel";
 import devtoolsJson from "vite-plugin-devtools-json";
+import { envOnlyMacros } from "vite-env-only";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 // see https://react.dev/learn/react-compiler/installation#usage-with-react-router
-const ReactCompilerConfig = {
-	/* ... */
-};
+// const ReactCompilerConfig = {
+// 	/* ... */
+// };
 
 export default defineConfig({
 	plugins: [
@@ -19,6 +20,7 @@ export default defineConfig({
 		// 		plugins: [["babel-plugin-react-compiler", ReactCompilerConfig]],
 		// 	},
 		// }),
+		envOnlyMacros(),
 		tsconfigPaths(),
 		devtoolsJson(),
 	],

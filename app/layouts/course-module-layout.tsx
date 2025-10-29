@@ -5,7 +5,7 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canSeeCourseModuleSettings } from "server/utils/permissions";
+import { canSeeCourseModuleSettings, canSeeModuleSubmissions } from "server/utils/permissions";
 import {
     getStatusBadgeColor,
     getStatusLabel,
@@ -18,6 +18,7 @@ import classes from "./header-tabs.module.css";
 enum ModuleTab {
     Preview = "preview",
     Setting = "setting",
+    Submissions = "submissions",
 }
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -67,6 +68,7 @@ export default function CourseModuleLayout({
     // Determine current tab based on route matches
     const getCurrentTab = () => {
         if (pageInfo.isCourseModuleEdit) return ModuleTab.Setting;
+        if (pageInfo.isCourseModuleSubmissions) return ModuleTab.Submissions;
         if (pageInfo.isCourseModule) return ModuleTab.Preview;
 
         // Default to Preview tab
@@ -85,10 +87,18 @@ export default function CourseModuleLayout({
             case ModuleTab.Setting:
                 navigate(href("/course/module/:id/edit", { id: moduleId }));
                 break;
+            case ModuleTab.Submissions:
+                navigate(href("/course/module/:id/submissions", { id: moduleId }));
+                break;
         }
     };
 
     const canSeeSetting = canSeeCourseModuleSettings(currentUser, enrolment);
+    const canSeeSubmissions = canSeeModuleSubmissions(currentUser, enrolment);
+
+    // Check if module type supports submissions
+    const hasSubmissions = ["assignment", "quiz", "discussion"].includes(module.type);
+    const submissionTabLabel = module.type === "quiz" ? "Result" : "Submissions";
 
     return (
         <div>
@@ -121,6 +131,9 @@ export default function CourseModuleLayout({
                                 <Tabs.Tab value={ModuleTab.Preview}>{module.type.charAt(0).toUpperCase() + module.type.slice(1)}</Tabs.Tab>
                                 {canSeeSetting && (
                                     <Tabs.Tab value={ModuleTab.Setting}>Setting</Tabs.Tab>
+                                )}
+                                {hasSubmissions && canSeeSubmissions && (
+                                    <Tabs.Tab value={ModuleTab.Submissions}>{submissionTabLabel}</Tabs.Tab>
                                 )}
                             </Tabs.List>
                         </Tabs>

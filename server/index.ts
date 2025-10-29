@@ -92,6 +92,7 @@ const frontend = new Elysia()
 							isCourseBackup: false,
 							isCourseModule: false,
 							isCourseModuleEdit: false,
+							isCourseModuleSubmissions: false,
 							isInCourseModuleLayout: false,
 							isCourseSection: false,
 							isCourseSectionNew: false,

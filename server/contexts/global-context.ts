@@ -26,6 +26,7 @@ export type PageInfo = {
 	isCourseBackup: boolean;
 	isCourseModule: boolean;
 	isCourseModuleEdit: boolean;
+	isCourseModuleSubmissions: boolean;
 	isInCourseModuleLayout: boolean;
 	isCourseSection: boolean;
 	isCourseSectionNew: boolean;

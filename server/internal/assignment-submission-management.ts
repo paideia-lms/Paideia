@@ -1,5 +1,5 @@
 import type { Payload } from "payload";
-import { AssignmentSubmissions, Assignments } from "server/collections";
+import { AssignmentSubmissions } from "server/collections";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -23,17 +23,19 @@ export interface CreateAssignmentSubmissionArgs {
 		description?: string;
 	}>;
 	timeSpent?: number;
+	transactionID?: string | number;
 }
 
 export interface UpdateAssignmentSubmissionArgs {
 	id: number;
 	status?: "draft" | "submitted" | "graded" | "returned";
 	content?: string;
-	attachments?: Array<{
+	attachments?: Array<number | {
 		file: number;
 		description?: string;
 	}>;
 	timeSpent?: number;
+	transactionID?: string | number;
 }
 
 export interface GradeAssignmentSubmissionArgs {
@@ -72,6 +74,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			content,
 			attachments,
 			timeSpent,
+			transactionID,
 		} = args;
 
 		// Validate required fields
@@ -95,6 +98,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 					{ attemptNumber: { equals: attemptNumber } },
 				],
 			},
+			req: transactionID ? { transactionID } : undefined,
 		});
 
 		if (existingSubmission.docs.length > 0) {
@@ -108,6 +112,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			collection: "course-activity-module-links",
 			id: courseModuleLinkId,
 			depth: 2, // Need to get activity module and assignment
+			req: transactionID ? { transactionID } : undefined,
 		});
 
 		if (!courseModuleLink) {
@@ -125,7 +130,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 				: null;
 
 		const isLate =
-			assignment && assignment.dueDate
+			assignment?.dueDate
 				? new Date() > new Date(assignment.dueDate)
 				: false;
 
@@ -142,6 +147,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 				isLate,
 				timeSpent,
 			},
+			req: transactionID ? { transactionID } : undefined,
 		});
 
 		////////////////////////////////////////////////////
@@ -262,7 +268,7 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
  */
 export const tryUpdateAssignmentSubmission = Result.wrap(
 	async (payload: Payload, args: UpdateAssignmentSubmissionArgs) => {
-		const { id, status, content, attachments, timeSpent } = args;
+		const { id, status, content, attachments, timeSpent, transactionID } = args;
 
 		// Validate ID
 		if (!id) {
@@ -292,6 +298,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 			collection: "assignment-submissions",
 			id,
 			data: updateData,
+			req: transactionID ? { transactionID } : undefined,
 		});
 
 		////////////////////////////////////////////////////
@@ -341,7 +348,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
  * Submits an assignment (changes status from draft to submitted)
  */
 export const trySubmitAssignment = Result.wrap(
-	async (payload: Payload, submissionId: number) => {
+	async (payload: Payload, submissionId: number, transactionID?: string | number) => {
 		// Validate ID
 		if (!submissionId) {
 			throw new InvalidArgumentError("Assignment submission ID is required");
@@ -351,6 +358,7 @@ export const trySubmitAssignment = Result.wrap(
 		const currentSubmission = await payload.findByID({
 			collection: "assignment-submissions",
 			id: submissionId,
+			req: transactionID ? { transactionID } : undefined,
 		});
 
 		if (!currentSubmission) {
@@ -371,6 +379,7 @@ export const trySubmitAssignment = Result.wrap(
 				status: "submitted",
 				submittedAt: new Date().toISOString(),
 			},
+			req: transactionID ? { transactionID } : undefined,
 		});
 
 		////////////////////////////////////////////////////

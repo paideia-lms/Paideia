@@ -210,3 +210,29 @@ export function canEditUserModule(
 	// Only owned or granted modules can be edited (not readonly)
 	return moduleAccessType === "owned" || moduleAccessType === "granted";
 }
+
+export function canSeeModuleSubmissions(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+) {
+	return (
+		enrolment?.role === "teacher" ||
+		enrolment?.role === "manager" ||
+		enrolment?.role === "ta" ||
+		user?.role === "admin" ||
+		user?.role === "content-manager"
+	);
+}
+
+export function canSubmitAssignment(
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+) {
+	return enrolment?.role === "student";
+}

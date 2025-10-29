@@ -8,7 +8,6 @@ import { userContextKey } from "server/contexts/user-context";
 import { canSeeCourseGrades } from "server/utils/permissions";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
-// @ts-expect-error - types will be generated after build
 import type { Route } from "./+types/course-grades-layout";
 import classes from "./header-tabs.module.css";
 
