@@ -1,5 +1,5 @@
 {
-  "id": "94bc0539-5192-4e3d-8696-24d05bec4620",
+  "id": "ec31631a-107a-4c3e-8839-f3c5acfe03b4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -127,6 +127,14 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
+        },
+        "theme": {
+          "name": "theme",
+          "type": "enum_users_theme",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'light'"
         },
         "avatar_id": {
           "name": "avatar_id",
@@ -611,13 +619,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "order": {
-          "name": "order",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "content_order": {
           "name": "content_order",
           "type": "numeric",
@@ -713,8 +714,8 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onDelete": "CASCADE",
+          "onUpdate": "CASCADE"
         },
         "course_sections_parent_section_id_course_sections_id_fk": {
           "name": "course_sections_parent_section_id_course_sections_id_fk",
@@ -1439,16 +1440,15 @@
           "primaryKey": false,
           "notNull": true
         },
-        "require_password": {
-          "name": "require_password",
-          "type": "boolean",
+        "page_id": {
+          "name": "page_id",
+          "type": "integer",
           "primaryKey": false,
-          "notNull": false,
-          "default": false
+          "notNull": false
         },
-        "access_password": {
-          "name": "access_password",
-          "type": "varchar",
+        "whiteboard_id": {
+          "name": "whiteboard_id",
+          "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
@@ -1506,6 +1506,36 @@
           "columns": [
             {
               "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activity_modules_page_idx": {
+          "name": "activity_modules_page_idx",
+          "columns": [
+            {
+              "expression": "page_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "activity_modules_whiteboard_idx": {
+          "name": "activity_modules_whiteboard_idx",
+          "columns": [
+            {
+              "expression": "whiteboard_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1651,6 +1681,36 @@
           "method": "btree",
           "with": {}
         },
+        "page_idx": {
+          "name": "page_idx",
+          "columns": [
+            {
+              "expression": "page_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "whiteboard_idx": {
+          "name": "whiteboard_idx",
+          "columns": [
+            {
+              "expression": "whiteboard_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
         "assignment_idx": {
           "name": "assignment_idx",
           "columns": [
@@ -1717,6 +1777,32 @@
           "tableTo": "users",
           "columnsFrom": [
             "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "activity_modules_page_id_pages_id_fk": {
+          "name": "activity_modules_page_id_pages_id_fk",
+          "tableFrom": "activity_modules",
+          "tableTo": "pages",
+          "columnsFrom": [
+            "page_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "activity_modules_whiteboard_id_whiteboards_id_fk": {
+          "name": "activity_modules_whiteboard_id_whiteboards_id_fk",
+          "tableFrom": "activity_modules",
+          "tableTo": "whiteboards",
+          "columnsFrom": [
+            "whiteboard_id"
           ],
           "columnsTo": [
             "id"
@@ -1994,6 +2080,246 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.pages": {
+      "name": "pages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pages_created_by_idx": {
+          "name": "pages_created_by_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_updated_at_idx": {
+          "name": "pages_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "pages_created_at_idx": {
+          "name": "pages_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "createdBy_1_idx": {
+          "name": "createdBy_1_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "pages_created_by_id_users_id_fk": {
+          "name": "pages_created_by_id_users_id_fk",
+          "tableFrom": "pages",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.whiteboards": {
+      "name": "whiteboards",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_by_id": {
+          "name": "created_by_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(3) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "whiteboards_created_by_idx": {
+          "name": "whiteboards_created_by_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "whiteboards_updated_at_idx": {
+          "name": "whiteboards_updated_at_idx",
+          "columns": [
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "whiteboards_created_at_idx": {
+          "name": "whiteboards_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "createdBy_2_idx": {
+          "name": "createdBy_2_idx",
+          "columns": [
+            {
+              "expression": "created_by_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "whiteboards_created_by_id_users_id_fk": {
+          "name": "whiteboards_created_by_id_users_id_fk",
+          "tableFrom": "whiteboards",
+          "tableTo": "users",
+          "columnsFrom": [
+            "created_by_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.assignments_allowed_file_types": {
       "name": "assignments_allowed_file_types",
       "schema": "",
@@ -2225,8 +2551,8 @@
           "method": "btree",
           "with": {}
         },
-        "createdBy_1_idx": {
-          "name": "createdBy_1_idx",
+        "createdBy_3_idx": {
+          "name": "createdBy_3_idx",
           "columns": [
             {
               "expression": "created_by_id",
@@ -2665,16 +2991,9 @@
           "notNull": false,
           "default": false
         },
-        "require_password": {
-          "name": "require_password",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
-        "access_password": {
-          "name": "access_password",
-          "type": "varchar",
+        "raw_quiz_config": {
+          "name": "raw_quiz_config",
+          "type": "jsonb",
           "primaryKey": false,
           "notNull": false
         },
@@ -2745,8 +3064,8 @@
           "method": "btree",
           "with": {}
         },
-        "createdBy_2_idx": {
-          "name": "createdBy_2_idx",
+        "createdBy_4_idx": {
+          "name": "createdBy_4_idx",
           "columns": [
             {
               "expression": "created_by_id",
@@ -3139,8 +3458,8 @@
           "method": "btree",
           "with": {}
         },
-        "createdBy_3_idx": {
-          "name": "createdBy_3_idx",
+        "createdBy_5_idx": {
+          "name": "createdBy_5_idx",
           "columns": [
             {
               "expression": "created_by_id",
@@ -3234,19 +3553,18 @@
           "primaryKey": false,
           "notNull": true
         },
-        "order": {
-          "name": "order",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "content_order": {
           "name": "content_order",
           "type": "numeric",
           "primaryKey": false,
           "notNull": true,
           "default": 0
+        },
+        "settings": {
+          "name": "settings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -3351,8 +3669,8 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onDelete": "CASCADE",
+          "onUpdate": "CASCADE"
         },
         "course_activity_module_links_activity_module_id_activity_modules_id_fk": {
           "name": "course_activity_module_links_activity_module_id_activity_modules_id_fk",
@@ -4475,14 +4793,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "activity_module_id": {
-          "name": "activity_module_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "assignment_id": {
-          "name": "assignment_id",
+        "course_module_link_id": {
+          "name": "course_module_link_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -4555,26 +4867,11 @@
         }
       },
       "indexes": {
-        "assignment_submissions_activity_module_idx": {
-          "name": "assignment_submissions_activity_module_idx",
+        "assignment_submissions_course_module_link_idx": {
+          "name": "assignment_submissions_course_module_link_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "assignment_submissions_assignment_idx": {
-          "name": "assignment_submissions_assignment_idx",
-          "columns": [
-            {
-              "expression": "assignment_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4645,11 +4942,11 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_1_idx": {
-          "name": "activityModule_1_idx",
+        "courseModuleLink_idx": {
+          "name": "courseModuleLink_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4690,11 +4987,11 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_student_attemptNumber_idx": {
-          "name": "activityModule_student_attemptNumber_idx",
+        "courseModuleLink_student_attemptNumber_idx": {
+          "name": "courseModuleLink_student_attemptNumber_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -4749,25 +5046,12 @@
         }
       },
       "foreignKeys": {
-        "assignment_submissions_activity_module_id_activity_modules_id_fk": {
-          "name": "assignment_submissions_activity_module_id_activity_modules_id_fk",
+        "assignment_submissions_course_module_link_id_course_activity_module_links_id_fk": {
+          "name": "assignment_submissions_course_module_link_id_course_activity_module_links_id_fk",
           "tableFrom": "assignment_submissions",
-          "tableTo": "activity_modules",
+          "tableTo": "course_activity_module_links",
           "columnsFrom": [
-            "activity_module_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "assignment_submissions_assignment_id_assignments_id_fk": {
-          "name": "assignment_submissions_assignment_id_assignments_id_fk",
-          "tableFrom": "assignment_submissions",
-          "tableTo": "assignments",
-          "columnsFrom": [
-            "assignment_id"
+            "course_module_link_id"
           ],
           "columnsTo": [
             "id"
@@ -5032,14 +5316,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "activity_module_id": {
-          "name": "activity_module_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quiz_id": {
-          "name": "quiz_id",
+        "course_module_link_id": {
+          "name": "course_module_link_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -5095,6 +5373,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "max_score": {
+          "name": "max_score",
+          "type": "numeric",
+          "primaryKey": false,
+          "notNull": false
+        },
         "percentage": {
           "name": "percentage",
           "type": "numeric",
@@ -5131,26 +5415,11 @@
         }
       },
       "indexes": {
-        "quiz_submissions_activity_module_idx": {
-          "name": "quiz_submissions_activity_module_idx",
+        "quiz_submissions_course_module_link_idx": {
+          "name": "quiz_submissions_course_module_link_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "quiz_submissions_quiz_idx": {
-          "name": "quiz_submissions_quiz_idx",
-          "columns": [
-            {
-              "expression": "quiz_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5221,11 +5490,11 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_2_idx": {
-          "name": "activityModule_2_idx",
+        "courseModuleLink_1_idx": {
+          "name": "courseModuleLink_1_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5266,11 +5535,11 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_student_attemptNumber_1_idx": {
-          "name": "activityModule_student_attemptNumber_1_idx",
+        "courseModuleLink_student_attemptNumber_1_idx": {
+          "name": "courseModuleLink_student_attemptNumber_1_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5340,25 +5609,12 @@
         }
       },
       "foreignKeys": {
-        "quiz_submissions_activity_module_id_activity_modules_id_fk": {
-          "name": "quiz_submissions_activity_module_id_activity_modules_id_fk",
+        "quiz_submissions_course_module_link_id_course_activity_module_links_id_fk": {
+          "name": "quiz_submissions_course_module_link_id_course_activity_module_links_id_fk",
           "tableFrom": "quiz_submissions",
-          "tableTo": "activity_modules",
+          "tableTo": "course_activity_module_links",
           "columnsFrom": [
-            "activity_module_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "quiz_submissions_quiz_id_quizzes_id_fk": {
-          "name": "quiz_submissions_quiz_id_quizzes_id_fk",
-          "tableFrom": "quiz_submissions",
-          "tableTo": "quizzes",
-          "columnsFrom": [
-            "quiz_id"
+            "course_module_link_id"
           ],
           "columnsTo": [
             "id"
@@ -5641,14 +5897,8 @@
           "primaryKey": true,
           "notNull": true
         },
-        "activity_module_id": {
-          "name": "activity_module_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "discussion_id": {
-          "name": "discussion_id",
+        "course_module_link_id": {
+          "name": "course_module_link_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
@@ -5754,26 +6004,11 @@
         }
       },
       "indexes": {
-        "discussion_submissions_activity_module_idx": {
-          "name": "discussion_submissions_activity_module_idx",
+        "discussion_submissions_course_module_link_idx": {
+          "name": "discussion_submissions_course_module_link_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "discussion_submissions_discussion_idx": {
-          "name": "discussion_submissions_discussion_idx",
-          "columns": [
-            {
-              "expression": "discussion_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5859,26 +6094,11 @@
           "method": "btree",
           "with": {}
         },
-        "activityModule_3_idx": {
-          "name": "activityModule_3_idx",
+        "courseModuleLink_2_idx": {
+          "name": "courseModuleLink_2_idx",
           "columns": [
             {
-              "expression": "activity_module_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "discussion_1_idx": {
-          "name": "discussion_1_idx",
-          "columns": [
-            {
-              "expression": "discussion_id",
+              "expression": "course_module_link_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -6032,25 +6252,12 @@
         }
       },
       "foreignKeys": {
-        "discussion_submissions_activity_module_id_activity_modules_id_fk": {
-          "name": "discussion_submissions_activity_module_id_activity_modules_id_fk",
+        "discussion_submissions_course_module_link_id_course_activity_module_links_id_fk": {
+          "name": "discussion_submissions_course_module_link_id_course_activity_module_links_id_fk",
           "tableFrom": "discussion_submissions",
-          "tableTo": "activity_modules",
+          "tableTo": "course_activity_module_links",
           "columnsFrom": [
-            "activity_module_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "discussion_submissions_discussion_id_discussions_id_fk": {
-          "name": "discussion_submissions_discussion_id_discussions_id_fk",
-          "tableFrom": "discussion_submissions",
-          "tableTo": "discussions",
-          "columnsFrom": [
-            "discussion_id"
+            "course_module_link_id"
           ],
           "columnsTo": [
             "id"
@@ -7599,6 +7806,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "pages_id": {
+          "name": "pages_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "whiteboards_id": {
+          "name": "whiteboards_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "assignments_id": {
           "name": "assignments_id",
           "type": "integer",
@@ -7852,6 +8071,36 @@
           "columns": [
             {
               "expression": "activity_module_grants_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_pages_id_idx": {
+          "name": "payload_locked_documents_rels_pages_id_idx",
+          "columns": [
+            {
+              "expression": "pages_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "payload_locked_documents_rels_whiteboards_id_idx": {
+          "name": "payload_locked_documents_rels_whiteboards_id_idx",
+          "columns": [
+            {
+              "expression": "whiteboards_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -8221,6 +8470,32 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+        "payload_locked_documents_rels_pages_fk": {
+          "name": "payload_locked_documents_rels_pages_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "pages",
+          "columnsFrom": [
+            "pages_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "payload_locked_documents_rels_whiteboards_fk": {
+          "name": "payload_locked_documents_rels_whiteboards_fk",
+          "tableFrom": "payload_locked_documents_rels",
+          "tableTo": "whiteboards",
+          "columnsFrom": [
+            "whiteboards_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
         "payload_locked_documents_rels_assignments_fk": {
           "name": "payload_locked_documents_rels_assignments_fk",
           "tableFrom": "payload_locked_documents_rels",
@@ -8260,8 +8535,8 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "payload_locked_documents_rels_course_activity_module_links_fk": {
-          "name": "payload_locked_documents_rels_course_activity_module_links_fk",
+        "payload_locked_documents_rels_course_activity_module_link_fk": {
+          "name": "payload_locked_documents_rels_course_activity_module_link_fk",
           "tableFrom": "payload_locked_documents_rels",
           "tableTo": "course_activity_module_links",
           "columnsFrom": [
@@ -8870,6 +9145,14 @@
         "analytics-viewer",
         "instructor",
         "student"
+      ]
+    },
+    "public.enum_users_theme": {
+      "name": "enum_users_theme",
+      "schema": "public",
+      "values": [
+        "light",
+        "dark"
       ]
     },
     "public.enum_courses_status": {

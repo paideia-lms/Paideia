@@ -26,6 +26,7 @@ export interface CreateGradebookItemArgs {
 	weight?: number;
 	extraCredit?: boolean;
 	sortOrder: number;
+	transactionID?: string | number; // Optional transaction ID for nested transactions
 }
 
 export interface UpdateGradebookItemArgs {
@@ -135,7 +136,8 @@ export const tryCreateGradebookItem = Result.wrap(
 			}
 		}
 
-		const transactionID = await payload.db.beginTransaction();
+		const transactionID =
+			args.transactionID || (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
@@ -159,8 +161,10 @@ export const tryCreateGradebookItem = Result.wrap(
 				req: { ...request, transactionID },
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			// Only commit transaction if we started it (not if it was provided)
+			if (!args.transactionID) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -205,8 +209,10 @@ export const tryCreateGradebookItem = Result.wrap(
 			};
 			return result;
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Only rollback transaction if we started it (not if it was provided)
+			if (!args.transactionID) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},
@@ -317,11 +323,19 @@ export const tryFindGradebookItemById = Result.wrap(
  * Deletes a gradebook item by ID
  */
 export const tryDeleteGradebookItem = Result.wrap(
-	async (payload: Payload, request: Request, itemId: number) => {
+	async (
+		payload: Payload,
+		request: Request,
+		itemId: number,
+		transactionID?: string | number,
+	) => {
 		const deletedItem = await payload.delete({
 			collection: GradebookItems.slug,
 			id: itemId,
-			req: request,
+			req: {
+				...request,
+				transactionID,
+			},
 		});
 
 		return deletedItem as GradebookItem;

@@ -5,6 +5,12 @@ import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { InvalidArgumentError, transformError, UnknownError } from "~/utils/error";
+import { tryFindGradebookByCourseId } from "./gradebook-management";
+import {
+	tryCreateGradebookItem,
+	tryDeleteGradebookItem,
+	tryGetNextItemSortOrder,
+} from "./gradebook-item-management";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -25,6 +31,7 @@ export interface SearchCourseActivityModuleLinksArgs {
 
 /**
  * Creates a new course-activity-module-link using Payload local API
+ * and automatically creates a gradebook item if the module is gradeable
  */
 export const tryCreateCourseActivityModuleLink = Result.wrap(
 	async (
@@ -75,6 +82,71 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				id: z.number(),
 			}),
 		);
+
+		////////////////////////////////////////////////////
+		// Create gradebook item for gradeable modules
+		////////////////////////////////////////////////////
+
+		// Get the full activity module to check its type
+		const activityModuleDoc = await payload.findByID({
+			collection: "activity-modules",
+			id: activityModule,
+			req: {
+				...request,
+				transactionID,
+			},
+		});
+
+		const moduleType = activityModuleDoc.type;
+		const gradeableTypes = ["assignment", "quiz", "discussion"];
+
+		if (gradeableTypes.includes(moduleType)) {
+			// Try to get the gradebook for this course
+			const gradebookResult = await tryFindGradebookByCourseId(payload, course);
+
+			if (gradebookResult.ok) {
+				const gradebook = gradebookResult.value;
+
+				// Get the next sort order for items without a category
+				const nextSortOrderResult = await tryGetNextItemSortOrder(
+					payload,
+					gradebook.id,
+					null,
+				);
+
+				const sortOrder = nextSortOrderResult.ok
+					? nextSortOrderResult.value
+					: 0;
+
+				// Create the gradebook item
+				const createItemResult = await tryCreateGradebookItem(
+					payload,
+					request,
+					{
+						gradebookId: gradebook.id,
+						categoryId: null,
+						name: activityModuleDoc.title || "Untitled Activity",
+						description: activityModuleDoc.description || undefined,
+						activityModuleId: newLink.id,
+						maxGrade: 100, // Default max grade
+						minGrade: 0,
+						weight: 0, // Default weight
+						extraCredit: false,
+						sortOrder,
+						transactionID,
+					},
+				);
+
+				// If gradebook item creation fails, we should still return the link
+				// but log the error (the transaction will handle rollback if needed)
+				if (!createItemResult.ok) {
+					console.error(
+						"Failed to create gradebook item for activity module link:",
+						createItemResult.error,
+					);
+				}
+			}
+		}
 
 		return {
 			...newLink,
@@ -266,13 +338,50 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 
 /**
  * Deletes a course-activity-module-link by ID
+ * and automatically deletes any associated gradebook items
  */
 export const tryDeleteCourseActivityModuleLink = Result.wrap(
-	async (payload: Payload, request: Request, linkId: number) => {
+	async (
+		payload: Payload,
+		request: Request,
+		linkId: number,
+		transactionID?: string | number,
+	) => {
+		////////////////////////////////////////////////////
+		// Delete associated gradebook items
+		////////////////////////////////////////////////////
+
+		// Find any gradebook items linked to this activity module link
+		const gradebookItems = await payload.find({
+			collection: "gradebook-items",
+			where: {
+				activityModule: {
+					equals: linkId,
+				},
+			},
+			pagination: false,
+			req: {
+				...request,
+				transactionID,
+			},
+		});
+
+
+		for (const item of gradebookItems.docs) {
+			await tryDeleteGradebookItem(payload, request, item.id, transactionID);
+		}
+
+		////////////////////////////////////////////////////
+		// Delete the link
+		////////////////////////////////////////////////////
+
 		const deletedLink = await payload.delete({
 			collection: CourseActivityModuleLinks.slug,
 			id: linkId,
-			req: request,
+			req: {
+				...request,
+				transactionID,
+			},
 		});
 
 		return deletedLink;

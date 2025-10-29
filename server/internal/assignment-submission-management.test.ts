@@ -272,8 +272,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 	test("should create assignment submission (student workflow)", async () => {
 		const args: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 1,
@@ -289,9 +288,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		const submission = result.value;
 
-		// Verify submission
-		expect(submission.activityModule.id).toBe(activityModuleId);
-		expect(submission.assignment.id).toBe(assignmentId);
+		// Verify submission (activityModule and assignment are now virtual fields accessed through courseModuleLink)
+		expect(submission.courseModuleLink.id).toBe(courseActivityModuleLinkId);
 		expect(submission.student.id).toBe(studentId);
 		expect(submission.enrollment.id).toBe(enrollmentId);
 		expect(submission.attemptNumber).toBe(1);
@@ -306,8 +304,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should update assignment submission (student editing draft)", async () => {
 		// First create a submission
 		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 2,
@@ -346,8 +343,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should submit assignment (student submits for grading)", async () => {
 		// First create a submission
 		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 3,
@@ -379,8 +375,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should grade assignment submission (teacher grades student work)", async () => {
 		// First create and submit an assignment
 		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 4,
@@ -437,8 +432,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should get assignment submission by ID", async () => {
 		// First create a submission
 		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 6,
@@ -464,8 +458,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		const retrievedSubmission = getResult.value;
 		expect(retrievedSubmission.id).toBe(submissionId);
-		expect(retrievedSubmission.activityModule.id).toBe(activityModuleId);
-		expect(retrievedSubmission.assignment.id).toBe(assignmentId);
+		expect(retrievedSubmission.courseModuleLink.id).toBe(courseActivityModuleLinkId);
+		// activityModule and assignment are virtual fields, resolved as strings
 		expect(retrievedSubmission.student.id).toBe(studentId);
 		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
 		expect(retrievedSubmission.content).toBe("Submission for get by ID test");
@@ -474,7 +468,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should list assignment submissions with filtering", async () => {
 		// List all submissions for this activity module
 		const listResult = await tryListAssignmentSubmissions(payload, {
-			activityModuleId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -484,9 +478,9 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		expect(submissions.docs.length).toBeGreaterThan(0);
 		expect(submissions.totalDocs).toBeGreaterThan(0);
 
-		// All submissions should be for the same activity module
+		// All submissions should be for the same course module link
 		submissions.docs.forEach((submission) => {
-			expect(submission.activityModule.id).toBe(activityModuleId);
+			expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
 		});
 
 		// Test filtering by student
@@ -519,8 +513,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should handle late submissions", async () => {
 		// Create a submission after the due date (simulate late submission)
 		const lateArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 7,
@@ -541,8 +534,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 	test("should prevent duplicate submissions for same attempt", async () => {
 		const args: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 8,
@@ -561,8 +553,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should validate grade limits", async () => {
 		// Create and submit an assignment
 		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 9,
@@ -619,8 +610,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should only allow grading of submitted assignments", async () => {
 		// Create a draft submission
 		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 10,
@@ -656,8 +646,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	test("should delete assignment submission", async () => {
 		// Create a submission
 		const createArgs: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 11,
@@ -691,8 +680,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		// Create multiple submissions for pagination testing
 		for (let i = 0; i < 5; i++) {
 			const createArgs: CreateAssignmentSubmissionArgs = {
-				activityModuleId,
-				assignmentId,
+				courseModuleLinkId: courseActivityModuleLinkId,
 				studentId,
 				enrollmentId,
 				attemptNumber: 20 + i,
@@ -708,7 +696,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Test pagination
 		const page1Result = await tryListAssignmentSubmissions(payload, {
-			activityModuleId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			limit: 2,
 			page: 1,
 		});
@@ -724,10 +712,9 @@ describe("Assignment Submission Management - Full Workflow", () => {
 	});
 
 	test("should fail with invalid arguments", async () => {
-		// Test missing activity module ID
+		// Test missing course module link ID
 		const invalidArgs1: CreateAssignmentSubmissionArgs = {
-			activityModuleId: undefined as never,
-			assignmentId,
+			courseModuleLinkId: undefined as never,
 			studentId,
 			enrollmentId,
 		};
@@ -737,8 +724,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Test missing student ID
 		const invalidArgs2: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId: undefined as never,
 			enrollmentId,
 		};
@@ -748,8 +734,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Test missing enrollment ID
 		const invalidArgs3: CreateAssignmentSubmissionArgs = {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId: undefined as never,
 		};

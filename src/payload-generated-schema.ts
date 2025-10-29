@@ -1250,14 +1250,9 @@ export const assignment_submissions = pgTable(
   "assignment_submissions",
   {
     id: serial("id").primaryKey(),
-    activityModule: integer("activity_module_id")
+    courseModuleLink: integer("course_module_link_id")
       .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    assignment: integer("assignment_id")
-      .notNull()
-      .references(() => assignments.id, {
+      .references(() => course_activity_module_links.id, {
         onDelete: "set null",
       }),
     student: integer("student_id")
@@ -1300,19 +1295,18 @@ export const assignment_submissions = pgTable(
       .notNull(),
   },
   (columns) => [
-    index("assignment_submissions_activity_module_idx").on(
-      columns.activityModule,
+    index("assignment_submissions_course_module_link_idx").on(
+      columns.courseModuleLink,
     ),
-    index("assignment_submissions_assignment_idx").on(columns.assignment),
     index("assignment_submissions_student_idx").on(columns.student),
     index("assignment_submissions_enrollment_idx").on(columns.enrollment),
     index("assignment_submissions_updated_at_idx").on(columns.updatedAt),
     index("assignment_submissions_created_at_idx").on(columns.createdAt),
-    index("activityModule_1_idx").on(columns.activityModule),
+    index("courseModuleLink_idx").on(columns.courseModuleLink),
     index("student_idx").on(columns.student),
     index("enrollment_idx").on(columns.enrollment),
-    uniqueIndex("activityModule_student_attemptNumber_idx").on(
-      columns.activityModule,
+    uniqueIndex("courseModuleLink_student_attemptNumber_idx").on(
+      columns.courseModuleLink,
       columns.student,
       columns.attemptNumber,
     ),
@@ -1376,14 +1370,9 @@ export const quiz_submissions = pgTable(
   "quiz_submissions",
   {
     id: serial("id").primaryKey(),
-    activityModule: integer("activity_module_id")
+    courseModuleLink: integer("course_module_link_id")
       .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    quiz: integer("quiz_id")
-      .notNull()
-      .references(() => quizzes.id, {
+      .references(() => course_activity_module_links.id, {
         onDelete: "set null",
       }),
     student: integer("student_id")
@@ -1414,6 +1403,7 @@ export const quiz_submissions = pgTable(
     }),
     timeSpent: numeric("time_spent", { mode: "number" }),
     totalScore: numeric("total_score", { mode: "number" }),
+    maxScore: numeric("max_score", { mode: "number" }),
     percentage: numeric("percentage", { mode: "number" }),
     isLate: boolean("is_late").default(false),
     autoGraded: boolean("auto_graded").default(false),
@@ -1433,17 +1423,18 @@ export const quiz_submissions = pgTable(
       .notNull(),
   },
   (columns) => [
-    index("quiz_submissions_activity_module_idx").on(columns.activityModule),
-    index("quiz_submissions_quiz_idx").on(columns.quiz),
+    index("quiz_submissions_course_module_link_idx").on(
+      columns.courseModuleLink,
+    ),
     index("quiz_submissions_student_idx").on(columns.student),
     index("quiz_submissions_enrollment_idx").on(columns.enrollment),
     index("quiz_submissions_updated_at_idx").on(columns.updatedAt),
     index("quiz_submissions_created_at_idx").on(columns.createdAt),
-    index("activityModule_2_idx").on(columns.activityModule),
+    index("courseModuleLink_1_idx").on(columns.courseModuleLink),
     index("student_1_idx").on(columns.student),
     index("enrollment_1_idx").on(columns.enrollment),
-    uniqueIndex("activityModule_student_attemptNumber_1_idx").on(
-      columns.activityModule,
+    uniqueIndex("courseModuleLink_student_attemptNumber_1_idx").on(
+      columns.courseModuleLink,
       columns.student,
       columns.attemptNumber,
     ),
@@ -1513,14 +1504,9 @@ export const discussion_submissions = pgTable(
   "discussion_submissions",
   {
     id: serial("id").primaryKey(),
-    activityModule: integer("activity_module_id")
+    courseModuleLink: integer("course_module_link_id")
       .notNull()
-      .references(() => activity_modules.id, {
-        onDelete: "set null",
-      }),
-    discussion: integer("discussion_id")
-      .notNull()
-      .references(() => discussions.id, {
+      .references(() => course_activity_module_links.id, {
         onDelete: "set null",
       }),
     student: integer("student_id")
@@ -1581,17 +1567,15 @@ export const discussion_submissions = pgTable(
       .notNull(),
   },
   (columns) => [
-    index("discussion_submissions_activity_module_idx").on(
-      columns.activityModule,
+    index("discussion_submissions_course_module_link_idx").on(
+      columns.courseModuleLink,
     ),
-    index("discussion_submissions_discussion_idx").on(columns.discussion),
     index("discussion_submissions_student_idx").on(columns.student),
     index("discussion_submissions_enrollment_idx").on(columns.enrollment),
     index("discussion_submissions_parent_thread_idx").on(columns.parentThread),
     index("discussion_submissions_updated_at_idx").on(columns.updatedAt),
     index("discussion_submissions_created_at_idx").on(columns.createdAt),
-    index("activityModule_3_idx").on(columns.activityModule),
-    index("discussion_1_idx").on(columns.discussion),
+    index("courseModuleLink_2_idx").on(columns.courseModuleLink),
     index("student_2_idx").on(columns.student),
     index("enrollment_2_idx").on(columns.enrollment),
     index("parentThread_idx").on(columns.parentThread),
@@ -2703,15 +2687,10 @@ export const relations_assignment_submissions_attachments = relations(
 export const relations_assignment_submissions = relations(
   assignment_submissions,
   ({ one, many }) => ({
-    activityModule: one(activity_modules, {
-      fields: [assignment_submissions.activityModule],
-      references: [activity_modules.id],
-      relationName: "activityModule",
-    }),
-    assignment: one(assignments, {
-      fields: [assignment_submissions.assignment],
-      references: [assignments.id],
-      relationName: "assignment",
+    courseModuleLink: one(course_activity_module_links, {
+      fields: [assignment_submissions.courseModuleLink],
+      references: [course_activity_module_links.id],
+      relationName: "courseModuleLink",
     }),
     student: one(users, {
       fields: [assignment_submissions.student],
@@ -2755,15 +2734,10 @@ export const relations_quiz_submissions_answers = relations(
 export const relations_quiz_submissions = relations(
   quiz_submissions,
   ({ one, many }) => ({
-    activityModule: one(activity_modules, {
-      fields: [quiz_submissions.activityModule],
-      references: [activity_modules.id],
-      relationName: "activityModule",
-    }),
-    quiz: one(quizzes, {
-      fields: [quiz_submissions.quiz],
-      references: [quizzes.id],
-      relationName: "quiz",
+    courseModuleLink: one(course_activity_module_links, {
+      fields: [quiz_submissions.courseModuleLink],
+      references: [course_activity_module_links.id],
+      relationName: "courseModuleLink",
     }),
     student: one(users, {
       fields: [quiz_submissions.student],
@@ -2813,15 +2787,10 @@ export const relations_discussion_submissions_upvotes = relations(
 export const relations_discussion_submissions = relations(
   discussion_submissions,
   ({ one, many }) => ({
-    activityModule: one(activity_modules, {
-      fields: [discussion_submissions.activityModule],
-      references: [activity_modules.id],
-      relationName: "activityModule",
-    }),
-    discussion: one(discussions, {
-      fields: [discussion_submissions.discussion],
-      references: [discussions.id],
-      relationName: "discussion",
+    courseModuleLink: one(course_activity_module_links, {
+      fields: [discussion_submissions.courseModuleLink],
+      references: [course_activity_module_links.id],
+      relationName: "courseModuleLink",
     }),
     student: one(users, {
       fields: [discussion_submissions.student],

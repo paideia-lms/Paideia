@@ -34,13 +34,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-		| "manual_item"
-		| "category"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "category"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
@@ -426,7 +426,6 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 						type,
 						z
 							.enum(["page", "whiteboard", "assignment", "quiz", "discussion"])
-							.array()
 							.nullish(),
 					);
 
@@ -480,7 +479,7 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 
 			const gradeItems: GradebookSetupItem[] = categoryItems.map((item) => ({
 				id: item.id,
-				type: item.activityModuleType ?? "manual_item",
+				type: (item.activityModuleType ?? "manual_item") as "manual_item" | "category" | "page" | "whiteboard" | "assignment" | "quiz" | "discussion",
 				name: item.activityModuleName ?? item.name,
 				weight: item.weight || null,
 				max_grade: item.maxGrade || null,

@@ -114,11 +114,13 @@ export interface Config {
       courses: 'courses';
     };
     'activity-modules': {
-      submissions: 'assignment-submissions';
-      quizSubmissions: 'quiz-submissions';
-      discussionSubmissions: 'discussion-submissions';
       grants: 'activity-module-grants';
       linkedCourses: 'course-activity-module-links';
+    };
+    'course-activity-module-links': {
+      assignmentSubmissions: 'assignment-submissions';
+      quizSubmissions: 'quiz-submissions';
+      discussionSubmissions: 'discussion-submissions';
     };
     gradebooks: {
       categories: 'gradebook-categories';
@@ -469,6 +471,21 @@ export interface CourseActivityModuleLink {
     | number
     | boolean
     | null;
+  assignmentSubmissions?: {
+    docs?: (number | AssignmentSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  quizSubmissions?: {
+    docs?: (number | QuizSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
+  discussionSubmissions?: {
+    docs?: (number | DiscussionSubmission)[];
+    hasNextPage?: boolean;
+    totalDocs?: number;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -492,21 +509,6 @@ export interface ActivityModule {
   assignment?: (number | null) | Assignment;
   quiz?: (number | null) | Quiz;
   discussion?: (number | null) | Discussion;
-  submissions?: {
-    docs?: (number | AssignmentSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  quizSubmissions?: {
-    docs?: (number | QuizSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
-  discussionSubmissions?: {
-    docs?: (number | DiscussionSubmission)[];
-    hasNextPage?: boolean;
-    totalDocs?: number;
-  };
   grants?: {
     docs?: (number | ActivityModuleGrant)[];
     hasNextPage?: boolean;
@@ -674,9 +676,13 @@ export interface Discussion {
  */
 export interface DiscussionSubmission {
   id: number;
-  activityModule: number | ActivityModule;
-  discussion: number | Discussion;
+  courseModuleLink: number | CourseActivityModuleLink;
+  activityModule?: string | null;
+  activityModuleTitle?: string | null;
+  discussion?: string | null;
   discussionTitle?: string | null;
+  section?: string | null;
+  sectionTitle?: string | null;
   student: number | User;
   studentEmail?: string | null;
   studentName?: string | null;
@@ -718,13 +724,30 @@ export interface DiscussionSubmission {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "activity-module-grants".
+ */
+export interface ActivityModuleGrant {
+  id: number;
+  activityModule: number | ActivityModule;
+  grantedTo: number | User;
+  grantedBy: number | User;
+  grantedAt: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "assignment-submissions".
  */
 export interface AssignmentSubmission {
   id: number;
-  activityModule: number | ActivityModule;
-  assignment: number | Assignment;
+  courseModuleLink: number | CourseActivityModuleLink;
+  activityModule?: string | null;
+  activityModuleTitle?: string | null;
+  assignment?: string | null;
   assignmentTitle?: string | null;
+  section?: string | null;
+  sectionTitle?: string | null;
   student: number | User;
   studentEmail?: string | null;
   studentName?: string | null;
@@ -753,9 +776,13 @@ export interface AssignmentSubmission {
  */
 export interface QuizSubmission {
   id: number;
-  activityModule: number | ActivityModule;
-  quiz: number | Quiz;
+  courseModuleLink: number | CourseActivityModuleLink;
+  activityModule?: string | null;
+  activityModuleTitle?: string | null;
+  quiz?: string | null;
   quizTitle?: string | null;
+  section?: string | null;
+  sectionTitle?: string | null;
   student: number | User;
   studentEmail?: string | null;
   studentName?: string | null;
@@ -793,19 +820,6 @@ export interface QuizSubmission {
   percentage?: number | null;
   isLate?: boolean | null;
   autoGraded?: boolean | null;
-  updatedAt: string;
-  createdAt: string;
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "activity-module-grants".
- */
-export interface ActivityModuleGrant {
-  id: number;
-  activityModule: number | ActivityModule;
-  grantedTo: number | User;
-  grantedBy: number | User;
-  grantedAt: string;
   updatedAt: string;
   createdAt: string;
 }
@@ -1277,9 +1291,6 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   assignment?: T;
   quiz?: T;
   discussion?: T;
-  submissions?: T;
-  quizSubmissions?: T;
-  discussionSubmissions?: T;
   grants?: T;
   linkedCourses?: T;
   updatedAt?: T;
@@ -1440,6 +1451,9 @@ export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
   sectionTitle?: T;
   contentOrder?: T;
   settings?: T;
+  assignmentSubmissions?: T;
+  quizSubmissions?: T;
+  discussionSubmissions?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1562,9 +1576,13 @@ export interface GradebookItemsSelect<T extends boolean = true> {
  * via the `definition` "assignment-submissions_select".
  */
 export interface AssignmentSubmissionsSelect<T extends boolean = true> {
+  courseModuleLink?: T;
   activityModule?: T;
+  activityModuleTitle?: T;
   assignment?: T;
   assignmentTitle?: T;
+  section?: T;
+  sectionTitle?: T;
   student?: T;
   studentEmail?: T;
   studentName?: T;
@@ -1592,9 +1610,13 @@ export interface AssignmentSubmissionsSelect<T extends boolean = true> {
  * via the `definition` "quiz-submissions_select".
  */
 export interface QuizSubmissionsSelect<T extends boolean = true> {
+  courseModuleLink?: T;
   activityModule?: T;
+  activityModuleTitle?: T;
   quiz?: T;
   quizTitle?: T;
+  section?: T;
+  sectionTitle?: T;
   student?: T;
   studentEmail?: T;
   studentName?: T;
@@ -1640,9 +1662,13 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
  * via the `definition` "discussion-submissions_select".
  */
 export interface DiscussionSubmissionsSelect<T extends boolean = true> {
+  courseModuleLink?: T;
   activityModule?: T;
+  activityModuleTitle?: T;
   discussion?: T;
   discussionTitle?: T;
+  section?: T;
+  sectionTitle?: T;
   student?: T;
   studentEmail?: T;
   studentName?: T;

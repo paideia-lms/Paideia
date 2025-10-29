@@ -31,7 +31,7 @@ we only use mantine form uncontrolled mode for all forms. never use `cascadeUpda
 
 ## contexts 
 
-react router context should import types from payload types. It should create types for itself to provide type stability for the frontend.
+react router context should **not** import types from payload types. It should create types for itself to provide type stability for the frontend.
 
 ## testing 
 

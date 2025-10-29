@@ -273,8 +273,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 	test("should create a thread (student workflow)", async () => {
 		const args: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -291,8 +290,7 @@ describe("Discussion Management - Full Workflow", () => {
 		const submission = result.value;
 
 		// Verify submission
-		expect(submission.activityModule.id).toBe(activityModuleId);
-		expect(submission.discussion.id).toBe(discussionId);
+		expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
 		expect(submission.student.id).toBe(studentId);
 		expect(submission.enrollment.id).toBe(enrollmentId);
 		expect(submission.postType).toBe("thread");
@@ -308,8 +306,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should create a reply to a thread", async () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -328,8 +325,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a reply to the thread
 		const replyArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "reply",
@@ -357,8 +353,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should create a comment on a thread", async () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -377,8 +372,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a comment on the thread
 		const commentArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "comment",
@@ -403,8 +397,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should update a discussion submission", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -445,8 +438,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should get a discussion submission by ID", async () => {
 		// First create a submission
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -477,8 +469,7 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(retrievedSubmission.content).toBe(
 			"This is a test thread for retrieval.",
 		);
-		expect(retrievedSubmission.activityModule.id).toBe(activityModuleId);
-		expect(retrievedSubmission.discussion.id).toBe(discussionId);
+		expect(retrievedSubmission.courseModuleLink).toBe(courseActivityModuleLinkId);
 		expect(retrievedSubmission.student.id).toBe(studentId);
 		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
 	});
@@ -486,8 +477,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should get a thread with all replies and comments", async () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -506,8 +496,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create replies to the thread
 		const reply1Args: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "reply",
@@ -522,8 +511,7 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(reply1Result.ok).toBe(true);
 
 		const reply2Args: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "reply",
@@ -539,8 +527,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create comments on the thread
 		const comment1Args: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "comment",
@@ -588,8 +575,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should upvote a discussion submission", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -626,8 +612,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should remove upvote from a discussion submission", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -669,8 +654,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should list discussion submissions with filtering", async () => {
 		// Create multiple submissions for testing
 		const threadArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -689,8 +673,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a reply
 		const replyArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "reply",
@@ -701,9 +684,9 @@ describe("Discussion Management - Full Workflow", () => {
 		const replyResult = await tryCreateDiscussionSubmission(payload, replyArgs);
 		expect(replyResult.ok).toBe(true);
 
-		// List all submissions for this activity module
+		// List all submissions for this course module link
 		const listResult = await tryListDiscussionSubmissions(payload, {
-			activityModuleId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -713,9 +696,9 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(submissions.docs.length).toBeGreaterThan(0);
 		expect(submissions.totalDocs).toBeGreaterThan(0);
 
-		// All submissions should be for the same activity module
+		// All submissions should be for the same course module link
 		submissions.docs.forEach((submission) => {
-			expect(submission.activityModule.id).toBe(activityModuleId);
+			expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
 		});
 
 		// Test filtering by post type
@@ -769,8 +752,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -861,8 +843,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create multiple submissions and grade them
 		const threadArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -899,8 +880,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create and grade a reply
 		const replyArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "reply",
@@ -934,8 +914,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create and grade a comment
 		const commentArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "comment",
@@ -973,7 +952,7 @@ describe("Discussion Management - Full Workflow", () => {
 		// Calculate the overall discussion grade
 		const result = await calculateDiscussionGrade(
 			payload,
-			discussionId,
+			courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 		);
@@ -1022,8 +1001,7 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create multiple submissions for pagination testing
 		for (let i = 0; i < 5; i++) {
 			const createArgs: CreateDiscussionSubmissionArgs = {
-				activityModuleId,
-				discussionId,
+				courseModuleLinkId: courseActivityModuleLinkId,
 				studentId,
 				enrollmentId,
 				postType: "thread",
@@ -1040,7 +1018,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Test pagination
 		const page1Result = await tryListDiscussionSubmissions(payload, {
-			activityModuleId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			limit: 2,
 			page: 1,
 		});
@@ -1056,10 +1034,9 @@ describe("Discussion Management - Full Workflow", () => {
 	});
 
 	test("should fail with invalid arguments", async () => {
-		// Test missing activity module ID
+		// Test missing course module link ID
 		const invalidArgs1: CreateDiscussionSubmissionArgs = {
-			activityModuleId: undefined as never,
-			discussionId,
+			courseModuleLinkId: undefined as never,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -1072,8 +1049,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Test missing content
 		const invalidArgs2: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -1086,8 +1062,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Test missing title for thread
 		const invalidArgs3: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -1099,8 +1074,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Test missing parent thread for reply
 		const invalidArgs4: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "reply",
@@ -1131,8 +1105,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail to upvote same submission twice", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -1167,8 +1140,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail to remove upvote from submission that wasn't upvoted", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
@@ -1197,8 +1169,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should delete discussion submission", async () => {
 		// Create a submission
 		const createArgs: CreateDiscussionSubmissionArgs = {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",

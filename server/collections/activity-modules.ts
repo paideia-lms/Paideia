@@ -133,31 +133,9 @@ export const ActivityModules = {
 			relationTo: "discussions",
 			label: "Discussion Configuration",
 		},
-		// Join fields for submissions
-		{
-			name: "submissions",
-			type: "join",
-			on: "activityModule",
-			collection: "assignment-submissions",
-			label: "Assignment Submissions",
-			hasMany: true,
-		},
-		{
-			name: "quizSubmissions",
-			type: "join",
-			on: "activityModule",
-			collection: "quiz-submissions",
-			label: "Quiz Submissions",
-			hasMany: true,
-		},
-		{
-			name: "discussionSubmissions",
-			type: "join",
-			on: "activityModule",
-			collection: "discussion-submissions",
-			label: "Discussion Submissions",
-			hasMany: true,
-		},
+		// NOTE: Join fields for submissions have been removed because submissions
+		// now link to course-activity-module-links instead of activity-modules.
+		// To access submissions, traverse through course-activity-module-links.
 		{
 			name: "grants",
 			type: "join",

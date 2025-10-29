@@ -14,8 +14,7 @@ import {
 import { tryCreateUserGrade } from "./user-grade-management";
 
 export interface CreateDiscussionSubmissionArgs {
-	activityModuleId: number;
-	discussionId: number;
+	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
 	postType: "thread" | "reply" | "comment";
@@ -48,8 +47,7 @@ export interface GetDiscussionSubmissionByIdArgs {
 }
 
 export interface ListDiscussionSubmissionsArgs {
-	activityModuleId?: number;
-	discussionId?: number;
+	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
 	postType?: "thread" | "reply" | "comment";
@@ -99,8 +97,7 @@ export interface DiscussionGradingResult {
 export const tryCreateDiscussionSubmission = Result.wrap(
 	async (payload: Payload, args: CreateDiscussionSubmissionArgs) => {
 		const {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType,
@@ -110,11 +107,8 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 		} = args;
 
 		// Validate required fields
-		if (!activityModuleId) {
-			throw new InvalidArgumentError("Activity module ID is required");
-		}
-		if (!discussionId) {
-			throw new InvalidArgumentError("Discussion ID is required");
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
 		}
 		if (!studentId) {
 			throw new InvalidArgumentError("Student ID is required");
@@ -139,21 +133,20 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 			);
 		}
 
-		// Get discussion to check due date and calculate if late
-		const discussion = await payload.findByID({
-			collection: "discussions",
-			id: discussionId,
+		// Get course module link to verify it exists
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
 		});
 
-		if (!discussion) {
-			throw new InvalidArgumentError("Discussion not found");
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
 		}
 
 		const submission = await payload.create({
 			collection: "discussion-submissions",
 			data: {
-				activityModule: activityModuleId,
-				discussion: discussionId,
+				courseModuleLink: courseModuleLinkId,
 				student: studentId,
 				enrollment: enrollmentId,
 				postType,
@@ -180,19 +173,10 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = submission.activityModule;
+		const courseModuleLinkRef = submission.courseModuleLink;
 		assertZodInternal(
-			"tryCreateDiscussionSubmission: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const discussionRef = submission.discussion;
-		assertZodInternal(
-			"tryCreateDiscussionSubmission: Discussion is required",
-			discussionRef,
+			"tryCreateDiscussionSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -218,8 +202,7 @@ export const tryCreateDiscussionSubmission = Result.wrap(
 
 		return {
 			...submission,
-			activityModule,
-			discussion: discussionRef,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -274,19 +257,10 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = updatedSubmission.activityModule;
+		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 		assertZodInternal(
-			"tryUpdateDiscussionSubmission: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const discussion = updatedSubmission.discussion;
-		assertZodInternal(
-			"tryUpdateDiscussionSubmission: Discussion is required",
-			discussion,
+			"tryUpdateDiscussionSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -312,8 +286,7 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
 
 		return {
 			...updatedSubmission,
-			activityModule,
-			discussion,
+			courseModuleLink: courseModuleLinkRef,
 			student,
 			enrollment,
 		};
@@ -362,19 +335,10 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = submission.activityModule;
+		const courseModuleLinkRef = submission.courseModuleLink;
 		assertZodInternal(
-			"tryGetDiscussionSubmissionById: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const discussion = submission.discussion;
-		assertZodInternal(
-			"tryGetDiscussionSubmissionById: Discussion is required",
-			discussion,
+			"tryGetDiscussionSubmissionById: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -400,8 +364,7 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
 
 		return {
 			...submission,
-			activityModule,
-			discussion,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -482,15 +445,8 @@ export const tryGetThreadWithReplies = Result.wrap(
 		// Process replies and comments with type narrowing
 		const replies = repliesResult.docs.map((reply) => {
 			assertZodInternal(
-				"tryGetThreadWithReplies: Activity module is required",
-				reply.activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryGetThreadWithReplies: Discussion is required",
-				reply.discussion,
+				"tryGetThreadWithReplies: Course module link is required",
+				reply.courseModuleLink,
 				z.object({
 					id: z.number(),
 				}),
@@ -512,8 +468,7 @@ export const tryGetThreadWithReplies = Result.wrap(
 
 			return {
 				...reply,
-				activityModule: reply.activityModule,
-				discussion: reply.discussion,
+				courseModuleLink: reply.courseModuleLink.id,
 				student: reply.student,
 				enrollment: reply.enrollment,
 			};
@@ -521,15 +476,8 @@ export const tryGetThreadWithReplies = Result.wrap(
 
 		const processedComments = comments.map((comment) => {
 			assertZodInternal(
-				"tryGetThreadWithReplies: Activity module is required",
-				comment.activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryGetThreadWithReplies: Discussion is required",
-				comment.discussion,
+				"tryGetThreadWithReplies: Course module link is required",
+				comment.courseModuleLink,
 				z.object({
 					id: z.number(),
 				}),
@@ -551,8 +499,7 @@ export const tryGetThreadWithReplies = Result.wrap(
 
 			return {
 				...comment,
-				activityModule: comment.activityModule,
-				discussion: comment.discussion,
+				courseModuleLink: comment.courseModuleLink.id,
 				student: comment.student,
 				enrollment: comment.enrollment,
 			};
@@ -637,19 +584,10 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = updatedSubmission.activityModule;
+		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 		assertZodInternal(
-			"tryUpvoteDiscussionSubmission: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const discussion = updatedSubmission.discussion;
-		assertZodInternal(
-			"tryUpvoteDiscussionSubmission: Discussion is required",
-			discussion,
+			"tryUpvoteDiscussionSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -675,8 +613,7 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 
 		return {
 			...updatedSubmission,
-			activityModule,
-			discussion,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -740,19 +677,10 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = updatedSubmission.activityModule;
+		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 		assertZodInternal(
-			"tryRemoveUpvoteDiscussionSubmission: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const discussion = updatedSubmission.discussion;
-		assertZodInternal(
-			"tryRemoveUpvoteDiscussionSubmission: Discussion is required",
-			discussion,
+			"tryRemoveUpvoteDiscussionSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -778,8 +706,7 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 
 		return {
 			...updatedSubmission,
-			activityModule,
-			discussion,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -797,25 +724,21 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 export const tryListDiscussionSubmissions = Result.wrap(
 	async (payload: Payload, args: ListDiscussionSubmissionsArgs = {}) => {
 		const {
-			activityModuleId,
-			discussionId,
+			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType,
 			parentThread,
-			status,
+			status = "published",
+			sortBy = "recent",
 			limit = 10,
 			page = 1,
-			sortBy = "recent",
 		} = args;
 
 		const where: Record<string, { equals: unknown }> = {};
 
-		if (activityModuleId) {
-			where.activityModule = { equals: activityModuleId };
-		}
-		if (discussionId) {
-			where.discussion = { equals: discussionId };
+		if (courseModuleLinkId) {
+			where.courseModuleLink = { equals: courseModuleLinkId };
 		}
 		if (studentId) {
 			where.student = { equals: studentId };
@@ -863,15 +786,8 @@ export const tryListDiscussionSubmissions = Result.wrap(
 		// type narrowing
 		const docs = result.docs.map((doc) => {
 			assertZodInternal(
-				"tryListDiscussionSubmissions: Activity module is required",
-				doc.activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListDiscussionSubmissions: Discussion is required",
-				doc.discussion,
+				"tryListDiscussionSubmissions: Course module link is required",
+				doc.courseModuleLink,
 				z.object({
 					id: z.number(),
 				}),
@@ -892,8 +808,7 @@ export const tryListDiscussionSubmissions = Result.wrap(
 			);
 			return {
 				...doc,
-				activityModule: doc.activityModule,
-				discussion: doc.discussion,
+				courseModuleLink: doc.courseModuleLink.id,
 				student: doc.student,
 				enrollment: doc.enrollment,
 			};
@@ -1015,19 +930,10 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			// type narrowing
 			////////////////////////////////////////////////////
 
-			const activityModule = updatedSubmission.activityModule;
+			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 			assertZodInternal(
-				"tryGradeDiscussionSubmission: Activity module is required",
-				activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const discussion = updatedSubmission.discussion;
-			assertZodInternal(
-				"tryGradeDiscussionSubmission: Discussion is required",
-				discussion,
+				"tryGradeDiscussionSubmission: Course module link is required",
+				courseModuleLinkRef,
 				z.object({
 					id: z.number(),
 				}),
@@ -1053,8 +959,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 
 			return {
 				...updatedSubmission,
-				activityModule,
-				discussion,
+				courseModuleLink: courseModuleLinkRef.id,
 				student,
 				enrollment,
 				userGrade: userGradeResult.value,
@@ -1078,17 +983,17 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 export const calculateDiscussionGrade = Result.wrap(
 	async (
 		payload: Payload,
-		discussionId: number,
+		courseModuleLinkId: number,
 		studentId: number,
 		enrollmentId: number,
 	): Promise<DiscussionGradingResult> => {
-		// Get all discussion submissions for this student in this discussion
+		// Get all discussion submissions for this student in this course module link
 		const submissions = await payload
 			.find({
 				collection: "discussion-submissions",
 				where: {
 					and: [
-						{ discussion: { equals: discussionId } },
+						{ courseModuleLink: { equals: courseModuleLinkId } },
 						{ student: { equals: studentId } },
 						{ enrollment: { equals: enrollmentId } },
 						{ status: { equals: "published" } },
@@ -1101,16 +1006,8 @@ export const calculateDiscussionGrade = Result.wrap(
 				// type narrowing
 				return result.docs.map((doc) => {
 					assertZodInternal(
-						"calculateDiscussionGrade: Activity module is required",
-						doc.activityModule,
-						z.object({
-							id: z.number(),
-						}),
-					);
-
-					assertZodInternal(
-						"calculateDiscussionGrade: Discussion is required",
-						doc.discussion,
+						"calculateDiscussionGrade: Course module link is required",
+						doc.courseModuleLink,
 						z.object({
 							id: z.number(),
 						}),
@@ -1144,8 +1041,7 @@ export const calculateDiscussionGrade = Result.wrap(
 
 					return {
 						...doc,
-						activityModule: doc.activityModule,
-						discussion: doc.discussion,
+						courseModuleLink: doc.courseModuleLink.id,
 						student: doc.student,
 						enrollment: doc.enrollment,
 						parentThread: doc.parentThread,

@@ -274,13 +274,6 @@ describe("Quiz Management - Full Workflow", () => {
 			verifyGradebook ? "Found" : "Not found",
 		);
 
-		// Create gradebook item for the quiz
-		console.log(
-			"Creating gradebook item with activityModuleId:",
-			activityModuleId,
-			"gradebookId:",
-			courseResult.value.gradebook.id,
-		);
 
 		// Verify activity module exists
 		const verifyActivityModule = await payload.findByID({
@@ -408,8 +401,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should create quiz submission (student workflow)", async () => {
 		const args: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 1,
@@ -455,9 +447,8 @@ describe("Quiz Management - Full Workflow", () => {
 
 		const submission = result.value;
 
-		// Verify submission
-		expect(submission.activityModule.id).toBe(activityModuleId);
-		expect(submission.quiz.id).toBe(quizId);
+		// Verify submission (activityModule and quiz are now virtual fields accessed through courseModuleLink)
+		expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
 		expect(submission.student.id).toBe(studentId);
 		expect(submission.enrollment.id).toBe(enrollmentId);
 		expect(submission.attemptNumber).toBe(1);
@@ -472,8 +463,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should update quiz submission (student editing answers)", async () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 2,
@@ -533,8 +523,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should submit quiz (student submits for grading)", async () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 3,
@@ -715,8 +704,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// First create and submit a quiz
 		const createArgs: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 4,
@@ -809,8 +797,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should get quiz submission by ID", async () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 5,
@@ -845,8 +832,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		const retrievedSubmission = getResult.value;
 		expect(retrievedSubmission.id).toBe(submissionId);
-		expect(retrievedSubmission.activityModule.id).toBe(activityModuleId);
-		expect(retrievedSubmission.quiz.id).toBe(quizId);
+		expect(retrievedSubmission.courseModuleLink).toBe(courseActivityModuleLinkId);
 		expect(retrievedSubmission.student.id).toBe(studentId);
 		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
 		expect(retrievedSubmission.answers).toHaveLength(1);
@@ -855,7 +841,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should list quiz submissions with filtering", async () => {
 		// List all submissions for this activity module
 		const listResult = await tryListQuizSubmissions(payload, {
-			activityModuleId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -865,9 +851,9 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(submissions.docs.length).toBeGreaterThan(0);
 		expect(submissions.totalDocs).toBeGreaterThan(0);
 
-		// All submissions should be for the same activity module
+		// All submissions should be for the same course module link
 		submissions.docs.forEach((submission) => {
-			expect(submission.activityModule.id).toBe(activityModuleId);
+			expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
 		});
 
 		// Test filtering by student
@@ -900,8 +886,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should handle late submissions", async () => {
 		// Create a submission after the due date (simulate late submission)
 		const lateArgs: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 6,
@@ -934,8 +919,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should prevent duplicate submissions for same attempt", async () => {
 		const args: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 7,
@@ -966,8 +950,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should only allow grading of completed quizzes", async () => {
 		// Create an in-progress submission
 		const createArgs: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 8,
@@ -1006,8 +989,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should delete quiz submission", async () => {
 		// Create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber: 9,
@@ -1047,8 +1029,7 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create multiple submissions for pagination testing
 		for (let i = 0; i < 5; i++) {
 			const createArgs: CreateQuizSubmissionArgs = {
-				activityModuleId,
-				quizId,
+				courseModuleLinkId: courseActivityModuleLinkId,
 				studentId,
 				enrollmentId,
 				attemptNumber: 20 + i,
@@ -1073,7 +1054,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// Test pagination
 		const page1Result = await tryListQuizSubmissions(payload, {
-			activityModuleId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			limit: 2,
 			page: 1,
 		});
@@ -1089,10 +1070,9 @@ describe("Quiz Management - Full Workflow", () => {
 	});
 
 	test("should fail with invalid arguments", async () => {
-		// Test missing activity module ID
+		// Test missing course module link ID
 		const invalidArgs1: CreateQuizSubmissionArgs = {
-			activityModuleId: undefined as never,
-			quizId,
+			courseModuleLinkId: undefined as never,
 			studentId,
 			enrollmentId,
 			answers: [],
@@ -1103,8 +1083,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// Test missing student ID
 		const invalidArgs2: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId: undefined as never,
 			enrollmentId,
 			answers: [],
@@ -1115,8 +1094,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// Test missing answers
 		const invalidArgs3: CreateQuizSubmissionArgs = {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			answers: [],

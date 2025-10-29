@@ -13,8 +13,7 @@ import {
 import { tryCreateUserGrade } from "./user-grade-management";
 
 export interface CreateAssignmentSubmissionArgs {
-	activityModuleId: number;
-	assignmentId: number;
+	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
 	attemptNumber?: number;
@@ -52,8 +51,7 @@ export interface GetAssignmentSubmissionByIdArgs {
 }
 
 export interface ListAssignmentSubmissionsArgs {
-	activityModuleId?: number;
-	assignmentId?: number;
+	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "draft" | "submitted" | "graded" | "returned";
@@ -67,8 +65,7 @@ export interface ListAssignmentSubmissionsArgs {
 export const tryCreateAssignmentSubmission = Result.wrap(
 	async (payload: Payload, args: CreateAssignmentSubmissionArgs) => {
 		const {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber = 1,
@@ -78,11 +75,8 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 		} = args;
 
 		// Validate required fields
-		if (!activityModuleId) {
-			throw new InvalidArgumentError("Activity module ID is required");
-		}
-		if (!assignmentId) {
-			throw new InvalidArgumentError("Assignment ID is required");
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
 		}
 		if (!studentId) {
 			throw new InvalidArgumentError("Student ID is required");
@@ -96,7 +90,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			collection: "assignment-submissions",
 			where: {
 				and: [
-					{ activityModule: { equals: activityModuleId } },
+					{ courseModuleLink: { equals: courseModuleLinkId } },
 					{ student: { equals: studentId } },
 					{ attemptNumber: { equals: attemptNumber } },
 				],
@@ -109,25 +103,36 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			);
 		}
 
-		// Get assignment to check due date and calculate if late
-		const assignment = await payload.findByID({
-			collection: "assignments",
-			id: assignmentId,
+		// Get course module link to access assignment
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and assignment
 		});
 
-		if (!assignment) {
-			throw new InvalidArgumentError("Assignment not found");
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
 		}
 
-		const isLate = assignment.dueDate
-			? new Date() > new Date(assignment.dueDate)
-			: false;
+		// Get assignment from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const assignment =
+			activityModule && typeof activityModule.assignment === "object"
+				? activityModule.assignment
+				: null;
+
+		const isLate =
+			assignment && assignment.dueDate
+				? new Date() > new Date(assignment.dueDate)
+				: false;
 
 		const submission = await payload.create({
 			collection: "assignment-submissions",
 			data: {
-				activityModule: activityModuleId,
-				assignment: assignmentId,
+				courseModuleLink: courseModuleLinkId,
 				student: studentId,
 				enrollment: enrollmentId,
 				attemptNumber,
@@ -143,20 +148,13 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = submission.activityModule;
+		const courseModuleLinkRef = submission.courseModuleLink;
 		assertZodInternal(
-			"tryCreateAssignmentSubmission: Activity module is required",
-			activityModule,
+			"tryCreateAssignmentSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
-		);
-
-		const assignmentRef = submission.assignment;
-		assertZodInternal(
-			"tryCreateAssignmentSubmission: Assignment is required",
-			assignmentRef,
-			z.object({ id: z.number() }),
 		);
 
 		const student = submission.student;
@@ -175,8 +173,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 
 		return {
 			...submission,
-			activityModule,
-			assignment: assignmentRef,
+			courseModuleLink: courseModuleLinkRef,
 			student,
 			enrollment,
 		};
@@ -225,17 +222,10 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = submission.activityModule;
+		const courseModuleLinkRef = submission.courseModuleLink;
 		assertZodInternal(
-			"tryGetAssignmentSubmissionById: Activity module is required",
-			activityModule,
-			z.object({ id: z.number() }),
-		);
-
-		const assignment = submission.assignment;
-		assertZodInternal(
-			"tryGetAssignmentSubmissionById: Assignment is required",
-			assignment,
+			"tryGetAssignmentSubmissionById: Course module link is required",
+			courseModuleLinkRef,
 			z.object({ id: z.number() }),
 		);
 
@@ -255,8 +245,7 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
 
 		return {
 			...submission,
-			activityModule,
-			assignment,
+			courseModuleLink: courseModuleLinkRef,
 			student,
 			enrollment,
 		};
@@ -309,17 +298,10 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = updatedSubmission.activityModule;
+		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 		assertZodInternal(
-			"tryUpdateAssignmentSubmission: Activity module is required",
-			activityModule,
-			z.object({ id: z.number() }),
-		);
-
-		const assignment = updatedSubmission.assignment;
-		assertZodInternal(
-			"tryUpdateAssignmentSubmission: Assignment is required",
-			assignment,
+			"tryUpdateAssignmentSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({ id: z.number() }),
 		);
 
@@ -343,8 +325,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 
 		return {
 			...updatedSubmission,
-			activityModule,
-			assignment,
+			courseModuleLink: courseModuleLinkRef,
 			student,
 			enrollment,
 		};
@@ -396,19 +377,10 @@ export const trySubmitAssignment = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = updatedSubmission.activityModule;
+		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 		assertZodInternal(
-			"trySubmitAssignment: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const assignment = updatedSubmission.assignment;
-		assertZodInternal(
-			"trySubmitAssignment: Assignment is required",
-			assignment,
+			"trySubmitAssignment: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -434,8 +406,7 @@ export const trySubmitAssignment = Result.wrap(
 
 		return {
 			...updatedSubmission,
-			activityModule,
-			assignment,
+			courseModuleLink: courseModuleLinkRef,
 			student,
 			enrollment,
 		};
@@ -515,22 +486,8 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				);
 			}
 
-			// Get assignment to verify it exists
-			const assignmentId =
-				typeof currentSubmission.assignment === "object" &&
-				"id" in currentSubmission.assignment
-					? currentSubmission.assignment.id
-					: (currentSubmission.assignment as number);
-
-			const assignment = await payload.findByID({
-				collection: Assignments.slug,
-				id: assignmentId,
-				req: { transactionID },
-			});
-
-			if (!assignment) {
-				throw new InvalidArgumentError("Assignment not found");
-			}
+			// Note: No need to verify assignment exists separately as it's accessed
+			// through the course module link relationship
 
 			// Update submission with grade
 			const updatedSubmission = await payload.update({
@@ -569,19 +526,10 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			// type narrowing
 			////////////////////////////////////////////////////
 
-			const activityModule = updatedSubmission.activityModule;
+			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 			assertZodInternal(
-				"tryGradeAssignmentSubmission: Activity module is required",
-				activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const assignmentRef = updatedSubmission.assignment;
-			assertZodInternal(
-				"tryGradeAssignmentSubmission: Assignment is required",
-				assignmentRef,
+				"tryGradeAssignmentSubmission: Course module link is required",
+				courseModuleLinkRef,
 				z.object({
 					id: z.number(),
 				}),
@@ -607,8 +555,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 			return {
 				...updatedSubmission,
-				activityModule,
-				assignment: assignmentRef,
+				courseModuleLink: courseModuleLinkRef,
 				student,
 				enrollment,
 				grade,
@@ -635,8 +582,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 export const tryListAssignmentSubmissions = Result.wrap(
 	async (payload: Payload, args: ListAssignmentSubmissionsArgs = {}) => {
 		const {
-			activityModuleId,
-			assignmentId,
+			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			status,
@@ -646,15 +592,9 @@ export const tryListAssignmentSubmissions = Result.wrap(
 
 		const where: Record<string, { equals: unknown }> = {};
 
-		if (activityModuleId) {
-			where.activityModule = {
-				equals: activityModuleId,
-			};
-		}
-
-		if (assignmentId) {
-			where.assignment = {
-				equals: assignmentId,
+		if (courseModuleLinkId) {
+			where.courseModuleLink = {
+				equals: courseModuleLinkId,
 			};
 		}
 
@@ -688,15 +628,8 @@ export const tryListAssignmentSubmissions = Result.wrap(
 		// type narrowing
 		const docs = result.docs.map((doc) => {
 			assertZodInternal(
-				"tryListAssignmentSubmissions: Activity module is required",
-				doc.activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListAssignmentSubmissions: Assignment is required",
-				doc.assignment,
+				"tryListAssignmentSubmissions: Course module link is required",
+				doc.courseModuleLink,
 				z.object({
 					id: z.number(),
 				}),
@@ -717,8 +650,7 @@ export const tryListAssignmentSubmissions = Result.wrap(
 			);
 			return {
 				...doc,
-				activityModule: doc.activityModule,
-				assignment: doc.assignment,
+				courseModuleLink: doc.courseModuleLink.id,
 				student: doc.student,
 				enrollment: doc.enrollment,
 			};

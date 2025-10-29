@@ -6,24 +6,47 @@ export const AssignmentSubmissions = {
 	defaultSort: "-createdAt",
 	fields: [
 		{
-			name: "activityModule",
+			name: "courseModuleLink",
 			type: "relationship",
-			relationTo: "activity-modules",
+			relationTo: "course-activity-module-links",
 			required: true,
+			label: "Course Module Link",
+		},
+		{
+			name: "activityModule",
+			type: "text",
+			virtual: `courseModuleLink.activityModule`,
 			label: "Activity Module",
 		},
 		{
+			name: "activityModuleTitle",
+			type: "text",
+			virtual: `courseModuleLink.activityModule.title`,
+			label: "Activity Module Title",
+		},
+		{
 			name: "assignment",
-			type: "relationship",
-			relationTo: "assignments",
-			required: true,
+			type: "text",
+			virtual: `courseModuleLink.activityModule.assignment`,
 			label: "Assignment",
 		},
 		{
 			name: "assignmentTitle",
 			type: "text",
-			virtual: `assignment.title`,
+			virtual: `courseModuleLink.activityModule.assignment.title`,
 			label: "Assignment Title",
+		},
+		{
+			name: "section",
+			type: "text",
+			virtual: `courseModuleLink.section`,
+			label: "Section",
+		},
+		{
+			name: "sectionTitle",
+			type: "text",
+			virtual: `courseModuleLink.sectionTitle`,
+			label: "Section Title",
 		},
 		{
 			name: "student",
@@ -127,7 +150,7 @@ export const AssignmentSubmissions = {
 	],
 	indexes: [
 		{
-			fields: ["activityModule"],
+			fields: ["courseModuleLink"],
 		},
 		{
 			fields: ["student"],
@@ -136,8 +159,8 @@ export const AssignmentSubmissions = {
 			fields: ["enrollment"],
 		},
 		{
-			// One submission per student per assignment per attempt
-			fields: ["activityModule", "student", "attemptNumber"],
+			// One submission per student per course module link per attempt
+			fields: ["courseModuleLink", "student", "attemptNumber"],
 			unique: true,
 		},
 		{

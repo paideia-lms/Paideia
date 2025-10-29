@@ -78,5 +78,30 @@ export const CourseActivityModuleLinks = {
 				],
 			},
 		},
+		// Join fields for submissions
+		{
+			name: "assignmentSubmissions",
+			type: "join",
+			on: "courseModuleLink",
+			collection: "assignment-submissions",
+			label: "Assignment Submissions",
+			hasMany: true,
+		},
+		{
+			name: "quizSubmissions",
+			type: "join",
+			on: "courseModuleLink",
+			collection: "quiz-submissions",
+			label: "Quiz Submissions",
+			hasMany: true,
+		},
+		{
+			name: "discussionSubmissions",
+			type: "join",
+			on: "courseModuleLink",
+			collection: "discussion-submissions",
+			label: "Discussion Submissions",
+			hasMany: true,
+		},
 	],
 } as const satisfies CollectionConfig;

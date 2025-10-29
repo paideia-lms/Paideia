@@ -95,8 +95,7 @@ export interface UpdateQuizArgs {
 }
 
 export interface CreateQuizSubmissionArgs {
-	activityModuleId: number;
-	quizId: number;
+	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
 	attemptNumber?: number;
@@ -156,8 +155,7 @@ export interface GetQuizSubmissionByIdArgs {
 }
 
 export interface ListQuizSubmissionsArgs {
-	activityModuleId?: number;
-	quizId?: number;
+	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
@@ -488,8 +486,7 @@ export const tryDeleteQuiz = Result.wrap(
 export const tryCreateQuizSubmission = Result.wrap(
 	async (payload: Payload, args: CreateQuizSubmissionArgs) => {
 		const {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber = 1,
@@ -498,11 +495,8 @@ export const tryCreateQuizSubmission = Result.wrap(
 		} = args;
 
 		// Validate required fields
-		if (!activityModuleId) {
-			throw new InvalidArgumentError("Activity module ID is required");
-		}
-		if (!quizId) {
-			throw new InvalidArgumentError("Quiz ID is required");
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
 		}
 		if (!studentId) {
 			throw new InvalidArgumentError("Student ID is required");
@@ -521,7 +515,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 			collection: "quiz-submissions",
 			where: {
 				and: [
-					{ activityModule: { equals: activityModuleId } },
+					{ courseModuleLink: { equals: courseModuleLinkId } },
 					{ student: { equals: studentId } },
 					{ attemptNumber: { equals: attemptNumber } },
 				],
@@ -534,23 +528,34 @@ export const tryCreateQuizSubmission = Result.wrap(
 			);
 		}
 
-		// Get quiz to check due date and calculate if late
-		const quiz = await payload.findByID({
-			collection: "quizzes",
-			id: quizId,
+		// Get course module link to access quiz
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and quiz
 		});
 
-		if (!quiz) {
-			throw new InvalidArgumentError("Quiz not found");
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
 		}
 
-		const isLate = quiz.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+		// Get quiz from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const quiz =
+			activityModule && typeof activityModule.quiz === "object"
+				? activityModule.quiz
+				: null;
+
+		const isLate =
+			quiz && quiz.dueDate ? new Date() > new Date(quiz.dueDate) : false;
 
 		const submission = await payload.create({
 			collection: "quiz-submissions",
 			data: {
-				activityModule: activityModuleId,
-				quiz: quizId,
+				courseModuleLink: courseModuleLinkId,
 				student: studentId,
 				enrollment: enrollmentId,
 				attemptNumber,
@@ -565,19 +570,10 @@ export const tryCreateQuizSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = submission.activityModule;
+		const courseModuleLinkRef = submission.courseModuleLink;
 		assertZodInternal(
-			"tryCreateQuizSubmission: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const quizRef = submission.quiz;
-		assertZodInternal(
-			"tryCreateQuizSubmission: Quiz is required",
-			quizRef,
+			"tryCreateQuizSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -603,8 +599,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 
 		return {
 			...submission,
-			activityModule,
-			quiz: quizRef,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -656,19 +651,10 @@ export const tryUpdateQuizSubmission = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = updatedSubmission.activityModule;
+		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 		assertZodInternal(
-			"tryUpdateQuizSubmission: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const quiz = updatedSubmission.quiz;
-		assertZodInternal(
-			"tryUpdateQuizSubmission: Quiz is required",
-			quiz,
+			"tryUpdateQuizSubmission: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -694,8 +680,7 @@ export const tryUpdateQuizSubmission = Result.wrap(
 
 		return {
 			...updatedSubmission,
-			activityModule,
-			quiz,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -744,19 +729,10 @@ export const tryGetQuizSubmissionById = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = submission.activityModule;
+		const courseModuleLinkRef = submission.courseModuleLink;
 		assertZodInternal(
-			"tryGetQuizSubmissionById: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const quiz = submission.quiz;
-		assertZodInternal(
-			"tryGetQuizSubmissionById: Quiz is required",
-			quiz,
+			"tryGetQuizSubmissionById: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -782,8 +758,7 @@ export const tryGetQuizSubmissionById = Result.wrap(
 
 		return {
 			...submission,
-			activityModule,
-			quiz,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -837,19 +812,10 @@ export const trySubmitQuiz = Result.wrap(
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const activityModule = updatedSubmission.activityModule;
+		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 		assertZodInternal(
-			"trySubmitQuiz: Activity module is required",
-			activityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const quiz = updatedSubmission.quiz;
-		assertZodInternal(
-			"trySubmitQuiz: Quiz is required",
-			quiz,
+			"trySubmitQuiz: Course module link is required",
+			courseModuleLinkRef,
 			z.object({
 				id: z.number(),
 			}),
@@ -875,8 +841,7 @@ export const trySubmitQuiz = Result.wrap(
 
 		return {
 			...updatedSubmission,
-			activityModule,
-			quiz,
+			courseModuleLink: courseModuleLinkRef.id,
 			student,
 			enrollment,
 		};
@@ -1155,6 +1120,35 @@ export const tryGradeQuizSubmission = Result.wrap(
 				);
 			}
 
+			// Get course module link to access quiz
+			const courseModuleLink = await payload.findByID({
+				collection: "course-activity-module-links",
+				id:
+					typeof currentSubmission.courseModuleLink === "object" &&
+						"id" in currentSubmission.courseModuleLink
+						? currentSubmission.courseModuleLink.id
+						: (currentSubmission.courseModuleLink as number),
+				depth: 2,
+				req: { transactionID },
+			});
+
+			if (!courseModuleLink) {
+				throw new InvalidArgumentError("Course module link not found");
+			}
+
+			const activityModule =
+				typeof courseModuleLink.activityModule === "object"
+					? courseModuleLink.activityModule
+					: null;
+			const quiz =
+				activityModule && typeof activityModule.quiz === "object"
+					? activityModule.quiz
+					: null;
+
+			if (!quiz || !quiz.id) {
+				throw new InvalidArgumentError("Quiz not found");
+			}
+
 			// Calculate the grade
 			const validAnswers = (currentSubmission.answers ?? [])
 				.filter(
@@ -1179,10 +1173,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 
 			const gradingResult = await calculateQuizGrade(
 				payload,
-				typeof currentSubmission.quiz === "object" &&
-					"id" in currentSubmission.quiz
-					? currentSubmission.quiz.id
-					: (currentSubmission.quiz as number),
+				quiz.id,
 				validAnswers,
 			);
 
@@ -1242,19 +1233,10 @@ export const tryGradeQuizSubmission = Result.wrap(
 			// type narrowing
 			////////////////////////////////////////////////////
 
-			const activityModule = updatedSubmission.activityModule;
+			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
 			assertZodInternal(
-				"tryGradeQuizSubmission: Activity module is required",
-				activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const quiz = updatedSubmission.quiz;
-			assertZodInternal(
-				"tryGradeQuizSubmission: Quiz is required",
-				quiz,
+				"tryGradeQuizSubmission: Course module link is required",
+				courseModuleLinkRef,
 				z.object({
 					id: z.number(),
 				}),
@@ -1280,8 +1262,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 
 			return {
 				...updatedSubmission,
-				activityModule,
-				quiz,
+				courseModuleLink: courseModuleLinkRef.id,
 				student,
 				enrollment,
 				grade: gradeData.totalScore,
@@ -1311,26 +1292,19 @@ export const tryGradeQuizSubmission = Result.wrap(
 export const tryListQuizSubmissions = Result.wrap(
 	async (payload: Payload, args: ListQuizSubmissionsArgs = {}) => {
 		const {
-			activityModuleId,
-			quizId,
+			courseModuleLinkId,
 			studentId,
 			enrollmentId,
-			status,
+			status = "completed",
 			limit = 10,
 			page = 1,
 		} = args;
 
 		const where: Record<string, { equals: unknown }> = {};
 
-		if (activityModuleId) {
-			where.activityModule = {
-				equals: activityModuleId,
-			};
-		}
-
-		if (quizId) {
-			where.quiz = {
-				equals: quizId,
+		if (courseModuleLinkId) {
+			where.courseModuleLink = {
+				equals: courseModuleLinkId,
 			};
 		}
 
@@ -1364,15 +1338,8 @@ export const tryListQuizSubmissions = Result.wrap(
 		// type narrowing
 		const docs = result.docs.map((doc) => {
 			assertZodInternal(
-				"tryListQuizSubmissions: Activity module is required",
-				doc.activityModule,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListQuizSubmissions: Quiz is required",
-				doc.quiz,
+				"tryListQuizSubmissions: Course module link is required",
+				doc.courseModuleLink,
 				z.object({
 					id: z.number(),
 				}),
@@ -1393,8 +1360,7 @@ export const tryListQuizSubmissions = Result.wrap(
 			);
 			return {
 				...doc,
-				activityModule: doc.activityModule,
-				quiz: doc.quiz,
+				courseModuleLink: doc.courseModuleLink.id,
 				student: doc.student,
 				enrollment: doc.enrollment,
 			};

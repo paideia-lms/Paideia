@@ -439,17 +439,9 @@ export const tryGetActivityModuleById = Result.wrap(
 					],
 				},
 				joins: {
-					// ! this cannot scale because it is very likely a module will have a lot of submissions.
-					// ! for now we don't care about performance and we are just going to fetch all submissions.
-					submissions: {
-						limit: MOCK_INFINITY,
-					},
-					discussionSubmissions: {
-						limit: MOCK_INFINITY,
-					},
-					quizSubmissions: {
-						limit: MOCK_INFINITY,
-					},
+					// NOTE: Submissions are no longer joined here as they now link to
+					// course-activity-module-links instead of activity-modules directly.
+					// To access submissions, query through course-activity-module-links.
 					grants: {
 						limit: MOCK_INFINITY,
 					},
@@ -518,34 +510,8 @@ export const tryGetActivityModuleById = Result.wrap(
 					z.object({ id: z.number() }).nullish(),
 				);
 
-				const submissions = am.submissions?.docs?.map((s) => {
-					assertZodInternal(
-						"tryGetActivityModuleById: Submissions is required",
-						s,
-						z.object({ id: z.number() }),
-					);
-					return s;
-				});
-
-				const discussionSubmissions = am.discussionSubmissions?.docs?.map(
-					(s) => {
-						assertZodInternal(
-							"tryGetActivityModuleById: Discussion submissions is required",
-							s,
-							z.object({ id: z.number() }),
-						);
-						return s;
-					},
-				);
-
-				const quizSubmissions = am.quizSubmissions?.docs?.map((s) => {
-					assertZodInternal(
-						"tryGetActivityModuleById: Quiz submissions is required",
-						s,
-						z.object({ id: z.number() }),
-					);
-					return s;
-				});
+				// NOTE: Submissions are no longer joined on activity-modules.
+				// They now link to course-activity-module-links instead.
 
 				const grants = am.grants?.docs?.map((g) => {
 					assertZodInternal(
@@ -587,9 +553,6 @@ export const tryGetActivityModuleById = Result.wrap(
 					assignment,
 					quiz,
 					discussion,
-					submissions,
-					discussionSubmissions,
-					quizSubmissions,
 					grants,
 				};
 			});
@@ -1038,9 +1001,6 @@ export const tryGetUserActivityModules = Result.wrap(
 					},
 					// ! we don't care about the grants, submissions details here
 					grants: false,
-					discussionSubmissions: false,
-					quizSubmissions: false,
-					submissions: false,
 				},
 				// ! we need to fix this. we use depth 2 to get the avatar but this might lead to many unnecessary queries.
 				depth: 2,
@@ -1096,24 +1056,6 @@ export const tryGetUserActivityModules = Result.wrap(
 						grants,
 						z.undefined(),
 					);
-					const submissions = doc.submissions;
-					assertZodInternal(
-						"tryGetUserActivityModules: Submissions is required",
-						submissions,
-						z.undefined(),
-					);
-					const discussionSubmissions = doc.discussionSubmissions;
-					assertZodInternal(
-						"tryGetUserActivityModules: Discussion submissions is required",
-						discussionSubmissions,
-						z.undefined(),
-					);
-					const quizSubmissions = doc.quizSubmissions;
-					assertZodInternal(
-						"tryGetUserActivityModules: Quiz submissions is required",
-						quizSubmissions,
-						z.undefined(),
-					);
 					const courses =
 						doc.linkedCourses?.docs?.map((link) => {
 							assertZodInternal(
@@ -1141,9 +1083,6 @@ export const tryGetUserActivityModules = Result.wrap(
 							avatar: createdByAvatar,
 						},
 						grants,
-						submissions,
-						discussionSubmissions,
-						quizSubmissions,
 						linkedCourses: courses,
 					};
 				});

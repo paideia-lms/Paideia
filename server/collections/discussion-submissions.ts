@@ -6,24 +6,47 @@ export const DiscussionSubmissions = {
 	defaultSort: "-createdAt",
 	fields: [
 		{
-			name: "activityModule",
+			name: "courseModuleLink",
 			type: "relationship",
-			relationTo: "activity-modules",
+			relationTo: "course-activity-module-links",
 			required: true,
+			label: "Course Module Link",
+		},
+		{
+			name: "activityModule",
+			type: "text",
+			virtual: `courseModuleLink.activityModule`,
 			label: "Activity Module",
 		},
 		{
+			name: "activityModuleTitle",
+			type: "text",
+			virtual: `courseModuleLink.activityModule.title`,
+			label: "Activity Module Title",
+		},
+		{
 			name: "discussion",
-			type: "relationship",
-			relationTo: "discussions",
-			required: true,
+			type: "text",
+			virtual: `courseModuleLink.activityModule.discussion`,
 			label: "Discussion",
 		},
 		{
 			name: "discussionTitle",
 			type: "text",
-			virtual: `discussion.title`,
+			virtual: `courseModuleLink.activityModule.discussion.title`,
 			label: "Discussion Title",
+		},
+		{
+			name: "section",
+			type: "text",
+			virtual: `courseModuleLink.section`,
+			label: "Section",
+		},
+		{
+			name: "sectionTitle",
+			type: "text",
+			virtual: `courseModuleLink.sectionTitle`,
+			label: "Section Title",
 		},
 		{
 			name: "student",
@@ -185,10 +208,7 @@ export const DiscussionSubmissions = {
 	],
 	indexes: [
 		{
-			fields: ["activityModule"],
-		},
-		{
-			fields: ["discussion"],
+			fields: ["courseModuleLink"],
 		},
 		{
 			fields: ["student"],

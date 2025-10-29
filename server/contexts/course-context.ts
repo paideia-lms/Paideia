@@ -10,6 +10,11 @@ import { tryFindLinksByCourse } from "server/internal/course-activity-module-lin
 import { tryFindCourseById } from "server/internal/course-management";
 import type { CourseStructure } from "server/internal/course-section-management";
 import { tryGetCourseStructure } from "server/internal/course-section-management";
+import {
+	tryGetGradebookByCourseWithDetails,
+	tryGetGradebookJsonRepresentation,
+	type GradebookJsonRepresentation,
+} from "server/internal/gradebook-management";
 import { canAccessCourse } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
@@ -20,6 +25,7 @@ import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
 } from "../utils/course-structure-tree";
+import type { Gradebook, GradebookCategory, GradebookItem } from "../payload-types";
 import type { User } from "./user-context";
 
 type Group = {
@@ -97,6 +103,11 @@ type CourseActivityModuleLink = {
 	updatedAt: string;
 };
 
+export type GradebookData = Gradebook & {
+	categories: GradebookCategory[];
+	items: GradebookItem[];
+};
+
 export interface Course {
 	id: number;
 	title: string;
@@ -131,6 +142,8 @@ export interface CourseContext {
 	courseStructure: CourseStructure;
 	courseStructureTree: string;
 	courseStructureTreeSimple: string;
+	gradebook: GradebookData | null;
+	gradebookJson: GradebookJsonRepresentation | null;
 }
 
 export const courseContext = createContext<CourseContext | null>(null);
@@ -342,11 +355,37 @@ export const tryGetCourseContext = async (
 		course.title,
 	);
 
+	// Fetch gradebook data
+	let gradebookData: GradebookData | null = null;
+	let gradebookJsonData: GradebookJsonRepresentation | null = null;
+
+	const gradebookResult = await tryGetGradebookByCourseWithDetails(
+		payload,
+		courseId,
+	);
+
+	if (gradebookResult.ok) {
+		const gradebook = gradebookResult.value;
+		gradebookData = gradebook as GradebookData;
+
+		// Fetch gradebook JSON representation
+		const gradebookJsonResult = await tryGetGradebookJsonRepresentation(
+			payload,
+			gradebook.id,
+		);
+
+		if (gradebookJsonResult.ok) {
+			gradebookJsonData = gradebookJsonResult.value;
+		}
+	}
+
 	return Result.ok({
 		course: courseWithModuleLinks,
 		courseId: course.id,
 		courseStructure,
 		courseStructureTree,
 		courseStructureTreeSimple,
+		gradebook: gradebookData,
+		gradebookJson: gradebookJsonData,
 	});
 };

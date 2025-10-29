@@ -69,7 +69,9 @@ export const routes = [
 				route("course/:id/participants", "routes/course.$id.participants.tsx"),
 				route("course/:id/groups", "routes/course.$id.groups.tsx"),
 			]),
-			route("course/:id/grades", "routes/course.$id.grades.tsx"),
+			layout("layouts/course-grades-layout.tsx", [
+				route("course/:id/grades", "routes/course.$id.grades.tsx"),
+			]),
 			route("course/:id/modules", "routes/course.$id.modules.tsx"),
 			route("course/:id/bin", "routes/course.$id.bin.tsx"),
 			route("course/:id/backup", "routes/course.$id.backup.tsx"),

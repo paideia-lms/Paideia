@@ -6,24 +6,47 @@ export const QuizSubmissions = {
 	defaultSort: "-createdAt",
 	fields: [
 		{
-			name: "activityModule",
+			name: "courseModuleLink",
 			type: "relationship",
-			relationTo: "activity-modules",
+			relationTo: "course-activity-module-links",
 			required: true,
+			label: "Course Module Link",
+		},
+		{
+			name: "activityModule",
+			type: "text",
+			virtual: `courseModuleLink.activityModule`,
 			label: "Activity Module",
 		},
 		{
+			name: "activityModuleTitle",
+			type: "text",
+			virtual: `courseModuleLink.activityModule.title`,
+			label: "Activity Module Title",
+		},
+		{
 			name: "quiz",
-			type: "relationship",
-			relationTo: "quizzes",
-			required: true,
+			type: "text",
+			virtual: `courseModuleLink.activityModule.quiz`,
 			label: "Quiz",
 		},
 		{
 			name: "quizTitle",
 			type: "text",
-			virtual: `quiz.title`,
+			virtual: `courseModuleLink.activityModule.quiz.title`,
 			label: "Quiz Title",
+		},
+		{
+			name: "section",
+			type: "text",
+			virtual: `courseModuleLink.section`,
+			label: "Section",
+		},
+		{
+			name: "sectionTitle",
+			type: "text",
+			virtual: `courseModuleLink.sectionTitle`,
+			label: "Section Title",
 		},
 		{
 			name: "student",
@@ -97,7 +120,7 @@ export const QuizSubmissions = {
 		{
 			name: "timeLimit",
 			type: "number",
-			virtual: `quiz.timeLimit`,
+			virtual: `courseModuleLink.activityModule.quiz.timeLimit`,
 			label: "Time Limit (minutes)",
 		},
 		{
@@ -190,8 +213,8 @@ export const QuizSubmissions = {
 		{
 			name: "maxScore",
 			type: "number",
-			virtual: `activityModule.points`,
 			label: "Maximum Score",
+			min: 0,
 		},
 		{
 			name: "percentage",
@@ -215,7 +238,7 @@ export const QuizSubmissions = {
 	],
 	indexes: [
 		{
-			fields: ["activityModule"],
+			fields: ["courseModuleLink"],
 		},
 		{
 			fields: ["student"],
@@ -224,8 +247,8 @@ export const QuizSubmissions = {
 			fields: ["enrollment"],
 		},
 		{
-			// One submission per student per quiz per attempt
-			fields: ["activityModule", "student", "attemptNumber"],
+			// One submission per student per course module link per attempt
+			fields: ["courseModuleLink", "student", "attemptNumber"],
 			unique: true,
 		},
 		{
