@@ -57,6 +57,7 @@ export type PageInfo = {
 	isAdminUserNew: boolean;
 	isAdminCourses: boolean;
 	isAdminSystem: boolean;
+	isAdminTestEmail: boolean;
 	/** 
 	 * the params of the current route
 	 */

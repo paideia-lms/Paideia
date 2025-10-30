@@ -114,6 +114,7 @@ export const middleware = [
 		let isAdminUserNew = false;
 		let isAdminCourses = false;
 		let isAdminSystem = false;
+		let isAdminTestEmail = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -173,6 +174,7 @@ export const middleware = [
 			else if (route.id === "routes/admin/new") isAdminUserNew = true;
 			else if (route.id === "routes/admin/courses") isAdminCourses = true;
 			else if (route.id === "routes/admin/system") isAdminSystem = true;
+			else if (route.id === "routes/admin/test-email") isAdminTestEmail = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -225,6 +227,7 @@ export const middleware = [
 				isAdminUserNew,
 				isAdminCourses,
 				isAdminSystem,
+				isAdminTestEmail,
 				params: params as Record<string, string>,
 			},
 		});

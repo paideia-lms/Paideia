@@ -124,6 +124,7 @@ const frontend = new Elysia()
 						isAdminUserNew: false,
 						isAdminCourses: false,
 						isAdminSystem: false,
+						isAdminTestEmail: false,
 						params: {},
 					},
 					});

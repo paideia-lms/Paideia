@@ -236,6 +236,13 @@ export class NonExistingWhiteboardError extends Error {
 	}
 }
 
+export class EmailSendError extends Error {
+	static readonly type = "EmailSendError";
+	get type() {
+		return EmailSendError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||
@@ -274,6 +281,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof CourseStructureNotFoundError) return error;
 	else if (error instanceof NonExistingPageError) return error;
 	else if (error instanceof NonExistingWhiteboardError) return error;
+	else if (error instanceof EmailSendError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

@@ -501,6 +501,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Environment" },
 					{ title: "Performance" },
 					{ title: "Update notifications" },
+					{ title: "Test email", href: href("/admin/test-email") },
 				],
 			},
 			file_redaction: {
