@@ -1,6 +1,6 @@
 # Changelog 0021: Registration Page and Admin Registration Settings
 
-**Date**: October 31, 2025  
+**Date**: October 30, 2025  
 **Type**: Feature Addition  
 **Impact**: High ? Replaces first-user-only registration flow with unified public registration system and adds administrative controls
 
