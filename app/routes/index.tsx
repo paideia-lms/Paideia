@@ -153,7 +153,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
             if (reg?.disableRegistration === true) {
                 showRegistrationButton = false;
             }
-        } catch {}
+        } catch (error) {
+            console.error("Failed to fetch registration settings:", error);
+        }
 
         return {
             isAuthenticated: false as const,
