@@ -131,7 +131,7 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 							<Button
 								leftSection={<IconPlus size={16} />}
 								component={Link}
-								to={href("/course/new")}
+								to={href("/admin/course/new")}
 							>
 								Create course
 							</Button>

@@ -50,6 +50,7 @@ export interface UpdateCourseArgs {
 		status?: "draft" | "published" | "archived";
 		thumbnail?: number;
 		tags?: { tag?: string }[];
+		category?: number | null;
 	};
 	user?: User | null;
 	req?: Partial<PayloadRequest>;
@@ -497,11 +498,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-								...category,
-								parent,
-								courses: categoryCourses,
-								subcategories: categorySubcategories,
-							}
+							...category,
+							parent,
+							courses: categoryCourses,
+							subcategories: categorySubcategories,
+						}
 						: null,
 					sections,
 				};
@@ -723,18 +724,6 @@ export interface FindAllCoursesArgs {
 	overrideAccess?: boolean;
 }
 
-export interface FindAllCoursesResult {
-	docs: Course[];
-	totalDocs: number;
-	limit: number;
-	totalPages: number;
-	page: number;
-	pagingCounter: number;
-	hasPrevPage: boolean;
-	hasNextPage: boolean;
-	prevPage: number | null;
-	nextPage: number | null;
-}
 
 /**
  * Finds all courses with pagination and search
@@ -743,7 +732,7 @@ export interface FindAllCoursesResult {
  * When overrideAccess is true, bypasses all access control
  */
 export const tryFindAllCourses = Result.wrap(
-	async (args: FindAllCoursesArgs): Promise<FindAllCoursesResult> => {
+	async (args: FindAllCoursesArgs) => {
 		const {
 			payload,
 			limit = 10,

@@ -174,11 +174,15 @@ const adminTabs: { [key: string]: AdminTab } = {
 				title: "Courses",
 				items: [
 					{
-						title: "Manage courses and categories",
+						title: "Manage courses",
 						href: href("/admin/courses"),
 					},
-					{ title: "Add a category" },
-					{ title: "Add a new course" },
+					{
+						title: "Manage categories",
+						href: href("/admin/categories"),
+					},
+					{ title: "Add a category", href: href("/admin/category/new") },
+					{ title: "Add a new course", href: href("/admin/course/new") },
 					{ title: "Restore course" },
 					{ title: "Download course content" },
 					{ title: "Course request" },

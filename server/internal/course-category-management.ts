@@ -455,3 +455,39 @@ export const tryFindSubcategories = Result.wrap(
 		transformError(error) ??
 		new UnknownError("Failed to find subcategories", { cause: error }),
 );
+
+
+// This page no longer handles action; API route handles reorder
+
+export type FlatNode = {
+	id: string; // "c{id}"
+	name: string;
+	parentId: string | null; // "c{id}" or null
+	children?: string[];
+	directCoursesCount: number;
+	totalNestedCoursesCount: number;
+};
+
+export function flattenCategories(categories: CategoryTreeNode[]): Record<string, FlatNode> {
+	const flat: Record<string, FlatNode> = {};
+
+	const visit = (node: CategoryTreeNode, parentId: string | null) => {
+		const id = `c${node.id}`;
+		flat[id] = {
+			id,
+			name: node.name,
+			parentId,
+			children: [],
+			directCoursesCount: node.directCoursesCount,
+			totalNestedCoursesCount: node.totalNestedCoursesCount,
+		};
+		for (const child of node.subcategories) {
+			const childId = `c${child.id}`;
+			flat[id].children!.push(childId);
+			visit(child, id);
+		}
+	};
+
+	for (const root of categories) visit(root, null);
+	return flat;
+}

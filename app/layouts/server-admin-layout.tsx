@@ -77,8 +77,8 @@ export default function ServerAdminLayout({ loaderData }: Route.ComponentProps) 
 	// Determine current tab based on route matches or query param
 	const getCurrentTab = () => {
 		if (pageInfo.isAdminUsers) return AdminTab.Users;
-		if (pageInfo.isAdminCourses) return AdminTab.Courses;
-		if (pageInfo.isAdminSystem) return AdminTab.Server;
+		if (pageInfo.isAdminCourses || pageInfo.isAdminCourseNew || pageInfo.isAdminCategories || pageInfo.isAdminCategoryNew) return AdminTab.Courses;
+		if (pageInfo.isAdminSystem || pageInfo.isAdminTestEmail) return AdminTab.Server;
 		// Default to query param or 'general'
 		return activeTab ?? AdminTab.General;
 	};

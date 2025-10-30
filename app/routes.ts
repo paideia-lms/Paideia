@@ -17,6 +17,8 @@ export const routes = [
 	),
 	route("api/d2-render", "routes/api/d2-render.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
+	route("api/batch-update-courses", "routes/api/batch-update-courses.tsx"),
+	route("api/category-reorder", "routes/api/category-reorder.tsx"),
 	route("api/section-delete", "routes/api/section-delete.tsx"),
 	route("api/section-update", "routes/api/section-update.tsx"),
 	layout("layouts/root-layout.tsx", [
@@ -49,7 +51,6 @@ export const routes = [
 				]),
 			]),
 		]),
-		route("course/new", "routes/course-new.tsx"),
 		route("course", "routes/course.tsx"),
 		layout("layouts/course-layout.tsx", [
 			layout("layouts/course-content-layout.tsx", [
@@ -66,11 +67,11 @@ export const routes = [
 			]),
 			route("course/:id/section/new", "routes/course/section-new.tsx"),
 			route("course/:id/settings", "routes/course.$id.settings.tsx"),
-		layout("layouts/course-participants-layout.tsx", [
-			route("course/:id/participants", "routes/course.$id.participants.tsx"),
-			route("course/:id/participants/profile", "routes/course.$id.participants.profile.tsx"),
-			route("course/:id/groups", "routes/course.$id.groups.tsx"),
-		]),
+			layout("layouts/course-participants-layout.tsx", [
+				route("course/:id/participants", "routes/course.$id.participants.tsx"),
+				route("course/:id/participants/profile", "routes/course.$id.participants.profile.tsx"),
+				route("course/:id/groups", "routes/course.$id.groups.tsx"),
+			]),
 			layout("layouts/course-grades-layout.tsx", [
 				route("course/:id/grades", "routes/course.$id.grades.tsx"),
 			]),
@@ -85,6 +86,9 @@ export const routes = [
 			route("admin/courses", "routes/admin/courses.tsx"),
 			route("admin/system", "routes/admin/system.tsx"),
 			route("admin/test-email", "routes/admin/test-email.tsx"),
+			route("admin/course/new", "routes/admin/course-new.tsx"),
+			route("admin/categories", "routes/admin/categories.tsx"),
+			route("admin/category/new", "routes/admin/category-new.tsx"),
 		]),
 	]),
 ] as const satisfies RouteConfig;

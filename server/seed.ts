@@ -10,6 +10,7 @@ import { tryCreateCourseActivityModuleLink } from "./internal/course-activity-mo
 import { tryCreateCourse } from "./internal/course-management";
 import { tryCreateSection } from "./internal/course-section-management";
 import { tryCreateEnrollment } from "./internal/enrollment-management";
+import { tryCreateCategory } from "./internal/course-category-management";
 import {
 	tryCreateUser,
 	tryRegisterFirstUser,
@@ -167,11 +168,59 @@ export const runSeed = Result.wrap(
 			}
 		}
 
-		// Step 5: Create multiple courses
+		// Step 5: Create course categories
+		console.log("🏷️  Creating course categories...");
+		const categoryResults: { name: string; id: number }[] = [];
+		const stemCategory = await tryCreateCategory(payload, mockRequest, {
+			name: "STEM",
+		});
+		if (stemCategory.ok) {
+			categoryResults.push({ name: "STEM", id: stemCategory.value.id });
+			console.log(`✅ Category created: STEM (ID: ${stemCategory.value.id})`);
+		}
+		const humanitiesCategory = await tryCreateCategory(payload, mockRequest, {
+			name: "Humanities",
+		});
+		if (humanitiesCategory.ok) {
+			categoryResults.push({ name: "Humanities", id: humanitiesCategory.value.id });
+			console.log(
+				`✅ Category created: Humanities (ID: ${humanitiesCategory.value.id})`,
+			);
+		}
+		const csSubcat = stemCategory.ok
+			? await tryCreateCategory(payload, mockRequest, {
+				name: "Computer Science",
+				parent: stemCategory.value.id,
+			})
+			: null;
+		if (csSubcat && csSubcat.ok) {
+			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
+			console.log(
+				`✅ Subcategory created: Computer Science (ID: ${csSubcat.value.id})`,
+			);
+		}
+		const mathSubcat = stemCategory.ok
+			? await tryCreateCategory(payload, mockRequest, {
+				name: "Mathematics",
+				parent: stemCategory.value.id,
+			})
+			: null;
+		if (mathSubcat && mathSubcat.ok) {
+			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });
+			console.log(
+				`✅ Subcategory created: Mathematics (ID: ${mathSubcat.value.id})`,
+			);
+		}
+
+		// Step 6: Create multiple courses and assign categories
 		console.log("📚 Creating courses...");
 		const courses = [];
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < 6; i++) {
 			const courseTitle = faker.company.buzzPhrase();
+			const randomCategoryId =
+				categoryResults.length > 0
+					? categoryResults[faker.number.int({ min: 0, max: categoryResults.length - 1 })].id
+					: undefined;
 			const courseResult = await tryCreateCourse({
 				payload,
 				data: {
@@ -184,6 +233,8 @@ export const runSeed = Result.wrap(
 						"published",
 						"archived",
 					]),
+					// Assign to a category if available
+					category: randomCategoryId,
 				},
 				overrideAccess: true,
 			});
@@ -191,6 +242,31 @@ export const runSeed = Result.wrap(
 			if (courseResult.ok) {
 				courses.push(courseResult.value);
 				console.log(`✅ Course created with ID: ${courseResult.value.id}`);
+			}
+		}
+
+		// Additionally create an uncategorized course (no category assigned)
+		console.log("📚 Creating uncategorized course...");
+		{
+			const uncategorizedTitle = faker.company.buzzPhrase();
+			const uncategorizedCourseResult = await tryCreateCourse({
+				payload,
+				data: {
+					title: uncategorizedTitle,
+					description: faker.lorem.paragraphs(2),
+					slug: faker.helpers.slugify(uncategorizedTitle).toLowerCase(),
+					createdBy: adminUser.id,
+					status: faker.helpers.arrayElement(["draft", "published", "archived"]),
+					// Intentionally omit category to create an uncategorized course
+				},
+				overrideAccess: true,
+			});
+
+			if (uncategorizedCourseResult.ok) {
+				courses.push(uncategorizedCourseResult.value);
+				console.log(
+					`✅ Uncategorized course created with ID: ${uncategorizedCourseResult.value.id}`,
+				);
 			}
 		}
 
@@ -262,6 +338,25 @@ export const runSeed = Result.wrap(
 
 		const taEnrollment = taEnrollmentResult.value;
 		console.log(`✅ TA enrollment created with ID: ${taEnrollment.id}`);
+
+		// Step 8.6: Enroll admin as manager in another course
+		if (courses.length > 1) {
+			console.log("🧑‍💼 Enrolling admin as manager in a course...");
+			const managerEnrollmentResult = await tryCreateEnrollment({
+				payload,
+				user: adminUser.id,
+				course: courses[1].id,
+				role: "manager",
+				status: "active",
+				req: mockRequest,
+				overrideAccess: true,
+			});
+			if (managerEnrollmentResult.ok) {
+				console.log(
+					`✅ Admin enrolled as manager in course ID: ${courses[1].id} (enrollment ID: ${managerEnrollmentResult.value.id})`,
+				);
+			}
+		}
 
 		// Step 8.5: Enroll additional students
 		console.log("🎓 Enrolling additional students...");

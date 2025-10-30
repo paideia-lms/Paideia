@@ -52,12 +52,18 @@ export type PageInfo = {
 	isUserModuleEditSetting: boolean;
 	isUserModuleEditAccess: boolean;
 	isInUserModuleEditLayout: boolean;
+	/**
+	 * admin pages
+	 */
 	isAdminIndex: boolean;
 	isAdminUsers: boolean;
 	isAdminUserNew: boolean;
 	isAdminCourses: boolean;
+	isAdminCourseNew: boolean;
 	isAdminSystem: boolean;
 	isAdminTestEmail: boolean;
+	isAdminCategories: boolean;
+	isAdminCategoryNew: boolean;
 	/** 
 	 * the params of the current route
 	 */

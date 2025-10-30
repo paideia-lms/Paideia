@@ -2,6 +2,7 @@ import {
 	Button,
 	Container,
 	Group,
+	Input,
 	Paper,
 	Select,
 	Stack,
@@ -43,6 +44,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.settings";
+import { tryGetCategoryTree, type CategoryTreeNode } from "server/internal/course-category-management";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -56,9 +58,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
-		return badRequest({
-			error: "Invalid course ID",
-		});
+		throw new ForbiddenResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -85,37 +85,29 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		);
 	}
 
-	// Fetch categories for the dropdown
-	const categories = await payload.find({
-		collection: "course-categories",
-		limit: 100,
-		sort: "name",
-	});
+	// Fetch categories via internal functions and flatten
+	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
+	const categoriesResult = await tryGetCategoryTree(payload);
+	if (!categoriesResult.ok) {
+		throw new ForbiddenResponse("Failed to get categories");
+	}
+	const categories = categoriesResult.value;
+	const flatCategories: { value: string; label: string }[] = [];
+	const visit = (nodes: CategoryTreeNode[], prefix: string) => {
+		for (const n of nodes) {
+			flatCategories.push({ value: String(n.id), label: `${prefix}${n.name}` });
+			if (n.subcategories?.length) visit(n.subcategories, `${prefix}— `);
+		}
+	};
+	visit(categories, "");
 
-	const categoryId =
-		typeof course.category === "number"
-			? course.category
-			: (course.category?.id ?? null);
 
 	// Handle thumbnail - could be Media object, just ID, or null
-	let thumbnailUrl: string | null = null;
-	if (course.thumbnail) {
-		if (typeof course.thumbnail === "object") {
-			// It's a populated Media object
-			thumbnailUrl = course.thumbnail.filename
-				? href("/api/media/file/:filenameOrId", {
-					filenameOrId: course.thumbnail.filename,
-				})
-				: href("/api/media/file/:filenameOrId", {
-					filenameOrId: course.thumbnail.id.toString(),
-				});
-		} else {
-			// It's just an ID (number)
-			thumbnailUrl = href("/api/media/file/:filenameOrId", {
-				filenameOrId: course.thumbnail.toString(),
-			});
-		}
-	}
+	const thumbnailFileNameOrId = course.thumbnail ? typeof course.thumbnail === "object"
+		? course.thumbnail.filename || course.thumbnail.id?.toString()
+		: course.thumbnail.toString() : null;
+
+	const thumbnailUrl = thumbnailFileNameOrId ? href("/api/media/file/:filenameOrId", { filenameOrId: thumbnailFileNameOrId }) : null;
 
 	return {
 		success: true,
@@ -125,15 +117,28 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			slug: course.slug,
 			description: course.description,
 			status: course.status,
-			category: categoryId,
+			category: course.category,
 			thumbnailUrl,
 		},
-		categories: categories.docs.map((cat) => ({
-			value: cat.id.toString(),
-			label: cat.name,
-		})),
+		categories: flatCategories,
 	};
 };
+
+const inputSchema = z
+	.object({
+		title: z.string().min(1, "Title is required"),
+		slug: z
+			.string()
+			.min(1, "Slug is required")
+			.regex(
+				/^[a-z0-9-]+$/,
+				"Slug must contain only lowercase letters, numbers, and hyphens",
+			),
+		description: z.string().min(1, "Description is required"),
+		status: z.enum(["draft", "published", "archived"]),
+		category: z.coerce.number().nullish(),
+		redirectTo: z.string().optional().nullable(),
+	})
 
 export const action = async ({
 	request,
@@ -265,26 +270,16 @@ export const action = async ({
 			uploadHandler as FileUploadHandler,
 		);
 
-		const parsed = z
-			.object({
-				title: z.string().min(1, "Title is required"),
-				slug: z
-					.string()
-					.min(1, "Slug is required")
-					.regex(
-						/^[a-z0-9-]+$/,
-						"Slug must contain only lowercase letters, numbers, and hyphens",
-					),
-				description: z.string().min(1, "Description is required"),
-				status: z.enum(["draft", "published", "archived"]),
-				category: z.coerce.number().nullish(),
-			})
+		console.log(formData.get("category"))
+
+		const parsed = inputSchema
 			.safeParse({
 				title: formData.get("title"),
 				slug: formData.get("slug"),
 				description: formData.get("description"),
 				status: formData.get("status"),
 				category: formData.get("category"),
+				redirectTo: formData.get("redirectTo"),
 			});
 
 		if (!parsed.success) {
@@ -342,6 +337,7 @@ export const action = async ({
 				description,
 				status: parsed.data.status,
 				thumbnail: thumbnailMediaId,
+				category: parsed.data.category,
 			},
 			user: {
 				...currentUser,
@@ -365,6 +361,7 @@ export const action = async ({
 			success: true,
 			message: "Course updated successfully",
 			id: courseId,
+			redirectTo: parsed.data.redirectTo ?? null,
 		});
 	} catch (error) {
 		// Rollback on any error
@@ -387,8 +384,11 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 				message: "The course has been updated successfully",
 				color: "green",
 			});
-			// Redirect to the course's view page
-			throw redirect(`/course/${actionData.id}`);
+			// Redirect to provided location if specified; otherwise to the course's view page
+			if (actionData.redirectTo) {
+				throw redirect(actionData.redirectTo);
+			}
+			throw redirect(href("/course/:id", { id: actionData.id.toString() }));
 		}
 	} else if ("error" in actionData) {
 		notifications.show({
@@ -400,15 +400,21 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
+export function useEditCourse() {
 	const fetcher = useFetcher<typeof action>();
+	const editCourse = async (courseId: number, formData: FormData) => {
+		fetcher.submit(formData, { method: "POST", action: href("/course/:id/settings", { id: courseId.toString() }), encType: "multipart/form-data" });
+	};
+	return { editCourse, isLoading: fetcher.state !== "idle", fetcher };
+}
+
+export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
+	const { course, categories } = loaderData;
+	const { editCourse, isLoading, fetcher } = useEditCourse();
 	const descriptionId = useId();
-	const [description, setDescription] = useState(
-		"error" in loaderData ? "" : loaderData.course.description,
-	);
 	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
 	const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
-		"error" in loaderData ? null : loaderData.course.thumbnailUrl,
+		course.thumbnailUrl,
 	);
 	const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
 
@@ -433,17 +439,11 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		mode: "uncontrolled",
 		cascadeUpdates: true,
 		initialValues: {
-			title: "error" in loaderData ? "" : loaderData.course.title,
-			slug: "error" in loaderData ? "" : loaderData.course.slug,
-			status: ("error" in loaderData
-				? "draft"
-				: loaderData.course.status) as Course["status"],
-			category:
-				"error" in loaderData
-					? ""
-					: loaderData.course.category
-						? loaderData.course.category.toString()
-						: "",
+			title: course.title,
+			slug: course.slug,
+			status: course.status as Course["status"],
+			category: course.category?.id?.toString() ?? "",
+			description: course.description,
 		},
 		validate: {
 			title: (value) => (!value ? "Title is required" : null),
@@ -455,35 +455,19 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 				return null;
 			},
 			status: (value) => (!value ? "Status is required" : null),
+			description: (value) => (!value ? "Description is required" : null),
 		},
 	});
 
-	// Handle error state after all hooks are called
-	if ("error" in loaderData) {
-		return (
-			<Container size="sm" py="xl">
-				<Paper withBorder shadow="md" p="xl" radius="md">
-					<Title order={2} mb="md" c="red">
-						Error
-					</Title>
-					<p>{loaderData.error}</p>
-				</Paper>
-			</Container>
-		);
-	}
-
-	const { categories } = loaderData;
 
 	const handleSubmit = (values: typeof form.values) => {
-		// Validate description
-		if (!description || description.trim().length === 0) {
+		if (!values.description || values.description.trim().length === 0) {
 			return;
 		}
-
 		const formData = new FormData();
 		formData.append("title", values.title);
 		formData.append("slug", values.slug);
-		formData.append("description", description);
+		formData.append("description", values.description);
 		formData.append("status", values.status ?? "draft");
 
 		if (values.category) {
@@ -501,10 +485,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			formData.append(`image-${index}-preview`, imageFile.preview);
 		});
 
-		fetcher.submit(formData, {
-			method: "POST",
-			encType: "multipart/form-data",
-		});
+		editCourse(course.id, formData);
 	};
 
 	return (
@@ -624,33 +605,21 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							</Stack>
 						</div>
 
-						<div>
-							<label
-								htmlFor={descriptionId}
-								style={{
-									display: "block",
-									marginBottom: "8px",
-									fontWeight: 500,
-								}}
-							>
-								Description *
-							</label>
+						<Input.Wrapper label="Description" required>
 							<div id={descriptionId}>
 								<RichTextEditor
-									content={description}
-									onChange={setDescription}
+									content={form.getValues().description}
+									onChange={(v) => form.setFieldValue("description", v)}
 									onImageAdd={handleImageAdd}
 									placeholder="Enter course description"
 								/>
 							</div>
-							{!description && (
-								<div
-									style={{ color: "red", fontSize: "14px", marginTop: "4px" }}
-								>
+							{!form.getValues().description && (
+								<div style={{ color: "red", fontSize: "14px", marginTop: "4px" }}>
 									Description is required
 								</div>
 							)}
-						</div>
+						</Input.Wrapper>
 
 						<Select
 							{...form.getInputProps("status")}
@@ -677,8 +646,8 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 						<Group justify="flex-end" mt="md">
 							<Button
 								type="submit"
-								loading={fetcher.state !== "idle"}
-								disabled={fetcher.state !== "idle"}
+								loading={isLoading}
+								disabled={isLoading}
 							>
 								Update Course
 							</Button>
