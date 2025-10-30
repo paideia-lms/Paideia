@@ -19,7 +19,7 @@
 		"test:all": "bun test $(find . -type f -name \"*.test.ts\" -not -path \"./node_modules/*\")",
 		"migrate:create": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:create && bun scripts/clean-s3.ts && sleep 1 && bun scripts/fix-types.ts",
 		"migrate:status": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:status",
-		"migrate:up": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:up",
+		"migrate:up": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate",
 		"migrate:down": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:down",
 		"migrate:refresh": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:refresh --force-accept-warning && bun scripts/clean-s3.ts && sleep 1 && bun scripts/fix-types.ts",
 		"migrate:reset": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:reset",

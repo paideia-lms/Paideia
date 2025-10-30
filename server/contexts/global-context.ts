@@ -13,7 +13,7 @@ export type PageInfo = {
 	isMyCourses: boolean;
 	isDashboard: boolean;
 	isLogin: boolean;
-	isCreatingFirstUser: boolean;
+	isRegistration: boolean;
 	isCatalog: boolean;
 	isInCourse: boolean;
 	isCourseSettings: boolean;
@@ -60,6 +60,7 @@ export type PageInfo = {
 	isAdminUserNew: boolean;
 	isAdminCourses: boolean;
 	isAdminCourseNew: boolean;
+	isAdminRegistration: boolean;
 	isAdminSystem: boolean;
 	isAdminTestEmail: boolean;
 	isAdminCategories: boolean;

@@ -81,3 +81,9 @@ we should not expose the depth variable to args for internal functions. The outp
 ## Changelog
 
 changelog should be written in the `changelogs` folder. each changelog should be named like `0001-2025-01-01-feature-or-change-name.md`. the number should be the order of the changelog. the date should be the date of the changelog. the feature name should be the name of the feature. a standard changelog should look like this `changelogs/0016-2025-10-29-assignment-grading-page.md`.
+
+## Coding style
+
+max line leng per file should be 1000. When exceeding, we should split the code into multiple files for readability.
+
+for complicated code, we should always add comment to explain the code.

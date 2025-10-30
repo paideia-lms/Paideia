@@ -73,7 +73,7 @@ export const middleware = [
 		let isMyCourses = false;
 		let isDashboard = false;
 		let isLogin = false;
-		let isFirstUser = false;
+		let isRegistration = false;
 		let isCatalog = false;
 		let isInCourse = false;
 		let isCourseSettings = false;
@@ -118,12 +118,13 @@ export const middleware = [
 		let isAdminTestEmail = false;
 		let isAdminCategories = false;
 		let isAdminCategoryNew = false;
+		let isAdminRegistration = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
 			else if (route.id === "routes/index") isDashboard = true;
 			else if (route.id === "routes/login") isLogin = true;
-			else if (route.id === "routes/first-user") isFirstUser = true;
+			else if (route.id === "routes/registration") isRegistration = true;
 			else if (route.id === "routes/catalog") isCatalog = true;
 			else if (route.id === "layouts/course-layout") isInCourse = true;
 			else if (route.id === "routes/course.$id.settings")
@@ -184,6 +185,7 @@ export const middleware = [
 			else if (route.id === "routes/admin/category-new")
 				isAdminCategoryNew = true;
 			else if (route.id === "routes/admin/course-new") isAdminCourseNew = true;
+			else if (route.id === "routes/admin/registration") isAdminRegistration = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -195,7 +197,7 @@ export const middleware = [
 				isMyCourses,
 				isDashboard,
 				isLogin,
-				isCreatingFirstUser: isFirstUser,
+				isRegistration,
 				isCatalog,
 				isInCourse,
 				isCourseSettings,
@@ -239,6 +241,7 @@ export const middleware = [
 				isAdminTestEmail,
 				isAdminCategories,
 				isAdminCategoryNew,
+				isAdminRegistration,
 				isAdminCourseNew,
 				params: params as Record<string, string>,
 			},
@@ -307,9 +310,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -359,9 +362,9 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -421,9 +424,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -475,9 +478,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				);
 
@@ -550,7 +553,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 	// Skip redirect check for essential routes
 	if (
-		pageInfo.isCreatingFirstUser ||
+		pageInfo.isRegistration ||
 		pageInfo.isLogin ||
 		currentPath.startsWith("/api/")
 	) {
@@ -565,7 +568,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 	// If no users exist, redirect to first-user creation
 	if (users === 0) {
-		throw redirect(href("/first-user"));
+		throw redirect(href("/registration"));
 	}
 
 	return {

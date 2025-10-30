@@ -38,7 +38,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 				title: "General",
 				items: [
 					{ title: "Notifications" },
-					{ title: "Registration" },
+					{ title: "Registration", href: href("/admin/registration") },
 					{ title: "Feedback settings" },
 					{ title: "Advanced features" },
 					{ title: "Site admin presets" },

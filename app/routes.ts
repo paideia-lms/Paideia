@@ -7,7 +7,7 @@ import {
 
 export const routes = [
 	route("login", "routes/login.tsx"),
-	route("first-user", "routes/first-user.tsx"),
+	route("registration", "routes/registration.tsx"),
 	route("logout", "routes/logout.tsx"),
 	route("api/stop-impersonation", "routes/api/stop-impersonation.tsx"),
 	route("api/search-users", "routes/api/search-users.tsx"),
@@ -92,6 +92,7 @@ export const routes = [
 			route("admin/courses", "routes/admin/courses.tsx"),
 			route("admin/system", "routes/admin/system.tsx"),
 			route("admin/test-email", "routes/admin/test-email.tsx"),
+			route("admin/registration", "routes/admin/registration.tsx"),
 			route("admin/course/new", "routes/admin/course-new.tsx"),
 			route("admin/categories", "routes/admin/categories.tsx"),
 			route("admin/category/new", "routes/admin/category-new.tsx"),
