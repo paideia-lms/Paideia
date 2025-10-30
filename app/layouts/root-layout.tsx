@@ -98,7 +98,7 @@ export function HeaderTabs({
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		// Check if we're on the admin route
-		if (pageInfo.isAdmin) return Tab.SiteAdmin;
+		if (pageInfo.isInAdminLayout) return Tab.SiteAdmin;
 
 		// Check if we're on course-related routes
 		if (pageInfo.isMyCourses) return Tab.MyCourses;

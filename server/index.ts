@@ -23,6 +23,7 @@ import sanitizedConfig from "./payload.config";
 import { runSeed } from "./seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { s3Client } from "./utils/s3-client";
+import { detectPlatform } from "./utils/hosting-platform-detection";
 
 const unstorage = createStorage({
 	driver: lruCacheDriver({
@@ -49,6 +50,9 @@ const port = Number(envVars.PORT.value) || envVars.PORT.default;
 const frontendPort =
 	Number(envVars.FRONTEND_PORT.value) || envVars.FRONTEND_PORT.default;
 
+// Detect platform info once at startup
+const platformInfo = detectPlatform();
+
 const backend = new Elysia()
 	.state("payload", payload)
 	.use(openapi())
@@ -71,10 +75,11 @@ const frontend = new Elysia()
 						s3Client,
 						unstorage,
 						envVars: envVars,
+						platformInfo,
 						// some fake data for now
 						routeHierarchy: [],
 						pageInfo: {
-							isAdmin: false,
+							isInAdminLayout: false,
 							isMyCourses: false,
 							isDashboard: false,
 							isLogin: false,
@@ -112,10 +117,15 @@ const frontend = new Elysia()
 							isUserModuleEdit: false,
 							isUserModuleEditSetting: false,
 							isUserModuleEditAccess: false,
-							isUserProfile: false,
-							isInUserModuleEditLayout: false,
-							params: {},
-						},
+						isUserProfile: false,
+						isInUserModuleEditLayout: false,
+						isAdminIndex: false,
+						isAdminUsers: false,
+						isAdminUserNew: false,
+						isAdminCourses: false,
+						isAdminSystem: false,
+						params: {},
+					},
 					});
 					// set all the contexts to be null in the beginning??
 					c.set(userContextKey, null);

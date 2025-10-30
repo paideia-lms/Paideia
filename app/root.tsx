@@ -109,6 +109,11 @@ export const middleware = [
 		let isInUserModuleEditLayout = false;
 		let isUserProfile = false;
 		let isInUserModulesLayout = false;
+		let isAdminIndex = false;
+		let isAdminUsers = false;
+		let isAdminUserNew = false;
+		let isAdminCourses = false;
+		let isAdminSystem = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -163,6 +168,11 @@ export const middleware = [
 			else if (route.id === "routes/user/profile") isUserProfile = true;
 			else if (route.id === "layouts/user-modules-layout")
 				isInUserModulesLayout = true;
+			else if (route.id === "routes/admin/index") isAdminIndex = true;
+			else if (route.id === "routes/admin/users") isAdminUsers = true;
+			else if (route.id === "routes/admin/new") isAdminUserNew = true;
+			else if (route.id === "routes/admin/courses") isAdminCourses = true;
+			else if (route.id === "routes/admin/system") isAdminSystem = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -170,7 +180,7 @@ export const middleware = [
 			...context.get(globalContextKey),
 			routeHierarchy,
 			pageInfo: {
-				isAdmin,
+				isInAdminLayout: isAdmin,
 				isMyCourses,
 				isDashboard,
 				isLogin,
@@ -210,6 +220,11 @@ export const middleware = [
 				isUserProfile,
 				isInUserModulesLayout,
 				isInUserModuleEditLayout,
+				isAdminIndex,
+				isAdminUsers,
+				isAdminUserNew,
+				isAdminCourses,
+				isAdminSystem,
 				params: params as Record<string, string>,
 			},
 		});

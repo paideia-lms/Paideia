@@ -6,9 +6,10 @@ import type { RouteInfo } from "~/utils/routes-utils";
 import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
+import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
 
 export type PageInfo = {
-	isAdmin: boolean;
+	isInAdminLayout: boolean;
 	isMyCourses: boolean;
 	isDashboard: boolean;
 	isLogin: boolean;
@@ -51,6 +52,11 @@ export type PageInfo = {
 	isUserModuleEditSetting: boolean;
 	isUserModuleEditAccess: boolean;
 	isInUserModuleEditLayout: boolean;
+	isAdminIndex: boolean;
+	isAdminUsers: boolean;
+	isAdminUserNew: boolean;
+	isAdminCourses: boolean;
+	isAdminSystem: boolean;
 	/** 
 	 * the params of the current route
 	 */
@@ -71,6 +77,7 @@ export const globalContext = createContext<{
 	envVars: typeof envVars;
 	routeHierarchy: RouteInfo[];
 	pageInfo: PageInfo;
+	platformInfo: PlatformDetectionResult;
 }>();
 
 // ! we can use string as key, please see https://github.com/remix-run/react-router/blob/c1cddedf656271a3eec8368f2854c733b3fe27da/packages/react-router/lib/router/utils.ts#L209

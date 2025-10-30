@@ -200,7 +200,7 @@ export function transformToActivityData(
 		// Convert preset values to file types
 		const allowedFileTypes =
 			parsedData.assignmentAllowedFileTypes &&
-			parsedData.assignmentAllowedFileTypes.length > 0
+				parsedData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(parsedData.assignmentAllowedFileTypes)
 				: undefined;
 

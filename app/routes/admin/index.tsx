@@ -488,6 +488,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 			server: {
 				title: "Server",
 				items: [
+					{ title: "System information", href: href("/admin/system") },
 					{ title: "System paths" },
 					{ title: "Support contact" },
 					{ title: "Session handling" },
