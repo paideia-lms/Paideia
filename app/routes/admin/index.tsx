@@ -1,11 +1,14 @@
-import { Box, Group, Stack, Tabs, TextInput, Title } from "@mantine/core";
+import { Badge, Box, Stack, Title } from "@mantine/core";
 import { useQueryState } from "nuqs";
 import { href, Link } from "react-router";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import type { Route } from "./+types/index";
 
-export const loader = async () => {
-	return {};
+export const loader = async ({ request }: Route.LoaderArgs) => {
+	const url = new URL(request.url);
+	const tabParam = url.searchParams.get("tab") ?? "general";
+
+	return { tabParam };
 };
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
@@ -471,7 +474,6 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Default Dashboard page" },
 					{ title: "Default profile page" },
 					{ title: "Courses" },
-					{ title: "AJAX and Javascript" },
 					{ title: "Manage tags" },
 					{ title: "Additional HTML" },
 					{ title: "Templates" },
@@ -585,14 +587,11 @@ const adminTabs: { [key: string]: AdminTab } = {
 				items: [
 					{ title: "Debugging" },
 					{ title: "Paideia REST API UI (SwaggerUI)" },
-					{ title: "Web service test client" },
 					{ title: "Purge caches" },
 					{ title: "Third party libraries" },
 					{ title: "Hooks overview" },
 					{ title: "Acceptance testing" },
 					{ title: "Make test course" },
-					{ title: "Make JMeter test plan" },
-					{ title: "Create testing scenarios" },
 					{ title: "Template library" },
 				],
 			},
@@ -607,67 +606,15 @@ const adminTabs: { [key: string]: AdminTab } = {
 	},
 };
 
-const AdminTabPanel = ({ tabKey }: { tabKey: string }) => {
-	const tabData = adminTabs[tabKey];
-	if (!tabData) return null;
-
-	return (
-		<Tabs.Panel value={tabKey} pt="xl">
-			<Stack gap="lg">
-				{Object.entries(tabData.sections).map(([sectionKey, section]) => (
-					<Box key={sectionKey}>
-						<Title order={2} mb="md">
-							{section.title}
-						</Title>
-						<Stack gap="sm">
-							{section.items.map((item) => (
-								<Box
-									key={item.title}
-									p="md"
-									style={{
-										// remove the link style
-										textDecoration: "none",
-										color: "inherit",
-										border: "1px solid var(--mantine-color-gray-3)",
-										borderRadius: "var(--mantine-radius-sm)",
-										cursor: "pointer",
-									}}
-									component={Link}
-									to={item.href ?? "#"}
-								>
-									<Title order={4} mb="xs">
-										{item.title}
-									</Title>
-								</Box>
-							))}
-						</Stack>
-					</Box>
-				))}
-			</Stack>
-		</Tabs.Panel>
-	);
-};
-
-const SearchInput = () => {
-	const [searchQuery, setSearchQuery] = useQueryState("search");
-
-	return (
-		<TextInput
-			placeholder="Search"
-			w={300}
-			value={searchQuery ?? ""}
-			onChange={(event) => setSearchQuery(event.currentTarget.value)}
-		/>
-	);
-};
-
 export default function AdminPage() {
-	const [activeTab, setActiveTab] = useQueryState("tab", {
+	const [activeTab] = useQueryState("tab", {
 		defaultValue: "general",
 	});
 
+	const tabData = adminTabs[activeTab ?? "general"];
+
 	return (
-		<Box className="admin-dashboard">
+		<Box pt="xl">
 			<title>Site Administration | Paideia LMS</title>
 			<meta
 				name="description"
@@ -679,39 +626,38 @@ export default function AdminPage() {
 				content="Manage and configure your Paideia LMS installation"
 			/>
 
-			{/* Header */}
-			<Group justify="space-between" mb="xl">
-				<Title order={1}>Site administration</Title>
-				<SearchInput />
-			</Group>
-
-			{/* Main Tabs */}
-			<Tabs
-				value={activeTab}
-				onChange={(value) => {
-					if (value) {
-						setActiveTab(value);
-					}
-				}}
-				mb="lg"
-			>
-				<Tabs.List>
-					<Tabs.Tab value="general">General</Tabs.Tab>
-					<Tabs.Tab value="users">Users</Tabs.Tab>
-					<Tabs.Tab value="courses">Courses</Tabs.Tab>
-					<Tabs.Tab value="grades">Grades</Tabs.Tab>
-					<Tabs.Tab value="plugins">Plugins</Tabs.Tab>
-					<Tabs.Tab value="appearance">Appearance</Tabs.Tab>
-					<Tabs.Tab value="server">Server</Tabs.Tab>
-					<Tabs.Tab value="reports">Reports</Tabs.Tab>
-					<Tabs.Tab value="development">Development</Tabs.Tab>
-				</Tabs.List>
-
-				{/* Tab Panels */}
-				{Object.keys(adminTabs).map((tabKey) => (
-					<AdminTabPanel key={tabKey} tabKey={tabKey} />
-				))}
-			</Tabs>
+			{tabData && (
+				<Stack gap="lg">
+					{Object.entries(tabData.sections).map(([sectionKey, section]) => (
+						<Box key={sectionKey}>
+							<Title order={2} mb="md">
+								{section.title}
+							</Title>
+							<Stack gap="sm">
+								{section.items.map((item) => (
+									<Box
+										key={item.title}
+										p="md"
+										style={{
+											textDecoration: "none",
+											color: "inherit",
+											border: "1px solid var(--mantine-color-gray-3)",
+											borderRadius: "var(--mantine-radius-sm)",
+											cursor: "pointer",
+										}}
+										component={Link}
+										to={item.href ?? "#"}
+									>
+										<Title order={4} mb="xs">
+											{item.title} {!item.href && <Badge color="gray" variant="light">Coming soon</Badge>}
+										</Title>
+									</Box>
+								))}
+							</Stack>
+						</Box>
+					))}
+				</Stack>
+			)}
 		</Box>
 	);
 }
