@@ -1,34 +1,19 @@
-import {
-	Alert,
-	Button,
-	Container,
-	Paper,
-	PasswordInput,
-	Stack,
-	Text,
-	TextInput,
-	Title,
-} from "@mantine/core";
+import { Anchor, Button, Container, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import {
-	type ActionFunctionArgs,
-	href,
-	type LoaderFunctionArgs,
-	redirect,
-	useFetcher,
-} from "react-router";
+import { type ActionFunctionArgs, href, type LoaderFunctionArgs, redirect, useFetcher, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryLogin } from "server/internal/user-management";
+import { tryGetRegistrationSettings } from "server/internal/registration-settings";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, ok } from "~/utils/responses";
+import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/login";
 
-export const loader = async ({ context, request }: LoaderFunctionArgs) => {
+export const loader = async ({ context }: LoaderFunctionArgs) => {
 	// Mock loader - just return some basic data
 	const userSession = context.get(userContextKey);
 
@@ -36,11 +21,26 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 		throw redirect(href("/"));
 	}
 
+	const { payload } = context.get(globalContextKey);
+
+	const settingsResult = await tryGetRegistrationSettings({
+		payload,
+		// ! this is a system request, we don't care about access control
+		overrideAccess: true,
+	});
+
+	if (!settingsResult.ok) {
+		throw new ForbiddenResponse("Failed to get registration settings");
+	}
+
+	const registrationDisabled = settingsResult.value.disableRegistration;
+
 	return {
 		user: null,
 		message: "Welcome to login page",
 		NODE_ENV: process.env.NODE_ENV,
 		DEV_CONSTANTS: devConstants,
+		registrationDisabled,
 	};
 };
 
@@ -57,7 +57,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 		throw redirect(href("/"));
 	}
 
-	const { contentType, data } = await getDataAndContentTypeFromRequest(request);
+	const { data } = await getDataAndContentTypeFromRequest(request);
 
 	const parsedData = loginSchema.parse(data);
 
@@ -90,10 +90,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 	});
 };
 
-export async function clientAction({
-	request,
-	serverAction,
-}: Route.ClientActionArgs) {
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData?.success) {
@@ -110,11 +107,8 @@ export async function clientAction({
 	return actionData;
 }
 
-export default function LoginPage({
-	loaderData,
-	actionData,
-}: Route.ComponentProps) {
-	const { user, message, NODE_ENV, DEV_CONSTANTS } = loaderData;
+export default function LoginPage({ loaderData }: Route.ComponentProps) {
+	const { message, NODE_ENV, DEV_CONSTANTS, registrationDisabled } = loaderData;
 	const fetcher = useFetcher<typeof action>();
 	const form = useForm({
 		mode: "uncontrolled",
@@ -219,6 +213,13 @@ export default function LoginPage({
 						<Button type="submit" fullWidth size="lg">
 							Login
 						</Button>
+						{!registrationDisabled && (
+							<Text ta="center" c="dimmed" size="sm">
+								<Anchor component={Link} to={href("/registration")} underline="always">
+									Create an account
+								</Anchor>
+							</Text>
+						)}
 					</Stack>
 				</fetcher.Form>
 			</Paper>

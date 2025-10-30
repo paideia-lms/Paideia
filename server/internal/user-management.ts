@@ -93,6 +93,16 @@ export interface RegisterFirstUserArgs {
 	req?: Partial<PayloadRequest>;
 }
 
+export interface RegisterUserArgs {
+	payload: Payload;
+	email: string;
+	password: string;
+	firstName: string;
+	lastName: string;
+	req?: Partial<PayloadRequest>;
+	user?: User | null;
+}
+
 export interface HandleImpersonationArgs {
 	payload: Payload;
 	impersonateUserId: string;
@@ -635,6 +645,71 @@ export const tryRegisterFirstUser = Result.wrap(
 		new UnknownError("Failed to register first user", {
 			cause: error,
 		}),
+);
+
+/**
+ * Registers a regular user (non-admin) and logs them in
+ */
+export const tryRegisterUser = Result.wrap(
+	async (args: RegisterUserArgs) => {
+		const { payload, email, password, firstName, lastName, req, user = null } = args;
+
+		// Ensure not already exists
+		const existing = await payload.find({
+			collection: "users",
+			where: { email: { equals: email } },
+			limit: 1,
+			user,
+			req,
+			overrideAccess: false,
+		});
+		if (existing.docs.length > 0) {
+			throw new Error(`User with email ${email} already exists`);
+		}
+
+		await payload.create({
+			collection: "users",
+			data: {
+				email,
+				password,
+				firstName,
+				lastName,
+				role: "student",
+				theme: "light",
+			},
+			user,
+			req,
+			overrideAccess: false,
+		});
+
+		// Login new user
+		const loginResult = await payload
+			.login({
+				collection: "users",
+				req,
+				data: { email, password },
+			})
+			.then((l) => {
+				const user = l.user;
+				const avatar = user.avatar;
+				assertZodInternal(
+					"tryRegisterUser: User avatar is required",
+					avatar,
+					z.object({ id: z.number() }).nullish(),
+				);
+				return { ...l, user: { ...user, avatar } };
+			});
+
+		const { exp, token, user: loggedInUser } = loginResult;
+		if (!exp || !token) {
+			throw new Error("Login failed: missing token or expiration");
+		}
+
+		return { token, exp, user: loggedInUser };
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to register user", { cause: error }),
 );
 
 /**

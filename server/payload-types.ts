@@ -176,9 +176,11 @@ export interface Config {
   };
   globals: {
     'system-grade-table': SystemGradeTable;
+    'registration-settings': RegistrationSetting;
   };
   globalsSelect: {
     'system-grade-table': SystemGradeTableSelect<false> | SystemGradeTableSelect<true>;
+    'registration-settings': RegistrationSettingsSelect<false> | RegistrationSettingsSelect<true>;
   };
   locale: null;
   user: User & {
@@ -1846,6 +1848,17 @@ export interface SystemGradeTable {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registration-settings".
+ */
+export interface RegistrationSetting {
+  id: number;
+  disableRegistration?: boolean | null;
+  showRegistrationButton?: boolean | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "system-grade-table_select".
  */
 export interface SystemGradeTableSelect<T extends boolean = true> {
@@ -1857,6 +1870,17 @@ export interface SystemGradeTableSelect<T extends boolean = true> {
         id?: T;
       };
   maxCategoryDepth?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "registration-settings_select".
+ */
+export interface RegistrationSettingsSelect<T extends boolean = true> {
+  disableRegistration?: T;
+  showRegistrationButton?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

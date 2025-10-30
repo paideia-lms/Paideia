@@ -52,3 +52,22 @@ export const SystemGradeTable = {
 		},
 	],
 } as const satisfies GlobalConfig;
+
+// Registration settings - controls public registration availability and UI
+export const RegistrationSettings = {
+	slug: "registration-settings",
+	fields: [
+		{
+			name: "disableRegistration",
+			type: "checkbox",
+			label: "Disable Self-Registration",
+			defaultValue: false,
+		},
+		{
+			name: "showRegistrationButton",
+			type: "checkbox",
+			label: "Show Registration Button",
+			defaultValue: true,
+		},
+	],
+} as const satisfies GlobalConfig;

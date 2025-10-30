@@ -47,6 +47,7 @@ import {
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
+import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import type { Route } from "./+types/index";
 
@@ -83,7 +84,8 @@ export function formatSchedule(schedule: string): string {
 }
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const userSession = context.get(userContextKey);
+    const { payload } = context.get(globalContextKey);
+    const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		// Public user - mock featured courses
@@ -141,10 +143,23 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			},
 		];
 
-		return {
-			isAuthenticated: false as const,
-			featuredCourses,
-		};
+        // Registration button visibility
+        let showRegistrationButton = true;
+        try {
+            const reg = (await payload.findGlobal({ slug: "registration-settings" })) as any;
+            if (typeof reg?.showRegistrationButton === "boolean") {
+                showRegistrationButton = reg.showRegistrationButton;
+            }
+            if (reg?.disableRegistration === true) {
+                showRegistrationButton = false;
+            }
+        } catch {}
+
+        return {
+            isAuthenticated: false as const,
+            featuredCourses,
+            showRegistrationButton,
+        };
 	}
 
 	// Authenticated user
@@ -1489,12 +1504,12 @@ function PublicDashboard({
 }: {
 	loaderData: Extract<
 		Awaited<ReturnType<typeof loader>>,
-		{ isAuthenticated: false }
+        { isAuthenticated: false }
 	>;
 }) {
 	if (loaderData.isAuthenticated) return null;
 
-	const { featuredCourses } = loaderData;
+    const { featuredCourses, showRegistrationButton } = loaderData;
 
 	return (
 		<Container size="xl" py="xl">
@@ -1514,7 +1529,7 @@ function PublicDashboard({
 								designed for the future of education
 							</Text>
 						</Stack>
-						<Group>
+                        <Group>
 							<Button
 								component={Link}
 								to={href("/login")}
@@ -1523,15 +1538,17 @@ function PublicDashboard({
 							>
 								Login
 							</Button>
-							<Button
-								component={Link}
-								to={"#"}
-								size="lg"
-								variant="outline"
-								leftSection={<IconUserPlus size={20} />}
-							>
-								Register
-							</Button>
+                            {showRegistrationButton && (
+                                <Button
+                                    component={Link}
+                                    to={href("/registration")}
+                                    size="lg"
+                                    variant="outline"
+                                    leftSection={<IconUserPlus size={20} />}
+                                >
+                                    Register
+                                </Button>
+                            )}
 						</Group>
 					</Stack>
 				</Paper>

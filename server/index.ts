@@ -42,9 +42,9 @@ const payload = await getPayload({
 });
 
 // console.log("Payload: ", payload)
-if (process.env.NODE_ENV === "development") {
-	await runSeed({ payload });
-}
+// if (process.env.NODE_ENV === "development") {
+// 	await runSeed({ payload });
+// }
 
 const port = Number(envVars.PORT.value) || envVars.PORT.default;
 const frontendPort =
@@ -83,7 +83,7 @@ const frontend = new Elysia()
 							isMyCourses: false,
 							isDashboard: false,
 							isLogin: false,
-							isCreatingFirstUser: false,
+							isRegistration: false,
 							isCatalog: false,
 							isInCourse: false,
 							isCourseSettings: false,
@@ -128,6 +128,7 @@ const frontend = new Elysia()
 							isAdminCourseNew: false,
 							isAdminCategories: false,
 							isAdminCategoryNew: false,
+							isAdminRegistration: false,
 							params: {},
 						},
 					});
