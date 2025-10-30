@@ -11,7 +11,7 @@ import {
 	Typography,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
-import { Dropzone, MIME_TYPES } from "@mantine/dropzone";
+import { Dropzone } from "@mantine/dropzone";
 import {
 	IconAlertTriangle,
 	IconCloudUpload,
@@ -24,6 +24,7 @@ import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { isHtmlEmpty } from "../rich-text-editor";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
+import { getMimeTypesArray } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { AssignmentActions } from "~/utils/module-actions";
 import type { SubmissionData } from "../submission-history";
@@ -100,6 +101,16 @@ function FileUploadZone({
 		onFilesChange(files.filter((f) => f.id !== fileId));
 	};
 
+	// Convert maxFileSize from MB to bytes
+	const maxFileSizeBytes = (assignment.maxFileSize ?? 10) * 1024 * 1024;
+	const maxFiles = assignment.maxFiles ?? 5;
+	const acceptedMimeTypes = getMimeTypesArray(assignment.allowedFileTypes ?? null);
+
+	// Get list of allowed extensions for display
+	const allowedExtensions = assignment.allowedFileTypes?.length
+		? assignment.allowedFileTypes.map((ft) => ft.extension).join(", ")
+		: ".pdf, .docx, .png, .jpeg";
+
 	return (
 		<div>
 			<Text size="sm" fw={500} mb="xs">
@@ -107,13 +118,9 @@ function FileUploadZone({
 			</Text>
 			<Dropzone
 				onDrop={handleDrop}
-				maxSize={assignment.maxFileSize || 5 * 1024 * 1024}
-				maxFiles={assignment.maxFiles || 10}
-				accept={
-					assignment.allowedFileTypes?.length
-						? assignment.allowedFileTypes.map((type) => type.mimeType)
-						: [MIME_TYPES.pdf, MIME_TYPES.docx, MIME_TYPES.png, MIME_TYPES.jpeg]
-				}
+				maxSize={maxFileSizeBytes}
+				maxFiles={maxFiles}
+				accept={acceptedMimeTypes}
 			>
 				<Group
 					justify="center"
@@ -135,9 +142,11 @@ function FileUploadZone({
 							Drag files here or click to select
 						</Text>
 						<Text size="sm" c="dimmed" inline mt={7}>
-							{assignment.maxFiles
-								? `Maximum ${assignment.maxFiles} files`
-								: "Attach your files"}
+							Max {maxFiles} file{maxFiles !== 1 ? "s" : ""}, up to{" "}
+							{assignment.maxFileSize ?? 10}MB each
+						</Text>
+						<Text size="xs" c="dimmed" mt={4}>
+							Allowed types: {allowedExtensions}
 						</Text>
 					</div>
 				</Group>

@@ -1,7 +1,7 @@
 import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, SubmitTarget, useFetcher, useLoaderData } from "react-router";
+import { href, useFetcher, useLoaderData, type SubmitTarget } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -22,6 +22,7 @@ import {
 	transformFormValues,
 	transformToActivityData,
 } from "~/utils/activity-module-schema";
+import { fileTypesToPresetValues } from "~/utils/file-types";
 import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
@@ -199,6 +200,11 @@ export default function EditModulePage() {
 				assignmentData?.requireTextSubmission || false,
 			assignmentRequireFileSubmission:
 				assignmentData?.requireFileSubmission || false,
+			assignmentAllowedFileTypes: fileTypesToPresetValues(
+				assignmentData?.allowedFileTypes,
+			),
+			assignmentMaxFileSize: assignmentData?.maxFileSize || 10,
+			assignmentMaxFiles: assignmentData?.maxFiles || 5,
 			// Quiz fields
 			quizInstructions: quizData?.instructions || "",
 			quizDueDate: quizData?.dueDate ? new Date(quizData.dueDate) : null,

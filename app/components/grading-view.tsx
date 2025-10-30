@@ -82,7 +82,6 @@ export function GradingView({
 	course,
 	moduleLinkId,
 }: GradingViewProps) {
-	const [attachmentsOpen, setAttachmentsOpen] = useState(true);
 	// Track individual attachment expansion state (all expanded by default)
 	const [expandedAttachments, setExpandedAttachments] = useState<Record<string, boolean>>(() => {
 		const initial: Record<string, boolean> = {};
@@ -201,66 +200,53 @@ export function GradingView({
 											<Text size="sm" fw={600}>
 												Attachments ({submission.attachments.length}):
 											</Text>
-											<ActionIcon
-												variant="subtle"
-												onClick={() => setAttachmentsOpen(!attachmentsOpen)}
-												aria-label={attachmentsOpen ? "Collapse attachments" : "Expand attachments"}
-											>
-												{attachmentsOpen ? (
-													<IconChevronUp size={18} />
-												) : (
-													<IconChevronDown size={18} />
-												)}
-											</ActionIcon>
 										</Group>
-										<Collapse in={attachmentsOpen}>
-											<Stack gap="md">
-												{submission.attachments.map((attachment, index) => {
-													const file = attachment.file;
-													const fileData = typeof file === "object"
-														? file
-														: {
-															id: file,
-															filename: null,
-															mimeType: null,
-															filesize: null,
-															url: null,
-														};
-													const filename = fileData.filename || `File ${fileData.id}`;
-													const isExpanded = expandedAttachments[index.toString()] ?? true;
+										<Stack gap="md">
+											{submission.attachments.map((attachment, index) => {
+												const file = attachment.file;
+												const fileData = typeof file === "object"
+													? file
+													: {
+														id: file,
+														filename: null,
+														mimeType: null,
+														filesize: null,
+														url: null,
+													};
+												const filename = fileData.filename || `File ${fileData.id}`;
+												const isExpanded = expandedAttachments[index.toString()] ?? true;
 
-													return (
-														<Paper key={`${fileData.id}-${index.toString()}`} withBorder p="md">
-															<Stack gap="xs">
-																<Group justify="space-between" wrap="nowrap">
-																	<Text size="sm" fw={600} style={{ flex: 1, minWidth: 0 }}>
-																		{filename}
-																	</Text>
-																	<ActionIcon
-																		variant="subtle"
-																		size="sm"
-																		onClick={() => toggleAttachment(index)}
-																		aria-label={isExpanded ? "Collapse attachment" : "Expand attachment"}
-																	>
-																		{isExpanded ? (
-																			<IconChevronUp size={16} />
-																		) : (
-																			<IconChevronDown size={16} />
-																		)}
-																	</ActionIcon>
-																</Group>
-																<Collapse in={isExpanded}>
-																	<AttachmentViewer
-																		file={fileData}
-																		description={attachment.description}
-																	/>
-																</Collapse>
-															</Stack>
-														</Paper>
-													);
-												})}
-											</Stack>
-										</Collapse>
+												return (
+													<Paper key={`${fileData.id}-${index.toString()}`} withBorder p="md">
+														<Stack gap="xs">
+															<Group justify="space-between" wrap="nowrap">
+																<Text size="sm" fw={600} style={{ flex: 1, minWidth: 0 }}>
+																	{filename}
+																</Text>
+																<ActionIcon
+																	variant="subtle"
+																	size="sm"
+																	onClick={() => toggleAttachment(index)}
+																	aria-label={isExpanded ? "Collapse attachment" : "Expand attachment"}
+																>
+																	{isExpanded ? (
+																		<IconChevronUp size={16} />
+																	) : (
+																		<IconChevronDown size={16} />
+																	)}
+																</ActionIcon>
+															</Group>
+															<Collapse in={isExpanded}>
+																<AttachmentViewer
+																	file={fileData}
+																	description={attachment.description}
+																/>
+															</Collapse>
+														</Stack>
+													</Paper>
+												);
+											})}
+										</Stack>
 									</div>
 								)}
 							</Stack>

@@ -10,6 +10,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import { DEFAULT_ALLOWED_FILE_TYPES } from "~/utils/file-types";
 import { tryCreateUserGrade } from "./user-grade-management";
 
 export interface CreateAssignmentSubmissionArgs {
@@ -59,6 +60,66 @@ export interface ListAssignmentSubmissionsArgs {
 	status?: "draft" | "submitted" | "graded" | "returned";
 	limit?: number;
 	page?: number;
+}
+
+/**
+ * Validates file attachments against assignment configuration
+ */
+function validateFileAttachments(
+	attachments: Array<{ file: number; description?: string }> | undefined,
+	assignment: {
+		allowedFileTypes?: Array<{ extension: string; mimeType: string }> | null;
+		maxFileSize?: number | null;
+		maxFiles?: number | null;
+	} | null,
+	mediaFiles: Array<{ id: number; mimeType?: string | null; filesize?: number | null }>,
+): void {
+	if (!attachments || attachments.length === 0) {
+		return;
+	}
+
+	// Check max files
+	const maxFiles = assignment?.maxFiles ?? 5;
+	if (attachments.length > maxFiles) {
+		throw new InvalidArgumentError(
+			`Cannot upload more than ${maxFiles} file${maxFiles !== 1 ? "s" : ""}`,
+		);
+	}
+
+	// Get allowed file types (use defaults if not configured)
+	const allowedFileTypes =
+		assignment?.allowedFileTypes && assignment.allowedFileTypes.length > 0
+			? assignment.allowedFileTypes
+			: DEFAULT_ALLOWED_FILE_TYPES;
+
+	const allowedMimeTypes = allowedFileTypes.map((ft) => ft.mimeType);
+	const maxFileSize = (assignment?.maxFileSize ?? 10) * 1024 * 1024; // Convert MB to bytes
+
+	// Validate each file
+	for (const attachment of attachments) {
+		const mediaFile = mediaFiles.find((mf) => mf.id === attachment.file);
+		if (!mediaFile) {
+			throw new InvalidArgumentError(`File with ID ${attachment.file} not found`);
+		}
+
+		// Validate MIME type
+		if (mediaFile.mimeType && !allowedMimeTypes.includes(mediaFile.mimeType)) {
+			const allowedExtensions = allowedFileTypes
+				.map((ft) => ft.extension)
+				.join(", ");
+			throw new InvalidArgumentError(
+				`File type "${mediaFile.mimeType}" is not allowed. Allowed types: ${allowedExtensions}`,
+			);
+		}
+
+		// Validate file size
+		if (mediaFile.filesize && mediaFile.filesize > maxFileSize) {
+			const maxSizeMB = assignment?.maxFileSize ?? 10;
+			throw new InvalidArgumentError(
+				`File size exceeds maximum of ${maxSizeMB}MB`,
+			);
+		}
+	}
 }
 
 /**
@@ -128,6 +189,20 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			activityModule && typeof activityModule.assignment === "object"
 				? activityModule.assignment
 				: null;
+
+		// Validate file attachments if provided
+		if (attachments && attachments.length > 0) {
+			const mediaFileIds = attachments.map((a) => a.file);
+			const mediaFiles = await payload.find({
+				collection: "media",
+				where: {
+					id: { in: mediaFileIds },
+				},
+				req: transactionID ? { transactionID } : undefined,
+			});
+
+			validateFileAttachments(attachments, assignment, mediaFiles.docs);
+		}
 
 		const isLate =
 			assignment?.dueDate
@@ -273,6 +348,71 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 		// Validate ID
 		if (!id) {
 			throw new InvalidArgumentError("Assignment submission ID is required");
+		}
+
+		// Get existing submission to access assignment configuration
+		const existingSubmission = await payload.findByID({
+			collection: "assignment-submissions",
+			id,
+			depth: 0,
+			req: transactionID ? { transactionID } : undefined,
+		});
+
+		if (!existingSubmission) {
+			throw new NonExistingAssignmentSubmissionError(
+				`Assignment submission with id '${id}' not found`,
+			);
+		}
+
+		// Validate file attachments if being updated
+		if (attachments !== undefined && attachments.length > 0) {
+			// Get course module link to access assignment
+			const courseModuleLinkId =
+				typeof existingSubmission.courseModuleLink === "object"
+					? existingSubmission.courseModuleLink.id
+					: existingSubmission.courseModuleLink;
+
+			const courseModuleLink = await payload.findByID({
+				collection: "course-activity-module-links",
+				id: courseModuleLinkId,
+				depth: 2,
+				req: transactionID ? { transactionID } : undefined,
+			});
+
+			const activityModule =
+				typeof courseModuleLink.activityModule === "object"
+					? courseModuleLink.activityModule
+					: null;
+			const assignment =
+				activityModule && typeof activityModule.assignment === "object"
+					? activityModule.assignment
+					: null;
+
+			// Extract file IDs from attachments (could be numbers or objects)
+			const fileIds = attachments
+				.map((a) => (typeof a === "number" ? a : a.file))
+				.filter((id): id is number => typeof id === "number");
+
+			if (fileIds.length > 0) {
+				const mediaFiles = await payload.find({
+					collection: "media",
+					where: {
+						id: { in: fileIds },
+					},
+					req: transactionID ? { transactionID } : undefined,
+				});
+
+				// Convert attachments to proper format for validation
+				const attachmentsForValidation = attachments.map((a) =>
+					typeof a === "number" ? { file: a } : a,
+				);
+
+				validateFileAttachments(
+					attachmentsForValidation,
+					assignment,
+					mediaFiles.docs,
+				);
+			}
 		}
 
 		// Build update data object

@@ -67,6 +67,9 @@ export type CourseModuleAssignmentData = {
 	allowLateSubmissions: boolean | null;
 	requireTextSubmission: boolean | null;
 	requireFileSubmission: boolean | null;
+	allowedFileTypes: Array<{ extension: string; mimeType: string }> | null;
+	maxFileSize: number | null;
+	maxFiles: number | null;
 };
 
 export type CourseModuleQuizData = {
@@ -230,23 +233,26 @@ export const tryGetCourseModuleContext = Result.wrap(
 						content: activityModule.whiteboard.content || null,
 					}
 					: null,
-			assignment:
-				activityModule.type === "assignment" &&
-					typeof activityModule.assignment === "object" &&
-					activityModule.assignment !== null
-					? {
-						id: activityModule.assignment.id,
-						instructions: activityModule.assignment.instructions || null,
-						dueDate: activityModule.assignment.dueDate || null,
-						maxAttempts: activityModule.assignment.maxAttempts || null,
-						allowLateSubmissions:
-							activityModule.assignment.allowLateSubmissions || null,
-						requireTextSubmission:
-							activityModule.assignment.requireTextSubmission || null,
-						requireFileSubmission:
-							activityModule.assignment.requireFileSubmission || null,
-					}
-					: null,
+		assignment:
+			activityModule.type === "assignment" &&
+				typeof activityModule.assignment === "object" &&
+				activityModule.assignment !== null
+				? {
+					id: activityModule.assignment.id,
+					instructions: activityModule.assignment.instructions || null,
+					dueDate: activityModule.assignment.dueDate || null,
+					maxAttempts: activityModule.assignment.maxAttempts || null,
+					allowLateSubmissions:
+						activityModule.assignment.allowLateSubmissions || null,
+					requireTextSubmission:
+						activityModule.assignment.requireTextSubmission || null,
+					requireFileSubmission:
+						activityModule.assignment.requireFileSubmission || null,
+					allowedFileTypes: activityModule.assignment.allowedFileTypes || null,
+					maxFileSize: activityModule.assignment.maxFileSize || null,
+					maxFiles: activityModule.assignment.maxFiles || null,
+				}
+				: null,
 			quiz:
 				activityModule.type === "quiz" &&
 					typeof activityModule.quiz === "object" &&

@@ -2,6 +2,7 @@ import { isUndefined, omitBy } from "es-toolkit";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
+import { presetValuesToFileTypes } from "./file-types";
 
 /**
  * Shared schema for activity module forms (create and update)
@@ -22,6 +23,9 @@ export const activityModuleSchema = z.object({
 	assignmentAllowLateSubmissions: z.boolean().optional(),
 	assignmentRequireTextSubmission: z.boolean().optional(),
 	assignmentRequireFileSubmission: z.boolean().optional(),
+	assignmentAllowedFileTypes: z.array(z.string()).optional(),
+	assignmentMaxFileSize: z.number().optional(),
+	assignmentMaxFiles: z.number().optional(),
 	// Quiz fields
 	quizInstructions: z.string().optional(),
 	quizDueDate: z.string().optional(),
@@ -54,6 +58,9 @@ export type ActivityModuleFormValues = {
 	assignmentAllowLateSubmissions: boolean;
 	assignmentRequireTextSubmission: boolean;
 	assignmentRequireFileSubmission: boolean;
+	assignmentAllowedFileTypes: string[];
+	assignmentMaxFileSize: number;
+	assignmentMaxFiles: number;
 	// Quiz fields
 	quizInstructions: string;
 	quizDueDate: Date | null;
@@ -90,6 +97,9 @@ export function getInitialFormValues(): ActivityModuleFormValues {
 		assignmentAllowLateSubmissions: false,
 		assignmentRequireTextSubmission: false,
 		assignmentRequireFileSubmission: false,
+		assignmentAllowedFileTypes: [],
+		assignmentMaxFileSize: 10,
+		assignmentMaxFiles: 5,
 		// Quiz fields
 		quizInstructions: "",
 		quizDueDate: null,
@@ -152,6 +162,9 @@ export function transformToActivityData(
 			allowLateSubmissions?: boolean;
 			requireTextSubmission?: boolean;
 			requireFileSubmission?: boolean;
+			allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
+			maxFileSize?: number;
+			maxFiles?: number;
 		}
 		| undefined;
 	let quizData:
@@ -184,6 +197,13 @@ export function transformToActivityData(
 			content: parsedData.whiteboardContent,
 		};
 	} else if (parsedData.type === "assignment") {
+		// Convert preset values to file types
+		const allowedFileTypes =
+			parsedData.assignmentAllowedFileTypes &&
+				parsedData.assignmentAllowedFileTypes.length > 0
+				? presetValuesToFileTypes(parsedData.assignmentAllowedFileTypes)
+				: undefined;
+
 		assignmentData = {
 			instructions: parsedData.assignmentInstructions,
 			dueDate: parsedData.assignmentDueDate,
@@ -191,6 +211,9 @@ export function transformToActivityData(
 			allowLateSubmissions: parsedData.assignmentAllowLateSubmissions,
 			requireTextSubmission: parsedData.assignmentRequireTextSubmission,
 			requireFileSubmission: parsedData.assignmentRequireFileSubmission,
+			allowedFileTypes,
+			maxFileSize: parsedData.assignmentMaxFileSize,
+			maxFiles: parsedData.assignmentMaxFiles,
 		};
 	} else if (parsedData.type === "quiz") {
 		quizData = {

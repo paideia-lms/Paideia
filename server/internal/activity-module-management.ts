@@ -42,11 +42,11 @@ type CreateAssignmentModuleArgs = BaseCreateActivityModuleArgs & {
 		dueDate?: string;
 		maxAttempts?: number;
 		allowLateSubmissions?: boolean;
+		requireTextSubmission?: boolean;
+		requireFileSubmission?: boolean;
 		allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
 		maxFileSize?: number;
 		maxFiles?: number;
-		requireTextSubmission?: boolean;
-		requireFileSubmission?: boolean;
 	};
 };
 
@@ -149,11 +149,11 @@ type UpdateAssignmentModuleArgs = BaseUpdateActivityModuleArgs & {
 		dueDate?: string;
 		maxAttempts?: number;
 		allowLateSubmissions?: boolean;
+		requireTextSubmission?: boolean;
+		requireFileSubmission?: boolean;
 		allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
 		maxFileSize?: number;
 		maxFiles?: number;
-		requireTextSubmission?: boolean;
-		requireFileSubmission?: boolean;
 	};
 };
 
@@ -293,11 +293,11 @@ export const tryCreateActivityModule = Result.wrap(
 						dueDate: args.assignmentData.dueDate,
 						maxAttempts: args.assignmentData.maxAttempts,
 						allowLateSubmissions: args.assignmentData.allowLateSubmissions,
+						requireTextSubmission: args.assignmentData.requireTextSubmission,
+						requireFileSubmission: args.assignmentData.requireFileSubmission,
 						allowedFileTypes: args.assignmentData.allowedFileTypes,
 						maxFileSize: args.assignmentData.maxFileSize,
 						maxFiles: args.assignmentData.maxFiles,
-						requireTextSubmission: args.assignmentData.requireTextSubmission,
-						requireFileSubmission: args.assignmentData.requireFileSubmission,
 						createdBy: userId,
 					},
 					req: { transactionID },
@@ -681,11 +681,11 @@ export const tryUpdateActivityModule = Result.wrap(
 							dueDate: args.assignmentData.dueDate,
 							maxAttempts: args.assignmentData.maxAttempts,
 							allowLateSubmissions: args.assignmentData.allowLateSubmissions,
+							requireTextSubmission: args.assignmentData.requireTextSubmission,
+							requireFileSubmission: args.assignmentData.requireFileSubmission,
 							allowedFileTypes: args.assignmentData.allowedFileTypes,
 							maxFileSize: args.assignmentData.maxFileSize,
 							maxFiles: args.assignmentData.maxFiles,
-							requireTextSubmission: args.assignmentData.requireTextSubmission,
-							requireFileSubmission: args.assignmentData.requireFileSubmission,
 						},
 						req: { transactionID },
 					});

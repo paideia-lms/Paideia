@@ -30,7 +30,7 @@ import {
 } from "~/utils/responses";
 import { useImpersonate } from "~/routes/user/profile";
 import type { Route } from "./+types/course.$id.participants.profile";
-import { href } from "react-router";
+import { href, Link } from "react-router";
 
 // Define search params for user selection
 export const profileSearchParams = {
@@ -161,6 +161,9 @@ export default function CourseParticipantsProfilePage({
 					<Paper withBorder shadow="sm" p="xl" radius="md">
 						<Stack align="center" gap="lg">
 							<Group justify="flex-end" w="100%">
+								<Button component={Link} to={href("/user/profile/:id?", { id: selectedEnrollment.userId.toString() })}>
+									View Public Profile
+								</Button>
 								{canImpersonate && (
 									<Button
 										variant="light"

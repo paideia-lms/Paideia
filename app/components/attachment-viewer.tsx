@@ -322,9 +322,6 @@ export function AttachmentViewer({
     return (
         <Stack gap="xs">
             <Group justify="space-between">
-                <Text size="sm" fw={500}>
-                    {displayName}
-                </Text>
                 {filesize && (
                     <Text size="xs" c="dimmed">
                         {formatFileSize(filesize)}

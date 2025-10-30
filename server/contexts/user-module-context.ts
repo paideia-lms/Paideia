@@ -47,6 +47,9 @@ export type UserModuleAssignmentData = {
 	allowLateSubmissions: boolean | null;
 	requireTextSubmission: boolean | null;
 	requireFileSubmission: boolean | null;
+	allowedFileTypes: Array<{ extension: string; mimeType: string }> | null;
+	maxFileSize: number | null;
+	maxFiles: number | null;
 };
 
 export type UserModuleQuizData = {
@@ -203,6 +206,9 @@ export const tryGetUserModuleContext = Result.wrap(
 							module.assignment.requireTextSubmission || null,
 						requireFileSubmission:
 							module.assignment.requireFileSubmission || null,
+						allowedFileTypes: module.assignment.allowedFileTypes || null,
+						maxFileSize: module.assignment.maxFileSize || null,
+						maxFiles: module.assignment.maxFiles || null,
 					}
 					: null,
 			quiz:
