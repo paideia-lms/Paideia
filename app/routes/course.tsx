@@ -52,11 +52,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 				// It's a populated Media object
 				thumbnailUrl = enrollment.course.thumbnail.filename
 					? href("/api/media/file/:filenameOrId", {
-						filenameOrId: enrollment.course.thumbnail.filename,
-					})
+							filenameOrId: enrollment.course.thumbnail.filename,
+						})
 					: href("/api/media/file/:filenameOrId", {
-						filenameOrId: enrollment.course.thumbnail.id.toString(),
-					});
+							filenameOrId: enrollment.course.thumbnail.id.toString(),
+						});
 			} else {
 				// It's just an ID (number)
 				thumbnailUrl = href("/api/media/file/:filenameOrId", {

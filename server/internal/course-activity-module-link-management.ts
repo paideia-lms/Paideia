@@ -4,13 +4,17 @@ import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
-import { InvalidArgumentError, transformError, UnknownError } from "~/utils/error";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import {
+	InvalidArgumentError,
+	transformError,
+	UnknownError,
+} from "~/utils/error";
 import {
 	tryCreateGradebookItem,
 	tryDeleteGradebookItem,
 	tryGetNextItemSortOrder,
 } from "./gradebook-item-management";
+import { tryFindGradebookByCourseId } from "./gradebook-management";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -98,7 +102,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		});
 
 		const moduleType = activityModuleDoc.type;
-		const gradeableTypes = ["assignment", "quiz", "discussion"] as const
+		const gradeableTypes = ["assignment", "quiz", "discussion"] as const;
 
 		if (gradeableTypes.includes(moduleType)) {
 			// Try to get the gradebook for this course
@@ -205,8 +209,7 @@ export const tryFindLinksByCourse = Result.wrap(
 					assertZodInternal(
 						"tryFindLinksByCourse: Module created by avatar is required",
 						moduleCreatedByAvatar,
-						z.number()
-							.nullish(),
+						z.number().nullish(),
 					);
 
 					return {
@@ -366,7 +369,6 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 			},
 		});
 
-
 		for (const item of gradebookItems.docs) {
 			await tryDeleteGradebookItem(payload, request, item.id, transactionID);
 		}
@@ -481,7 +483,9 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 
 			if (openingTime && closingTime) {
 				if (new Date(openingTime) > new Date(closingTime)) {
-					throw new InvalidArgumentError("Opening time must be before closing time");
+					throw new InvalidArgumentError(
+						"Opening time must be before closing time",
+					);
 				}
 			}
 		}

@@ -54,4 +54,3 @@ export const trySendEmail = Result.wrap(
 		return new EmailSendError(message, { cause: error });
 	},
 );
-

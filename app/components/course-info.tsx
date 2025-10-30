@@ -19,24 +19,24 @@ interface CourseInfoProps {
 		description: string;
 		status: string;
 		thumbnail?:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-		}
-		| null;
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+			  }
+			| null;
 		instructors: Array<{
 			id: number;
 			name: string;
 			email: string;
 			role: "teacher" | "ta";
 			avatar?:
-			| number
-			| {
-				id: number;
-				filename?: string | null;
-			}
-			| null;
+				| number
+				| {
+						id: number;
+						filename?: string | null;
+				  }
+				| null;
 		}>;
 		createdAt: string;
 		updatedAt: string;

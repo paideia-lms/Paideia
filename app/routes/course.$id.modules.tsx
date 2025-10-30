@@ -54,7 +54,11 @@ export function useCreateModuleLink() {
 export function useDeleteModuleLink() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const deleteModuleLink = (linkId: number, courseId: number, redirectTo?: string) => {
+	const deleteModuleLink = (
+		linkId: number,
+		courseId: number,
+		redirectTo?: string,
+	) => {
 		fetcher.submit(
 			{ intent: "delete", linkId, ...(redirectTo && { redirectTo }) },
 			{
@@ -102,10 +106,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				userId: enrolmentContext.enrolment.userId,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					userId: enrolmentContext.enrolment.userId,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -124,7 +128,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			type: module.type,
 			status: module.status,
 		})) ?? [];
-	console.log(courseContext.course.moduleLinks)
+	console.log(courseContext.course.moduleLinks);
 
 	return {
 		...courseContext,
@@ -193,10 +197,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				userId: enrollment.user as number,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					userId: enrollment.user as number,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 

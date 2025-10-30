@@ -274,7 +274,6 @@ describe("Quiz Management - Full Workflow", () => {
 			verifyGradebook ? "Found" : "Not found",
 		);
 
-
 		// Verify activity module exists
 		const verifyActivityModule = await payload.findByID({
 			collection: "activity-modules",
@@ -832,7 +831,9 @@ describe("Quiz Management - Full Workflow", () => {
 
 		const retrievedSubmission = getResult.value;
 		expect(retrievedSubmission.id).toBe(submissionId);
-		expect(retrievedSubmission.courseModuleLink).toBe(courseActivityModuleLinkId);
+		expect(retrievedSubmission.courseModuleLink).toBe(
+			courseActivityModuleLinkId,
+		);
 		expect(retrievedSubmission.student.id).toBe(studentId);
 		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
 		expect(retrievedSubmission.answers).toHaveLength(1);

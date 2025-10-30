@@ -146,46 +146,46 @@ export function transformToActivityData(
 ) {
 	let pageData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let whiteboardData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let assignmentData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			allowLateSubmissions?: boolean;
-			requireTextSubmission?: boolean;
-			requireFileSubmission?: boolean;
-			allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
-			maxFileSize?: number;
-			maxFiles?: number;
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				allowLateSubmissions?: boolean;
+				requireTextSubmission?: boolean;
+				requireFileSubmission?: boolean;
+				allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
+				maxFileSize?: number;
+				maxFiles?: number;
+		  }
 		| undefined;
 	let quizData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			points?: number;
-			timeLimit?: number;
-			gradingType?: "automatic" | "manual";
-			rawQuizConfig?: unknown;
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				points?: number;
+				timeLimit?: number;
+				gradingType?: "automatic" | "manual";
+				rawQuizConfig?: unknown;
+		  }
 		| undefined;
 	let discussionData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			requireThread?: boolean;
-			requireReplies?: boolean;
-			minReplies?: number;
-		}
+				instructions?: string;
+				dueDate?: string;
+				requireThread?: boolean;
+				requireReplies?: boolean;
+				minReplies?: number;
+		  }
 		| undefined;
 
 	if (parsedData.type === "page") {
@@ -200,7 +200,7 @@ export function transformToActivityData(
 		// Convert preset values to file types
 		const allowedFileTypes =
 			parsedData.assignmentAllowedFileTypes &&
-				parsedData.assignmentAllowedFileTypes.length > 0
+			parsedData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(parsedData.assignmentAllowedFileTypes)
 				: undefined;
 

@@ -17,8 +17,8 @@ import {
 	IconFile,
 	IconFileText,
 	IconFileTypePdf,
-	IconPhoto,
 	IconPencil,
+	IconPhoto,
 	IconTrash,
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
@@ -37,12 +37,14 @@ export interface SubmissionData {
 	submittedAt?: string | null;
 	attemptNumber: number;
 	attachments?: Array<{
-		file: number | {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
+		file:
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
 		description?: string;
 	}> | null;
 }
@@ -56,7 +58,10 @@ function getFileExtension(filename: string): string {
 	return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
 }
 
-function getFileType(filename?: string | null, mimeType?: string | null): FileType {
+function getFileType(
+	filename?: string | null,
+	mimeType?: string | null,
+): FileType {
 	// Check MIME type first
 	if (mimeType) {
 		if (mimeType.startsWith("image/")) return "image";
@@ -129,12 +134,14 @@ function SubmissionAttachments({
 	attachments,
 }: {
 	attachments: Array<{
-		file: number | {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
+		file:
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
 		description?: string;
 	}>;
 }) {
@@ -146,9 +153,10 @@ function SubmissionAttachments({
 			{attachments.map((attachment) => {
 				const file = attachment.file;
 				const fileId = typeof file === "object" ? file.id : file;
-				const filename = typeof file === "object"
-					? (file.filename || `File ${fileId}`)
-					: `File ${fileId}`;
+				const filename =
+					typeof file === "object"
+						? file.filename || `File ${fileId}`
+						: `File ${fileId}`;
 				const mimeType = typeof file === "object" ? file.mimeType : null;
 				const filesize = typeof file === "object" ? file.filesize : null;
 				const fileType = getFileType(filename, mimeType);
@@ -205,7 +213,7 @@ function SubmissionContentPreview({ content }: { content: string }) {
 			<Text size="sm" fw={500} mb="xs">
 				Submission Content:
 			</Text>
-			<Paper withBorder p="md" >
+			<Paper withBorder p="md">
 				<ScrollArea.Autosize mah={400}>
 					<Typography
 						className="tiptap"
@@ -228,7 +236,6 @@ export function SubmissionHistoryItem({
 	showGrade = false,
 	moduleLinkId,
 }: {
-
 	attemptNumber: number;
 	submission: SubmissionData;
 	variant?: "default" | "compact";
@@ -246,7 +253,7 @@ export function SubmissionHistoryItem({
 	if (variant === "compact") {
 		// Compact variant for assignment preview (student view)
 		return (
-			<Paper withBorder p="md" >
+			<Paper withBorder p="md">
 				<Stack gap="sm">
 					<Group justify="space-between">
 						<Group gap="xs">
@@ -306,11 +313,14 @@ export function SubmissionHistoryItem({
 								{attachments.map((attachment) => {
 									const file = attachment.file;
 									const fileId = typeof file === "object" ? file.id : file;
-									const filename = typeof file === "object"
-										? (file.filename || `File ${fileId}`)
-										: `File ${fileId}`;
-									const mimeType = typeof file === "object" ? file.mimeType : null;
-									const filesize = typeof file === "object" ? file.filesize : null;
+									const filename =
+										typeof file === "object"
+											? file.filename || `File ${fileId}`
+											: `File ${fileId}`;
+									const mimeType =
+										typeof file === "object" ? file.mimeType : null;
+									const filesize =
+										typeof file === "object" ? file.filesize : null;
 									const fileType = getFileType(filename, mimeType);
 									const FileIcon = getFileIcon(fileType);
 
@@ -365,7 +375,7 @@ export function SubmissionHistoryItem({
 
 	// Default variant for submissions page (instructor view)
 	return (
-		<Paper withBorder p="md" radius="sm" >
+		<Paper withBorder p="md" radius="sm">
 			<Stack gap="md">
 				<Group justify="space-between">
 					<Group gap="sm">
@@ -410,7 +420,8 @@ export function SubmissionHistoryItem({
 											to={
 												href("/course/module/:id/submissions", {
 													id: moduleLinkId.toString(),
-												}) + `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
+												}) +
+												`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
 											}
 											leftSection={<IconPencil size={16} />}
 										>
@@ -473,23 +484,26 @@ export function SubmissionHistory({
 				{title}
 			</Text>
 			{/* sort by submittedAt descending */}
-			{sortedSubmissions.sort((a, b) => {
-				const dateA = a.submittedAt ? new Date(a.submittedAt) : new Date(0);
-				const dateB = b.submittedAt ? new Date(b.submittedAt) : new Date(0);
-				return dateB.getTime() - dateA.getTime();
-			}).map((sub, index) => (
-				<SubmissionHistoryItem
-					key={sub.id}
-					attemptNumber={sub.attemptNumber ?? sortedSubmissions.length - index}
-					submission={sub}
-					variant={variant}
-					showDelete={showDelete}
-					onDelete={onDelete}
-					showGrade={showGrade}
-					moduleLinkId={moduleLinkId}
-				/>
-			))}
+			{sortedSubmissions
+				.sort((a, b) => {
+					const dateA = a.submittedAt ? new Date(a.submittedAt) : new Date(0);
+					const dateB = b.submittedAt ? new Date(b.submittedAt) : new Date(0);
+					return dateB.getTime() - dateA.getTime();
+				})
+				.map((sub, index) => (
+					<SubmissionHistoryItem
+						key={sub.id}
+						attemptNumber={
+							sub.attemptNumber ?? sortedSubmissions.length - index
+						}
+						submission={sub}
+						variant={variant}
+						showDelete={showDelete}
+						onDelete={onDelete}
+						showGrade={showGrade}
+						moduleLinkId={moduleLinkId}
+					/>
+				))}
 		</Stack>
 	);
 }
-

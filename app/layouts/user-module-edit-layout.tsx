@@ -1,4 +1,12 @@
-import { Alert, Badge, Container, Group, Tabs, Text, Title } from "@mantine/core";
+import {
+	Alert,
+	Badge,
+	Container,
+	Group,
+	Tabs,
+	Text,
+	Title,
+} from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -111,7 +119,8 @@ export default function UserModuleEditLayout({
 									color="yellow"
 									variant="light"
 								>
-									You have auto-granted read-only access because you have a teaching role in a course that uses this module.
+									You have auto-granted read-only access because you have a
+									teaching role in a course that uses this module.
 								</Alert>
 							)}
 						</div>
@@ -129,8 +138,12 @@ export default function UserModuleEditLayout({
 					>
 						<Tabs.List>
 							<Tabs.Tab value={ModuleEditTab.Preview}>Preview</Tabs.Tab>
-							{canEdit && <Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>}
-							{canEdit && <Tabs.Tab value={ModuleEditTab.Access}>Access</Tabs.Tab>}
+							{canEdit && (
+								<Tabs.Tab value={ModuleEditTab.Setting}>Setting</Tabs.Tab>
+							)}
+							{canEdit && (
+								<Tabs.Tab value={ModuleEditTab.Access}>Access</Tabs.Tab>
+							)}
 						</Tabs.List>
 					</Tabs>
 				</Container>

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
+import { tryCreateCategory } from "./course-category-management";
 import {
 	type CreateCourseArgs,
 	tryCreateCourse,
@@ -14,7 +15,6 @@ import {
 } from "./course-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
-import { tryCreateCategory } from "./course-category-management";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -166,55 +166,55 @@ describe("Course Management Functions", () => {
 			}
 		});
 
-			test("should update course category", async () => {
-				// create base course
-				const createArgs: CreateCourseArgs = {
-					payload,
-					data: {
-						title: "Course With Category",
-						description: "Original description",
-						createdBy: instructorId,
-						slug: "course-with-category",
-					},
-					overrideAccess: true,
-				};
+		test("should update course category", async () => {
+			// create base course
+			const createArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Course With Category",
+					description: "Original description",
+					createdBy: instructorId,
+					slug: "course-with-category",
+				},
+				overrideAccess: true,
+			};
 
-				const createResult = await tryCreateCourse(createArgs);
-				expect(createResult.ok).toBe(true);
-				if (!createResult.ok) throw new Error("Failed to create course");
+			const createResult = await tryCreateCourse(createArgs);
+			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) throw new Error("Failed to create course");
 
-				// create a category to assign
-				const req = new Request("http://localhost/test");
-				const catResult = await tryCreateCategory(payload, req, {
-					name: "Test Category",
-				});
-				expect(catResult.ok).toBe(true);
-				if (!catResult.ok) throw new Error("Failed to create category");
-
-				// update course with category id
-				const updateArgs: UpdateCourseArgs = {
-					payload,
-					courseId: createResult.value.id,
-					data: {
-						category: catResult.value.id,
-					},
-					overrideAccess: true,
-				};
-				const updateResult = await tryUpdateCourse(updateArgs);
-				expect(updateResult.ok).toBe(true);
-				if (!updateResult.ok) throw new Error("Failed to update course category");
-
-				// verify via find
-				const findResult = await tryFindCourseById({
-					payload,
-					courseId: createResult.value.id,
-					overrideAccess: true,
-				});
-				expect(findResult.ok).toBe(true);
-				if (findResult.ok) {
-					expect(findResult.value.category?.id).toBe(catResult.value.id);
-				}
+			// create a category to assign
+			const req = new Request("http://localhost/test");
+			const catResult = await tryCreateCategory(payload, req, {
+				name: "Test Category",
 			});
+			expect(catResult.ok).toBe(true);
+			if (!catResult.ok) throw new Error("Failed to create category");
+
+			// update course with category id
+			const updateArgs: UpdateCourseArgs = {
+				payload,
+				courseId: createResult.value.id,
+				data: {
+					category: catResult.value.id,
+				},
+				overrideAccess: true,
+			};
+			const updateResult = await tryUpdateCourse(updateArgs);
+			expect(updateResult.ok).toBe(true);
+			if (!updateResult.ok) throw new Error("Failed to update course category");
+
+			// verify via find
+			const findResult = await tryFindCourseById({
+				payload,
+				courseId: createResult.value.id,
+				overrideAccess: true,
+			});
+			expect(findResult.ok).toBe(true);
+			if (findResult.ok) {
+				expect(findResult.value.category?.id).toBe(catResult.value.id);
+			}
+		});
 	});
 
 	describe("tryFindCourseById", () => {

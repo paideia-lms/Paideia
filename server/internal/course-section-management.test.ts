@@ -3152,10 +3152,12 @@ describe("Course Section Management Functions", () => {
 		expect(initialSection).toBeDefined();
 		if (initialSection) {
 			const module1 = initialSection.content.find(
-				(item) => item.type === "activity-module" && item.id === link1Result.value.id,
+				(item) =>
+					item.type === "activity-module" && item.id === link1Result.value.id,
 			);
 			const module2 = initialSection.content.find(
-				(item) => item.type === "activity-module" && item.id === link2Result.value.id,
+				(item) =>
+					item.type === "activity-module" && item.id === link2Result.value.id,
 			);
 
 			expect(module1).toBeDefined();
@@ -3224,10 +3226,12 @@ describe("Course Section Management Functions", () => {
 		expect(updatedSection).toBeDefined();
 		if (updatedSection) {
 			const customModule1 = updatedSection.content.find(
-				(item) => item.type === "activity-module" && item.id === link1Result.value.id,
+				(item) =>
+					item.type === "activity-module" && item.id === link1Result.value.id,
 			);
 			const customModule2 = updatedSection.content.find(
-				(item) => item.type === "activity-module" && item.id === link2Result.value.id,
+				(item) =>
+					item.type === "activity-module" && item.id === link2Result.value.id,
 			);
 
 			expect(customModule1).toBeDefined();

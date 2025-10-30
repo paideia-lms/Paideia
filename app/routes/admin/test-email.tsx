@@ -6,19 +6,23 @@ import {
 	Radio,
 	Stack,
 	Text,
-	TextInput,
 	Textarea,
+	TextInput,
 	Title,
 } from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
-import { IconAlertTriangle, IconInfoCircle, IconMail } from "@tabler/icons-react";
+import {
+	IconAlertTriangle,
+	IconInfoCircle,
+	IconMail,
+} from "@tabler/icons-react";
 import { useFetcher } from "react-router";
-import { z } from "zod";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { trySendEmail } from "server/internal/email";
+import { z } from "zod";
 import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
@@ -249,14 +253,16 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 				children: (
 					<Stack gap="sm">
 						<Text size="sm">
-							Email is not currently configured on this system. The test email will fail to send.
+							Email is not currently configured on this system. The test email
+							will fail to send.
 						</Text>
 						<Text size="sm" fw={500}>
 							Do you want to proceed anyway?
 						</Text>
 						<Alert color="orange" icon={<IconAlertTriangle size={16} />}>
 							<Text size="xs">
-								To configure email, set the following environment variables: SMTP_HOST, SMTP_USER, and SMTP_PASS
+								To configure email, set the following environment variables:
+								SMTP_HOST, SMTP_USER, and SMTP_PASS
 							</Text>
 						</Alert>
 					</Stack>
@@ -318,8 +324,10 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 						color="orange"
 					>
 						<Text size="sm">
-							Email is not currently configured on this system. Any test emails will fail to send.
-							To configure email, set the following environment variables: <strong>SMTP_HOST</strong>, <strong>SMTP_USER</strong>, and <strong>SMTP_PASS</strong>.
+							Email is not currently configured on this system. Any test emails
+							will fail to send. To configure email, set the following
+							environment variables: <strong>SMTP_HOST</strong>,{" "}
+							<strong>SMTP_USER</strong>, and <strong>SMTP_PASS</strong>.
 						</Text>
 					</Alert>
 				)}
@@ -419,4 +427,3 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 		</Container>
 	);
 }
-

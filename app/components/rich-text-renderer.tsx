@@ -47,11 +47,7 @@ async function renderMermaidDiagram(
 ): Promise<string> {
 	try {
 		const { svg } = await mermaid.render(block.id, block.code);
-		return replaceHtmlPlaceholder(
-			html,
-			`[data-mermaid-id="${block.id}"]`,
-			svg,
-		);
+		return replaceHtmlPlaceholder(html, `[data-mermaid-id="${block.id}"]`, svg);
 	} catch (error) {
 		console.error(`Failed to render mermaid diagram ${block.id}:`, error);
 		const errorHtml = createErrorHtml(
@@ -74,11 +70,17 @@ async function renderD2Diagram(
 		const data = await renderD2(block.code);
 
 		if ("svg" in data && data.svg) {
-			return replaceHtmlPlaceholder(html, `[data-d2-id="${block.id}"]`, data.svg);
+			return replaceHtmlPlaceholder(
+				html,
+				`[data-d2-id="${block.id}"]`,
+				data.svg,
+			);
 		}
 		if ("error" in data && data.error) {
 			throw new Error(
-				typeof data.error === "string" ? data.error : JSON.stringify(data.error),
+				typeof data.error === "string"
+					? data.error
+					: JSON.stringify(data.error),
 			);
 		}
 		throw new Error("No SVG or error returned from D2 renderer");

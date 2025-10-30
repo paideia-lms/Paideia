@@ -31,10 +31,13 @@ export interface UpdateAssignmentSubmissionArgs {
 	id: number;
 	status?: "draft" | "submitted" | "graded" | "returned";
 	content?: string;
-	attachments?: Array<number | {
-		file: number;
-		description?: string;
-	}>;
+	attachments?: Array<
+		| number
+		| {
+				file: number;
+				description?: string;
+		  }
+	>;
 	timeSpent?: number;
 	transactionID?: string | number;
 }
@@ -72,7 +75,11 @@ function validateFileAttachments(
 		maxFileSize?: number | null;
 		maxFiles?: number | null;
 	} | null,
-	mediaFiles: Array<{ id: number; mimeType?: string | null; filesize?: number | null }>,
+	mediaFiles: Array<{
+		id: number;
+		mimeType?: string | null;
+		filesize?: number | null;
+	}>,
 ): void {
 	if (!attachments || attachments.length === 0) {
 		return;
@@ -99,7 +106,9 @@ function validateFileAttachments(
 	for (const attachment of attachments) {
 		const mediaFile = mediaFiles.find((mf) => mf.id === attachment.file);
 		if (!mediaFile) {
-			throw new InvalidArgumentError(`File with ID ${attachment.file} not found`);
+			throw new InvalidArgumentError(
+				`File with ID ${attachment.file} not found`,
+			);
 		}
 
 		// Validate MIME type
@@ -204,10 +213,9 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			validateFileAttachments(attachments, assignment, mediaFiles.docs);
 		}
 
-		const isLate =
-			assignment?.dueDate
-				? new Date() > new Date(assignment.dueDate)
-				: false;
+		const isLate = assignment?.dueDate
+			? new Date() > new Date(assignment.dueDate)
+			: false;
 
 		const submission = await payload.create({
 			collection: "assignment-submissions",
@@ -488,7 +496,11 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
  * Submits an assignment (changes status from draft to submitted)
  */
 export const trySubmitAssignment = Result.wrap(
-	async (payload: Payload, submissionId: number, transactionID?: string | number) => {
+	async (
+		payload: Payload,
+		submissionId: number,
+		transactionID?: string | number,
+	) => {
 		// Validate ID
 		if (!submissionId) {
 			throw new InvalidArgumentError("Assignment submission ID is required");

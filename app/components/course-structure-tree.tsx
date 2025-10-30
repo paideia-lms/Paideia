@@ -606,13 +606,15 @@ export function CourseStructureTree({
 										>
 											{itemData.name}
 										</Text>
-										{canSeeStatus && <Badge
-											size="xs"
-											color={getStatusColor(itemData.module.status)}
-											variant="light"
-										>
-											{itemData.module.status}
-										</Badge>}
+										{canSeeStatus && (
+											<Badge
+												size="xs"
+												color={getStatusColor(itemData.module.status)}
+												variant="light"
+											>
+												{itemData.module.status}
+											</Badge>
+										)}
 									</Link>
 								)}
 							</Box>

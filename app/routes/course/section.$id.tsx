@@ -10,11 +10,7 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import {
-	IconFolder,
-	IconPlus,
-	IconWriting,
-} from "@tabler/icons-react";
+import { IconFolder, IconPlus, IconWriting } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
@@ -82,14 +78,14 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-			(item): item is CourseStructureSection => item.type === "section",
-		)
+				(item): item is CourseStructureSection => item.type === "section",
+			)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-			(item): item is CourseStructureItem => item.type === "activity-module",
-		)
+				(item): item is CourseStructureItem => item.type === "activity-module",
+			)
 		: [];
 
 	// Get available modules from user access context

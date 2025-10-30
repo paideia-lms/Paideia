@@ -458,7 +458,9 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		const retrievedSubmission = getResult.value;
 		expect(retrievedSubmission.id).toBe(submissionId);
-		expect(retrievedSubmission.courseModuleLink.id).toBe(courseActivityModuleLinkId);
+		expect(retrievedSubmission.courseModuleLink.id).toBe(
+			courseActivityModuleLinkId,
+		);
 		// activityModule and assignment are virtual fields, resolved as strings
 		expect(retrievedSubmission.student.id).toBe(studentId);
 		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);

@@ -142,8 +142,10 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
 			else if (route.id === "routes/course/module.$id") isCourseModule = true;
-			else if (route.id === "routes/course/module.$id.edit") isCourseModuleEdit = true;
-			else if (route.id === "routes/course/module.$id.submissions") isCourseModuleSubmissions = true;
+			else if (route.id === "routes/course/module.$id.edit")
+				isCourseModuleEdit = true;
+			else if (route.id === "routes/course/module.$id.submissions")
+				isCourseModuleSubmissions = true;
 			else if (route.id === "layouts/course-module-layout")
 				isInCourseModuleLayout = true;
 			else if (route.id === "routes/course/section.$id") isCourseSection = true;
@@ -179,7 +181,8 @@ export const middleware = [
 			else if (route.id === "routes/admin/system") isAdminSystem = true;
 			else if (route.id === "routes/admin/test-email") isAdminTestEmail = true;
 			else if (route.id === "routes/admin/categories") isAdminCategories = true;
-			else if (route.id === "routes/admin/category-new") isAdminCategoryNew = true;
+			else if (route.id === "routes/admin/category-new")
+				isAdminCategoryNew = true;
 			else if (route.id === "routes/admin/course-new") isAdminCourseNew = true;
 		}
 
@@ -272,8 +275,9 @@ export const middleware = [
 
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
-				const { id: moduleId } =
-					params as RouteParams<"routes/course/module.$id" | "routes/course/module.$id.edit">;
+				const { id: moduleId } = params as RouteParams<
+					"routes/course/module.$id" | "routes/course/module.$id.edit"
+				>;
 
 				if (Number.isNaN(moduleId)) return;
 
@@ -303,9 +307,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -355,19 +359,21 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
 				if (sectionResult.ok) {
-					const courseSectionContextResult = await tryGetCourseSectionContext(
-						sectionResult,
-					);
+					const courseSectionContextResult =
+						await tryGetCourseSectionContext(sectionResult);
 
 					if (courseSectionContextResult.ok) {
-						context.set(courseSectionContextKey, courseSectionContextResult.value);
+						context.set(
+							courseSectionContextKey,
+							courseSectionContextResult.value,
+						);
 					}
 				}
 			}
@@ -415,9 +421,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -452,13 +458,14 @@ export const middleware = [
 		// Check if user is authenticated, in a course module, and has course context
 		if (
 			userSession?.isAuthenticated &&
-			(pageInfo.isInCourseModuleLayout) &&
+			pageInfo.isInCourseModuleLayout &&
 			courseContext
 		) {
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
 
-			const { id: moduleId } = params as RouteParams<"layouts/course-module-layout">;
+			const { id: moduleId } =
+				params as RouteParams<"layouts/course-module-layout">;
 
 			// Get module link ID from params
 			if (moduleId && !Number.isNaN(moduleId)) {
@@ -468,9 +475,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				);
 

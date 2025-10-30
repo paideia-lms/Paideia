@@ -469,7 +469,9 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(retrievedSubmission.content).toBe(
 			"This is a test thread for retrieval.",
 		);
-		expect(retrievedSubmission.courseModuleLink).toBe(courseActivityModuleLinkId);
+		expect(retrievedSubmission.courseModuleLink).toBe(
+			courseActivityModuleLinkId,
+		);
 		expect(retrievedSubmission.student.id).toBe(studentId);
 		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
 	});

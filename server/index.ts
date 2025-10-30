@@ -22,8 +22,8 @@ import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
 import { runSeed } from "./seed";
 import { getRequestInfo } from "./utils/get-request-info";
-import { s3Client } from "./utils/s3-client";
 import { detectPlatform } from "./utils/hosting-platform-detection";
+import { s3Client } from "./utils/s3-client";
 
 const unstorage = createStorage({
 	driver: lruCacheDriver({

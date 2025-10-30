@@ -31,13 +31,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -73,13 +73,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -103,11 +103,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -124,11 +124,11 @@ export interface UpdateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -864,11 +864,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1125,7 +1125,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,

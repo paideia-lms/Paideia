@@ -17,21 +17,21 @@ import {
 	Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { useClipboard } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
+	IconCheck,
+	IconCopy,
+	IconDots,
+	IconDownload,
 	IconEdit,
+	IconMail,
+	IconSend,
 	IconTrash,
 	IconUserPlus,
-	IconDots,
-	IconMail,
-	IconDownload,
-	IconSend,
-	IconCopy,
-	IconCheck,
 } from "@tabler/icons-react";
 import { useState } from "react";
 import { href, Link } from "react-router";
-import { notifications } from "@mantine/notifications";
-import { useClipboard } from "@mantine/hooks";
 import type { Enrollment } from "server/contexts/course-context";
 import {
 	getEnrollmentStatusBadgeColor,
@@ -41,7 +41,7 @@ import {
 } from "./course-view-utils";
 
 interface EnrollmentsSectionProps {
-	courseId: number
+	courseId: number;
 	enrollments: Enrollment[];
 	currentUserRole: string;
 	fetcherState: string;
@@ -66,8 +66,10 @@ function EmailModal({ opened, onClose, recipients, onSend }: EmailModalProps) {
 			message: "",
 		},
 		validate: {
-			subject: (value) => (value.trim().length === 0 ? "Subject is required" : null),
-			message: (value) => (value.trim().length === 0 ? "Message is required" : null),
+			subject: (value) =>
+				value.trim().length === 0 ? "Subject is required" : null,
+			message: (value) =>
+				value.trim().length === 0 ? "Message is required" : null,
 		},
 	});
 
@@ -139,7 +141,8 @@ export function EnrollmentsSection({
 	const clipboard = useClipboard({ timeout: 2000 });
 
 	const allRowIds = enrollments.map((e) => e.id);
-	const allSelected = allRowIds.length > 0 && selectedRows.length === allRowIds.length;
+	const allSelected =
+		allRowIds.length > 0 && selectedRows.length === allRowIds.length;
 	const someSelected = selectedRows.length > 0 && !allSelected;
 
 	const handleSelectAll = () => {
@@ -166,7 +169,10 @@ export function EnrollmentsSection({
 
 	const handleSendEmail = (subject: string, message: string) => {
 		// TODO: Implement actual email sending via API
-		console.log("Sending email to:", selectedEnrollments.map((e) => e.email));
+		console.log(
+			"Sending email to:",
+			selectedEnrollments.map((e) => e.email),
+		);
 		console.log("Subject:", subject);
 		console.log("Message:", message);
 
@@ -299,7 +305,11 @@ export function EnrollmentsSection({
 										variant="light"
 										color={clipboard.copied ? "teal" : undefined}
 										leftSection={
-											clipboard.copied ? <IconCheck size={16} /> : <IconCopy size={16} />
+											clipboard.copied ? (
+												<IconCheck size={16} />
+											) : (
+												<IconCopy size={16} />
+											)
 										}
 										onClick={handleCopyEmails}
 										size="sm"
@@ -367,7 +377,9 @@ export function EnrollmentsSection({
 										<Table.Th>Status</Table.Th>
 										<Table.Th>Groups</Table.Th>
 										<Table.Th>Last Access</Table.Th>
-										{currentUserRole === "admin" && <Table.Th>Actions</Table.Th>}
+										{currentUserRole === "admin" && (
+											<Table.Th>Actions</Table.Th>
+										)}
 									</Table.Tr>
 								</Table.Thead>
 								<Table.Tbody>
@@ -405,9 +417,11 @@ export function EnrollmentsSection({
 														<Text
 															fw={500}
 															component={Link}
-															to={href("/course/:id/participants/profile", {
-																id: courseId.toString(),
-															}) + `?userId=${enrollment.userId}`}
+															to={
+																href("/course/:id/participants/profile", {
+																	id: courseId.toString(),
+																}) + `?userId=${enrollment.userId}`
+															}
 														>
 															{fullName}
 														</Text>
@@ -479,7 +493,9 @@ export function EnrollmentsSection({
 																color="red"
 																size="md"
 																aria-label="Delete enrollment"
-																onClick={() => onDeleteEnrollment(enrollment.id)}
+																onClick={() =>
+																	onDeleteEnrollment(enrollment.id)
+																}
 																disabled={fetcherState === "submitting"}
 															>
 																<IconTrash size={16} />

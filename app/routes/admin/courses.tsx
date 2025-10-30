@@ -14,24 +14,26 @@ import {
 	Stack,
 	Table,
 	Text,
-	TextInput,
 	Title,
 } from "@mantine/core";
-import { useDebouncedCallback } from "@mantine/hooks";
-import { IconDots, IconPlus, IconSearch } from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import { IconDots, IconPlus } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useState } from "react";
 import { href, Link } from "react-router";
-import { notifications } from "@mantine/notifications";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import {
+	type CategoryTreeNode,
+	tryGetCategoryTree,
+} from "server/internal/course-category-management";
 import { tryFindAllCourses } from "server/internal/course-management";
-import { tryGetCategoryTree, type CategoryTreeNode } from "server/internal/course-category-management";
 import type { Course } from "server/payload-types";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
-import type { Route } from "./+types/courses";
+import CourseSearchInput from "~/components/course-search-input";
+import { ForbiddenResponse } from "~/utils/responses";
 import { useBatchUpdateCourses } from "../api/batch-update-courses";
+import type { Route } from "./+types/courses";
 
 // Define search params
 export const coursesSearchParams = {
@@ -82,7 +84,10 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	if (categoriesResult.ok) {
 		const visit = (nodes: CategoryTreeNode[], prefix: string) => {
 			for (const n of nodes) {
-				flatCategories.push({ value: String(n.id), label: `${prefix}${n.name}` });
+				flatCategories.push({
+					value: String(n.id),
+					label: `${prefix}${n.name}`,
+				});
 				if (n.subcategories?.length) visit(n.subcategories, `${prefix}— `);
 			}
 		};
@@ -94,14 +99,11 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-				createdBy.email
+					createdBy.email
 				: "Unknown";
 
 		const category = course.category;
-		const categoryName =
-			category !== null
-				? category.name || "-"
-				: "-";
+		const categoryName = category !== null ? category.name || "-" : "-";
 
 		return {
 			id: course.id,
@@ -125,29 +127,12 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 };
 
 export default function CoursesPage({ loaderData }: Route.ComponentProps) {
-	const { courses, totalCourses, totalPages, currentPage, categories } = loaderData;
-	const [query, setQuery] = useQueryState(
-		"query",
-		parseAsString.withDefault(""),
+	const { courses, totalCourses, totalPages, currentPage, categories } =
+		loaderData;
+	const [page, setPage] = useQueryState(
+		"page",
+		parseAsInteger.withDefault(1).withOptions({ shallow: false }),
 	);
-	const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
-
-	// Local search state for immediate UI updates
-	const [searchQuery, setSearchQuery] = useState(query);
-
-	// Debounced function to update URL query state
-	const debouncedSetQuery = useDebouncedCallback((value: string) => {
-		setQuery(value || null);
-		// Reset to page 1 when search changes
-		setPage(1);
-	}, 500);
-
-	// Handle search input change with immediate feedback
-	const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const value = event.currentTarget.value;
-		setSearchQuery(value);
-		debouncedSetQuery(value);
-	};
 
 	// Handle page change
 	const handlePageChange = (newPage: number) => {
@@ -187,33 +172,48 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 	const [statusModalOpened, setStatusModalOpened] = useState(false);
 	const { batchUpdateCourses, isLoading } = useBatchUpdateCourses();
 
-	const allOnPageIds = courses.map((c) => c.id);
-	const allSelectedOnPage = allOnPageIds.every((id) => selectedCourseIds.includes(id));
-	const someSelectedOnPage = allOnPageIds.some((id) => selectedCourseIds.includes(id));
+	const allOnPageIds = courses.map((c) => c.id as number);
+	const allSelectedOnPage = allOnPageIds.every((id: number) =>
+		selectedCourseIds.includes(id),
+	);
+	const someSelectedOnPage = allOnPageIds.some((id: number) =>
+		selectedCourseIds.includes(id),
+	);
 
 	const toggleAllOnPage = (checked: boolean) => {
-		setSelectedCourseIds((prev) => {
+		setSelectedCourseIds((prev: number[]) => {
 			if (checked) {
-				const set = new Set(prev);
+				const set = new Set<number>(prev);
 				for (const id of allOnPageIds) {
 					set.add(id);
 				}
 				return Array.from(set);
 			}
-			return prev.filter((id) => !allOnPageIds.includes(id));
+			return prev.filter((id: number) => !allOnPageIds.includes(id));
 		});
 	};
 
 	const handleBatchUpdateCategory = async () => {
 		if (!selectedCategory) {
-			notifications.show({ title: "Select a category", message: "Please choose a category to set", color: "yellow" });
+			notifications.show({
+				title: "Select a category",
+				message: "Please choose a category to set",
+				color: "yellow",
+			});
 			return;
 		}
 		if (selectedCourseIds.length === 0) {
-			notifications.show({ title: "No courses selected", message: "Select at least one course", color: "yellow" });
+			notifications.show({
+				title: "No courses selected",
+				message: "Select at least one course",
+				color: "yellow",
+			});
 			return;
 		}
-		batchUpdateCourses({ courseIds: selectedCourseIds, category: Number(selectedCategory) });
+		batchUpdateCourses({
+			courseIds: selectedCourseIds,
+			category: Number(selectedCategory),
+		});
 	};
 
 	return (
@@ -244,12 +244,20 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 					{selectedCourseIds.length > 0 && (
 						<Group justify="space-between" mb="md">
 							<Group gap="md">
-								<Badge size="lg" variant="filled">{selectedCourseIds.length} selected</Badge>
-								<Text size="sm" c="dimmed">Batch actions available</Text>
+								<Badge size="lg" variant="filled">
+									{selectedCourseIds.length} selected
+								</Badge>
+								<Text size="sm" c="dimmed">
+									Batch actions available
+								</Text>
 							</Group>
 							<Menu position="bottom-end" withinPortal>
 								<Menu.Target>
-									<ActionIcon variant="light" size="lg" aria-label="Row actions">
+									<ActionIcon
+										variant="light"
+										size="lg"
+										aria-label="Row actions"
+									>
 										<IconDots size={18} />
 									</ActionIcon>
 								</Menu.Target>
@@ -264,13 +272,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 							</Menu>
 						</Group>
 					)}
-					<TextInput
-						placeholder="Search by title, slug, description, or use status:published..."
-						leftSection={<IconSearch size={16} />}
-						value={searchQuery}
-						onChange={handleSearchChange}
-						mb="md"
-					/>
+					<CourseSearchInput />
 
 					<Box style={{ overflowX: "auto" }}>
 						<Table striped highlightOnHover>
@@ -304,7 +306,14 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 									</Table.Tr>
 								) : (
 									courses.map((course) => (
-										<Table.Tr key={course.id} bg={selectedCourseIds.includes(course.id) ? "var(--mantine-color-blue-light)" : undefined}>
+										<Table.Tr
+											key={course.id}
+											bg={
+												selectedCourseIds.includes(course.id)
+													? "var(--mantine-color-blue-light)"
+													: undefined
+											}
+										>
 											<Table.Td>
 												<Checkbox
 													aria-label="Select row"
@@ -313,7 +322,9 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 														setSelectedCourseIds(
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
-																: selectedCourseIds.filter((id) => id !== course.id),
+																: selectedCourseIds.filter(
+																		(id) => id !== course.id,
+																	),
 														)
 													}
 												/>
@@ -338,7 +349,9 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 												</Text>
 											</Table.Td>
 											<Table.Td>
-												<Text size="sm" c="dimmed">{course.categoryName}</Text>
+												<Text size="sm" c="dimmed">
+													{course.categoryName}
+												</Text>
 											</Table.Td>
 											<Table.Td>
 												<Badge
@@ -391,7 +404,12 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 						</Group>
 					)}
 				</Paper>
-				<Modal opened={categoryModalOpened} onClose={() => setCategoryModalOpened(false)} title="Change category" centered>
+				<Modal
+					opened={categoryModalOpened}
+					onClose={() => setCategoryModalOpened(false)}
+					title="Change category"
+					centered
+				>
 					<Stack>
 						<Select
 							placeholder="Select category"
@@ -401,12 +419,31 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 							clearable
 						/>
 						<Group justify="flex-end">
-							<Button variant="default" onClick={() => setCategoryModalOpened(false)}>Cancel</Button>
-							<Button onClick={async () => { await handleBatchUpdateCategory(); setCategoryModalOpened(false); }} loading={isLoading} disabled={isLoading}>Apply</Button>
+							<Button
+								variant="default"
+								onClick={() => setCategoryModalOpened(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={async () => {
+									await handleBatchUpdateCategory();
+									setCategoryModalOpened(false);
+								}}
+								loading={isLoading}
+								disabled={isLoading}
+							>
+								Apply
+							</Button>
 						</Group>
 					</Stack>
 				</Modal>
-				<Modal opened={statusModalOpened} onClose={() => setStatusModalOpened(false)} title="Change status" centered>
+				<Modal
+					opened={statusModalOpened}
+					onClose={() => setStatusModalOpened(false)}
+					title="Change status"
+					centered
+				>
 					<Stack>
 						<Select
 							placeholder="Select status"
@@ -420,19 +457,41 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 							clearable
 						/>
 						<Group justify="flex-end">
-							<Button variant="default" onClick={() => setStatusModalOpened(false)}>Cancel</Button>
-							<Button onClick={async () => {
-								if (!selectedStatus) {
-									notifications.show({ title: "Select a status", message: "Please choose a status to set", color: "yellow" });
-									return;
-								}
-								if (selectedCourseIds.length === 0) {
-									notifications.show({ title: "No courses selected", message: "Select at least one course", color: "yellow" });
-									return;
-								}
-								batchUpdateCourses({ courseIds: selectedCourseIds, status: selectedStatus as Course["status"] });
-								setStatusModalOpened(false);
-							}} loading={isLoading} disabled={isLoading}>Apply</Button>
+							<Button
+								variant="default"
+								onClick={() => setStatusModalOpened(false)}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={async () => {
+									if (!selectedStatus) {
+										notifications.show({
+											title: "Select a status",
+											message: "Please choose a status to set",
+											color: "yellow",
+										});
+										return;
+									}
+									if (selectedCourseIds.length === 0) {
+										notifications.show({
+											title: "No courses selected",
+											message: "Select at least one course",
+											color: "yellow",
+										});
+										return;
+									}
+									batchUpdateCourses({
+										courseIds: selectedCourseIds,
+										status: selectedStatus as Course["status"],
+									});
+									setStatusModalOpened(false);
+								}}
+								loading={isLoading}
+								disabled={isLoading}
+							>
+								Apply
+							</Button>
 						</Group>
 					</Stack>
 				</Modal>

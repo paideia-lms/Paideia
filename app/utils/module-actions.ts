@@ -4,18 +4,17 @@
  */
 
 export const AssignmentActions = {
-    EDIT_SUBMISSION: "editsubmission",
+	EDIT_SUBMISSION: "editsubmission",
 	GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
 export const DiscussionActions = {
-    CREATE_THREAD: "createthread",
-    REPLY: "reply",
+	CREATE_THREAD: "createthread",
+	REPLY: "reply",
 } as const;
 
 export type AssignmentAction =
-    (typeof AssignmentActions)[keyof typeof AssignmentActions];
+	(typeof AssignmentActions)[keyof typeof AssignmentActions];
 export type DiscussionAction =
-    (typeof DiscussionActions)[keyof typeof DiscussionActions];
+	(typeof DiscussionActions)[keyof typeof DiscussionActions];
 export type ModuleAction = AssignmentAction | DiscussionAction;
-

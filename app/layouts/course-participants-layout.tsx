@@ -104,11 +104,11 @@ export default function CourseParticipantsLayout({
 					tab: classes.tab,
 				}}
 			>
-			<Tabs.List>
-				<Tabs.Tab value={ParticipantsTab.Participants}>Participants</Tabs.Tab>
-				<Tabs.Tab value={ParticipantsTab.Profile}>Profile</Tabs.Tab>
-				<Tabs.Tab value={ParticipantsTab.Groups}>Groups</Tabs.Tab>
-			</Tabs.List>
+				<Tabs.List>
+					<Tabs.Tab value={ParticipantsTab.Participants}>Participants</Tabs.Tab>
+					<Tabs.Tab value={ParticipantsTab.Profile}>Profile</Tabs.Tab>
+					<Tabs.Tab value={ParticipantsTab.Groups}>Groups</Tabs.Tab>
+				</Tabs.List>
 			</Tabs>
 
 			<Outlet />

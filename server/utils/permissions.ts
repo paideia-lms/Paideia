@@ -52,7 +52,12 @@ export function canSeeCourseGrades(
 		role?: Enrollment["role"];
 	},
 ) {
-	if (enrolment) return enrolment.role === "teacher" || enrolment.role === "manager" || enrolment.role === "ta";
+	if (enrolment)
+		return (
+			enrolment.role === "teacher" ||
+			enrolment.role === "manager" ||
+			enrolment.role === "ta"
+		);
 	return user?.role === "admin" || user?.role === "content-manager";
 }
 
@@ -229,11 +234,7 @@ export function canSeeModuleSubmissions(
 	);
 }
 
-export function canSubmitAssignment(
-	enrolment?: {
-		role?: Enrollment["role"];
-	},
-) {
+export function canSubmitAssignment(enrolment?: { role?: Enrollment["role"] }) {
 	return enrolment?.role === "student";
 }
 
@@ -289,6 +290,12 @@ export function canEditCourse(
 	return (
 		user.role === "admin" ||
 		user.role === "content-manager" ||
-		enrolments?.some((enrollment) => enrollment.userId === user.id && (enrollment.role === "teacher" || enrollment.role === "manager" || enrollment.role === "ta"))
+		enrolments?.some(
+			(enrollment) =>
+				enrollment.userId === user.id &&
+				(enrollment.role === "teacher" ||
+					enrollment.role === "manager" ||
+					enrollment.role === "ta"),
+		)
 	);
 }

@@ -7,18 +7,20 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import {
-	IconCalendar,
-	IconClock,
-	IconInfoCircle,
-} from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
 import { parseFormData } from "@remix-run/form-data-parser";
-import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
+import {
+	IconCalendar,
+	IconChevronLeft,
+	IconChevronRight,
+	IconClock,
+	IconInfoCircle,
+} from "@tabler/icons-react";
+import { createLoader, parseAsString } from "nuqs/server";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import type { CourseModuleContext } from "server/contexts/course-module-context";
@@ -34,30 +36,29 @@ import {
 import { tryCreateMedia } from "server/internal/media-management";
 import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
 import { canSubmitAssignment } from "server/utils/permissions";
-import { assertRequestMethod } from "~/utils/assert-request-method";
 import z from "zod";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
 import { DiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { SubmissionHistory } from "~/components/submission-history";
+import { assertRequestMethod } from "~/utils/assert-request-method";
+import { ContentType } from "~/utils/get-content-type";
+import { AssignmentActions } from "~/utils/module-actions";
 import {
-	badRequest,
 	BadRequestResponse,
+	badRequest,
 	ForbiddenResponse,
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { ContentType } from "~/utils/get-content-type";
 import type { Route } from "./+types/module.$id";
-import { createLoader, parseAsString } from "nuqs/server";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
-import { AssignmentActions } from "~/utils/module-actions";
 
 const courseModuleSearchParams = {
 	action: parseAsString.withDefault(""),
-}
+};
 
 export const loadSearchParams = createLoader(courseModuleSearchParams);
 
@@ -76,7 +77,7 @@ const formatDateForDisplay = (dateString: string) => {
 
 // Helper to format module settings with date strings
 const formatModuleSettingsForDisplay = (
-	moduleSettings: CourseModuleContext["moduleLinkSettings"]
+	moduleSettings: CourseModuleContext["moduleLinkSettings"],
 ) => {
 	if (!moduleSettings?.settings) return null;
 
@@ -148,7 +149,11 @@ const formatModuleSettingsForDisplay = (
 	return null;
 };
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -187,23 +192,24 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 	const previousModule =
 		currentIndex > 0
 			? {
-				id: flattenedModules[currentIndex - 1].moduleLinkId,
-				title: flattenedModules[currentIndex - 1].title,
-				type: flattenedModules[currentIndex - 1].type,
-			}
+					id: flattenedModules[currentIndex - 1].moduleLinkId,
+					title: flattenedModules[currentIndex - 1].title,
+					type: flattenedModules[currentIndex - 1].type,
+				}
 			: null;
 
 	const nextModule =
 		currentIndex < flattenedModules.length - 1 && currentIndex !== -1
 			? {
-				id: flattenedModules[currentIndex + 1].moduleLinkId,
-				title: flattenedModules[currentIndex + 1].title,
-				type: flattenedModules[currentIndex + 1].type,
-			}
+					id: flattenedModules[currentIndex + 1].moduleLinkId,
+					title: flattenedModules[currentIndex + 1].title,
+					type: flattenedModules[currentIndex + 1].type,
+				}
 			: null;
 
 	// Get current user's submissions for assignments
-	const currentUser = userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if user can submit assignments
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -215,7 +221,7 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 
 	// Format module settings with dates for display
 	const formattedModuleSettings = formatModuleSettingsForDisplay(
-		courseModuleContext.moduleLinkSettings
+		courseModuleContext.moduleLinkSettings,
 	);
 
 	// If this is an assignment module and user cannot submit, they can't see submissions
@@ -234,16 +240,19 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 		};
 	}
 
-	const userSubmissions = courseModuleContext.module.type === "assignment"
-		? courseModuleContext.submissions.filter(
-			(sub) => "student" in sub && sub.student.id === currentUser.id
-		)
-		: [];
+	const userSubmissions =
+		courseModuleContext.module.type === "assignment"
+			? courseModuleContext.submissions.filter(
+					(sub) => "student" in sub && sub.student.id === currentUser.id,
+				)
+			: [];
 
 	// Get the latest submission (draft or most recent)
-	const userSubmission = userSubmissions.length > 0
-		? userSubmissions.find(sub => sub.status === "draft") || userSubmissions[0]
-		: null;
+	const userSubmission =
+		userSubmissions.length > 0
+			? userSubmissions.find((sub) => sub.status === "draft") ||
+				userSubmissions[0]
+			: null;
 
 	return {
 		module: courseModuleContext.module,
@@ -259,7 +268,11 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 	};
 };
 
-export const action = async ({ request, context, params }: Route.ActionArgs) => {
+export const action = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "POST");
 
 	const { payload } = context.get(globalContextKey);
@@ -289,7 +302,8 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
 		return badRequest({ error: "Invalid module link ID" });
 	}
 
-	const currentUser = userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Begin transaction for file uploads and submission
 	const transactionID = await payload.db.beginTransaction();
@@ -417,7 +431,11 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
 		}
 
 		// Submit the assignment (change status to submitted)
-		const submitResult = await trySubmitAssignment(payload, submissionId, transactionID.toString());
+		const submitResult = await trySubmitAssignment(
+			payload,
+			submissionId,
+			transactionID.toString(),
+		);
 
 		if (!submitResult.ok) {
 			await payload.db.rollbackTransaction(transactionID);
@@ -426,7 +444,9 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
 
 		await payload.db.commitTransaction(transactionID);
 
-		return redirect(href("/course/module/:id", { id: moduleLinkId.toString() }));
+		return redirect(
+			href("/course/module/:id", { id: moduleLinkId.toString() }),
+		);
 	} catch (error) {
 		await payload.db.rollbackTransaction(transactionID);
 		console.error("Assignment submission error:", error);
@@ -440,7 +460,10 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
+	if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Error",
 			message:
@@ -495,12 +518,12 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 function ModuleDatesInfo({
 	moduleSettings,
 }: {
-	moduleSettings: Route.ComponentProps["loaderData"]["formattedModuleSettings"]
+	moduleSettings: Route.ComponentProps["loaderData"]["formattedModuleSettings"];
 }) {
 	if (!moduleSettings || moduleSettings.dates.length === 0) return null;
 
 	return (
-		<Paper withBorder p="md" radius="md" >
+		<Paper withBorder p="md" radius="md">
 			<Stack gap="sm">
 				<Group gap="xs">
 					<IconInfoCircle size={20} />
@@ -510,17 +533,26 @@ function ModuleDatesInfo({
 				<Stack gap="xs">
 					{moduleSettings.dates.map((dateInfo) => (
 						<Group gap="xs" key={dateInfo.label}>
-							{dateInfo.label.includes("Opens") || dateInfo.label.includes("Available") ? (
+							{dateInfo.label.includes("Opens") ||
+							dateInfo.label.includes("Available") ? (
 								<IconCalendar size={16} />
 							) : (
 								<IconClock size={16} />
 							)}
-							<Text size="sm" fw={500} c={dateInfo.isOverdue ? "red" : undefined}>
+							<Text
+								size="sm"
+								fw={500}
+								c={dateInfo.isOverdue ? "red" : undefined}
+							>
 								{dateInfo.label}:
 							</Text>
 							<Text size="sm" c={dateInfo.isOverdue ? "red" : undefined}>
 								{dateInfo.value}
-								{dateInfo.isOverdue && (dateInfo.label.includes("Closes") || dateInfo.label.includes("deadline") ? " (Closed)" : " (Overdue)")}
+								{dateInfo.isOverdue &&
+									(dateInfo.label.includes("Closes") ||
+									dateInfo.label.includes("deadline")
+										? " (Closed)"
+										: " (Overdue)")}
 							</Text>
 						</Group>
 					))}
@@ -531,7 +563,17 @@ function ModuleDatesInfo({
 }
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
-	const { module, moduleSettings, formattedModuleSettings, course, previousModule, nextModule, userSubmission, userSubmissions, canSubmit } = loaderData;
+	const {
+		module,
+		moduleSettings,
+		formattedModuleSettings,
+		course,
+		previousModule,
+		nextModule,
+		userSubmission,
+		userSubmissions,
+		canSubmit,
+	} = loaderData;
 	const { submitAssignment, isSubmitting } = useSubmitAssignment();
 
 	// Handle different module types
@@ -542,40 +584,71 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				return (
 					<>
 						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<PagePreview content={pageContent || "<p>No content available</p>"} />
+						<PagePreview
+							content={pageContent || "<p>No content available</p>"}
+						/>
 					</>
 				);
 			}
 			case "assignment": {
 				// Type guard to ensure we have an assignment submission
-				const assignmentSubmission = userSubmission && "content" in userSubmission && "attachments" in userSubmission
-					? {
-						id: userSubmission.id,
-						status: userSubmission.status as "draft" | "submitted" | "graded" | "returned",
-						content: (userSubmission.content as string) || null,
-						attachments: userSubmission.attachments ? userSubmission.attachments.map((att) => ({
-							file: typeof att.file === "object" && att.file !== null && "id" in att.file ? att.file.id : Number(att.file),
-							description: att.description as string | undefined,
-						})) : null,
-						submittedAt: ("submittedAt" in userSubmission ? userSubmission.submittedAt : null) as string | null,
-						attemptNumber: ("attemptNumber" in userSubmission ? userSubmission.attemptNumber : 1) as number,
-					}
-					: null;
+				const assignmentSubmission =
+					userSubmission &&
+					"content" in userSubmission &&
+					"attachments" in userSubmission
+						? {
+								id: userSubmission.id,
+								status: userSubmission.status as
+									| "draft"
+									| "submitted"
+									| "graded"
+									| "returned",
+								content: (userSubmission.content as string) || null,
+								attachments: userSubmission.attachments
+									? userSubmission.attachments.map((att) => ({
+											file:
+												typeof att.file === "object" &&
+												att.file !== null &&
+												"id" in att.file
+													? att.file.id
+													: Number(att.file),
+											description: att.description as string | undefined,
+										}))
+									: null,
+								submittedAt: ("submittedAt" in userSubmission
+									? userSubmission.submittedAt
+									: null) as string | null,
+								attemptNumber: ("attemptNumber" in userSubmission
+									? userSubmission.attemptNumber
+									: 1) as number,
+							}
+						: null;
 
 				// Map all submissions for display - filter assignment submissions only
 				const allSubmissionsForDisplay = userSubmissions
-					.filter((sub): sub is typeof sub & { content: unknown; attemptNumber: unknown } =>
-						"content" in sub && "attemptNumber" in sub
+					.filter(
+						(
+							sub,
+						): sub is typeof sub & {
+							content: unknown;
+							attemptNumber: unknown;
+						} => "content" in sub && "attemptNumber" in sub,
 					)
 					.map((sub) => ({
 						id: sub.id,
 						status: sub.status as "draft" | "submitted" | "graded" | "returned",
 						content: (sub.content as string) || null,
-						submittedAt: ("submittedAt" in sub ? sub.submittedAt : null) as string | null,
+						submittedAt: ("submittedAt" in sub ? sub.submittedAt : null) as
+							| string
+							| null,
 						attemptNumber: (sub.attemptNumber as number) || 1,
-						attachments: ("attachments" in sub && sub.attachments)
-							? (sub.attachments as Array<{ file: number | { id: number; filename: string }; description?: string }>)
-							: null,
+						attachments:
+							"attachments" in sub && sub.attachments
+								? (sub.attachments as Array<{
+										file: number | { id: number; filename: string };
+										description?: string;
+									}>)
+								: null,
 					}));
 
 				return (

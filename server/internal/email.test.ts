@@ -1,5 +1,5 @@
-import { getPayload } from "payload";
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import { trySendEmail } from "./email";
 
@@ -92,10 +92,7 @@ describe("Email Management", () => {
 		// Expect failure if email is not configured in test environment
 		expect(result.ok).toBe(false);
 		if (!result.ok) {
-			expect(result.error.message).toContain(
-				"Email adapter is not configured",
-			);
+			expect(result.error.message).toContain("Email adapter is not configured");
 		}
 	});
 });
-

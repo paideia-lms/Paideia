@@ -10,8 +10,8 @@ import {
 	Title,
 	Typography,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
 import { Dropzone } from "@mantine/dropzone";
+import { useForm } from "@mantine/form";
 import {
 	IconAlertTriangle,
 	IconCloudUpload,
@@ -22,11 +22,11 @@ import {
 } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
-import { isHtmlEmpty } from "../rich-text-editor";
-import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { getMimeTypesArray } from "~/utils/file-types";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { AssignmentActions } from "~/utils/module-actions";
+import { isHtmlEmpty } from "../rich-text-editor";
+import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import type { SubmissionData } from "../submission-history";
 
 // ============================================================================
@@ -104,7 +104,9 @@ function FileUploadZone({
 	// Convert maxFileSize from MB to bytes
 	const maxFileSizeBytes = (assignment.maxFileSize ?? 10) * 1024 * 1024;
 	const maxFiles = assignment.maxFiles ?? 5;
-	const acceptedMimeTypes = getMimeTypesArray(assignment.allowedFileTypes ?? null);
+	const acceptedMimeTypes = getMimeTypesArray(
+		assignment.allowedFileTypes ?? null,
+	);
 
 	// Get list of allowed extensions for display
 	const allowedExtensions = assignment.allowedFileTypes?.length
@@ -230,7 +232,8 @@ function SubmissionConfirmModal({
 							{files.map((fileWithId) => (
 								<Paper key={fileWithId.id} withBorder p="xs">
 									<Text size="sm">
-										{fileWithId.file.name} ({(fileWithId.file.size / 1024).toFixed(2)} KB)
+										{fileWithId.file.name} (
+										{(fileWithId.file.size / 1024).toFixed(2)} KB)
 									</Text>
 								</Paper>
 							))}
@@ -285,7 +288,10 @@ function SubmissionForm({
 	assignment: AssignmentData;
 	isSubmitting: boolean;
 	onClose: () => void;
-	onSubmit: (data: { textContent: string; files: File[] }) => void | Promise<void>;
+	onSubmit: (data: {
+		textContent: string;
+		files: File[];
+	}) => void | Promise<void>;
 }) {
 	const form = useForm<SubmissionFormValues>({
 		mode: "uncontrolled",
@@ -342,7 +348,9 @@ function SubmissionForm({
 						</Alert>
 					)}
 
-					{assignment.requireTextSubmission && <TextSubmissionField form={form} />}
+					{assignment.requireTextSubmission && (
+						<TextSubmissionField form={form} />
+					)}
 
 					{assignment.requireFileSubmission && (
 						<FileUploadZone
@@ -358,7 +366,8 @@ function SubmissionForm({
 								onClick={handleShowConfirmModal}
 								loading={isSubmitting}
 								disabled={
-									isHtmlEmpty(form.getValues().textContent) && files.length === 0
+									isHtmlEmpty(form.getValues().textContent) &&
+									files.length === 0
 								}
 							>
 								Submit
@@ -395,7 +404,10 @@ function InstructionsView({
 	canSubmit?: boolean;
 }) {
 	const submittedCount = allSubmissions.filter(
-		(s) => s.status === "submitted" || s.status === "graded" || s.status === "returned"
+		(s) =>
+			s.status === "submitted" ||
+			s.status === "graded" ||
+			s.status === "returned",
 	).length;
 	const maxAttempts = assignment.maxAttempts || null;
 	const canSubmitMore = maxAttempts === null || submittedCount < maxAttempts;
@@ -425,8 +437,8 @@ function InstructionsView({
 						color={canSubmitMore ? "blue" : "yellow"}
 						icon={<IconInfoCircle size={16} />}
 					>
-						{submittedCount} of {maxAttempts} attempt{maxAttempts !== 1 ? "s" : ""}{" "}
-						used
+						{submittedCount} of {maxAttempts} attempt
+						{maxAttempts !== 1 ? "s" : ""} used
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
 				)}

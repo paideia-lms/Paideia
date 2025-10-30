@@ -71,11 +71,11 @@ export interface UserProfileContext {
 		bio: string;
 		email: string;
 		role:
-		| "student"
-		| "instructor"
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer";
+			| "student"
+			| "instructor"
+			| "admin"
+			| "content-manager"
+			| "analytics-viewer";
 		avatarUrl: string | null;
 	};
 	/** Activity modules accessible by the profile user */
@@ -228,7 +228,9 @@ export const getUserProfileContext = async (
 			type: module.type,
 			status: module.status,
 			linkedCourses: module.linkedCourses,
-			accessType: (module.owner.id === profileUserId ? "owned" : "granted") as "owned" | "granted",
+			accessType: (module.owner.id === profileUserId ? "owned" : "granted") as
+				| "owned"
+				| "granted",
 		})),
 		...autoGrantedModules.map((module) => ({
 			id: module.id,

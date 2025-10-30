@@ -10,13 +10,13 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { useRevalidator } from "react-router";
-import type { Route } from "./+types/system";
 import { useInterval } from "@mantine/hooks";
+import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { detectSystemResources } from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
+import type { Route } from "./+types/system";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -43,7 +43,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		systemResources,
 	};
 };
-
 
 // Type definitions for client-side use
 type PlatformDetectionResult = {
@@ -100,9 +99,7 @@ function formatBytes(bytes: number): string {
 	return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
 }
 
-function getResourceStatus(
-	percentage: number,
-): "good" | "warning" | "error" {
+function getResourceStatus(percentage: number): "good" | "warning" | "error" {
 	if (percentage < 70) return "good";
 	if (percentage < 85) return "warning";
 	return "error";
@@ -110,7 +107,9 @@ function getResourceStatus(
 
 function PlatformInfoSection({
 	platformInfo,
-}: { platformInfo: PlatformDetectionResult }) {
+}: {
+	platformInfo: PlatformDetectionResult;
+}) {
 	const getConfidenceBadgeColor = (
 		confidence: "high" | "medium" | "low",
 	): string => {
@@ -213,7 +212,9 @@ function PlatformInfoSection({
 
 function SystemResourcesSection({
 	systemResources,
-}: { systemResources: SystemResources }) {
+}: {
+	systemResources: SystemResources;
+}) {
 	const memoryStatus = getResourceStatus(systemResources.memory.percentage);
 	const diskStatus = systemResources.disk
 		? getResourceStatus(systemResources.disk.percentage)
@@ -477,10 +478,13 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 	const { platformInfo, systemResources } = loaderData;
 	const revalidator = useRevalidator();
 
-	const { start, stop, active } = useInterval(() => {
-		revalidator.revalidate();
-	}, 1000, { autoInvoke: true });
-
+	const { start, stop, active } = useInterval(
+		() => {
+			revalidator.revalidate();
+		},
+		1000,
+		{ autoInvoke: true },
+	);
 
 	// const isRevalidating = revalidator.state === "loading";
 
@@ -515,12 +519,9 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 					)} */}
 				</Group>
 
-
-
 				<PlatformInfoSection platformInfo={platformInfo} />
 				<SystemResourcesSection systemResources={systemResources} />
 			</Stack>
 		</Container>
 	);
 }
-

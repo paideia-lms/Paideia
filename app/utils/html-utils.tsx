@@ -7,9 +7,9 @@ import { serverOnly$ } from "vite-env-only/macros";
  * This function is automatically removed from client bundle
  */
 export const getTextContentFromHtmlServer = serverOnly$(
-    (html: string): string => {
-        const $ = cheerio.load(html);
-        const text = $('body').text().trim().replace(/\s+/g, ' ');
-        return text;
-    }
+	(html: string): string => {
+		const $ = cheerio.load(html);
+		const text = $("body").text().trim().replace(/\s+/g, " ");
+		return text;
+	},
 );

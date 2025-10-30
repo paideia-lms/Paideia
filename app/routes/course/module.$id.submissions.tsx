@@ -1,212 +1,232 @@
 import {
-    ActionIcon,
-    Anchor,
-    Badge,
-    Box,
-    Button,
-    Checkbox,
-    Collapse,
-    Container,
-    Group,
-    Menu,
-    Paper,
-    ScrollArea,
-    Stack,
-    Table,
-    Text,
-    Title,
+	ActionIcon,
+	Anchor,
+	Badge,
+	Box,
+	Button,
+	Checkbox,
+	Collapse,
+	Container,
+	Group,
+	Menu,
+	Paper,
+	ScrollArea,
+	Stack,
+	Table,
+	Text,
+	Title,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
-    IconChevronDown,
-    IconChevronRight,
-    IconPencil,
-    IconDots,
-    IconMail,
-    IconDownload,
-    IconTrash,
+	IconChevronDown,
+	IconChevronRight,
+	IconDots,
+	IconDownload,
+	IconMail,
+	IconPencil,
+	IconTrash,
 } from "@tabler/icons-react";
+import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useState } from "react";
 import { href, Link, useFetcher } from "react-router";
-import { notifications } from "@mantine/notifications";
-import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryDeleteAssignmentSubmission, tryGetAssignmentSubmissionById } from "server/internal/assignment-submission-management";
-import { canDeleteSubmissions, canSeeModuleSubmissions } from "server/utils/permissions";
-import { assertRequestMethod } from "~/utils/assert-request-method";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import {
-    SubmissionHistoryItem,
-    type SubmissionData,
-} from "~/components/submission-history";
-import { badRequest, ForbiddenResponse, StatusCode, unauthorized } from "~/utils/responses";
-import { AssignmentActions } from "~/utils/module-actions";
+	tryDeleteAssignmentSubmission,
+	tryGetAssignmentSubmissionById,
+} from "server/internal/assignment-submission-management";
+import {
+	canDeleteSubmissions,
+	canSeeModuleSubmissions,
+} from "server/utils/permissions";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { GradingView } from "~/components/grading-view";
+import {
+	type SubmissionData,
+	SubmissionHistoryItem,
+} from "~/components/submission-history";
+import { assertRequestMethod } from "~/utils/assert-request-method";
+import { AssignmentActions } from "~/utils/module-actions";
+import {
+	badRequest,
+	ForbiddenResponse,
+	StatusCode,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/module.$id.submissions";
 
 // Define search params
 export const submissionsSearchParams = {
-    action: parseAsString,
-    submissionId: parseAsInteger,
+	action: parseAsString,
+	submissionId: parseAsInteger,
 };
 
 export const loadSearchParams = createLoader(submissionsSearchParams);
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
-    const userSession = context.get(userContextKey);
-    const courseContext = context.get(courseContextKey);
-    const courseModuleContext = context.get(courseModuleContextKey);
-    const enrolmentContext = context.get(enrolmentContextKey);
+	const userSession = context.get(userContextKey);
+	const courseContext = context.get(courseContextKey);
+	const courseModuleContext = context.get(courseModuleContextKey);
+	const enrolmentContext = context.get(enrolmentContextKey);
 
-    if (!userSession?.isAuthenticated) {
-        throw new ForbiddenResponse("Unauthorized");
-    }
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
 
-    const currentUser =
-        userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-    if (!courseContext) {
-        throw new ForbiddenResponse("Course not found or access denied");
-    }
+	if (!courseContext) {
+		throw new ForbiddenResponse("Course not found or access denied");
+	}
 
-    if (!courseModuleContext) {
-        throw new ForbiddenResponse("Module not found or access denied");
-    }
+	if (!courseModuleContext) {
+		throw new ForbiddenResponse("Module not found or access denied");
+	}
 
-    // Check if user can see submissions
-    const canSee = canSeeModuleSubmissions(
-        currentUser,
-        enrolmentContext?.enrolment,
-    );
+	// Check if user can see submissions
+	const canSee = canSeeModuleSubmissions(
+		currentUser,
+		enrolmentContext?.enrolment,
+	);
 
-    if (!canSee) {
-        throw new ForbiddenResponse(
-            "You don't have permission to view submissions",
-        );
-    }
+	if (!canSee) {
+		throw new ForbiddenResponse(
+			"You don't have permission to view submissions",
+		);
+	}
 
-    // Check if user can delete submissions
-    const canDelete = canDeleteSubmissions(
-        currentUser,
-        enrolmentContext?.enrolment,
-    );
+	// Check if user can delete submissions
+	const canDelete = canDeleteSubmissions(
+		currentUser,
+		enrolmentContext?.enrolment,
+	);
 
-    // Get all enrollments for this course to show all students, filter out students
-    const enrollments = courseContext.course.enrollments.filter(enrollment => enrollment.role === "student");
+	// Get all enrollments for this course to show all students, filter out students
+	const enrollments = courseContext.course.enrollments.filter(
+		(enrollment) => enrollment.role === "student",
+	);
 
-    // Parse search params to check if we're in grading mode
-    const { action, submissionId } = loadSearchParams(request);
+	// Parse search params to check if we're in grading mode
+	const { action, submissionId } = loadSearchParams(request);
 
-    // If we're in grading mode, fetch the submission
-    let gradingSubmission = null;
-    if (action === AssignmentActions.GRADE_SUBMISSION && submissionId) {
-        const submissionResult = await tryGetAssignmentSubmissionById(
-            context.get(globalContextKey).payload,
-            { id: submissionId }
-        );
+	// If we're in grading mode, fetch the submission
+	let gradingSubmission = null;
+	if (action === AssignmentActions.GRADE_SUBMISSION && submissionId) {
+		const submissionResult = await tryGetAssignmentSubmissionById(
+			context.get(globalContextKey).payload,
+			{ id: submissionId },
+		);
 
-        if (!submissionResult.ok) {
-            throw badRequest({ error: submissionResult.error.message });
-        }
+		if (!submissionResult.ok) {
+			throw badRequest({ error: submissionResult.error.message });
+		}
 
-        const submission = submissionResult.value;
+		const submission = submissionResult.value;
 
-        // Verify the submission belongs to this module
-        if (submission.courseModuleLink.id !== courseModuleContext.moduleLinkId) {
-            throw new ForbiddenResponse("Submission does not belong to this module");
-        }
+		// Verify the submission belongs to this module
+		if (submission.courseModuleLink.id !== courseModuleContext.moduleLinkId) {
+			throw new ForbiddenResponse("Submission does not belong to this module");
+		}
 
-        gradingSubmission = submission;
-    }
+		gradingSubmission = submission;
+	}
 
-    return {
-        module: courseModuleContext.module,
-        moduleSettings: courseModuleContext.moduleLinkSettings,
-        course: courseContext.course,
-        enrollments,
-        submissions: courseModuleContext.submissions,
-        moduleLinkId: courseModuleContext.moduleLinkId,
-        canDelete,
-        gradingSubmission,
-        action,
-    };
+	return {
+		module: courseModuleContext.module,
+		moduleSettings: courseModuleContext.moduleLinkSettings,
+		course: courseContext.course,
+		enrollments,
+		submissions: courseModuleContext.submissions,
+		moduleLinkId: courseModuleContext.moduleLinkId,
+		canDelete,
+		gradingSubmission,
+		action,
+	};
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-    assertRequestMethod(request.method, "DELETE");
+	assertRequestMethod(request.method, "DELETE");
 
-    const { payload } = context.get(globalContextKey);
-    const userSession = context.get(userContextKey);
-    const enrolmentContext = context.get(enrolmentContextKey);
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const enrolmentContext = context.get(enrolmentContextKey);
 
-    if (!userSession?.isAuthenticated) {
-        return unauthorized({ error: "Unauthorized" });
-    }
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
 
-    const currentUser = userSession.effectiveUser || userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
-    // Check if user can delete submissions
-    const canDelete = canDeleteSubmissions(
-        currentUser,
-        enrolmentContext?.enrolment,
-    );
+	// Check if user can delete submissions
+	const canDelete = canDeleteSubmissions(
+		currentUser,
+		enrolmentContext?.enrolment,
+	);
 
-    if (!canDelete) {
-        return unauthorized({ error: "You don't have permission to delete submissions" });
-    }
+	if (!canDelete) {
+		return unauthorized({
+			error: "You don't have permission to delete submissions",
+		});
+	}
 
-    // Get submission ID from request
-    const formData = await request.formData();
-    const submissionId = formData.get("submissionId");
+	// Get submission ID from request
+	const formData = await request.formData();
+	const submissionId = formData.get("submissionId");
 
-    if (!submissionId || typeof submissionId !== "string") {
-        return badRequest({ error: "Submission ID is required" });
-    }
+	if (!submissionId || typeof submissionId !== "string") {
+		return badRequest({ error: "Submission ID is required" });
+	}
 
-    const id = Number.parseInt(submissionId, 10);
-    if (Number.isNaN(id)) {
-        return badRequest({ error: "Invalid submission ID" });
-    }
+	const id = Number.parseInt(submissionId, 10);
+	if (Number.isNaN(id)) {
+		return badRequest({ error: "Invalid submission ID" });
+	}
 
-    // Delete the submission
-    const deleteResult = await tryDeleteAssignmentSubmission(payload, id);
+	// Delete the submission
+	const deleteResult = await tryDeleteAssignmentSubmission(payload, id);
 
-    if (!deleteResult.ok) {
-        return badRequest({ error: deleteResult.error.message });
-    }
+	if (!deleteResult.ok) {
+		return badRequest({ error: deleteResult.error.message });
+	}
 
-    return { success: true };
+	return { success: true };
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-    const actionData = await serverAction();
+	const actionData = await serverAction();
 
-    if ("status" in actionData && (actionData.status === StatusCode.BadRequest || actionData.status === StatusCode.Unauthorized)) {
-        notifications.show({
-            title: "Error",
-            message:
-                "error" in actionData && typeof actionData.error === "string"
-                    ? actionData.error
-                    : "Failed to delete submission",
-            color: "red",
-        });
-    } else if ("success" in actionData && actionData.success) {
-        notifications.show({
-            title: "Success",
-            message: "Submission deleted successfully",
-            color: "green",
-        });
-    }
+	if (
+		"status" in actionData &&
+		(actionData.status === StatusCode.BadRequest ||
+			actionData.status === StatusCode.Unauthorized)
+	) {
+		notifications.show({
+			title: "Error",
+			message:
+				"error" in actionData && typeof actionData.error === "string"
+					? actionData.error
+					: "Failed to delete submission",
+			color: "red",
+		});
+	} else if ("success" in actionData && actionData.success) {
+		notifications.show({
+			title: "Success",
+			message: "Submission deleted successfully",
+			color: "green",
+		});
+	}
 
-    return actionData;
+	return actionData;
 }
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-    return <DefaultErrorBoundary error={error} />;
+	return <DefaultErrorBoundary error={error} />;
 };
 
 // ============================================================================
@@ -214,12 +234,12 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 // ============================================================================
 
 type SubmissionType = SubmissionData & {
-    student: {
-        id: number;
-        firstName?: string | null;
-        lastName?: string | null;
-        email?: string | null;
-    };
+	student: {
+		id: number;
+		firstName?: string | null;
+		lastName?: string | null;
+		email?: string | null;
+	};
 };
 
 // ============================================================================
@@ -227,183 +247,196 @@ type SubmissionType = SubmissionData & {
 // ============================================================================
 
 function StudentSubmissionRow({
-    courseId,
-    enrollment,
-    studentSubmissions,
-    isSelected,
-    onSelectRow,
-    canDelete,
-    onDeleteSubmission,
-    moduleLinkId,
+	courseId,
+	enrollment,
+	studentSubmissions,
+	isSelected,
+	onSelectRow,
+	canDelete,
+	onDeleteSubmission,
+	moduleLinkId,
 }: {
-    courseId: number,
-    enrollment: Route.ComponentProps["loaderData"]["enrollments"][number];
-    studentSubmissions: SubmissionType[] | undefined;
-    isSelected: boolean;
-    onSelectRow: (enrollmentId: number, checked: boolean) => void;
-    canDelete: boolean;
-    onDeleteSubmission: (submissionId: number) => void;
-    moduleLinkId: number;
+	courseId: number;
+	enrollment: Route.ComponentProps["loaderData"]["enrollments"][number];
+	studentSubmissions: SubmissionType[] | undefined;
+	isSelected: boolean;
+	onSelectRow: (enrollmentId: number, checked: boolean) => void;
+	canDelete: boolean;
+	onDeleteSubmission: (submissionId: number) => void;
+	moduleLinkId: number;
 }) {
-    const [opened, { toggle }] = useDisclosure(false);
+	const [opened, { toggle }] = useDisclosure(false);
 
-    const latestSubmission = studentSubmissions?.[0];
-    const email = enrollment.email || "-";
+	const latestSubmission = studentSubmissions?.[0];
+	const email = enrollment.email || "-";
 
-    // Sort submissions by attempt number (newest first)
-    const sortedSubmissions = studentSubmissions
-        ? [...studentSubmissions].sort((a, b) => {
-            const attemptA = a.attemptNumber || 0;
-            const attemptB = b.attemptNumber || 0;
-            return attemptB - attemptA;
-        })
-        : [];
+	// Sort submissions by attempt number (newest first)
+	const sortedSubmissions = studentSubmissions
+		? [...studentSubmissions].sort((a, b) => {
+				const attemptA = a.attemptNumber || 0;
+				const attemptB = b.attemptNumber || 0;
+				return attemptB - attemptA;
+			})
+		: [];
 
-    // Filter out draft submissions for display
-    const submittedSubmissions = sortedSubmissions.filter(
-        (sub) => sub.status !== "draft",
-    );
+	// Filter out draft submissions for display
+	const submittedSubmissions = sortedSubmissions.filter(
+		(sub) => sub.status !== "draft",
+	);
 
-    const hasSubmissions = submittedSubmissions.length > 0;
+	const hasSubmissions = submittedSubmissions.length > 0;
 
-    return (
-        <>
-            <Table.Tr
-            >
-                <Table.Td>
-                    <Checkbox
-                        aria-label="Select row"
-                        checked={isSelected}
-                        onChange={(event) =>
-                            onSelectRow(enrollment.id, event.currentTarget.checked)
-                        }
-                    />
-                </Table.Td>
-                <Table.Td>
-                    <Group gap="xs" wrap="nowrap">
-                        {hasSubmissions && (
-                            <ActionIcon
-                                variant="subtle"
-                                size="sm"
-                                onClick={toggle}
-                                aria-label={opened ? "Collapse" : "Expand"}
-                            >
-                                {opened ? (
-                                    <IconChevronDown size={16} />
-                                ) : (
-                                    <IconChevronRight size={16} />
-                                )}
-                            </ActionIcon>
-                        )}
-                        {!hasSubmissions && <Box style={{ width: 28 }} />}
-                        <div>
-                            <Anchor
-                                component={Link}
-                                to={href("/course/:id/participants/profile", { id: courseId.toString() }) + `?userId=${enrollment.userId}`}
-                                size="sm"
-                            >
-                                {enrollment.name}
-                            </Anchor>
-                        </div>
-                    </Group>
-                </Table.Td>
-                <Table.Td>{email}</Table.Td>
-                <Table.Td>
-                    {latestSubmission && "status" in latestSubmission ? (
-                        <Badge
-                            color={
-                                latestSubmission.status === "graded"
-                                    ? "green"
-                                    : latestSubmission.status === "submitted"
-                                        ? "blue"
-                                        : "gray"
-                            }
-                            variant="light"
-                        >
-                            {latestSubmission.status === "draft"
-                                ? "No submission"
-                                : latestSubmission.status}
-                        </Badge>
-                    ) : (
-                        <Badge color="gray" variant="light">
-                            No submission
-                        </Badge>
-                    )}
-                </Table.Td>
-                <Table.Td>
-                    {hasSubmissions ? (
-                        <Text size="sm">{submittedSubmissions.length}</Text>
-                    ) : (
-                        <Text size="sm" c="dimmed">
-                            0
-                        </Text>
-                    )}
-                </Table.Td>
-                <Table.Td>
-                    {latestSubmission &&
-                        "submittedAt" in latestSubmission &&
-                        latestSubmission.submittedAt
-                        ? new Date(latestSubmission.submittedAt).toLocaleString()
-                        : "-"}
-                </Table.Td>
-                <Table.Td>
-                    <Group gap="xs">
-                        <Button
-                            component={Link}
-                            to={
-                                hasSubmissions && latestSubmission
-                                    ? href("/course/module/:id/submissions", {
-                                        id: moduleLinkId.toString(),
-                                    }) + `?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
-                                    : "#"
-                            }
-                            size="xs"
-                            variant="light"
-                            leftSection={<IconPencil size={14} />}
-                            disabled={!hasSubmissions}
-                        >
-                            Grade
-                        </Button>
-                    </Group>
-                </Table.Td>
-            </Table.Tr>
-            {hasSubmissions && (
-                <Table.Tr>
-                    <Table.Td colSpan={8} p={0}>
-                        <Collapse in={opened}>
-                            <Box p="md" >
-                                <Stack gap="md">
-                                    <Text size="sm" fw={600}>
-                                        Submission History ({submittedSubmissions.length}{" "}
-                                        {submittedSubmissions.length === 1 ? "attempt" : "attempts"}
-                                        )
-                                    </Text>
-                                    {/* sort by submittedAt ascending */}
-                                    {submittedSubmissions.sort((a, b) => {
-                                        const dateA = a.submittedAt ? new Date(a.submittedAt) : new Date(0);
-                                        const dateB = b.submittedAt ? new Date(b.submittedAt) : new Date(0);
-                                        return dateB.getTime() - dateA.getTime();
-                                    }).map((submission, index) => (
-                                        <SubmissionHistoryItem
-                                            key={submission.id}
-                                            attemptNumber={submission.attemptNumber ?? submittedSubmissions.length - index}
-                                            submission={submission}
-                                            showDelete={canDelete}
-                                            onDelete={(submissionId) => {
-                                                onDeleteSubmission(submissionId);
-                                            }}
-                                            showGrade={true}
-                                            moduleLinkId={moduleLinkId}
-                                        />
-                                    ))}
-                                </Stack>
-                            </Box>
-                        </Collapse>
-                    </Table.Td>
-                </Table.Tr>
-            )}
-        </>
-    );
+	return (
+		<>
+			<Table.Tr>
+				<Table.Td>
+					<Checkbox
+						aria-label="Select row"
+						checked={isSelected}
+						onChange={(event) =>
+							onSelectRow(enrollment.id, event.currentTarget.checked)
+						}
+					/>
+				</Table.Td>
+				<Table.Td>
+					<Group gap="xs" wrap="nowrap">
+						{hasSubmissions && (
+							<ActionIcon
+								variant="subtle"
+								size="sm"
+								onClick={toggle}
+								aria-label={opened ? "Collapse" : "Expand"}
+							>
+								{opened ? (
+									<IconChevronDown size={16} />
+								) : (
+									<IconChevronRight size={16} />
+								)}
+							</ActionIcon>
+						)}
+						{!hasSubmissions && <Box style={{ width: 28 }} />}
+						<div>
+							<Anchor
+								component={Link}
+								to={
+									href("/course/:id/participants/profile", {
+										id: courseId.toString(),
+									}) + `?userId=${enrollment.userId}`
+								}
+								size="sm"
+							>
+								{enrollment.name}
+							</Anchor>
+						</div>
+					</Group>
+				</Table.Td>
+				<Table.Td>{email}</Table.Td>
+				<Table.Td>
+					{latestSubmission && "status" in latestSubmission ? (
+						<Badge
+							color={
+								latestSubmission.status === "graded"
+									? "green"
+									: latestSubmission.status === "submitted"
+										? "blue"
+										: "gray"
+							}
+							variant="light"
+						>
+							{latestSubmission.status === "draft"
+								? "No submission"
+								: latestSubmission.status}
+						</Badge>
+					) : (
+						<Badge color="gray" variant="light">
+							No submission
+						</Badge>
+					)}
+				</Table.Td>
+				<Table.Td>
+					{hasSubmissions ? (
+						<Text size="sm">{submittedSubmissions.length}</Text>
+					) : (
+						<Text size="sm" c="dimmed">
+							0
+						</Text>
+					)}
+				</Table.Td>
+				<Table.Td>
+					{latestSubmission &&
+					"submittedAt" in latestSubmission &&
+					latestSubmission.submittedAt
+						? new Date(latestSubmission.submittedAt).toLocaleString()
+						: "-"}
+				</Table.Td>
+				<Table.Td>
+					<Group gap="xs">
+						<Button
+							component={Link}
+							to={
+								hasSubmissions && latestSubmission
+									? href("/course/module/:id/submissions", {
+											id: moduleLinkId.toString(),
+										}) +
+										`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
+									: "#"
+							}
+							size="xs"
+							variant="light"
+							leftSection={<IconPencil size={14} />}
+							disabled={!hasSubmissions}
+						>
+							Grade
+						</Button>
+					</Group>
+				</Table.Td>
+			</Table.Tr>
+			{hasSubmissions && (
+				<Table.Tr>
+					<Table.Td colSpan={8} p={0}>
+						<Collapse in={opened}>
+							<Box p="md">
+								<Stack gap="md">
+									<Text size="sm" fw={600}>
+										Submission History ({submittedSubmissions.length}{" "}
+										{submittedSubmissions.length === 1 ? "attempt" : "attempts"}
+										)
+									</Text>
+									{/* sort by submittedAt ascending */}
+									{submittedSubmissions
+										.sort((a, b) => {
+											const dateA = a.submittedAt
+												? new Date(a.submittedAt)
+												: new Date(0);
+											const dateB = b.submittedAt
+												? new Date(b.submittedAt)
+												: new Date(0);
+											return dateB.getTime() - dateA.getTime();
+										})
+										.map((submission, index) => (
+											<SubmissionHistoryItem
+												key={submission.id}
+												attemptNumber={
+													submission.attemptNumber ??
+													submittedSubmissions.length - index
+												}
+												submission={submission}
+												showDelete={canDelete}
+												onDelete={(submissionId) => {
+													onDeleteSubmission(submissionId);
+												}}
+												showGrade={true}
+												moduleLinkId={moduleLinkId}
+											/>
+										))}
+								</Stack>
+							</Box>
+						</Collapse>
+					</Table.Td>
+				</Table.Tr>
+			)}
+		</>
+	);
 }
 
 // ============================================================================
@@ -411,23 +444,23 @@ function StudentSubmissionRow({
 // ============================================================================
 
 const useDeleteSubmission = () => {
-    const fetcher = useFetcher<typeof clientAction>();
+	const fetcher = useFetcher<typeof clientAction>();
 
-    const deleteSubmission = (submissionId: number) => {
-        const formData = new FormData();
-        formData.append("submissionId", submissionId.toString());
+	const deleteSubmission = (submissionId: number) => {
+		const formData = new FormData();
+		formData.append("submissionId", submissionId.toString());
 
-        fetcher.submit(formData, {
-            method: "DELETE",
-        });
-    };
+		fetcher.submit(formData, {
+			method: "DELETE",
+		});
+	};
 
-    return {
-        deleteSubmission,
-        isDeleting: fetcher.state !== "idle",
-        state: fetcher.state,
-        data: fetcher.data,
-    };
+	return {
+		deleteSubmission,
+		isDeleting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
 };
 
 // ============================================================================
@@ -435,227 +468,234 @@ const useDeleteSubmission = () => {
 // ============================================================================
 
 export default function ModuleSubmissionsPage({
-    loaderData,
+	loaderData,
 }: Route.ComponentProps) {
-    const { module, moduleSettings, course, enrollments, submissions, canDelete, gradingSubmission, action } =
-        loaderData;
+	const {
+		module,
+		moduleSettings,
+		course,
+		enrollments,
+		submissions,
+		canDelete,
+		gradingSubmission,
+		action,
+	} = loaderData;
 
-    // Call hooks unconditionally at the top
-    const [selectedRows, setSelectedRows] = useState<number[]>([]);
-    const { deleteSubmission } = useDeleteSubmission();
+	// Call hooks unconditionally at the top
+	const [selectedRows, setSelectedRows] = useState<number[]>([]);
+	const { deleteSubmission } = useDeleteSubmission();
 
-    // If we're in grading mode, show the grading view
-    if (action === AssignmentActions.GRADE_SUBMISSION && gradingSubmission) {
-        return (
-            <GradingView
-                submission={gradingSubmission}
-                module={module}
-                moduleSettings={moduleSettings}
-                course={course}
-                moduleLinkId={loaderData.moduleLinkId}
-            />
-        );
-    }
+	// If we're in grading mode, show the grading view
+	if (action === AssignmentActions.GRADE_SUBMISSION && gradingSubmission) {
+		return (
+			<GradingView
+				submission={gradingSubmission}
+				module={module}
+				moduleSettings={moduleSettings}
+				course={course}
+				moduleLinkId={loaderData.moduleLinkId}
+			/>
+		);
+	}
 
-    const title = `${moduleSettings?.settings.name ?? module.title} - ${module.type === "quiz" ? "Results" : "Submissions"} | ${course.title} | Paideia LMS`;
+	const title = `${moduleSettings?.settings.name ?? module.title} - ${module.type === "quiz" ? "Results" : "Submissions"} | ${course.title} | Paideia LMS`;
 
-    // Create a map of submissions by student ID
-    const submissionsByStudent = new Map<number, SubmissionType[]>();
-    for (const submission of submissions) {
-        const studentId = submission.student.id;
-        if (!submissionsByStudent.has(studentId)) {
-            submissionsByStudent.set(studentId, []);
-        }
-        submissionsByStudent.get(studentId)?.push(submission as SubmissionType);
-    }
+	// Create a map of submissions by student ID
+	const submissionsByStudent = new Map<number, SubmissionType[]>();
+	for (const submission of submissions) {
+		const studentId = submission.student.id;
+		if (!submissionsByStudent.has(studentId)) {
+			submissionsByStudent.set(studentId, []);
+		}
+		submissionsByStudent.get(studentId)?.push(submission as SubmissionType);
+	}
 
-    const allRowIds = enrollments.map((e) => e.id);
-    const allSelected = allRowIds.length > 0 && selectedRows.length === allRowIds.length;
-    const someSelected = selectedRows.length > 0 && !allSelected;
+	const allRowIds = enrollments.map((e) => e.id);
+	const allSelected =
+		allRowIds.length > 0 && selectedRows.length === allRowIds.length;
+	const someSelected = selectedRows.length > 0 && !allSelected;
 
-    const handleSelectAll = () => {
-        setSelectedRows(allSelected ? [] : allRowIds);
-    };
+	const handleSelectAll = () => {
+		setSelectedRows(allSelected ? [] : allRowIds);
+	};
 
-    const handleSelectRow = (enrollmentId: number, checked: boolean) => {
-        setSelectedRows(
-            checked
-                ? [...selectedRows, enrollmentId]
-                : selectedRows.filter((id) => id !== enrollmentId),
-        );
-    };
+	const handleSelectRow = (enrollmentId: number, checked: boolean) => {
+		setSelectedRows(
+			checked
+				? [...selectedRows, enrollmentId]
+				: selectedRows.filter((id) => id !== enrollmentId),
+		);
+	};
 
-    // Mock batch actions
-    const handleBatchEmail = () => {
-        console.log("Send email to selected students:", selectedRows);
-        // TODO: Implement batch email functionality
-    };
+	// Mock batch actions
+	const handleBatchEmail = () => {
+		console.log("Send email to selected students:", selectedRows);
+		// TODO: Implement batch email functionality
+	};
 
-    const handleBatchExport = () => {
-        console.log("Export selected submissions:", selectedRows);
-        // TODO: Implement batch export functionality
-    };
+	const handleBatchExport = () => {
+		console.log("Export selected submissions:", selectedRows);
+		// TODO: Implement batch export functionality
+	};
 
-    const handleBatchGrade = () => {
-        console.log("Batch grade selected submissions:", selectedRows);
-        // TODO: Implement batch grading functionality
-    };
+	const handleBatchGrade = () => {
+		console.log("Batch grade selected submissions:", selectedRows);
+		// TODO: Implement batch grading functionality
+	};
 
-    // Render content based on module type
-    const renderSubmissions = () => {
-        if (module.type === "assignment") {
-            return (
-                <Stack gap="md">
-                    {selectedRows.length > 0 && (
-                        <Paper withBorder p="md" >
-                            <Group justify="space-between">
-                                <Group gap="md">
-                                    <Badge size="lg" variant="filled">
-                                        {selectedRows.length} selected
-                                    </Badge>
-                                    <Text size="sm" c="dimmed">
-                                        Batch actions available
-                                    </Text>
-                                </Group>
-                                <Group gap="xs">
-                                    <Button
-                                        variant="light"
-                                        leftSection={<IconPencil size={16} />}
-                                        onClick={handleBatchGrade}
-                                        size="sm"
-                                    >
-                                        Grade Selected
-                                    </Button>
-                                    <Button
-                                        variant="light"
-                                        leftSection={<IconMail size={16} />}
-                                        onClick={handleBatchEmail}
-                                        size="sm"
-                                    >
-                                        Email
-                                    </Button>
-                                    <Button
-                                        variant="light"
-                                        leftSection={<IconDownload size={16} />}
-                                        onClick={handleBatchExport}
-                                        size="sm"
-                                    >
-                                        Export
-                                    </Button>
-                                    <Menu position="bottom-end">
-                                        <Menu.Target>
-                                            <ActionIcon variant="light" size="lg">
-                                                <IconDots size={18} />
-                                            </ActionIcon>
-                                        </Menu.Target>
-                                        <Menu.Dropdown>
-                                            <Menu.Item
-                                                color="red"
-                                                leftSection={<IconTrash size={16} />}
-                                                onClick={() => console.log("Clear selection")}
-                                            >
-                                                Clear Selection
-                                            </Menu.Item>
-                                        </Menu.Dropdown>
-                                    </Menu>
-                                </Group>
-                            </Group>
-                        </Paper>
-                    )}
-                    <Paper withBorder shadow="sm" p="md" radius="md">
-                        <ScrollArea>
-                            <Table highlightOnHover style={{ minWidth: 900 }}>
-                                <Table.Thead>
-                                    <Table.Tr>
-                                        <Table.Th style={{ width: 40 }}>
-                                            <Checkbox
-                                                aria-label="Select all rows"
-                                                checked={allSelected}
-                                                indeterminate={someSelected}
-                                                onChange={handleSelectAll}
-                                            />
-                                        </Table.Th>
-                                        <Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
-                                        <Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
-                                        <Table.Th style={{ minWidth: 120 }}>Status</Table.Th>
-                                        <Table.Th style={{ minWidth: 80 }}>Attempts</Table.Th>
-                                        <Table.Th style={{ minWidth: 180 }}>Latest Submission</Table.Th>
-                                        <Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
-                                    </Table.Tr>
-                                </Table.Thead>
-                                <Table.Tbody>
-                                    {enrollments.map((enrollment) => {
-                                        const studentSubmissions = submissionsByStudent.get(
-                                            enrollment.userId,
-                                        );
+	// Render content based on module type
+	const renderSubmissions = () => {
+		if (module.type === "assignment") {
+			return (
+				<Stack gap="md">
+					{selectedRows.length > 0 && (
+						<Paper withBorder p="md">
+							<Group justify="space-between">
+								<Group gap="md">
+									<Badge size="lg" variant="filled">
+										{selectedRows.length} selected
+									</Badge>
+									<Text size="sm" c="dimmed">
+										Batch actions available
+									</Text>
+								</Group>
+								<Group gap="xs">
+									<Button
+										variant="light"
+										leftSection={<IconPencil size={16} />}
+										onClick={handleBatchGrade}
+										size="sm"
+									>
+										Grade Selected
+									</Button>
+									<Button
+										variant="light"
+										leftSection={<IconMail size={16} />}
+										onClick={handleBatchEmail}
+										size="sm"
+									>
+										Email
+									</Button>
+									<Button
+										variant="light"
+										leftSection={<IconDownload size={16} />}
+										onClick={handleBatchExport}
+										size="sm"
+									>
+										Export
+									</Button>
+									<Menu position="bottom-end">
+										<Menu.Target>
+											<ActionIcon variant="light" size="lg">
+												<IconDots size={18} />
+											</ActionIcon>
+										</Menu.Target>
+										<Menu.Dropdown>
+											<Menu.Item
+												color="red"
+												leftSection={<IconTrash size={16} />}
+												onClick={() => console.log("Clear selection")}
+											>
+												Clear Selection
+											</Menu.Item>
+										</Menu.Dropdown>
+									</Menu>
+								</Group>
+							</Group>
+						</Paper>
+					)}
+					<Paper withBorder shadow="sm" p="md" radius="md">
+						<ScrollArea>
+							<Table highlightOnHover style={{ minWidth: 900 }}>
+								<Table.Thead>
+									<Table.Tr>
+										<Table.Th style={{ width: 40 }}>
+											<Checkbox
+												aria-label="Select all rows"
+												checked={allSelected}
+												indeterminate={someSelected}
+												onChange={handleSelectAll}
+											/>
+										</Table.Th>
+										<Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
+										<Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
+										<Table.Th style={{ minWidth: 120 }}>Status</Table.Th>
+										<Table.Th style={{ minWidth: 80 }}>Attempts</Table.Th>
+										<Table.Th style={{ minWidth: 180 }}>
+											Latest Submission
+										</Table.Th>
+										<Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
+									</Table.Tr>
+								</Table.Thead>
+								<Table.Tbody>
+									{enrollments.map((enrollment) => {
+										const studentSubmissions = submissionsByStudent.get(
+											enrollment.userId,
+										);
 
-                                        return (
-                                            <StudentSubmissionRow
-                                                key={enrollment.id}
-                                                courseId={course.id}
-                                                enrollment={enrollment}
-                                                studentSubmissions={studentSubmissions}
-                                                isSelected={selectedRows.includes(enrollment.id)}
-                                                onSelectRow={handleSelectRow}
-                                                canDelete={canDelete}
-                                                onDeleteSubmission={deleteSubmission}
-                                                moduleLinkId={loaderData.moduleLinkId}
-                                            />
-                                        );
-                                    })}
-                                </Table.Tbody>
-                            </Table>
-                        </ScrollArea>
-                    </Paper>
-                </Stack>
-            );
-        }
+										return (
+											<StudentSubmissionRow
+												key={enrollment.id}
+												courseId={course.id}
+												enrollment={enrollment}
+												studentSubmissions={studentSubmissions}
+												isSelected={selectedRows.includes(enrollment.id)}
+												onSelectRow={handleSelectRow}
+												canDelete={canDelete}
+												onDeleteSubmission={deleteSubmission}
+												moduleLinkId={loaderData.moduleLinkId}
+											/>
+										);
+									})}
+								</Table.Tbody>
+							</Table>
+						</ScrollArea>
+					</Paper>
+				</Stack>
+			);
+		}
 
-        if (module.type === "quiz") {
-            return (
-                <Paper withBorder shadow="sm" p="xl" radius="md">
-                    <Group justify="center" align="center" style={{ minHeight: 200 }}>
-                        <div style={{ textAlign: "center" }}>
-                            <Title order={3} c="dimmed" mb="md">
-                                Quiz Results
-                            </Title>
-                            <Text c="dimmed">Quiz results view coming soon...</Text>
-                        </div>
-                    </Group>
-                </Paper>
-            );
-        }
+		if (module.type === "quiz") {
+			return (
+				<Paper withBorder shadow="sm" p="xl" radius="md">
+					<Group justify="center" align="center" style={{ minHeight: 200 }}>
+						<div style={{ textAlign: "center" }}>
+							<Title order={3} c="dimmed" mb="md">
+								Quiz Results
+							</Title>
+							<Text c="dimmed">Quiz results view coming soon...</Text>
+						</div>
+					</Group>
+				</Paper>
+			);
+		}
 
-        if (module.type === "discussion") {
-            return (
-                <Paper withBorder shadow="sm" p="xl" radius="md">
-                    <Group justify="center" align="center" style={{ minHeight: 200 }}>
-                        <div style={{ textAlign: "center" }}>
-                            <Title order={3} c="dimmed" mb="md">
-                                Discussion Submissions
-                            </Title>
-                            <Text c="dimmed">Discussion submissions view coming soon...</Text>
-                        </div>
-                    </Group>
-                </Paper>
-            );
-        }
+		if (module.type === "discussion") {
+			return (
+				<Paper withBorder shadow="sm" p="xl" radius="md">
+					<Group justify="center" align="center" style={{ minHeight: 200 }}>
+						<div style={{ textAlign: "center" }}>
+							<Title order={3} c="dimmed" mb="md">
+								Discussion Submissions
+							</Title>
+							<Text c="dimmed">Discussion submissions view coming soon...</Text>
+						</div>
+					</Group>
+				</Paper>
+			);
+		}
 
-        return null;
-    };
+		return null;
+	};
 
-    return (
-        <Container size="xl" py="xl">
-            <title>{title}</title>
-            <meta name="description" content={`${module.title} submissions`} />
-            <meta property="og:title" content={title} />
-            <meta
-                property="og:description"
-                content={`${module.title} submissions`}
-            />
+	return (
+		<Container size="xl" py="xl">
+			<title>{title}</title>
+			<meta name="description" content={`${module.title} submissions`} />
+			<meta property="og:title" content={title} />
+			<meta property="og:description" content={`${module.title} submissions`} />
 
-            {renderSubmissions()}
-        </Container>
-    );
+			{renderSubmissions()}
+		</Container>
+	);
 }
-

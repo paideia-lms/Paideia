@@ -56,8 +56,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				role: enrolmentContext.enrolment.role,
-			}
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 

@@ -2,6 +2,7 @@ import type { Simplify } from "@payloadcms/db-postgres/drizzle";
 import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import {
+	CourseCategories,
 	CourseSections,
 	Courses,
 	Gradebooks,
@@ -498,11 +499,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-							...category,
-							parent,
-							courses: categoryCourses,
-							subcategories: categorySubcategories,
-						}
+								...category,
+								parent,
+								courses: categoryCourses,
+								subcategories: categorySubcategories,
+							}
 						: null,
 					sections,
 				};
@@ -724,7 +725,6 @@ export interface FindAllCoursesArgs {
 	overrideAccess?: boolean;
 }
 
-
 /**
  * Finds all courses with pagination and search
  * Supports search by title and filter by status
@@ -748,12 +748,14 @@ export const tryFindAllCourses = Result.wrap(
 		const where: Where = {};
 		if (query) {
 			const parsed = searchQueryParser.parse(query, {
-				keywords: ["status"],
+				keywords: ["status", "category"],
 			});
 
 			const searchText = typeof parsed === "string" ? parsed : parsed.text;
 			const statusFilter =
 				typeof parsed === "object" ? parsed.status : undefined;
+			const categoryFilter =
+				typeof parsed === "object" ? parsed.category : undefined;
 
 			const orConditions = [];
 
@@ -796,7 +798,50 @@ export const tryFindAllCourses = Result.wrap(
 					in: statuses as Course["status"][],
 				};
 			}
+
+			// Category filter
+			if (categoryFilter) {
+				const categories = Array.isArray(categoryFilter)
+					? categoryFilter
+					: [categoryFilter];
+				// For simplicity, use the first provided category filter
+				const raw = categories[0];
+				if (typeof raw === "string") {
+					const v = raw.trim();
+					const vLower = v.toLowerCase();
+					if (
+						vLower === "none" ||
+						vLower === "null" ||
+						vLower === "uncategorized"
+					) {
+						where.category = { exists: false };
+					} else if (!Number.isNaN(Number(v))) {
+						where.category = { equals: Number(v) };
+					} else if (v.length > 0) {
+						// Treat as category name (partial match)
+						const matched = await payload.find({
+							collection: CourseCategories.slug,
+							where: {
+								name: { contains: v },
+							},
+							pagination: false,
+							depth: 0,
+						});
+						const ids = matched.docs.map((c) => c.id);
+						if (ids.length > 0) {
+							where.category = { in: ids };
+						} else {
+							// No matches -> ensure no results
+							where.category = { equals: -1 };
+						}
+					}
+				} else if (typeof raw === "number") {
+					where.category = { equals: raw };
+				}
+			}
 		}
+
+		// console.log("where", where);
 
 		const coursesResult = await payload
 			.find({

@@ -37,20 +37,24 @@ export interface GradingViewProps {
 		status: "draft" | "submitted" | "graded" | "returned";
 		content?: string | null;
 		submittedAt?: string | null;
-		student: {
-			id: number;
-			firstName?: string | null;
-			lastName?: string | null;
-			email?: string | null;
-		} | number;
+		student:
+			| {
+					id: number;
+					firstName?: string | null;
+					lastName?: string | null;
+					email?: string | null;
+			  }
+			| number;
 		attachments?: Array<{
-			file: number | {
-				id: number;
-				filename?: string | null;
-				mimeType?: string | null;
-				filesize?: number | null;
-				url?: string | null;
-			};
+			file:
+				| number
+				| {
+						id: number;
+						filename?: string | null;
+						mimeType?: string | null;
+						filesize?: number | null;
+						url?: string | null;
+				  };
 			description?: string | null;
 		}> | null;
 	};
@@ -83,7 +87,9 @@ export function GradingView({
 	moduleLinkId,
 }: GradingViewProps) {
 	// Track individual attachment expansion state (all expanded by default)
-	const [expandedAttachments, setExpandedAttachments] = useState<Record<string, boolean>>(() => {
+	const [expandedAttachments, setExpandedAttachments] = useState<
+		Record<string, boolean>
+	>(() => {
 		const initial: Record<string, boolean> = {};
 		submission.attachments?.forEach((_, index) => {
 			initial[index.toString()] = true;
@@ -92,7 +98,7 @@ export function GradingView({
 	});
 
 	const toggleAttachment = (index: number) => {
-		setExpandedAttachments(prev => ({
+		setExpandedAttachments((prev) => ({
 			...prev,
 			[index.toString()]: !prev[index.toString()],
 		}));
@@ -120,7 +126,8 @@ export function GradingView({
 	const student = submission.student;
 	const studentName =
 		typeof student === "object"
-			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() || student.email
+			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
+				student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -133,7 +140,7 @@ export function GradingView({
 			<meta property="og:title" content={title} />
 
 			{/* Back Button */}
-			<Container size="xl" >
+			<Container size="xl">
 				<Button
 					component={Link}
 					to={href("/course/module/:id/submissions", {
@@ -146,7 +153,7 @@ export function GradingView({
 			</Container>
 
 			{/* Two-column layout */}
-			<Grid columns={12} >
+			<Grid columns={12}>
 				<Grid.Col span={6}>
 					<Stack gap="sm">
 						{/* Header Section */}
@@ -178,7 +185,10 @@ export function GradingView({
 									</Group>
 								</Group>
 								<Text size="sm" c="dimmed">
-									Submitted: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : "N/A"}
+									Submitted:{" "}
+									{submission.submittedAt
+										? new Date(submission.submittedAt).toLocaleString()
+										: "N/A"}
 								</Text>
 							</Stack>
 						</Paper>
@@ -194,61 +204,77 @@ export function GradingView({
 								)}
 
 								{/* Attachments */}
-								{submission.attachments && submission.attachments.length > 0 && (
-									<div>
-										<Group justify="space-between" mb="xs">
-											<Text size="sm" fw={600}>
-												Attachments ({submission.attachments.length}):
-											</Text>
-										</Group>
-										<Stack gap="md">
-											{submission.attachments.map((attachment, index) => {
-												const file = attachment.file;
-												const fileData = typeof file === "object"
-													? file
-													: {
-														id: file,
-														filename: null,
-														mimeType: null,
-														filesize: null,
-														url: null,
-													};
-												const filename = fileData.filename || `File ${fileData.id}`;
-												const isExpanded = expandedAttachments[index.toString()] ?? true;
+								{submission.attachments &&
+									submission.attachments.length > 0 && (
+										<div>
+											<Group justify="space-between" mb="xs">
+												<Text size="sm" fw={600}>
+													Attachments ({submission.attachments.length}):
+												</Text>
+											</Group>
+											<Stack gap="md">
+												{submission.attachments.map((attachment, index) => {
+													const file = attachment.file;
+													const fileData =
+														typeof file === "object"
+															? file
+															: {
+																	id: file,
+																	filename: null,
+																	mimeType: null,
+																	filesize: null,
+																	url: null,
+																};
+													const filename =
+														fileData.filename || `File ${fileData.id}`;
+													const isExpanded =
+														expandedAttachments[index.toString()] ?? true;
 
-												return (
-													<Paper key={`${fileData.id}-${index.toString()}`} withBorder p="md">
-														<Stack gap="xs">
-															<Group justify="space-between" wrap="nowrap">
-																<Text size="sm" fw={600} style={{ flex: 1, minWidth: 0 }}>
-																	{filename}
-																</Text>
-																<ActionIcon
-																	variant="subtle"
-																	size="sm"
-																	onClick={() => toggleAttachment(index)}
-																	aria-label={isExpanded ? "Collapse attachment" : "Expand attachment"}
-																>
-																	{isExpanded ? (
-																		<IconChevronUp size={16} />
-																	) : (
-																		<IconChevronDown size={16} />
-																	)}
-																</ActionIcon>
-															</Group>
-															<Collapse in={isExpanded}>
-																<AttachmentViewer
-																	file={fileData}
-																	description={attachment.description}
-																/>
-															</Collapse>
-														</Stack>
-													</Paper>
-												);
-											})}
-										</Stack>
-									</div>
-								)}
+													return (
+														<Paper
+															key={`${fileData.id}-${index.toString()}`}
+															withBorder
+															p="md"
+														>
+															<Stack gap="xs">
+																<Group justify="space-between" wrap="nowrap">
+																	<Text
+																		size="sm"
+																		fw={600}
+																		style={{ flex: 1, minWidth: 0 }}
+																	>
+																		{filename}
+																	</Text>
+																	<ActionIcon
+																		variant="subtle"
+																		size="sm"
+																		onClick={() => toggleAttachment(index)}
+																		aria-label={
+																			isExpanded
+																				? "Collapse attachment"
+																				: "Expand attachment"
+																		}
+																	>
+																		{isExpanded ? (
+																			<IconChevronUp size={16} />
+																		) : (
+																			<IconChevronDown size={16} />
+																		)}
+																	</ActionIcon>
+																</Group>
+																<Collapse in={isExpanded}>
+																	<AttachmentViewer
+																		file={fileData}
+																		description={attachment.description}
+																	/>
+																</Collapse>
+															</Stack>
+														</Paper>
+													);
+												})}
+											</Stack>
+										</div>
+									)}
 							</Stack>
 						</Paper>
 					</Stack>
@@ -296,4 +322,3 @@ export function GradingView({
 		</Box>
 	);
 }
-

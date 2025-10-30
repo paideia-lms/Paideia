@@ -16,6 +16,7 @@ import {
 	Tooltip,
 	Typography,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import {
 	IconArrowBack,
 	IconArrowBigUp,
@@ -26,13 +27,12 @@ import {
 	IconPin,
 	IconPlus,
 } from "@tabler/icons-react";
-import { useDisclosure } from "@mantine/hooks";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
-import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { DiscussionActions } from "~/utils/module-actions";
+import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 
 dayjs.extend(relativeTime);
 
@@ -610,7 +610,10 @@ function ThreadListView({
 								className="tiptap"
 								// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
 								dangerouslySetInnerHTML={{ __html: discussion.instructions }}
-								style={{ fontSize: "0.875rem", color: "var(--mantine-color-dimmed)" }}
+								style={{
+									fontSize: "0.875rem",
+									color: "var(--mantine-color-dimmed)",
+								}}
 							/>
 						)}
 					</div>
@@ -808,11 +811,7 @@ function ThreadDetailView({
 				{/* Thread Content */}
 				<Stack gap="md">
 					{thread.isPinned && (
-						<Badge
-							size="lg"
-							color="yellow"
-							leftSection={<IconPin size={14} />}
-						>
+						<Badge size="lg" color="yellow" leftSection={<IconPin size={14} />}>
 							Pinned Thread
 						</Badge>
 					)}

@@ -18,11 +18,7 @@ import type {
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
 import { parseFormData } from "@remix-run/form-data-parser";
-import {
-	IconPhoto,
-	IconUpload,
-	IconX,
-} from "@tabler/icons-react";
+import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import * as cheerio from "cheerio";
 import { useId, useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
@@ -30,6 +26,10 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import {
+	type CategoryTreeNode,
+	tryGetCategoryTree,
+} from "server/internal/course-category-management";
 import { tryUpdateCourse } from "server/internal/course-management";
 import { tryCreateMedia } from "server/internal/media-management";
 import type { Course } from "server/payload-types";
@@ -44,7 +44,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.settings";
-import { tryGetCategoryTree, type CategoryTreeNode } from "server/internal/course-category-management";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -101,13 +100,18 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 	visit(categories, "");
 
-
 	// Handle thumbnail - could be Media object, just ID, or null
-	const thumbnailFileNameOrId = course.thumbnail ? typeof course.thumbnail === "object"
-		? course.thumbnail.filename || course.thumbnail.id?.toString()
-		: course.thumbnail.toString() : null;
+	const thumbnailFileNameOrId = course.thumbnail
+		? typeof course.thumbnail === "object"
+			? course.thumbnail.filename || course.thumbnail.id?.toString()
+			: course.thumbnail.toString()
+		: null;
 
-	const thumbnailUrl = thumbnailFileNameOrId ? href("/api/media/file/:filenameOrId", { filenameOrId: thumbnailFileNameOrId }) : null;
+	const thumbnailUrl = thumbnailFileNameOrId
+		? href("/api/media/file/:filenameOrId", {
+				filenameOrId: thumbnailFileNameOrId,
+			})
+		: null;
 
 	return {
 		success: true,
@@ -124,21 +128,20 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-const inputSchema = z
-	.object({
-		title: z.string().min(1, "Title is required"),
-		slug: z
-			.string()
-			.min(1, "Slug is required")
-			.regex(
-				/^[a-z0-9-]+$/,
-				"Slug must contain only lowercase letters, numbers, and hyphens",
-			),
-		description: z.string().min(1, "Description is required"),
-		status: z.enum(["draft", "published", "archived"]),
-		category: z.coerce.number().nullish(),
-		redirectTo: z.string().optional().nullable(),
-	})
+const inputSchema = z.object({
+	title: z.string().min(1, "Title is required"),
+	slug: z
+		.string()
+		.min(1, "Slug is required")
+		.regex(
+			/^[a-z0-9-]+$/,
+			"Slug must contain only lowercase letters, numbers, and hyphens",
+		),
+	description: z.string().min(1, "Description is required"),
+	status: z.enum(["draft", "published", "archived"]),
+	category: z.coerce.number().nullish(),
+	redirectTo: z.string().optional().nullable(),
+});
 
 export const action = async ({
 	request,
@@ -270,17 +273,16 @@ export const action = async ({
 			uploadHandler as FileUploadHandler,
 		);
 
-		console.log(formData.get("category"))
+		console.log(formData.get("category"));
 
-		const parsed = inputSchema
-			.safeParse({
-				title: formData.get("title"),
-				slug: formData.get("slug"),
-				description: formData.get("description"),
-				status: formData.get("status"),
-				category: formData.get("category"),
-				redirectTo: formData.get("redirectTo"),
-			});
+		const parsed = inputSchema.safeParse({
+			title: formData.get("title"),
+			slug: formData.get("slug"),
+			description: formData.get("description"),
+			status: formData.get("status"),
+			category: formData.get("category"),
+			redirectTo: formData.get("redirectTo"),
+		});
 
 		if (!parsed.success) {
 			await payload.db.rollbackTransaction(transactionID);
@@ -403,7 +405,11 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useEditCourse() {
 	const fetcher = useFetcher<typeof action>();
 	const editCourse = async (courseId: number, formData: FormData) => {
-		fetcher.submit(formData, { method: "POST", action: href("/course/:id/settings", { id: courseId.toString() }), encType: "multipart/form-data" });
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/:id/settings", { id: courseId.toString() }),
+			encType: "multipart/form-data",
+		});
 	};
 	return { editCourse, isLoading: fetcher.state !== "idle", fetcher };
 }
@@ -458,7 +464,6 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			description: (value) => (!value ? "Description is required" : null),
 		},
 	});
-
 
 	const handleSubmit = (values: typeof form.values) => {
 		if (!values.description || values.description.trim().length === 0) {
@@ -615,7 +620,9 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 								/>
 							</div>
 							{!form.getValues().description && (
-								<div style={{ color: "red", fontSize: "14px", marginTop: "4px" }}>
+								<div
+									style={{ color: "red", fontSize: "14px", marginTop: "4px" }}
+								>
 									Description is required
 								</div>
 							)}
@@ -644,11 +651,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 						/>
 
 						<Group justify="flex-end" mt="md">
-							<Button
-								type="submit"
-								loading={isLoading}
-								disabled={isLoading}
-							>
+							<Button type="submit" loading={isLoading} disabled={isLoading}>
 								Update Course
 							</Button>
 						</Group>

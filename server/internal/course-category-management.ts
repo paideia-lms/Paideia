@@ -456,7 +456,6 @@ export const tryFindSubcategories = Result.wrap(
 		new UnknownError("Failed to find subcategories", { cause: error }),
 );
 
-
 // This page no longer handles action; API route handles reorder
 
 export type FlatNode = {
@@ -468,7 +467,9 @@ export type FlatNode = {
 	totalNestedCoursesCount: number;
 };
 
-export function flattenCategories(categories: CategoryTreeNode[]): Record<string, FlatNode> {
+export function flattenCategories(
+	categories: CategoryTreeNode[],
+): Record<string, FlatNode> {
 	const flat: Record<string, FlatNode> = {};
 
 	const visit = (node: CategoryTreeNode, parentId: string | null) => {

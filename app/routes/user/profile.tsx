@@ -159,7 +159,7 @@ export const useImpersonate = () => {
 		// Submit to profile route action which handles impersonation
 		fetcher.submit(formData, {
 			method: "POST",
-			action: "/user/profile"
+			action: "/user/profile",
 		});
 	};
 
@@ -171,12 +171,7 @@ export const useImpersonate = () => {
 };
 
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
-	const {
-		user,
-		isOwnProfile,
-		canEdit,
-		canImpersonate,
-	} = loaderData;
+	const { user, isOwnProfile, canEdit, canImpersonate } = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const { impersonate, isLoading } = useImpersonate();
 

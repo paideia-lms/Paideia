@@ -263,7 +263,7 @@ function GradebookSetupView({
 											item.grade_items.map(
 												(
 													gradeItem: NonNullable<
-														(typeof item.grade_items)
+														typeof item.grade_items
 													>[number],
 												) => (
 													<Table.Tr key={gradeItem.id}>
@@ -273,7 +273,10 @@ function GradebookSetupView({
 															</Box>
 														</Table.Td>
 														<Table.Td>
-															<Badge color={getTypeColor(gradeItem.type)} size="sm">
+															<Badge
+																color={getTypeColor(gradeItem.type)}
+																size="sm"
+															>
 																{gradeItem.type}
 															</Badge>
 														</Table.Td>
@@ -310,9 +313,7 @@ function GradebookSetupView({
 	);
 }
 
-export default function CourseGradesPage({
-	loaderData,
-}: Route.ComponentProps) {
+export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
 	const [activeTab] = useQueryState("tab", {
 		defaultValue: "report",
 	});

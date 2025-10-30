@@ -29,10 +29,13 @@ type Course = {
 			name: string;
 		} | null;
 	} | null;
-	thumbnail?: number | {
-		id: number;
-		filename?: string | null;
-	} | null;
+	thumbnail?:
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+		  }
+		| null;
 };
 
 type ActivityModule = {
@@ -131,25 +134,25 @@ export const getUserAccessContext = async (
 					category: enrollment.course.category
 						? typeof enrollment.course.category === "object"
 							? {
-								id: enrollment.course.category.id,
-								name: enrollment.course.category.name,
-								parent:
-									enrollment.course.category.parent &&
+									id: enrollment.course.category.id,
+									name: enrollment.course.category.name,
+									parent:
+										enrollment.course.category.parent &&
 										typeof enrollment.course.category.parent === "object"
-										? {
-											id: enrollment.course.category.parent.id,
-											name: enrollment.course.category.parent.name,
-										}
-										: null,
-							}
+											? {
+													id: enrollment.course.category.parent.id,
+													name: enrollment.course.category.parent.name,
+												}
+											: null,
+								}
 							: null
 						: null,
 					thumbnail: enrollment.course.thumbnail
 						? typeof enrollment.course.thumbnail === "object"
 							? {
-								id: enrollment.course.thumbnail.id,
-								filename: enrollment.course.thumbnail.filename ?? null,
-							}
+									id: enrollment.course.thumbnail.id,
+									filename: enrollment.course.thumbnail.filename ?? null,
+								}
 							: enrollment.course.thumbnail
 						: null,
 				},
@@ -166,7 +169,8 @@ export const getUserAccessContext = async (
 			type: module.type,
 			status: module.status,
 			linkedCourses: module.linkedCourses,
-			accessType: (module.owner.id === userId ? "owned" as const : "granted" as const),
+			accessType:
+				module.owner.id === userId ? ("owned" as const) : ("granted" as const),
 		})),
 		...autoGrantedModules.map((module) => ({
 			id: module.id,

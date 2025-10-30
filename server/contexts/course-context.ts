@@ -11,9 +11,9 @@ import { tryFindCourseById } from "server/internal/course-management";
 import type { CourseStructure } from "server/internal/course-section-management";
 import { tryGetCourseStructure } from "server/internal/course-section-management";
 import {
+	type GradebookJsonRepresentation,
 	tryGetGradebookByCourseWithDetails,
 	tryGetGradebookJsonRepresentation,
-	type GradebookJsonRepresentation,
 } from "server/internal/gradebook-management";
 import { canAccessCourse } from "server/utils/permissions";
 import { Result } from "typescript-result";
@@ -21,11 +21,15 @@ import {
 	CourseAccessDeniedError,
 	CourseStructureNotFoundError,
 } from "~/utils/error";
+import type {
+	Gradebook,
+	GradebookCategory,
+	GradebookItem,
+} from "../payload-types";
 import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
 } from "../utils/course-structure-tree";
-import type { Gradebook, GradebookCategory, GradebookItem } from "../payload-types";
 import type { User } from "./user-context";
 
 type Group = {
@@ -48,12 +52,12 @@ export type Enrollment = {
 	role: "student" | "teacher" | "ta" | "manager";
 	status: "active" | "inactive" | "completed" | "dropped";
 	avatar:
-	| number
-	| {
-		id: number;
-		filename?: string | null;
-	}
-	| null;
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+		  }
+		| null;
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	groups: Group[];
@@ -79,10 +83,13 @@ type ActivityModule = {
 		email: string;
 		firstName?: string | null;
 		lastName?: string | null;
-		avatar: number | {
-			id: number;
-			filename?: string | null;
-		} | null;
+		avatar:
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+			  }
+			| null;
 	};
 	updatedAt: string;
 	createdAt: string;
@@ -125,10 +132,13 @@ export interface Course {
 		} | null;
 	};
 	category?: Category | null;
-	thumbnail?: number | {
-		id: number;
-		filename?: string | null;
-	} | null;
+	thumbnail?:
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+		  }
+		| null;
 	updatedAt: string;
 	createdAt: string;
 	enrollments: Enrollment[];
@@ -162,9 +172,9 @@ export const tryGetCourseContext = async (
 		courseId: courseId,
 		user: user
 			? {
-				...user,
-				avatar: user.avatar?.id,
-			}
+					...user,
+					avatar: user.avatar?.id,
+				}
 			: null,
 		// ! we cannot use overrideAccess true here
 	});
@@ -219,29 +229,29 @@ export const tryGetCourseContext = async (
 			lastName: course.createdBy.lastName,
 			avatar: course.createdBy.avatar
 				? {
-					id: course.createdBy.avatar.id,
-					filename: course.createdBy.avatar.filename,
-				}
+						id: course.createdBy.avatar.id,
+						filename: course.createdBy.avatar.filename,
+					}
 				: null,
 		},
 		category: course.category
 			? {
-				id: course.category.id,
-				name: course.category.name,
-				parent: course.category.parent
-					? {
-						id: course.category.parent.id,
-						name: course.category.parent.name,
-					}
-					: null,
-			}
+					id: course.category.id,
+					name: course.category.name,
+					parent: course.category.parent
+						? {
+								id: course.category.parent.id,
+								name: course.category.parent.name,
+							}
+						: null,
+				}
 			: null,
 		thumbnail: course.thumbnail
 			? typeof course.thumbnail === "object"
 				? {
-					id: course.thumbnail.id,
-					filename: course.thumbnail.filename,
-				}
+						id: course.thumbnail.id,
+						filename: course.thumbnail.filename,
+					}
 				: course.thumbnail
 			: null,
 		updatedAt: course.updatedAt,
@@ -285,36 +295,35 @@ export const tryGetCourseContext = async (
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
 	const moduleLinks = linksResult.ok
 		? linksResult.value.map((link) => ({
-			id: link.id,
-			activityModule: {
-				id: link.activityModule.id,
-				title: link.activityModule.title || "",
-				description: link.activityModule.description || "",
-				type: link.activityModule.type as
-					| "page"
-					| "whiteboard"
-					| "assignment"
-					| "quiz"
-					| "discussion",
-				status: link.activityModule.status as
-					| "draft"
-					| "published"
-					| "archived",
-				createdBy: {
-					id: link.activityModule.createdBy.id,
-					email: link.activityModule.createdBy.email,
-					firstName: link.activityModule.createdBy.firstName,
-					lastName: link.activityModule.createdBy.lastName,
-					avatar: link.activityModule.createdBy.avatar
-						?? null,
+				id: link.id,
+				activityModule: {
+					id: link.activityModule.id,
+					title: link.activityModule.title || "",
+					description: link.activityModule.description || "",
+					type: link.activityModule.type as
+						| "page"
+						| "whiteboard"
+						| "assignment"
+						| "quiz"
+						| "discussion",
+					status: link.activityModule.status as
+						| "draft"
+						| "published"
+						| "archived",
+					createdBy: {
+						id: link.activityModule.createdBy.id,
+						email: link.activityModule.createdBy.email,
+						firstName: link.activityModule.createdBy.firstName,
+						lastName: link.activityModule.createdBy.lastName,
+						avatar: link.activityModule.createdBy.avatar ?? null,
+					},
+					updatedAt: link.activityModule.updatedAt,
+					createdAt: link.activityModule.createdAt,
 				},
-				updatedAt: link.activityModule.updatedAt,
-				createdAt: link.activityModule.createdAt,
-			},
-			settings: link.settings as CourseActivityModuleLink["settings"],
-			createdAt: link.createdAt,
-			updatedAt: link.updatedAt,
-		}))
+				settings: link.settings as CourseActivityModuleLink["settings"],
+				createdAt: link.createdAt,
+				updatedAt: link.updatedAt,
+			}))
 		: [];
 
 	// Update course with moduleLinks

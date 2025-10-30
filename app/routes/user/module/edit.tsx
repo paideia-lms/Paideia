@@ -46,8 +46,9 @@ export default function EditModulePage() {
 				<AssignmentPreview assignment={module.assignment || null} />
 			)}
 
-			{module.type === "quiz" && module.quiz && (
-				module.quiz.rawQuizConfig ? (
+			{module.type === "quiz" &&
+				module.quiz &&
+				(module.quiz.rawQuizConfig ? (
 					<QuizPreview quizConfig={module.quiz.rawQuizConfig} />
 				) : (
 					<Paper withBorder p="xl" radius="md">
@@ -58,8 +59,7 @@ export default function EditModulePage() {
 							<Text c="dimmed">This quiz has not been configured yet.</Text>
 						</Stack>
 					</Paper>
-				)
-			)}
+				))}
 
 			{module.type === "discussion" && (
 				<DiscussionPreview discussion={module.discussion || null} />

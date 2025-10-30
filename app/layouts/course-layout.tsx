@@ -82,10 +82,18 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function CourseLayout({
 	loaderData,
 	matches,
-
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { course, pageInfo, canSeeSettings, canSeeParticipants, canSeeGrades, canSeeModules, canSeeBin, canSeeBackup } = loaderData;
+	const {
+		course,
+		pageInfo,
+		canSeeSettings,
+		canSeeParticipants,
+		canSeeGrades,
+		canSeeModules,
+		canSeeBin,
+		canSeeBackup,
+	} = loaderData;
 
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -129,7 +137,6 @@ export default function CourseLayout({
 				break;
 		}
 	};
-
 
 	return (
 		<div>

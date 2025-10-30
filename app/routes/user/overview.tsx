@@ -42,6 +42,8 @@ import {
 	tryUpdateUser,
 } from "server/internal/user-management";
 import z from "zod";
+import { useImpersonate } from "~/routes/user/profile";
+import { ContentType } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -49,9 +51,7 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import { useImpersonate } from "~/routes/user/profile";
 import type { Route } from "./+types/overview";
-import { ContentType } from "~/utils/get-content-type";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -101,8 +101,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: profileUser.avatar.filename,
-				})
+						filenameOrId: profileUser.avatar.filename,
+					})
 				: null;
 		}
 	}
@@ -197,8 +197,6 @@ export const action = async ({
 
 		const isAdmin = currentUser.role === "admin";
 
-
-
 		const parsed = z
 			.object({
 				firstName: z.string(),
@@ -206,7 +204,15 @@ export const action = async ({
 				bio: z.string(),
 				avatar: z.coerce.number().nullish(),
 				email: z.email().nullish(),
-				role: z.enum(["student", "instructor", "content-manager", "analytics-viewer", "admin"]).nullish(),
+				role: z
+					.enum([
+						"student",
+						"instructor",
+						"content-manager",
+						"analytics-viewer",
+						"admin",
+					])
+					.nullish(),
 			})
 			.safeParse({
 				firstName: formData.get("firstName"),
@@ -232,7 +238,12 @@ export const action = async ({
 			bio: string;
 			avatar?: number;
 			email?: string;
-			role?: "student" | "instructor" | "content-manager" | "analytics-viewer" | "admin";
+			role?:
+				| "student"
+				| "instructor"
+				| "content-manager"
+				| "analytics-viewer"
+				| "admin";
 		} = {
 			firstName: parsed.data.firstName,
 			lastName: parsed.data.lastName,
@@ -309,14 +320,17 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 const useUpdateUser = () => {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateUser = (userId: string, values: {
-		firstName: string;
-		lastName: string;
-		bio: string;
-		avatar: File | null;
-		email?: string;
-		role?: string;
-	}) => {
+	const updateUser = (
+		userId: string,
+		values: {
+			firstName: string;
+			lastName: string;
+			bio: string;
+			avatar: File | null;
+			email?: string;
+			role?: string;
+		},
+	) => {
 		const formData = new FormData();
 		formData.append("firstName", values.firstName);
 		formData.append("lastName", values.lastName);
@@ -416,10 +430,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 				name="description"
 				content={`Edit ${isOwnData ? "your" : fullName + "'s"} profile`}
 			/>
-			<meta
-				property="og:title"
-				content={title}
-			/>
+			<meta property="og:title" content={title} />
 			<meta
 				property="og:description"
 				content={`Edit ${isOwnData ? "your" : fullName + "'s"} profile`}
@@ -480,7 +491,6 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 										maxSize={5 * 1024 ** 2}
 										accept={IMAGE_MIME_TYPE}
 										multiple={false}
-
 									>
 										<Group
 											justify="center"
@@ -548,7 +558,9 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								required={isAdmin}
 								readOnly={!isAdmin}
 								disabled={!isAdmin}
-								description={!isAdmin ? "Email cannot be changed by users" : undefined}
+								description={
+									!isAdmin ? "Email cannot be changed by users" : undefined
+								}
 							/>
 
 							<Select

@@ -10,8 +10,9 @@ import {
 	Title,
 } from "@mantine/core";
 import { IconUserCheck } from "@tabler/icons-react";
-import { createLoader, parseAsInteger } from "nuqs/server";
 import { useQueryState } from "nuqs";
+import { createLoader, parseAsInteger } from "nuqs/server";
+import { href, Link } from "react-router";
 import type { Enrollment } from "server/contexts/course-context";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -24,13 +25,9 @@ import {
 	getRoleBadgeColor,
 	getRoleLabel,
 } from "~/components/course-view-utils";
-import {
-	BadRequestResponse,
-	ForbiddenResponse,
-} from "~/utils/responses";
 import { useImpersonate } from "~/routes/user/profile";
+import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants.profile";
-import { href, Link } from "react-router";
 
 // Define search params for user selection
 export const profileSearchParams = {
@@ -72,13 +69,13 @@ export const loader = async ({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? canImpersonateUser(
-			userSession.authenticatedUser,
-			{
-				id: userId,
-				role: "student", // Enrolled users are not admins
-			},
-			userSession.isImpersonating,
-		)
+				userSession.authenticatedUser,
+				{
+					id: userId,
+					role: "student", // Enrolled users are not admins
+				},
+				userSession.isImpersonating,
+			)
 		: false;
 
 	return {
@@ -97,14 +94,21 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function CourseParticipantsProfilePage({
 	loaderData,
 }: Route.ComponentProps) {
-	const { course, selectedUserId: _selectedUserId, canImpersonate } = loaderData;
+	const {
+		course,
+		selectedUserId: _selectedUserId,
+		canImpersonate,
+	} = loaderData;
 	const { impersonate, isLoading } = useImpersonate();
 
 	// Redirect back to the course page after impersonation
 	const redirectPath = href("/course/:id", { id: course.id.toString() });
-	const [selectedUserId, setSelectedUserId] = useQueryState("userId", parseAsInteger.withOptions({
-		shallow: false,
-	}));
+	const [selectedUserId, setSelectedUserId] = useQueryState(
+		"userId",
+		parseAsInteger.withOptions({
+			shallow: false,
+		}),
+	);
 
 	// Find selected enrollment
 	const selectedEnrollment: Enrollment | undefined = selectedUserId
@@ -161,14 +165,21 @@ export default function CourseParticipantsProfilePage({
 					<Paper withBorder shadow="sm" p="xl" radius="md">
 						<Stack align="center" gap="lg">
 							<Group justify="flex-end" w="100%">
-								<Button component={Link} to={href("/user/profile/:id?", { id: selectedEnrollment.userId.toString() })}>
+								<Button
+									component={Link}
+									to={href("/user/profile/:id?", {
+										id: selectedEnrollment.userId.toString(),
+									})}
+								>
 									View Public Profile
 								</Button>
 								{canImpersonate && (
 									<Button
 										variant="light"
 										color="orange"
-										onClick={() => impersonate(selectedEnrollment.userId, redirectPath)}
+										onClick={() =>
+											impersonate(selectedEnrollment.userId, redirectPath)
+										}
 										loading={isLoading}
 										leftSection={<IconUserCheck size={16} />}
 									>
@@ -190,7 +201,6 @@ export default function CourseParticipantsProfilePage({
 									{selectedEnrollment.email}
 								</Text>
 							</div>
-
 						</Stack>
 					</Paper>
 
@@ -292,4 +302,3 @@ export default function CourseParticipantsProfilePage({
 		</Stack>
 	);
 }
-

@@ -7,10 +7,10 @@ import {
 } from "./internal/activity-module-management";
 import { tryCheckFirstUser } from "./internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "./internal/course-activity-module-link-management";
+import { tryCreateCategory } from "./internal/course-category-management";
 import { tryCreateCourse } from "./internal/course-management";
 import { tryCreateSection } from "./internal/course-section-management";
 import { tryCreateEnrollment } from "./internal/enrollment-management";
-import { tryCreateCategory } from "./internal/course-category-management";
 import {
 	tryCreateUser,
 	tryRegisterFirstUser,
@@ -182,16 +182,19 @@ export const runSeed = Result.wrap(
 			name: "Humanities",
 		});
 		if (humanitiesCategory.ok) {
-			categoryResults.push({ name: "Humanities", id: humanitiesCategory.value.id });
+			categoryResults.push({
+				name: "Humanities",
+				id: humanitiesCategory.value.id,
+			});
 			console.log(
 				`✅ Category created: Humanities (ID: ${humanitiesCategory.value.id})`,
 			);
 		}
 		const csSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Computer Science",
-				parent: stemCategory.value.id,
-			})
+					name: "Computer Science",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (csSubcat && csSubcat.ok) {
 			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
@@ -201,9 +204,9 @@ export const runSeed = Result.wrap(
 		}
 		const mathSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Mathematics",
-				parent: stemCategory.value.id,
-			})
+					name: "Mathematics",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (mathSubcat && mathSubcat.ok) {
 			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });
@@ -219,7 +222,9 @@ export const runSeed = Result.wrap(
 			const courseTitle = faker.company.buzzPhrase();
 			const randomCategoryId =
 				categoryResults.length > 0
-					? categoryResults[faker.number.int({ min: 0, max: categoryResults.length - 1 })].id
+					? categoryResults[
+							faker.number.int({ min: 0, max: categoryResults.length - 1 })
+						].id
 					: undefined;
 			const courseResult = await tryCreateCourse({
 				payload,
@@ -256,7 +261,11 @@ export const runSeed = Result.wrap(
 					description: faker.lorem.paragraphs(2),
 					slug: faker.helpers.slugify(uncategorizedTitle).toLowerCase(),
 					createdBy: adminUser.id,
-					status: faker.helpers.arrayElement(["draft", "published", "archived"]),
+					status: faker.helpers.arrayElement([
+						"draft",
+						"published",
+						"archived",
+					]),
 					// Intentionally omit category to create an uncategorized course
 				},
 				overrideAccess: true,

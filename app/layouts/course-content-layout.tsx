@@ -1,6 +1,16 @@
-import { ActionIcon, AppShell, Box, Container, Grid, Tooltip } from "@mantine/core";
+import {
+	ActionIcon,
+	AppShell,
+	Box,
+	Container,
+	Grid,
+	Tooltip,
+} from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconLayoutSidebarLeftCollapse, IconLayoutSidebarLeftExpand } from "@tabler/icons-react";
+import {
+	IconLayoutSidebarLeftCollapse,
+	IconLayoutSidebarLeftExpand,
+} from "@tabler/icons-react";
 import { Outlet } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -57,7 +67,7 @@ export default function CourseContentLayout({
 	const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
 
 	return (
-		<Container size="xl" p='xs'>
+		<Container size="xl" p="xs">
 			<AppShell>
 				<AppShell.Main>
 					<Grid columns={24}>
@@ -65,22 +75,28 @@ export default function CourseContentLayout({
 							<Box p="xs">
 								<Tooltip label="Toggle sidebar">
 									<ActionIcon variant="light" onClick={toggleNavbar}>
-										{navbarOpened ? <IconLayoutSidebarLeftCollapse /> : <IconLayoutSidebarLeftExpand />}
+										{navbarOpened ? (
+											<IconLayoutSidebarLeftCollapse />
+										) : (
+											<IconLayoutSidebarLeftExpand />
+										)}
 									</ActionIcon>
 								</Tooltip>
-								{navbarOpened && <CourseStructureTree
-									currentItemId={
-										isCourseSection
-											? `s${id}`
-											: isCourseModule
-												? `m${id}`
-												: undefined
-									}
-									readOnly={!canEdit}
-									courseId={course.id}
-									courseStructure={courseStructure}
-									canSeeStatus={canEdit}
-								/>}
+								{navbarOpened && (
+									<CourseStructureTree
+										currentItemId={
+											isCourseSection
+												? `s${id}`
+												: isCourseModule
+													? `m${id}`
+													: undefined
+										}
+										readOnly={!canEdit}
+										courseId={course.id}
+										courseStructure={courseStructure}
+										canSeeStatus={canEdit}
+									/>
+								)}
 							</Box>
 						</Grid.Col>
 						<Grid.Col span={navbarOpened ? 16 : 23}>
@@ -89,6 +105,6 @@ export default function CourseContentLayout({
 					</Grid>
 				</AppShell.Main>
 			</AppShell>
-		</Container >
+		</Container>
 	);
 }

@@ -251,31 +251,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		courseTitle: string;
 		courseId: number;
 	}> = [
-			{
-				id: 1,
-				title: "Databases CW1",
-				type: "assignment" as const,
-				dueDate: dayjs().hour(10).minute(0).toISOString(),
-				courseTitle: "Databases",
-				courseId: 2,
-			},
-			{
-				id: 2,
-				title: "Functional Programming CW2",
-				type: "assignment" as const,
-				dueDate: dayjs().hour(16).minute(0).toISOString(),
-				courseTitle: "Functional Programming",
-				courseId: 3,
-			},
-			{
-				id: 3,
-				title: "Week 1: Object Oriented vs Functional Programming",
-				type: "discussion" as const,
-				dueDate: dayjs().hour(23).minute(59).toISOString(),
-				courseTitle: "Functional Programming",
-				courseId: 3,
-			},
-		];
+		{
+			id: 1,
+			title: "Databases CW1",
+			type: "assignment" as const,
+			dueDate: dayjs().hour(10).minute(0).toISOString(),
+			courseTitle: "Databases",
+			courseId: 2,
+		},
+		{
+			id: 2,
+			title: "Functional Programming CW2",
+			type: "assignment" as const,
+			dueDate: dayjs().hour(16).minute(0).toISOString(),
+			courseTitle: "Functional Programming",
+			courseId: 3,
+		},
+		{
+			id: 3,
+			title: "Week 1: Object Oriented vs Functional Programming",
+			type: "discussion" as const,
+			dueDate: dayjs().hour(23).minute(59).toISOString(),
+			courseTitle: "Functional Programming",
+			courseId: 3,
+		},
+	];
 
 	// Mock program data
 	const mockProgram = {
@@ -894,7 +894,6 @@ function CurriculumMap({
 			},
 			draggable: false,
 			selectable: false,
-
 		};
 	});
 
@@ -935,7 +934,8 @@ function CurriculumMap({
 								<Stack gap="xs">
 									<div>
 										<Text size="xs" fw={700}>
-											{course.isCompulsory ? "Compulsory" : "Elective"} • {course.credits} credits
+											{course.isCompulsory ? "Compulsory" : "Elective"} •{" "}
+											{course.credits} credits
 										</Text>
 									</div>
 									{hasPrereqs && (
@@ -973,12 +973,15 @@ function CurriculumMap({
 							position="top"
 						>
 							<Link
-								to={href("/catalog") + `?code=${course.code.replace(/\s+/g, "-")}`}
+								to={
+									href("/catalog") + `?code=${course.code.replace(/\s+/g, "-")}`
+								}
 								style={{ textDecoration: "none", color: "inherit" }}
 							>
 								<Stack gap={6}>
 									<Text size="xs" fw={600} c="dimmed">
-										{course.status === "completed" || course.status === "in progress"
+										{course.status === "completed" ||
+										course.status === "in progress"
 											? course.shortcode
 											: course.code}
 									</Text>
@@ -1021,9 +1024,9 @@ function CurriculumMap({
 			},
 			sourcePosition: Position.Right,
 			targetPosition: Position.Left,
-			"connectable": false,
-			'deletable': false,
-			'draggable': false,
+			connectable: false,
+			deletable: false,
+			draggable: false,
 		};
 	});
 
@@ -1055,7 +1058,7 @@ function CurriculumMap({
 
 	return (
 		<Box style={{ height: 700, width: "100%" }}>
-			<ReactFlow nodes={allNodes} edges={edges} fitView >
+			<ReactFlow nodes={allNodes} edges={edges} fitView>
 				<Background />
 				<Controls showInteractive={false} />
 			</ReactFlow>
@@ -1096,8 +1099,14 @@ function AuthenticatedDashboard({
 		...todaysCourseMeetings.map((meeting) => ({
 			type: "meeting" as const,
 			data: meeting,
-			startTime: dayjs(`${dayjs().format("YYYY-MM-DD")} ${meeting.startTime}`, "YYYY-MM-DD h:mm A"),
-			endTime: dayjs(`${dayjs().format("YYYY-MM-DD")} ${meeting.endTime}`, "YYYY-MM-DD h:mm A"),
+			startTime: dayjs(
+				`${dayjs().format("YYYY-MM-DD")} ${meeting.startTime}`,
+				"YYYY-MM-DD h:mm A",
+			),
+			endTime: dayjs(
+				`${dayjs().format("YYYY-MM-DD")} ${meeting.endTime}`,
+				"YYYY-MM-DD h:mm A",
+			),
 		})),
 		...todaysDueItems.map((item) => ({
 			type: "due" as const,
@@ -1107,7 +1116,8 @@ function AuthenticatedDashboard({
 		})),
 	].sort((a, b) => {
 		// Sort by start time first, if either one has no start time, sort to the end
-		if (!a.startTime || !b.startTime) return a.endTime.valueOf() - b.endTime.valueOf();
+		if (!a.startTime || !b.startTime)
+			return a.endTime.valueOf() - b.endTime.valueOf();
 		const startCompare = a.startTime.valueOf() - b.startTime.valueOf();
 		if (startCompare !== 0) return startCompare;
 		// Then by end time
@@ -1185,7 +1195,8 @@ function AuthenticatedDashboard({
 						<Stack gap="xs">
 							<Group justify="space-between">
 								<Text size="sm" fw={500}>
-									{program.completedCredits} of {program.totalCredits} credits completed
+									{program.completedCredits} of {program.totalCredits} credits
+									completed
 								</Text>
 								<Text size="sm" c="dimmed">
 									{program.totalCredits - program.completedCredits} remaining
@@ -1210,7 +1221,10 @@ function AuthenticatedDashboard({
 										</Text>
 									</Group>
 									<ReactFlowProvider>
-										<CurriculumMap courses={curriculumCourses} isVisible={showCurriculumMap} />
+										<CurriculumMap
+											courses={curriculumCourses}
+											isVisible={showCurriculumMap}
+										/>
 									</ReactFlowProvider>
 								</Stack>
 							</Collapse>
@@ -1271,7 +1285,10 @@ function AuthenticatedDashboard({
 											</Text>
 											{course.schedule && (
 												<Group gap={4}>
-													<IconClock size={14} color="var(--mantine-color-dimmed)" />
+													<IconClock
+														size={14}
+														color="var(--mantine-color-dimmed)"
+													/>
 													<Text size="xs" c="dimmed" lineClamp={1}>
 														{formatSchedule(course.schedule)}
 													</Text>
@@ -1342,13 +1359,18 @@ function AuthenticatedDashboard({
 												if (item.type === "meeting") {
 													const meeting = item.data;
 													return (
-														<Paper key={`meeting-${meeting.id}`} withBorder p="sm" radius="md" >
+														<Paper
+															key={`meeting-${meeting.id}`}
+															withBorder
+															p="sm"
+															radius="md"
+														>
 															<Stack gap={4}>
 																<Group justify="space-between">
 																	<Text size="sm" fw={500} lineClamp={1}>
 																		{meeting.title}
 																	</Text>
-																	<Badge size="xs" color="cyan" variant="light" >
+																	<Badge size="xs" color="cyan" variant="light">
 																		Class
 																	</Badge>
 																</Group>
@@ -1356,7 +1378,10 @@ function AuthenticatedDashboard({
 																	{meeting.shortcode}
 																</Text>
 																<Group gap={4}>
-																	<IconClock size={12} color="var(--mantine-color-dimmed)" />
+																	<IconClock
+																		size={12}
+																		color="var(--mantine-color-dimmed)"
+																	/>
 																	<Text size="xs" c="dimmed">
 																		{meeting.startTime} - {meeting.endTime}
 																	</Text>
@@ -1375,7 +1400,12 @@ function AuthenticatedDashboard({
 															? "green"
 															: "orange";
 												return (
-													<Paper key={`due-${dueItem.id}`} withBorder p="sm" radius="md">
+													<Paper
+														key={`due-${dueItem.id}`}
+														withBorder
+														p="sm"
+														radius="md"
+													>
 														<Stack gap={4}>
 															<Group justify="space-between">
 																<Text size="sm" fw={500} lineClamp={1}>

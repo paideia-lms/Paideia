@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
+import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
@@ -18,7 +19,6 @@ import {
 	trySearchCourseActivityModuleLinks,
 	tryUpdateCourseModuleSettings,
 } from "./course-activity-module-link-management";
-import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";

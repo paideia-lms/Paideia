@@ -28,13 +28,13 @@ import {
 	transformFormValues,
 	transformToActivityData,
 } from "~/utils/activity-module-schema";
+import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
 import { badRequest, UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/new";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const userSession = context.get(userContextKey);

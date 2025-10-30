@@ -1,7 +1,12 @@
 import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, useFetcher, useLoaderData, type SubmitTarget } from "react-router";
+import {
+	href,
+	type SubmitTarget,
+	useFetcher,
+	useLoaderData,
+} from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -45,7 +50,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	// Check if user can edit this module
 	if (userModuleContext.accessType === "readonly") {
-		throw new ForbiddenResponse("You only have read-only access to this module");
+		throw new ForbiddenResponse(
+			"You only have read-only access to this module",
+		);
 	}
 
 	return {

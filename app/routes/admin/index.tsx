@@ -654,7 +654,12 @@ export default function AdminPage() {
 										to={item.href ?? "#"}
 									>
 										<Title order={4} mb="xs">
-											{item.title} {!item.href && <Badge color="gray" variant="light">Coming soon</Badge>}
+											{item.title}{" "}
+											{!item.href && (
+												<Badge color="gray" variant="light">
+													Coming soon
+												</Badge>
+											)}
 										</Title>
 									</Box>
 								))}

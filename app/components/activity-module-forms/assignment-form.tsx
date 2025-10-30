@@ -87,13 +87,10 @@ export function AssignmentForm({ form }: AssignmentFormProps) {
 				label="Require file submission"
 			/>
 
-			{requireFileSubmission && (
-				<FileSubmissionSettings form={form} />
-			)}
+			{requireFileSubmission && <FileSubmissionSettings form={form} />}
 		</Stack>
 	);
 }
-
 
 function InstructionsEditor({
 	form,

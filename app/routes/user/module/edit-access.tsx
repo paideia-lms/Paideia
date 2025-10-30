@@ -47,7 +47,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	// Check if user can edit this module
 	if (userModuleContext.accessType === "readonly") {
-		throw new ForbiddenResponse("You only have read-only access to this module");
+		throw new ForbiddenResponse(
+			"You only have read-only access to this module",
+		);
 	}
 
 	return {

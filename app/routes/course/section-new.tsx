@@ -237,7 +237,9 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 		},
 		validate: {
 			title: (value) =>
-				!value || value.trim().length === 0 ? "Section title is required" : null,
+				!value || value.trim().length === 0
+					? "Section title is required"
+					: null,
 			description: (value) =>
 				!value || value.trim().length === 0
 					? "Section description is required"

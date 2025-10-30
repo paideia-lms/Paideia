@@ -38,8 +38,16 @@ import {
 	Tooltip,
 	useMantineColorScheme,
 } from "@mantine/core";
-import { useDebouncedCallback, useFullscreen, useMounted } from "@mantine/hooks";
-import { IconGripVertical, IconMaximize, IconMinimize } from "@tabler/icons-react";
+import {
+	useDebouncedCallback,
+	useFullscreen,
+	useMounted,
+} from "@mantine/hooks";
+import {
+	IconGripVertical,
+	IconMaximize,
+	IconMinimize,
+} from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import type {
 	ArticleQuestion,
@@ -55,8 +63,8 @@ import type {
 	WhiteboardQuestion,
 } from "server/json/raw-quiz-config.types.v2";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
-import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { useWhiteboardData } from "../activity-module-forms/useWhiteboardData";
+import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 
 // Dynamically import Excalidraw to avoid SSR issues
 const Excalidraw = lazy(() =>
