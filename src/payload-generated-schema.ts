@@ -187,7 +187,7 @@ export const users = pgTable(
     hash: varchar("hash"),
     _verified: boolean("_verified"),
     _verificationToken: varchar("_verificationtoken"),
-    loginAttempts: numeric("login_attempts", { mode: "number" }).default("0"),
+    loginAttempts: numeric("login_attempts", { mode: "number" }).default(0),
     lockUntil: timestamp("lock_until", {
       mode: "string",
       withTimezone: true,
@@ -284,7 +284,7 @@ export const course_sections = pgTable(
     ),
     contentOrder: numeric("content_order", { mode: "number" })
       .notNull()
-      .default("0"),
+      .default(0),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -695,10 +695,10 @@ export const assignments = pgTable(
       withTimezone: true,
       precision: 3,
     }),
-    maxAttempts: numeric("max_attempts", { mode: "number" }).default("1"),
+    maxAttempts: numeric("max_attempts", { mode: "number" }).default(1),
     allowLateSubmissions: boolean("allow_late_submissions").default(false),
-    maxFileSize: numeric("max_file_size", { mode: "number" }).default("10"),
-    maxFiles: numeric("max_files", { mode: "number" }).default("1"),
+    maxFileSize: numeric("max_file_size", { mode: "number" }).default(10),
+    maxFiles: numeric("max_files", { mode: "number" }).default(1),
     requireTextSubmission: boolean("require_text_submission").default(true),
     requireFileSubmission: boolean("require_file_submission").default(true),
     createdBy: integer("created_by_id")
@@ -806,9 +806,9 @@ export const quizzes = pgTable(
       withTimezone: true,
       precision: 3,
     }),
-    maxAttempts: numeric("max_attempts", { mode: "number" }).default("1"),
+    maxAttempts: numeric("max_attempts", { mode: "number" }).default(1),
     allowLateSubmissions: boolean("allow_late_submissions").default(false),
-    points: numeric("points", { mode: "number" }).default("100"),
+    points: numeric("points", { mode: "number" }).default(100),
     gradingType: enum_quizzes_grading_type("grading_type").default("automatic"),
     timeLimit: numeric("time_limit", { mode: "number" }),
     showCorrectAnswers: boolean("show_correct_answers").default(false),
@@ -897,9 +897,9 @@ export const discussions = pgTable(
     }),
     requireThread: boolean("require_thread").default(true),
     requireReplies: boolean("require_replies").default(true),
-    minReplies: numeric("min_replies", { mode: "number" }).default("2"),
+    minReplies: numeric("min_replies", { mode: "number" }).default(2),
     minWordsPerPost: numeric("min_words_per_post", { mode: "number" }).default(
-      "50",
+      50,
     ),
     allowAttachments: boolean("allow_attachments").default(true),
     allowUpvotes: boolean("allow_upvotes").default(true),
@@ -962,7 +962,7 @@ export const course_activity_module_links = pgTable(
       }),
     contentOrder: numeric("content_order", { mode: "number" })
       .notNull()
-      .default("0"),
+      .default(0),
     settings: jsonb("settings"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1141,7 +1141,7 @@ export const gradebook_categories = pgTable(
     ),
     name: varchar("name").notNull(),
     description: varchar("description"),
-    weight: numeric("weight", { mode: "number" }).default("0"),
+    weight: numeric("weight", { mode: "number" }).default(0),
     sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1189,9 +1189,9 @@ export const gradebook_items = pgTable(
         onDelete: "set null",
       },
     ),
-    maxGrade: numeric("max_grade", { mode: "number" }).notNull().default("100"),
-    minGrade: numeric("min_grade", { mode: "number" }).notNull().default("0"),
-    weight: numeric("weight", { mode: "number" }).notNull().default("0"),
+    maxGrade: numeric("max_grade", { mode: "number" }).notNull().default(100),
+    minGrade: numeric("min_grade", { mode: "number" }).notNull().default(0),
+    weight: numeric("weight", { mode: "number" }).notNull().default(0),
     extraCredit: boolean("extra_credit").default(false),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1267,7 +1267,7 @@ export const assignment_submissions = pgTable(
       }),
     attemptNumber: numeric("attempt_number", { mode: "number" })
       .notNull()
-      .default("1"),
+      .default(1),
     status: enum_assignment_submissions_status("status")
       .notNull()
       .default("draft"),
@@ -1387,7 +1387,7 @@ export const quiz_submissions = pgTable(
       }),
     attemptNumber: numeric("attempt_number", { mode: "number" })
       .notNull()
-      .default("1"),
+      .default(1),
     status: enum_quiz_submissions_status("status")
       .notNull()
       .default("in_progress"),
@@ -1910,6 +1910,16 @@ export const search_rels = pgTable(
   ],
 );
 
+export const payload_kv = pgTable(
+  "payload_kv",
+  {
+    id: serial("id").primaryKey(),
+    key: varchar("key").notNull(),
+    data: jsonb("data").notNull(),
+  },
+  (columns) => [uniqueIndex("payload_kv_key_idx").on(columns.key)],
+);
+
 export const payload_locked_documents = pgTable(
   "payload_locked_documents",
   {
@@ -1972,6 +1982,7 @@ export const payload_locked_documents_rels = pgTable(
     groupsID: integer("groups_id"),
     "user-gradesID": integer("user_grades_id"),
     searchID: integer("search_id"),
+    "payload-kvID": integer("payload_kv_id"),
   },
   (columns) => [
     index("payload_locked_documents_rels_order_idx").on(columns.order),
@@ -2039,6 +2050,9 @@ export const payload_locked_documents_rels = pgTable(
       columns["user-gradesID"],
     ),
     index("payload_locked_documents_rels_search_id_idx").on(columns.searchID),
+    index("payload_locked_documents_rels_payload_kv_id_idx").on(
+      columns["payload-kvID"],
+    ),
     foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [payload_locked_documents.id],
@@ -2173,6 +2187,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["searchID"]],
       foreignColumns: [search.id],
       name: "payload_locked_documents_rels_search_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["payload-kvID"]],
+      foreignColumns: [payload_kv.id],
+      name: "payload_locked_documents_rels_payload_kv_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -2959,6 +2978,7 @@ export const relations_search = relations(search, ({ many }) => ({
     relationName: "_rels",
   }),
 }));
+export const relations_payload_kv = relations(payload_kv, () => ({}));
 export const relations_payload_locked_documents_rels = relations(
   payload_locked_documents_rels,
   ({ one }) => ({
@@ -3097,6 +3117,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [search.id],
       relationName: "search",
     }),
+    "payload-kvID": one(payload_kv, {
+      fields: [payload_locked_documents_rels["payload-kvID"]],
+      references: [payload_kv.id],
+      relationName: "payload-kv",
+    }),
   }),
 );
 export const relations_payload_locked_documents = relations(
@@ -3221,6 +3246,7 @@ type DatabaseSchema = {
   user_grades_rels: typeof user_grades_rels;
   search: typeof search;
   search_rels: typeof search_rels;
+  payload_kv: typeof payload_kv;
   payload_locked_documents: typeof payload_locked_documents;
   payload_locked_documents_rels: typeof payload_locked_documents_rels;
   payload_preferences: typeof payload_preferences;
@@ -3272,6 +3298,7 @@ type DatabaseSchema = {
   relations_user_grades: typeof relations_user_grades;
   relations_search_rels: typeof relations_search_rels;
   relations_search: typeof relations_search;
+  relations_payload_kv: typeof relations_payload_kv;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;
   relations_payload_locked_documents: typeof relations_payload_locked_documents;
   relations_payload_preferences_rels: typeof relations_payload_preferences_rels;

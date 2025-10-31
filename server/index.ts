@@ -5,7 +5,7 @@ validateEnvVars();
 import { type Treaty, treaty } from "@elysiajs/eden";
 import { openapi } from "@elysiajs/openapi";
 import { Elysia } from "elysia";
-import { getPayload } from "payload";
+import { getPayload, Migration } from "payload";
 import { RouterContextProvider } from "react-router";
 import { createStorage } from "unstorage";
 import lruCacheDriver from "unstorage/drivers/lru-cache";
@@ -25,6 +25,7 @@ import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
 import { getHints } from "../app/utils/client-hints";
+import { migrations } from "src/migrations";
 
 const unstorage = createStorage({
 	driver: lruCacheDriver({
@@ -45,6 +46,8 @@ const payload = await getPayload({
 // console.log("Payload: ", payload)
 if (process.env.NODE_ENV === "development") {
 	await runSeed({ payload });
+} else {
+	await payload.db.migrate({ migrations: migrations as Migration[] });
 }
 
 const port = Number(envVars.PORT.value) || envVars.PORT.default;
@@ -67,7 +70,7 @@ const backend = new Elysia()
 
 const frontend = new Elysia()
 	.use(
-			async (e) =>
+		async (e) =>
 			await reactRouter(e, {
 				getLoadContext: ({ request }) => {
 					const c = new RouterContextProvider();
