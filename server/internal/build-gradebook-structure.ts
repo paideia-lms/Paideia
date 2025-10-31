@@ -23,6 +23,7 @@ export interface ItemData {
     name: string;
     activityModuleType: string | null;
     activityModuleName: string | null;
+    activityModuleLinkId: number | null;
     weight: number;
     maxGrade: number;
     extraCredit?: boolean;
@@ -74,6 +75,7 @@ export function buildCategoryStructure(
                 weight: item.weight || null,
                 max_grade: item.maxGrade || null,
                 extra_credit: item.extraCredit ?? false,
+                activityModuleLinkId: item.activityModuleLinkId ?? null,
             });
         }
     }

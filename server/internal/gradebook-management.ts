@@ -52,6 +52,7 @@ export interface GradebookSetupItem {
 	max_grade: number | null;
 	extra_credit?: boolean; // Extra credit items don't affect weight distribution
 	grade_items?: GradebookSetupItem[];
+	activityModuleLinkId?: number | null; // Link ID to course-activity-module-links if this item is linked to an activity module
 }
 
 export interface GradebookSetupItemWithCalculations extends GradebookSetupItem {
@@ -472,8 +473,8 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 						gradebook: gradebookId,
 						activityModule: activityModule,
 						userGrades: userGrades,
-						activityModuleType: type?.[0] ?? null,
-						activityModuleName: activityModuleName?.[0] ?? null,
+						activityModuleType: type ?? null,
+						activityModuleName: activityModuleName ?? null,
 					};
 					return result;
 				});
@@ -504,10 +505,13 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 			name: item.name,
 			activityModuleType: item.activityModuleType,
 			activityModuleName: item.activityModuleName,
+			activityModuleLinkId: item.activityModule ?? null,
 			weight: item.weight,
 			maxGrade: item.maxGrade,
 			extraCredit: item.extraCredit ?? false,
 		}));
+
+		console.log("items", items);
 
 		// Build the structure recursively
 		const setupItems: GradebookSetupItem[] = [];
@@ -517,11 +521,19 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 		for (const item of rootItems) {
 			setupItems.push({
 				id: item.id,
-				type: "manual_item",
-				name: item.name,
+				type: (item.activityModuleType ?? "manual_item") as
+					| "manual_item"
+					| "category"
+					| "page"
+					| "whiteboard"
+					| "assignment"
+					| "quiz"
+					| "discussion",
+				name: item.activityModuleName ?? item.name,
 				weight: item.weight || null,
 				max_grade: item.maxGrade || null,
 				extra_credit: item.extraCredit ?? false,
+				activityModuleLinkId: item.activityModuleLinkId ?? null,
 			});
 		}
 

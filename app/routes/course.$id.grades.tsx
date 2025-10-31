@@ -27,17 +27,21 @@ import { notifications } from "@mantine/notifications";
 import { IconChevronDown, IconChevronRight, IconChevronUp, IconFolder, IconPlus, IconPlusMinus } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { parseAsInteger } from "nuqs/server";
-import { useFetcher } from "react-router";
+import { href, Link, useFetcher, useRevalidator } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateGradebookCategory,
+	tryFindGradebookCategoryById,
 	tryGetNextSortOrder,
+	tryUpdateGradebookCategory,
 } from "server/internal/gradebook-category-management";
 import {
 	tryCreateGradebookItem,
+	tryFindGradebookItemById,
 	tryGetNextItemSortOrder,
+	tryUpdateGradebookItem,
 } from "server/internal/gradebook-item-management";
 import { tryFindGradebookByCourseId } from "server/internal/gradebook-management";
 import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
@@ -45,7 +49,7 @@ import { badRequest, BadRequestResponse, ForbiddenResponse, ok } from "~/utils/r
 import { z } from "zod";
 import type { Route } from "./+types/course.$id.grades";
 import { useDisclosure } from "@mantine/hooks";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
@@ -99,9 +103,42 @@ const createCategorySchema = z.object({
 	weight: z.coerce.number().optional(),
 });
 
+const updateItemSchema = z.object({
+	intent: z.literal("update-item"),
+	itemId: z.coerce.number(),
+	name: z.string().min(1, "Name is required").optional(),
+	description: z.string().optional(),
+	maxGrade: z.coerce.number().optional(),
+	minGrade: z.coerce.number().optional(),
+	weight: z.coerce.number().optional(),
+	extraCredit: z.boolean().optional(),
+});
+
+const updateCategorySchema = z.object({
+	intent: z.literal("update-category"),
+	categoryId: z.coerce.number(),
+	name: z.string().min(1, "Name is required").optional(),
+	description: z.string().optional(),
+	weight: z.coerce.number().optional(),
+});
+
+const getItemSchema = z.object({
+	intent: z.literal("get-item"),
+	itemId: z.coerce.number(),
+});
+
+const getCategorySchema = z.object({
+	intent: z.literal("get-category"),
+	categoryId: z.coerce.number(),
+});
+
 const inputSchema = z.discriminatedUnion("intent", [
 	createItemSchema,
 	createCategorySchema,
+	updateItemSchema,
+	updateCategorySchema,
+	getItemSchema,
+	getCategorySchema,
 ]);
 
 export const action = async ({
@@ -210,6 +247,108 @@ export const action = async ({
 		return ok({ success: true, message: "Gradebook category created successfully" });
 	}
 
+	if (parsedData.data.intent === "update-item") {
+		const updateResult = await tryUpdateGradebookItem(
+			payload,
+			request,
+			parsedData.data.itemId,
+			{
+				name: parsedData.data.name,
+				description: parsedData.data.description,
+				maxGrade: parsedData.data.maxGrade,
+				minGrade: parsedData.data.minGrade,
+				weight: parsedData.data.weight,
+				extraCredit: parsedData.data.extraCredit,
+			},
+		);
+
+		if (!updateResult.ok) {
+			return badRequest({ error: updateResult.error.message });
+		}
+
+		return ok({ success: true, message: "Gradebook item updated successfully" });
+	}
+
+	if (parsedData.data.intent === "update-category") {
+		const updateResult = await tryUpdateGradebookCategory(
+			payload,
+			request,
+			parsedData.data.categoryId,
+			{
+				name: parsedData.data.name,
+				description: parsedData.data.description,
+				weight: parsedData.data.weight,
+			},
+		);
+
+		if (!updateResult.ok) {
+			return badRequest({ error: updateResult.error.message });
+		}
+
+		return ok({ success: true, message: "Gradebook category updated successfully" });
+	}
+
+	if (parsedData.data.intent === "get-item") {
+		const itemResult = await tryFindGradebookItemById(
+			payload,
+			parsedData.data.itemId,
+		);
+
+		if (!itemResult.ok) {
+			return badRequest({ error: itemResult.error.message });
+		}
+
+		const item = itemResult.value;
+
+		// Handle category as number or object
+		const categoryId = typeof item.category === "number"
+			? item.category
+			: item.category?.id ?? null;
+
+		return ok({
+			success: true,
+			item: {
+				id: item.id,
+				name: item.name,
+				description: item.description ?? "",
+				categoryId,
+				maxGrade: item.maxGrade,
+				minGrade: item.minGrade,
+				weight: item.weight,
+				extraCredit: item.extraCredit ?? false,
+			},
+		});
+	}
+
+	if (parsedData.data.intent === "get-category") {
+		const categoryResult = await tryFindGradebookCategoryById(
+			payload,
+			parsedData.data.categoryId,
+		);
+
+		if (!categoryResult.ok) {
+			return badRequest({ error: categoryResult.error.message });
+		}
+
+		const category = categoryResult.value;
+
+		// Handle parent as number or object
+		const parentId = typeof category.parent === "number"
+			? category.parent
+			: category.parent?.id ?? null;
+
+		return ok({
+			success: true,
+			category: {
+				id: category.id,
+				name: category.name,
+				description: category.description ?? "",
+				parentId,
+				weight: category.weight,
+			},
+		});
+	}
+
 	return badRequest({ error: "Invalid intent" });
 };
 
@@ -217,11 +356,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData && "success" in actionData && actionData.success) {
-		notifications.show({
-			title: "Success",
-			message: actionData.message,
-			color: "green",
-		});
+		if ("message" in actionData) {
+			notifications.show({
+				title: "Success",
+				message: actionData.message,
+				color: "green",
+			});
+		}
 	} else if (actionData && "error" in actionData) {
 		notifications.show({
 			title: "Error",
@@ -286,6 +427,61 @@ export function useCreateCategory() {
 
 	return {
 		createCategory,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useUpdateGradeItem() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const updateGradeItem = (itemId: number, values: {
+		name?: string;
+		description?: string;
+		maxGrade?: number;
+		minGrade?: number;
+		weight?: number;
+		extraCredit?: boolean;
+	}) => {
+		const submissionData = {
+			intent: "update-item" as const,
+			itemId,
+			...values,
+		};
+		fetcher.submit(submissionData, {
+			method: "POST",
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		updateGradeItem,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useUpdateGradeCategory() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const updateGradeCategory = (categoryId: number, values: {
+		name?: string;
+		description?: string;
+		weight?: number;
+	}) => {
+		const submissionData = {
+			intent: "update-category" as const,
+			categoryId,
+			...values,
+		};
+		fetcher.submit(submissionData, {
+			method: "POST",
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		updateGradeCategory,
 		isLoading: fetcher.state !== "idle",
 		data: fetcher.data,
 	};
@@ -482,12 +678,21 @@ function CreateGradeItemModal({
 	opened,
 	onClose,
 	categoryOptions,
+	itemId,
 }: {
 	opened: boolean;
 	onClose: () => void;
 	categoryOptions: Array<{ value: string; label: string }>;
+	itemId?: number | null;
 }) {
-	const { createGradeItem, isLoading } = useCreateGradeItem();
+	const { createGradeItem, isLoading: isCreating } = useCreateGradeItem();
+	const { updateGradeItem, isLoading: isUpdating, data: updateData } = useUpdateGradeItem();
+	const isLoading = isCreating || isUpdating;
+	const isEditMode = itemId !== undefined && itemId !== null;
+	const revalidator = useRevalidator();
+
+	// Fetcher to get item data when in edit mode
+	const dataFetcher = useFetcher<typeof clientAction>();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -505,23 +710,76 @@ function CreateGradeItemModal({
 		},
 	});
 
+	// Fetch item data when modal opens in edit mode
+	// biome-ignore lint/correctness/useExhaustiveDependencies: dataFetcher.submit is stable from hook
+	useEffect(() => {
+		if (opened && isEditMode && itemId) {
+			dataFetcher.submit(
+				{ intent: "get-item", itemId },
+				{ method: "POST", encType: ContentType.JSON }
+			);
+		}
+	}, [opened, isEditMode, itemId]);
+
+	// Pre-fill form when data is loaded
+	// biome-ignore lint/correctness/useExhaustiveDependencies: form.setValues is stable from hook
+	useEffect(() => {
+		if (isEditMode && dataFetcher.data && "item" in dataFetcher.data) {
+			const item = dataFetcher.data.item;
+			form.setValues({
+				name: item.name ?? "",
+				description: item.description ?? "",
+				category: item.categoryId ? String(item.categoryId) : "",
+				maxGrade: item.maxGrade ? String(item.maxGrade) : "",
+				minGrade: item.minGrade ? String(item.minGrade) : "",
+				weight: item.weight ? String(item.weight) : "",
+				extraCredit: item.extraCredit ?? false,
+			});
+		}
+	}, [dataFetcher.data, isEditMode]);
+
+	// Close modal and refresh data after successful update
+	// biome-ignore lint/correctness/useExhaustiveDependencies: onClose and revalidator.revalidate are stable
+	useEffect(() => {
+		if (isEditMode && updateData && "success" in updateData && updateData.success) {
+			onClose();
+			revalidator.revalidate();
+		}
+	}, [updateData, isEditMode]);
+
 	const handleSubmit = form.onSubmit((values) => {
-		const categoryId = values.category ? Number.parseInt(values.category, 10) : null;
-		createGradeItem({
-			name: values.name,
-			description: values.description || undefined,
-			categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
-			maxGrade: values.maxGrade ? Number.parseFloat(values.maxGrade) : undefined,
-			minGrade: values.minGrade ? Number.parseFloat(values.minGrade) : undefined,
-			weight: values.weight ? Number.parseFloat(values.weight) : undefined,
-			extraCredit: values.extraCredit,
-		});
+		if (isEditMode && itemId) {
+			updateGradeItem(itemId, {
+				name: values.name,
+				description: values.description || undefined,
+				maxGrade: values.maxGrade ? Number.parseFloat(values.maxGrade) : undefined,
+				minGrade: values.minGrade ? Number.parseFloat(values.minGrade) : undefined,
+				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+				extraCredit: values.extraCredit,
+			});
+		} else {
+			const categoryId = values.category ? Number.parseInt(values.category, 10) : null;
+			createGradeItem({
+				name: values.name,
+				description: values.description || undefined,
+				categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
+				maxGrade: values.maxGrade ? Number.parseFloat(values.maxGrade) : undefined,
+				minGrade: values.minGrade ? Number.parseFloat(values.minGrade) : undefined,
+				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+				extraCredit: values.extraCredit,
+			});
+		}
 		form.reset();
 		onClose();
 	});
 
 	return (
-		<Modal opened={opened} onClose={onClose} title="Create Grade Item" centered>
+		<Modal
+			opened={opened}
+			onClose={onClose}
+			title={isEditMode ? "Edit Grade Item" : "Create Grade Item"}
+			centered
+		>
 			<form onSubmit={handleSubmit}>
 				<Stack gap="md">
 					<TextInput
@@ -547,6 +805,7 @@ function CreateGradeItemModal({
 						placeholder="Select category (optional)"
 						data={categoryOptions}
 						clearable
+						disabled={isEditMode}
 					/>
 
 					<NumberInput
@@ -585,7 +844,7 @@ function CreateGradeItemModal({
 							Cancel
 						</Button>
 						<Button type="submit" loading={isLoading}>
-							Create
+							{isEditMode ? "Update" : "Create"}
 						</Button>
 					</Group>
 				</Stack>
@@ -598,12 +857,21 @@ function CreateCategoryModal({
 	opened,
 	onClose,
 	parentOptions,
+	categoryId,
 }: {
 	opened: boolean;
 	onClose: () => void;
 	parentOptions: Array<{ value: string; label: string }>;
+	categoryId?: number | null;
 }) {
-	const { createCategory, isLoading } = useCreateCategory();
+	const { createCategory, isLoading: isCreating } = useCreateCategory();
+	const { updateGradeCategory, isLoading: isUpdating, data: updateData } = useUpdateGradeCategory();
+	const isLoading = isCreating || isUpdating;
+	const isEditMode = categoryId !== undefined && categoryId !== null;
+	const revalidator = useRevalidator();
+
+	// Fetcher to get category data when in edit mode
+	const dataFetcher = useFetcher<typeof clientAction>();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -618,20 +886,67 @@ function CreateCategoryModal({
 		},
 	});
 
+	// Fetch category data when modal opens in edit mode
+	// biome-ignore lint/correctness/useExhaustiveDependencies: dataFetcher.submit is stable from hook
+	useEffect(() => {
+		if (opened && isEditMode && categoryId) {
+			dataFetcher.submit(
+				{ intent: "get-category", categoryId },
+				{ method: "POST", encType: ContentType.JSON }
+			);
+		}
+	}, [opened, isEditMode, categoryId]);
+
+	// Pre-fill form when data is loaded
+	// biome-ignore lint/correctness/useExhaustiveDependencies: form.setValues is stable from hook
+	useEffect(() => {
+		if (isEditMode && dataFetcher.data && "category" in dataFetcher.data) {
+			const category = dataFetcher.data.category;
+			form.setValues({
+				name: category.name ?? "",
+				description: category.description ?? "",
+				parent: category.parentId ? String(category.parentId) : "",
+				weight: category.weight ? String(category.weight) : "",
+			});
+		}
+	}, [dataFetcher.data, isEditMode]);
+
+	// Close modal and refresh data after successful update
+	// biome-ignore lint/correctness/useExhaustiveDependencies: onClose and revalidator.revalidate are stable
+	useEffect(() => {
+		if (isEditMode && updateData && "success" in updateData && updateData.success) {
+			onClose();
+			revalidator.revalidate();
+		}
+	}, [updateData, isEditMode]);
+
 	const handleSubmit = form.onSubmit((values) => {
-		const parentId = values.parent ? Number.parseInt(values.parent, 10) : null;
-		createCategory({
-			name: values.name,
-			description: values.description || undefined,
-			parentId: parentId && !Number.isNaN(parentId) ? parentId : null,
-			weight: values.weight ? Number.parseFloat(values.weight) : undefined,
-		});
+		if (isEditMode && categoryId) {
+			updateGradeCategory(categoryId, {
+				name: values.name,
+				description: values.description || undefined,
+				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+			});
+		} else {
+			const parentId = values.parent ? Number.parseInt(values.parent, 10) : null;
+			createCategory({
+				name: values.name,
+				description: values.description || undefined,
+				parentId: parentId && !Number.isNaN(parentId) ? parentId : null,
+				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+			});
+		}
 		form.reset();
 		onClose();
 	});
 
 	return (
-		<Modal opened={opened} onClose={onClose} title="Create Category" centered>
+		<Modal
+			opened={opened}
+			onClose={onClose}
+			title={isEditMode ? "Edit Category" : "Create Category"}
+			centered
+		>
 			<form onSubmit={handleSubmit}>
 				<Stack gap="md">
 					<TextInput
@@ -657,6 +972,7 @@ function CreateCategoryModal({
 						placeholder="Select parent category (optional)"
 						data={parentOptions}
 						clearable
+						disabled={isEditMode}
 					/>
 
 					<NumberInput
@@ -673,7 +989,7 @@ function CreateCategoryModal({
 							Cancel
 						</Button>
 						<Button type="submit" loading={isLoading}>
-							Create
+							{isEditMode ? "Update" : "Create"}
 						</Button>
 					</Group>
 				</Stack>
@@ -817,6 +1133,7 @@ type GradebookSetupItem = {
 	max_grade: number | null;
 	extra_credit?: boolean;
 	grade_items?: GradebookSetupItem[];
+	activityModuleLinkId?: number | null;
 };
 
 function GradebookItemRow({
@@ -825,12 +1142,16 @@ function GradebookItemRow({
 	getTypeColor,
 	expandedCategoryIds,
 	onToggleCategory,
+	onEditItem,
+	onEditCategory,
 }: {
 	item: GradebookSetupItem;
 	depth?: number;
 	getTypeColor: (type: string) => string;
 	expandedCategoryIds: number[];
 	onToggleCategory: (categoryId: number) => void;
+	onEditItem?: (itemId: number) => void;
+	onEditCategory?: (categoryId: number) => void;
 }) {
 	const isCategory = item.type === "category";
 	const isLeafItem = !isCategory;
@@ -881,12 +1202,27 @@ function GradebookItemRow({
 						) : (
 							<Box w={28} />
 						)}
-						<Text
-							size={depth === 0 ? "sm" : "sm"}
-							fw={isCategory ? 600 : 500}
-						>
-							{item.name}
-						</Text>
+						{isLeafItem && item.activityModuleLinkId ? (
+							<Link
+								to={href("/course/module/:id", { id: item.activityModuleLinkId.toString() })}
+								style={{ textDecoration: "none", color: "inherit" }}
+							>
+								<Text
+									size={depth === 0 ? "sm" : "sm"}
+									fw={isCategory ? 600 : 500}
+									style={{ cursor: "pointer" }}
+								>
+									{item.name}
+								</Text>
+							</Link>
+						) : (
+							<Text
+								size={depth === 0 ? "sm" : "sm"}
+								fw={isCategory ? 600 : 500}
+							>
+								{item.name}
+							</Text>
+						)}
 					</Group>
 				</Table.Td>
 				<Table.Td>
@@ -923,7 +1259,17 @@ function GradebookItemRow({
 					</Text>
 				</Table.Td>
 				<Table.Td>
-					<Button size="xs" variant="subtle" disabled>
+					<Button
+						size="xs"
+						variant="subtle"
+						onClick={() => {
+							if (isCategory && onEditCategory) {
+								onEditCategory(item.id);
+							} else if (!isCategory && onEditItem) {
+								onEditItem(item.id);
+							}
+						}}
+					>
 						Edit
 					</Button>
 				</Table.Td>
@@ -939,6 +1285,8 @@ function GradebookItemRow({
 							getTypeColor={getTypeColor}
 							expandedCategoryIds={expandedCategoryIds}
 							onToggleCategory={onToggleCategory}
+							onEditItem={onEditItem}
+							onEditCategory={onEditCategory}
 						/>
 					))}
 				</>
@@ -971,6 +1319,9 @@ function GradebookSetupView({
 		"createCategory",
 		parseAsInteger.withOptions({ shallow: false }),
 	);
+
+	const [editingItemId, setEditingItemId] = useState<number | null>(null);
+	const [editingCategoryId, setEditingCategoryId] = useState<number | null>(null);
 
 	const [expandedCategoryIds, setExpandedCategoryIds] = useState<number[]>([]);
 
@@ -1062,15 +1413,23 @@ function GradebookSetupView({
 			</Group>
 
 			<CreateGradeItemModal
-				opened={!!itemModalOpened}
-				onClose={() => setItemModalOpened(null)}
+				opened={!!itemModalOpened || editingItemId !== null}
+				onClose={() => {
+					setItemModalOpened(null);
+					setEditingItemId(null);
+				}}
 				categoryOptions={categoryOptions}
+				itemId={editingItemId}
 			/>
 
 			<CreateCategoryModal
-				opened={!!categoryModalOpened}
-				onClose={() => setCategoryModalOpened(null)}
+				opened={!!categoryModalOpened || editingCategoryId !== null}
+				onClose={() => {
+					setCategoryModalOpened(null);
+					setEditingCategoryId(null);
+				}}
 				parentOptions={parentOptions}
+				categoryId={editingCategoryId}
 			/>
 
 			<Paper withBorder>
@@ -1103,6 +1462,8 @@ function GradebookSetupView({
 									getTypeColor={getTypeColor}
 									expandedCategoryIds={expandedCategoryIds}
 									onToggleCategory={toggleCategory}
+									onEditItem={(itemId) => setEditingItemId(itemId)}
+									onEditCategory={(categoryId) => setEditingCategoryId(categoryId)}
 								/>
 							))
 						)}
