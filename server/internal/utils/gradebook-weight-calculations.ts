@@ -1,7 +1,7 @@
 import type {
     GradebookSetupItem,
     GradebookSetupItemWithCalculations,
-} from "./gradebook-management";
+} from "../gradebook-management";
 
 /**
  * Calculates adjusted weights for items using Moodle's weight distribution logic

@@ -16,6 +16,7 @@ import {
 	type GradebookSetupItemWithCalculations,
 	tryGetGradebookByCourseWithDetails,
 	tryGetGradebookJsonRepresentation,
+	tryGetGradebookMarkdownRepresentation,
 	tryGetGradebookSetupForUI,
 	tryGetGradebookYAMLRepresentation,
 } from "server/internal/gradebook-management";
@@ -167,6 +168,7 @@ export interface CourseContext {
 	gradebook: GradebookData | null;
 	gradebookJson: GradebookJsonRepresentation | null;
 	gradebookYaml: string | null;
+	gradebookMarkdown: string | null;
 	gradebookSetupForUI: GradebookSetupForUI | null;
 	flattenedCategories: FlattenedCategory[];
 }
@@ -388,6 +390,7 @@ export const tryGetCourseContext = async (
 	let gradebookData: GradebookData | null = null;
 	let gradebookJsonData: GradebookJsonRepresentation | null = null;
 	let gradebookYamlData: string | null = null;
+	let gradebookMarkdownData: string | null = null;
 	let gradebookSetupForUIData: GradebookSetupForUI | null = null;
 	let flattenedCategoriesData: FlattenedCategory[] = [];
 
@@ -428,6 +431,16 @@ export const tryGetCourseContext = async (
 			if (gradebookYamlResult.ok) {
 				gradebookYamlData = gradebookYamlResult.value;
 			}
+
+			// Fetch gradebook Markdown representation (built on top of UI setup, includes calculations)
+			const gradebookMarkdownResult = await tryGetGradebookMarkdownRepresentation(
+				payload,
+				gradebook.id,
+			);
+
+			if (gradebookMarkdownResult.ok) {
+				gradebookMarkdownData = gradebookMarkdownResult.value;
+			}
 		}
 	}
 
@@ -443,6 +456,7 @@ export const tryGetCourseContext = async (
 		gradebook: gradebookData,
 		gradebookJson: gradebookJsonData,
 		gradebookYaml: gradebookYamlData,
+		gradebookMarkdown: gradebookMarkdownData,
 		gradebookSetupForUI: gradebookSetupForUIData,
 		flattenedCategories: flattenedCategoriesData,
 	});

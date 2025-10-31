@@ -1,4 +1,6 @@
-import { Avatar, Group, Paper, ScrollArea, Stack, Table, Text } from "@mantine/core";
+import { Avatar, Badge, Group, Paper, ScrollArea, Stack, Table, Text } from "@mantine/core";
+import { getModuleIcon } from "../../utils/module-helper";
+import { href, Link } from "react-router";
 
 // ============================================================================
 // Gradebook Report Types
@@ -31,14 +33,17 @@ type GradebookJsonItem = {
     name: string;
     max_grade: number | null;
     grade_items?: GradebookJsonItem[];
+    activityModuleLinkId?: number | null;
 };
 
 type HeaderCell = {
     id: number;
     name: string;
-    colspan: number;
-    rowspan: number;
+    type: string;
+    colStart: number;
+    colEnd: number;
     isCategory: boolean;
+    activityModuleLinkId?: number;
 };
 
 type HeaderRow = {
@@ -98,6 +103,28 @@ function buildLeafItemsList(items: GradebookJsonItem[]): LeafItem[] {
 }
 
 /**
+ * Gets the color for a grade item type (matches setup-view.tsx)
+ */
+function getTypeColor(type: string): string {
+    switch (type) {
+        case "assignment":
+            return "blue";
+        case "quiz":
+            return "grape";
+        case "discussion":
+            return "teal";
+        case "page":
+            return "cyan";
+        case "whiteboard":
+            return "orange";
+        case "category":
+            return "gray";
+        default:
+            return "gray";
+    }
+}
+
+/**
  * Recursively builds header rows for nested category structure.
  * Returns an array of header rows, where each row contains cells with colspan/rowspan.
  */
@@ -134,6 +161,7 @@ function findMaxDepth(items: GradebookJsonItem[], currentDepth: number): number 
 
 /**
  * Recursively builds header cells, populating the rows array.
+ * Each cell uses colStart and colEnd to position itself, with rowspan always 1.
  */
 function buildHeadersRecursive(
     items: GradebookJsonItem[],
@@ -142,8 +170,7 @@ function buildHeadersRecursive(
     columnStart: number,
 ): number {
     let currentColumn = columnStart;
-    const totalRows = rows.length;
-    const finalRowIndex = totalRows - 1;
+    const finalRowIndex = rows.length - 1;
 
     for (const item of items) {
         const leafCount = countLeafItems(item);
@@ -151,14 +178,16 @@ function buildHeadersRecursive(
 
         if (isCategory) {
             // This is a category - it needs a header cell that spans its children
-            // Add category header at current depth
+            // Add category header at current depth with colStart and colEnd
             rows[depth].cells.push({
                 id: item.id,
                 name: item.name,
-                colspan: leafCount,
-                rowspan: 1, // Categories span only one row at their level
+                type: item.type,
+                colStart: currentColumn,
+                colEnd: currentColumn + leafCount,
                 isCategory: true,
-            });
+                activityModuleLinkId: item.activityModuleLinkId ?? undefined,
+            } satisfies HeaderCell);
 
             // Recursively process children
             if (item.grade_items && item.grade_items.length > 0) {
@@ -170,29 +199,16 @@ function buildHeadersRecursive(
                 );
             }
         } else {
-            // This is a leaf item
-            if (depth === 0 && totalRows > 1) {
-                // Root-level leaf item - add to first row with rowspan covering all rows
-                // The rowspan will visually cover all header rows
-                rows[0].cells.push({
-                    id: item.id,
-                    name: item.name,
-                    colspan: 1,
-                    rowspan: totalRows,
-                    isCategory: false,
-                });
-                // Note: The rowspan means this cell occupies space in all rows,
-                // so we don't add it to the final row again
-            } else {
-                // Nested leaf item (or root item when there's only one row) - add to final row
-                rows[finalRowIndex].cells.push({
-                    id: item.id,
-                    name: item.name,
-                    colspan: 1,
-                    rowspan: depth === 0 ? totalRows : 1,
-                    isCategory: false,
-                });
-            }
+            // This is a leaf item - always add to the final row
+            rows[finalRowIndex].cells.push({
+                id: item.id,
+                name: item.name,
+                type: item.type,
+                colStart: currentColumn,
+                colEnd: currentColumn + 1,
+                isCategory: false,
+                activityModuleLinkId: item.activityModuleLinkId ?? undefined,
+            } satisfies HeaderCell);
 
             currentColumn += 1;
         }
@@ -225,11 +241,85 @@ export function GraderReportView({
 
     // Build hierarchical header structure
     const headerRows = buildHeaderRows(gradebook_setup.items);
+    const totalColumns = allItems.length;
+
+    // Helper to render cells for a row, handling gaps with empty cells
+    const renderRowCells = (row: HeaderRow) => {
+        // Sort cells by colStart
+        const sortedCells = [...row.cells].sort((a, b) => a.colStart - b.colStart);
+
+        const cells: React.ReactNode[] = [];
+        let currentCol = 0;
+
+        for (const cell of sortedCells) {
+            // Fill gap before this cell with empty cells
+            if (cell.colStart > currentCol) {
+                for (let i = currentCol; i < cell.colStart; i++) {
+                    cells.push(<Table.Th key={`empty-${i}`} rowSpan={1} />);
+                }
+            }
+
+            // Render the actual cell
+            const colspan = cell.colEnd - cell.colStart;
+            const isLeafItem = !cell.isCategory;
+            cells.push(
+                <Table.Th
+                    key={cell.id}
+                    colSpan={colspan}
+                    rowSpan={1}
+                    style={{ minWidth: 150 }}
+                >
+                    <Stack gap={4}>
+                        {isLeafItem && cell.activityModuleLinkId ? (
+                            <Text size="sm" fw={cell.isCategory ? 600 : 500} component={Link} to={href("/course/module/:id", { id: cell.activityModuleLinkId.toString() })} style={{ cursor: "pointer" }}>
+                                {cell.name}
+                            </Text>
+                        ) : (
+                            <Text size="sm" fw={cell.isCategory ? 600 : 500}>
+                                {cell.name}
+                            </Text>
+                        )}
+                        {isLeafItem && (
+                            <>
+                                <Group gap="xs" wrap="nowrap">
+                                    {["quiz", "assignment", "discussion"].includes(cell.type) &&
+                                        getModuleIcon(cell.type as "quiz" | "assignment" | "discussion", 16)
+                                    }
+                                    <Badge color={getTypeColor(cell.type)} size="sm">
+                                        {cell.type}
+                                    </Badge>
+                                </Group>
+                                {cell.name && (
+                                    <Text size="xs" c="dimmed">
+                                        {(() => {
+                                            const gradeItem = allItems.find(item => item.id === cell.id);
+                                            return gradeItem?.maxGrade != null ? `/ ${gradeItem.maxGrade}` : "";
+                                        })()}
+                                    </Text>
+                                )}
+                            </>
+                        )}
+                    </Stack>
+                </Table.Th>
+            );
+
+            currentCol = cell.colEnd;
+        }
+
+        // Fill remaining gap at the end
+        if (currentCol < totalColumns) {
+            for (let i = currentCol; i < totalColumns; i++) {
+                cells.push(<Table.Th key={`empty-end-${i}`} rowSpan={1} />);
+            }
+        }
+
+        return cells;
+    };
 
     return (
         <Paper withBorder>
             <ScrollArea>
-                <Table striped highlightOnHover stickyHeader>
+                <Table striped highlightOnHover stickyHeader withColumnBorders>
                     <Table.Thead>
                         {headerRows.map((row) => (
                             <Table.Tr key={`header-row-depth-${row.depth}`}>
@@ -238,32 +328,10 @@ export function GraderReportView({
                                         Student
                                     </Table.Th>
                                 )}
-                                {row.cells.map((cell) => (
-                                    <Table.Th
-                                        key={cell.id}
-                                        colSpan={cell.colspan}
-                                        rowSpan={cell.rowspan}
-                                        style={{ minWidth: 150 }}
-                                    >
-                                        <Stack gap={4}>
-                                            <Text size="sm" fw={cell.isCategory ? 600 : 500}>
-                                                {cell.name}
-                                            </Text>
-                                            {!cell.isCategory && cell.name !== "" && (
-                                                <Text size="xs" c="dimmed">
-                                                    {allItems.find((item) => item.id === cell.id)?.maxGrade !== null
-                                                        ? `/ ${allItems.find((item) => item.id === cell.id)?.maxGrade}`
-                                                        : ""}
-                                                </Text>
-                                            )}
-                                        </Stack>
-                                    </Table.Th>
-                                ))}
-                                {row.depth === 0 && (
-                                    <Table.Th rowSpan={headerRows.length} style={{ minWidth: 100 }}>
-                                        Total
-                                    </Table.Th>
-                                )}
+                                {renderRowCells(row)}
+                                <Table.Th rowSpan={1} style={{ minWidth: 100 }}>
+                                    {row.depth === 0 ? "Total" : ""}
+                                </Table.Th>
                             </Table.Tr>
                         ))}
                     </Table.Thead>

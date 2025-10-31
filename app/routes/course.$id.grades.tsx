@@ -44,6 +44,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		gradebook: courseContext.gradebook,
 		gradebookJson: courseContext.gradebookJson,
 		gradebookYaml: courseContext.gradebookYaml,
+		gradebookMarkdown: courseContext.gradebookMarkdown,
 		gradebookSetupForUI,
 		flattenedCategories: courseContext.flattenedCategories,
 		enrollments: courseContext.course.enrollments.filter(

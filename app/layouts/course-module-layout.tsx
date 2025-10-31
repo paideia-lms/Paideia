@@ -1,4 +1,4 @@
-import { Badge, Container, Group, Tabs, Text, Title } from "@mantine/core";
+import { Badge, Container, Group, parseThemeColor, Tabs, Text, Title, useMantineTheme } from "@mantine/core";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -15,6 +15,7 @@ import {
 	getStatusLabel,
 } from "~/components/course-view-utils";
 import { ForbiddenResponse } from "~/utils/responses";
+import { getModuleIcon } from "~/utils/module-helper";
 import type { Route } from "./+types/course-module-layout";
 import classes from "./header-tabs.module.css";
 
@@ -74,6 +75,8 @@ export default function CourseModuleLayout({
 		enrolment,
 	} = loaderData;
 
+
+	const theme = useMantineTheme();
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
 		if (pageInfo.isCourseModuleEdit) return ModuleTab.Setting;
@@ -128,10 +131,18 @@ export default function CourseModuleLayout({
 									{getStatusLabel(module.status)}
 								</Badge>
 							</Group>
-							<Text c="dimmed" size="sm">
-								{module.type.charAt(0).toUpperCase() + module.type.slice(1)}{" "}
-								Module
-							</Text>
+							<Group gap="xs" wrap="nowrap">
+								{
+									getModuleIcon(
+										module.type as "quiz" | "assignment" | "discussion",
+										16,
+										parseThemeColor({ color: "dimmed", theme }).value
+									)}
+								<Text c="dimmed" size="sm">
+									{module.type.charAt(0).toUpperCase() + module.type.slice(1)}{" "}
+									Module
+								</Text>
+							</Group>
 						</div>
 						<Tabs
 							value={getCurrentTab()}
@@ -144,7 +155,18 @@ export default function CourseModuleLayout({
 							}}
 						>
 							<Tabs.List>
-								<Tabs.Tab value={ModuleTab.Preview}>
+								<Tabs.Tab
+									value={ModuleTab.Preview}
+									leftSection={
+										(module.type === "quiz" ||
+											module.type === "assignment" ||
+											module.type === "discussion") &&
+										getModuleIcon(
+											module.type as "quiz" | "assignment" | "discussion",
+											16,
+										)
+									}
+								>
 									{module.type.charAt(0).toUpperCase() + module.type.slice(1)}
 								</Tabs.Tab>
 								{canSeeSetting && (

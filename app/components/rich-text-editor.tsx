@@ -74,6 +74,7 @@ import python from "highlight.js/lib/languages/python";
 import sql from "highlight.js/lib/languages/sql";
 import ts from "highlight.js/lib/languages/typescript";
 import html from "highlight.js/lib/languages/xml";
+import yaml from "highlight.js/lib/languages/yaml";
 import { createLowlight } from "lowlight";
 import { mermaidGrammar } from "lowlight-mermaid";
 import { useEffect, useRef, useState } from "react";
@@ -159,6 +160,7 @@ lowlight.register("html", html);
 lowlight.register("json", json);
 lowlight.register("bash", bash);
 lowlight.register("sql", sql);
+lowlight.register("yaml", yaml);
 lowlight.register("markdown", markdown);
 lowlight.register("mermaid", mermaidGrammar);
 // D2 doesn't have a lowlight grammar, so we register it as plaintext
@@ -921,127 +923,127 @@ export function RichTextEditor({
 			// Conditionally include Youtube extension
 			...(!disableYoutube
 				? [
-						Youtube.configure({
-							controls: false,
-							nocookie: true,
-						}),
-					]
+					Youtube.configure({
+						controls: false,
+						nocookie: true,
+					}),
+				]
 				: []),
 			// Conditionally include Image, Dropcursor, and FileHandler extensions
 			...(!disableImageUpload
 				? [
-						Image.extend({
-							addAttributes() {
-								return {
-									...this.parent?.(),
-									width: {
-										default: null,
-										renderHTML: (attributes) => {
-											if (!attributes.width) {
-												return {};
-											}
-											return { width: attributes.width };
-										},
+					Image.extend({
+						addAttributes() {
+							return {
+								...this.parent?.(),
+								width: {
+									default: null,
+									renderHTML: (attributes) => {
+										if (!attributes.width) {
+											return {};
+										}
+										return { width: attributes.width };
 									},
-									height: {
-										default: null,
-										renderHTML: (attributes) => {
-											if (!attributes.height) {
-												return {};
-											}
-											return { height: attributes.height };
-										},
+								},
+								height: {
+									default: null,
+									renderHTML: (attributes) => {
+										if (!attributes.height) {
+											return {};
+										}
+										return { height: attributes.height };
 									},
+								},
+							};
+						},
+					}).configure({
+						inline: false,
+						allowBase64: true,
+					}),
+					Dropcursor,
+					FileHandler.configure({
+						allowedMimeTypes: [
+							"image/jpeg",
+							"image/png",
+							"image/gif",
+							"image/webp",
+						],
+						onDrop: (editor, files) => {
+							files.forEach(async (file) => {
+								const reader = new FileReader();
+								reader.onload = () => {
+									const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+									const preview = reader.result as string;
+
+									if (onImageAdd) {
+										onImageAdd({ id, file, preview });
+									}
+
+									editor.chain().focus().setImage({ src: preview }).run();
 								};
-							},
-						}).configure({
-							inline: false,
-							allowBase64: true,
-						}),
-						Dropcursor,
-						FileHandler.configure({
-							allowedMimeTypes: [
-								"image/jpeg",
-								"image/png",
-								"image/gif",
-								"image/webp",
-							],
-							onDrop: (editor, files) => {
-								files.forEach(async (file) => {
-									const reader = new FileReader();
-									reader.onload = () => {
-										const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-										const preview = reader.result as string;
+								reader.readAsDataURL(file);
+							});
+						},
+						onPaste: (editor, files) => {
+							files.forEach(async (file) => {
+								const reader = new FileReader();
+								reader.onload = () => {
+									const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+									const preview = reader.result as string;
 
-										if (onImageAdd) {
-											onImageAdd({ id, file, preview });
-										}
+									if (onImageAdd) {
+										onImageAdd({ id, file, preview });
+									}
 
-										editor.chain().focus().setImage({ src: preview }).run();
-									};
-									reader.readAsDataURL(file);
-								});
-							},
-							onPaste: (editor, files) => {
-								files.forEach(async (file) => {
-									const reader = new FileReader();
-									reader.onload = () => {
-										const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
-										const preview = reader.result as string;
-
-										if (onImageAdd) {
-											onImageAdd({ id, file, preview });
-										}
-
-										editor.chain().focus().setImage({ src: preview }).run();
-									};
-									reader.readAsDataURL(file);
-								});
-							},
-						}),
-					]
+									editor.chain().focus().setImage({ src: preview }).run();
+								};
+								reader.readAsDataURL(file);
+							});
+						},
+					}),
+				]
 				: []),
 			// Conditionally include Mention extensions
 			...(!disableMentions
 				? [
-						Mention.extend({
-							name: "userMention",
-						}).configure({
-							HTMLAttributes: {
-								class: "mention mention-user",
-							},
-							suggestion: createMentionSuggestion("user"),
-							renderHTML({ node }) {
-								return `@${node.attrs.label}`;
-							},
-						}),
-						Mention.configure({
-							HTMLAttributes: {
-								class: "mention mention-page",
-							},
-							suggestion: {
-								...createMentionSuggestion("page"),
-								char: "[[",
-							},
-							renderHTML({ node }) {
-								return `[[${node.attrs.label}]]`;
-							},
-						}),
-						Mention.extend({
-							name: "tagMention",
-						}).configure({
-							HTMLAttributes: {
-								class: "mention mention-tag",
-							},
-							suggestion: {
-								...createMentionSuggestion("tag"),
-								char: "#",
-							},
-							renderHTML({ node }) {
-								return `#${node.attrs.label}`;
-							},
-						}),
-					]
+					Mention.extend({
+						name: "userMention",
+					}).configure({
+						HTMLAttributes: {
+							class: "mention mention-user",
+						},
+						suggestion: createMentionSuggestion("user"),
+						renderHTML({ node }) {
+							return `@${node.attrs.label}`;
+						},
+					}),
+					Mention.configure({
+						HTMLAttributes: {
+							class: "mention mention-page",
+						},
+						suggestion: {
+							...createMentionSuggestion("page"),
+							char: "[[",
+						},
+						renderHTML({ node }) {
+							return `[[${node.attrs.label}]]`;
+						},
+					}),
+					Mention.extend({
+						name: "tagMention",
+					}).configure({
+						HTMLAttributes: {
+							class: "mention mention-tag",
+						},
+						suggestion: {
+							...createMentionSuggestion("tag"),
+							char: "#",
+						},
+						renderHTML({ node }) {
+							return `#${node.attrs.label}`;
+						},
+					}),
+				]
 				: []),
 		],
 		content,

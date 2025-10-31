@@ -2,7 +2,7 @@ import { describe, expect, it } from "bun:test";
 import type {
     GradebookSetupItem,
     GradebookSetupItemWithCalculations,
-} from "./gradebook-management";
+} from "../gradebook-management";
 import {
     calculateAdjustedWeights,
     calculateOverallWeights,

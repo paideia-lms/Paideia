@@ -1,4 +1,4 @@
-import type { GradebookSetupItem } from "./gradebook-management";
+import type { GradebookSetupItem } from "../gradebook-management";
 
 /**
  * Type for category data as returned from Payload queries

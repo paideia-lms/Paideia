@@ -27,6 +27,7 @@ import "@mantine/notifications/styles.css";
 import "@mantine/dropzone/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/charts/styles.css";
+import '@mantine/code-highlight/styles.css';
 import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
 import 'mantine-datatable/styles.layer.css';
@@ -38,6 +39,7 @@ import {
 	MantineProvider,
 	Textarea,
 } from "@mantine/core";
+import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
@@ -64,6 +66,7 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { InternalServerErrorResponse } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
+import { customLowlightAdapter } from "./utils/lowlight-adapter";
 
 export const middleware = [
 	/**
@@ -631,12 +634,14 @@ export default function App({ loaderData }: Route.ComponentProps) {
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
 				<MantineProvider defaultColorScheme={theme} theme={mantineTheme}>
-					<ModalsProvider>
-						<NuqsAdapter>
-							<Outlet />
-							<Notifications />
-						</NuqsAdapter>
-					</ModalsProvider>
+					<CodeHighlightAdapterProvider adapter={customLowlightAdapter}>
+						<ModalsProvider>
+							<NuqsAdapter>
+								<Outlet />
+								<Notifications />
+							</NuqsAdapter>
+						</ModalsProvider>
+					</CodeHighlightAdapterProvider>
 				</MantineProvider>
 				<ScrollRestoration />
 				<Scripts />

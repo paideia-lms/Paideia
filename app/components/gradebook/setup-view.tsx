@@ -3,7 +3,6 @@ import {
     Badge,
     Box,
     Button,
-    Code,
     Collapse,
     Group,
     Menu,
@@ -15,6 +14,7 @@ import {
     Title,
     Tooltip,
 } from "@mantine/core";
+import { CodeHighlight } from "@mantine/code-highlight";
 import { IconChevronDown, IconChevronRight, IconChevronUp, IconFolder, IconPlus } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { parseAsInteger } from "nuqs/server";
@@ -23,6 +23,7 @@ import { useState } from "react";
 import { useDisclosure } from "@mantine/hooks";
 import { WeightDisplay, OverallWeightDisplay } from "./weight-display";
 import { CreateGradeItemModal, CreateCategoryModal } from "./modals";
+import { getModuleIcon } from "../../utils/module-helper";
 
 // ============================================================================
 // Gradebook Setup Types
@@ -46,6 +47,7 @@ export type GradebookSetupData = {
     gradebookSetupForUI: GradebookSetupForUI | null;
     flattenedCategories: FlattenedCategory[];
     gradebookYaml: string | null;
+    gradebookMarkdown: string | null;
 };
 
 // ============================================================================
@@ -64,6 +66,31 @@ export type GradebookSetupItem = {
     extra_credit?: boolean;
     grade_items?: GradebookSetupItem[];
     activityModuleLinkId?: number | null;
+};
+
+// Helper function to recursively sum overall weights of all leaf items in a category
+const sumCategoryOverallWeights = (items: GradebookSetupItem[]): number => {
+    let sum = 0;
+    for (const childItem of items) {
+        if (childItem.type === "category" && childItem.grade_items) {
+            sum += sumCategoryOverallWeights(childItem.grade_items);
+        } else {
+            sum += childItem.overall_weight ?? 0;
+        }
+    }
+    return sum;
+};
+
+const sumCategoryMaxGrade = (items: GradebookSetupItem[]): number => {
+    let sum = 0;
+    for (const childItem of items) {
+        if (childItem.type === "category" && childItem.grade_items) {
+            sum += sumCategoryMaxGrade(childItem.grade_items);
+        } else {
+            sum += childItem.max_grade ?? 0;
+        }
+    }
+    return sum;
 };
 
 function GradebookItemRow({
@@ -91,22 +118,15 @@ function GradebookItemRow({
     // Calculate padding based on depth (xl = ~24px per level)
     const paddingLeft = depth * 24;
 
-    // Helper function to recursively sum overall weights of all leaf items in a category
-    const sumCategoryOverallWeights = (items: GradebookSetupItem[]): number => {
-        let sum = 0;
-        for (const childItem of items) {
-            if (childItem.type === "category" && childItem.grade_items) {
-                sum += sumCategoryOverallWeights(childItem.grade_items);
-            } else {
-                sum += childItem.overall_weight ?? 0;
-            }
-        }
-        return sum;
-    };
+
 
     // Calculate category total overall weight (sum of all children)
     const categoryOverallWeight = isCategory && item.grade_items
         ? sumCategoryOverallWeights(item.grade_items)
+        : null;
+
+    const categoryMaxGrade = isCategory && item.grade_items
+        ? sumCategoryMaxGrade(item.grade_items)
         : null;
 
     return (
@@ -156,9 +176,17 @@ function GradebookItemRow({
                     </Group>
                 </Table.Td>
                 <Table.Td>
-                    <Badge color={getTypeColor(item.type)} size="sm">
-                        {item.type}
-                    </Badge>
+                    <Group gap="xs" wrap="nowrap">
+                        {(item.type === "quiz" || item.type === "assignment" || item.type === "discussion") && (
+                            getModuleIcon(
+                                item.type as "quiz" | "assignment" | "discussion",
+                                16
+                            )
+                        )}
+                        <Badge color={getTypeColor(item.type)} size="sm">
+                            {item.type}
+                        </Badge>
+                    </Group>
                 </Table.Td>
                 <Table.Td>
                     <WeightDisplay
@@ -184,9 +212,15 @@ function GradebookItemRow({
                     )}
                 </Table.Td>
                 <Table.Td>
-                    <Text size="sm">
-                        {item.max_grade !== null ? item.max_grade : "-"}
-                    </Text>
+                    {
+                        isLeafItem ? <Text size="sm">
+                            {item.max_grade !== null ? item.max_grade : "-"}
+                        </Text> :
+                            // calculate the max grade of all leaf items
+                            !isExpanded && item.grade_items && item.grade_items.length > 0 ? <Text size="sm" c="dimmed">
+                                {categoryMaxGrade ?? "-"}
+                            </Text> : <Text size="sm">-</Text>
+                    }
                 </Table.Td>
                 <Table.Td>
                     <Button
@@ -235,9 +269,36 @@ function YAMLDisplay({ yaml }: { yaml: string | null }) {
                 </ActionIcon></Title>
                 <Collapse in={opened} onChange={toggle}>
                     <ScrollArea h={400}>
-                        <Code block style={{ fontSize: "0.875rem" }}>
-                            {yaml || "No gradebook YAML available"}
-                        </Code>
+                        <CodeHighlight
+                            code={yaml || "No gradebook YAML available"}
+                            language="yaml"
+                            copyLabel="Copy YAML"
+                            copiedLabel="Copied!"
+                            radius="md"
+                        />
+                    </ScrollArea></Collapse>
+            </Stack>
+        </Paper>
+    );
+}
+
+function MDDisplay({ markdown }: { markdown: string | null }) {
+    const [opened, { toggle }] = useDisclosure(false);
+    return (
+        <Paper withBorder p="md">
+            <Stack gap="md">
+                <Title order={4}>Markdown Representation <ActionIcon variant="subtle" onClick={toggle}>
+                    {opened ? <IconChevronUp size={16} /> : <IconChevronDown size={16} />}
+                </ActionIcon></Title>
+                <Collapse in={opened} onChange={toggle}>
+                    <ScrollArea h={400}>
+                        <CodeHighlight
+                            code={markdown || "No gradebook markdown available"}
+                            language="markdown"
+                            copyLabel="Copy Markdown"
+                            copiedLabel="Copied!"
+                            radius="md"
+                        />
                     </ScrollArea></Collapse>
             </Stack>
         </Paper>
@@ -489,6 +550,7 @@ export function GradebookSetupView({
             </Paper>
 
             <YAMLDisplay yaml={data.gradebookYaml} />
+            <MDDisplay markdown={data.gradebookMarkdown} />
         </Stack>
     );
 }

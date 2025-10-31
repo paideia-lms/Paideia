@@ -12,6 +12,7 @@ import python from "highlight.js/lib/languages/python";
 import sql from "highlight.js/lib/languages/sql";
 import ts from "highlight.js/lib/languages/typescript";
 import html from "highlight.js/lib/languages/xml";
+import yaml from "highlight.js/lib/languages/yaml";
 import { createLowlight } from "lowlight";
 import { mermaidGrammar } from "lowlight-mermaid";
 import mermaid from "mermaid";
@@ -108,6 +109,7 @@ lowlight.register("html", html);
 lowlight.register("json", json);
 lowlight.register("bash", bash);
 lowlight.register("sql", sql);
+lowlight.register("yaml", yaml);
 lowlight.register("markdown", markdown);
 lowlight.register("mermaid", mermaidGrammar);
 

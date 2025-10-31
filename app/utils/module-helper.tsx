@@ -11,20 +11,21 @@ import {
 export function getModuleIcon(
 	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion",
 	size?: number,
+	color?: string
 ) {
 	switch (type) {
 		case "page":
-			return <IconBook size={size ?? 20} />;
+			return <IconBook size={size ?? 20} color={color} />;
 		case "whiteboard":
-			return <IconPresentation size={size ?? 20} />;
+			return <IconPresentation size={size ?? 20} color={color} />;
 		case "assignment":
-			return <IconPencil size={size ?? 20} />;
+			return <IconPencil size={size ?? 20} color={color} />;
 		case "quiz":
-			return <IconClipboardList size={size ?? 20} />;
+			return <IconClipboardList size={size ?? 20} color={color} />;
 		case "discussion":
-			return <IconMessage size={size ?? 20} />;
+			return <IconMessage size={size ?? 20} color={color} />;
 		default:
-			return <IconWriting size={size ?? 20} />;
+			return <IconWriting size={size ?? 20} color={color} />;
 	}
 }
 

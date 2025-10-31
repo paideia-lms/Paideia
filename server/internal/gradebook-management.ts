@@ -11,12 +11,13 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { Gradebook } from "../payload-types";
-import { buildCategoryStructure } from "./build-gradebook-structure";
-import type { CategoryData, ItemData } from "./build-gradebook-structure";
+import { buildCategoryStructure } from "./utils/build-gradebook-structure";
+import type { CategoryData, ItemData } from "./utils/build-gradebook-structure";
+import { prettifyMarkdown } from "./utils/markdown-prettify";
 import {
 	calculateAdjustedWeights,
 	calculateOverallWeights,
-} from "./gradebook-weight-calculations";
+} from "./utils/gradebook-weight-calculations";
 
 export interface CreateGradebookArgs {
 	courseId: number;
@@ -648,6 +649,293 @@ export const tryGetGradebookYAMLRepresentation = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get gradebook YAML representation", {
+			cause: error,
+		}),
+);
+
+/**
+ * Formats a number or null as a percentage string
+ */
+function formatPercentage(value: number | null): string {
+	if (value === null) {
+		return "-";
+	}
+	return `${value.toFixed(2)}%`;
+}
+
+/**
+ * Formats a number or null as a decimal string
+ */
+function formatNumber(value: number | null): string {
+	if (value === null) {
+		return "-";
+	}
+	return value.toFixed(2);
+}
+
+/**
+ * Gets the type display name for an item
+ */
+function getTypeDisplayName(type: string): string {
+	switch (type) {
+		case "manual_item":
+			return "Manual";
+		case "page":
+			return "Page";
+		case "whiteboard":
+			return "Whiteboard";
+		case "assignment":
+			return "Assignment";
+		case "quiz":
+			return "Quiz";
+		case "discussion":
+			return "Discussion";
+		case "category":
+			return "Category";
+		default:
+			return type;
+	}
+}
+
+/**
+ * Recursively calculates the sum of max grades for all leaf items in a category
+ */
+function calculateCategoryMaxGrade(
+	items: GradebookSetupItemWithCalculations[],
+): number {
+	let sum = 0;
+	for (const item of items) {
+		if (item.type === "category" && item.grade_items) {
+			sum += calculateCategoryMaxGrade(item.grade_items);
+		} else {
+			sum += item.max_grade ?? 0;
+		}
+	}
+	return sum;
+}
+
+/**
+ * Recursively builds hierarchical rows for the Grade Summary table
+ */
+function buildGradeSummaryRows(
+	items: GradebookSetupItemWithCalculations[],
+	depth: number = 0,
+	prefix: string = "",
+): string[] {
+	const rows: string[] = [];
+
+	for (let i = 0; i < items.length; i++) {
+		const item = items[i];
+		const isLast = i === items.length - 1;
+		const isCategory = item.type === "category";
+		const hasNestedItems = isCategory && item.grade_items && item.grade_items.length > 0;
+
+		// Build the indentation prefix
+		let itemPrefix = "";
+		if (depth > 0) {
+			itemPrefix = prefix + (isLast ? "└─ " : "├─ ");
+		}
+
+		// Build item name with extra credit indicator
+		let itemName = item.name;
+		if (isCategory) {
+			itemName = `**${itemName}**`;
+		}
+		if (item.extra_credit) {
+			itemName += ` (EC)`;
+		}
+
+		// Format weight
+		const weightStr = item.adjusted_weight !== null
+			? formatPercentage(item.adjusted_weight)
+			: "-";
+
+		// Format max grade
+		let maxGradeStr: string;
+		if (isCategory && hasNestedItems) {
+			// For categories, calculate sum of children's max grades
+			const categoryMaxGrade = calculateCategoryMaxGrade(item.grade_items ?? []);
+			maxGradeStr = categoryMaxGrade > 0
+				? formatNumber(categoryMaxGrade)
+				: "-";
+		} else {
+			maxGradeStr = formatNumber(item.max_grade);
+		}
+
+		// For now, show placeholder values for grades (can be enhanced later with actual user grades)
+		const obtainedStr = "-"; // Placeholder
+		const rawPercentStr = "-"; // Placeholder
+		const weightedPercentStr = item.overall_weight !== null
+			? formatPercentage(item.overall_weight)
+			: "-";
+		const contributionStr = item.overall_weight !== null
+			? formatPercentage(item.overall_weight)
+			: "-";
+
+		rows.push(
+			`| ${itemPrefix}${itemName} | ${weightStr} | ${maxGradeStr} | ${obtainedStr} | ${rawPercentStr} | ${weightedPercentStr} | ${contributionStr} |`,
+		);
+
+		// Recursively process nested items
+		if (hasNestedItems && item.grade_items) {
+			const newPrefix = prefix + (isLast ? "   " : "│  ");
+			rows.push(...buildGradeSummaryRows(item.grade_items, depth + 1, newPrefix));
+		}
+	}
+
+	return rows;
+}
+
+/**
+ * Recursively builds flat rows for the Full Grade Breakdown table
+ */
+function buildFullBreakdownRows(
+	items: GradebookSetupItemWithCalculations[],
+	depth: number = 0,
+): string[] {
+	const rows: string[] = [];
+
+	for (const item of items) {
+		const isCategory = item.type === "category";
+		const indent = "  ".repeat(depth);
+
+		// Build item name
+		let itemName = item.name;
+		if (isCategory) {
+			itemName = `**${itemName}**`;
+		} else if (item.extra_credit) {
+			itemName = `**${itemName}**`;
+		}
+
+		// Format type
+		let typeStr = getTypeDisplayName(item.type);
+		if (item.extra_credit) {
+			typeStr += " (EC)";
+		}
+
+		// Format weight (bold for extra credit items)
+		const weightStr = item.adjusted_weight !== null
+			? (item.extra_credit ? `**${formatPercentage(item.adjusted_weight)}**` : formatPercentage(item.adjusted_weight))
+			: "-";
+
+		// Format max grade
+		let maxGradeStr: string;
+		if (isCategory && item.grade_items) {
+			const categoryMaxGrade = calculateCategoryMaxGrade(item.grade_items);
+			maxGradeStr = categoryMaxGrade > 0
+				? `**${formatNumber(categoryMaxGrade)}**`
+				: "-";
+		} else {
+			maxGradeStr = formatNumber(item.max_grade);
+		}
+
+		// Placeholder values for grades
+		const gradeStr = isCategory && item.grade_items
+			? `**${formatNumber(0)}**` // Category total placeholder
+			: "-";
+		const percentStr = isCategory && item.grade_items
+			? `**${formatPercentage(0)}**` // Category percent placeholder
+			: (item.extra_credit ? "**-**" : "-");
+		const weightedGradeStr = isCategory && item.grade_items
+			? `**${formatNumber(0)}**` // Category weighted placeholder
+			: (item.extra_credit ? "**-**" : "-");
+
+		rows.push(
+			`| ${item.id} | ${indent}${itemName} | ${typeStr} | ${weightStr} | ${maxGradeStr} | ${gradeStr} | ${percentStr} | ${weightedGradeStr} |`,
+		);
+
+		// Recursively process nested items
+		if (isCategory && item.grade_items) {
+			rows.push(...buildFullBreakdownRows(item.grade_items, depth + 1));
+		}
+	}
+
+	return rows;
+}
+
+/**
+ * Constructs a Markdown representation of the gradebook structure
+ * Built on top of the JSON representation and UI setup
+ */
+export const tryGetGradebookMarkdownRepresentation = Result.wrap(
+	async (payload: Payload, gradebookId: number) => {
+		// Get gradebook setup for UI (includes calculations)
+		const setupResult = await tryGetGradebookSetupForUI(payload, gradebookId);
+
+		if (!setupResult.ok) {
+			throw setupResult.error;
+		}
+
+		const setup = setupResult.value;
+
+		// Get course information
+		const course = await payload.findByID({
+			collection: "courses",
+			id: setup.course_id,
+			depth: 0,
+		});
+
+		if (!course) {
+			throw new Error(`Course with ID ${setup.course_id} not found`);
+		}
+
+		// Build header
+		const header = `# Grade Report
+
+**Course:** Course ID ${setup.course_id}
+
+**Gradebook ID:** ${setup.gradebook_id}
+
+## Grade Summary
+
+| Category/Path              | Weight | Max Grade | Obtained | Raw %  | Weighted % | Contribution |
+|----------------------------|--------|-----------|----------|--------|------------|--------------|`;
+
+		// Build grade summary rows
+		const summaryRows = buildGradeSummaryRows(setup.gradebook_setup.items);
+		const summarySection = [header, ...summaryRows].join("\n");
+
+		// Build full breakdown header
+		const breakdownHeader = `
+## Full Grade Breakdown
+
+| ID | Item Name              | Type         | Weight | Max Grade | Grade | %     | Weighted Grade |
+|----|------------------------|--------------|--------|-----------|-------|-------|----------------|`;
+
+		// Build full breakdown rows
+		const breakdownRows = buildFullBreakdownRows(setup.gradebook_setup.items);
+		const breakdownSection = [breakdownHeader, ...breakdownRows].join("\n");
+
+		// Build totals section
+		const totalsSection = `
+**Current Course Total: ${formatNumber(0)} / ${formatNumber(setup.totals.totalMaxGrade)} (${formatPercentage(0)})**
+
+**Gradebook Settings:**
+
+| Setting                  | Value          |
+|--------------------------|----------------|
+| Exclude empty grades     | ${setup.gradebook_setup.exclude_empty_grades ? "Yes" : "No"}            |
+| Show weight              | Yes            |
+| Show contribution        | Yes            |
+| Show range               | Yes            |
+
+**(EC) = Extra Credit**`;
+
+		// Combine all sections
+		const rawMarkdown = [
+			summarySection,
+			breakdownSection,
+			totalsSection,
+		].join("\n");
+
+		// Prettify the markdown using remark
+		const markdown = prettifyMarkdown(rawMarkdown);
+
+		return markdown;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get gradebook markdown representation", {
 			cause: error,
 		}),
 );
