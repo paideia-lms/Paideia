@@ -24,6 +24,7 @@ import { runSeed } from "./seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
+import { getHints } from "../app/utils/client-hints";
 
 const unstorage = createStorage({
 	driver: lruCacheDriver({
@@ -66,11 +67,12 @@ const backend = new Elysia()
 
 const frontend = new Elysia()
 	.use(
-		async (e) =>
+			async (e) =>
 			await reactRouter(e, {
 				getLoadContext: ({ request }) => {
 					const c = new RouterContextProvider();
 					const requestInfo = getRequestInfo(request);
+					const hints = getHints(request);
 					c.set(globalContextKey, {
 						payload: payload,
 						elysia: backend,
@@ -82,6 +84,7 @@ const frontend = new Elysia()
 						platformInfo,
 						bunVersion,
 						bunRevision,
+						hints,
 						// some fake data for now
 						routeHierarchy: [],
 						pageInfo: {

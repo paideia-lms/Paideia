@@ -45,6 +45,7 @@ import {
 	IconUsers,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
+import { MiniCalendar } from "@mantine/dates";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -86,8 +87,9 @@ export function formatSchedule(schedule: string): string {
 }
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, hints } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
+	const timeZone = hints.timeZone;
 
 	if (!userSession?.isAuthenticated) {
 		// Public user - mock featured courses
@@ -158,6 +160,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			isAuthenticated: false as const,
 			featuredCourses,
 			showRegistrationButton,
+			timeZone,
 		};
 	}
 
@@ -801,6 +804,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		recentNotes,
 		todaysCourseMeetings,
 		todaysDueItems,
+		timeZone,
 	};
 };
 
@@ -1090,8 +1094,9 @@ function AuthenticatedDashboard({
 	>;
 }) {
 	const [showCurriculumMap, setShowCurriculumMap] = useState(false);
-
-	if (!loaderData.isAuthenticated) return null;
+	const [calendarValue, setCalendarValue] = useState<string | null>(
+		dayjs().format("YYYY-MM-DD"),
+	);
 
 	const {
 		user,
@@ -1101,6 +1106,7 @@ function AuthenticatedDashboard({
 		recentNotes,
 		todaysCourseMeetings,
 		todaysDueItems,
+		timeZone,
 	} = loaderData;
 
 	const hour = new Date().getHours();
@@ -1149,6 +1155,9 @@ function AuthenticatedDashboard({
 						</Title>
 						<Text c="dimmed" size="lg">
 							It's {dayjs().format("dddd, MMMM D, YYYY")}
+						</Text>
+						<Text size="xs" c="dimmed">
+							Timezone: {timeZone || "Not detected"}
 						</Text>
 					</Stack>
 					<Group>
@@ -1365,8 +1374,13 @@ function AuthenticatedDashboard({
 										<ThemeIcon radius="md" variant="light" color="orange">
 											<IconCalendar size={20} />
 										</ThemeIcon>
-										<Title order={4}>Today's Schedule</Title>
+										<Title order={4}>Calendar</Title>
 									</Group>
+									<MiniCalendar
+										value={calendarValue}
+										onChange={setCalendarValue}
+										numberOfDays={6}
+									/>
 									{sortedScheduleItems.length > 0 ? (
 										<Stack gap="xs">
 											{sortedScheduleItems.map((item) => {

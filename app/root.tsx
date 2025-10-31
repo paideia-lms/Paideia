@@ -67,6 +67,9 @@ import { tryFindSectionById } from "server/internal/course-section-management";
 import { InternalServerErrorResponse } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
+import { hintsUtils } from "./utils/client-hints";
+import { useRevalidator } from "react-router";
+import * as React from "react";
 
 export const middleware = [
 	/**
@@ -551,6 +554,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
 
+
 	// Check if we need to redirect to first-user creation
 	const url = new URL(request.url);
 
@@ -596,6 +600,23 @@ const mantineTheme = createTheme({
 	},
 });
 
+function ClientHintCheck() {
+	const { revalidate } = useRevalidator();
+
+	React.useEffect(() => {
+		// Revalidate when timezone changes are detected
+		// This will be handled by the client hint script automatically
+	}, [revalidate]);
+
+	return (
+		<script
+			dangerouslySetInnerHTML={{
+				__html: hintsUtils.getClientHintCheckScript(),
+			}}
+		/>
+	);
+}
+
 export default function App({ loaderData }: Route.ComponentProps) {
 	const { theme } = loaderData;
 
@@ -610,6 +631,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
 				<meta title="Paideia LMS" />
 				<meta name="description" content="Paideia LMS" />
+				<ClientHintCheck />
 				{/* ! this will force the browser to reload the favicon, see https://stackoverflow.com/questions/2208933/how-do-i-force-a-favicon-refresh */}
 				<link
 					rel="icon"
