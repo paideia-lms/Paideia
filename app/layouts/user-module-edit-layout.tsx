@@ -11,6 +11,7 @@ import { IconInfoCircle } from "@tabler/icons-react";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
+import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
@@ -107,7 +108,28 @@ export default function UserModuleEditLayout({
 								<Badge color={getStatusColor(module.status)}>
 									{module.status}
 								</Badge>
-								<Badge variant="light">{formatType(module.type)}</Badge>
+								<Badge
+									variant="light"
+									color={getModuleColor(
+										module.type as
+										| "page"
+										| "whiteboard"
+										| "assignment"
+										| "quiz"
+										| "discussion",
+									)}
+									leftSection={getModuleIcon(
+										module.type as
+										| "page"
+										| "whiteboard"
+										| "assignment"
+										| "quiz"
+										| "discussion",
+										14,
+									)}
+								>
+									{formatType(module.type)}
+								</Badge>
 							</Group>
 							<Text c="dimmed" size="sm" mb="sm">
 								{module.description || "No description provided"}

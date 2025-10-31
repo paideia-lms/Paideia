@@ -447,6 +447,7 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 							id: z.number(),
 						}),
 					);
+
 					const groups =
 						doc.groups?.map((group) => {
 							assertZodInternal(

@@ -1,8 +1,10 @@
 import {
 	ActionIcon,
+	alpha,
 	AppShell,
 	Badge,
 	Box,
+	getThemeColor,
 	Grid,
 	Group,
 	Paper,
@@ -11,6 +13,8 @@ import {
 	Text,
 	TextInput,
 	Title,
+	useMantineColorScheme,
+	useMantineTheme,
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { IconEdit, IconPlus, IconSearch } from "@tabler/icons-react";
@@ -22,11 +26,13 @@ import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-modules-layout";
+import { RouteParams } from "~/utils/routes-utils";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -79,6 +85,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const canManageModules =
 		userId === currentUser.id || currentUser.role === "admin";
 
+	const isInUserModuleEditLayout = pageInfo.isInUserModuleEditLayout;
+
+	let moduleId: number | null = null;
+	if (isInUserModuleEditLayout) {
+		const { moduleId: moduleIdParam } = params as RouteParams<"layouts/user-module-edit-layout">;
+		moduleId = Number(moduleIdParam);
+	}
+
 	return {
 		user: {
 			id: targetUser.id,
@@ -89,8 +103,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		modules: modules,
 		canCreateModules,
 		canManageModules,
+		moduleId,
 	};
 };
+
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -99,7 +115,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function UserModulesLayout({
 	loaderData,
 }: Route.ComponentProps) {
-	const { modules, canCreateModules, canManageModules } = loaderData;
+	const { modules, canCreateModules, canManageModules, moduleId } = loaderData;
 	const [searchQuery, setSearchQuery] = useQueryState("search");
 	const [inputValue, setInputValue] = useState(searchQuery ?? "");
 
@@ -147,6 +163,9 @@ export default function UserModulesLayout({
 			module.status.toLowerCase().includes(query)
 		);
 	});
+
+	const theme = useMantineTheme();
+
 
 	return (
 		<AppShell>
@@ -197,11 +216,14 @@ export default function UserModulesLayout({
 													withBorder
 													p="sm"
 													radius="sm"
-													style={{ cursor: "pointer" }}
+													// if moduleId is set and it is the same as the module.id, then add a class to the paper
+													style={{ cursor: "pointer", }}
+													bg={moduleId === module.id ? alpha(getThemeColor("blue", theme), 0.1) : undefined}
 													component={Link}
 													to={href("/user/module/edit/:moduleId", {
 														moduleId: String(module.id),
 													})}
+
 												>
 													<Group justify="space-between" mb="xs">
 														<Text fw={500} size="sm" lineClamp={1}>
@@ -219,7 +241,27 @@ export default function UserModulesLayout({
 														)}
 													</Group>
 													<Group gap="xs" mb="xs">
-														<Badge size="xs" variant="light">
+														<Badge
+															size="xs"
+															variant="light"
+															color={getModuleColor(
+																module.type as
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
+															)}
+															leftSection={getModuleIcon(
+																module.type as
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
+																12,
+															)}
+														>
 															{formatType(module.type)}
 														</Badge>
 														<Badge

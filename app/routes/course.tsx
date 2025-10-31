@@ -48,15 +48,12 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		// Handle thumbnail - could be Media object, just ID, or null
 		let thumbnailUrl: string | null = null;
 		if (enrollment.course.thumbnail) {
+			console.log(enrollment.course.thumbnail);
 			if (typeof enrollment.course.thumbnail === "object") {
 				// It's a populated Media object
-				thumbnailUrl = enrollment.course.thumbnail.filename
-					? href("/api/media/file/:filenameOrId", {
-							filenameOrId: enrollment.course.thumbnail.filename,
-						})
-					: href("/api/media/file/:filenameOrId", {
-							filenameOrId: enrollment.course.thumbnail.id.toString(),
-						});
+				thumbnailUrl = href("/api/media/file/:filenameOrId", {
+					filenameOrId: enrollment.course.thumbnail.id.toString(),
+				});
 			} else {
 				// It's just an ID (number)
 				thumbnailUrl = href("/api/media/file/:filenameOrId", {
