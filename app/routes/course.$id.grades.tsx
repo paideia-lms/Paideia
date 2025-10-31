@@ -24,7 +24,7 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconChevronDown, IconChevronUp, IconFolder, IconPlus } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronRight, IconChevronUp, IconFolder, IconPlus, IconPlusMinus } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { parseAsInteger } from "nuqs/server";
 import { useFetcher } from "react-router";
@@ -45,6 +45,7 @@ import { badRequest, BadRequestResponse, ForbiddenResponse, ok } from "~/utils/r
 import { z } from "zod";
 import type { Route } from "./+types/course.$id.grades";
 import { useDisclosure } from "@mantine/hooks";
+import { useState } from "react";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
@@ -59,7 +60,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	return {
+	const loaderData = {
 		course: courseContext.course,
 		gradebook: courseContext.gradebook,
 		gradebookJson: courseContext.gradebookJson,
@@ -70,6 +71,73 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			(e) => e.status === "active",
 		),
 	};
+
+	// Debug logging
+	console.log("=== GRADEBOOK LOADER DEBUG ===");
+	console.log("Course ID:", courseId);
+	console.log("GradebookSetupForUI exists:", !!loaderData.gradebookSetupForUI);
+
+	if (loaderData.gradebookSetupForUI) {
+		const { gradebook_setup } = loaderData.gradebookSetupForUI;
+		console.log("Gradebook setup items count:", gradebook_setup.items.length);
+
+		// Helper to recursively collect all leaf items
+		const collectLeafItems = (items: typeof gradebook_setup.items): typeof gradebook_setup.items => {
+			const leafItems: typeof gradebook_setup.items = [];
+			for (const item of items) {
+				if (item.type === "category" && item.grade_items) {
+					leafItems.push(...collectLeafItems(item.grade_items));
+				} else {
+					leafItems.push(item);
+				}
+			}
+			return leafItems;
+		};
+
+		const allLeafItems = collectLeafItems(gradebook_setup.items);
+		console.log("Total leaf items:", allLeafItems.length);
+
+		const extraCreditItems = allLeafItems.filter(
+			(item) => item.extra_credit === true && item.overall_weight !== null,
+		);
+		const baseItems = allLeafItems.filter(
+			(item) => !(item.extra_credit === true),
+		);
+
+		const baseTotal = baseItems.reduce(
+			(sum, item) => sum + (item.overall_weight ?? 0),
+			0,
+		);
+		const extraCreditTotal = extraCreditItems.reduce(
+			(sum, item) => sum + (item.overall_weight ?? 0),
+			0,
+		);
+		const calculatedTotal = baseTotal + extraCreditTotal;
+
+		console.log("Base items count:", baseItems.length);
+		console.log("Extra credit items count:", extraCreditItems.length);
+		console.log("Base total:", baseTotal);
+		console.log("Extra credit total:", extraCreditTotal);
+		console.log("Calculated total:", calculatedTotal);
+
+		console.log("Base items details:");
+		baseItems.forEach((item, idx) => {
+			console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, extra_credit=${item.extra_credit}`);
+		});
+
+		console.log("Extra credit items details:");
+		extraCreditItems.forEach((item, idx) => {
+			console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, extra_credit=${item.extra_credit}`);
+		});
+
+		console.log("All leaf items summary:");
+		allLeafItems.forEach((item, idx) => {
+			console.log(`  [${idx}] ${item.name}: type=${item.type}, overall_weight=${item.overall_weight}, extra_credit=${item.extra_credit ?? false}`);
+		});
+	}
+	console.log("=== END GRADEBOOK LOADER DEBUG ===");
+
+	return loaderData;
 };
 
 const createItemSchema = z.object({
@@ -290,9 +358,11 @@ export function useCreateCategory() {
 function WeightDisplay({
 	weight,
 	adjustedWeight,
+	extraCredit,
 }: {
 	weight: number | null;
 	adjustedWeight: number | null;
+	extraCredit?: boolean;
 }) {
 	const hasWeight = weight !== null;
 	const hasAdjustedWeight = adjustedWeight !== null;
@@ -378,18 +448,44 @@ function WeightDisplay({
 		);
 	}
 
+	// Build the weight display content
+	const weightContent = (
+		<Group gap={4} align="center" wrap="nowrap">
+			<Text size="sm">{displayText}</Text>
+			{extraCredit && (
+				<Tooltip
+					label={
+						<Stack gap="xs">
+							<Text size="xs" fw={700}>
+								Extra Credit
+							</Text>
+							<Text size="xs">
+								This item is marked as extra credit. Extra credit items do not
+								participate in weight distribution and allow categories to total
+								above 100%.
+							</Text>
+						</Stack>
+					}
+					withArrow
+					multiline
+					w={300}
+				>
+					<IconPlusMinus size={16} style={{ cursor: "help" }} />
+				</Tooltip>
+			)}
+		</Group>
+	);
+
 	// Always show tooltip if adjusted weight exists and is different from weight
 	if (hasAdjustedWeight && (!hasWeight || !weightsMatch)) {
 		return (
 			<Tooltip label={tooltipContent} withArrow multiline w={300}>
-				<Text size="sm" style={{ cursor: "help" }}>
-					{displayText}
-				</Text>
+				<Box style={{ cursor: "help" }}>{weightContent}</Box>
 			</Tooltip>
 		);
 	}
 
-	return <Text size="sm">{displayText}</Text>;
+	return weightContent;
 }
 
 function OverallWeightDisplay({
@@ -779,6 +875,7 @@ type GradebookSetupItem = {
 	overall_weight: number | null;
 	weight_explanation: string | null;
 	max_grade: number | null;
+	extra_credit?: boolean;
 	grade_items?: GradebookSetupItem[];
 };
 
@@ -786,14 +883,19 @@ function GradebookItemRow({
 	item,
 	depth = 0,
 	getTypeColor,
+	expandedCategoryIds,
+	onToggleCategory,
 }: {
 	item: GradebookSetupItem;
 	depth?: number;
 	getTypeColor: (type: string) => string;
+	expandedCategoryIds: number[];
+	onToggleCategory: (categoryId: number) => void;
 }) {
 	const isCategory = item.type === "category";
 	const isLeafItem = !isCategory;
 	const hasNestedItems = isCategory && item.grade_items && item.grade_items.length > 0;
+	const isExpanded = expandedCategoryIds.includes(item.id);
 
 	// Calculate padding based on depth (xl = ~24px per level)
 	const paddingLeft = depth * 24;
@@ -802,15 +904,32 @@ function GradebookItemRow({
 		<>
 			<Table.Tr>
 				<Table.Td>
-					<Box pl={paddingLeft}>
+					<Group gap="xs" wrap="nowrap" pl={paddingLeft}>
+						{hasNestedItems ? (
+							<ActionIcon
+								variant="subtle"
+								size="sm"
+								onClick={() => onToggleCategory(item.id)}
+								style={{ cursor: "pointer" }}
+							>
+								<IconChevronRight
+									size={16}
+									style={{
+										transform: isExpanded ? "rotate(90deg)" : "rotate(0deg)",
+										transition: "transform 0.2s",
+									}}
+								/>
+							</ActionIcon>
+						) : (
+							<Box w={28} />
+						)}
 						<Text
 							size={depth === 0 ? "sm" : "sm"}
 							fw={isCategory ? 600 : 500}
 						>
-							{depth > 0 ? "↳ " : ""}
 							{item.name}
 						</Text>
-					</Box>
+					</Group>
 				</Table.Td>
 				<Table.Td>
 					<Badge color={getTypeColor(item.type)} size="sm">
@@ -821,6 +940,7 @@ function GradebookItemRow({
 					<WeightDisplay
 						weight={item.weight}
 						adjustedWeight={item.adjusted_weight}
+						extraCredit={item.extra_credit}
 					/>
 				</Table.Td>
 				<Table.Td>
@@ -843,15 +963,20 @@ function GradebookItemRow({
 				</Table.Td>
 			</Table.Tr>
 			{/* Recursively render nested items */}
-			{hasNestedItems &&
-				item.grade_items?.map((nestedItem) => (
-					<GradebookItemRow
-						key={nestedItem.id}
-						item={nestedItem}
-						depth={depth + 1}
-						getTypeColor={getTypeColor}
-					/>
-				))}
+			{hasNestedItems && isExpanded && (
+				<>
+					{item.grade_items?.map((nestedItem) => (
+						<GradebookItemRow
+							key={nestedItem.id}
+							item={nestedItem}
+							depth={depth + 1}
+							getTypeColor={getTypeColor}
+							expandedCategoryIds={expandedCategoryIds}
+							onToggleCategory={onToggleCategory}
+						/>
+					))}
+				</>
+			)}
 		</>
 	);
 }
@@ -871,6 +996,16 @@ function GradebookSetupView({
 		"createCategory",
 		parseAsInteger.withOptions({ shallow: false }),
 	);
+
+	const [expandedCategoryIds, setExpandedCategoryIds] = useState<number[]>([]);
+
+	const toggleCategory = (categoryId: number) => {
+		setExpandedCategoryIds((prev) =>
+			prev.includes(categoryId)
+				? prev.filter((id) => id !== categoryId)
+				: [...prev, categoryId]
+		);
+	};
 
 	if (!gradebookSetupForUI) {
 		return (
@@ -916,6 +1051,92 @@ function GradebookSetupView({
 				return "gray";
 		}
 	};
+
+	// Helper function to recursively collect all leaf items
+	const collectLeafItems = (
+		items: GradebookSetupItem[],
+	): GradebookSetupItem[] => {
+		const leafItems: GradebookSetupItem[] = [];
+		for (const item of items) {
+			if (item.type === "category" && item.grade_items) {
+				// Recursively collect from nested items
+				leafItems.push(...collectLeafItems(item.grade_items));
+			} else {
+				// This is a leaf item (not a category)
+				leafItems.push(item);
+			}
+		}
+		return leafItems;
+	};
+
+	// Calculate totals from all leaf items
+	const allLeafItems = collectLeafItems(gradebook_setup.items);
+
+	console.log("=== UI CALCULATION DEBUG ===");
+	console.log("Gradebook setup items count:", gradebook_setup.items.length);
+	console.log("All leaf items count:", allLeafItems.length);
+
+	const totalMaxGrade = allLeafItems.reduce(
+		(sum, item) => sum + (item.max_grade ?? 0),
+		0,
+	);
+
+	// Find all extra credit items with their overall weights
+	const extraCreditItems = allLeafItems.filter(
+		(item) => item.extra_credit === true && item.overall_weight !== null,
+	);
+
+	// Calculate base total (non-extra-credit items)
+	const baseItems = allLeafItems.filter(
+		(item) => !(item.extra_credit === true),
+	);
+	const baseTotal = baseItems.reduce(
+		(sum, item) => sum + (item.overall_weight ?? 0),
+		0,
+	);
+
+	// Calculate extra credit total
+	const extraCreditTotal = extraCreditItems.reduce(
+		(sum, item) => sum + (item.overall_weight ?? 0),
+		0,
+	);
+
+	// Calculate total: base items + extra credit items
+	// This ensures we're correctly summing base items (which should total 100%) 
+	// plus extra credit items (which add on top)
+	const displayTotal = 100 + extraCreditTotal;
+
+	console.log("Base items count:", baseItems.length);
+	console.log("Extra credit items count:", extraCreditItems.length);
+	console.log("Base total:", baseTotal);
+	console.log("Extra credit total:", extraCreditTotal);
+	console.log("Display total:", displayTotal);
+
+	console.log("Base items breakdown:");
+	baseItems.forEach((item, idx) => {
+		console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
+	});
+
+	console.log("Extra credit items breakdown:");
+	extraCreditItems.forEach((item, idx) => {
+		console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
+	});
+
+	console.log("All leaf items breakdown:");
+	allLeafItems.forEach((item, idx) => {
+		console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
+	});
+
+	// Check for items with null overall_weight
+	const itemsWithNullWeight = allLeafItems.filter(item => item.overall_weight === null);
+	console.log("Items with null overall_weight:", itemsWithNullWeight.length);
+	itemsWithNullWeight.forEach((item, idx) => {
+		console.log(`  [${idx}] ${item.name}: overall_weight=null, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
+	});
+
+	console.log("=== END UI CALCULATION DEBUG ===");
+
+	const hasExtraCredit = extraCreditItems.length > 0 || displayTotal > 100;
 
 	return (
 		<Stack gap="md">
@@ -991,10 +1212,78 @@ function GradebookSetupView({
 									item={item as GradebookSetupItem}
 									depth={0}
 									getTypeColor={getTypeColor}
+									expandedCategoryIds={expandedCategoryIds}
+									onToggleCategory={toggleCategory}
 								/>
 							))
 						)}
 					</Table.Tbody>
+					<Table.Tfoot>
+						<Table.Tr>
+							<Table.Td colSpan={2}>
+								<Text size="sm" fw={700}>
+									Total
+								</Text>
+							</Table.Td>
+							<Table.Td>
+								{/* Empty - no weight total */}
+							</Table.Td>
+							<Table.Td>
+								{hasExtraCredit ? (
+									<Tooltip
+										label={
+											<Stack gap="xs">
+												<div>
+													<Text size="xs" fw={700}>
+														Total Overall Weight: {displayTotal.toFixed(2)}%
+													</Text>
+												</div>
+												<div>
+													<Text size="xs" fw={700} mb={4}>
+														Extra Credit Contributions:
+													</Text>
+													{extraCreditItems.length > 0 ? (
+														extraCreditItems.map((item) => (
+															<Text key={item.id} size="xs">
+																• {item.name}:{" "}
+																{item.overall_weight?.toFixed(2)}%
+															</Text>
+														))
+													) : (
+														<Text size="xs">No extra credit items</Text>
+													)}
+												</div>
+												<div>
+													<Text size="xs">
+														Extra credit items allow the total to exceed 100%.
+													</Text>
+												</div>
+											</Stack>
+										}
+										withArrow
+										multiline
+										w={350}
+									>
+										<Text size="sm" fw={700} style={{ cursor: "help" }}>
+											{displayTotal.toFixed(2)}%
+										</Text>
+									</Tooltip>
+								) : (
+									<Text size="sm" fw={700}>
+										{displayTotal.toFixed(2)}%
+									</Text>
+								)}
+							</Table.Td>
+							<Table.Td>
+								<Text size="sm" fw={700}>
+									{totalMaxGrade}
+								</Text>
+							</Table.Td>
+							<Table.Td>
+								{/* Empty - no actions in footer */}
+							</Table.Td>
+						</Table.Tr>
+					</Table.Tfoot>
 				</Table>
 			</Paper>
 
@@ -1004,7 +1293,7 @@ function GradebookSetupView({
 }
 
 function YAMLDisplay({ yaml }: { yaml: string | null }) {
-	const [opened, { open, close, toggle }] = useDisclosure(false);
+	const [opened, { toggle }] = useDisclosure(false);
 	return (
 		<Paper withBorder p="md">
 			<Stack gap="md">

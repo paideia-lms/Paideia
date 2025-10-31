@@ -1,5 +1,4 @@
 import { describe, expect, it } from "bun:test";
-import type { GradebookSetupItem } from "./gradebook-management";
 import { buildCategoryStructure } from "./build-gradebook-structure";
 
 describe("Build Gradebook Structure", () => {
@@ -181,5 +180,94 @@ describe("Build Gradebook Structure", () => {
                 expect(result[0].grade_items[0].grade_items[0].id).toBe(3);
             }
         }
+    });
+
+    it("should include extra_credit field when building structure", () => {
+        const categories: Array<{
+            id: number;
+            gradebook: number;
+            parent: number | null;
+            name: string;
+            weight: number | null;
+            subcategories: number[];
+            items: number[];
+        }> = [];
+
+        const items = [
+            {
+                id: 1,
+                gradebook: 2,
+                category: null,
+                name: "Regular Item",
+                activityModuleType: null,
+                activityModuleName: null,
+                weight: 50,
+                maxGrade: 100,
+                extraCredit: false,
+            },
+            {
+                id: 2,
+                gradebook: 2,
+                category: null,
+                name: "Extra Credit Item",
+                activityModuleType: null,
+                activityModuleName: null,
+                weight: 5,
+                maxGrade: 100,
+                extraCredit: true,
+            },
+        ];
+
+        // Build structure for root categories (null)
+        const categoryResult = buildCategoryStructure(null, categories, items);
+
+        // Should have no categories
+        expect(categoryResult.length).toBe(0);
+
+        // Build structure for a category that contains items
+        const categoryWithItems = [
+            {
+                id: 1,
+                gradebook: 2,
+                parent: null,
+                name: "Category 1",
+                weight: 50,
+                subcategories: [],
+                items: [3, 4],
+            },
+        ];
+
+        const itemsInCategory = [
+            {
+                id: 3,
+                gradebook: 2,
+                category: 1,
+                name: "Regular Item in Category",
+                activityModuleType: null,
+                activityModuleName: null,
+                weight: 50,
+                maxGrade: 100,
+                extraCredit: false,
+            },
+            {
+                id: 4,
+                gradebook: 2,
+                category: 1,
+                name: "Extra Credit in Category",
+                activityModuleType: null,
+                activityModuleName: null,
+                weight: 10,
+                maxGrade: 100,
+                extraCredit: true,
+            },
+        ];
+
+        const result = buildCategoryStructure(1, categoryWithItems, itemsInCategory);
+
+        expect(result.length).toBe(2);
+        expect(result[0].id).toBe(3);
+        expect(result[0].extra_credit).toBe(false);
+        expect(result[1].id).toBe(4);
+        expect(result[1].extra_credit).toBe(true);
     });
 });

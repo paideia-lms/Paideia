@@ -11,6 +11,16 @@ export interface GetRegistrationSettingsArgs {
     overrideAccess?: boolean;
 }
 
+export interface UpdateRegistrationSettingsArgs {
+    payload: Payload;
+    user: User;
+    data: {
+        disableRegistration?: boolean;
+        showRegistrationButton?: boolean;
+    };
+    overrideAccess?: boolean;
+}
+
 export type RegistrationSettings = {
     disableRegistration: boolean;
     showRegistrationButton: boolean;
@@ -36,7 +46,45 @@ export const tryGetRegistrationSettings = Result.wrap(
             overrideAccess,
         });
 
+
         const parsed = registrationSettingsSchema.safeParse(raw);
+
+        if (!parsed.success) {
+            return {
+                disableRegistration: false,
+                showRegistrationButton: true,
+            };
+        }
+
+
+        return {
+            disableRegistration: parsed.data.disableRegistration ?? false,
+            showRegistrationButton: parsed.data.showRegistrationButton ?? true,
+        };
+    },
+    (error) =>
+        transformError(error) ??
+        new UnknownError("Failed to get registration settings", { cause: error }),
+);
+
+/**
+ * Update registration settings in the RegistrationSettings global.
+ */
+export const tryUpdateRegistrationSettings = Result.wrap(
+    async (args: UpdateRegistrationSettingsArgs): Promise<RegistrationSettings> => {
+        const { payload, user, data, overrideAccess = false } = args;
+
+        const updated = await payload.updateGlobal({
+            slug: "registration-settings",
+            data: {
+                disableRegistration: data.disableRegistration ?? false,
+                showRegistrationButton: data.showRegistrationButton ?? true,
+            },
+            user,
+            overrideAccess,
+        });
+
+        const parsed = registrationSettingsSchema.safeParse(updated);
 
         if (!parsed.success) {
             return {
@@ -52,7 +100,6 @@ export const tryGetRegistrationSettings = Result.wrap(
     },
     (error) =>
         transformError(error) ??
-        new UnknownError("Failed to get registration settings", { cause: error }),
+        new UnknownError("Failed to update registration settings", { cause: error }),
 );
-
 

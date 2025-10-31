@@ -13,6 +13,10 @@ import {
 import type { Gradebook } from "../payload-types";
 import { buildCategoryStructure } from "./build-gradebook-structure";
 import type { CategoryData, ItemData } from "./build-gradebook-structure";
+import {
+	calculateAdjustedWeights,
+	calculateOverallWeights,
+} from "./gradebook-weight-calculations";
 
 export interface CreateGradebookArgs {
 	courseId: number;
@@ -46,6 +50,7 @@ export interface GradebookSetupItem {
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
+	extra_credit?: boolean; // Extra credit items don't affect weight distribution
 	grade_items?: GradebookSetupItem[];
 }
 
@@ -314,192 +319,6 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 );
 
 /**
- * Calculates adjusted weights for items using Moodle's weight distribution logic
- * - Items with specified weights use those weights
- * - Items without specified weights get equal shares of the remaining weight
- * - Total always equals 100% at each level
- */
-export function calculateAdjustedWeights(
-	items: GradebookSetupItem[],
-): GradebookSetupItemWithCalculations[] {
-	const result: GradebookSetupItemWithCalculations[] = [];
-
-	// First, calculate adjusted weights for nested items in categories
-	for (const item of items) {
-		const processedItem: GradebookSetupItemWithCalculations = {
-			...item,
-			adjusted_weight: null,
-			overall_weight: null,
-			weight_explanation: null,
-			grade_items: item.grade_items
-				? calculateAdjustedWeights(item.grade_items)
-				: undefined,
-		};
-
-
-		// Calculate adjusted weight for this item
-		const itemsWithWeight = items.filter((item) => item.weight !== null);
-		const itemsWithoutWeight = items.filter((item) => item.weight === null);
-
-		const totalSpecifiedWeight = itemsWithWeight.reduce(
-			(sum, item) => sum + (item.weight ?? 0),
-			0,
-		);
-
-		const remainingWeight = Math.max(0, 100 - totalSpecifiedWeight);
-		const distributedWeightPerItem =
-			itemsWithoutWeight.length > 0 ? remainingWeight / itemsWithoutWeight.length : 0;
-
-		if (item.weight !== null) {
-			// Item has specified weight, use it as adjusted weight
-			processedItem.adjusted_weight = item.weight;
-		} else {
-			// Item has no specified weight, use distributed weight
-			processedItem.adjusted_weight =
-				itemsWithoutWeight.length > 0 && distributedWeightPerItem > 0
-					? distributedWeightPerItem
-					: null;
-		}
-
-		result.push(processedItem);
-	}
-
-	return result;
-}
-
-/**
- * Calculates overall weight for all items in a gradebook structure
- * Overall weight = item_adjusted_weight * parent_category_adjusted_weight * ... * root_category_adjusted_weight
- * Only calculated for leaf items (not categories)
- * Example: If category is 35% and item is 10%, overall = 35% * 10% = 3.5%
- */
-export function calculateOverallWeights(
-	items: GradebookSetupItemWithCalculations[],
-	rootItems?: GradebookSetupItemWithCalculations[],
-): void {
-	// Use rootItems as the search scope, or default to items if not provided
-	const searchScope = rootItems ?? items;
-
-	// Helper function to find the direct parent category that contains an item
-	const findContainingCategory = (
-		itemId: number,
-		searchItems: GradebookSetupItemWithCalculations[],
-	): GradebookSetupItemWithCalculations | undefined => {
-		for (const item of searchItems) {
-			if (item.type === "category" && item.grade_items) {
-				// Check if this category directly contains the item we're looking for
-				if (item.grade_items.some((subItem) => subItem.id === itemId)) {
-					return item;
-				}
-				// Recursively search nested categories - return the direct parent found
-				const nestedResult = findContainingCategory(
-					itemId,
-					item.grade_items as GradebookSetupItemWithCalculations[],
-				);
-				if (nestedResult) {
-					// Return the nested result (direct parent), not the outer category
-					// The traversal up the tree will happen in the while loop
-					return nestedResult;
-				}
-			}
-		}
-		return undefined;
-	};
-
-	// Process all items recursively
-	for (const item of items) {
-		if (item.type === "category") {
-			// Categories don't have overall weight or explanation
-			item.overall_weight = null;
-			item.weight_explanation = null;
-
-			// Recursively calculate overall weights for nested items if they exist
-			if (item.grade_items) {
-				calculateOverallWeights(
-					item.grade_items as GradebookSetupItemWithCalculations[],
-					searchScope,
-				);
-			}
-		} else {
-			// This is a leaf item, calculate overall weight
-			if (item.adjusted_weight === null) {
-				item.overall_weight = null;
-				item.weight_explanation = null;
-				continue;
-			}
-
-			// Find containing category in the root scope
-			const containingCategory = findContainingCategory(item.id, searchScope);
-
-			if (!containingCategory) {
-				// Root-level item, overall weight equals adjusted weight
-				item.overall_weight = item.adjusted_weight;
-				item.weight_explanation = `${item.name} (${item.adjusted_weight.toFixed(2)}%) = ${item.adjusted_weight.toFixed(2)}%`;
-				continue;
-			}
-
-			// Start with the item's adjusted weight as a decimal
-			let overallWeight = item.adjusted_weight / 100;
-
-			// Collect parent categories for explanation (from root to direct parent)
-			const categoryChain: Array<{
-				name: string;
-				adjusted_weight: number | null;
-			}> = [];
-
-			// Multiply by all parent category adjusted weights
-			let currentCategory: GradebookSetupItemWithCalculations | undefined =
-				containingCategory;
-
-			while (currentCategory) {
-				categoryChain.unshift({
-					name: currentCategory.name,
-					adjusted_weight: currentCategory.adjusted_weight,
-				});
-
-				if (
-					currentCategory.adjusted_weight !== null &&
-					currentCategory.adjusted_weight !== undefined
-				) {
-					overallWeight *= currentCategory.adjusted_weight / 100;
-				} else {
-					// If category has no weight, assume 100% (no effect)
-					overallWeight *= 1;
-				}
-
-				// Find parent category by traversing the tree
-				currentCategory = findContainingCategory(currentCategory.id, searchScope);
-			}
-
-			// Convert back to percentage
-			item.overall_weight = overallWeight * 100;
-
-			// Build explanation string
-			const explanationParts: string[] = [];
-
-			// Add all parent categories
-			for (const category of categoryChain) {
-				const weightText =
-					category.adjusted_weight !== null
-						? `${category.adjusted_weight.toFixed(2)}%`
-						: "100%";
-				explanationParts.push(`${category.name} (${weightText})`);
-			}
-
-			// Add the item itself
-			explanationParts.push(
-				`${item.name} (${item.adjusted_weight.toFixed(2)}%)`,
-			);
-
-			// Combine with multiplication signs and add result
-			const explanation = `${explanationParts.join(" × ")} = ${item.overall_weight.toFixed(2)}%`;
-
-			item.weight_explanation = explanation;
-		}
-	}
-}
-
-/**
  * Constructs a JSON representation of the gradebook structure
  */
 export const tryGetGradebookJsonRepresentation = Result.wrap(
@@ -680,6 +499,7 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 			activityModuleName: item.activityModuleName,
 			weight: item.weight,
 			maxGrade: item.maxGrade,
+			extraCredit: item.extraCredit ?? false,
 		}));
 
 		// Build the structure recursively
@@ -694,6 +514,7 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 				name: item.name,
 				weight: item.weight || null,
 				max_grade: item.maxGrade || null,
+				extra_credit: item.extraCredit ?? false,
 			});
 		}
 
@@ -748,6 +569,77 @@ export const tryGetGradebookSetupForUI = Result.wrap(
 
 		// Calculate overall weights
 		calculateOverallWeights(itemsWithAdjusted as GradebookSetupItemWithCalculations[]);
+
+		// Debug logging
+		console.log("=== BACKEND CALCULATION DEBUG ===");
+
+		// Log category structure
+		const logCategoryStructure = (items: typeof itemsWithAdjusted, depth = 0): void => {
+			for (const item of items) {
+				const indent = "  ".repeat(depth);
+				if (item.type === "category") {
+					console.log(`${indent}Category: ${item.name}, weight=${item.weight}, adjusted_weight=${item.adjusted_weight}`);
+					if (item.grade_items) {
+						logCategoryStructure(item.grade_items, depth + 1);
+					}
+				} else {
+					console.log(`${indent}Item: ${item.name}, weight=${item.weight}, adjusted_weight=${item.adjusted_weight}, overall_weight=${item.overall_weight}, extra_credit=${item.extra_credit ?? false}`);
+				}
+			}
+		};
+
+		console.log("Category structure:");
+		logCategoryStructure(itemsWithAdjusted);
+
+		// Calculate root-level totals
+		const rootCategories = itemsWithAdjusted.filter(item => item.type === "category");
+		const rootCategoryTotal = rootCategories.reduce((sum, cat) => sum + (cat.adjusted_weight ?? 0), 0);
+		const rootItems = itemsWithAdjusted.filter(item => item.type !== "category");
+		const rootItemsTotal = rootItems.reduce((sum, item) => sum + (item.adjusted_weight ?? 0), 0);
+
+		console.log(`Root-level category total: ${rootCategoryTotal}%`);
+		console.log(`Root-level items total: ${rootItemsTotal}%`);
+		console.log(`Root-level total (categories + items): ${rootCategoryTotal + rootItemsTotal}%`);
+
+		const collectLeafItems = (items: typeof itemsWithAdjusted): typeof itemsWithAdjusted => {
+			const leafItems: typeof itemsWithAdjusted = [];
+			for (const item of items) {
+				if (item.type === "category" && item.grade_items) {
+					leafItems.push(...collectLeafItems(item.grade_items));
+				} else {
+					leafItems.push(item);
+				}
+			}
+			return leafItems;
+		};
+
+		const allLeafItems = collectLeafItems(itemsWithAdjusted);
+		const baseItems = allLeafItems.filter((item) => !(item.extra_credit === true));
+		const extraCreditItems = allLeafItems.filter(
+			(item) => item.extra_credit === true && item.overall_weight !== null,
+		);
+
+		const baseTotal = baseItems.reduce((sum, item) => sum + (item.overall_weight ?? 0), 0);
+		const extraCreditTotal = extraCreditItems.reduce((sum, item) => sum + (item.overall_weight ?? 0), 0);
+		const calculatedTotal = 100 + extraCreditTotal;
+
+		console.log("Backend - Base items count:", baseItems.length);
+		console.log("Backend - Extra credit items count:", extraCreditItems.length);
+		console.log("Backend - Base total:", baseTotal);
+		console.log("Backend - Extra credit total:", extraCreditTotal);
+		console.log("Backend - Calculated total:", calculatedTotal);
+
+		console.log("Backend - Base items breakdown:");
+		baseItems.forEach((item, idx) => {
+			console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
+		});
+
+		console.log("Backend - Extra credit items breakdown:");
+		extraCreditItems.forEach((item, idx) => {
+			console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
+		});
+
+		console.log("=== END BACKEND CALCULATION DEBUG ===");
 
 		return {
 			gradebook_id: jsonData.gradebook_id,

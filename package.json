@@ -96,6 +96,7 @@
 		"lefthook": "^1.13.6",
 		"lowlight": "^3.3.0",
 		"lowlight-mermaid": "^0.0.0",
+		"mantine-datatable": "^8.2.0",
 		"mermaid": "^11.12.0",
 		"mime": "^4.1.0",
 		"node-cache": "^5.1.2",
