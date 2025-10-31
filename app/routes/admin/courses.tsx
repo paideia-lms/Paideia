@@ -17,7 +17,16 @@ import {
 	Title,
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconDots, IconPlus } from "@tabler/icons-react";
+import {
+	IconDatabase,
+	IconDots,
+	IconEye,
+	IconFolder,
+	IconPlus,
+	IconReportAnalytics,
+	IconSettings,
+	IconUsers,
+} from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useState } from "react";
@@ -99,7 +108,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -323,8 +332,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																		(id) => id !== course.id,
-																	),
+																	(id) => id !== course.id,
+																),
 														)
 													}
 												/>
@@ -365,27 +374,72 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 												<Text size="sm">{course.createdBy}</Text>
 											</Table.Td>
 											<Table.Td>
-												<Group gap="xs">
-													<Button
-														component={Link}
-														to={href("/course/:id", { id: String(course.id) })}
-														size="xs"
-														variant="light"
-													>
-														View
-													</Button>
-													<Button
-														component={Link}
-														to={href("/course/:id/settings", {
-															id: String(course.id),
-														})}
-														size="xs"
-														variant="light"
-														color="blue"
-													>
-														Edit
-													</Button>
-												</Group>
+												<Menu position="bottom-end">
+													<Menu.Target>
+														<ActionIcon variant="subtle">
+															<IconDots size={18} />
+														</ActionIcon>
+													</Menu.Target>
+													<Menu.Dropdown>
+														<Menu.Item
+															component={Link}
+															to={href("/course/:id", {
+																id: String(course.id),
+															})}
+															leftSection={<IconEye size={16} />}
+														>
+															View
+														</Menu.Item>
+														<Menu.Item
+															component={Link}
+															to={href("/course/:id/settings", {
+																id: String(course.id),
+															})}
+															leftSection={<IconSettings size={16} />}
+														>
+															Settings
+														</Menu.Item>
+														<Menu.Divider />
+														<Menu.Item
+															component={Link}
+															to={href("/course/:id/modules", {
+																id: String(course.id),
+															})}
+															leftSection={<IconFolder size={16} />}
+														>
+															Modules
+														</Menu.Item>
+														<Menu.Item
+															component={Link}
+															to={href("/course/:id/participants", {
+																id: String(course.id),
+															})}
+															leftSection={<IconUsers size={16} />}
+														>
+															Participants
+														</Menu.Item>
+														<Menu.Item
+															component={Link}
+															to={href("/course/:id/grades", {
+																id: String(course.id),
+															})}
+															leftSection={
+																<IconReportAnalytics size={16} />
+															}
+														>
+															Grades
+														</Menu.Item>
+														<Menu.Item
+															component={Link}
+															to={href("/course/:id/backup", {
+																id: String(course.id),
+															})}
+															leftSection={<IconDatabase size={16} />}
+														>
+															Backup
+														</Menu.Item>
+													</Menu.Dropdown>
+												</Menu>
 											</Table.Td>
 										</Table.Tr>
 									))

@@ -29,6 +29,8 @@ import "@mantine/dates/styles.css";
 import "@mantine/charts/styles.css";
 import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
+import 'mantine-datatable/styles.layer.css';
+
 
 import {
 	ColorSchemeScript,

@@ -44,6 +44,12 @@
 pre-commit:
   parallel: true
   jobs:
+    - name: check-changelog
+      run: |
+        if [ -z "$(git diff --cached --name-only --diff-filter=ACMR | grep '^changelogs/.*\.md$')" ]; then
+          echo "Error: At least one changelog file must be modified or added in changelogs/ directory"
+          exit 1
+        fi
     - name: typecheck
       run: bun typecheck
       stage_fixed: true
