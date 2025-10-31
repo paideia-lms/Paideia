@@ -73,6 +73,13 @@ export interface GradebookSetupForUI {
 		items: GradebookSetupItemWithCalculations[];
 		exclude_empty_grades: boolean;
 	};
+	totals: {
+		baseTotal: number;
+		extraCreditTotal: number;
+		calculatedTotal: number;
+		totalMaxGrade: number;
+	};
+	extraCreditItems: GradebookSetupItemWithCalculations[];
 }
 
 export interface GradebookJsonRepresentation {
@@ -567,79 +574,8 @@ export const tryGetGradebookSetupForUI = Result.wrap(
 		// Calculate adjusted weights
 		const itemsWithAdjusted = calculateAdjustedWeights(jsonData.gradebook_setup.items);
 
-		// Calculate overall weights
-		calculateOverallWeights(itemsWithAdjusted as GradebookSetupItemWithCalculations[]);
-
-		// Debug logging
-		console.log("=== BACKEND CALCULATION DEBUG ===");
-
-		// Log category structure
-		const logCategoryStructure = (items: typeof itemsWithAdjusted, depth = 0): void => {
-			for (const item of items) {
-				const indent = "  ".repeat(depth);
-				if (item.type === "category") {
-					console.log(`${indent}Category: ${item.name}, weight=${item.weight}, adjusted_weight=${item.adjusted_weight}`);
-					if (item.grade_items) {
-						logCategoryStructure(item.grade_items, depth + 1);
-					}
-				} else {
-					console.log(`${indent}Item: ${item.name}, weight=${item.weight}, adjusted_weight=${item.adjusted_weight}, overall_weight=${item.overall_weight}, extra_credit=${item.extra_credit ?? false}`);
-				}
-			}
-		};
-
-		console.log("Category structure:");
-		logCategoryStructure(itemsWithAdjusted);
-
-		// Calculate root-level totals
-		const rootCategories = itemsWithAdjusted.filter(item => item.type === "category");
-		const rootCategoryTotal = rootCategories.reduce((sum, cat) => sum + (cat.adjusted_weight ?? 0), 0);
-		const rootItems = itemsWithAdjusted.filter(item => item.type !== "category");
-		const rootItemsTotal = rootItems.reduce((sum, item) => sum + (item.adjusted_weight ?? 0), 0);
-
-		console.log(`Root-level category total: ${rootCategoryTotal}%`);
-		console.log(`Root-level items total: ${rootItemsTotal}%`);
-		console.log(`Root-level total (categories + items): ${rootCategoryTotal + rootItemsTotal}%`);
-
-		const collectLeafItems = (items: typeof itemsWithAdjusted): typeof itemsWithAdjusted => {
-			const leafItems: typeof itemsWithAdjusted = [];
-			for (const item of items) {
-				if (item.type === "category" && item.grade_items) {
-					leafItems.push(...collectLeafItems(item.grade_items));
-				} else {
-					leafItems.push(item);
-				}
-			}
-			return leafItems;
-		};
-
-		const allLeafItems = collectLeafItems(itemsWithAdjusted);
-		const baseItems = allLeafItems.filter((item) => !(item.extra_credit === true));
-		const extraCreditItems = allLeafItems.filter(
-			(item) => item.extra_credit === true && item.overall_weight !== null,
-		);
-
-		const baseTotal = baseItems.reduce((sum, item) => sum + (item.overall_weight ?? 0), 0);
-		const extraCreditTotal = extraCreditItems.reduce((sum, item) => sum + (item.overall_weight ?? 0), 0);
-		const calculatedTotal = 100 + extraCreditTotal;
-
-		console.log("Backend - Base items count:", baseItems.length);
-		console.log("Backend - Extra credit items count:", extraCreditItems.length);
-		console.log("Backend - Base total:", baseTotal);
-		console.log("Backend - Extra credit total:", extraCreditTotal);
-		console.log("Backend - Calculated total:", calculatedTotal);
-
-		console.log("Backend - Base items breakdown:");
-		baseItems.forEach((item, idx) => {
-			console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
-		});
-
-		console.log("Backend - Extra credit items breakdown:");
-		extraCreditItems.forEach((item, idx) => {
-			console.log(`  [${idx}] ${item.name}: overall_weight=${item.overall_weight}, adjusted_weight=${item.adjusted_weight}, weight=${item.weight}, extra_credit=${item.extra_credit ?? false}, type=${item.type}`);
-		});
-
-		console.log("=== END BACKEND CALCULATION DEBUG ===");
+		// Calculate overall weights and get totals
+		const totals = calculateOverallWeights(itemsWithAdjusted as GradebookSetupItemWithCalculations[]);
 
 		return {
 			gradebook_id: jsonData.gradebook_id,
@@ -648,6 +584,13 @@ export const tryGetGradebookSetupForUI = Result.wrap(
 				items: itemsWithAdjusted as GradebookSetupItemWithCalculations[],
 				exclude_empty_grades: jsonData.gradebook_setup.exclude_empty_grades,
 			},
+			totals: {
+				baseTotal: totals.baseTotal,
+				extraCreditTotal: totals.extraCreditTotal,
+				calculatedTotal: totals.calculatedTotal,
+				totalMaxGrade: totals.totalMaxGrade,
+			},
+			extraCreditItems: totals.extraCreditItems,
 		};
 	},
 	(error) =>

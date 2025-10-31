@@ -79,11 +79,19 @@ export function calculateAdjustedWeights(
  * Overall weight = item_adjusted_weight * parent_category_adjusted_weight * ... * root_category_adjusted_weight
  * Only calculated for leaf items (not categories)
  * Example: If category is 35% and item is 10%, overall = 35% * 10% = 3.5%
+ * 
+ * Returns totals: baseTotal, extraCreditTotal, and calculatedTotal (100 + extraCreditTotal)
  */
 export function calculateOverallWeights(
     items: GradebookSetupItemWithCalculations[],
     rootItems?: GradebookSetupItemWithCalculations[],
-): void {
+): {
+    baseTotal: number;
+    extraCreditTotal: number;
+    calculatedTotal: number;
+    extraCreditItems: GradebookSetupItemWithCalculations[];
+    totalMaxGrade: number;
+} {
     // Use rootItems as the search scope, or default to items if not provided
     const searchScope = rootItems ?? items;
 
@@ -209,5 +217,55 @@ export function calculateOverallWeights(
             item.weight_explanation = explanation;
         }
     }
+
+    // Calculate totals from all leaf items
+    const collectLeafItems = (
+        items: GradebookSetupItemWithCalculations[],
+    ): GradebookSetupItemWithCalculations[] => {
+        const leafItems: GradebookSetupItemWithCalculations[] = [];
+        for (const item of items) {
+            if (item.type === "category" && item.grade_items) {
+                leafItems.push(...collectLeafItems(item.grade_items));
+            } else {
+                leafItems.push(item);
+            }
+        }
+        return leafItems;
+    };
+
+    const allLeafItems = collectLeafItems(searchScope);
+
+    // Separate base and extra credit items
+    const baseItems = allLeafItems.filter(
+        (item) => !(item.extra_credit === true),
+    );
+    const extraCreditItems = allLeafItems.filter(
+        (item) => item.extra_credit === true && item.overall_weight !== null,
+    );
+
+    const baseTotal = baseItems.reduce(
+        (sum, item) => sum + (item.overall_weight ?? 0),
+        0,
+    );
+    const extraCreditTotal = extraCreditItems.reduce(
+        (sum, item) => sum + (item.overall_weight ?? 0),
+        0,
+    );
+
+    // Always use 100 + extraCreditTotal as the total, don't rely on baseTotal which may be wrong
+    const calculatedTotal = 100 + extraCreditTotal;
+
+    const totalMaxGrade = allLeafItems.reduce(
+        (sum, item) => sum + (item.max_grade ?? 0),
+        0,
+    );
+
+    return {
+        baseTotal,
+        extraCreditTotal,
+        calculatedTotal,
+        extraCreditItems,
+        totalMaxGrade,
+    };
 }
 

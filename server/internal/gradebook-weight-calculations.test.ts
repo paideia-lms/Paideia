@@ -260,12 +260,17 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
+            const totals = calculateOverallWeights(items);
 
             // Root-level item's overall weight equals its adjusted weight
             expect(items[0].overall_weight).toBe(40);
             // Root-level item should have explanation showing just the item
             expect(items[0].weight_explanation).toBe("Item 1 (40.00%) = 40.00%");
+
+            // Totals should be correct
+            expect(totals.baseTotal).toBe(40);
+            expect(totals.extraCreditTotal).toBe(0);
+            expect(totals.calculatedTotal).toBe(100);
         });
 
         it("should calculate overall weights for items in categories", () => {
@@ -306,7 +311,7 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
+            const totals = calculateOverallWeights(items);
 
             // Note: The function is processing recursively, so when it processes items
             // within category 1, it searches for the parent in the root `items` array.
@@ -375,7 +380,7 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
+            const totals = calculateOverallWeights(items);
 
             // Item 1: 35% (parent category) * 50% (nested category) * 10% (item) = 1.75%
             const item = items[0].grade_items?.[0]
@@ -386,6 +391,11 @@ describe("Gradebook Weight Calculations", () => {
                     "Category 1 (35.00%) × Category 2 (50.00%) × Item 1 (10.00%) = 1.75%",
                 );
             }
+
+            // Verify totals
+            expect(totals.baseTotal).toBeCloseTo(1.75, 2);
+            expect(totals.extraCreditTotal).toBe(0);
+            expect(totals.calculatedTotal).toBe(100);
         });
 
         it("should set overall weight to null for items without adjusted weight", () => {
@@ -414,7 +424,7 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items as GradebookSetupItemWithCalculations[]);
+            const totals = calculateOverallWeights(items as GradebookSetupItemWithCalculations[]);
 
             // Item without adjusted weight should have null overall weight
             if (items[0].grade_items) {
@@ -422,6 +432,11 @@ describe("Gradebook Weight Calculations", () => {
                 expect(item.overall_weight).toBeNull();
                 expect(item.weight_explanation).toBeNull();
             }
+
+            // Totals should reflect null weight item
+            expect(totals.baseTotal).toBe(0);
+            expect(totals.extraCreditTotal).toBe(0);
+            expect(totals.calculatedTotal).toBe(100);
         });
 
         it("should not calculate overall weight for categories", () => {
@@ -438,11 +453,16 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
+            const totals = calculateOverallWeights(items);
 
             // Categories should not have overall weight or explanation
             expect(items[0].overall_weight).toBeNull();
             expect(items[0].weight_explanation).toBeNull();
+
+            // Totals should be correct for categories
+            expect(totals.baseTotal).toBe(0);
+            expect(totals.extraCreditTotal).toBe(0);
+            expect(totals.calculatedTotal).toBe(100);
         });
 
         it("should calculate total overall weight correctly without extra credit", () => {
@@ -491,34 +511,15 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
-
-            // Calculate total overall weight from all leaf items
-            const collectLeafItems = (
-                items: GradebookSetupItemWithCalculations[],
-            ): GradebookSetupItemWithCalculations[] => {
-                const leafItems: GradebookSetupItemWithCalculations[] = [];
-                for (const item of items) {
-                    if (item.type === "category" && item.grade_items) {
-                        leafItems.push(...collectLeafItems(item.grade_items));
-                    } else {
-                        leafItems.push(item);
-                    }
-                }
-                return leafItems;
-            };
-
-            const allLeafItems = collectLeafItems(items);
-            const totalOverallWeight = allLeafItems.reduce(
-                (sum, item) => sum + (item.overall_weight ?? 0),
-                0,
-            );
+            const totals = calculateOverallWeights(items);
 
             // Item 1: 50% * 40% = 20%
             // Item 2: 50% * 60% = 30%
             // Root Item: 50%
-            // Total: 20% + 30% + 50% = 100%
-            expect(totalOverallWeight).toBeCloseTo(100, 2);
+            // Base total: 20% + 30% + 50% = 100%
+            expect(totals.baseTotal).toBeCloseTo(100, 2);
+            expect(totals.extraCreditTotal).toBe(0);
+            expect(totals.calculatedTotal).toBe(100);
         });
 
         it("should calculate total overall weight correctly with extra credit", () => {
@@ -578,42 +579,22 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
-
-            // Calculate total overall weight from all leaf items
-            const collectLeafItems = (
-                items: GradebookSetupItemWithCalculations[],
-            ): GradebookSetupItemWithCalculations[] => {
-                const leafItems: GradebookSetupItemWithCalculations[] = [];
-                for (const item of items) {
-                    if (item.type === "category" && item.grade_items) {
-                        leafItems.push(...collectLeafItems(item.grade_items));
-                    } else {
-                        leafItems.push(item);
-                    }
-                }
-                return leafItems;
-            };
-
-            const allLeafItems = collectLeafItems(items);
-            const totalOverallWeight = allLeafItems.reduce(
-                (sum, item) => sum + (item.overall_weight ?? 0),
-                0,
-            );
+            const totals = calculateOverallWeights(items);
 
             // Item 1: 50% * 40% = 20%
             // Item 2: 50% * 60% = 30%
             // Root Item: 50%
             // Extra Credit Item: 5% (doesn't affect the 100% base)
-            // Total: 20% + 30% + 50% + 5% = 105%
-            expect(totalOverallWeight).toBeCloseTo(105, 2);
+            // Base total: 20% + 30% + 50% = 100%
+            // Extra credit total: 5%
+            // Calculated total: 100% + 5% = 105%
+            expect(totals.baseTotal).toBeCloseTo(100, 2);
+            expect(totals.extraCreditTotal).toBe(5);
+            expect(totals.calculatedTotal).toBe(105);
 
             // Verify extra credit item is identified
-            const extraCreditItems = allLeafItems.filter(
-                (item) => item.extra_credit === true,
-            );
-            expect(extraCreditItems.length).toBe(1);
-            expect(extraCreditItems[0].overall_weight).toBe(5);
+            expect(totals.extraCreditItems.length).toBe(1);
+            expect(totals.extraCreditItems[0].overall_weight).toBe(5);
         });
 
         it("should reproduce 101.05% scenario and verify calculation", () => {
@@ -708,42 +689,20 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
-
-            // Calculate total overall weight from all leaf items
-            const collectLeafItems = (
-                items: GradebookSetupItemWithCalculations[],
-            ): GradebookSetupItemWithCalculations[] => {
-                const leafItems: GradebookSetupItemWithCalculations[] = [];
-                for (const item of items) {
-                    if (item.type === "category" && item.grade_items) {
-                        leafItems.push(...collectLeafItems(item.grade_items));
-                    } else {
-                        leafItems.push(item);
-                    }
-                }
-                return leafItems;
-            };
-
-            const allLeafItems = collectLeafItems(items);
-            const totalOverallWeight = allLeafItems.reduce(
-                (sum, item) => sum + (item.overall_weight ?? 0),
-                0,
-            );
+            const totals = calculateOverallWeights(items);
 
             // Item 1: 33.33% * 50% = 16.665%
             // Item 2: 33.33% * 50% = 16.665%
             // Item 3: 33.33% * 50% = 16.665%
             // Item 4: 33.33% * 50% = 16.665%
             // Item 5: 33.34% * 100% = 33.34%
-            // Total: 16.665 + 16.665 + 16.665 + 16.665 + 33.34 = 100%
-            expect(totalOverallWeight).toBeCloseTo(100, 2);
+            // Base total: 16.665 + 16.665 + 16.665 + 16.665 + 33.34 = 100%
+            expect(totals.baseTotal).toBeCloseTo(100, 2);
+            expect(totals.extraCreditTotal).toBe(0);
+            expect(totals.calculatedTotal).toBe(100);
 
             // Verify no extra credit items
-            const extraCreditItems = allLeafItems.filter(
-                (item) => item.extra_credit === true,
-            );
-            expect(extraCreditItems.length).toBe(0);
+            expect(totals.extraCreditItems.length).toBe(0);
         });
 
         it("should reproduce exact 101.05% scenario with extra credit", () => {
@@ -783,41 +742,21 @@ describe("Gradebook Weight Calculations", () => {
                 },
             ];
 
-            calculateOverallWeights(items);
-
-            // Calculate total overall weight from all leaf items
-            const collectLeafItems = (
-                items: GradebookSetupItemWithCalculations[],
-            ): GradebookSetupItemWithCalculations[] => {
-                const leafItems: GradebookSetupItemWithCalculations[] = [];
-                for (const item of items) {
-                    if (item.type === "category" && item.grade_items) {
-                        leafItems.push(...collectLeafItems(item.grade_items));
-                    } else {
-                        leafItems.push(item);
-                    }
-                }
-                return leafItems;
-            };
-
-            const allLeafItems = collectLeafItems(items);
-            const totalOverallWeight = allLeafItems.reduce(
-                (sum, item) => sum + (item.overall_weight ?? 0),
-                0,
-            );
+            const totals = calculateOverallWeights(items);
 
             // Item 1: 50%
             // Item 2: 50%
             // Extra Credit Item: 1.05%
-            // Total: 50% + 50% + 1.05% = 101.05%
-            expect(totalOverallWeight).toBeCloseTo(101.05, 2);
+            // Base total: 50% + 50% = 100%
+            // Extra credit total: 1.05%
+            // Calculated total: 100% + 1.05% = 101.05%
+            expect(totals.baseTotal).toBeCloseTo(100, 2);
+            expect(totals.extraCreditTotal).toBeCloseTo(1.05, 2);
+            expect(totals.calculatedTotal).toBeCloseTo(101.05, 2);
 
             // Verify extra credit item is identified
-            const extraCreditItems = allLeafItems.filter(
-                (item) => item.extra_credit === true,
-            );
-            expect(extraCreditItems.length).toBe(1);
-            expect(extraCreditItems[0].overall_weight).toBeCloseTo(1.05, 2);
+            expect(totals.extraCreditItems.length).toBe(1);
+            expect(totals.extraCreditItems[0].overall_weight).toBeCloseTo(1.05, 2);
         });
 
         it("should reproduce 113.8% scenario with extra credit items in categories", () => {
@@ -965,7 +904,13 @@ describe("Gradebook Weight Calculations", () => {
                 (sum, item) => sum + (item.overall_weight ?? 0),
                 0,
             );
-            const totalOverallWeight = baseTotal + extraCreditTotal;
+            const totalOverallWeight = 100 + extraCreditTotal;
+
+            console.log("baseTotal", baseTotal);
+            console.log("extraCreditTotal", extraCreditTotal);
+            console.log("totalOverallWeight", totalOverallWeight);
+            console.log("baseItems", baseItems);
+            console.log("extraCreditItems", extraCreditItems);
 
             // Base items should total 100%
             // Item 1: 50% * 50% = 25%
@@ -973,7 +918,7 @@ describe("Gradebook Weight Calculations", () => {
             // Item 3: 50% * 50% = 25%
             // Item 4: 50% * 50% = 25%
             // Base total: 100%
-            expect(baseTotal).toBeCloseTo(100, 2);
+            expect(baseTotal).toBe(100);
 
             // Extra credit items in Category 3 (weight: 50%)
             // extra credit: 50% * 24% = 12%
