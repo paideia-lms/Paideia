@@ -86,6 +86,8 @@ export const globalContext = createContext<{
 	routeHierarchy: RouteInfo[];
 	pageInfo: PageInfo;
 	platformInfo: PlatformDetectionResult;
+	bunVersion: string;
+	bunRevision: string;
 }>();
 
 // ! we can use string as key, please see https://github.com/remix-run/react-router/blob/c1cddedf656271a3eec8368f2854c733b3fe27da/packages/react-router/lib/router/utils.ts#L209

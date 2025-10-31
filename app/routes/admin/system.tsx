@@ -32,8 +32,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can view system information");
 	}
 
-	// Get platform info from global context (static, detected at startup)
-	const { platformInfo } = context.get(globalContextKey);
+	// Get platform info and Bun version from global context (static, detected at startup)
+	const { platformInfo, bunVersion, bunRevision } = context.get(globalContextKey);
 
 	// Detect system resources (dynamic, needs to be refreshed)
 	const systemResources = await detectSystemResources();
@@ -41,6 +41,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	return {
 		platformInfo,
 		systemResources,
+		bunVersion,
+		bunRevision,
 	};
 };
 
@@ -475,7 +477,7 @@ function SystemResourcesSection({
 }
 
 export default function SystemPage({ loaderData }: Route.ComponentProps) {
-	const { platformInfo, systemResources } = loaderData;
+	const { platformInfo, systemResources, bunVersion, bunRevision } = loaderData;
 	const revalidator = useRevalidator();
 
 	const { start, stop, active } = useInterval(
@@ -521,6 +523,30 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 
 				<PlatformInfoSection platformInfo={platformInfo} />
 				<SystemResourcesSection systemResources={systemResources} />
+
+				<Paper withBorder shadow="sm" p="md" radius="md">
+					<Stack gap="md">
+						<Title order={2}>Bun Runtime</Title>
+						<Group gap="xl">
+							<Box>
+								<Text size="xs" c="dimmed">
+									Version
+								</Text>
+								<Text size="sm" fw={500}>
+									{bunVersion}
+								</Text>
+							</Box>
+							<Box>
+								<Text size="xs" c="dimmed">
+									Revision
+								</Text>
+								<Text size="sm" fw={500} style={{ fontFamily: "monospace" }}>
+									{bunRevision}
+								</Text>
+							</Box>
+						</Group>
+					</Stack>
+				</Paper>
 			</Stack>
 		</Container>
 	);

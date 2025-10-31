@@ -153,6 +153,124 @@ describe("Gradebook Category Management", () => {
 			expect(result.value.name).toBe("Test Subcategory");
 			expect(result.value.parent).toBeDefined();
 			testSubCategory = result.value;
+
+			// Verify the parent relationship
+			const parentId =
+				typeof result.value.parent === "number"
+					? result.value.parent
+					: result.value.parent?.id;
+			expect(parentId).toBe(testCategory.id);
+
+			// Verify the category can be found after creation
+			const findResult = await tryFindGradebookCategoryById(
+				payload,
+				result.value.id,
+			);
+			expect(findResult.ok).toBe(true);
+			if (findResult.ok) {
+				const foundParentId =
+					typeof findResult.value.parent === "number"
+						? findResult.value.parent
+						: findResult.value.parent?.id;
+				expect(foundParentId).toBe(testCategory.id);
+				expect(findResult.value.name).toBe("Test Subcategory");
+			}
+		}
+	});
+
+	it("should persist nested category after creation", async () => {
+		// Create a root category for nested testing
+		const rootCategoryResult = await tryCreateGradebookCategory(
+			payload,
+			{} as Request,
+			{
+				gradebookId: testGradebook.id,
+				name: "Root Category for Nested Test",
+				sortOrder: 10,
+			},
+		);
+
+		expect(rootCategoryResult.ok).toBe(true);
+		if (!rootCategoryResult.ok) {
+			throw new Error("Failed to create root category");
+		}
+
+		const rootCategory = rootCategoryResult.value;
+
+		// Create a nested category
+		const nestedCategoryResult = await tryCreateGradebookCategory(
+			payload,
+			{} as Request,
+			{
+				gradebookId: testGradebook.id,
+				parentId: rootCategory.id,
+				name: "Nested Category Test",
+				description: "This should persist",
+				sortOrder: 0,
+			},
+		);
+
+		expect(nestedCategoryResult.ok).toBe(true);
+		if (!nestedCategoryResult.ok) {
+			throw new Error(
+				`Failed to create nested category: ${nestedCategoryResult.error.message}`,
+			);
+		}
+
+		const nestedCategory = nestedCategoryResult.value;
+
+		// Verify parent relationship in created result
+		const parentId =
+			typeof nestedCategory.parent === "number"
+				? nestedCategory.parent
+				: nestedCategory.parent?.id;
+		expect(parentId).toBe(rootCategory.id);
+		expect(nestedCategory.name).toBe("Nested Category Test");
+
+		// Wait a bit to ensure transaction is committed
+		await new Promise((resolve) => setTimeout(resolve, 100));
+
+		// Verify the nested category can be found by ID
+		const findNestedResult = await tryFindGradebookCategoryById(
+			payload,
+			nestedCategory.id,
+		);
+		expect(findNestedResult.ok).toBe(true);
+		if (!findNestedResult.ok) {
+			throw new Error("Nested category not found after creation");
+		}
+
+		const foundNested = findNestedResult.value;
+		expect(foundNested.id).toBe(nestedCategory.id);
+		expect(foundNested.name).toBe("Nested Category Test");
+
+		// Verify parent relationship persists
+		const foundParentId =
+			typeof foundNested.parent === "number"
+				? foundNested.parent
+				: foundNested.parent?.id;
+		expect(foundParentId).toBe(rootCategory.id);
+
+		// Verify in hierarchy
+		const hierarchyResult = await tryGetGradebookCategoriesHierarchy(
+			payload,
+			testGradebook.id,
+		);
+		expect(hierarchyResult.ok).toBe(true);
+		if (hierarchyResult.ok) {
+			const rootInHierarchy = hierarchyResult.value.find(
+				(cat) => cat.id === rootCategory.id,
+			);
+			expect(rootInHierarchy).toBeDefined();
+			if (rootInHierarchy) {
+				const nestedInHierarchy = rootInHierarchy.children.find(
+					(cat) => cat.id === nestedCategory.id,
+				);
+				expect(nestedInHierarchy).toBeDefined();
+				if (nestedInHierarchy) {
+					expect(nestedInHierarchy.name).toBe("Nested Category Test");
+				}
+			}
 		}
 	});
 

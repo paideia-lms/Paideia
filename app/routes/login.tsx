@@ -23,6 +23,15 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 	const { payload } = context.get(globalContextKey);
 
+	const firstUser = await payload.find({
+		collection: "users",
+		limit: 1,
+	});
+
+	if (firstUser.docs.length === 0) {
+		throw redirect(href("/registration"));
+	}
+
 	const settingsResult = await tryGetRegistrationSettings({
 		payload,
 		// ! this is a system request, we don't care about access control

@@ -8,9 +8,12 @@ import {
 	GradebookNotFoundError,
 	InvalidSortOrderError,
 	TransactionIdNotFoundError,
+	transformError,
+	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
 import type { GradebookCategory } from "../payload-types";
+import { tryGetGradebookJsonRepresentation } from "./gradebook-management";
 
 export interface CreateGradebookCategoryArgs {
 	gradebookId: number;
@@ -105,21 +108,43 @@ export const tryCreateGradebookCategory = Result.wrap(
 		}
 
 		try {
+			const categoryData: {
+				gradebook: number;
+				parent?: number | null;
+				name: string;
+				description?: string | null;
+				weight: number;
+				sortOrder: number;
+			} = {
+				gradebook: gradebookId,
+				name,
+				weight,
+				sortOrder,
+			};
+
+			if (parentId !== undefined) {
+				categoryData.parent = parentId;
+			}
+
+			if (description !== undefined) {
+				categoryData.description = description;
+			}
+
 			const newCategory = await payload.create({
 				collection: GradebookCategories.slug,
-				data: {
-					gradebook: gradebookId,
-					parent: parentId,
-					name,
-					description,
-					weight,
-					sortOrder,
-				},
+				data: categoryData,
 				req: { ...request, transactionID },
 			});
 
+			console.log("newCategory", newCategory);
+
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
+
+			// get JSON representation
+			const jsonRepresentation = await tryGetGradebookJsonRepresentation(payload, gradebookId);
+
+			console.log("jsonRepresentation", JSON.stringify(jsonRepresentation.value, null, 2));
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -158,9 +183,8 @@ export const tryCreateGradebookCategory = Result.wrap(
 		}
 	},
 	(error) =>
-		new Error(
-			`Failed to create gradebook category: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to create gradebook category", { cause: error }),
 );
 
 /**
@@ -230,9 +254,8 @@ export const tryFindGradebookCategoryById = Result.wrap(
 		return category as GradebookCategory;
 	},
 	(error) =>
-		new Error(
-			`Failed to find gradebook category by ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find gradebook category by ID", { cause: error }),
 );
 
 /**
@@ -249,9 +272,8 @@ export const tryDeleteGradebookCategory = Result.wrap(
 		return deletedCategory as GradebookCategory;
 	},
 	(error) =>
-		new Error(
-			`Failed to delete gradebook category: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to delete gradebook category", { cause: error }),
 );
 
 /**
@@ -307,9 +329,8 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
 		return rootCategories;
 	},
 	(error) =>
-		new Error(
-			`Failed to get gradebook categories hierarchy: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to get gradebook categories hierarchy", { cause: error }),
 );
 
 /**
@@ -348,9 +369,8 @@ export const tryGetNextSortOrder = Result.wrap(
 		return lastCategory.sortOrder + 1;
 	},
 	(error) =>
-		new Error(
-			`Failed to get next sort order: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to get next sort order", { cause: error }),
 );
 
 /**
@@ -388,7 +408,6 @@ export const tryReorderCategories = Result.wrap(
 		}
 	},
 	(error) =>
-		new Error(
-			`Failed to reorder categories: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to reorder categories", { cause: error }),
 );

@@ -79,62 +79,6 @@ export const tryCreateGradebookItem = Result.wrap(
 			throw new InvalidSortOrderError("Sort order must be non-negative");
 		}
 
-		// Check if gradebook exists
-		const gradebook = await payload.findByID({
-			collection: "gradebooks",
-			id: gradebookId,
-			req: request,
-		});
-
-		if (!gradebook) {
-			throw new GradebookNotFoundError(
-				`Gradebook with ID ${gradebookId} not found`,
-			);
-		}
-
-		// Check if category exists (if provided)
-		if (categoryId) {
-			const category = await payload.findByID({
-				collection: "gradebook-categories",
-				id: categoryId,
-				req: request,
-			});
-
-			if (!category) {
-				throw new GradebookCategoryNotFoundError(
-					`Category with ID ${categoryId} not found`,
-				);
-			}
-
-			// Ensure category belongs to the same gradebook
-			const categoryGradebook = category.gradebook;
-			assertZodInternal(
-				"tryCreateGradebookItem: Category gradebook is required",
-				categoryGradebook,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			if (categoryGradebook.id !== gradebookId) {
-				throw new Error("Category must belong to the same gradebook");
-			}
-		}
-
-		// Check if activity module exists (if provided)
-		if (activityModuleId) {
-			const activityModule = await payload.findByID({
-				collection: "activity-modules",
-				id: activityModuleId,
-				req: request,
-			});
-
-			if (!activityModule) {
-				throw new Error(
-					`Activity module with ID ${activityModuleId} not found`,
-				);
-			}
-		}
 
 		const transactionID =
 			args.transactionID || (await payload.db.beginTransaction());

@@ -195,7 +195,7 @@ export default function RegistrationView({ loaderData }: Route.ComponentProps) {
                         </Alert>
                     )}
                     <RegistrationClient NODE_ENV={NODE_ENV} DEV_CONSTANTS={DEV_CONSTANTS} />
-                    {!registrationDisabled && (
+                    {!registrationDisabled && !isFirstUser && (
                         <Text ta="center" c="dimmed" size="sm" style={{ marginTop: "4px" }}>
                             <Anchor component={Link} to={href("/login")} underline="always">
                                 Already have an account? Login

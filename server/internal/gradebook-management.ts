@@ -11,6 +11,8 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { Gradebook } from "../payload-types";
+import { buildCategoryStructure } from "./build-gradebook-structure";
+import type { CategoryData, ItemData } from "./build-gradebook-structure";
 
 export interface CreateGradebookArgs {
 	courseId: number;
@@ -34,22 +36,38 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-		| "manual_item"
-		| "category"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "category"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
 	grade_items?: GradebookSetupItem[];
 }
 
+export interface GradebookSetupItemWithCalculations extends GradebookSetupItem {
+	adjusted_weight: number | null;
+	overall_weight: number | null; // Only for leaf items
+	weight_explanation: string | null; // Human-readable explanation of overall weight calculation
+	grade_items?: GradebookSetupItemWithCalculations[];
+}
+
 export interface GradebookSetup {
 	items: GradebookSetupItem[];
 	exclude_empty_grades: boolean;
+}
+
+export interface GradebookSetupForUI {
+	gradebook_id: number;
+	course_id: number;
+	gradebook_setup: {
+		items: GradebookSetupItemWithCalculations[];
+		exclude_empty_grades: boolean;
+	};
 }
 
 export interface GradebookJsonRepresentation {
@@ -296,6 +314,192 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 );
 
 /**
+ * Calculates adjusted weights for items using Moodle's weight distribution logic
+ * - Items with specified weights use those weights
+ * - Items without specified weights get equal shares of the remaining weight
+ * - Total always equals 100% at each level
+ */
+export function calculateAdjustedWeights(
+	items: GradebookSetupItem[],
+): GradebookSetupItemWithCalculations[] {
+	const result: GradebookSetupItemWithCalculations[] = [];
+
+	// First, calculate adjusted weights for nested items in categories
+	for (const item of items) {
+		const processedItem: GradebookSetupItemWithCalculations = {
+			...item,
+			adjusted_weight: null,
+			overall_weight: null,
+			weight_explanation: null,
+			grade_items: item.grade_items
+				? calculateAdjustedWeights(item.grade_items)
+				: undefined,
+		};
+
+
+		// Calculate adjusted weight for this item
+		const itemsWithWeight = items.filter((item) => item.weight !== null);
+		const itemsWithoutWeight = items.filter((item) => item.weight === null);
+
+		const totalSpecifiedWeight = itemsWithWeight.reduce(
+			(sum, item) => sum + (item.weight ?? 0),
+			0,
+		);
+
+		const remainingWeight = Math.max(0, 100 - totalSpecifiedWeight);
+		const distributedWeightPerItem =
+			itemsWithoutWeight.length > 0 ? remainingWeight / itemsWithoutWeight.length : 0;
+
+		if (item.weight !== null) {
+			// Item has specified weight, use it as adjusted weight
+			processedItem.adjusted_weight = item.weight;
+		} else {
+			// Item has no specified weight, use distributed weight
+			processedItem.adjusted_weight =
+				itemsWithoutWeight.length > 0 && distributedWeightPerItem > 0
+					? distributedWeightPerItem
+					: null;
+		}
+
+		result.push(processedItem);
+	}
+
+	return result;
+}
+
+/**
+ * Calculates overall weight for all items in a gradebook structure
+ * Overall weight = item_adjusted_weight * parent_category_adjusted_weight * ... * root_category_adjusted_weight
+ * Only calculated for leaf items (not categories)
+ * Example: If category is 35% and item is 10%, overall = 35% * 10% = 3.5%
+ */
+export function calculateOverallWeights(
+	items: GradebookSetupItemWithCalculations[],
+	rootItems?: GradebookSetupItemWithCalculations[],
+): void {
+	// Use rootItems as the search scope, or default to items if not provided
+	const searchScope = rootItems ?? items;
+
+	// Helper function to find the direct parent category that contains an item
+	const findContainingCategory = (
+		itemId: number,
+		searchItems: GradebookSetupItemWithCalculations[],
+	): GradebookSetupItemWithCalculations | undefined => {
+		for (const item of searchItems) {
+			if (item.type === "category" && item.grade_items) {
+				// Check if this category directly contains the item we're looking for
+				if (item.grade_items.some((subItem) => subItem.id === itemId)) {
+					return item;
+				}
+				// Recursively search nested categories - return the direct parent found
+				const nestedResult = findContainingCategory(
+					itemId,
+					item.grade_items as GradebookSetupItemWithCalculations[],
+				);
+				if (nestedResult) {
+					// Return the nested result (direct parent), not the outer category
+					// The traversal up the tree will happen in the while loop
+					return nestedResult;
+				}
+			}
+		}
+		return undefined;
+	};
+
+	// Process all items recursively
+	for (const item of items) {
+		if (item.type === "category") {
+			// Categories don't have overall weight or explanation
+			item.overall_weight = null;
+			item.weight_explanation = null;
+
+			// Recursively calculate overall weights for nested items if they exist
+			if (item.grade_items) {
+				calculateOverallWeights(
+					item.grade_items as GradebookSetupItemWithCalculations[],
+					searchScope,
+				);
+			}
+		} else {
+			// This is a leaf item, calculate overall weight
+			if (item.adjusted_weight === null) {
+				item.overall_weight = null;
+				item.weight_explanation = null;
+				continue;
+			}
+
+			// Find containing category in the root scope
+			const containingCategory = findContainingCategory(item.id, searchScope);
+
+			if (!containingCategory) {
+				// Root-level item, overall weight equals adjusted weight
+				item.overall_weight = item.adjusted_weight;
+				item.weight_explanation = `${item.name} (${item.adjusted_weight.toFixed(2)}%) = ${item.adjusted_weight.toFixed(2)}%`;
+				continue;
+			}
+
+			// Start with the item's adjusted weight as a decimal
+			let overallWeight = item.adjusted_weight / 100;
+
+			// Collect parent categories for explanation (from root to direct parent)
+			const categoryChain: Array<{
+				name: string;
+				adjusted_weight: number | null;
+			}> = [];
+
+			// Multiply by all parent category adjusted weights
+			let currentCategory: GradebookSetupItemWithCalculations | undefined =
+				containingCategory;
+
+			while (currentCategory) {
+				categoryChain.unshift({
+					name: currentCategory.name,
+					adjusted_weight: currentCategory.adjusted_weight,
+				});
+
+				if (
+					currentCategory.adjusted_weight !== null &&
+					currentCategory.adjusted_weight !== undefined
+				) {
+					overallWeight *= currentCategory.adjusted_weight / 100;
+				} else {
+					// If category has no weight, assume 100% (no effect)
+					overallWeight *= 1;
+				}
+
+				// Find parent category by traversing the tree
+				currentCategory = findContainingCategory(currentCategory.id, searchScope);
+			}
+
+			// Convert back to percentage
+			item.overall_weight = overallWeight * 100;
+
+			// Build explanation string
+			const explanationParts: string[] = [];
+
+			// Add all parent categories
+			for (const category of categoryChain) {
+				const weightText =
+					category.adjusted_weight !== null
+						? `${category.adjusted_weight.toFixed(2)}%`
+						: "100%";
+				explanationParts.push(`${category.name} (${weightText})`);
+			}
+
+			// Add the item itself
+			explanationParts.push(
+				`${item.name} (${item.adjusted_weight.toFixed(2)}%)`,
+			);
+
+			// Combine with multiplication signs and add result
+			const explanation = `${explanationParts.join(" × ")} = ${item.overall_weight.toFixed(2)}%`;
+
+			item.weight_explanation = explanation;
+		}
+	}
+}
+
+/**
  * Constructs a JSON representation of the gradebook structure
  */
 export const tryGetGradebookJsonRepresentation = Result.wrap(
@@ -450,12 +654,35 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 			});
 
 		// Wait for both queries to complete
-		const [categories, items] = await Promise.all([
+		const [categoriesData, itemsData] = await Promise.all([
 			categoriesPromise,
 			itemsPromise,
 		]);
 
-		// Build the structure
+		// Map categories to CategoryData type
+		const categories: CategoryData[] = categoriesData.map((category) => ({
+			id: category.id,
+			gradebook: category.gradebook,
+			parent: category.parent ?? null,
+			name: category.name,
+			weight: category.weight ?? null,
+			subcategories: category.subcategories,
+			items: category.items,
+		}));
+
+		// Map items to ItemData type
+		const items: ItemData[] = itemsData.map((item) => ({
+			id: item.id,
+			gradebook: item.gradebook,
+			category: item.category ?? null,
+			name: item.name,
+			activityModuleType: item.activityModuleType,
+			activityModuleName: item.activityModuleName,
+			weight: item.weight,
+			maxGrade: item.maxGrade,
+		}));
+
+		// Build the structure recursively
 		const setupItems: GradebookSetupItem[] = [];
 
 		// Process root-level items (items without a category)
@@ -470,37 +697,18 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 			});
 		}
 
-		// Process categories
-		const rootCategories = categories.filter((category) => !category.parent);
-		for (const category of rootCategories) {
-			const categoryItems = items.filter(
-				(item) => item.category === category.id,
-			);
+		// Process root categories (categories without a parent) recursively
+		// Note: buildCategoryStructure(null) only processes categories, not items,
+		// because root items are handled separately above
+		const rootCategoryStructures = buildCategoryStructure(
+			null,
+			categories,
+			items,
+		);
+		setupItems.push(...rootCategoryStructures);
 
-			const gradeItems: GradebookSetupItem[] = categoryItems.map((item) => ({
-				id: item.id,
-				type: (item.activityModuleType ?? "manual_item") as
-					| "manual_item"
-					| "category"
-					| "page"
-					| "whiteboard"
-					| "assignment"
-					| "quiz"
-					| "discussion",
-				name: item.activityModuleName ?? item.name,
-				weight: item.weight || null,
-				max_grade: item.maxGrade || null,
-			}));
-
-			setupItems.push({
-				id: category.id,
-				type: "category",
-				name: category.name,
-				weight: category.weight || null,
-				max_grade: null, // Categories don't have max_grade
-				grade_items: gradeItems,
-			});
-		}
+		// Note: We don't calculate adjusted weights here since this is the raw JSON representation
+		// Adjusted weights are calculated in tryGetGradebookSetupForUI
 
 		const result: GradebookJsonRepresentation = {
 			gradebook_id: gradebookId,
@@ -516,6 +724,83 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get gradebook JSON representation", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets gradebook setup with calculations for UI display
+ * This includes adjusted weights and overall weights, which are not in JSON/YAML
+ */
+export const tryGetGradebookSetupForUI = Result.wrap(
+	async (payload: Payload, gradebookId: number) => {
+		// Get raw JSON representation (without calculations)
+		const jsonResult = await tryGetGradebookJsonRepresentation(payload, gradebookId);
+
+		if (!jsonResult.ok) {
+			throw jsonResult.error;
+		}
+
+		const jsonData = jsonResult.value;
+
+		// Calculate adjusted weights
+		const itemsWithAdjusted = calculateAdjustedWeights(jsonData.gradebook_setup.items);
+
+		// Calculate overall weights
+		calculateOverallWeights(itemsWithAdjusted as GradebookSetupItemWithCalculations[]);
+
+		return {
+			gradebook_id: jsonData.gradebook_id,
+			course_id: jsonData.course_id,
+			gradebook_setup: {
+				items: itemsWithAdjusted as GradebookSetupItemWithCalculations[],
+				exclude_empty_grades: jsonData.gradebook_setup.exclude_empty_grades,
+			},
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get gradebook setup for UI", {
+			cause: error,
+		}),
+);
+
+/**
+ * Constructs a YAML representation of the gradebook structure
+ * Built on top of the JSON representation
+ */
+export const tryGetGradebookYAMLRepresentation = Result.wrap(
+	async (payload: Payload, gradebookId: number) => {
+		// Get JSON representation first
+		const jsonResult = await tryGetGradebookJsonRepresentation(
+			payload,
+			gradebookId,
+		);
+
+		if (!jsonResult.ok) {
+			throw jsonResult.error;
+		}
+
+		const jsonRepresentation = jsonResult.value;
+
+		// Convert JSON to YAML using Bun.YAML.stringify
+		let yamlString: string;
+		try {
+			yamlString = Bun.YAML?.stringify(jsonRepresentation, null, 2);
+			if (!yamlString) {
+				throw new Error("Bun.YAML is not available");
+			}
+		} catch (error) {
+			throw new Error(
+				`Failed to convert JSON to YAML: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+
+		return yamlString;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get gradebook YAML representation", {
 			cause: error,
 		}),
 );

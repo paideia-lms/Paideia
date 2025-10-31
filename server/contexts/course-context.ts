@@ -12,8 +12,12 @@ import type { CourseStructure } from "server/internal/course-section-management"
 import { tryGetCourseStructure } from "server/internal/course-section-management";
 import {
 	type GradebookJsonRepresentation,
+	type GradebookSetupForUI,
+	type GradebookSetupItemWithCalculations,
 	tryGetGradebookByCourseWithDetails,
 	tryGetGradebookJsonRepresentation,
+	tryGetGradebookSetupForUI,
+	tryGetGradebookYAMLRepresentation,
 } from "server/internal/gradebook-management";
 import { canAccessCourse } from "server/utils/permissions";
 import { Result } from "typescript-result";
@@ -52,12 +56,12 @@ export type Enrollment = {
 	role: "student" | "teacher" | "ta" | "manager";
 	status: "active" | "inactive" | "completed" | "dropped";
 	avatar:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+	}
+	| null;
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	groups: Group[];
@@ -84,12 +88,12 @@ type ActivityModule = {
 		firstName?: string | null;
 		lastName?: string | null;
 		avatar:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-			  }
-			| null;
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+		}
+		| null;
 	};
 	updatedAt: string;
 	createdAt: string;
@@ -133,18 +137,26 @@ export interface Course {
 	};
 	category?: Category | null;
 	thumbnail?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+	}
+	| null;
 	updatedAt: string;
 	createdAt: string;
 	enrollments: Enrollment[];
 	groups: Group[];
 	moduleLinks: CourseActivityModuleLink[];
 }
+
+export type FlattenedCategory = {
+	id: number;
+	name: string;
+	parentId: number | null;
+	depth: number;
+	path: string; // Full path like "Parent > Child > Grandchild"
+};
 
 export interface CourseContext {
 	course: Course;
@@ -154,6 +166,9 @@ export interface CourseContext {
 	courseStructureTreeSimple: string;
 	gradebook: GradebookData | null;
 	gradebookJson: GradebookJsonRepresentation | null;
+	gradebookYaml: string | null;
+	gradebookSetupForUI: GradebookSetupForUI | null;
+	flattenedCategories: FlattenedCategory[];
 }
 
 export const courseContext = createContext<CourseContext | null>(null);
@@ -172,9 +187,9 @@ export const tryGetCourseContext = async (
 		courseId: courseId,
 		user: user
 			? {
-					...user,
-					avatar: user.avatar?.id,
-				}
+				...user,
+				avatar: user.avatar?.id,
+			}
 			: null,
 		// ! we cannot use overrideAccess true here
 	});
@@ -229,29 +244,29 @@ export const tryGetCourseContext = async (
 			lastName: course.createdBy.lastName,
 			avatar: course.createdBy.avatar
 				? {
-						id: course.createdBy.avatar.id,
-						filename: course.createdBy.avatar.filename,
-					}
+					id: course.createdBy.avatar.id,
+					filename: course.createdBy.avatar.filename,
+				}
 				: null,
 		},
 		category: course.category
 			? {
-					id: course.category.id,
-					name: course.category.name,
-					parent: course.category.parent
-						? {
-								id: course.category.parent.id,
-								name: course.category.parent.name,
-							}
-						: null,
-				}
+				id: course.category.id,
+				name: course.category.name,
+				parent: course.category.parent
+					? {
+						id: course.category.parent.id,
+						name: course.category.parent.name,
+					}
+					: null,
+			}
 			: null,
 		thumbnail: course.thumbnail
 			? typeof course.thumbnail === "object"
 				? {
-						id: course.thumbnail.id,
-						filename: course.thumbnail.filename,
-					}
+					id: course.thumbnail.id,
+					filename: course.thumbnail.filename,
+				}
 				: course.thumbnail
 			: null,
 		updatedAt: course.updatedAt,
@@ -295,35 +310,35 @@ export const tryGetCourseContext = async (
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
 	const moduleLinks = linksResult.ok
 		? linksResult.value.map((link) => ({
-				id: link.id,
-				activityModule: {
-					id: link.activityModule.id,
-					title: link.activityModule.title || "",
-					description: link.activityModule.description || "",
-					type: link.activityModule.type as
-						| "page"
-						| "whiteboard"
-						| "assignment"
-						| "quiz"
-						| "discussion",
-					status: link.activityModule.status as
-						| "draft"
-						| "published"
-						| "archived",
-					createdBy: {
-						id: link.activityModule.createdBy.id,
-						email: link.activityModule.createdBy.email,
-						firstName: link.activityModule.createdBy.firstName,
-						lastName: link.activityModule.createdBy.lastName,
-						avatar: link.activityModule.createdBy.avatar ?? null,
-					},
-					updatedAt: link.activityModule.updatedAt,
-					createdAt: link.activityModule.createdAt,
+			id: link.id,
+			activityModule: {
+				id: link.activityModule.id,
+				title: link.activityModule.title || "",
+				description: link.activityModule.description || "",
+				type: link.activityModule.type as
+					| "page"
+					| "whiteboard"
+					| "assignment"
+					| "quiz"
+					| "discussion",
+				status: link.activityModule.status as
+					| "draft"
+					| "published"
+					| "archived",
+				createdBy: {
+					id: link.activityModule.createdBy.id,
+					email: link.activityModule.createdBy.email,
+					firstName: link.activityModule.createdBy.firstName,
+					lastName: link.activityModule.createdBy.lastName,
+					avatar: link.activityModule.createdBy.avatar ?? null,
 				},
-				settings: link.settings as CourseActivityModuleLink["settings"],
-				createdAt: link.createdAt,
-				updatedAt: link.updatedAt,
-			}))
+				updatedAt: link.activityModule.updatedAt,
+				createdAt: link.activityModule.createdAt,
+			},
+			settings: link.settings as CourseActivityModuleLink["settings"],
+			createdAt: link.createdAt,
+			updatedAt: link.updatedAt,
+		}))
 		: [];
 
 	// Update course with moduleLinks
@@ -365,19 +380,22 @@ export const tryGetCourseContext = async (
 	);
 
 	// Fetch gradebook data
-	let gradebookData: GradebookData | null = null;
-	let gradebookJsonData: GradebookJsonRepresentation | null = null;
-
 	const gradebookResult = await tryGetGradebookByCourseWithDetails(
 		payload,
 		courseId,
 	);
 
+	let gradebookData: GradebookData | null = null;
+	let gradebookJsonData: GradebookJsonRepresentation | null = null;
+	let gradebookYamlData: string | null = null;
+	let gradebookSetupForUIData: GradebookSetupForUI | null = null;
+	let flattenedCategoriesData: FlattenedCategory[] = [];
+
 	if (gradebookResult.ok) {
 		const gradebook = gradebookResult.value;
 		gradebookData = gradebook as GradebookData;
 
-		// Fetch gradebook JSON representation
+		// Fetch gradebook JSON representation (raw database data, no calculations)
 		const gradebookJsonResult = await tryGetGradebookJsonRepresentation(
 			payload,
 			gradebook.id,
@@ -385,8 +403,36 @@ export const tryGetCourseContext = async (
 
 		if (gradebookJsonResult.ok) {
 			gradebookJsonData = gradebookJsonResult.value;
+
+			// Fetch gradebook setup for UI (includes calculations)
+			const gradebookSetupForUIResult = await tryGetGradebookSetupForUI(
+				payload,
+				gradebook.id,
+			);
+
+			if (gradebookSetupForUIResult.ok) {
+				gradebookSetupForUIData = gradebookSetupForUIResult.value;
+
+				// Flatten categories from gradebook setup
+				flattenedCategoriesData = flattenGradebookCategories(
+					gradebookSetupForUIData.gradebook_setup.items,
+				);
+			}
+
+			// Fetch gradebook YAML representation (built on top of JSON, no calculations)
+			const gradebookYamlResult = await tryGetGradebookYAMLRepresentation(
+				payload,
+				gradebook.id,
+			);
+
+			if (gradebookYamlResult.ok) {
+				gradebookYamlData = gradebookYamlResult.value;
+			}
 		}
 	}
+
+
+
 
 	return Result.ok({
 		course: courseWithModuleLinks,
@@ -396,5 +442,50 @@ export const tryGetCourseContext = async (
 		courseStructureTreeSimple,
 		gradebook: gradebookData,
 		gradebookJson: gradebookJsonData,
+		gradebookYaml: gradebookYamlData,
+		gradebookSetupForUI: gradebookSetupForUIData,
+		flattenedCategories: flattenedCategoriesData,
 	});
 };
+
+/**
+ * Flattens the gradebook category structure recursively to get all categories
+ * including nested ones, with their hierarchy information
+ */
+function flattenGradebookCategories(
+	items: GradebookSetupItemWithCalculations[],
+	parentId: number | null = null,
+	depth: number = 0,
+	parentPath: string = "",
+): FlattenedCategory[] {
+	const result: FlattenedCategory[] = [];
+
+	for (const item of items) {
+		if (item.type === "category") {
+			const currentPath = parentPath
+				? `${parentPath} > ${item.name}`
+				: item.name;
+
+			result.push({
+				id: item.id,
+				name: item.name,
+				parentId,
+				depth,
+				path: currentPath,
+			});
+
+			// Recursively process nested categories
+			if (item.grade_items) {
+				const nestedCategories = flattenGradebookCategories(
+					item.grade_items,
+					item.id,
+					depth + 1,
+					currentPath,
+				);
+				result.push(...nestedCategories);
+			}
+		}
+	}
+
+	return result;
+}

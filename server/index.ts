@@ -42,9 +42,9 @@ const payload = await getPayload({
 });
 
 // console.log("Payload: ", payload)
-// if (process.env.NODE_ENV === "development") {
-// 	await runSeed({ payload });
-// }
+if (process.env.NODE_ENV === "development") {
+	await runSeed({ payload });
+}
 
 const port = Number(envVars.PORT.value) || envVars.PORT.default;
 const frontendPort =
@@ -52,6 +52,10 @@ const frontendPort =
 
 // Detect platform info once at startup
 const platformInfo = detectPlatform();
+
+// Get Bun version and revision
+const bunVersion = typeof Bun !== "undefined" ? Bun.version : "unknown";
+const bunRevision = typeof Bun !== "undefined" ? Bun.revision : "unknown";
 
 const backend = new Elysia()
 	.state("payload", payload)
@@ -76,6 +80,8 @@ const frontend = new Elysia()
 						unstorage,
 						envVars: envVars,
 						platformInfo,
+						bunVersion,
+						bunRevision,
 						// some fake data for now
 						routeHierarchy: [],
 						pageInfo: {
