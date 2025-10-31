@@ -17,7 +17,7 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormData } from "@remix-run/form-data-parser";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import * as cheerio from "cheerio";
 import { useId, useState } from "react";
@@ -109,8 +109,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -268,7 +268,7 @@ export const action = async ({
 			}
 		};
 
-		const formData = await parseFormData(
+		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
 		);

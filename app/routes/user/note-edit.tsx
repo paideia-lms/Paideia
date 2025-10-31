@@ -4,7 +4,7 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormData } from "@remix-run/form-data-parser";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import * as cheerio from "cheerio";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
@@ -18,12 +18,12 @@ import {
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
+import { ContentType } from "~/utils/get-content-type";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 
 export const loader = async ({
-	request,
 	context,
 	params,
 }: Route.LoaderArgs) => {
@@ -134,7 +134,7 @@ export const action = async ({
 			}
 		};
 
-		const formData = await parseFormData(
+		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
 		);
@@ -236,27 +236,14 @@ export const clientAction = async ({
 	return actionData;
 };
 
-export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
-	return <DefaultErrorBoundary error={error} />;
-};
+const useUpdateNote = () => {
+	const fetcher = useFetcher<typeof clientAction>();
 
-export default function NoteEditPage({
-	loaderData,
-	actionData,
-}: Route.ComponentProps) {
-	const navigate = useNavigate();
-	const fetcher = useFetcher<typeof action>();
-	const [content, setContent] = useState(loaderData.note.content);
-	const [isPublic, setIsPublic] = useState(loaderData.note.isPublic);
-	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
-
-	const handleImageAdd = (imageFile: ImageFile) => {
-		setImageFiles((prev) => [...prev, imageFile]);
-	};
-
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-
+	const updateNote = (
+		content: string,
+		isPublic: boolean,
+		imageFiles: ImageFile[],
+	) => {
 		// Create form data with content and isPublic
 		const formData = new FormData();
 		formData.append("content", content);
@@ -271,8 +258,42 @@ export default function NoteEditPage({
 		// Submit with fetcher
 		fetcher.submit(formData, {
 			method: "POST",
-			encType: "multipart/form-data",
+			encType: ContentType.MULTIPART,
 		});
+	};
+
+	return {
+		updateNote,
+		isSubmitting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+		fetcher,
+	};
+};
+
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	return <DefaultErrorBoundary error={error} />;
+};
+
+export default function NoteEditPage({
+	loaderData,
+	actionData,
+}: Route.ComponentProps) {
+	const navigate = useNavigate();
+	const { updateNote, fetcher } = useUpdateNote();
+	const [content, setContent] = useState(loaderData.note.content);
+	const [isPublic, setIsPublic] = useState(
+		Boolean(loaderData.note.isPublic),
+	);
+	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+
+	const handleImageAdd = (imageFile: ImageFile) => {
+		setImageFiles((prev) => [...prev, imageFile]);
+	};
+
+	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		updateNote(content, isPublic, imageFiles);
 	};
 
 	return (

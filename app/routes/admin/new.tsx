@@ -19,7 +19,7 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormData } from "@remix-run/form-data-parser";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { useState } from "react";
 import { redirect, useFetcher } from "react-router";
@@ -128,7 +128,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			}
 		};
 
-		const formData = await parseFormData(
+		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
 		);

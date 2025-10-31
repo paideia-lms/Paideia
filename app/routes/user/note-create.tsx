@@ -1,9 +1,10 @@
 import { Container, Stack, Title } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormData } from "@remix-run/form-data-parser";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import * as cheerio from "cheerio";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
@@ -13,11 +14,12 @@ import { tryCreateMedia } from "server/internal/media-management";
 import { tryCreateNote } from "server/internal/note-management";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
+import { ContentType } from "~/utils/get-content-type";
 import { assertRequestMethod } from "~/utils/assert-request-method";
-import { badRequest, NotFoundResponse, unauthorized } from "~/utils/responses";
+import { badRequest, NotFoundResponse, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/note-create";
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -51,7 +53,10 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!currentUser) {
-		throw new NotFoundResponse("Unauthorized");
+		return unauthorized({
+			success: false,
+			error: "Unauthorized",
+		});
 	}
 
 	// Start transaction for atomic media creation + note creation
@@ -97,7 +102,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			}
 		};
 
-		const formData = await parseFormData(
+		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
 		);
@@ -107,9 +112,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 		if (!content || content.trim().length === 0) {
 			await payload.db.rollbackTransaction(transactionID);
-			return {
+			return badRequest({
 				error: "Note content cannot be empty",
-			};
+			});
 		}
 
 		// Replace base64 images with actual media URLs
@@ -166,9 +171,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 		if (!result.ok) {
 			await payload.db.rollbackTransaction(transactionID);
-			return {
+			return badRequest({
 				error: result.error.message,
-			};
+			});
 		}
 
 		// Commit the transaction
@@ -185,20 +190,28 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	}
 };
 
-export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
-	const navigate = useNavigate();
-	const fetcher = useFetcher<typeof action>();
-	const [content, setContent] = useState("");
-	const [isPublic, setIsPublic] = useState(false);
-	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+export const clientAction = async ({
+	serverAction,
+}: Route.ClientActionArgs) => {
+	const actionData = await serverAction();
+	if (actionData?.status === StatusCode.BadRequest) {
+		notifications.show({
+			title: "Error",
+			message: actionData?.error,
+			color: "red",
+		});
+	}
+	return actionData;
+};
 
-	const handleImageAdd = (imageFile: ImageFile) => {
-		setImageFiles((prev) => [...prev, imageFile]);
-	};
+const useCreateNote = () => {
+	const fetcher = useFetcher<typeof clientAction>();
 
-	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-
+	const createNote = (
+		content: string,
+		isPublic: boolean,
+		imageFiles: ImageFile[],
+	) => {
 		// Create form data with content and isPublic
 		const formData = new FormData();
 		formData.append("content", content);
@@ -213,8 +226,33 @@ export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
 		// Submit with fetcher
 		fetcher.submit(formData, {
 			method: "POST",
-			encType: "multipart/form-data",
+			encType: ContentType.MULTIPART,
 		});
+	};
+
+	return {
+		createNote,
+		isSubmitting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+		fetcher,
+	};
+};
+
+export default function NoteCreatePage({ actionData }: Route.ComponentProps) {
+	const navigate = useNavigate();
+	const { createNote, fetcher } = useCreateNote();
+	const [content, setContent] = useState("");
+	const [isPublic, setIsPublic] = useState(false);
+	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
+
+	const handleImageAdd = (imageFile: ImageFile) => {
+		setImageFiles((prev) => [...prev, imageFile]);
+	};
+
+	const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+		event.preventDefault();
+		createNote(content, isPublic, imageFiles);
 	};
 
 	return (

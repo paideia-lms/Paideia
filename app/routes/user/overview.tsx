@@ -20,7 +20,7 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormData } from "@remix-run/form-data-parser";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	IconBooks,
 	IconEye,
@@ -190,7 +190,7 @@ export const action = async ({
 			}
 		};
 
-		const formData = await parseFormData(
+		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
 		);

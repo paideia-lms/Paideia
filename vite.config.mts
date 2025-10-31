@@ -29,6 +29,11 @@ export default defineConfig({
 		include: ["@excalidraw/excalidraw"],
 	},
 	ssr: {
-		external: ["@excalidraw/excalidraw"],
+		external: ["@excalidraw/excalidraw", "bun"],
+	},
+	build: {
+		rollupOptions: {
+			external: ["bun"],
+		},
 	},
 });
