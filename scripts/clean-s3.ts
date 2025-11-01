@@ -63,4 +63,7 @@ export async function deleteEverythingInBucket(): Promise<void> {
 	}
 }
 
-await deleteEverythingInBucket();
+// Only run if this file is executed directly
+if (import.meta.main) {
+	await deleteEverythingInBucket();
+}
