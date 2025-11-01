@@ -63,6 +63,7 @@
 		"@monaco-editor/react": "^4.7.0",
 		"@payloadcms/db-postgres": "^3.62.0",
 		"@payloadcms/email-nodemailer": "^3.62.0",
+		"@payloadcms/email-resend": "^3.62.0",
 		"@payloadcms/plugin-search": "^3.62.0",
 		"@payloadcms/storage-s3": "^3.62.0",
 		"@react-router/fs-routes": "^7.9.5",

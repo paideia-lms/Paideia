@@ -51,10 +51,12 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	// Check if email is configured
-	const emailConfigured =
+	const resendConfigured = !!envVars.RESEND_API_KEY.value;
+	const smtpConfigured =
 		!!envVars.SMTP_HOST.value &&
 		!!envVars.SMTP_USER.value &&
 		!!envVars.SMTP_PASS.value;
+	const emailConfigured = resendConfigured || smtpConfigured;
 
 	// if (!emailConfigured) {
 	// 	throw new NotFoundResponse(
@@ -63,9 +65,16 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// }
 
 	return {
+		emailProvider: resendConfigured ? "resend" : smtpConfigured ? "smtp" : null,
+		resendApiKeySet: resendConfigured,
+		fromAddress:
+			envVars.EMAIL_FROM_ADDRESS.value ??
+			envVars.EMAIL_FROM_ADDRESS.default ??
+			"",
+		fromName:
+			envVars.EMAIL_FROM_NAME.value ?? envVars.EMAIL_FROM_NAME.default ?? "",
 		smtpHost: envVars.SMTP_HOST.value || "",
 		smtpUser: envVars.SMTP_USER.value || "",
-		fromAddress: "info@paideialms.com", // Default from payload config
 		emailConfigured,
 	};
 };
@@ -223,7 +232,15 @@ export function useSendTestEmail() {
 }
 
 export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
-	const { smtpHost, smtpUser, fromAddress, emailConfigured } = loaderData;
+	const {
+		emailProvider,
+		resendApiKeySet,
+		fromAddress,
+		fromName,
+		smtpHost,
+		smtpUser,
+		emailConfigured,
+	} = loaderData;
 	const { sendTestEmail, isLoading } = useSendTestEmail();
 
 	const form = useForm({
@@ -261,8 +278,9 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 						</Text>
 						<Alert color="orange" icon={<IconAlertTriangle size={16} />}>
 							<Text size="xs">
-								To configure email, set the following environment variables:
-								SMTP_HOST, SMTP_USER, and SMTP_PASS
+								To configure email, either set RESEND_API_KEY (for Resend) or
+								SMTP_HOST, SMTP_USER, and SMTP_PASS (for SMTP). Optionally set
+								EMAIL_FROM_ADDRESS and EMAIL_FROM_NAME for both providers.
 							</Text>
 						</Alert>
 					</Stack>
@@ -325,14 +343,25 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 					>
 						<Text size="sm">
 							Email is not currently configured on this system. Any test emails
-							will fail to send. To configure email, set the following
-							environment variables: <strong>SMTP_HOST</strong>,{" "}
-							<strong>SMTP_USER</strong>, and <strong>SMTP_PASS</strong>.
+							will fail to send. To configure email, either:
 						</Text>
+						<Stack gap="xs" mt="xs">
+							<Text size="sm">
+								<strong>Option 1 (Resend):</strong> Set <strong>RESEND_API_KEY</strong>{" "}
+								environment variable (optionally <strong>EMAIL_FROM_ADDRESS</strong> and{" "}
+								<strong>EMAIL_FROM_NAME</strong>).
+							</Text>
+							<Text size="sm">
+								<strong>Option 2 (SMTP):</strong> Set <strong>SMTP_HOST</strong>,{" "}
+								<strong>SMTP_USER</strong>, and <strong>SMTP_PASS</strong>{" "}
+								environment variables (optionally <strong>EMAIL_FROM_ADDRESS</strong> and{" "}
+								<strong>EMAIL_FROM_NAME</strong>).
+							</Text>
+						</Stack>
 					</Alert>
 				)}
 
-				{/* SMTP Configuration Info */}
+				{/* Email Configuration Info */}
 				<Alert
 					icon={<IconInfoCircle size={20} />}
 					title="Current Email Configuration"
@@ -340,14 +369,53 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 				>
 					<Stack gap="xs">
 						<Text size="sm">
-							<strong>SMTP Host:</strong> {smtpHost || "(not set)"}
+							<strong>Provider:</strong>{" "}
+							{emailProvider === "resend"
+								? "Resend"
+								: emailProvider === "smtp"
+									? "SMTP (Nodemailer)"
+									: "Not configured"}
 						</Text>
-						<Text size="sm">
-							<strong>SMTP User:</strong> {smtpUser || "(not set)"}
-						</Text>
-						<Text size="sm">
-							<strong>From Address:</strong> {fromAddress}
-						</Text>
+						{emailProvider === "resend" && (
+							<>
+								<Text size="sm">
+									<strong>Resend API Key:</strong>{" "}
+									{resendApiKeySet ? "✓ Set (hidden)" : "(not set)"}
+								</Text>
+								<Text size="sm">
+									<strong>From Address:</strong> {fromAddress || "(default)"}
+								</Text>
+								<Text size="sm">
+									<strong>From Name:</strong> {fromName || "(default)"}
+								</Text>
+							</>
+						)}
+						{emailProvider === "smtp" && (
+							<>
+								<Text size="sm">
+									<strong>SMTP Host:</strong> {smtpHost || "(not set)"}
+								</Text>
+								<Text size="sm">
+									<strong>SMTP User:</strong> {smtpUser || "(not set)"}
+								</Text>
+								<Text size="sm">
+									<strong>From Address:</strong> {fromAddress || "(default)"}
+								</Text>
+								<Text size="sm">
+									<strong>From Name:</strong> {fromName || "(default)"}
+								</Text>
+							</>
+						)}
+						{!emailProvider && (
+							<>
+								<Text size="sm">
+									<strong>From Address:</strong> {fromAddress || "(default, not configured)"}
+								</Text>
+								<Text size="sm">
+									<strong>From Name:</strong> {fromName || "(default, not configured)"}
+								</Text>
+							</>
+						)}
 					</Stack>
 				</Alert>
 
@@ -418,9 +486,10 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 
 				<Alert color="gray" icon={<IconInfoCircle size={20} />}>
 					<Text size="sm">
-						<strong>Note:</strong> If you receive the test email, your SMTP
+						<strong>Note:</strong> If you receive the test email, your email
 						configuration is working correctly. If not, please check your
-						environment variables and SMTP server settings.
+						environment variables and email provider settings (Resend API key or SMTP
+						credentials).
 					</Text>
 				</Alert>
 			</Stack>

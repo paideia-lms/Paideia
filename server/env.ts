@@ -70,6 +70,23 @@ export const envVars = {
 		sensitive: true,
 		value: process.env.SMTP_PASS,
 	},
+	RESEND_API_KEY: {
+		required: false,
+		sensitive: true,
+		value: process.env.RESEND_API_KEY,
+	},
+	EMAIL_FROM_ADDRESS: {
+		required: false,
+		sensitive: false,
+		value: process.env.EMAIL_FROM_ADDRESS,
+		default: "info@paideialms.com",
+	},
+	EMAIL_FROM_NAME: {
+		required: false,
+		sensitive: false,
+		value: process.env.EMAIL_FROM_NAME,
+		default: "Paideia LMS",
+	},
 	SANDBOX_MODE: {
 		required: false,
 		sensitive: false,

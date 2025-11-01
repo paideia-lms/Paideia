@@ -1,6 +1,7 @@
 import path from "node:path";
 import { postgresAdapter } from "@payloadcms/db-postgres";
 import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
+import { resendAdapter } from "@payloadcms/email-resend";
 import { searchPlugin } from "@payloadcms/plugin-search";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
@@ -201,13 +202,33 @@ const sanitizedConfig = buildConfig({
 		// 	password: devConstants.ADMIN_PASSWORD,
 		// } : undefined,
 	},
-	email:
-		envVars.SMTP_HOST.value &&
+	email: (() => {
+		// Shared default values for both email adapters
+		const defaultFromAddress =
+			envVars.EMAIL_FROM_ADDRESS.value ??
+			envVars.EMAIL_FROM_ADDRESS.default ??
+			"info@paideialms.com";
+		const defaultFromName =
+			envVars.EMAIL_FROM_NAME.value ??
+			envVars.EMAIL_FROM_NAME.default ??
+			"Paideia LMS";
+
+		if (envVars.RESEND_API_KEY.value) {
+			return resendAdapter({
+				apiKey: envVars.RESEND_API_KEY.value,
+				defaultFromAddress,
+				defaultFromName,
+			});
+		}
+
+		if (
+			envVars.SMTP_HOST.value &&
 			envVars.SMTP_USER.value &&
 			envVars.SMTP_PASS.value
-			? nodemailerAdapter({
-				defaultFromAddress: "info@payloadcms.com",
-				defaultFromName: "Payload",
+		) {
+			return nodemailerAdapter({
+				defaultFromAddress,
+				defaultFromName,
 				// Nodemailer transportOptions
 				transportOptions: {
 					host: envVars.SMTP_HOST.value,
@@ -217,8 +238,11 @@ const sanitizedConfig = buildConfig({
 						pass: envVars.SMTP_PASS.value,
 					},
 				},
-			})
-			: undefined,
+			});
+		}
+
+		return undefined;
+	})(),
 	plugins: [
 		searchPlugin({
 			collections: [Users.slug, Courses.slug],
