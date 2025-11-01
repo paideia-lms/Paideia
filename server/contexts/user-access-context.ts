@@ -153,7 +153,6 @@ export const getUserAccessContext = async (
 			}) satisfies Enrollment,
 
 	);
-	console.log(enrollments.value);
 
 	const activityModules = [
 		...modulesOwnedOrGranted.map((module) => ({

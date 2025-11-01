@@ -273,7 +273,7 @@ export const action = async ({
 			uploadHandler as FileUploadHandler,
 		);
 
-		console.log(formData.get("category"));
+		// console.log(formData.get("category"));
 
 		const parsed = inputSchema.safeParse({
 			title: formData.get("title"),

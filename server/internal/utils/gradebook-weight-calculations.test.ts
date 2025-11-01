@@ -906,11 +906,11 @@ describe("Gradebook Weight Calculations", () => {
             );
             const totalOverallWeight = 100 + extraCreditTotal;
 
-            console.log("baseTotal", baseTotal);
-            console.log("extraCreditTotal", extraCreditTotal);
-            console.log("totalOverallWeight", totalOverallWeight);
-            console.log("baseItems", baseItems);
-            console.log("extraCreditItems", extraCreditItems);
+            // console.log("baseTotal", baseTotal);
+            // console.log("extraCreditTotal", extraCreditTotal);
+            // console.log("totalOverallWeight", totalOverallWeight);
+            // console.log("baseItems", baseItems);
+            // console.log("extraCreditItems", extraCreditItems);
 
             // Base items should total 100%
             // Item 1: 50% * 50% = 25%

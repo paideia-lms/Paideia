@@ -11,6 +11,21 @@ const buildFiles = await readdir("./build/client", {
 	files.filter((f) => f.isFile()).map((f) => `./${f.parentPath}/${f.name}`),
 );
 
+// read all fixture files
+const fixtureFiles = await readdir("./fixture", {
+	withFileTypes: true,
+	recursive: true,
+}).then((files) =>
+	files
+		.filter((f) => f.isFile())
+		.map((f) => {
+			// parentPath is already "./fixture", so just construct the path
+			// Remove leading "./" to get "fixture/filename.ext"
+			const fullPath = `${f.parentPath}/${f.name}`;
+			return fullPath.replace(/^\.\//, "");
+		}),
+);
+
 console.log(buildFiles);
 
 // generate vfs.ts
@@ -23,12 +38,26 @@ async function generateVfs() {
 		}),
 	);
 
+	// Process fixture files - paths are already in format "fixture/filename.ext"
+	const fixtureRelativeFiles = fixtureFiles;
+	const fixtureFileContents = await Promise.all(
+		fixtureFiles.map(async (filePath) => {
+			// filePath is "fixture/filename.ext", use as-is for Bun.file (it expects "./fixture/...")
+			const buffer = await Bun.file(`./${filePath}`).bytes();
+			return Buffer.from(buffer).toString("base64");
+		}),
+	);
+
+	// Combine build files and fixture files
+	const allFiles = [...relativeFiles, ...fixtureRelativeFiles];
+	const allContents = [...fileContents, ...fixtureFileContents];
+
 	return `export default {
-  ${relativeFiles
+  ${allFiles
 			.map((f, i) => {
 				// Strip 'client/' prefix for serving static assets
 				const servePath = f.startsWith("client/") ? f.replace("client/", "") : f;
-				return `"${servePath}": "${fileContents[i]}"`;
+				return `"${servePath}": "${allContents[i]}"`;
 			})
 			.join(",\n")}
 };

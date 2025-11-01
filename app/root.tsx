@@ -586,6 +586,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		timestamp: timestamp,
 		pageInfo: pageInfo,
 		theme: theme,
+		isDevelopment: process.env.NODE_ENV === "development",
 	};
 }
 
@@ -618,7 +619,7 @@ function ClientHintCheck() {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme } = loaderData;
+	const { theme, isDevelopment } = loaderData;
 
 	return (
 		<html
@@ -641,15 +642,15 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
 				/>
-				<script
+				{!isDevelopment && <script
 					crossOrigin="anonymous"
 					src="https://unpkg.com/react-scan/dist/auto.global.js"
-				/>
-				<script
+				/>}
+				{!isDevelopment && <script
 					src="https://unpkg.com/react-grab/dist/index.global.js"
 					crossOrigin="anonymous"
 					data-enabled="true"
-				/>
+				/>}
 				<Meta />
 				<Links />
 				<ColorSchemeScript defaultColorScheme={theme} />

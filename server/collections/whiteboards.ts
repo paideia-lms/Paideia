@@ -14,6 +14,20 @@ export const Whiteboards = {
 			name: "content",
 			type: "textarea",
 			label: "Whiteboard Content (JSON)",
+			validate: (value: string | undefined) => {
+				// Allow empty content
+				if (!value || value.trim() === "") {
+					return true;
+				}
+
+				// Validate that content is valid JSON
+				try {
+					JSON.parse(value);
+					return true;
+				} catch (error) {
+					return `Invalid JSON: ${error instanceof Error ? error.message : String(error)}`;
+				}
+			},
 		},
 		{
 			name: "createdBy",

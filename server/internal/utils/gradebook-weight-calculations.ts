@@ -150,11 +150,11 @@ export function calculateOverallWeights(
                 // Root-level item, overall weight equals adjusted weight
                 item.overall_weight = item.adjusted_weight;
                 item.weight_explanation = `${item.name} (${item.adjusted_weight.toFixed(2)}%) = ${item.adjusted_weight.toFixed(2)}%`;
-                console.log(`[calculateOverallWeights] Root item ${item.id} "${item.name}": adjusted_weight=${item.adjusted_weight}, overall_weight=${item.overall_weight}`);
+                // console.log(`[calculateOverallWeights] Root item ${item.id} "${item.name}": adjusted_weight=${item.adjusted_weight}, overall_weight=${item.overall_weight}`);
                 continue;
             }
 
-            console.log(`[calculateOverallWeights] Item ${item.id} "${item.name}": adjusted_weight=${item.adjusted_weight}, found in category ${containingCategory.id} "${containingCategory.name}"`);
+            // console.log(`[calculateOverallWeights] Item ${item.id} "${item.name}": adjusted_weight=${item.adjusted_weight}, found in category ${containingCategory.id} "${containingCategory.name}"`);
 
             // Start with the item's adjusted weight as a decimal
             let overallWeight = item.adjusted_weight / 100;
@@ -192,7 +192,7 @@ export function calculateOverallWeights(
             // Convert back to percentage
             item.overall_weight = overallWeight * 100;
 
-            console.log(`[calculateOverallWeights] Item ${item.id} "${item.name}": calculated overall_weight=${item.overall_weight}, category chain: ${categoryChain.map(c => `${c.name}(${c.adjusted_weight ?? 'null'}%)`).join(' -> ')}`);
+            // console.log(`[calculateOverallWeights] Item ${item.id} "${item.name}": calculated overall_weight=${item.overall_weight}, category chain: ${categoryChain.map(c => `${c.name}(${c.adjusted_weight ?? 'null'}%)`).join(' -> ')}`);
 
             // Build explanation string
             const explanationParts: string[] = [];

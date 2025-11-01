@@ -39,6 +39,8 @@ export function WhiteboardPreview({ content }: WhiteboardPreviewProps) {
 		}
 	}, [colorScheme]);
 
+	console.log(initialData);
+
 	return (
 		<Paper
 			ref={fullscreenRef}
