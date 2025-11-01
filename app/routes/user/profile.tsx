@@ -10,7 +10,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconUserCheck } from "@tabler/icons-react";
-import { Link, redirect, useFetcher } from "react-router";
+import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
@@ -225,9 +225,9 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 								<Button
 									component={Link}
 									to={
-										isOwnProfile
-											? "/user/preference"
-											: `/user/preference/${user.id}`
+										href("/user/overview/:id?", {
+											id: user.id.toString(),
+										})
 									}
 									variant="light"
 								>

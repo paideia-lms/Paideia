@@ -70,6 +70,16 @@ export const envVars = {
 		sensitive: true,
 		value: process.env.SMTP_PASS,
 	},
+	SANDBOX_MODE: {
+		required: false,
+		sensitive: false,
+		value: process.env.SANDBOX_MODE,
+		default: "0",
+		get enabled() {
+			const val = this.value ?? this.default;
+			return val === "1" || val === "true";
+		},
+	},
 	// R2_URL: {
 	//     required: false,
 	//     sensitive: true,

@@ -22,6 +22,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TYPE "public"."enum_user_grades_submission_type" AS ENUM('assignment', 'quiz', 'discussion', 'manual');
   CREATE TYPE "public"."enum_user_grades_base_grade_source" AS ENUM('submission', 'manual');
   CREATE TYPE "public"."enum_user_grades_status" AS ENUM('draft', 'graded', 'returned');
+  CREATE TYPE "public"."enum_payload_jobs_log_task_slug" AS ENUM('inline', 'sandboxReset');
+  CREATE TYPE "public"."enum_payload_jobs_log_state" AS ENUM('failed', 'succeeded');
+  CREATE TYPE "public"."enum_payload_jobs_task_slug" AS ENUM('inline', 'sandboxReset');
   CREATE TABLE "users_sessions" (
   	"_order" integer NOT NULL,
   	"_parent_id" integer NOT NULL,
@@ -183,8 +186,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"allow_late_submissions" boolean DEFAULT false,
   	"max_file_size" numeric DEFAULT 10,
   	"max_files" numeric DEFAULT 1,
-  	"require_text_submission" boolean DEFAULT false,
-  	"require_file_submission" boolean DEFAULT false,
+  	"require_text_submission" boolean DEFAULT true,
+  	"require_file_submission" boolean DEFAULT true,
   	"created_by_id" integer NOT NULL,
   	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
   	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
@@ -555,6 +558,42 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"courses_id" integer
   );
   
+  CREATE TABLE "payload_kv" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"key" varchar NOT NULL,
+  	"data" jsonb NOT NULL
+  );
+  
+  CREATE TABLE "payload_jobs_log" (
+  	"_order" integer NOT NULL,
+  	"_parent_id" integer NOT NULL,
+  	"id" varchar PRIMARY KEY NOT NULL,
+  	"executed_at" timestamp(3) with time zone NOT NULL,
+  	"completed_at" timestamp(3) with time zone NOT NULL,
+  	"task_slug" "enum_payload_jobs_log_task_slug" NOT NULL,
+  	"task_i_d" varchar NOT NULL,
+  	"input" jsonb,
+  	"output" jsonb,
+  	"state" "enum_payload_jobs_log_state" NOT NULL,
+  	"error" jsonb
+  );
+  
+  CREATE TABLE "payload_jobs" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"input" jsonb,
+  	"completed_at" timestamp(3) with time zone,
+  	"total_tried" numeric DEFAULT 0,
+  	"has_error" boolean DEFAULT false,
+  	"error" jsonb,
+  	"task_slug" "enum_payload_jobs_task_slug",
+  	"queue" varchar DEFAULT 'default',
+  	"wait_until" timestamp(3) with time zone,
+  	"processing" boolean DEFAULT false,
+  	"meta" jsonb,
+  	"updated_at" timestamp(3) with time zone DEFAULT now() NOT NULL,
+  	"created_at" timestamp(3) with time zone DEFAULT now() NOT NULL
+  );
+  
   CREATE TABLE "payload_locked_documents" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"global_slug" varchar,
@@ -592,7 +631,9 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"course_grade_tables_id" integer,
   	"groups_id" integer,
   	"user_grades_id" integer,
-  	"search_id" integer
+  	"search_id" integer,
+  	"payload_kv_id" integer,
+  	"payload_jobs_id" integer
   );
   
   CREATE TABLE "payload_preferences" (
@@ -630,6 +671,21 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE TABLE "system_grade_table" (
   	"id" serial PRIMARY KEY NOT NULL,
   	"max_category_depth" numeric,
+  	"updated_at" timestamp(3) with time zone,
+  	"created_at" timestamp(3) with time zone
+  );
+  
+  CREATE TABLE "registration_settings" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"disable_registration" boolean DEFAULT false,
+  	"show_registration_button" boolean DEFAULT true,
+  	"updated_at" timestamp(3) with time zone,
+  	"created_at" timestamp(3) with time zone
+  );
+  
+  CREATE TABLE "payload_jobs_stats" (
+  	"id" serial PRIMARY KEY NOT NULL,
+  	"stats" jsonb,
   	"updated_at" timestamp(3) with time zone,
   	"created_at" timestamp(3) with time zone
   );
@@ -717,6 +773,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "search_rels" ADD CONSTRAINT "search_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."search"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "search_rels" ADD CONSTRAINT "search_rels_users_fk" FOREIGN KEY ("users_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "search_rels" ADD CONSTRAINT "search_rels_courses_fk" FOREIGN KEY ("courses_id") REFERENCES "public"."courses"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_jobs_log" ADD CONSTRAINT "payload_jobs_log_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."payload_jobs"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."payload_locked_documents"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_users_fk" FOREIGN KEY ("users_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_courses_fk" FOREIGN KEY ("courses_id") REFERENCES "public"."courses"("id") ON DELETE cascade ON UPDATE no action;
@@ -744,6 +801,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_groups_fk" FOREIGN KEY ("groups_id") REFERENCES "public"."groups"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_user_grades_fk" FOREIGN KEY ("user_grades_id") REFERENCES "public"."user_grades"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_search_fk" FOREIGN KEY ("search_id") REFERENCES "public"."search"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_payload_kv_fk" FOREIGN KEY ("payload_kv_id") REFERENCES "public"."payload_kv"("id") ON DELETE cascade ON UPDATE no action;
+  ALTER TABLE "payload_locked_documents_rels" ADD CONSTRAINT "payload_locked_documents_rels_payload_jobs_fk" FOREIGN KEY ("payload_jobs_id") REFERENCES "public"."payload_jobs"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_preferences_rels" ADD CONSTRAINT "payload_preferences_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."payload_preferences"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "payload_preferences_rels" ADD CONSTRAINT "payload_preferences_rels_users_fk" FOREIGN KEY ("users_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "system_grade_table_grade_letters" ADD CONSTRAINT "system_grade_table_grade_letters_parent_id_fk" FOREIGN KEY ("_parent_id") REFERENCES "public"."system_grade_table"("id") ON DELETE cascade ON UPDATE no action;
@@ -967,6 +1026,18 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "search_rels_path_idx" ON "search_rels" USING btree ("path");
   CREATE INDEX "search_rels_users_id_idx" ON "search_rels" USING btree ("users_id");
   CREATE INDEX "search_rels_courses_id_idx" ON "search_rels" USING btree ("courses_id");
+  CREATE UNIQUE INDEX "payload_kv_key_idx" ON "payload_kv" USING btree ("key");
+  CREATE INDEX "payload_jobs_log_order_idx" ON "payload_jobs_log" USING btree ("_order");
+  CREATE INDEX "payload_jobs_log_parent_id_idx" ON "payload_jobs_log" USING btree ("_parent_id");
+  CREATE INDEX "payload_jobs_completed_at_idx" ON "payload_jobs" USING btree ("completed_at");
+  CREATE INDEX "payload_jobs_total_tried_idx" ON "payload_jobs" USING btree ("total_tried");
+  CREATE INDEX "payload_jobs_has_error_idx" ON "payload_jobs" USING btree ("has_error");
+  CREATE INDEX "payload_jobs_task_slug_idx" ON "payload_jobs" USING btree ("task_slug");
+  CREATE INDEX "payload_jobs_queue_idx" ON "payload_jobs" USING btree ("queue");
+  CREATE INDEX "payload_jobs_wait_until_idx" ON "payload_jobs" USING btree ("wait_until");
+  CREATE INDEX "payload_jobs_processing_idx" ON "payload_jobs" USING btree ("processing");
+  CREATE INDEX "payload_jobs_updated_at_idx" ON "payload_jobs" USING btree ("updated_at");
+  CREATE INDEX "payload_jobs_created_at_idx" ON "payload_jobs" USING btree ("created_at");
   CREATE INDEX "payload_locked_documents_global_slug_idx" ON "payload_locked_documents" USING btree ("global_slug");
   CREATE INDEX "payload_locked_documents_updated_at_idx" ON "payload_locked_documents" USING btree ("updated_at");
   CREATE INDEX "payload_locked_documents_created_at_idx" ON "payload_locked_documents" USING btree ("created_at");
@@ -999,6 +1070,8 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "payload_locked_documents_rels_groups_id_idx" ON "payload_locked_documents_rels" USING btree ("groups_id");
   CREATE INDEX "payload_locked_documents_rels_user_grades_id_idx" ON "payload_locked_documents_rels" USING btree ("user_grades_id");
   CREATE INDEX "payload_locked_documents_rels_search_id_idx" ON "payload_locked_documents_rels" USING btree ("search_id");
+  CREATE INDEX "payload_locked_documents_rels_payload_kv_id_idx" ON "payload_locked_documents_rels" USING btree ("payload_kv_id");
+  CREATE INDEX "payload_locked_documents_rels_payload_jobs_id_idx" ON "payload_locked_documents_rels" USING btree ("payload_jobs_id");
   CREATE INDEX "payload_preferences_key_idx" ON "payload_preferences" USING btree ("key");
   CREATE INDEX "payload_preferences_updated_at_idx" ON "payload_preferences" USING btree ("updated_at");
   CREATE INDEX "payload_preferences_created_at_idx" ON "payload_preferences" USING btree ("created_at");
@@ -1057,6 +1130,9 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "user_grades_rels" CASCADE;
   DROP TABLE "search" CASCADE;
   DROP TABLE "search_rels" CASCADE;
+  DROP TABLE "payload_kv" CASCADE;
+  DROP TABLE "payload_jobs_log" CASCADE;
+  DROP TABLE "payload_jobs" CASCADE;
   DROP TABLE "payload_locked_documents" CASCADE;
   DROP TABLE "payload_locked_documents_rels" CASCADE;
   DROP TABLE "payload_preferences" CASCADE;
@@ -1064,6 +1140,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TABLE "payload_migrations" CASCADE;
   DROP TABLE "system_grade_table_grade_letters" CASCADE;
   DROP TABLE "system_grade_table" CASCADE;
+  DROP TABLE "registration_settings" CASCADE;
+  DROP TABLE "payload_jobs_stats" CASCADE;
   DROP TYPE "public"."enum_users_role";
   DROP TYPE "public"."enum_users_theme";
   DROP TYPE "public"."enum_courses_status";
@@ -1083,5 +1161,8 @@ export async function down({ db, payload, req }: MigrateDownArgs): Promise<void>
   DROP TYPE "public"."enum_user_grades_adjustments_type";
   DROP TYPE "public"."enum_user_grades_submission_type";
   DROP TYPE "public"."enum_user_grades_base_grade_source";
-  DROP TYPE "public"."enum_user_grades_status";`)
+  DROP TYPE "public"."enum_user_grades_status";
+  DROP TYPE "public"."enum_payload_jobs_log_task_slug";
+  DROP TYPE "public"."enum_payload_jobs_log_state";
+  DROP TYPE "public"."enum_payload_jobs_task_slug";`)
 }

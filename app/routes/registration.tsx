@@ -10,6 +10,7 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { href, Link, redirect, useFetcher } from "react-router";
@@ -28,7 +29,7 @@ import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/registration";
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { payload } = context.get(globalContextKey);
+	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	const users = await payload.find({
@@ -37,6 +38,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 	});
 
 	const isFirstUser = users.docs.length === 0;
+	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
 	// Respect registration settings unless creating the first user
 
@@ -68,6 +70,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 		DEV_CONSTANTS: devConstants,
 		isFirstUser,
 		registrationDisabled,
+		isSandboxMode,
 	};
 }
 
@@ -79,12 +82,13 @@ const formSchema = z.object({
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
-	const { payload, requestInfo } = context.get(globalContextKey);
+	const { payload, requestInfo, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	// Determine if first user
 	const existing = await payload.find({ collection: "users", limit: 1 });
 	const isFirstUser = existing.docs.length === 0;
+	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
@@ -103,7 +107,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 	const settingsResult = await tryGetRegistrationSettings({
 		payload,
 		user: currentUser || null,
-		overrideAccess: false,
+		// ! this has override access because it is a system request, we don't care about access control
+		overrideAccess: true,
 	});
 	if (
 		settingsResult.ok &&
@@ -139,9 +144,13 @@ export async function action({ request, context }: Route.ActionArgs) {
 		});
 	}
 
+	// In sandbox mode, all registrations get admin role
+	const registrationRole = isSandboxMode ? "admin" : "student";
+
 	const result = await tryRegisterUser({
 		payload,
 		...parsed.data,
+		role: registrationRole,
 		req: request,
 	});
 
@@ -183,7 +192,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function RegistrationView({ loaderData }: Route.ComponentProps) {
-	const { NODE_ENV, DEV_CONSTANTS, isFirstUser, registrationDisabled } =
+	const { NODE_ENV, DEV_CONSTANTS, isFirstUser, registrationDisabled, isSandboxMode } =
 		loaderData;
 
 	return (
@@ -217,6 +226,22 @@ export default function RegistrationView({ loaderData }: Route.ComponentProps) {
 					<Title order={1} ta="center">
 						Register
 					</Title>
+					{isSandboxMode && (
+						<Alert
+							icon={<IconAlertTriangle size={20} />}
+							title="Sandbox Mode Enabled"
+							color="yellow"
+							variant="light"
+						>
+							<Text size="sm">
+								<strong>Warning:</strong> Sandbox mode is currently enabled. You
+								will automatically receive admin role upon registration, and you
+								can freely change your system role. This is intended for testing
+								and development purposes only. Data is temporary and will be reset
+								every midnight.
+							</Text>
+						</Alert>
+					)}
 					{isFirstUser && (
 						<Alert color="green" title="First user">
 							You are creating the first account. It will be granted admin

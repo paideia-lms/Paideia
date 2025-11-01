@@ -4,7 +4,12 @@ import { nodemailerAdapter } from "@payloadcms/email-nodemailer";
 import { searchPlugin } from "@payloadcms/plugin-search";
 import { s3Storage } from "@payloadcms/storage-s3";
 import { EnhancedQueryLogger } from "drizzle-query-logger";
-import { buildConfig, type CollectionConfig, type GlobalConfig } from "payload";
+import {
+	buildConfig,
+	type CollectionConfig,
+	type GlobalConfig,
+	type TaskConfig,
+} from "payload";
 import sharp from "sharp";
 import { migrations } from "src/migrations";
 import {
@@ -37,6 +42,7 @@ import {
 } from "./collections";
 import { RegistrationSettings } from "./collections/globals";
 import { envVars } from "./env";
+import { sandboxReset } from "./tasks/sandbox-reset";
 
 export * from "./collections";
 
@@ -48,8 +54,8 @@ const pg = postgresAdapter({
 	// disable logger in different environments
 	logger:
 		process.env.NODE_ENV !== "test" &&
-		process.env.NODE_ENV !== "production" &&
-		process.env.NODE_ENV !== "development"
+			process.env.NODE_ENV !== "production" &&
+			process.env.NODE_ENV !== "development"
 			? new EnhancedQueryLogger()
 			: undefined,
 	// ! we never want to push directly, always respect the the migrations files
@@ -88,7 +94,7 @@ const pg = postgresAdapter({
 						// Change foreign key to CASCADE on delete for both activity_modules and courses
 						if (
 							foreignKey.reference().foreignTable[
-								Symbol.for("drizzle:Name")
+							Symbol.for("drizzle:Name")
 							] === relation.foreignTable
 						) {
 							// console.log(foreignKey)
@@ -197,21 +203,21 @@ const sanitizedConfig = buildConfig({
 	},
 	email:
 		envVars.SMTP_HOST.value &&
-		envVars.SMTP_USER.value &&
-		envVars.SMTP_PASS.value
+			envVars.SMTP_USER.value &&
+			envVars.SMTP_PASS.value
 			? nodemailerAdapter({
-					defaultFromAddress: "info@payloadcms.com",
-					defaultFromName: "Payload",
-					// Nodemailer transportOptions
-					transportOptions: {
-						host: envVars.SMTP_HOST.value,
-						port: 587,
-						auth: {
-							user: envVars.SMTP_USER.value,
-							pass: envVars.SMTP_PASS.value,
-						},
+				defaultFromAddress: "info@payloadcms.com",
+				defaultFromName: "Payload",
+				// Nodemailer transportOptions
+				transportOptions: {
+					host: envVars.SMTP_HOST.value,
+					port: 587,
+					auth: {
+						user: envVars.SMTP_USER.value,
+						pass: envVars.SMTP_PASS.value,
 					},
-				})
+				},
+			})
 			: undefined,
 	plugins: [
 		searchPlugin({
@@ -296,7 +302,7 @@ const sanitizedConfig = buildConfig({
 			},
 		],
 		// ! this will change the database structure so you cannot be conditional here
-		tasks: [],
+		tasks: [sandboxReset] as TaskConfig[],
 	},
 	defaultDepth: 1,
 	typescript: {

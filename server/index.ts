@@ -12,6 +12,7 @@ import { getPayload, type Migration as MigrationType } from "payload";
 import { RouterContextProvider } from "react-router";
 import { migrations } from "src/migrations";
 import { createStorage } from "unstorage";
+// @ts-ignore this is okay 
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { getHints } from "../app/utils/client-hints";
 import packageJson from "../package.json";
@@ -27,9 +28,10 @@ import { userModuleContextKey } from "./contexts/user-module-context";
 import { userProfileContextKey } from "./contexts/user-profile-context";
 import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
-import { runSeed } from "./seed";
+import { runSeed } from "./utils/db/seed";
 import { asciiLogo } from "./utils/constants";
 import { migrateFresh } from "./utils/db/migrate-fresh";
+import { tryResetSandbox } from "./utils/db/sandbox-reset";
 import {
 	getMigrationStatus,
 	printMigrationStatus,
@@ -94,11 +96,26 @@ async function startServer() {
 
 	console.log("Mode: ", process.env.NODE_ENV);
 
+
 	// console.log("Payload: ", payload)
 	if (process.env.NODE_ENV === "development") {
 		await runSeed({ payload });
+	}
+	// Check if sandbox mode is enabled and reset database
+	else if (envVars.SANDBOX_MODE.enabled) {
+		console.log("🔄 Sandbox mode enabled, resetting database on startup...");
+		const resetResult = await tryResetSandbox(payload);
+		if (!resetResult.ok) {
+			// crash the server
+			console.error(
+				`❌ Failed to reset sandbox database: ${resetResult.error.message}`,
+			);
+			process.exit(1);
+		}
 	} else {
-		await payload.db.migrate({ migrations: migrations as MigrationType[] });
+		await payload.db.migrate({
+			migrations: migrations as MigrationType[],
+		});
 	}
 
 	const port = Number(envVars.PORT.value) || envVars.PORT.default;

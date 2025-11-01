@@ -99,6 +99,7 @@ export interface RegisterUserArgs {
 	password: string;
 	firstName: string;
 	lastName: string;
+	role?: User["role"];
 	req?: Partial<PayloadRequest>;
 	user?: User | null;
 }
@@ -165,6 +166,8 @@ export const tryCreateUser = Result.wrap(
 					bio,
 					avatar,
 					theme: theme ?? "light",
+					// ! TODO: automatically verify the user for now, we need to fix this in the future 
+					_verified: true,
 				},
 				user,
 				req,
@@ -649,6 +652,7 @@ export const tryRegisterFirstUser = Result.wrap(
 
 /**
  * Registers a regular user (non-admin) and logs them in
+ * Uses transactions to ensure all operations succeed or fail together
  */
 export const tryRegisterUser = Result.wrap(
 	async (args: RegisterUserArgs) => {
@@ -658,6 +662,7 @@ export const tryRegisterUser = Result.wrap(
 			password,
 			firstName,
 			lastName,
+			role = "student",
 			req,
 			user = null,
 		} = args;
@@ -669,51 +674,74 @@ export const tryRegisterUser = Result.wrap(
 			limit: 1,
 			user,
 			req,
-			overrideAccess: false,
+			// ! this has override access because it is a system request, we don't care about access control
+			overrideAccess: true,
 		});
 		if (existing.docs.length > 0) {
 			throw new Error(`User with email ${email} already exists`);
 		}
 
-		await payload.create({
-			collection: "users",
-			data: {
-				email,
-				password,
-				firstName,
-				lastName,
-				role: "student",
-				theme: "light",
-			},
-			user,
-			req,
-			overrideAccess: false,
-		});
+		// Begin transaction
+		const transactionID = await payload.db.beginTransaction();
 
-		// Login new user
-		const loginResult = await payload
-			.login({
+		try {
+			// Create the user within transaction
+			await payload.create({
 				collection: "users",
-				req,
-				data: { email, password },
-			})
-			.then((l) => {
-				const user = l.user;
-				const avatar = user.avatar;
-				assertZodInternal(
-					"tryRegisterUser: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return { ...l, user: { ...user, avatar } };
+				data: {
+					email,
+					password,
+					firstName,
+					lastName,
+					role: role ?? "student",
+					theme: "light",
+					// ! TODO: automatically verify the user for now, we need to fix this in the future 
+					_verified: true,
+				},
+				user,
+				req: transactionID ? { transactionID, ...req } : req,
+				// ! this has override access because it is a system request, we don't care about access control
+				overrideAccess: true,
 			});
 
-		const { exp, token, user: loggedInUser } = loginResult;
-		if (!exp || !token) {
-			throw new Error("Login failed: missing token or expiration");
-		}
+			// Commit the transaction if it exists
+			if (transactionID) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
-		return { token, exp, user: loggedInUser };
+			// Login new user (outside transaction)
+			const loginResult = await payload
+				.login({
+					collection: "users",
+					req,
+					data: { email, password },
+					// ! this has override access because it is a system request, we don't care about access control
+					overrideAccess: true,
+				})
+				.then((l) => {
+					const user = l.user;
+					const avatar = user.avatar;
+					assertZodInternal(
+						"tryRegisterUser: User avatar is required",
+						avatar,
+						z.object({ id: z.number() }).nullish(),
+					);
+					return { ...l, user: { ...user, avatar } };
+				});
+
+			const { exp, token, user: loggedInUser } = loginResult;
+			if (!exp || !token) {
+				throw new Error("Login failed: missing token or expiration");
+			}
+
+			return { token, exp, user: loggedInUser };
+		} catch (error) {
+			// Rollback transaction on error if it exists
+			if (transactionID) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
+		}
 	},
 	(error) =>
 		transformError(error) ??

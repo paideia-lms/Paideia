@@ -1,4 +1,5 @@
 import {
+	Alert,
 	Avatar,
 	Button,
 	Card,
@@ -30,16 +31,25 @@ import {
 	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
-import { useState } from "react";
-import { href, Link, useFetcher } from "react-router";
+import { useEffect, useState } from "react";
+import { href, Link, useFetcher, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
+import { type User, userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryCreateMedia } from "server/internal/media-management";
 import {
 	tryFindUserById,
 	tryUpdateUser,
 } from "server/internal/user-management";
+import {
+	canEditOtherAdmin,
+	canEditProfileAvatar,
+	canEditProfileBio,
+	canEditProfileEmail,
+	canEditProfileFirstName,
+	canEditProfileLastName,
+	canEditProfileRole,
+} from "server/utils/permissions";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
 import { ContentType } from "~/utils/get-content-type";
@@ -53,8 +63,11 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
 
+
+
+
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -101,8 +114,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: profileUser.avatar.filename,
-					})
+					filenameOrId: profileUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -114,6 +127,50 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		profileUser.role !== "admin" &&
 		!userSession.isImpersonating;
 
+	// Check if this is the first user (id === 1)
+	const isFirstUser = profileUser.id === 1;
+	// Check if the profile user is an admin
+	const isProfileUserAdmin = profileUser.role === "admin";
+	// Check if sandbox mode is enabled
+	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
+
+	// Field-specific permission checks
+	const firstNamePermission = canEditProfileFirstName(
+		currentUser,
+		profileUser,
+		isSandboxMode,
+	);
+	const lastNamePermission = canEditProfileLastName(
+		currentUser,
+		profileUser,
+		isSandboxMode,
+	);
+	const emailPermission = canEditProfileEmail(
+	);
+	const bioPermission = canEditProfileBio(
+		currentUser,
+		profileUser,
+		isSandboxMode,
+	);
+	const avatarPermission = canEditProfileAvatar(
+		currentUser,
+		profileUser,
+		isSandboxMode,
+	);
+	const rolePermission = canEditProfileRole(
+		currentUser,
+		profileUser,
+		isSandboxMode,
+	);
+
+	// Check if admin is trying to edit another admin (for alert display)
+	const otherAdminCheck = canEditOtherAdmin(
+		currentUser,
+		profileUser,
+		isSandboxMode,
+	);
+	const isEditingOtherAdminUser = otherAdminCheck.allowed;
+
 	return {
 		user: {
 			id: profileUser.id,
@@ -124,10 +181,25 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			role: profileUser.role,
 			avatarUrl,
 		},
+		currentUser: {
+			id: currentUser.id,
+			role: currentUser.role,
+		},
 		isOwnData: userId === currentUser.id,
 		isAdmin: currentUser.role === "admin",
 		canImpersonate,
+		isFirstUser,
+		isProfileUserAdmin,
+		isSandboxMode,
 		userProfile: userProfileContext,
+		firstNamePermission,
+		lastNamePermission,
+		emailPermission,
+		bioPermission,
+		avatarPermission,
+		rolePermission,
+		otherAdminCheck,
+		isEditingOtherAdminUser,
 	};
 };
 
@@ -196,6 +268,8 @@ export const action = async ({
 		);
 
 		const isAdmin = currentUser.role === "admin";
+		const isFirstUser = userId === 1;
+
 
 		const parsed = z
 			.object({
@@ -231,6 +305,16 @@ export const action = async ({
 			});
 		}
 
+		// Prevent first user from changing their admin role
+		if (isFirstUser && parsed.data.role && parsed.data.role !== "admin") {
+			await payload.db.rollbackTransaction(transactionID);
+			return badRequest({
+				success: false,
+				error: "The first user cannot change their admin role",
+			});
+		}
+
+
 		// Build update data
 		const updateData: {
 			firstName: string;
@@ -238,26 +322,19 @@ export const action = async ({
 			bio: string;
 			avatar?: number;
 			email?: string;
-			role?:
-				| "student"
-				| "instructor"
-				| "content-manager"
-				| "analytics-viewer"
-				| "admin";
+			role?: User["role"];
 		} = {
 			firstName: parsed.data.firstName,
 			lastName: parsed.data.lastName,
 			bio: parsed.data.bio,
 			avatar: parsed.data.avatar ?? undefined,
+			role: parsed.data.role ?? undefined,
 		};
 
 		// Only admins can update email and role
 		if (isAdmin) {
 			if (parsed.data.email !== null && parsed.data.email !== undefined) {
 				updateData.email = parsed.data.email;
-			}
-			if (parsed.data.role !== null && parsed.data.role !== undefined) {
-				updateData.role = parsed.data.role;
 			}
 		}
 
@@ -362,17 +439,35 @@ const useUpdateUser = () => {
 };
 
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
-	const { user, isOwnData, isAdmin, canImpersonate, userProfile } = loaderData;
+	const {
+		user,
+		currentUser,
+		isOwnData,
+		isAdmin,
+		canImpersonate,
+		isFirstUser,
+		isSandboxMode,
+		userProfile,
+		firstNamePermission,
+		lastNamePermission,
+		emailPermission,
+		bioPermission,
+		avatarPermission,
+		rolePermission,
+		otherAdminCheck,
+		isEditingOtherAdminUser,
+	} = loaderData;
 	const { updateUser, fetcher } = useUpdateUser();
 	const { impersonate, isLoading: isImpersonating } = useImpersonate();
-	const [avatarPreview, setAvatarPreview] = useState<string | null>(
-		user.avatarUrl,
-	);
+
+	const location = useLocation();
+
 	const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
+			avatar: user.avatarUrl,
 			firstName: user.firstName,
 			lastName: user.lastName,
 			bio: user.bio,
@@ -394,13 +489,27 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
+	// biome-ignore lint/correctness/useExhaustiveDependencies: reset form when pathname changes
+	useEffect(() => {
+		// when the pathname changes, we need to set the form values to the user values
+		form.setInitialValues({
+			avatar: user.avatarUrl,
+			firstName: user.firstName,
+			lastName: user.lastName,
+			bio: user.bio,
+			email: user.email,
+			role: user.role ?? "student",
+		})
+		form.reset()
+	}, [location.pathname])
+
 	const handleDrop = (files: File[]) => {
 		const file = files[0];
 		if (file) {
 			setSelectedFile(file);
 			const reader = new FileReader();
 			reader.onloadend = () => {
-				setAvatarPreview(reader.result as string);
+				form.setFieldValue("avatar", reader.result as string);
 			};
 			reader.readAsDataURL(file);
 		}
@@ -412,14 +521,19 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 			lastName: values.lastName,
 			bio: values.bio,
 			avatar: selectedFile,
-			email: isAdmin ? values.email : undefined,
-			role: isAdmin ? values.role : undefined,
+			email: emailPermission.allowed ? values.email : undefined,
+			// Only include role if user can edit role
+			role: rolePermission.allowed ? values.role : undefined,
 		});
 	};
 
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const moduleCount = userProfile?.activityModules.length ?? 0;
 	const enrollmentCount = userProfile?.enrollments.length ?? 0;
+
+	const targetUser = { id: user.id, role: user.role };
+
+
 
 	const title = `${fullName} | Profile | Paideia LMS`;
 
@@ -466,6 +580,19 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 						Edit Profile
 					</Title>
 
+					{isEditingOtherAdminUser && (
+						<Alert
+							color="red"
+							title="Editing Restricted"
+							mb="xl"
+						>
+							<Text size="sm">
+								<strong>Warning:</strong> Admins cannot edit other admin users.
+								All fields are disabled.
+							</Text>
+						</Alert>
+					)}
+
 					<fetcher.Form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
 						<Stack gap="lg">
 							<div>
@@ -474,7 +601,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								</Text>
 								<Group gap="md">
 									<Avatar
-										src={avatarPreview}
+										src={form.values.avatar ?? undefined}
 										alt="Profile"
 										size={120}
 										radius={120}
@@ -491,6 +618,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 										maxSize={5 * 1024 ** 2}
 										accept={IMAGE_MIME_TYPE}
 										multiple={false}
+										disabled={!avatarPermission.allowed}
 									>
 										<Group
 											justify="center"
@@ -539,6 +667,8 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								label="First Name"
 								placeholder="Enter your first name"
 								required
+								disabled={!firstNamePermission.allowed}
+								description={!firstNamePermission.allowed ? firstNamePermission.reason : undefined}
 							/>
 
 							<TextInput
@@ -547,6 +677,8 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								label="Last Name"
 								placeholder="Enter your last name"
 								required
+								disabled={!lastNamePermission.allowed}
+								description={!lastNamePermission.allowed ? lastNamePermission.reason : undefined}
 							/>
 
 							<TextInput
@@ -556,11 +688,9 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								placeholder="user@example.com"
 								type="email"
 								required={isAdmin}
-								readOnly={!isAdmin}
-								disabled={!isAdmin}
-								description={
-									!isAdmin ? "Email cannot be changed by users" : undefined
-								}
+								readOnly={!emailPermission.allowed}
+								disabled={!emailPermission.allowed}
+								description={emailPermission.reason}
 							/>
 
 							<Select
@@ -568,7 +698,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								key={form.key("role")}
 								label="System Role"
 								placeholder="Select user role"
-								disabled={!isAdmin}
+								disabled={!rolePermission.allowed}
 								required
 								data={[
 									{ value: "student", label: "Student" },
@@ -577,7 +707,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 									{ value: "analytics-viewer", label: "Analytics Viewer" },
 									{ value: "admin", label: "Administrator" },
 								]}
-								description="System-wide role that determines user permissions"
+								description={rolePermission.reason}
 							/>
 
 							<Textarea
@@ -587,13 +717,21 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								placeholder="Tell us about yourself"
 								minRows={4}
 								maxRows={8}
+								disabled={!bioPermission.allowed}
+								description={!bioPermission.allowed ? bioPermission.reason : undefined}
 							/>
 
 							<Group justify="flex-end" mt="md">
 								<Button
 									type="submit"
 									loading={fetcher.state !== "idle"}
-									disabled={fetcher.state !== "idle"}
+									disabled={
+										fetcher.state !== "idle" ||
+										!firstNamePermission.allowed ||
+										!lastNamePermission.allowed ||
+										!bioPermission.allowed ||
+										!avatarPermission.allowed
+									}
 								>
 									Save Changes
 								</Button>

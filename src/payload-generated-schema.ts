@@ -1,3 +1,4 @@
+// @ts-nocheck
 /* tslint:disable */
 /* eslint-disable */
 /**
@@ -120,6 +121,18 @@ export const enum_user_grades_status = pgEnum("enum_user_grades_status", [
   "graded",
   "returned",
 ]);
+export const enum_payload_jobs_log_task_slug = pgEnum(
+  "enum_payload_jobs_log_task_slug",
+  ["inline", "sandboxReset"],
+);
+export const enum_payload_jobs_log_state = pgEnum(
+  "enum_payload_jobs_log_state",
+  ["failed", "succeeded"],
+);
+export const enum_payload_jobs_task_slug = pgEnum(
+  "enum_payload_jobs_task_slug",
+  ["inline", "sandboxReset"],
+);
 
 export const users_sessions = pgTable(
   "users_sessions",
@@ -1919,6 +1932,90 @@ export const payload_kv = pgTable(
   (columns) => [uniqueIndex("payload_kv_key_idx").on(columns.key)],
 );
 
+export const payload_jobs_log = pgTable(
+  "payload_jobs_log",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    executedAt: timestamp("executed_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }).notNull(),
+    completedAt: timestamp("completed_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }).notNull(),
+    taskSlug: enum_payload_jobs_log_task_slug("task_slug").notNull(),
+    taskID: varchar("task_i_d").notNull(),
+    input: jsonb("input"),
+    output: jsonb("output"),
+    state: enum_payload_jobs_log_state("state").notNull(),
+    error: jsonb("error"),
+  },
+  (columns) => [
+    index("payload_jobs_log_order_idx").on(columns._order),
+    index("payload_jobs_log_parent_id_idx").on(columns._parentID),
+    foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [payload_jobs.id],
+      name: "payload_jobs_log_parent_id_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const payload_jobs = pgTable(
+  "payload_jobs",
+  {
+    id: serial("id").primaryKey(),
+    input: jsonb("input"),
+    completedAt: timestamp("completed_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    totalTried: numeric("total_tried", { mode: "number" }).default(0),
+    hasError: boolean("has_error").default(false),
+    error: jsonb("error"),
+    taskSlug: enum_payload_jobs_task_slug("task_slug"),
+    queue: varchar("queue").default("default"),
+    waitUntil: timestamp("wait_until", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    processing: boolean("processing").default(false),
+    meta: jsonb("meta"),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("payload_jobs_completed_at_idx").on(columns.completedAt),
+    index("payload_jobs_total_tried_idx").on(columns.totalTried),
+    index("payload_jobs_has_error_idx").on(columns.hasError),
+    index("payload_jobs_task_slug_idx").on(columns.taskSlug),
+    index("payload_jobs_queue_idx").on(columns.queue),
+    index("payload_jobs_wait_until_idx").on(columns.waitUntil),
+    index("payload_jobs_processing_idx").on(columns.processing),
+    index("payload_jobs_updated_at_idx").on(columns.updatedAt),
+    index("payload_jobs_created_at_idx").on(columns.createdAt),
+  ],
+);
+
 export const payload_locked_documents = pgTable(
   "payload_locked_documents",
   {
@@ -1982,6 +2079,7 @@ export const payload_locked_documents_rels = pgTable(
     "user-gradesID": integer("user_grades_id"),
     searchID: integer("search_id"),
     "payload-kvID": integer("payload_kv_id"),
+    "payload-jobsID": integer("payload_jobs_id"),
   },
   (columns) => [
     index("payload_locked_documents_rels_order_idx").on(columns.order),
@@ -2051,6 +2149,9 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_search_id_idx").on(columns.searchID),
     index("payload_locked_documents_rels_payload_kv_id_idx").on(
       columns["payload-kvID"],
+    ),
+    index("payload_locked_documents_rels_payload_jobs_id_idx").on(
+      columns["payload-jobsID"],
     ),
     foreignKey({
       columns: [columns["parent"]],
@@ -2192,6 +2293,11 @@ export const payload_locked_documents_rels = pgTable(
       foreignColumns: [payload_kv.id],
       name: "payload_locked_documents_rels_payload_kv_fk",
     }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["payload-jobsID"]],
+      foreignColumns: [payload_jobs.id],
+      name: "payload_locked_documents_rels_payload_jobs_fk",
+    }).onDelete("cascade"),
   ],
 );
 
@@ -2320,6 +2426,21 @@ export const registration_settings = pgTable("registration_settings", {
   id: serial("id").primaryKey(),
   disableRegistration: boolean("disable_registration").default(false),
   showRegistrationButton: boolean("show_registration_button").default(true),
+  updatedAt: timestamp("updated_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+  createdAt: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+});
+
+export const payload_jobs_stats = pgTable("payload_jobs_stats", {
+  id: serial("id").primaryKey(),
+  stats: jsonb("stats"),
   updatedAt: timestamp("updated_at", {
     mode: "string",
     withTimezone: true,
@@ -2978,6 +3099,21 @@ export const relations_search = relations(search, ({ many }) => ({
   }),
 }));
 export const relations_payload_kv = relations(payload_kv, () => ({}));
+export const relations_payload_jobs_log = relations(
+  payload_jobs_log,
+  ({ one }) => ({
+    _parentID: one(payload_jobs, {
+      fields: [payload_jobs_log._parentID],
+      references: [payload_jobs.id],
+      relationName: "log",
+    }),
+  }),
+);
+export const relations_payload_jobs = relations(payload_jobs, ({ many }) => ({
+  log: many(payload_jobs_log, {
+    relationName: "log",
+  }),
+}));
 export const relations_payload_locked_documents_rels = relations(
   payload_locked_documents_rels,
   ({ one }) => ({
@@ -3121,6 +3257,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [payload_kv.id],
       relationName: "payload-kv",
     }),
+    "payload-jobsID": one(payload_jobs, {
+      fields: [payload_locked_documents_rels["payload-jobsID"]],
+      references: [payload_jobs.id],
+      relationName: "payload-jobs",
+    }),
   }),
 );
 export const relations_payload_locked_documents = relations(
@@ -3180,6 +3321,10 @@ export const relations_registration_settings = relations(
   registration_settings,
   () => ({}),
 );
+export const relations_payload_jobs_stats = relations(
+  payload_jobs_stats,
+  () => ({}),
+);
 
 type DatabaseSchema = {
   enum_users_role: typeof enum_users_role;
@@ -3202,6 +3347,9 @@ type DatabaseSchema = {
   enum_user_grades_submission_type: typeof enum_user_grades_submission_type;
   enum_user_grades_base_grade_source: typeof enum_user_grades_base_grade_source;
   enum_user_grades_status: typeof enum_user_grades_status;
+  enum_payload_jobs_log_task_slug: typeof enum_payload_jobs_log_task_slug;
+  enum_payload_jobs_log_state: typeof enum_payload_jobs_log_state;
+  enum_payload_jobs_task_slug: typeof enum_payload_jobs_task_slug;
   users_sessions: typeof users_sessions;
   users: typeof users;
   courses_tags: typeof courses_tags;
@@ -3246,6 +3394,8 @@ type DatabaseSchema = {
   search: typeof search;
   search_rels: typeof search_rels;
   payload_kv: typeof payload_kv;
+  payload_jobs_log: typeof payload_jobs_log;
+  payload_jobs: typeof payload_jobs;
   payload_locked_documents: typeof payload_locked_documents;
   payload_locked_documents_rels: typeof payload_locked_documents_rels;
   payload_preferences: typeof payload_preferences;
@@ -3254,6 +3404,7 @@ type DatabaseSchema = {
   system_grade_table_grade_letters: typeof system_grade_table_grade_letters;
   system_grade_table: typeof system_grade_table;
   registration_settings: typeof registration_settings;
+  payload_jobs_stats: typeof payload_jobs_stats;
   relations_users_sessions: typeof relations_users_sessions;
   relations_users: typeof relations_users;
   relations_courses_tags: typeof relations_courses_tags;
@@ -3298,6 +3449,8 @@ type DatabaseSchema = {
   relations_search_rels: typeof relations_search_rels;
   relations_search: typeof relations_search;
   relations_payload_kv: typeof relations_payload_kv;
+  relations_payload_jobs_log: typeof relations_payload_jobs_log;
+  relations_payload_jobs: typeof relations_payload_jobs;
   relations_payload_locked_documents_rels: typeof relations_payload_locked_documents_rels;
   relations_payload_locked_documents: typeof relations_payload_locked_documents;
   relations_payload_preferences_rels: typeof relations_payload_preferences_rels;
@@ -3306,6 +3459,7 @@ type DatabaseSchema = {
   relations_system_grade_table_grade_letters: typeof relations_system_grade_table_grade_letters;
   relations_system_grade_table: typeof relations_system_grade_table;
   relations_registration_settings: typeof relations_registration_settings;
+  relations_payload_jobs_stats: typeof relations_payload_jobs_stats;
 };
 
 declare module "@payloadcms/db-postgres" {

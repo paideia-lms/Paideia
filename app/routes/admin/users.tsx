@@ -13,11 +13,12 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { useDebouncedValue } from "@mantine/hooks";
+import { useDebouncedCallback } from "@mantine/hooks";
 import { IconPlus, IconSearch } from "@tabler/icons-react";
+import { useQueryState } from "nuqs";
 import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useEffect, useState } from "react";
-import { href, Link, useSearchParams } from "react-router";
+import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
@@ -106,35 +107,34 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 
 export default function UsersPage({ loaderData }: Route.ComponentProps) {
 	const { users, totalUsers, totalPages, currentPage } = loaderData;
-	const [searchParams, setSearchParams] = useSearchParams();
 
-	// Get current query from URL
-	const urlQuery = searchParams.get("query") || "";
+	const [query, setQuery] = useQueryState(
+		"query",
+		parseAsString.withDefault("").withOptions({ shallow: false }),
+	);
+
+	const [, setPage] = useQueryState(
+		"page",
+		parseAsInteger.withDefault(1).withOptions({ shallow: false }),
+	);
 
 	// Local search state for immediate UI updates
-	const [searchQuery, setSearchQuery] = useState(urlQuery);
+	const [input, setInput] = useState(query);
+
+	// Sync input with URL query when it changes (e.g., back/forward navigation)
+	useEffect(() => {
+		setInput(query);
+	}, [query]);
 
 	// Debounce the search query
-	const [debouncedQuery] = useDebouncedValue(searchQuery, 500);
-
-	// Update URL when debounced query changes
-	useEffect(() => {
-		const newParams = new URLSearchParams(searchParams);
-		if (debouncedQuery) {
-			newParams.set("query", debouncedQuery);
-		} else {
-			newParams.delete("query");
-		}
-		// Reset to page 1 when search changes
-		newParams.set("page", "1");
-		setSearchParams(newParams, { replace: true });
-	}, [debouncedQuery, searchParams, setSearchParams]);
+	const debouncedSetQuery = useDebouncedCallback((value: string) => {
+		setQuery(value || null);
+		setPage(1); // Reset to page 1 when search changes
+	}, 500);
 
 	// Handle page change
-	const handlePageChange = (page: number) => {
-		const newParams = new URLSearchParams(searchParams);
-		newParams.set("page", page.toString());
-		setSearchParams(newParams);
+	const handlePageChange = (newPage: number) => {
+		setPage(newPage);
 	};
 
 	const getRoleBadgeColor = (role: User["role"]) => {
@@ -191,8 +191,12 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 					<TextInput
 						placeholder="Search by name, email, or use role:admin, role:user..."
 						leftSection={<IconSearch size={16} />}
-						value={searchQuery}
-						onChange={(event) => setSearchQuery(event.currentTarget.value)}
+						value={input}
+						onChange={(e) => {
+							const v = e.currentTarget.value;
+							setInput(v);
+							debouncedSetQuery(v);
+						}}
 						mb="md"
 					/>
 

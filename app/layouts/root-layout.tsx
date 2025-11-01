@@ -1,7 +1,10 @@
 import {
+	Alert,
 	Avatar,
+	Badge,
 	Container,
 	Group,
+	Indicator,
 	Menu,
 	Tabs,
 	Text,
@@ -10,6 +13,7 @@ import {
 	useMantineColorScheme,
 } from "@mantine/core";
 import {
+	IconAlertTriangle,
 	IconCalendar,
 	IconChevronDown,
 	IconLanguage,
@@ -25,7 +29,7 @@ import {
 import cx from "clsx";
 import { useEffect, useState } from "react";
 import { href, Link, Outlet, useNavigate } from "react-router";
-import type { PageInfo } from "server/contexts/global-context";
+import { globalContextKey, type PageInfo } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
@@ -33,13 +37,16 @@ import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
+	const { envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const currentUser =
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
+	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 	return {
 		userSession,
 		theme,
+		isSandboxMode,
 	};
 };
 
@@ -57,7 +64,24 @@ export default function UserLayout({
 	}, [theme]);
 	return (
 		<>
+			{loaderData.isSandboxMode && (
+				<Alert
+					icon={<IconAlertTriangle size={20} />}
+					title="Sandbox Mode Enabled"
+					color="yellow"
+					variant="light"
+				>
+					<Text size="sm">
+						<strong>Warning:</strong> Sandbox mode is currently enabled. In this
+						mode, everyone who registers will automatically receive admin role,
+						and all users can freely change their system role. This is intended
+						for testing and development purposes only. Data is temporary and will
+						be reset every midnight.
+					</Text>
+				</Alert>
+			)}
 			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} />
+			{/* Sandbox Mode Warning */}
 			<Outlet />
 		</>
 	);
@@ -84,6 +108,11 @@ export function HeaderTabs({
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const isImpersonating = userSession?.isImpersonating ?? false;
 	const authenticatedUser = userSession?.authenticatedUser;
+
+	// Check if user is admin (check effective user if impersonating, otherwise authenticated user)
+	const isAdmin = isImpersonating
+		? authenticatedUser?.role === "admin"
+		: currentUser?.role === "admin";
 
 	// Determine redirect URL based on current location
 	// If in a course, redirect back to that course after stopping impersonation
@@ -113,13 +142,13 @@ export function HeaderTabs({
 		if (!value) return;
 
 		switch (value) {
-			case "Dashboard":
+			case Tab.Dashboard:
 				navigate(href("/"));
 				break;
-			case "My Courses":
+			case Tab.MyCourses:
 				navigate(href("/course"));
 				break;
-			case "Site Admin":
+			case Tab.SiteAdmin:
 				navigate(href("/admin/*", { "*": "" }));
 				break;
 		}
@@ -178,9 +207,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId:
-																				authenticatedUser.avatar.filename,
-																		})
+																		filenameOrId:
+																			authenticatedUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -202,8 +231,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId: currentUser.avatar.filename,
-																		})
+																		filenameOrId: currentUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -221,8 +250,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filenameOrId`, {
-																filenameOrId: currentUser.avatar.filename,
-															})
+															filenameOrId: currentUser.avatar.filename,
+														})
 														: null
 												}
 												alt={
@@ -241,9 +270,14 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+											"Anonymous"
 											: "Not signed in"}
 									</Text>
+									{isAdmin && (
+										<Badge size="sm" color="red" variant="light">
+											Admin
+										</Badge>
+									)}
 									<IconChevronDown size={12} stroke={1.5} />
 								</Group>
 							</UnstyledButton>
@@ -280,8 +314,8 @@ export function HeaderTabs({
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
-										// component={Link}
-										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+									// component={Link}
+									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>
