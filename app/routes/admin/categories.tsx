@@ -433,11 +433,11 @@ export default function AdminCategoriesPage({
 					const viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent("category:none")
+								"?query=" +
+								encodeURIComponent("category:none")
 							: href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent(`category:"${d.name}"`);
+								"?query=" +
+								encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">
@@ -615,9 +615,7 @@ function EditDeleteControls({
 	selectedCategory: any;
 	onCleared: () => void;
 }) {
-	const nameToken = selectedCategory.name
-		.trim()
-		.toLowerCase()
+	const nameToken = selectedCategory.name.trim().toLowerCase();
 	const coursesByNameTo =
 		href("/admin/courses") +
 		"?query=" +

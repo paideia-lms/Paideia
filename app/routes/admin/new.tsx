@@ -19,7 +19,6 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import { useState } from "react";
 import { redirect, useFetcher } from "react-router";
@@ -31,6 +30,7 @@ import { tryCreateUser } from "server/internal/user-management";
 import type { User } from "server/payload-types";
 import { enum_users_role } from "src/payload-generated-schema";
 import z from "zod";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	badRequest,
 	ForbiddenResponse,

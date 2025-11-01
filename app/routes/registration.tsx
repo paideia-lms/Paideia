@@ -1,11 +1,25 @@
-import { Alert, Anchor, Button, Container, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
+import {
+	Alert,
+	Anchor,
+	Button,
+	Container,
+	Paper,
+	PasswordInput,
+	Stack,
+	Text,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { href, redirect, useFetcher, Link } from "react-router";
+import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryRegisterFirstUser, tryRegisterUser } from "server/internal/user-management";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
+import {
+	tryRegisterFirstUser,
+	tryRegisterUser,
+} from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
@@ -14,274 +28,324 @@ import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/registration";
 
 export async function loader({ context }: Route.LoaderArgs) {
-    const { payload } = context.get(globalContextKey);
-    const userSession = context.get(userContextKey);
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
 
-    const users = await payload.find({
-        collection: "users",
-        limit: 1,
-    });
+	const users = await payload.find({
+		collection: "users",
+		limit: 1,
+	});
 
-    const isFirstUser = users.docs.length === 0;
+	const isFirstUser = users.docs.length === 0;
 
-    // Respect registration settings unless creating the first user
+	// Respect registration settings unless creating the first user
 
-    // if user already login, redirect to dashboard
-    if (userSession?.isAuthenticated) {
-        throw redirect(href("/"));
-    }
+	// if user already login, redirect to dashboard
+	if (userSession?.isAuthenticated) {
+		throw redirect(href("/"));
+	}
 
-    const settingsResult = await tryGetRegistrationSettings({
-        payload,
-        // ! this is a system request, we don't care about access control
-        overrideAccess: true
-    });
+	const settingsResult = await tryGetRegistrationSettings({
+		payload,
+		// ! this is a system request, we don't care about access control
+		overrideAccess: true,
+	});
 
-    if (!settingsResult.ok) {
-        throw new ForbiddenResponse("Failed to get registration settings");
-    }
+	if (!settingsResult.ok) {
+		throw new ForbiddenResponse("Failed to get registration settings");
+	}
 
-    const registrationDisabled = settingsResult.value.disableRegistration;
+	const registrationDisabled = settingsResult.value.disableRegistration;
 
-    // console.log("registrationDisabled", registrationDisabled);
+	// console.log("registrationDisabled", registrationDisabled);
 
-    if (registrationDisabled && !isFirstUser) {
-        throw new ForbiddenResponse("Registration is disabled");
-    }
+	if (registrationDisabled && !isFirstUser) {
+		throw new ForbiddenResponse("Registration is disabled");
+	}
 
-
-    return {
-        NODE_ENV: process.env.NODE_ENV,
-        DEV_CONSTANTS: devConstants,
-        isFirstUser,
-        registrationDisabled,
-    };
+	return {
+		NODE_ENV: process.env.NODE_ENV,
+		DEV_CONSTANTS: devConstants,
+		isFirstUser,
+		registrationDisabled,
+	};
 }
 
 const formSchema = z.object({
-    email: z.email(),
-    password: z.string().min(8),
-    firstName: z.string(),
-    lastName: z.string(),
+	email: z.email(),
+	password: z.string().min(8),
+	firstName: z.string(),
+	lastName: z.string(),
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
-    const { payload, requestInfo } = context.get(globalContextKey);
-    const userSession = context.get(userContextKey);
+	const { payload, requestInfo } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
 
-    // Determine if first user
-    const existing = await payload.find({ collection: "users", limit: 1 });
-    const isFirstUser = existing.docs.length === 0;
+	// Determine if first user
+	const existing = await payload.find({ collection: "users", limit: 1 });
+	const isFirstUser = existing.docs.length === 0;
 
-    const { data } = await getDataAndContentTypeFromRequest(request);
+	const { data } = await getDataAndContentTypeFromRequest(request);
 
-    const parsed = formSchema.safeParse(data);
+	const parsed = formSchema.safeParse(data);
 
-    if (!parsed.success) {
-        return badRequest({ success: false, error: parsed.error.message });
-    }
+	if (!parsed.success) {
+		return badRequest({ success: false, error: parsed.error.message });
+	}
 
-    // Respect registration settings unless creating the first user
-    const currentUserRaw = userSession?.effectiveUser || userSession?.authenticatedUser || null;
-    const currentUser = currentUserRaw
-        ? { ...currentUserRaw, avatar: currentUserRaw.avatar?.id }
-        : null;
-    const settingsResult = await tryGetRegistrationSettings({
-        payload,
-        user: currentUser || null,
-        overrideAccess: false,
-    });
-    if (settingsResult.ok && settingsResult.value.disableRegistration && !isFirstUser) {
-        return badRequest({ success: false, error: "Registration is disabled" });
-    }
+	// Respect registration settings unless creating the first user
+	const currentUserRaw =
+		userSession?.effectiveUser || userSession?.authenticatedUser || null;
+	const currentUser = currentUserRaw
+		? { ...currentUserRaw, avatar: currentUserRaw.avatar?.id }
+		: null;
+	const settingsResult = await tryGetRegistrationSettings({
+		payload,
+		user: currentUser || null,
+		overrideAccess: false,
+	});
+	if (
+		settingsResult.ok &&
+		settingsResult.value.disableRegistration &&
+		!isFirstUser
+	) {
+		return badRequest({ success: false, error: "Registration is disabled" });
+	}
 
-    // For first user, register as admin; otherwise regular registration
-    if (isFirstUser) {
-        const result = await tryRegisterFirstUser({
-            payload,
-            ...parsed.data,
-            req: request,
-        });
+	// For first user, register as admin; otherwise regular registration
+	if (isFirstUser) {
+		const result = await tryRegisterFirstUser({
+			payload,
+			...parsed.data,
+			req: request,
+		});
 
-        if (!result.ok) {
-            return badRequest({ success: false, error: result.error.message });
-        }
+		if (!result.ok) {
+			return badRequest({ success: false, error: result.error.message });
+		}
 
-        const { token, exp } = result.value;
-        throw redirect(href("/"), {
-            headers: {
-                "Set-Cookie": setCookie(
-                    token,
-                    exp,
-                    requestInfo.domainUrl,
-                    request.headers,
-                    payload,
-                ),
-            },
-        });
-    }
+		const { token, exp } = result.value;
+		throw redirect(href("/"), {
+			headers: {
+				"Set-Cookie": setCookie(
+					token,
+					exp,
+					requestInfo.domainUrl,
+					request.headers,
+					payload,
+				),
+			},
+		});
+	}
 
-    const result = await tryRegisterUser({
-        payload,
-        ...parsed.data,
-        req: request,
-    });
+	const result = await tryRegisterUser({
+		payload,
+		...parsed.data,
+		req: request,
+	});
 
-    if (!result.ok) {
-        return badRequest({ success: false, error: result.error.message });
-    }
+	if (!result.ok) {
+		return badRequest({ success: false, error: result.error.message });
+	}
 
-    const { token, exp } = result.value;
-    throw redirect(href("/"), {
-        headers: {
-            "Set-Cookie": setCookie(
-                token,
-                exp,
-                requestInfo.domainUrl,
-                request.headers,
-                payload,
-            ),
-        },
-    });
+	const { token, exp } = result.value;
+	throw redirect(href("/"), {
+		headers: {
+			"Set-Cookie": setCookie(
+				token,
+				exp,
+				requestInfo.domainUrl,
+				request.headers,
+				payload,
+			),
+		},
+	});
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
-    const actionData = await serverAction();
+	const actionData = await serverAction();
 
-    if (actionData?.success) {
-        notifications.show({
-            title: "Registration successful",
-            message: "Welcome to Paideia LMS!",
-            color: "green",
-        });
-    } else if ("error" in actionData) {
-        notifications.show({
-            title: "Registration failed",
-            message: actionData?.error,
-            color: "red",
-        });
-    }
-    return actionData;
+	if (actionData?.success) {
+		notifications.show({
+			title: "Registration successful",
+			message: "Welcome to Paideia LMS!",
+			color: "green",
+		});
+	} else if ("error" in actionData) {
+		notifications.show({
+			title: "Registration failed",
+			message: actionData?.error,
+			color: "red",
+		});
+	}
+	return actionData;
 }
 
 export default function RegistrationView({ loaderData }: Route.ComponentProps) {
-    const { NODE_ENV, DEV_CONSTANTS, isFirstUser, registrationDisabled } = loaderData;
+	const { NODE_ENV, DEV_CONSTANTS, isFirstUser, registrationDisabled } =
+		loaderData;
 
-    return (
-        <Container
-            size="sm"
-            py="xl"
-            style={{
-                height: "100vh",
-                flex: 1,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-            }}
-        >
-            <title>Register | Paideia LMS</title>
-            <meta name="description" content="Create your Paideia LMS account" />
-            <meta property="og:title" content="Register | Paideia LMS" />
-            <meta property="og:description" content="Create your Paideia LMS account" />
+	return (
+		<Container
+			size="sm"
+			py="xl"
+			style={{
+				height: "100vh",
+				flex: 1,
+				display: "flex",
+				justifyContent: "center",
+				alignItems: "center",
+			}}
+		>
+			<title>Register | Paideia LMS</title>
+			<meta name="description" content="Create your Paideia LMS account" />
+			<meta property="og:title" content="Register | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="Create your Paideia LMS account"
+			/>
 
-            <Paper withBorder shadow="md" p="lg" radius="md" style={{ width: 400, margin: "0 auto" }}>
-                <Stack gap="md">
-                    <Title order={1} ta="center">
-                        Register
-                    </Title>
-                    {isFirstUser && (
-                        <Alert color="green" title="First user">
-                            You are creating the first account. It will be granted admin access.
-                        </Alert>
-                    )}
-                    <RegistrationClient NODE_ENV={NODE_ENV} DEV_CONSTANTS={DEV_CONSTANTS} />
-                    {!registrationDisabled && !isFirstUser && (
-                        <Text ta="center" c="dimmed" size="sm" style={{ marginTop: "4px" }}>
-                            <Anchor component={Link} to={href("/login")} underline="always">
-                                Already have an account? Login
-                            </Anchor>
-                        </Text>
-                    )}
-                </Stack>
-            </Paper>
-        </Container>
-    );
+			<Paper
+				withBorder
+				shadow="md"
+				p="lg"
+				radius="md"
+				style={{ width: 400, margin: "0 auto" }}
+			>
+				<Stack gap="md">
+					<Title order={1} ta="center">
+						Register
+					</Title>
+					{isFirstUser && (
+						<Alert color="green" title="First user">
+							You are creating the first account. It will be granted admin
+							access.
+						</Alert>
+					)}
+					<RegistrationClient
+						NODE_ENV={NODE_ENV}
+						DEV_CONSTANTS={DEV_CONSTANTS}
+					/>
+					{!registrationDisabled && !isFirstUser && (
+						<Text ta="center" c="dimmed" size="sm" style={{ marginTop: "4px" }}>
+							<Anchor component={Link} to={href("/login")} underline="always">
+								Already have an account? Login
+							</Anchor>
+						</Text>
+					)}
+				</Stack>
+			</Paper>
+		</Container>
+	);
 }
 
 export function RegistrationClient({
-
-    NODE_ENV,
-    DEV_CONSTANTS,
+	NODE_ENV,
+	DEV_CONSTANTS,
 }: {
-    NODE_ENV: string | undefined;
-    DEV_CONSTANTS: typeof devConstants;
+	NODE_ENV: string | undefined;
+	DEV_CONSTANTS: typeof devConstants;
 }) {
-    const fetcher = useFetcher<typeof action>();
+	const fetcher = useFetcher<typeof action>();
 
-    const form = useForm({
-        mode: "uncontrolled",
-        initialValues: {
-            email: "",
-            password: "",
-            confirmPassword: "",
-            firstName: "",
-            lastName: "",
-        },
-        validate: {
-            email: isEmail("Invalid email"),
-            password: (value) => (value.length < 8 ? "Password must be at least 8 characters" : null),
-            confirmPassword: (value, values) => (value !== values.password ? "Passwords do not match" : null),
-            firstName: (value) => (!value ? "First name is required" : null),
-            lastName: (value) => (!value ? "Last name is required" : null),
-        },
-    });
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			email: "",
+			password: "",
+			confirmPassword: "",
+			firstName: "",
+			lastName: "",
+		},
+		validate: {
+			email: isEmail("Invalid email"),
+			password: (value) =>
+				value.length < 8 ? "Password must be at least 8 characters" : null,
+			confirmPassword: (value, values) =>
+				value !== values.password ? "Passwords do not match" : null,
+			firstName: (value) => (!value ? "First name is required" : null),
+			lastName: (value) => (!value ? "Last name is required" : null),
+		},
+	});
 
-    const handleAutoFill = () => {
-        form.setValues({
-            email: DEV_CONSTANTS.ADMIN_EMAIL,
-            password: DEV_CONSTANTS.ADMIN_PASSWORD,
-            confirmPassword: DEV_CONSTANTS.ADMIN_PASSWORD,
-            firstName: "Admin",
-            lastName: "User",
-        });
-    };
+	const handleAutoFill = () => {
+		form.setValues({
+			email: DEV_CONSTANTS.ADMIN_EMAIL,
+			password: DEV_CONSTANTS.ADMIN_PASSWORD,
+			confirmPassword: DEV_CONSTANTS.ADMIN_PASSWORD,
+			firstName: "Admin",
+			lastName: "User",
+		});
+	};
 
-    return (
-        <fetcher.Form
-            method="POST"
-            onSubmit={form.onSubmit((values) => {
-                fetcher.submit(values, { method: "POST", encType: "application/json" });
-            })}
-            style={{ display: "flex", flexDirection: "column", gap: "16px" }}
-        >
+	return (
+		<fetcher.Form
+			method="POST"
+			onSubmit={form.onSubmit((values) => {
+				fetcher.submit(values, { method: "POST", encType: "application/json" });
+			})}
+			style={{ display: "flex", flexDirection: "column", gap: "16px" }}
+		>
+			{NODE_ENV === "development" && (
+				<Button
+					onClick={handleAutoFill}
+					variant="light"
+					color="gray"
+					fullWidth
+					size="sm"
+				>
+					🚀 Auto-fill (Dev Only)
+				</Button>
+			)}
 
-            {NODE_ENV === "development" && (
-                <Button onClick={handleAutoFill} variant="light" color="gray" fullWidth size="sm">
-                    🚀 Auto-fill (Dev Only)
-                </Button>
-            )}
+			<TextInput
+				{...form.getInputProps("email")}
+				key={form.key("email")}
+				label="Email"
+				placeholder="Enter your email"
+				required
+			/>
 
-            <TextInput {...form.getInputProps("email")} key={form.key("email")} label="Email" placeholder="Enter your email" required />
+			<TextInput
+				{...form.getInputProps("firstName")}
+				key={form.key("firstName")}
+				label="First Name"
+				placeholder="Enter your first name"
+				required
+			/>
 
-            <TextInput {...form.getInputProps("firstName")} key={form.key("firstName")} label="First Name" placeholder="Enter your first name" required />
+			<TextInput
+				{...form.getInputProps("lastName")}
+				key={form.key("lastName")}
+				label="Last Name"
+				placeholder="Enter your last name"
+				required
+			/>
 
-            <TextInput {...form.getInputProps("lastName")} key={form.key("lastName")} label="Last Name" placeholder="Enter your last name" required />
+			<PasswordInput
+				{...form.getInputProps("password")}
+				key={form.key("password")}
+				label="Password"
+				placeholder="Enter your password"
+				required
+			/>
 
-            <PasswordInput {...form.getInputProps("password")} key={form.key("password")} label="Password" placeholder="Enter your password" required />
+			<PasswordInput
+				{...form.getInputProps("confirmPassword")}
+				key={form.key("confirmPassword")}
+				label="Confirm Password"
+				placeholder="Confirm your password"
+				required
+			/>
 
-            <PasswordInput
-                {...form.getInputProps("confirmPassword")}
-                key={form.key("confirmPassword")}
-                label="Confirm Password"
-                placeholder="Confirm your password"
-                required
-            />
-
-            <Button type="submit" loading={fetcher.state !== "idle"} style={{ marginTop: "16px" }}>
-                Create Account
-            </Button>
-        </fetcher.Form>
-    );
+			<Button
+				type="submit"
+				loading={fetcher.state !== "idle"}
+				style={{ marginTop: "16px" }}
+			>
+				Create Account
+			</Button>
+		</fetcher.Form>
+	);
 }
-
-

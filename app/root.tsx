@@ -27,22 +27,24 @@ import "@mantine/notifications/styles.css";
 import "@mantine/dropzone/styles.css";
 import "@mantine/dates/styles.css";
 import "@mantine/charts/styles.css";
-import '@mantine/code-highlight/styles.css';
+import "@mantine/code-highlight/styles.css";
 import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
-import 'mantine-datatable/styles.layer.css';
+import "mantine-datatable/styles.layer.css";
 
-
+import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
 	ColorSchemeScript,
 	createTheme,
 	MantineProvider,
 	Textarea,
 } from "@mantine/core";
-import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
+import * as React from "react";
+import { useEffect } from "react";
+import { useRevalidator } from "react-router";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import {
 	getUserAccessContext,
@@ -64,12 +66,10 @@ import {
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
+import { hintsUtils } from "./utils/client-hints";
+import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import { InternalServerErrorResponse } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
-import { customLowlightAdapter } from "./utils/lowlight-adapter";
-import { hintsUtils } from "./utils/client-hints";
-import { useRevalidator } from "react-router";
-import * as React from "react";
 
 export const middleware = [
 	/**
@@ -127,6 +127,8 @@ export const middleware = [
 		let isAdminCategories = false;
 		let isAdminCategoryNew = false;
 		let isAdminRegistration = false;
+		let isAdminMigrations = false;
+		let isAdminDependencies = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -193,7 +195,11 @@ export const middleware = [
 			else if (route.id === "routes/admin/category-new")
 				isAdminCategoryNew = true;
 			else if (route.id === "routes/admin/course-new") isAdminCourseNew = true;
-			else if (route.id === "routes/admin/registration") isAdminRegistration = true;
+			else if (route.id === "routes/admin/registration")
+				isAdminRegistration = true;
+			else if (route.id === "routes/admin/migrations") isAdminMigrations = true;
+			else if (route.id === "routes/admin/dependencies")
+				isAdminDependencies = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -251,6 +257,8 @@ export const middleware = [
 				isAdminCategoryNew,
 				isAdminRegistration,
 				isAdminCourseNew,
+				isAdminMigrations,
+				isAdminDependencies,
 				params: params as Record<string, string>,
 			},
 		});
@@ -318,9 +326,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -370,9 +378,9 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -432,9 +440,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -486,9 +494,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				);
 
@@ -554,7 +562,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
 
-
 	// Check if we need to redirect to first-user creation
 	const url = new URL(request.url);
 
@@ -604,13 +611,15 @@ const mantineTheme = createTheme({
 function ClientHintCheck() {
 	const { revalidate } = useRevalidator();
 
-	React.useEffect(() => {
+	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	useEffect(() => {
 		// Revalidate when timezone changes are detected
 		// This will be handled by the client hint script automatically
 	}, [revalidate]);
 
 	return (
 		<script
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
 			dangerouslySetInnerHTML={{
 				__html: hintsUtils.getClientHintCheckScript(),
 			}}
@@ -642,15 +651,19 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
 				/>
-				{!isDevelopment && <script
-					crossOrigin="anonymous"
-					src="https://unpkg.com/react-scan/dist/auto.global.js"
-				/>}
-				{!isDevelopment && <script
-					src="https://unpkg.com/react-grab/dist/index.global.js"
-					crossOrigin="anonymous"
-					data-enabled="true"
-				/>}
+				{!isDevelopment && (
+					<script
+						crossOrigin="anonymous"
+						src="https://unpkg.com/react-scan/dist/auto.global.js"
+					/>
+				)}
+				{!isDevelopment && (
+					<script
+						src="https://unpkg.com/react-grab/dist/index.global.js"
+						crossOrigin="anonymous"
+						data-enabled="true"
+					/>
+				)}
 				<Meta />
 				<Links />
 				<ColorSchemeScript defaultColorScheme={theme} />

@@ -652,7 +652,15 @@ export const tryRegisterFirstUser = Result.wrap(
  */
 export const tryRegisterUser = Result.wrap(
 	async (args: RegisterUserArgs) => {
-		const { payload, email, password, firstName, lastName, req, user = null } = args;
+		const {
+			payload,
+			email,
+			password,
+			firstName,
+			lastName,
+			req,
+			user = null,
+		} = args;
 
 		// Ensure not already exists
 		const existing = await payload.find({

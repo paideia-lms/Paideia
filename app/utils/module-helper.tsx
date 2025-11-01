@@ -11,7 +11,7 @@ import {
 export function getModuleIcon(
 	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion",
 	size?: number,
-	color?: string
+	color?: string,
 ) {
 	switch (type) {
 		case "page":

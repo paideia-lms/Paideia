@@ -65,6 +65,8 @@ export type PageInfo = {
 	isAdminTestEmail: boolean;
 	isAdminCategories: boolean;
 	isAdminCategoryNew: boolean;
+	isAdminMigrations: boolean;
+	isAdminDependencies: boolean;
 	/**
 	 * the params of the current route
 	 */

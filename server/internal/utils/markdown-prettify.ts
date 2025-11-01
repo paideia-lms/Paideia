@@ -4,15 +4,13 @@ import remarkGfm from "remark-gfm";
 /**
  * Prettifies markdown by processing it through remark with GFM support
  * This will normalize formatting, fix spacing, and ensure consistent structure
- * 
+ *
  * @param markdown - Raw markdown string to prettify
  * @returns Prettified markdown string with normalized formatting
  */
 export function prettifyMarkdown(markdown: string): string {
 	try {
-		const result = remark()
-			.use(remarkGfm)
-			.processSync(markdown);
+		const result = remark().use(remarkGfm).processSync(markdown);
 
 		return String(result);
 	} catch (error) {
@@ -22,4 +20,3 @@ export function prettifyMarkdown(markdown: string): string {
 		return markdown;
 	}
 }
-

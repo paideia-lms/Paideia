@@ -54,5 +54,5 @@ pre-commit:
       run: bun typecheck
       stage_fixed: true
     - name: lint
-      run: bun lint
+      run: bun lint --diagnostic-level error
       stage_fixed: true

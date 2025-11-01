@@ -16,12 +16,17 @@ import {
 	tryUpdateGradebookItem,
 } from "server/internal/gradebook-item-management";
 import { tryFindGradebookByCourseId } from "server/internal/gradebook-management";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, BadRequestResponse, ForbiddenResponse, ok } from "~/utils/responses";
-import type { Route } from "./+types/course.$id.grades";
-import { inputSchema } from "~/components/gradebook/schemas";
 import { GraderReportView } from "~/components/gradebook/report-view";
+import { inputSchema } from "~/components/gradebook/schemas";
 import { GradebookSetupView } from "~/components/gradebook/setup-view";
+import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import {
+	BadRequestResponse,
+	badRequest,
+	ForbiddenResponse,
+	ok,
+} from "~/utils/responses";
+import type { Route } from "./+types/course.$id.grades";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
@@ -36,7 +41,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-
 	const gradebookSetupForUI = courseContext.gradebookSetupForUI;
 
 	return {
@@ -50,11 +54,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		enrollments: courseContext.course.enrollments.filter(
 			(e) => e.status === "active",
 		),
-		hasExtraCredit: gradebookSetupForUI ? (gradebookSetupForUI.totals.calculatedTotal > 100 || gradebookSetupForUI.extraCreditItems.length > 0) : false,
+		hasExtraCredit: gradebookSetupForUI
+			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
+				gradebookSetupForUI.extraCreditItems.length > 0
+			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
 		totalMaxGrade: gradebookSetupForUI?.totals.totalMaxGrade ?? 0,
-	}
+	};
 };
 
 export const action = async ({
@@ -105,27 +112,26 @@ export const action = async ({
 		const sortOrder = sortOrderResult.value;
 
 		// Create gradebook item
-		const createResult = await tryCreateGradebookItem(
-			payload,
-			request,
-			{
-				gradebookId,
-				categoryId: parsedData.data.categoryId ?? null,
-				name: parsedData.data.name,
-				description: parsedData.data.description,
-				maxGrade: parsedData.data.maxGrade,
-				minGrade: parsedData.data.minGrade,
-				weight: parsedData.data.weight,
-				extraCredit: parsedData.data.extraCredit ?? false,
-				sortOrder,
-			},
-		);
+		const createResult = await tryCreateGradebookItem(payload, request, {
+			gradebookId,
+			categoryId: parsedData.data.categoryId ?? null,
+			name: parsedData.data.name,
+			description: parsedData.data.description,
+			maxGrade: parsedData.data.maxGrade,
+			minGrade: parsedData.data.minGrade,
+			weight: parsedData.data.weight,
+			extraCredit: parsedData.data.extraCredit ?? false,
+			sortOrder,
+		});
 
 		if (!createResult.ok) {
 			return badRequest({ error: createResult.error.message });
 		}
 
-		return ok({ success: true, message: "Gradebook item created successfully" });
+		return ok({
+			success: true,
+			message: "Gradebook item created successfully",
+		});
 	}
 
 	if (parsedData.data.intent === "create-category") {
@@ -143,24 +149,22 @@ export const action = async ({
 		const sortOrder = sortOrderResult.value;
 
 		// Create gradebook category
-		const createResult = await tryCreateGradebookCategory(
-			payload,
-			request,
-			{
-				gradebookId,
-				parentId: parsedData.data.parentId ?? null,
-				name: parsedData.data.name,
-				description: parsedData.data.description,
-				weight: parsedData.data.weight,
-				sortOrder,
-			},
-		);
-
+		const createResult = await tryCreateGradebookCategory(payload, request, {
+			gradebookId,
+			parentId: parsedData.data.parentId ?? null,
+			name: parsedData.data.name,
+			description: parsedData.data.description,
+			weight: parsedData.data.weight,
+			sortOrder,
+		});
 
 		if (!createResult.ok) {
 			return badRequest({ error: createResult.error.message });
 		}
-		return ok({ success: true, message: "Gradebook category created successfully" });
+		return ok({
+			success: true,
+			message: "Gradebook category created successfully",
+		});
 	}
 
 	if (parsedData.data.intent === "update-item") {
@@ -182,7 +186,10 @@ export const action = async ({
 			return badRequest({ error: updateResult.error.message });
 		}
 
-		return ok({ success: true, message: "Gradebook item updated successfully" });
+		return ok({
+			success: true,
+			message: "Gradebook item updated successfully",
+		});
 	}
 
 	if (parsedData.data.intent === "update-category") {
@@ -201,7 +208,10 @@ export const action = async ({
 			return badRequest({ error: updateResult.error.message });
 		}
 
-		return ok({ success: true, message: "Gradebook category updated successfully" });
+		return ok({
+			success: true,
+			message: "Gradebook category updated successfully",
+		});
 	}
 
 	if (parsedData.data.intent === "get-item") {
@@ -217,9 +227,10 @@ export const action = async ({
 		const item = itemResult.value;
 
 		// Handle category as number or object
-		const categoryId = typeof item.category === "number"
-			? item.category
-			: item.category?.id ?? null;
+		const categoryId =
+			typeof item.category === "number"
+				? item.category
+				: (item.category?.id ?? null);
 
 		return ok({
 			success: true,
@@ -249,9 +260,10 @@ export const action = async ({
 		const category = categoryResult.value;
 
 		// Handle parent as number or object
-		const parentId = typeof category.parent === "number"
-			? category.parent
-			: category.parent?.id ?? null;
+		const parentId =
+			typeof category.parent === "number"
+				? category.parent
+				: (category.parent?.id ?? null);
 
 		return ok({
 			success: true,
@@ -290,7 +302,8 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
-	const { hasExtraCredit, displayTotal, extraCreditItems, totalMaxGrade } = loaderData;
+	const { hasExtraCredit, displayTotal, extraCreditItems, totalMaxGrade } =
+		loaderData;
 	const [activeTab] = useQueryState("tab", {
 		defaultValue: "report",
 	});
@@ -298,7 +311,13 @@ export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
 	return (
 		<>
 			{activeTab === "setup" ? (
-				<GradebookSetupView data={loaderData} hasExtraCredit={hasExtraCredit} displayTotal={displayTotal} extraCreditItems={extraCreditItems} totalMaxGrade={totalMaxGrade} />
+				<GradebookSetupView
+					data={loaderData}
+					hasExtraCredit={hasExtraCredit}
+					displayTotal={displayTotal}
+					extraCreditItems={extraCreditItems}
+					totalMaxGrade={totalMaxGrade}
+				/>
 			) : (
 				<GraderReportView data={loaderData} />
 			)}

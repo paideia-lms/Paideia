@@ -108,7 +108,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-				createdBy.email
+					createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -332,8 +332,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																	(id) => id !== course.id,
-																),
+																		(id) => id !== course.id,
+																	),
 														)
 													}
 												/>
@@ -423,9 +423,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															to={href("/course/:id/grades", {
 																id: String(course.id),
 															})}
-															leftSection={
-																<IconReportAnalytics size={16} />
-															}
+															leftSection={<IconReportAnalytics size={16} />}
 														>
 															Grades
 														</Menu.Item>

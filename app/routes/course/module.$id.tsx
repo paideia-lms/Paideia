@@ -12,7 +12,6 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	IconCalendar,
 	IconChevronLeft,
@@ -47,6 +46,7 @@ import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
 import { AssignmentActions } from "~/utils/module-actions";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	BadRequestResponse,
 	badRequest,

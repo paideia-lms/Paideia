@@ -92,7 +92,12 @@ export default function ServerAdminLayout({
 			pageInfo.isAdminCategoryNew
 		)
 			return AdminTab.Courses;
-		if (pageInfo.isAdminSystem || pageInfo.isAdminTestEmail)
+		if (
+			pageInfo.isAdminSystem ||
+			pageInfo.isAdminTestEmail ||
+			pageInfo.isAdminMigrations ||
+			pageInfo.isAdminDependencies
+		)
 			return AdminTab.Server;
 		// Default to query param or 'general'
 		return activeTab ?? AdminTab.General;

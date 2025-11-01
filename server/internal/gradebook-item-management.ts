@@ -79,7 +79,6 @@ export const tryCreateGradebookItem = Result.wrap(
 			throw new InvalidSortOrderError("Sort order must be non-negative");
 		}
 
-
 		const transactionID =
 			args.transactionID || (await payload.db.beginTransaction());
 

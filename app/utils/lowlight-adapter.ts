@@ -1,4 +1,4 @@
-import type { CodeHighlightAdapterProvider } from '@mantine/code-highlight';
+import type { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import { toHtml } from "hast-util-to-html";
 import bash from "highlight.js/lib/languages/bash";
 import css from "highlight.js/lib/languages/css";
@@ -14,7 +14,9 @@ import yaml from "highlight.js/lib/languages/yaml";
 import { createLowlight } from "lowlight";
 import { mermaidGrammar } from "lowlight-mermaid";
 
-type CodeHighlightAdapter = Parameters<typeof CodeHighlightAdapterProvider>[0]['adapter']
+type CodeHighlightAdapter = Parameters<
+	typeof CodeHighlightAdapterProvider
+>[0]["adapter"];
 
 // Create and configure lowlight instance with all registered languages
 const lowlight = createLowlight();
@@ -77,4 +79,3 @@ export const customLowlightAdapter: CodeHighlightAdapter = {
 		};
 	},
 };
-

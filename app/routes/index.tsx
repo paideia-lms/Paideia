@@ -27,6 +27,7 @@ import {
 	useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { MiniCalendar } from "@mantine/dates";
 import {
 	IconBook,
 	IconBooks,
@@ -45,14 +46,13 @@ import {
 	IconUsers,
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
-import { MiniCalendar } from "@mantine/dates";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import type { Route } from "./+types/index";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
 import { ForbiddenResponse } from "~/utils/responses";
+import type { Route } from "./+types/index";
 
 // Utility function to format schedule string
 export function formatSchedule(schedule: string): string {
@@ -149,7 +149,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 		// Registration button visibility
 		let showRegistrationButton = true;
-		const reg = (await tryGetRegistrationSettings({ payload, overrideAccess: true }));
+		const reg = await tryGetRegistrationSettings({
+			payload,
+			overrideAccess: true,
+		});
 		if (!reg.ok) {
 			throw new ForbiddenResponse("Failed to get registration settings");
 		}
@@ -268,31 +271,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		courseTitle: string;
 		courseId: number;
 	}> = [
-			{
-				id: 1,
-				title: "Databases CW1",
-				type: "assignment" as const,
-				dueDate: dayjs().hour(10).minute(0).toISOString(),
-				courseTitle: "Databases",
-				courseId: 2,
-			},
-			{
-				id: 2,
-				title: "Functional Programming CW2",
-				type: "assignment" as const,
-				dueDate: dayjs().hour(16).minute(0).toISOString(),
-				courseTitle: "Functional Programming",
-				courseId: 3,
-			},
-			{
-				id: 3,
-				title: "Week 1: Object Oriented vs Functional Programming",
-				type: "discussion" as const,
-				dueDate: dayjs().hour(23).minute(59).toISOString(),
-				courseTitle: "Functional Programming",
-				courseId: 3,
-			},
-		];
+		{
+			id: 1,
+			title: "Databases CW1",
+			type: "assignment" as const,
+			dueDate: dayjs().hour(10).minute(0).toISOString(),
+			courseTitle: "Databases",
+			courseId: 2,
+		},
+		{
+			id: 2,
+			title: "Functional Programming CW2",
+			type: "assignment" as const,
+			dueDate: dayjs().hour(16).minute(0).toISOString(),
+			courseTitle: "Functional Programming",
+			courseId: 3,
+		},
+		{
+			id: 3,
+			title: "Week 1: Object Oriented vs Functional Programming",
+			type: "discussion" as const,
+			dueDate: dayjs().hour(23).minute(59).toISOString(),
+			courseTitle: "Functional Programming",
+			courseId: 3,
+		},
+	];
 
 	// Mock program data
 	const mockProgram = {
@@ -999,7 +1002,7 @@ function CurriculumMap({
 								<Stack gap={6}>
 									<Text size="xs" fw={600} c="dimmed">
 										{course.status === "completed" ||
-											course.status === "in progress"
+										course.status === "in progress"
 											? course.shortcode
 											: course.code}
 									</Text>

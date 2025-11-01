@@ -26,7 +26,10 @@ export interface RunSeedArgs {
 /**
  * Get file content from VFS as Buffer
  */
-function getVfsFileBuffer(vfs: Record<string, string>, path: string): Buffer | null {
+function getVfsFileBuffer(
+	vfs: Record<string, string>,
+	path: string,
+): Buffer | null {
 	const base64Content = vfs[path];
 	if (!base64Content) return null;
 	return Buffer.from(base64Content, "base64");
@@ -35,7 +38,10 @@ function getVfsFileBuffer(vfs: Record<string, string>, path: string): Buffer | n
 /**
  * Get file content from VFS as text
  */
-function getVfsFileText(vfs: Record<string, string>, path: string): string | null {
+function getVfsFileText(
+	vfs: Record<string, string>,
+	path: string,
+): string | null {
 	const buffer = getVfsFileBuffer(vfs, path);
 	if (!buffer) return null;
 	return buffer.toString("utf-8");
@@ -101,43 +107,50 @@ const testData = {
 	courses: [
 		{
 			title: "Introduction to Computer Science",
-			description: "This comprehensive course provides a thorough introduction to the fundamental concepts of computer science. Students will explore programming basics, data structures, algorithms, and software engineering principles. The course is designed to build a strong foundation for further studies in computer science and related fields.",
+			description:
+				"This comprehensive course provides a thorough introduction to the fundamental concepts of computer science. Students will explore programming basics, data structures, algorithms, and software engineering principles. The course is designed to build a strong foundation for further studies in computer science and related fields.",
 			slug: "introduction-to-computer-science",
 			status: "published" as const,
 		},
 		{
 			title: "Advanced Data Structures and Algorithms",
-			description: "An in-depth exploration of advanced data structures including trees, graphs, and hash tables. Students will learn to analyze algorithm complexity and implement efficient solutions to complex problems. This course builds upon fundamental programming concepts.",
+			description:
+				"An in-depth exploration of advanced data structures including trees, graphs, and hash tables. Students will learn to analyze algorithm complexity and implement efficient solutions to complex problems. This course builds upon fundamental programming concepts.",
 			slug: "advanced-data-structures-and-algorithms",
 			status: "published" as const,
 		},
 		{
 			title: "Database Systems and Design",
-			description: "Learn the principles of database design, normalization, and SQL query optimization. This course covers relational database management systems, data modeling, and transaction management. Students will gain practical experience designing and implementing database solutions.",
+			description:
+				"Learn the principles of database design, normalization, and SQL query optimization. This course covers relational database management systems, data modeling, and transaction management. Students will gain practical experience designing and implementing database solutions.",
 			slug: "database-systems-and-design",
 			status: "published" as const,
 		},
 		{
 			title: "Web Development Fundamentals",
-			description: "A practical introduction to modern web development covering HTML, CSS, JavaScript, and responsive design principles. Students will learn to build interactive web applications using current best practices and frameworks. The course includes hands-on projects and real-world examples.",
+			description:
+				"A practical introduction to modern web development covering HTML, CSS, JavaScript, and responsive design principles. Students will learn to build interactive web applications using current best practices and frameworks. The course includes hands-on projects and real-world examples.",
 			slug: "web-development-fundamentals",
 			status: "draft" as const,
 		},
 		{
 			title: "Machine Learning Basics",
-			description: "Introduction to machine learning concepts including supervised and unsupervised learning, neural networks, and data preprocessing. Students will explore various algorithms and apply them to real-world datasets. This course requires prior knowledge of programming and statistics.",
+			description:
+				"Introduction to machine learning concepts including supervised and unsupervised learning, neural networks, and data preprocessing. Students will explore various algorithms and apply them to real-world datasets. This course requires prior knowledge of programming and statistics.",
 			slug: "machine-learning-basics",
 			status: "published" as const,
 		},
 		{
 			title: "Software Engineering Practices",
-			description: "Learn professional software development practices including version control, testing, code reviews, and project management. This course emphasizes collaborative development and industry-standard methodologies. Students will work on team projects throughout the semester.",
+			description:
+				"Learn professional software development practices including version control, testing, code reviews, and project management. This course emphasizes collaborative development and industry-standard methodologies. Students will work on team projects throughout the semester.",
 			slug: "software-engineering-practices",
 			status: "published" as const,
 		},
 		{
 			title: "Linear Algebra for Engineers",
-			description: "A comprehensive study of linear algebra concepts essential for engineering applications. Topics include vector spaces, matrices, eigenvalues, and linear transformations. The course focuses on both theoretical understanding and practical problem-solving techniques.",
+			description:
+				"A comprehensive study of linear algebra concepts essential for engineering applications. Topics include vector spaces, matrices, eigenvalues, and linear transformations. The course focuses on both theoretical understanding and practical problem-solving techniques.",
 			slug: "linear-algebra-for-engineers",
 			status: "archived" as const,
 		},
@@ -145,72 +158,89 @@ const testData = {
 	modules: {
 		page: {
 			title: "Course Overview and Objectives",
-			description: "An introduction to the course structure, learning objectives, and expected outcomes.",
-			content: "Welcome to this course! This module provides an overview of the course content, learning objectives, and assessment methods. By the end of this course, you should have a comprehensive understanding of the subject matter and be able to apply the concepts learned in real-world scenarios.",
+			description:
+				"An introduction to the course structure, learning objectives, and expected outcomes.",
+			content:
+				"Welcome to this course! This module provides an overview of the course content, learning objectives, and assessment methods. By the end of this course, you should have a comprehensive understanding of the subject matter and be able to apply the concepts learned in real-world scenarios.",
 		},
 		additional: [
 			{
 				type: "page" as const,
 				title: "Introduction to Variables and Data Types",
-				description: "Learn about different data types and how to declare and use variables in programming.",
+				description:
+					"Learn about different data types and how to declare and use variables in programming.",
 				status: "published" as const,
-				content: "Variables are fundamental building blocks in programming. They allow us to store and manipulate data. In this lesson, we'll explore primitive data types including integers, floating-point numbers, strings, and booleans. We'll also cover type conversion and best practices for variable naming.",
+				content:
+					"Variables are fundamental building blocks in programming. They allow us to store and manipulate data. In this lesson, we'll explore primitive data types including integers, floating-point numbers, strings, and booleans. We'll also cover type conversion and best practices for variable naming.",
 			},
 			{
 				type: "quiz" as const,
 				title: "Data Types and Variables Quiz",
-				description: "Test your understanding of variables and data types with this assessment.",
+				description:
+					"Test your understanding of variables and data types with this assessment.",
 				status: "published" as const,
-				instructions: "This quiz covers the concepts introduced in the data types module. Answer each question carefully and take your time. You have multiple attempts available.",
+				instructions:
+					"This quiz covers the concepts introduced in the data types module. Answer each question carefully and take your time. You have multiple attempts available.",
 				points: 100,
 				timeLimit: 45,
 			},
 			{
 				type: "assignment" as const,
 				title: "Programming Exercise: Calculator",
-				description: "Build a simple calculator application to practice using variables and basic operations.",
+				description:
+					"Build a simple calculator application to practice using variables and basic operations.",
 				status: "published" as const,
-				instructions: "Create a calculator program that can perform basic arithmetic operations (addition, subtraction, multiplication, division). The program should handle user input, perform calculations, and display results. Submit your code along with a brief explanation of your implementation.",
+				instructions:
+					"Create a calculator program that can perform basic arithmetic operations (addition, subtraction, multiplication, division). The program should handle user input, perform calculations, and display results. Submit your code along with a brief explanation of your implementation.",
 				dueDate: new Date("2025-12-15T23:59:59Z").toISOString(),
 				maxAttempts: 3,
 			},
 			{
 				type: "discussion" as const,
 				title: "Discussing Best Practices in Programming",
-				description: "Share your thoughts and experiences with coding practices and conventions.",
+				description:
+					"Share your thoughts and experiences with coding practices and conventions.",
 				status: "published" as const,
-				instructions: "In this discussion, reflect on the importance of clean code and good programming practices. Share examples from your own experience or research. Engage with at least two other students' posts.",
+				instructions:
+					"In this discussion, reflect on the importance of clean code and good programming practices. Share examples from your own experience or research. Engage with at least two other students' posts.",
 				minReplies: 2,
 				threadSorting: "recent" as const,
 			},
 			{
 				type: "whiteboard" as const,
 				title: "Visual Problem Solving",
-				description: "Use the collaborative whiteboard to solve problems and brainstorm solutions.",
+				description:
+					"Use the collaborative whiteboard to solve problems and brainstorm solutions.",
 				status: "published" as const,
 			},
 			{
 				type: "page" as const,
 				title: "Control Flow and Conditionals",
-				description: "Understanding how to control program flow using conditional statements.",
+				description:
+					"Understanding how to control program flow using conditional statements.",
 				status: "draft" as const,
-				content: "Control flow structures allow programs to make decisions and execute code conditionally. This module covers if-else statements, switch cases, and ternary operators. We'll explore various scenarios and practice writing clear, efficient conditional logic.",
+				content:
+					"Control flow structures allow programs to make decisions and execute code conditionally. This module covers if-else statements, switch cases, and ternary operators. We'll explore various scenarios and practice writing clear, efficient conditional logic.",
 			},
 			{
 				type: "quiz" as const,
 				title: "Control Flow Assessment",
-				description: "Evaluate your understanding of conditional statements and program flow.",
+				description:
+					"Evaluate your understanding of conditional statements and program flow.",
 				status: "published" as const,
-				instructions: "This quiz tests your ability to trace program execution and predict outcomes based on conditional logic. Pay attention to edge cases and nested conditions.",
+				instructions:
+					"This quiz tests your ability to trace program execution and predict outcomes based on conditional logic. Pay attention to edge cases and nested conditions.",
 				points: 85,
 				timeLimit: 60,
 			},
 			{
 				type: "assignment" as const,
 				title: "Grade Calculator Project",
-				description: "Create a program that calculates and displays letter grades based on numeric scores.",
+				description:
+					"Create a program that calculates and displays letter grades based on numeric scores.",
 				status: "published" as const,
-				instructions: "Design and implement a grade calculator that takes numeric scores as input and determines the corresponding letter grade. Include error handling for invalid inputs and provide clear feedback to the user. Submit your working code with comments explaining your logic.",
+				instructions:
+					"Design and implement a grade calculator that takes numeric scores as input and determines the corresponding letter grade. Include error handling for invalid inputs and provide clear feedback to the user. Submit your working code with comments explaining your logic.",
 				dueDate: new Date("2025-12-20T23:59:59Z").toISOString(),
 				maxAttempts: 2,
 			},
@@ -223,11 +253,13 @@ const testData = {
 		},
 		{
 			title: "Course Content",
-			description: "Core learning materials and instructional content for the course.",
+			description:
+				"Core learning materials and instructional content for the course.",
 		},
 		{
 			title: "Assignments",
-			description: "Homework assignments and projects to reinforce your learning.",
+			description:
+				"Homework assignments and projects to reinforce your learning.",
 		},
 		{
 			title: "Discussions",
@@ -314,7 +346,9 @@ export const runSeed = Result.wrap(
 			});
 
 			if (updateAdminResult.ok) {
-				console.log(`✅ Admin avatar assigned with media ID: ${adminAvatarResult.value.media.id}`);
+				console.log(
+					`✅ Admin avatar assigned with media ID: ${adminAvatarResult.value.media.id}`,
+				);
 			}
 		}
 
@@ -367,7 +401,9 @@ export const runSeed = Result.wrap(
 			});
 
 			if (updateStudentResult.ok) {
-				console.log(`✅ Student avatar assigned with media ID: ${studentAvatarResult.value.media.id}`);
+				console.log(
+					`✅ Student avatar assigned with media ID: ${studentAvatarResult.value.media.id}`,
+				);
 			}
 		}
 
@@ -467,9 +503,9 @@ export const runSeed = Result.wrap(
 		}
 		const csSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Computer Science",
-				parent: stemCategory.value.id,
-			})
+					name: "Computer Science",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (csSubcat && csSubcat.ok) {
 			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
@@ -479,9 +515,9 @@ export const runSeed = Result.wrap(
 		}
 		const mathSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Mathematics",
-				parent: stemCategory.value.id,
-			})
+					name: "Mathematics",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (mathSubcat && mathSubcat.ok) {
 			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });
@@ -638,9 +674,7 @@ export const runSeed = Result.wrap(
 		for (let i = 0; i < additionalStudents.length; i++) {
 			const student = additionalStudents[i];
 			const status =
-				testData.enrollmentStatuses[
-				i % testData.enrollmentStatuses.length
-				];
+				testData.enrollmentStatuses[i % testData.enrollmentStatuses.length];
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
 				user: student.id,
@@ -710,7 +744,10 @@ export const runSeed = Result.wrap(
 				if (whiteboardFixtureLoaded) {
 					whiteboardContent = JSON.stringify({ shapes: [], bindings: [] });
 				} else {
-					const fixtureContent = getVfsFileText(vfs, "fixture/whiteboard-data.json");
+					const fixtureContent = getVfsFileText(
+						vfs,
+						"fixture/whiteboard-data.json",
+					);
 					if (!fixtureContent) {
 						throw new Error("Failed to load whiteboard-data.json from VFS");
 					}

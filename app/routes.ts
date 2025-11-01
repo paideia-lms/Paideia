@@ -96,6 +96,8 @@ export const routes = [
 			route("admin/course/new", "routes/admin/course-new.tsx"),
 			route("admin/categories", "routes/admin/categories.tsx"),
 			route("admin/category/new", "routes/admin/category-new.tsx"),
+			route("admin/migrations", "routes/admin/migrations.tsx"),
+			route("admin/dependencies", "routes/admin/dependencies.tsx"),
 		]),
 	]),
 ] as const satisfies RouteConfig;

@@ -54,12 +54,12 @@ async function generateVfs() {
 
 	return `export default {
   ${allFiles
-			.map((f, i) => {
-				// Strip 'client/' prefix for serving static assets
-				const servePath = f.startsWith("client/") ? f.replace("client/", "") : f;
-				return `"${servePath}": "${allContents[i]}"`;
-			})
-			.join(",\n")}
+		.map((f, i) => {
+			// Strip 'client/' prefix for serving static assets
+			const servePath = f.startsWith("client/") ? f.replace("client/", "") : f;
+			return `"${servePath}": "${allContents[i]}"`;
+		})
+		.join(",\n")}
 };
 `;
 }

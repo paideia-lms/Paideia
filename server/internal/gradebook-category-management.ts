@@ -142,9 +142,15 @@ export const tryCreateGradebookCategory = Result.wrap(
 			await payload.db.commitTransaction(transactionID);
 
 			// get JSON representation
-			const jsonRepresentation = await tryGetGradebookJsonRepresentation(payload, gradebookId);
+			const jsonRepresentation = await tryGetGradebookJsonRepresentation(
+				payload,
+				gradebookId,
+			);
 
-			console.log("jsonRepresentation", JSON.stringify(jsonRepresentation.value, null, 2));
+			console.log(
+				"jsonRepresentation",
+				JSON.stringify(jsonRepresentation.value, null, 2),
+			);
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -255,7 +261,9 @@ export const tryFindGradebookCategoryById = Result.wrap(
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to find gradebook category by ID", { cause: error }),
+		new UnknownError("Failed to find gradebook category by ID", {
+			cause: error,
+		}),
 );
 
 /**
@@ -330,7 +338,9 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to get gradebook categories hierarchy", { cause: error }),
+		new UnknownError("Failed to get gradebook categories hierarchy", {
+			cause: error,
+		}),
 );
 
 /**

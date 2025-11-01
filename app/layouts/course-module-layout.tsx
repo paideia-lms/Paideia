@@ -1,4 +1,13 @@
-import { Badge, Container, Group, parseThemeColor, Tabs, Text, Title, useMantineTheme } from "@mantine/core";
+import {
+	Badge,
+	Container,
+	Group,
+	parseThemeColor,
+	Tabs,
+	Text,
+	Title,
+	useMantineTheme,
+} from "@mantine/core";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -14,8 +23,8 @@ import {
 	getStatusBadgeColor,
 	getStatusLabel,
 } from "~/components/course-view-utils";
-import { ForbiddenResponse } from "~/utils/responses";
 import { getModuleIcon } from "~/utils/module-helper";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-module-layout";
 import classes from "./header-tabs.module.css";
 
@@ -75,7 +84,6 @@ export default function CourseModuleLayout({
 		enrolment,
 	} = loaderData;
 
-
 	const theme = useMantineTheme();
 	// Determine current tab based on route matches
 	const getCurrentTab = () => {
@@ -132,12 +140,11 @@ export default function CourseModuleLayout({
 								</Badge>
 							</Group>
 							<Group gap="xs" wrap="nowrap">
-								{
-									getModuleIcon(
-										module.type as "quiz" | "assignment" | "discussion",
-										16,
-										parseThemeColor({ color: "dimmed", theme }).value
-									)}
+								{getModuleIcon(
+									module.type as "quiz" | "assignment" | "discussion",
+									16,
+									parseThemeColor({ color: "dimmed", theme }).value,
+								)}
 								<Text c="dimmed" size="sm">
 									{module.type.charAt(0).toUpperCase() + module.type.slice(1)}{" "}
 									Module

@@ -1,11 +1,28 @@
-import { Anchor, Button, Container, Paper, PasswordInput, Stack, Text, TextInput, Title } from "@mantine/core";
+import {
+	Anchor,
+	Button,
+	Container,
+	Paper,
+	PasswordInput,
+	Stack,
+	Text,
+	TextInput,
+	Title,
+} from "@mantine/core";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { type ActionFunctionArgs, href, type LoaderFunctionArgs, redirect, useFetcher, Link } from "react-router";
+import {
+	type ActionFunctionArgs,
+	href,
+	Link,
+	type LoaderFunctionArgs,
+	redirect,
+	useFetcher,
+} from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryLogin } from "server/internal/user-management";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
+import { tryLogin } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
@@ -224,7 +241,11 @@ export default function LoginPage({ loaderData }: Route.ComponentProps) {
 						</Button>
 						{!registrationDisabled && (
 							<Text ta="center" c="dimmed" size="sm">
-								<Anchor component={Link} to={href("/registration")} underline="always">
+								<Anchor
+									component={Link}
+									to={href("/registration")}
+									underline="always"
+								>
 									Create an account
 								</Anchor>
 							</Text>

@@ -53,7 +53,11 @@ export const notesSearchParams = {
 
 export const loadSearchParams = createLoader(notesSearchParams);
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, hints } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { id } = params;
@@ -214,9 +218,12 @@ function HeatmapSection({
 	availableYears: number[];
 	yearHeatmapData: Record<string, number>;
 }) {
-	const [_, setSelectedDate] = useQueryState("date", parseAsString.withOptions({
-		shallow: false,
-	}));
+	const [_, setSelectedDate] = useQueryState(
+		"date",
+		parseAsString.withOptions({
+			shallow: false,
+		}),
+	);
 	return (
 		<Paper withBorder shadow="md" p="xl" radius="md">
 			<Title order={3} mb="md">
@@ -244,9 +251,10 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
-							? "No notes"
-							: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${
+							value === null || value === 0
+								? "No notes"
+								: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}
@@ -261,9 +269,6 @@ function HeatmapSection({
 		</Paper>
 	);
 }
-
-
-
 
 // CalendarSection component
 function CalendarSection({
@@ -319,13 +324,24 @@ function CalendarSection({
 							}
 							withArrow
 						>
-							<div style={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}>
-
-								<Indicator size={6} color="blue" offset={-2} disabled={noteCount === 0}>
-									<div >{day}</div>
+							<div
+								style={{
+									width: "100%",
+									height: "100%",
+									display: "flex",
+									justifyContent: "center",
+									alignItems: "center",
+								}}
+							>
+								<Indicator
+									size={6}
+									color="blue"
+									offset={-2}
+									disabled={noteCount === 0}
+								>
+									<div>{day}</div>
 								</Indicator>
 							</div>
-
 						</Tooltip>
 					);
 				}}
@@ -413,8 +429,7 @@ function NotesSection({
 								? note.createdBy.id
 								: note.createdBy;
 						const canEdit =
-							currentUserId === createdById ||
-							currentUserRole === "admin";
+							currentUserId === createdById || currentUserRole === "admin";
 
 						return (
 							<Card
@@ -430,9 +445,7 @@ function NotesSection({
 								<Group justify="space-between" mb="xs">
 									<Group gap="xs">
 										<Text size="xs" c="dimmed">
-											{dayjs(note.createdAt).format(
-												"MMM DD, YYYY h:mm A",
-											)}
+											{dayjs(note.createdAt).format("MMM DD, YYYY h:mm A")}
 										</Text>
 										{note.isPublic && <Badge size="xs">Public</Badge>}
 									</Group>

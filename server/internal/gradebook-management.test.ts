@@ -313,7 +313,4 @@ describe("Gradebook Management", () => {
 			}
 		}
 	});
-
-
-
 });

@@ -1,16 +1,25 @@
 {
 	"name": "paideia",
+	"description": "Paideia LMS - Simple, Robust, and Lightweight Learning Management System in a Single Executable",
+	"keywords": [
+		"paideia",
+		"lms",
+		"learning",
+		"management",
+		"system",
+		"education"
+	],
 	"private": true,
-	"version": "0.0.1",
+	"version": "0.5.0",
 	"sideEffects": false,
 	"type": "module",
-	"author": "Paideia",
+	"author": "Hananoshika Yomaru",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/hananoshikayomaru/paideia"
+		"url": "https://github.com/paideia-lms/paideia"
 	},
-	"homepage": "https://github.com/hananoshikayomaru/paideia",
+	"homepage": "https://github.com/paideia-lms/paideia",
 	"scripts": {
 		"build": "bun scripts/build.ts",
 		"start": "./dist/paideia",
@@ -26,7 +35,7 @@
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:fresh --force-accept-warning && bun scripts/clean-s3.ts && sleep 1 && bun scripts/fix-types.ts",
 		"docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
 		"docker:run": "docker run -p 3000:3000 paideia:$(node -p \"require('./package.json').version\")",
-		"typecheck": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:db-schema && react-router typegen && sleep 1 && bun scripts/fix-types.ts; tsc --noEmit",
+		"typecheck": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:db-schema && react-router typegen; tsc --noEmit",
 		"lefthook:install": "lefthook install"
 	},
 	"dependencies": {

@@ -506,6 +506,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Performance" },
 					{ title: "Update notifications" },
 					{ title: "Test email", href: href("/admin/test-email") },
+					{ title: "CLI Dependencies", href: href("/admin/dependencies") },
 				],
 			},
 			file_redaction: {
@@ -604,7 +605,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 				title: "Experimental",
 				items: [
 					{ title: "Experimental settings" },
-					{ title: "Database migration" },
+					{ title: "Database migration", href: href("/admin/migrations") },
 				],
 			},
 		},

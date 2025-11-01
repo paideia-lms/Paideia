@@ -1,12 +1,12 @@
 import {
 	ActionIcon,
-	alpha,
 	AppShell,
+	alpha,
 	Badge,
 	Box,
-	getThemeColor,
 	Grid,
 	Group,
+	getThemeColor,
 	Paper,
 	ScrollArea,
 	Stack,
@@ -28,8 +28,8 @@ import { tryFindUserById } from "server/internal/user-management";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
+import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/user-modules-layout";
-import { RouteParams } from "~/utils/routes-utils";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
@@ -89,7 +89,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	let moduleId: number | null = null;
 	if (isInUserModuleEditLayout) {
-		const { moduleId: moduleIdParam } = params as RouteParams<"layouts/user-module-edit-layout">;
+		const { moduleId: moduleIdParam } =
+			params as RouteParams<"layouts/user-module-edit-layout">;
 		moduleId = Number(moduleIdParam);
 	}
 
@@ -106,7 +107,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		moduleId,
 	};
 };
-
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -166,7 +166,6 @@ export default function UserModulesLayout({
 
 	const theme = useMantineTheme();
 
-
 	return (
 		<AppShell>
 			<AppShell.Main>
@@ -217,13 +216,16 @@ export default function UserModulesLayout({
 													p="sm"
 													radius="sm"
 													// if moduleId is set and it is the same as the module.id, then add a class to the paper
-													style={{ cursor: "pointer", }}
-													bg={moduleId === module.id ? alpha(getThemeColor("blue", theme), 0.1) : undefined}
+													style={{ cursor: "pointer" }}
+													bg={
+														moduleId === module.id
+															? alpha(getThemeColor("blue", theme), 0.1)
+															: undefined
+													}
 													component={Link}
 													to={href("/user/module/edit/:moduleId", {
 														moduleId: String(module.id),
 													})}
-
 												>
 													<Group justify="space-between" mb="xs">
 														<Text fw={500} size="sm" lineClamp={1}>
@@ -246,19 +248,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 																12,
 															)}
 														>

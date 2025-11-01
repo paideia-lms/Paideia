@@ -1,30 +1,27 @@
-import { exec } from "node:child_process";
-import { createHash, randomUUID } from "node:crypto";
-import {
-	existsSync,
-	mkdirSync,
-	readFileSync,
-	unlinkSync,
-	writeFileSync,
-} from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-import { promisify } from "node:util";
 import { useCallback } from "react";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { isD2Available } from "server/utils/cli-dependencies-check";
 import z from "zod";
+import { renderD2ToSvg } from "~/utils/d2-render";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest } from "~/utils/responses";
 import type { Route } from "./+types/d2-render";
-
-const execAsync = promisify(exec);
 
 const inputSchema = z.object({
 	code: z.string().min(1, "D2 code cannot be empty"),
 });
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
+	// Check if D2 CLI is available
+	const d2Available = await isD2Available();
+	if (!d2Available) {
+		return badRequest({
+			error:
+				"D2 CLI is not installed. Please install D2 CLI to use this feature.",
+		});
+	}
+
 	const { unstorage } = context.get(globalContextKey);
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
@@ -36,54 +33,8 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 	const { code } = parsed.data;
 
-	// Generate unique file names
-	// hash the code into a string
-	const uniqueId = createHash("sha256").update(code).digest("hex");
-	const tempDir = tmpdir();
-	const inputPath = join(tempDir, `d2-${uniqueId}.d2`);
-	const outputPath = join(tempDir, `d2-${uniqueId}.svg`);
-
-	// Check if the SVG is already in the cache
-	const cachedSvg = await unstorage.getItem(`d2-${uniqueId}.svg`);
-	if (cachedSvg) {
-		console.log("Cached SVG found for", uniqueId);
-		return { svg: cachedSvg as string };
-	}
-
 	try {
-		// Ensure temp directory exists
-		if (!existsSync(tempDir)) {
-			mkdirSync(tempDir, { recursive: true });
-		}
-
-		// Write D2 code to temporary file
-		writeFileSync(inputPath, code, "utf-8");
-
-		// Execute D2 CLI to convert D2 to SVG
-		// Use --theme=0 for default theme and --sketch=false for clean output
-		const { stderr } = await execAsync(
-			`d2 --theme=0 --sketch=false "${inputPath}" "${outputPath}"`,
-			{
-				timeout: 10000, // 10 second timeout
-			},
-		);
-
-		if (stderr && !existsSync(outputPath)) {
-			console.error("D2 compilation error:", stderr);
-			return badRequest({
-				error: `D2 compilation failed: ${stderr}`,
-			});
-		}
-
-		// Read the generated SVG
-		const svg = readFileSync(outputPath, "utf-8");
-
-		// Store the SVG in the cache
-		await unstorage.setItem(`d2-${uniqueId}.svg`, svg);
-
-		// throw new Error("test");
-
-		// Return the SVG
+		const svg = await renderD2ToSvg(code, unstorage);
 		return { svg };
 	} catch (error) {
 		console.error("Error processing D2 code:", error);
@@ -93,18 +44,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					? `Error processing D2 code: ${error.message}`
 					: "Unknown error processing D2 code",
 		});
-	} finally {
-		// Clean up temporary files
-		try {
-			if (existsSync(inputPath)) {
-				unlinkSync(inputPath);
-			}
-			if (existsSync(outputPath)) {
-				unlinkSync(outputPath);
-			}
-		} catch (cleanupError) {
-			console.error("Error cleaning up temporary files:", cleanupError);
-		}
 	}
 };
 

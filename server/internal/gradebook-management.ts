@@ -11,13 +11,13 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { Gradebook } from "../payload-types";
-import { buildCategoryStructure } from "./utils/build-gradebook-structure";
 import type { CategoryData, ItemData } from "./utils/build-gradebook-structure";
-import { prettifyMarkdown } from "./utils/markdown-prettify";
+import { buildCategoryStructure } from "./utils/build-gradebook-structure";
 import {
 	calculateAdjustedWeights,
 	calculateOverallWeights,
 } from "./utils/gradebook-weight-calculations";
+import { prettifyMarkdown } from "./utils/markdown-prettify";
 
 export interface CreateGradebookArgs {
 	courseId: number;
@@ -41,13 +41,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-	| "manual_item"
-	| "category"
-	| "page"
-	| "whiteboard"
-	| "assignment"
-	| "quiz"
-	| "discussion";
+		| "manual_item"
+		| "category"
+		| "page"
+		| "whiteboard"
+		| "assignment"
+		| "quiz"
+		| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
@@ -512,7 +512,7 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 			extraCredit: item.extraCredit ?? false,
 		}));
 
-		console.log("items", items);
+		// console.log("items", items);
 
 		// Build the structure recursively
 		const setupItems: GradebookSetupItem[] = [];
@@ -576,7 +576,10 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 export const tryGetGradebookSetupForUI = Result.wrap(
 	async (payload: Payload, gradebookId: number) => {
 		// Get raw JSON representation (without calculations)
-		const jsonResult = await tryGetGradebookJsonRepresentation(payload, gradebookId);
+		const jsonResult = await tryGetGradebookJsonRepresentation(
+			payload,
+			gradebookId,
+		);
 
 		if (!jsonResult.ok) {
 			throw jsonResult.error;
@@ -585,10 +588,14 @@ export const tryGetGradebookSetupForUI = Result.wrap(
 		const jsonData = jsonResult.value;
 
 		// Calculate adjusted weights
-		const itemsWithAdjusted = calculateAdjustedWeights(jsonData.gradebook_setup.items);
+		const itemsWithAdjusted = calculateAdjustedWeights(
+			jsonData.gradebook_setup.items,
+		);
 
 		// Calculate overall weights and get totals
-		const totals = calculateOverallWeights(itemsWithAdjusted as GradebookSetupItemWithCalculations[]);
+		const totals = calculateOverallWeights(
+			itemsWithAdjusted as GradebookSetupItemWithCalculations[],
+		);
 
 		return {
 			gradebook_id: jsonData.gradebook_id,
@@ -728,7 +735,8 @@ function buildGradeSummaryRows(
 		const item = items[i];
 		const isLast = i === items.length - 1;
 		const isCategory = item.type === "category";
-		const hasNestedItems = isCategory && item.grade_items && item.grade_items.length > 0;
+		const hasNestedItems =
+			isCategory && item.grade_items && item.grade_items.length > 0;
 
 		// Build the indentation prefix
 		let itemPrefix = "";
@@ -746,18 +754,19 @@ function buildGradeSummaryRows(
 		}
 
 		// Format weight
-		const weightStr = item.adjusted_weight !== null
-			? formatPercentage(item.adjusted_weight)
-			: "-";
+		const weightStr =
+			item.adjusted_weight !== null
+				? formatPercentage(item.adjusted_weight)
+				: "-";
 
 		// Format max grade
 		let maxGradeStr: string;
 		if (isCategory && hasNestedItems) {
 			// For categories, calculate sum of children's max grades
-			const categoryMaxGrade = calculateCategoryMaxGrade(item.grade_items ?? []);
-			maxGradeStr = categoryMaxGrade > 0
-				? formatNumber(categoryMaxGrade)
-				: "-";
+			const categoryMaxGrade = calculateCategoryMaxGrade(
+				item.grade_items ?? [],
+			);
+			maxGradeStr = categoryMaxGrade > 0 ? formatNumber(categoryMaxGrade) : "-";
 		} else {
 			maxGradeStr = formatNumber(item.max_grade);
 		}
@@ -765,12 +774,14 @@ function buildGradeSummaryRows(
 		// For now, show placeholder values for grades (can be enhanced later with actual user grades)
 		const obtainedStr = "-"; // Placeholder
 		const rawPercentStr = "-"; // Placeholder
-		const weightedPercentStr = item.overall_weight !== null
-			? formatPercentage(item.overall_weight)
-			: "-";
-		const contributionStr = item.overall_weight !== null
-			? formatPercentage(item.overall_weight)
-			: "-";
+		const weightedPercentStr =
+			item.overall_weight !== null
+				? formatPercentage(item.overall_weight)
+				: "-";
+		const contributionStr =
+			item.overall_weight !== null
+				? formatPercentage(item.overall_weight)
+				: "-";
 
 		rows.push(
 			`| ${itemPrefix}${itemName} | ${weightStr} | ${maxGradeStr} | ${obtainedStr} | ${rawPercentStr} | ${weightedPercentStr} | ${contributionStr} |`,
@@ -779,7 +790,9 @@ function buildGradeSummaryRows(
 		// Recursively process nested items
 		if (hasNestedItems && item.grade_items) {
 			const newPrefix = prefix + (isLast ? "   " : "│  ");
-			rows.push(...buildGradeSummaryRows(item.grade_items, depth + 1, newPrefix));
+			rows.push(
+				...buildGradeSummaryRows(item.grade_items, depth + 1, newPrefix),
+			);
 		}
 	}
 
@@ -814,31 +827,40 @@ function buildFullBreakdownRows(
 		}
 
 		// Format weight (bold for extra credit items)
-		const weightStr = item.adjusted_weight !== null
-			? (item.extra_credit ? `**${formatPercentage(item.adjusted_weight)}**` : formatPercentage(item.adjusted_weight))
-			: "-";
+		const weightStr =
+			item.adjusted_weight !== null
+				? item.extra_credit
+					? `**${formatPercentage(item.adjusted_weight)}**`
+					: formatPercentage(item.adjusted_weight)
+				: "-";
 
 		// Format max grade
 		let maxGradeStr: string;
 		if (isCategory && item.grade_items) {
 			const categoryMaxGrade = calculateCategoryMaxGrade(item.grade_items);
-			maxGradeStr = categoryMaxGrade > 0
-				? `**${formatNumber(categoryMaxGrade)}**`
-				: "-";
+			maxGradeStr =
+				categoryMaxGrade > 0 ? `**${formatNumber(categoryMaxGrade)}**` : "-";
 		} else {
 			maxGradeStr = formatNumber(item.max_grade);
 		}
 
 		// Placeholder values for grades
-		const gradeStr = isCategory && item.grade_items
-			? `**${formatNumber(0)}**` // Category total placeholder
-			: "-";
-		const percentStr = isCategory && item.grade_items
-			? `**${formatPercentage(0)}**` // Category percent placeholder
-			: (item.extra_credit ? "**-**" : "-");
-		const weightedGradeStr = isCategory && item.grade_items
-			? `**${formatNumber(0)}**` // Category weighted placeholder
-			: (item.extra_credit ? "**-**" : "-");
+		const gradeStr =
+			isCategory && item.grade_items
+				? `**${formatNumber(0)}**` // Category total placeholder
+				: "-";
+		const percentStr =
+			isCategory && item.grade_items
+				? `**${formatPercentage(0)}**` // Category percent placeholder
+				: item.extra_credit
+					? "**-**"
+					: "-";
+		const weightedGradeStr =
+			isCategory && item.grade_items
+				? `**${formatNumber(0)}**` // Category weighted placeholder
+				: item.extra_credit
+					? "**-**"
+					: "-";
 
 		rows.push(
 			`| ${item.id} | ${indent}${itemName} | ${typeStr} | ${weightStr} | ${maxGradeStr} | ${gradeStr} | ${percentStr} | ${weightedGradeStr} |`,
@@ -922,11 +944,9 @@ export const tryGetGradebookMarkdownRepresentation = Result.wrap(
 **(EC) = Extra Credit**`;
 
 		// Combine all sections
-		const rawMarkdown = [
-			summarySection,
-			breakdownSection,
-			totalsSection,
-		].join("\n");
+		const rawMarkdown = [summarySection, breakdownSection, totalsSection].join(
+			"\n",
+		);
 
 		// Prettify the markdown using remark
 		const markdown = prettifyMarkdown(rawMarkdown);

@@ -33,7 +33,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	// Get platform info and Bun version from global context (static, detected at startup)
-	const { platformInfo, bunVersion, bunRevision } = context.get(globalContextKey);
+	const { platformInfo, bunVersion, bunRevision } =
+		context.get(globalContextKey);
 
 	// Detect system resources (dynamic, needs to be refreshed)
 	const systemResources = await detectSystemResources();

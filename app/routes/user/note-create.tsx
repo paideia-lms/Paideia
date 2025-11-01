@@ -4,7 +4,6 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import * as cheerio from "cheerio";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
@@ -14,9 +13,15 @@ import { tryCreateMedia } from "server/internal/media-management";
 import { tryCreateNote } from "server/internal/note-management";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
-import { ContentType } from "~/utils/get-content-type";
 import { assertRequestMethod } from "~/utils/assert-request-method";
-import { badRequest, NotFoundResponse, StatusCode, unauthorized } from "~/utils/responses";
+import { ContentType } from "~/utils/get-content-type";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
+import {
+	badRequest,
+	NotFoundResponse,
+	StatusCode,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/note-create";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {

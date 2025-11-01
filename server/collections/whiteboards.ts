@@ -14,7 +14,7 @@ export const Whiteboards = {
 			name: "content",
 			type: "textarea",
 			label: "Whiteboard Content (JSON)",
-			validate: (value: string | undefined) => {
+			validate: (value: string | null | undefined) => {
 				// Allow empty content
 				if (!value || value.trim() === "") {
 					return true;

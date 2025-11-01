@@ -6,7 +6,6 @@ export const devConstants = {
 	ADMIN_PASSWORD,
 };
 
-
 export const asciiLogo = `
 ╔═══════════════════════════════════════════════════════╗
 ║                                                       ║

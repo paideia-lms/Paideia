@@ -5,11 +5,17 @@ validateEnvVars();
 
 import { treaty } from "@elysiajs/eden";
 import { openapi } from "@elysiajs/openapi";
+import { Command } from "commander";
+import { Table } from "console-table-printer";
 import { Elysia } from "elysia";
 import { getPayload, type Migration as MigrationType } from "payload";
 import { RouterContextProvider } from "react-router";
+import { migrations } from "src/migrations";
 import { createStorage } from "unstorage";
 import lruCacheDriver from "unstorage/drivers/lru-cache";
+import { getHints } from "../app/utils/client-hints";
+import packageJson from "../package.json";
+import { deleteEverythingInBucket } from "../scripts/clean-s3";
 import { courseContextKey } from "./contexts/course-context";
 import { courseModuleContextKey } from "./contexts/course-module-context";
 import { courseSectionContextKey } from "./contexts/course-section-context";
@@ -22,16 +28,15 @@ import { userProfileContextKey } from "./contexts/user-profile-context";
 import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
 import { runSeed } from "./seed";
+import { asciiLogo } from "./utils/constants";
+import { migrateFresh } from "./utils/db/migrate-fresh";
+import {
+	getMigrationStatus,
+	printMigrationStatus,
+} from "./utils/db/migration-status";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
-import { getHints } from "../app/utils/client-hints";
-import { migrations } from "src/migrations";
-import { deleteEverythingInBucket } from "../scripts/clean-s3";
-import { Command } from "commander";
-import { migrateFresh } from "./utils/db/migrate-fresh";
-import { getMigrationStatus } from "./utils/db/migration-status";
-import { asciiLogo } from "./utils/constants";
 
 const payload = await getPayload({
 	config: sanitizedConfig,
@@ -39,25 +44,45 @@ const payload = await getPayload({
 	key: "paideia",
 });
 
-
-function displayIntroduction() {
-	console.log("You are starting the Paideia server. Paideia binary can be used as a CLI application.");
-	console.log("You can use the following commands:");
-	console.log("  - paideia help: Show help");
-	console.log("  - paideia server: Start the Paideia server");
-	console.log("  - paideia migrate:create: Create a new migration");
-	console.log("  - paideia migrate:status: Show migration status");
-	console.log("  - paideia migrate:up: Run pending migrations");
-	console.log("  - paideia migrate:down: Rollback the last batch of migrations");
-	console.log("  - paideia migrate:refresh: Rollback all migrations and re-run them");
-	console.log("  - paideia migrate:reset: Rollback all migrations");
-	console.log("  - paideia migrate:fresh: Drop all database entities and re-run migrations from scratch");
+function displayHelp() {
+	const table = new Table({
+		title: "Paideia CLI Commands",
+		columns: [
+			{ name: "Command", alignment: "left" },
+			{ name: "Description", alignment: "left" },
+		],
+	});
+	table.addRow({
+		Command: "paideia help",
+		Description: "Show help",
+	});
+	table.addRow({
+		Command: "paideia server",
+		Description: "Start the Paideia server",
+	});
+	table.addRow({
+		Command: "paideia migrate status",
+		Description: "Show migration status",
+	});
+	table.addRow({
+		Command: "paideia migrate up",
+		Description: "Run pending migrations",
+	});
+	table.addRow({
+		Command: "paideia migrate fresh",
+		Description:
+			"Drop all database entities and re-run migrations from scratch",
+	});
+	table.printTable();
 }
 
 // Server startup function
 async function startServer() {
 	console.log(asciiLogo);
-	displayIntroduction();
+	console.log(
+		`You are starting the Paideia server (${packageJson.version}). Paideia binary can be used as a CLI application.`,
+	);
+	displayHelp();
 
 	const unstorage = createStorage({
 		driver: lruCacheDriver({
@@ -167,6 +192,8 @@ async function startServer() {
 								isAdminCategories: false,
 								isAdminCategoryNew: false,
 								isAdminRegistration: false,
+								isAdminMigrations: false,
+								isAdminDependencies: false,
 								params: {},
 							},
 						});
@@ -199,8 +226,8 @@ const program = new Command();
 
 program
 	.name("paideia")
-	.description("Paideia LMS - Server and CLI application")
-	.version("0.0.1");
+	.description(packageJson.description)
+	.version(packageJson.version);
 
 // Help command
 program
@@ -208,7 +235,8 @@ program
 	.description("Show help information")
 	.action(() => {
 		console.log(asciiLogo);
-		displayIntroduction();
+		console.log(`Paideia LMS - ${packageJson.version}`);
+		displayHelp();
 		process.exit(0);
 	});
 
@@ -225,7 +253,6 @@ const migrateCommand = program
 	.command("migrate")
 	.description("Database migration commands");
 
-
 migrateCommand
 	.command("status")
 	.description("Show migration status")
@@ -236,6 +263,10 @@ migrateCommand
 		await getMigrationStatus({
 			payload,
 			migrations: migrations as MigrationType[],
+		}).then((statuses) => {
+			if (statuses) {
+				printMigrationStatus(statuses);
+			}
 		});
 		process.exit(0);
 	});

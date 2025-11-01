@@ -4,7 +4,6 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import * as cheerio from "cheerio";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
@@ -18,15 +17,13 @@ import {
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
-import { ContentType } from "~/utils/get-content-type";
 import { assertRequestMethod } from "~/utils/assert-request-method";
+import { ContentType } from "~/utils/get-content-type";
+import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 
-export const loader = async ({
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 
@@ -282,9 +279,7 @@ export default function NoteEditPage({
 	const navigate = useNavigate();
 	const { updateNote, fetcher } = useUpdateNote();
 	const [content, setContent] = useState(loaderData.note.content);
-	const [isPublic, setIsPublic] = useState(
-		Boolean(loaderData.note.isPublic),
-	);
+	const [isPublic, setIsPublic] = useState(Boolean(loaderData.note.isPublic));
 	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
 
 	const handleImageAdd = (imageFile: ImageFile) => {
