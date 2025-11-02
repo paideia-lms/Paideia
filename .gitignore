@@ -20,3 +20,6 @@ references/
 /blob-report/
 /playwright/.cache/
 /playwright/.auth/
+
+# Paideia data directory
+/paideia_data

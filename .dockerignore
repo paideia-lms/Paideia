@@ -2,3 +2,6 @@
 .env
 
 /.cache
+
+# Paideia data directory
+/paideia_data

@@ -1,10 +1,7 @@
 import { Alert, Badge, Box, Paper, Stack, Table, Title } from "@mantine/core";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	isD2Available,
-	isPgDumpAvailable,
-} from "server/utils/cli-dependencies-check";
+import { isD2Available } from "server/utils/cli-dependencies-check";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/dependencies";
 
@@ -23,10 +20,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	// Check all dependencies
-	const [d2Available, pgDumpAvailable] = await Promise.all([
-		isD2Available(),
-		isPgDumpAvailable(),
-	]);
+	const d2Available = await isD2Available();
 
 	return {
 		dependencies: [
@@ -35,12 +29,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 				description: "Required for rendering D2 diagrams to SVG",
 				available: d2Available,
 				installationLink: "https://d2lang.com/install",
-			},
-			{
-				name: "pg_dump",
-				description: "Required for database backup functionality",
-				available: pgDumpAvailable,
-				installationLink: "https://www.postgresql.org/download/",
 			},
 		],
 	};

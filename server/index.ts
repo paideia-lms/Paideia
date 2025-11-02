@@ -36,6 +36,7 @@ import {
 	getMigrationStatus,
 	printMigrationStatus,
 } from "./utils/db/migration-status";
+import { dumpDatabase } from "./utils/db/dump";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
@@ -74,6 +75,10 @@ function displayHelp() {
 		Command: "paideia migrate fresh",
 		Description:
 			"Drop all database entities and re-run migrations from scratch",
+	});
+	table.addRow({
+		Command: "paideia migrate dump",
+		Description: "Dump database to SQL file",
 	});
 	table.printTable();
 }
@@ -316,6 +321,28 @@ migrateCommand
 		await deleteEverythingInBucket();
 		await new Promise((resolve) => setTimeout(resolve, 1000));
 		console.log("✅ Fresh migration completed");
+		process.exit(0);
+	});
+
+migrateCommand
+	.command("dump")
+	.description("Dump database to SQL file")
+	.option("-o, --output <path>", "Output file path (relative to paideia_data directory)")
+	.action(async (options) => {
+		console.log(asciiLogo);
+		console.log("Dumping database...");
+
+		const result = await dumpDatabase({
+			payload,
+			outputPath: options.output,
+		});
+
+		if (!result.success) {
+			console.error("❌ Failed to dump database:", result.error);
+			process.exit(1);
+		}
+
+		console.log(`✅ Database dump completed: ${result.outputPath}`);
 		process.exit(0);
 	});
 
