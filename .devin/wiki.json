@@ -1,0 +1,303 @@
+{
+  "repo_notes": [
+    {
+      "content": ""
+    }
+  ],
+  "pages": [
+    {
+      "title": "Overview",
+      "purpose": "Introduce Paideia LMS, its purpose, architecture philosophy, and key characteristics as a modern, lightweight Learning Management System",
+      "page_notes": [
+        {
+          "content": "including doc: https://docs.paideialms.com/"
+        }
+      ]
+    },
+    {
+      "title": "Technology Stack",
+      "purpose": "Detail the technologies used in Paideia: Bun, React Router v7, Elysia, Payload CMS, Mantine, and supporting libraries",
+      "parent": "Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Project Structure",
+      "purpose": "Explain the high-level file organization, separation of app/ and server/ directories, and key configuration files",
+      "parent": "Overview",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Getting Started",
+      "purpose": "Guide developers through initial setup, running the development environment, and understanding the development workflow",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Installation & Setup",
+      "purpose": "Provide step-by-step installation instructions, environment variable configuration, and Docker Compose setup",
+      "parent": "Getting Started",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Development Environment",
+      "purpose": "Explain the development server setup, hot module replacement with Vite, and available npm scripts",
+      "parent": "Getting Started",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Building & Deployment",
+      "purpose": "Document the build process, single executable generation, and production deployment strategies",
+      "parent": "Getting Started",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Architecture",
+      "purpose": "Explain the high-level system architecture, dual-server model, and key architectural decisions",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Server Architecture",
+      "purpose": "Detail the dual-server setup (frontend/backend), Elysia framework usage, and React Router SSR integration",
+      "parent": "Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Context Management System",
+      "purpose": "Explain the context pipeline, middleware execution, and how contexts flow through the application",
+      "parent": "Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Routing System",
+      "purpose": "Document the route configuration, layouts, nested routes, and React Router v7 integration",
+      "parent": "Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Authentication & Authorization",
+      "purpose": "Explain user authentication flow, session management, role-based access control, and permission system",
+      "parent": "Architecture",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Data Layer",
+      "purpose": "Document the database schema, Payload CMS configuration, and data persistence strategy",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Payload CMS Configuration",
+      "purpose": "Explain the Payload CMS setup, database adapter configuration, plugins, and email settings",
+      "parent": "Data Layer",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Collections & Schema",
+      "purpose": "Document all Payload collections (Users, Courses, Activity Modules, etc.) and their field definitions",
+      "parent": "Data Layer",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Database Migrations",
+      "purpose": "Explain the migration system, how to create migrations, and database schema management",
+      "parent": "Data Layer",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Storage & Media",
+      "purpose": "Document S3 storage integration, media handling, and file upload system",
+      "parent": "Data Layer",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Domain Model",
+      "purpose": "Explain the core entities and their relationships: Users, Courses, Enrollments, Activity Modules, and Grades",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Users & Authentication",
+      "purpose": "Document user entity, roles, authentication, and user management functionality",
+      "parent": "Domain Model",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Courses",
+      "purpose": "Explain course entity, course management functions, categories, and course lifecycle",
+      "parent": "Domain Model",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Course Structure & Sections",
+      "purpose": "Document the hierarchical course structure system, sections, and content organization",
+      "parent": "Domain Model",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Enrollments & Groups",
+      "purpose": "Explain enrollment system, enrollment roles, groups, and group hierarchies",
+      "parent": "Domain Model",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Grading System",
+      "purpose": "Document gradebooks, gradebook categories, gradebook items, user grades, and scoring",
+      "parent": "Domain Model",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Activity Modules",
+      "purpose": "Introduce the activity module system, its polymorphic design, and the five module types",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Activity Module Architecture",
+      "purpose": "Explain the discriminated union pattern, module lifecycle, and CRUD operations",
+      "parent": "Activity Modules",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Creating Activity Modules",
+      "purpose": "Document the module creation process, forms, and validation for all module types",
+      "parent": "Activity Modules",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Editing Activity Modules",
+      "purpose": "Explain the module editing interface, update operations, and form management",
+      "parent": "Activity Modules",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Module Preview & Display",
+      "purpose": "Document how modules are rendered to students, preview components, and read-only modes",
+      "parent": "Activity Modules",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Linking Modules to Courses",
+      "purpose": "Explain CourseActivityModuleLinks, how modules are added to courses, and reusability",
+      "parent": "Activity Modules",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    },
+    {
+      "title": "Module Access Control",
+      "purpose": "Document ActivityModuleGrants, ownership, and fine-grained access permissions",
+      "parent": "Activity Modules",
+      "page_notes": [
+        {
+          "content": ""
+        }
+      ]
+    }
+  ]
+}
