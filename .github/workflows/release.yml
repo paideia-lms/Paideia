@@ -75,6 +75,20 @@ jobs:
           name: paideia-linux-arm64
           path: dist/paideia-linux-arm64
           retention-days: 7
+      
+      - name: Upload Linux X64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: paideia-linux-x64
+          path: dist/paideia-linux-x64
+          retention-days: 7
+      
+      - name: Upload Windows X64 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: paideia-windows-x64
+          path: dist/paideia.exe
+          retention-days: 7
 
   build-docker:
     runs-on: ubuntu-latest
@@ -144,6 +158,11 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get Docker Hub username
+        if: steps.check-docker.outputs.should_build == 'true'
+        id: dockerhub
+        run: echo "username=${{ secrets.DOCKERHUB_USERNAME }}" >> $GITHUB_OUTPUT
+
       - name: Log in to Docker Hub
         if: steps.check-docker.outputs.should_build == 'true'
         uses: docker/login-action@v3
@@ -161,8 +180,8 @@ jobs:
           tags: |
             ghcr.io/paideia-lms/paideia:v${{ steps.version.outputs.version }}
             ghcr.io/paideia-lms/paideia:latest
-            paideia-lms/paideia:v${{ steps.version.outputs.version }}
-            paideia-lms/paideia:latest
+            ${{ steps.dockerhub.outputs.username }}/paideia:v${{ steps.version.outputs.version }}
+            ${{ steps.dockerhub.outputs.username }}/paideia:latest
           platforms: linux/arm64
 
   create-release:
