@@ -158,19 +158,39 @@ jobs:
       - name: Rename binaries for release
         run: |
           mkdir -p release-assets
-          # Find and rename macOS binary
-          MACOS_BINARY=$(find release-assets -name "paideia" -type f | head -n 1)
-          if [ -n "$MACOS_BINARY" ]; then
-            mv "$MACOS_BINARY" release-assets/paideia-macos-arm64
+          
+          # Find and rename macOS binary (only if target doesn't exist)
+          if [ ! -f release-assets/paideia-macos-arm64 ]; then
+            MACOS_BINARY=$(find release-assets -name "paideia" -type f | head -n 1)
+            if [ -n "$MACOS_BINARY" ]; then
+              mv "$MACOS_BINARY" release-assets/paideia-macos-arm64
+            fi
           fi
           
-          # Find and rename Linux binary
-          LINUX_BINARY=$(find release-assets -name "paideia-linux-arm64" -type f | head -n 1)
-          if [ -n "$LINUX_BINARY" ]; then
-            mv "$LINUX_BINARY" release-assets/paideia-linux-arm64
+          # Find and rename Linux binary (only if target doesn't exist)
+          if [ ! -f release-assets/paideia-linux-arm64 ]; then
+            LINUX_BINARY=$(find release-assets -name "paideia-linux-arm64" -type f | head -n 1)
+            if [ -n "$LINUX_BINARY" ]; then
+              mv "$LINUX_BINARY" release-assets/paideia-linux-arm64
+            fi
           fi
           
-          chmod +x release-assets/paideia-macos-arm64 release-assets/paideia-linux-arm64
+          # Handle nested artifact structure (if artifact was downloaded as directory)
+          if [ ! -f release-assets/paideia-linux-arm64 ] && [ -d release-assets/paideia-linux-arm64 ]; then
+            if [ -f release-assets/paideia-linux-arm64/paideia-linux-arm64 ]; then
+              mv release-assets/paideia-linux-arm64/paideia-linux-arm64 release-assets/paideia-linux-arm64.tmp
+              rm -rf release-assets/paideia-linux-arm64
+              mv release-assets/paideia-linux-arm64.tmp release-assets/paideia-linux-arm64
+            fi
+          fi
+          
+          # Ensure both binaries exist and are executable
+          if [ -f release-assets/paideia-macos-arm64 ]; then
+            chmod +x release-assets/paideia-macos-arm64
+          fi
+          if [ -f release-assets/paideia-linux-arm64 ]; then
+            chmod +x release-assets/paideia-linux-arm64
+          fi
 
       - name: Extract version
         id: version
