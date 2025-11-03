@@ -46,6 +46,11 @@ get_base_package() {
     return 1
   fi
   
+  # Skip relative imports (starting with . or /)
+  if [[ "$import_path" == .* ]] || [[ "$import_path" == /* ]]; then
+    return 1
+  fi
+  
   # Handle scoped packages: @scope/name/subpath -> @scope/name
   if [[ "$import_path" == @* ]]; then
     # @scope/name -> @scope/name (no subpath)

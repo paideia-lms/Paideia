@@ -1,0 +1,41 @@
+services:
+  paideia:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: paideia
+    restart: no
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      # Database
+      DATABASE_URL: postgresql://paideia:paideia_password@postgres:5432/paideia_db
+      # S3/MinIO
+      S3_URL: http://minio:9000
+      S3_ACCESS_KEY: paideia_minio
+      S3_SECRET_KEY: paideia_minio_secret
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_BUCKET: paideia-bucket
+      S3_REGION: us-east-1
+      # Payload
+      PAYLOAD_SECRET: change-this-to-a-secure-random-string
+      # Ports (optional, defaults shown)
+      PORT: 3001
+      FRONTEND_PORT: 3000
+      # Email (optional - uncomment if using SMTP)
+      # SMTP_HOST: smtp.example.com
+      # SMTP_USER: your-email@example.com
+      # SMTP_PASS: your-password
+      # RESEND_API_KEY: your-resend-api-key
+      # Email sender (optional, defaults shown)
+      EMAIL_FROM_ADDRESS: info@paideialms.com
+      EMAIL_FROM_NAME: Paideia LMS
+      # Sandbox mode (optional, default: 0)
+      # SANDBOX_MODE: 0
+    networks:
+      paideia_net:
+        ipv4_address: 172.28.0.2
+    depends_on:
+      - postgres
+      - minio

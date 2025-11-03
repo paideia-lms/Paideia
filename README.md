@@ -43,10 +43,24 @@ Complete documentation is available at [docs.paideialms.com](https://docs.paidei
 
 ## Development
 
+### Docker Compose Setup
+
+The project uses two separate docker-compose files to separate infrastructure services from the Paideia application:
+
+- **`docker-compose.yml`**: Contains infrastructure services (PostgreSQL, MinIO, Drizzle Gateway)
+- **`docker-compose.paideia.yml`**: Contains the Paideia application service
+
+This separation prevents accidentally starting the Paideia Docker container during development.
+
 ### App Only Development
 
-Run just the development server (requires external database and MinIO):
+Start only the infrastructure services for development:
 
+```sh
+docker-compose up -d
+```
+
+Or use the dev script which starts infrastructure services and runs the app locally:
 
 ```sh
 bun dev
@@ -60,7 +74,13 @@ This starts:
 - **Drizzle Gateway**: localhost:4983
   - Master Password: your_master_password
   - Database URL: postgresql://paideia:paideia_password@postgres:5432/paideia_db
-- **App**: http://localhost:3000
+- **App** (via `bun dev`): http://localhost:3000
+
+To stop the infrastructure services:
+
+```sh
+docker-compose down
+```
 
 ## Production
 
@@ -76,7 +96,60 @@ Run in production mode:
 bun start
 ```
 
+### Releasing
+
+To create a new release and trigger the automated GitHub Actions workflow:
+
+1. **Update the version in `package.json`** to match your desired release version (e.g., `0.5.0`)
+
+2. **Commit and push your changes:**
+
+```sh
+git add package.json
+git commit -m "chore: bump version to 0.5.0"
+git push origin main
+```
+
+3. **Create and push a git tag** matching the version with a `v` prefix:
+
+```sh
+git tag v0.5.0
+git push origin v0.5.0
+```
+
+The workflow will automatically:
+- Check if a release for this version already exists (to avoid duplicate builds)
+- Build macOS ARM64 and Linux ARM64 binaries
+- Build and push a Docker image to GitHub Container Registry (`ghcr.io/paideia-lms/paideia`) with tags:
+  - `v{VERSION}` (e.g., `v0.5.0`)
+  - `latest`
+- Create a GitHub release with both binaries attached
+
+You can monitor the workflow progress in the [Actions tab](https://github.com/paideia-lms/paideia/actions) of the repository.
+
+**Note:** The tag name (e.g., `v0.5.0`) must match the version in `package.json` (e.g., `0.5.0`) with a `v` prefix. If a release for that version already exists, the workflow will skip all build steps to save resources.
+
 ### Docker
+
+#### Running with Docker Compose
+
+To run the complete Paideia stack (including the Paideia application) with Docker Compose, use both configuration files:
+
+```sh
+docker-compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
+```
+
+This starts all services:
+- Infrastructure services from `docker-compose.yml` (PostgreSQL, MinIO, Drizzle Gateway)
+- Paideia application from `docker-compose.paideia.yml`
+
+To stop all services:
+
+```sh
+docker-compose -f docker-compose.yml -f docker-compose.paideia.yml down
+```
+
+**Note:** During development, use only `docker-compose.yml` to start infrastructure services without the Paideia container. This allows you to run the application locally with `bun dev` for hot-reloading and easier debugging.
 
 #### Building the Linux Binary
 

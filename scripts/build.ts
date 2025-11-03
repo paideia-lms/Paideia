@@ -128,4 +128,6 @@ if (checkResult.exitCode !== 0) {
 }
 
 console.log(`✅ No native dependencies detected in bundled code.`);
-// await $`rm -rf ./build`;
+// replace server/vfs.ts back to empty object
+await Bun.write("server/vfs.ts", "export default {} as const;");
+await $`rm -rf ./build`;

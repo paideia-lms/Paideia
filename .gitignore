@@ -7,7 +7,6 @@ node_modules
 vite.config.ts.*.mjs
 .react-router/
 dist
-server/vfs.ts
 
 .env*
 .DS_Store
