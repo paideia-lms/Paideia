@@ -1,6 +1,7 @@
 {
 	"name": "paideia",
 	"description": "Paideia LMS - Simple, Robust, and Lightweight Learning Management System in a Single Executable",
+	"version": "0.5.1",
 	"keywords": [
 		"paideia",
 		"lms",
@@ -10,7 +11,6 @@
 		"education"
 	],
 	"private": true,
-	"version": "0.5.0",
 	"sideEffects": false,
 	"type": "module",
 	"author": "Hananoshika Yomaru",

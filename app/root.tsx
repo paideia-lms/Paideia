@@ -653,13 +653,13 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
 				/>
-				{!isDevelopment && (
+				{isDevelopment && (
 					<script
 						crossOrigin="anonymous"
 						src="https://unpkg.com/react-scan/dist/auto.global.js"
 					/>
 				)}
-				{!isDevelopment && (
+				{isDevelopment && (
 					<script
 						src="https://unpkg.com/react-grab/dist/index.global.js"
 						crossOrigin="anonymous"

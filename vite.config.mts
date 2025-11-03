@@ -28,6 +28,9 @@ export default defineConfig({
 		exclude: ["file-type"],
 		include: ["@excalidraw/excalidraw"],
 	},
+	server: {
+		allowedHosts: [".localcan.dev"],
+	},
 	ssr: {
 		external: ["@excalidraw/excalidraw", "bun"],
 	},
