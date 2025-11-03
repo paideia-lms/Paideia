@@ -5,3 +5,15 @@
 
 # Paideia data directory
 /paideia_data
+
+node_modules
+dist/*
+!dist/paideia-linux-arm64
+build
+.git
+.github
+.vscode
+.lefthook
+.lefthook.yml
+.lefthook.yaml
+.lefthook.yml

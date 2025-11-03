@@ -11,7 +11,6 @@ import {
 	type GlobalConfig,
 	type TaskConfig,
 } from "payload";
-import sharp from "sharp";
 import { migrations } from "src/migrations";
 import {
 	ActivityModuleGrants,
@@ -45,7 +44,9 @@ import { RegistrationSettings } from "./collections/globals";
 import { envVars } from "./env";
 import { sandboxReset } from "./tasks/sandbox-reset";
 
+
 export * from "./collections";
+
 
 const pg = postgresAdapter({
 	pool: {
@@ -159,7 +160,6 @@ const sanitizedConfig = buildConfig({
 	secret: envVars.PAYLOAD_SECRET.value,
 	// ? shall we use localhost or the domain of the server
 	serverURL: `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
-	sharp,
 	collections: [
 		Users,
 		Courses,

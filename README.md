@@ -76,6 +76,128 @@ Run in production mode:
 bun start
 ```
 
+### Docker
+
+#### Building the Linux Binary
+
+The Linux binary must be built in a Linux environment to ensure native dependencies (like `sharp`) are correctly compiled for Linux ARM64. You can use `Dockerfile.build` to create a build environment:
+
+**Option 1: Using Docker Build Environment (Interactive)**
+
+The `Dockerfile.build` creates an interactive build container where you can manually build the Linux binary:
+
+1. **Create and start the build container:**
+
+```sh
+bun run docker:build-binary
+```
+
+This will:
+- Build the Docker image with all dependencies
+- Start a container named `paideia-builder`
+- Print instructions for entering the container
+
+2. **Enter the container:**
+
+```sh
+bun run docker:builder-shell
+```
+
+Or manually:
+```sh
+docker exec -it paideia-builder /bin/bash
+```
+
+3. **Build the Linux binary inside the container:**
+
+```sh
+bun scripts/build-linux.ts
+```
+
+4. **Copy the binary from the container:**
+
+```sh
+bun run docker:copy-binary
+```
+
+Or manually:
+```sh
+mkdir -p dist
+docker cp paideia-builder:/build/dist/paideia-linux-arm64 ./dist/
+```
+
+**Option 2: Using build-linux.ts in a Linux Environment**
+
+If you have access to a Linux machine or Linux container:
+
+```sh
+bun run build:linux
+```
+
+**Note:** Building the Linux binary on macOS won't work correctly because native dependencies like `sharp` will bundle the macOS version, which won't run on Linux. Always build the Linux binary in a Linux environment.
+
+#### Building the Runtime Docker Image
+
+Once you have the Linux binary in `dist/paideia-linux-arm64`, build the runtime Docker image:
+
+```sh
+docker build -t paideia:latest .
+```
+
+The runtime image is minimal and only contains the pre-built binary, making it perfect for deployment and GitHub releases.
+
+Run the container with environment variables from a `.env` file:
+
+```sh
+docker run -d \
+  --name paideia \
+  -p 3000:3000 \
+  -p 3001:3001 \
+  --env-file .env \
+  paideia:latest
+```
+
+Alternatively, you can pass environment variables directly:
+
+```sh
+docker run -d \
+  --name paideia \
+  -p 3000:3000 \
+  -p 3001:3001 \
+  -e DATABASE_URL=postgresql://paideia:paideia_password@postgres:5432/paideia_db \
+  -e S3_URL=http://minio:9000 \
+  -e S3_ACCESS_KEY=paideia_minio \
+  -e S3_SECRET_KEY=paideia_minio_secret \
+  -e S3_ENDPOINT_URL=http://minio:9000 \
+  -e S3_BUCKET=paideia \
+  -e PAYLOAD_SECRET=your-secret-key-here \
+  paideia:latest
+```
+
+**Required Environment Variables:**
+
+- `DATABASE_URL` - PostgreSQL connection string
+- `S3_URL` - MinIO/S3 service URL
+- `S3_ACCESS_KEY` - S3 access key
+- `S3_SECRET_KEY` - S3 secret key
+- `S3_ENDPOINT_URL` - S3 endpoint URL (without bucket name)
+- `S3_BUCKET` - S3 bucket name
+- `PAYLOAD_SECRET` - Secret key for Payload CMS (generate a strong random string)
+
+**Optional Environment Variables:**
+
+- `PORT` - Backend port (default: 3001)
+- `FRONTEND_PORT` - Frontend port (default: 3000)
+- `SMTP_HOST` - SMTP server host
+- `SMTP_USER` - SMTP username
+- `SMTP_PASS` - SMTP password
+- `RESEND_API_KEY` - Resend API key for email
+- `EMAIL_FROM_ADDRESS` - Email sender address (default: info@paideialms.com)
+- `EMAIL_FROM_NAME` - Email sender name (default: Paideia LMS)
+- `SANDBOX_MODE` - Enable sandbox mode (default: 0)
+
+**Note:** The Docker image includes the Linux ARM64 binary. For production deployments, ensure your Docker host supports ARM64 architecture or build the binary for your target platform.
+
 ## Tech Stack
 
 - **[Bun](https://bun.sh)** - Fast JavaScript runtime and bundler

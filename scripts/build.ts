@@ -1,7 +1,8 @@
 import { readdir } from "node:fs/promises";
+import { resolve } from "node:path";
 import { $ } from "bun";
 
-await $`react-router build`;
+await $`bun react-router build`;
 
 // read all files in build
 const buildFiles = await readdir("./build/client", {
@@ -69,9 +70,12 @@ await Bun.write("server/vfs.ts", await generateVfs());
 
 console.log(`✨ generated server/vfs.ts`);
 
+// Build macOS binary
+const entrypoint = resolve(process.cwd(), "./server/index.ts");
 await Bun.build({
-	entrypoints: ["./server/index.ts"].flat(),
+	entrypoints: [entrypoint],
 	outdir: "./dist",
+	root: process.cwd(), // Explicitly set root to current working directory
 	// minify: true,
 	sourcemap: true,
 	define: {
@@ -89,9 +93,11 @@ await Bun.build({
 	},
 });
 
+// Build Linux ARM64 binary
 await Bun.build({
-	entrypoints: ["./server/index.ts"].flat(),
+	entrypoints: [entrypoint],
 	outdir: "./dist",
+	root: process.cwd(), // Explicitly set root to current working directory
 	// minify: true,
 	sourcemap: true,
 	define: {
@@ -109,4 +115,17 @@ await Bun.build({
 	},
 });
 
-await $`rm -rf ./build`;
+
+// Check for native dependencies before cleaning up build directory
+console.log(`🔍 Checking for native dependencies in build/server/index.js...`);
+const checkResult = await $`./scripts/check-native-deps.sh build/server/index.js node_modules`.nothrow();
+
+if (checkResult.exitCode !== 0) {
+	console.error(`❌ Build aborted: Native dependencies detected in bundled code!`);
+	console.error(`   The build directory has been preserved for inspection.`);
+	console.error(`   Please review the native dependencies and update your code to avoid bundling them.`);
+	process.exit(1);
+}
+
+console.log(`✅ No native dependencies detected in bundled code.`);
+// await $`rm -rf ./build`;
