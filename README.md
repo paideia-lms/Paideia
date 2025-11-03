@@ -79,7 +79,7 @@ Download the pre-built binary from [GitHub Releases](https://github.com/paideia-
 
 5. **Start infrastructure services** (PostgreSQL, MinIO) using Docker Compose:
    ```sh
-   docker-compose up -d
+   docker compose up -d
    ```
 
 6. **Run Paideia:**
@@ -108,7 +108,7 @@ Download the pre-built binary from [GitHub Releases](https://github.com/paideia-
 
 4. **Start infrastructure services:**
    ```sh
-   docker-compose up -d
+   docker compose up -d
    ```
 
 5. **Run Paideia:**
@@ -122,7 +122,7 @@ Run the complete stack using Docker Compose with pre-built images:
 
 1. **Start all services** (infrastructure + Paideia application):
    ```sh
-   docker-compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
+   docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
    ```
 
    This will:
@@ -137,7 +137,7 @@ Run the complete stack using Docker Compose with pre-built images:
 
 3. **Stop all services:**
    ```sh
-   docker-compose -f docker-compose.yml -f docker-compose.paideia.yml down
+   docker compose -f docker-compose.yml -f docker-compose.paideia.yml down
    ```
 
 ### Environment Variables
@@ -211,7 +211,7 @@ SANDBOX_MODE=0
 
 ### Docker Compose Setup
 
-The project uses two separate docker-compose files to separate infrastructure services from the Paideia application:
+The project uses two separate docker compose files to separate infrastructure services from the Paideia application:
 
 - **`docker-compose.yml`**: Contains infrastructure services (PostgreSQL, MinIO, Drizzle Gateway)
 - **`docker-compose.paideia.yml`**: Contains the Paideia application service
@@ -223,7 +223,7 @@ This separation prevents accidentally starting the Paideia Docker container duri
 Start only the infrastructure services for development:
 
 ```sh
-docker-compose up -d
+docker compose up -d
 ```
 
 Or use the dev script which starts infrastructure services and runs the app locally:
@@ -245,7 +245,7 @@ This starts:
 To stop the infrastructure services:
 
 ```sh
-docker-compose down
+docker compose down
 ```
 
 ## Production
@@ -302,7 +302,7 @@ You can monitor the workflow progress in the [Actions tab](https://github.com/pa
 To run the complete Paideia stack (including the Paideia application) with Docker Compose, use both configuration files:
 
 ```sh
-docker-compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
+docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
 ```
 
 This starts all services:
@@ -312,7 +312,7 @@ This starts all services:
 To stop all services:
 
 ```sh
-docker-compose -f docker-compose.yml -f docker-compose.paideia.yml down
+docker compose -f docker-compose.yml -f docker-compose.paideia.yml down
 ```
 
 **Note:** During development, use only `docker-compose.yml` to start infrastructure services without the Paideia container. This allows you to run the application locally with `bun dev` for hot-reloading and easier debugging.
