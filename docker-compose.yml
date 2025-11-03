@@ -10,7 +10,12 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paideia"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     networks:
       paideia_net:
         ipv4_address: 172.28.0.3

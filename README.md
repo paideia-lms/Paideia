@@ -47,74 +47,77 @@ Complete documentation is available at [docs.paideialms.com](https://docs.paidei
 
 Download the pre-built binary from [GitHub Releases](https://github.com/paideia-lms/paideia/releases) for your platform:
 
-#### macOS ARM64
+#### Quick Start (Copy & Paste)
 
-1. **Download the binary:**
-   ```sh
-   # Download from latest release
-   curl -L -o paideia https://github.com/paideia-lms/paideia/releases/latest/download/paideia-macos-arm64
-   ```
+Choose your platform and run one of these blocks in your terminal. All steps—download, setup, and run—are included so you can get started in seconds.
 
-2. **Make it executable:**
-   ```sh
-   chmod +x paideia
-   ```
+---
 
-3. **Remove macOS quarantine attribute (required on macOS):**
-   ```sh
-   xattr -c paideia
-   ```
+##### macOS ARM64 (Apple Silicon)
+```sh
+curl -L -o paideia https://github.com/paideia-lms/paideia/releases/latest/download/paideia-macos-arm64
+chmod +x paideia
+xattr -c paideia
+cat > .env <<EOF
+DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
+S3_URL=http://localhost:9000/paideia-bucket
+S3_ACCESS_KEY=paideia_minio
+S3_SECRET_KEY=paideia_minio_secret
+S3_ENDPOINT_URL=http://localhost:9000
+S3_BUCKET=paideia-bucket
+PAYLOAD_SECRET=paideia_payload_secret
+SANDBOX_MODE=0
+EOF
+docker compose up -d
+./paideia
+```
 
-4. **Create a `.env` file** in the same directory as the binary with your configuration:
-   ```env
-   DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
-   S3_URL=http://localhost:9000/paideia-bucket
-   S3_ACCESS_KEY=paideia_minio
-   S3_SECRET_KEY=paideia_minio_secret
-   S3_ENDPOINT_URL=http://localhost:9000
-   S3_BUCKET=paideia-bucket
-   PAYLOAD_SECRET=paideia_payload_secret
-   SANDBOX_MODE=0
-   ```
+---
 
-5. **Start infrastructure services** (PostgreSQL, MinIO) using Docker Compose:
-   ```sh
-   docker compose up -d
-   ```
+##### Linux ARM64
+```sh
+curl -L -o paideia-linux-arm64 https://github.com/paideia-lms/paideia/releases/latest/download/paideia-linux-arm64
+chmod +x paideia-linux-arm64
+cat > .env <<EOF
+DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
+S3_URL=http://localhost:9000/paideia-bucket
+S3_ACCESS_KEY=paideia_minio
+S3_SECRET_KEY=paideia_minio_secret
+S3_ENDPOINT_URL=http://localhost:9000
+S3_BUCKET=paideia-bucket
+PAYLOAD_SECRET=paideia_payload_secret
+SANDBOX_MODE=0
+EOF
+docker compose up -d
+./paideia-linux-arm64
+```
 
-6. **Run Paideia:**
-   ```sh
-   ./paideia
-   ```
+---
 
-   The application will be available at:
-   - **Frontend**: http://localhost:3000
-   - **Backend**: http://localhost:3001
+##### Linux x64
+```sh
+curl -L -o paideia-linux-x64 https://github.com/paideia-lms/paideia/releases/latest/download/paideia-linux-x64
+chmod +x paideia-linux-x64
+cat > .env <<EOF
+DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
+S3_URL=http://localhost:9000/paideia-bucket
+S3_ACCESS_KEY=paideia_minio
+S3_SECRET_KEY=paideia_minio_secret
+S3_ENDPOINT_URL=http://localhost:9000
+S3_BUCKET=paideia-bucket
+PAYLOAD_SECRET=paideia_payload_secret
+SANDBOX_MODE=0
+EOF
+docker compose up -d
+./paideia-linux-x64
+```
 
-#### Linux ARM64
+---
 
-1. **Download the binary:**
-   ```sh
-   # Download from latest release
-   curl -L -o paideia-linux-arm64 https://github.com/paideia-lms/paideia/releases/latest/download/paideia-linux-arm64
-   ```
+When setup completes, the application will be available at:  
+- **Frontend**: http://localhost:3000  
+- **Backend**: http://localhost:3001
 
-2. **Make it executable:**
-   ```sh
-   chmod +x paideia-linux-arm64
-   ```
-
-3. **Create a `.env` file** in the same directory as the binary (same as macOS example above)
-
-4. **Start infrastructure services:**
-   ```sh
-   docker compose up -d
-   ```
-
-5. **Run Paideia:**
-   ```sh
-   ./paideia-linux-arm64
-   ```
 
 ### Option 2: Docker Compose (Full Stack)
 

@@ -58,6 +58,8 @@ if (buildAllPlatforms) {
 	buildTargets = [
 		{ target: "bun-darwin-arm64", outfile: "paideia" },
 		{ target: "bun-linux-arm64", outfile: "paideia-linux-arm64" },
+		{ target: "bun-linux-x64", outfile: "paideia-linux-x64" },
+		{ target: "bun-windows-x64", outfile: "paideia.exe" },
 	];
 	console.log(`🔨 Building for all platforms (CI mode)`);
 	buildTargets.forEach((config) => {
@@ -98,6 +100,17 @@ const fixtureFiles = await readdir("./fixture", {
 );
 
 console.log(buildFiles);
+
+// Check for native dependencies before cleaning up build directory
+console.log(`🔍 Checking for native dependencies in build/server/index.js...`);
+const checkResult = await $`./scripts/check-native-deps.sh build/server/index.js node_modules`.nothrow();
+
+if (checkResult.exitCode !== 0) {
+	console.error(`❌ Build aborted: Native dependencies detected in bundled code!`);
+	console.error(`   The build directory has been preserved for inspection.`);
+	console.error(`   Please review the native dependencies and update your code to avoid bundling them.`);
+	process.exit(1);
+}
 
 // generate vfs.ts
 async function generateVfs() {
@@ -169,16 +182,7 @@ for (const buildConfig of buildTargets) {
 }
 
 
-// Check for native dependencies before cleaning up build directory
-console.log(`🔍 Checking for native dependencies in build/server/index.js...`);
-const checkResult = await $`./scripts/check-native-deps.sh build/server/index.js node_modules`.nothrow();
 
-if (checkResult.exitCode !== 0) {
-	console.error(`❌ Build aborted: Native dependencies detected in bundled code!`);
-	console.error(`   The build directory has been preserved for inspection.`);
-	console.error(`   Please review the native dependencies and update your code to avoid bundling them.`);
-	process.exit(1);
-}
 
 console.log(`✅ No native dependencies detected in bundled code.`);
 // replace server/vfs.ts back to empty object
