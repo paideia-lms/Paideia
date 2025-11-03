@@ -160,6 +160,7 @@ const sanitizedConfig = buildConfig({
 	secret: envVars.PAYLOAD_SECRET.value,
 	// ? shall we use localhost or the domain of the server
 	serverURL: `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
+	cors: envVars.CORS_ORIGINS.origins,
 	collections: [
 		Users,
 		Courses,

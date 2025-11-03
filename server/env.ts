@@ -97,6 +97,27 @@ export const envVars = {
 			return val === "1" || val === "true";
 		},
 	},
+	CORS_ORIGINS: {
+		required: false,
+		sensitive: false,
+		value: process.env.CORS_ORIGINS,
+		default: "",
+		get origins() {
+			const val = this.value ?? this.default;
+			// If empty, return default localhost
+			if (!val || val.trim() === "") {
+				return [
+					`http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
+				];
+			}
+			// If wildcard, return '*'
+			if (val.trim() === "*") {
+				return "*";
+			}
+			// Parse comma-separated URLs
+			return val.split(",").map((url) => url.trim()).filter(Boolean);
+		},
+	},
 	// R2_URL: {
 	//     required: false,
 	//     sensitive: true,

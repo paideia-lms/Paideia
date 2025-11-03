@@ -24,7 +24,18 @@ function getCookieDomain(domainUrl: string, headers: Headers): string {
 	}
 
 	// For localhost, omit domain entirely
-	if (hostname.includes("localhost")) {
+	if (hostname.includes("localhost") || hostname === "127.0.0.1" || hostname === "::1") {
+		return "";
+	}
+
+	// For IP addresses, omit domain entirely (cookies can't use IP addresses as domain)
+	// Check for IPv4 (e.g., 100.84.175.40)
+	const ipv4Pattern = /^(\d{1,3}\.){3}\d{1,3}$/;
+	if (ipv4Pattern.test(hostname)) {
+		return "";
+	}
+	// Check for IPv6 (contains colons, e.g., ::1, 2001:0db8::1)
+	if (hostname.includes(":")) {
 		return "";
 	}
 
@@ -51,11 +62,14 @@ function shouldUseSecureCookie(domainUrl: string, headers: Headers): boolean {
 	// Check if using HTTPS
 	const isHttps = url.protocol === "https:" || (origin?.startsWith("https://") ?? false);
 
-	// For localhost and development domains (localcan.dev), allow non-secure in development
+	// For localhost, IP addresses, and development domains (localcan.dev), allow non-secure in development
 	const hostname = url.hostname;
+	const isIpAddress = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.includes(":");
 	if (
 		hostname.includes("localhost") ||
-		hostname.includes("127.0.0.1") ||
+		hostname === "127.0.0.1" ||
+		hostname === "::1" ||
+		isIpAddress ||
 		hostname.endsWith(".localcan.dev")
 	) {
 		// Only use secure if HTTPS is available, otherwise allow non-secure for development

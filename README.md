@@ -159,6 +159,7 @@ The `.env` file or Docker Compose environment variables should include:
 **Optional:**
 - `PORT` - Backend port (default: 3001)
 - `FRONTEND_PORT` - Frontend port (default: 3000)
+- `CORS_ORIGINS` - CORS allowed origins (comma-separated URLs or `*` for all origins, defaults to localhost)
 - `SMTP_HOST` - SMTP server host for email
 - `SMTP_USER` - SMTP username
 - `SMTP_PASS` - SMTP password
@@ -203,6 +204,12 @@ FRONTEND_PORT=3000
 # Email sender (optional, defaults shown)
 EMAIL_FROM_ADDRESS=info@paideialms.com
 EMAIL_FROM_NAME=Paideia LMS
+
+# CORS (optional - defaults to localhost if not set)
+# Allow all origins (not recommended for production)
+# CORS_ORIGINS=*
+# Allow specific origins (comma-separated)
+# CORS_ORIGINS=http://localhost:3001,https://example.com,https://*.localcan.dev
 
 # Sandbox mode (optional, default: 0)
 SANDBOX_MODE=0
