@@ -1,8 +1,6 @@
 services:
   paideia:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: ghcr.io/paideia-lms/paideia:latest
     container_name: paideia
     restart: no
     ports:

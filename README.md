@@ -41,6 +41,172 @@ Paideia LMS will remain **free and non-profit forever** to benefit all organizat
 
 Complete documentation is available at [docs.paideialms.com](https://docs.paideialms.com)
 
+## Installation
+
+### Option 1: Binary Installation (Recommended)
+
+Download the pre-built binary from [GitHub Releases](https://github.com/paideia-lms/paideia/releases) for your platform:
+
+#### macOS ARM64
+
+1. **Download the binary:**
+   ```sh
+   # Download from latest release
+   curl -L -o paideia https://github.com/paideia-lms/paideia/releases/latest/download/paideia-macos-arm64
+   ```
+
+2. **Make it executable:**
+   ```sh
+   chmod +x paideia
+   ```
+
+3. **Remove macOS quarantine attribute (required on macOS):**
+   ```sh
+   xattr -c paideia
+   ```
+
+4. **Create a `.env` file** in the same directory as the binary with your configuration:
+   ```env
+   DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
+   S3_URL=http://localhost:9000/paideia-bucket
+   S3_ACCESS_KEY=paideia_minio
+   S3_SECRET_KEY=paideia_minio_secret
+   S3_ENDPOINT_URL=http://localhost:9000
+   S3_BUCKET=paideia-bucket
+   PAYLOAD_SECRET=paideia_payload_secret
+   SANDBOX_MODE=0
+   ```
+
+5. **Start infrastructure services** (PostgreSQL, MinIO) using Docker Compose:
+   ```sh
+   docker-compose up -d
+   ```
+
+6. **Run Paideia:**
+   ```sh
+   ./paideia
+   ```
+
+   The application will be available at:
+   - **Frontend**: http://localhost:3000
+   - **Backend**: http://localhost:3001
+
+#### Linux ARM64
+
+1. **Download the binary:**
+   ```sh
+   # Download from latest release
+   curl -L -o paideia-linux-arm64 https://github.com/paideia-lms/paideia/releases/latest/download/paideia-linux-arm64
+   ```
+
+2. **Make it executable:**
+   ```sh
+   chmod +x paideia-linux-arm64
+   ```
+
+3. **Create a `.env` file** in the same directory as the binary (same as macOS example above)
+
+4. **Start infrastructure services:**
+   ```sh
+   docker-compose up -d
+   ```
+
+5. **Run Paideia:**
+   ```sh
+   ./paideia-linux-arm64
+   ```
+
+### Option 2: Docker Compose (Full Stack)
+
+Run the complete stack using Docker Compose with pre-built images:
+
+1. **Start all services** (infrastructure + Paideia application):
+   ```sh
+   docker-compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
+   ```
+
+   This will:
+   - Pull the Paideia image from GitHub Container Registry (`ghcr.io/paideia-lms/paideia:latest`)
+   - Start PostgreSQL, MinIO, Drizzle Gateway, and Paideia
+   - All services configured to work together
+
+2. **Access the application:**
+   - **Frontend**: http://localhost:3000
+   - **Backend**: http://localhost:3001
+   - **MinIO Console**: http://localhost:9001
+
+3. **Stop all services:**
+   ```sh
+   docker-compose -f docker-compose.yml -f docker-compose.paideia.yml down
+   ```
+
+### Environment Variables
+
+The `.env` file or Docker Compose environment variables should include:
+
+**Required:**
+- `DATABASE_URL` - PostgreSQL connection string
+- `S3_URL` - MinIO/S3 service URL
+- `S3_ACCESS_KEY` - S3 access key
+- `S3_SECRET_KEY` - S3 secret key
+- `S3_ENDPOINT_URL` - S3 endpoint URL (without bucket name)
+- `S3_BUCKET` - S3 bucket name
+- `PAYLOAD_SECRET` - Secret key for Payload CMS (generate a strong random string)
+
+**Optional:**
+- `PORT` - Backend port (default: 3001)
+- `FRONTEND_PORT` - Frontend port (default: 3000)
+- `SMTP_HOST` - SMTP server host for email
+- `SMTP_USER` - SMTP username
+- `SMTP_PASS` - SMTP password
+- `RESEND_API_KEY` - Resend API key (alternative to SMTP)
+- `EMAIL_FROM_ADDRESS` - Email sender address (default: info@paideialms.com)
+- `EMAIL_FROM_NAME` - Email sender name (default: Paideia LMS)
+- `SANDBOX_MODE` - Enable sandbox mode for development/testing (default: 0)
+
+See `server/env.ts` for the complete list of environment variables.
+
+### Sample .env File
+
+Create a `.env` file in the same directory where you run the binary:
+
+```env
+# Database
+DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
+
+# S3/MinIO
+S3_URL=http://localhost:9000/paideia-bucket
+S3_ACCESS_KEY=paideia_minio
+S3_SECRET_KEY=paideia_minio_secret
+S3_ENDPOINT_URL=http://localhost:9000
+S3_BUCKET=paideia-bucket
+S3_REGION=us-east-1
+
+# Payload
+PAYLOAD_SECRET=paideia_payload_secret
+
+# Ports (optional, defaults shown)
+PORT=3001
+FRONTEND_PORT=3000
+
+# Email (optional - uncomment if using SMTP)
+# SMTP_HOST=smtp.example.com
+# SMTP_USER=your-email@example.com
+# SMTP_PASS=your-password
+
+# Email (optional - uncomment if using Resend)
+# RESEND_API_KEY=your-resend-api-key
+
+# Email sender (optional, defaults shown)
+EMAIL_FROM_ADDRESS=info@paideialms.com
+EMAIL_FROM_NAME=Paideia LMS
+
+# Sandbox mode (optional, default: 0)
+SANDBOX_MODE=0
+```
+
+**Note:** The `.env` file must be in the same directory where you execute the binary. The binary will read environment variables from this file.
+
 ## Development
 
 ### Docker Compose Setup

@@ -120,7 +120,29 @@ jobs:
         id: version
         run: echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
 
+      - name: Check if Docker image already exists
+        id: check-docker
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          IMAGE_TAG="v${VERSION}"
+          
+          # Check if the package version with this tag exists in GitHub Container Registry
+          if gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/orgs/paideia-lms/packages/container/paideia/versions" 2>/dev/null | \
+            jq -e --arg tag "${IMAGE_TAG}" '.[] | select(.metadata.container.tags[]? == $tag)' >/dev/null 2>&1; then
+            echo "should_build=false" >> $GITHUB_OUTPUT
+            echo "Docker image ghcr.io/paideia-lms/paideia:${IMAGE_TAG} already exists in GitHub Container Registry, skipping build"
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "Docker image ghcr.io/paideia-lms/paideia:${IMAGE_TAG} does not exist, will build"
+          fi
+
       - name: Build and push Docker image
+        if: steps.check-docker.outputs.should_build == 'true'
         uses: docker/build-push-action@v5
         with:
           context: .
