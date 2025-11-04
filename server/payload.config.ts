@@ -161,6 +161,13 @@ const sanitizedConfig = buildConfig({
 	// ? shall we use localhost or the domain of the server
 	serverURL: `http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
 	cors: envVars.CORS_ORIGINS.origins,
+	csrf: [
+		// ! this is required for the local development to work
+		...(process.env.NODE_ENV === "development"
+			? ["http://localhost:3000", "localhost"]
+			: ["http://localhost:3000", "localhost"]),
+		...envVars.CSRF_ORIGINS.origins,
+	].filter(Boolean) as string[],
 	collections: [
 		Users,
 		Courses,
@@ -189,12 +196,7 @@ const sanitizedConfig = buildConfig({
 		UserGrades,
 	] as CollectionConfig[],
 	globals: [SystemGradeTable, RegistrationSettings] as GlobalConfig[],
-	csrf: [
-		// ! this is required for the local development to work
-		...(process.env.NODE_ENV === "development"
-			? ["http://localhost:3000", "localhost"]
-			: ["http://localhost:3000", "localhost"]),
-	].filter(Boolean) as string[],
+
 
 	admin: {
 		// ! when you use auto login, you can never logout

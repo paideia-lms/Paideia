@@ -1,6 +1,6 @@
 services:
   paideia:
-    image: ghcr.io/paideia-lms/paideia:latest
+    image: hananoshikayomaru/paideia:latest
     container_name: paideia
     restart: no
     ports:
@@ -29,6 +29,7 @@ services:
       # Email sender (optional, defaults shown)
       EMAIL_FROM_ADDRESS: info@paideialms.com
       EMAIL_FROM_NAME: Paideia LMS
+      CORS_ORIGINS: "*"
       # Sandbox mode (optional, default: 0)
       # SANDBOX_MODE: 0
     networks:

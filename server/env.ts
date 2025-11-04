@@ -104,9 +104,10 @@ export const envVars = {
 		default: "",
 		get origins() {
 			const val = this.value ?? this.default;
-			// If empty, return default localhost
+			// If empty, return default localhost (both frontend and backend)
 			if (!val || val.trim() === "") {
 				return [
+					`http://localhost:${envVars.FRONTEND_PORT.value ?? envVars.FRONTEND_PORT.default}`,
 					`http://localhost:${envVars.PORT.value ?? envVars.PORT.default}`,
 				];
 			}
@@ -115,6 +116,25 @@ export const envVars = {
 				return "*";
 			}
 			// Parse comma-separated URLs
+			return val.split(",").map((url) => url.trim()).filter(Boolean);
+		},
+	},
+	CSRF_ORIGINS: {
+		required: false,
+		sensitive: false,
+		value: process.env.CSRF_ORIGINS,
+		default: "",
+		get origins() {
+			const val = this.value ?? this.default;
+			// If empty, return default localhost (frontend and hostname for compatibility)
+			if (!val || val.trim() === "") {
+				return [
+					`http://localhost:${envVars.FRONTEND_PORT.value ?? envVars.FRONTEND_PORT.default}`,
+					"localhost",
+				];
+			}
+			// Parse comma-separated URLs/domains
+			// Note: Wildcard '*' is not supported for CSRF for security reasons
 			return val.split(",").map((url) => url.trim()).filter(Boolean);
 		},
 	},
