@@ -1,20 +1,30 @@
 # Runtime Dockerfile
-# This image packages the pre-built Linux ARM64 binary for deployment
+# This image packages the pre-built Linux binary for deployment
 # Build the binary first using Dockerfile.build or build-linux.ts in a Linux environment
 FROM debian:bookworm-slim
+
+# Build arguments for platform-specific binary
+ARG TARGETARCH
+ARG TARGETPLATFORM
 
 # Install required runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Install D2 CLI for diagram rendering
+RUN curl -fsSL https://d2lang.com/install.sh | sh && \
+    d2 --version
 
 # Create app directory
 WORKDIR /app
 
-# Copy the pre-built Linux ARM64 binary
+# Copy the pre-built Linux binary based on architecture
 # This binary should be built using Dockerfile.build or build-linux.ts in a Linux environment
-COPY dist/paideia-linux-arm64 /app/paideia
+# TARGETARCH will be 'arm64' or 'amd64' (x86_64)
+COPY dist/paideia-linux-${TARGETARCH} /app/paideia
 
 # Make binary executable
 RUN chmod +x /app/paideia

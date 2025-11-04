@@ -30,6 +30,7 @@ services:
       EMAIL_FROM_ADDRESS: info@paideialms.com
       EMAIL_FROM_NAME: Paideia LMS
       CORS_ORIGINS: "*"
+      # CSRF_ORIGINS: "https://paideia-13.localcan.dev"
       # Sandbox mode (optional, default: 0)
       # SANDBOX_MODE: 0
     networks:

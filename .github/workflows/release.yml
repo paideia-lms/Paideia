@@ -170,6 +170,37 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - name: Download Linux X64 binary
+        if: steps.check-docker.outputs.should_build == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: paideia-linux-x64
+          path: .
+
+      - name: Move Linux binaries to correct location
+        if: steps.check-docker.outputs.should_build == 'true'
+        run: |
+          mkdir -p dist
+          # Find and move Linux ARM64 binary
+          LINUX_ARM64_BINARY=$(find . -name "paideia-linux-arm64" -type f | head -n 1)
+          if [ -n "$LINUX_ARM64_BINARY" ]; then
+            mv "$LINUX_ARM64_BINARY" dist/paideia-linux-arm64
+          elif [ -f dist/paideia-linux-arm64 ]; then
+            echo "ARM64 binary already in dist/"
+          fi
+          chmod +x dist/paideia-linux-arm64
+          
+          # Find and move Linux X64 binary (amd64)
+          LINUX_X64_BINARY=$(find . -name "paideia-linux-x64" -type f | head -n 1)
+          if [ -n "$LINUX_X64_BINARY" ]; then
+            mv "$LINUX_X64_BINARY" dist/paideia-linux-amd64
+          elif [ -f dist/paideia-linux-x64 ]; then
+            mv dist/paideia-linux-x64 dist/paideia-linux-amd64
+          fi
+          if [ -f dist/paideia-linux-amd64 ]; then
+            chmod +x dist/paideia-linux-amd64
+          fi
+
       - name: Build and push Docker image
         if: steps.check-docker.outputs.should_build == 'true'
         uses: docker/build-push-action@v5
@@ -182,7 +213,7 @@ jobs:
             ghcr.io/paideia-lms/paideia:latest
             ${{ steps.dockerhub.outputs.username }}/paideia:v${{ steps.version.outputs.version }}
             ${{ steps.dockerhub.outputs.username }}/paideia:latest
-          platforms: linux/arm64
+          platforms: linux/arm64,linux/amd64
 
   create-release:
     runs-on: ubuntu-latest

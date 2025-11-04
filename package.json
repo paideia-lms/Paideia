@@ -1,7 +1,7 @@
 {
 	"name": "paideia",
 	"description": "Paideia LMS - Simple, Robust, and Lightweight Learning Management System in a Single Executable",
-	"version": "0.5.3",
+	"version": "0.5.4",
 	"keywords": [
 		"paideia",
 		"lms",
@@ -34,7 +34,7 @@
 		"migrate:reset": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:reset",
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:fresh --force-accept-warning && bun scripts/clean-s3.ts",
 		"docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
-		"docker:run": "docker run -p 3000:3000 paideia:$(node -p \"require('./package.json').version\")",
+		"docker:run": "docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d",
 		"typecheck": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:db-schema && react-router typegen; tsgo --noEmit",
 		"lefthook:install": "lefthook install"
 	},
