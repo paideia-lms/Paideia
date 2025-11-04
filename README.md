@@ -1,5 +1,7 @@
 # 🌿 Paideia LMS
 
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/paideia-lms/Paideia)
+
 > [!IMPORTANT] 
 > This project is in active development and is not yet ready for production use.
 
