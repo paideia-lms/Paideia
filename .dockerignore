@@ -7,8 +7,6 @@
 /paideia_data
 
 node_modules
-dist/*
-!dist/paideia-linux-arm64
 build
 .git
 .github
