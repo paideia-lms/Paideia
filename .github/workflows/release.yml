@@ -103,25 +103,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download Linux ARM64 binary
-        uses: actions/download-artifact@v4
-        with:
-          name: paideia-linux-arm64
-          path: .
-
-      - name: Move Linux binary to correct location
-        run: |
-          mkdir -p dist
-          # Find the Linux binary and move it to dist/
-          LINUX_BINARY=$(find . -name "paideia-linux-arm64" -type f | head -n 1)
-          if [ -n "$LINUX_BINARY" ]; then
-            mv "$LINUX_BINARY" dist/paideia-linux-arm64
-          elif [ -f dist/paideia-linux-arm64 ]; then
-            # Already in the right place
-            echo "Binary already in dist/"
-          fi
-          chmod +x dist/paideia-linux-arm64
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -150,6 +131,20 @@ jobs:
             echo "Docker image ghcr.io/paideia-lms/paideia:${IMAGE_TAG} does not exist, will build"
           fi
 
+      - name: Download Linux ARM64 binary
+        if: steps.check-docker.outputs.should_build == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: paideia-linux-arm64
+          path: .
+
+      - name: Download Linux X64 binary
+        if: steps.check-docker.outputs.should_build == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: paideia-linux-x64
+          path: .
+
       - name: Log in to GitHub Container Registry
         if: steps.check-docker.outputs.should_build == 'true'
         uses: docker/login-action@v3
@@ -170,13 +165,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Download Linux X64 binary
-        if: steps.check-docker.outputs.should_build == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: paideia-linux-x64
-          path: .
-
       - name: Move Linux binaries to correct location
         if: steps.check-docker.outputs.should_build == 'true'
         run: |
@@ -184,21 +172,45 @@ jobs:
           # Find and move Linux ARM64 binary
           LINUX_ARM64_BINARY=$(find . -name "paideia-linux-arm64" -type f | head -n 1)
           if [ -n "$LINUX_ARM64_BINARY" ]; then
-            mv "$LINUX_ARM64_BINARY" dist/paideia-linux-arm64
+            # Normalize paths to check if they're the same
+            TARGET_ARM64="dist/paideia-linux-arm64"
+            # Remove leading ./ if present
+            NORMALIZED_ARM64=$(echo "$LINUX_ARM64_BINARY" | sed 's|^\./||')
+            # Only move if not already in target location
+            if [ "$NORMALIZED_ARM64" != "$TARGET_ARM64" ]; then
+              mv "$LINUX_ARM64_BINARY" "$TARGET_ARM64"
+            else
+              echo "ARM64 binary already in correct location: $TARGET_ARM64"
+            fi
           elif [ -f dist/paideia-linux-arm64 ]; then
             echo "ARM64 binary already in dist/"
           fi
           chmod +x dist/paideia-linux-arm64
           
           # Find and move Linux X64 binary (amd64)
-          LINUX_X64_BINARY=$(find . -name "paideia-linux-x64" -type f | head -n 1)
-          if [ -n "$LINUX_X64_BINARY" ]; then
-            mv "$LINUX_X64_BINARY" dist/paideia-linux-amd64
-          elif [ -f dist/paideia-linux-x64 ]; then
-            mv dist/paideia-linux-x64 dist/paideia-linux-amd64
+          TARGET_AMD64="dist/paideia-linux-amd64"
+          # Check if amd64 binary already exists
+          if [ -f "$TARGET_AMD64" ]; then
+            echo "AMD64 binary already exists: $TARGET_AMD64"
+          else
+            # Try to find x64 binary
+            LINUX_X64_BINARY=$(find . -name "paideia-linux-x64" -type f | head -n 1)
+            if [ -n "$LINUX_X64_BINARY" ]; then
+              # Normalize paths to check if they're the same
+              # Remove leading ./ if present
+              NORMALIZED_X64=$(echo "$LINUX_X64_BINARY" | sed 's|^\./||')
+              # Only move if not already in target location
+              if [ "$NORMALIZED_X64" != "$TARGET_AMD64" ]; then
+                mv "$LINUX_X64_BINARY" "$TARGET_AMD64"
+              else
+                echo "X64 binary already in correct location: $TARGET_AMD64"
+              fi
+            elif [ -f dist/paideia-linux-x64 ]; then
+              mv dist/paideia-linux-x64 "$TARGET_AMD64"
+            fi
           fi
-          if [ -f dist/paideia-linux-amd64 ]; then
-            chmod +x dist/paideia-linux-amd64
+          if [ -f "$TARGET_AMD64" ]; then
+            chmod +x "$TARGET_AMD64"
           fi
 
       - name: Build and push Docker image
@@ -239,6 +251,18 @@ jobs:
           name: paideia-linux-arm64
           path: release-assets/
 
+      - name: Download Linux X64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: paideia-linux-x64
+          path: release-assets/
+
+      - name: Download Windows X64 binary
+        uses: actions/download-artifact@v4
+        with:
+          name: paideia-windows-x64
+          path: release-assets/
+
       - name: Rename binaries for release
         run: |
           mkdir -p release-assets
@@ -251,11 +275,29 @@ jobs:
             fi
           fi
           
-          # Find and rename Linux binary (only if target doesn't exist)
+          # Find and rename Linux ARM64 binary (only if target doesn't exist)
           if [ ! -f release-assets/paideia-linux-arm64 ]; then
-            LINUX_BINARY=$(find release-assets -name "paideia-linux-arm64" -type f | head -n 1)
-            if [ -n "$LINUX_BINARY" ]; then
-              mv "$LINUX_BINARY" release-assets/paideia-linux-arm64
+            LINUX_ARM64_BINARY=$(find release-assets -name "paideia-linux-arm64" -type f | head -n 1)
+            if [ -n "$LINUX_ARM64_BINARY" ]; then
+              mv "$LINUX_ARM64_BINARY" release-assets/paideia-linux-arm64
+            fi
+          fi
+          
+          # Find and rename Linux X64 binary to amd64 (only if target doesn't exist)
+          if [ ! -f release-assets/paideia-linux-amd64 ]; then
+            LINUX_X64_BINARY=$(find release-assets -name "paideia-linux-x64" -type f | head -n 1)
+            if [ -n "$LINUX_X64_BINARY" ]; then
+              mv "$LINUX_X64_BINARY" release-assets/paideia-linux-amd64
+            elif [ -f release-assets/paideia-linux-x64 ]; then
+              mv release-assets/paideia-linux-x64 release-assets/paideia-linux-amd64
+            fi
+          fi
+          
+          # Find and rename Windows binary (only if target doesn't exist)
+          if [ ! -f release-assets/paideia.exe ]; then
+            WINDOWS_BINARY=$(find release-assets -name "paideia.exe" -type f | head -n 1)
+            if [ -n "$WINDOWS_BINARY" ]; then
+              mv "$WINDOWS_BINARY" release-assets/paideia.exe
             fi
           fi
           
@@ -268,12 +310,18 @@ jobs:
             fi
           fi
           
-          # Ensure both binaries exist and are executable
+          # Ensure all binaries exist and are executable
           if [ -f release-assets/paideia-macos-arm64 ]; then
             chmod +x release-assets/paideia-macos-arm64
           fi
           if [ -f release-assets/paideia-linux-arm64 ]; then
             chmod +x release-assets/paideia-linux-arm64
+          fi
+          if [ -f release-assets/paideia-linux-amd64 ]; then
+            chmod +x release-assets/paideia-linux-amd64
+          fi
+          if [ -f release-assets/paideia.exe ]; then
+            chmod +x release-assets/paideia.exe
           fi
 
       - name: Extract version
@@ -292,6 +340,8 @@ jobs:
           files: |
             release-assets/paideia-macos-arm64
             release-assets/paideia-linux-arm64
+            release-assets/paideia-linux-amd64
+            release-assets/paideia.exe
           draft: false
           prerelease: false
         env:
