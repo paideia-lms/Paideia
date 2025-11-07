@@ -1,4 +1,3 @@
-// @ts-nocheck
 /* tslint:disable */
 /* eslint-disable */
 /**
@@ -1031,42 +1030,11 @@ export const media = pgTable(
     height: numeric("height", { mode: "number" }),
     focalX: numeric("focal_x", { mode: "number" }),
     focalY: numeric("focal_y", { mode: "number" }),
-    sizes_thumbnail_url: varchar("sizes_thumbnail_url"),
-    sizes_thumbnail_width: numeric("sizes_thumbnail_width", { mode: "number" }),
-    sizes_thumbnail_height: numeric("sizes_thumbnail_height", {
-      mode: "number",
-    }),
-    sizes_thumbnail_mimeType: varchar("sizes_thumbnail_mime_type"),
-    sizes_thumbnail_filesize: numeric("sizes_thumbnail_filesize", {
-      mode: "number",
-    }),
-    sizes_thumbnail_filename: varchar("sizes_thumbnail_filename"),
-    sizes_card_url: varchar("sizes_card_url"),
-    sizes_card_width: numeric("sizes_card_width", { mode: "number" }),
-    sizes_card_height: numeric("sizes_card_height", { mode: "number" }),
-    sizes_card_mimeType: varchar("sizes_card_mime_type"),
-    sizes_card_filesize: numeric("sizes_card_filesize", { mode: "number" }),
-    sizes_card_filename: varchar("sizes_card_filename"),
-    sizes_tablet_url: varchar("sizes_tablet_url"),
-    sizes_tablet_width: numeric("sizes_tablet_width", { mode: "number" }),
-    sizes_tablet_height: numeric("sizes_tablet_height", { mode: "number" }),
-    sizes_tablet_mimeType: varchar("sizes_tablet_mime_type"),
-    sizes_tablet_filesize: numeric("sizes_tablet_filesize", { mode: "number" }),
-    sizes_tablet_filename: varchar("sizes_tablet_filename"),
   },
   (columns) => [
     index("media_updated_at_idx").on(columns.updatedAt),
     index("media_created_at_idx").on(columns.createdAt),
     uniqueIndex("media_filename_idx").on(columns.filename),
-    index("media_sizes_thumbnail_sizes_thumbnail_filename_idx").on(
-      columns.sizes_thumbnail_filename,
-    ),
-    index("media_sizes_card_sizes_card_filename_idx").on(
-      columns.sizes_card_filename,
-    ),
-    index("media_sizes_tablet_sizes_tablet_filename_idx").on(
-      columns.sizes_tablet_filename,
-    ),
   ],
 );
 
@@ -2078,8 +2046,6 @@ export const payload_locked_documents_rels = pgTable(
     groupsID: integer("groups_id"),
     "user-gradesID": integer("user_grades_id"),
     searchID: integer("search_id"),
-    "payload-kvID": integer("payload_kv_id"),
-    "payload-jobsID": integer("payload_jobs_id"),
   },
   (columns) => [
     index("payload_locked_documents_rels_order_idx").on(columns.order),
@@ -2147,12 +2113,6 @@ export const payload_locked_documents_rels = pgTable(
       columns["user-gradesID"],
     ),
     index("payload_locked_documents_rels_search_id_idx").on(columns.searchID),
-    index("payload_locked_documents_rels_payload_kv_id_idx").on(
-      columns["payload-kvID"],
-    ),
-    index("payload_locked_documents_rels_payload_jobs_id_idx").on(
-      columns["payload-jobsID"],
-    ),
     foreignKey({
       columns: [columns["parent"]],
       foreignColumns: [payload_locked_documents.id],
@@ -2287,16 +2247,6 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["searchID"]],
       foreignColumns: [search.id],
       name: "payload_locked_documents_rels_search_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["payload-kvID"]],
-      foreignColumns: [payload_kv.id],
-      name: "payload_locked_documents_rels_payload_kv_fk",
-    }).onDelete("cascade"),
-    foreignKey({
-      columns: [columns["payload-jobsID"]],
-      foreignColumns: [payload_jobs.id],
-      name: "payload_locked_documents_rels_payload_jobs_fk",
     }).onDelete("cascade"),
   ],
 );
@@ -3251,16 +3201,6 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels.searchID],
       references: [search.id],
       relationName: "search",
-    }),
-    "payload-kvID": one(payload_kv, {
-      fields: [payload_locked_documents_rels["payload-kvID"]],
-      references: [payload_kv.id],
-      relationName: "payload-kv",
-    }),
-    "payload-jobsID": one(payload_jobs, {
-      fields: [payload_locked_documents_rels["payload-jobsID"]],
-      references: [payload_jobs.id],
-      relationName: "payload-jobs",
     }),
   }),
 );

@@ -63,9 +63,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
 
-
-
-
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
@@ -114,8 +111,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: profileUser.avatar.filename,
-				})
+						filenameOrId: profileUser.avatar.filename,
+					})
 				: null;
 		}
 	}
@@ -145,8 +142,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		profileUser,
 		isSandboxMode,
 	);
-	const emailPermission = canEditProfileEmail(
-	);
+	const emailPermission = canEditProfileEmail();
 	const bioPermission = canEditProfileBio(
 		currentUser,
 		profileUser,
@@ -270,7 +266,6 @@ export const action = async ({
 		const isAdmin = currentUser.role === "admin";
 		const isFirstUser = userId === 1;
 
-
 		const parsed = z
 			.object({
 				firstName: z.string(),
@@ -313,7 +308,6 @@ export const action = async ({
 				error: "The first user cannot change their admin role",
 			});
 		}
-
 
 		// Build update data
 		const updateData: {
@@ -499,9 +493,9 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 			bio: user.bio,
 			email: user.email,
 			role: user.role ?? "student",
-		})
-		form.reset()
-	}, [location.pathname])
+		});
+		form.reset();
+	}, [location.pathname]);
 
 	const handleDrop = (files: File[]) => {
 		const file = files[0];
@@ -532,8 +526,6 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const enrollmentCount = userProfile?.enrollments.length ?? 0;
 
 	const targetUser = { id: user.id, role: user.role };
-
-
 
 	const title = `${fullName} | Profile | Paideia LMS`;
 
@@ -581,11 +573,7 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 					</Title>
 
 					{isEditingOtherAdminUser && (
-						<Alert
-							color="red"
-							title="Editing Restricted"
-							mb="xl"
-						>
+						<Alert color="red" title="Editing Restricted" mb="xl">
 							<Text size="sm">
 								<strong>Warning:</strong> Admins cannot edit other admin users.
 								All fields are disabled.
@@ -668,7 +656,11 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								placeholder="Enter your first name"
 								required
 								disabled={!firstNamePermission.allowed}
-								description={!firstNamePermission.allowed ? firstNamePermission.reason : undefined}
+								description={
+									!firstNamePermission.allowed
+										? firstNamePermission.reason
+										: undefined
+								}
 							/>
 
 							<TextInput
@@ -678,7 +670,11 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								placeholder="Enter your last name"
 								required
 								disabled={!lastNamePermission.allowed}
-								description={!lastNamePermission.allowed ? lastNamePermission.reason : undefined}
+								description={
+									!lastNamePermission.allowed
+										? lastNamePermission.reason
+										: undefined
+								}
 							/>
 
 							<TextInput
@@ -718,7 +714,9 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 								minRows={4}
 								maxRows={8}
 								disabled={!bioPermission.allowed}
-								description={!bioPermission.allowed ? bioPermission.reason : undefined}
+								description={
+									!bioPermission.allowed ? bioPermission.reason : undefined
+								}
 							/>
 
 							<Group justify="flex-end" mt="md">

@@ -430,7 +430,7 @@ export default function NewUserPage() {
 							label="Role"
 							placeholder="Select role"
 							required
-							data={Users.fields[2].options?.map((option) => ({
+							data={Users.fields[3].options?.map((option) => ({
 								value: option.value,
 								label: option.label,
 							}))}

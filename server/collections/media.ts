@@ -18,7 +18,7 @@ export const Media = {
 	],
 	/**
 	 * sharp is only required when you use these upload collection features: index.ts:841-849
-	 * 
+	 *
 	 * imageSizes - automatic image resizing to multiple sizes overview.mdx:108
 	 * formatOptions - image format conversion overview.mdx:106
 	 * resizeOptions - image resizing configuration overview.mdx:111

@@ -116,7 +116,10 @@ export const envVars = {
 				return "*";
 			}
 			// Parse comma-separated URLs
-			return val.split(",").map((url) => url.trim()).filter(Boolean);
+			return val
+				.split(",")
+				.map((url) => url.trim())
+				.filter(Boolean);
 		},
 	},
 	CSRF_ORIGINS: {
@@ -135,7 +138,10 @@ export const envVars = {
 			}
 			// Parse comma-separated URLs/domains
 			// Note: Wildcard '*' is not supported for CSRF for security reasons
-			return val.split(",").map((url) => url.trim()).filter(Boolean);
+			return val
+				.split(",")
+				.map((url) => url.trim())
+				.filter(Boolean);
 		},
 	},
 	// R2_URL: {

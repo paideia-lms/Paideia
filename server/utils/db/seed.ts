@@ -1,3 +1,4 @@
+import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
 import {
@@ -17,9 +18,8 @@ import {
 	tryUpdateUser,
 } from "../../internal/user-management";
 import vfs from "../../vfs";
-import type { SeedData } from "./seed-schema";
 import { testData } from "./predefined-seed-data";
-import type { Simplify } from "node_modules/drizzle-orm/utils";
+import type { SeedData } from "./seed-schema";
 
 type DeepReadonly<T> = Simplify<{
 	readonly [K in keyof T]: T[K] extends object ? DeepReadonly<T[K]> : T[K];
@@ -29,7 +29,6 @@ export interface RunSeedArgs {
 	payload: Payload;
 	seedData?: SeedData | DeepReadonly<SeedData>;
 }
-
 
 /**
  * Get file content from VFS as Buffer
@@ -294,9 +293,9 @@ export const runSeed = Result.wrap(
 		}
 		const csSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Computer Science",
-				parent: stemCategory.value.id,
-			})
+					name: "Computer Science",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (csSubcat && csSubcat.ok) {
 			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
@@ -306,9 +305,9 @@ export const runSeed = Result.wrap(
 		}
 		const mathSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Mathematics",
-				parent: stemCategory.value.id,
-			})
+					name: "Mathematics",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (mathSubcat && mathSubcat.ok) {
 			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });

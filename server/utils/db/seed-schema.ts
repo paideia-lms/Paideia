@@ -87,7 +87,12 @@ export const seedDataSchema = z.object({
 					status: z.enum(["published", "draft"]),
 					instructions: z.string(),
 					minReplies: z.number().int().nonnegative(),
-					threadSorting: z.enum(["recent", "upvoted", "active", "alphabetical"]),
+					threadSorting: z.enum([
+						"recent",
+						"upvoted",
+						"active",
+						"alphabetical",
+					]),
 				}),
 				z.object({
 					type: z.literal("whiteboard"),
@@ -104,13 +109,10 @@ export const seedDataSchema = z.object({
 			description: z.string(),
 		}),
 	),
-	enrollmentStatuses: z.array(
-		z.enum(["active", "inactive", "completed"]),
-	),
+	enrollmentStatuses: z.array(z.enum(["active", "inactive", "completed"])),
 });
 
 /**
  * Inferred TypeScript type from the Zod schema
  */
 export type SeedData = z.infer<typeof seedDataSchema>;
-

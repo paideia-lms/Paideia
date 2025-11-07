@@ -5,7 +5,6 @@ import { envVars } from "server/env";
 export const Users = {
 	auth: {
 		verify: true,
-
 	},
 	access: {
 		read: ({ req }): AccessResult => {
@@ -31,15 +30,18 @@ export const Users = {
 				// user can update their own profile however they want
 				return {
 					or: [{ id: { equals: req.user.id } }],
-				}
+				};
 			}
 			// admin can update all users except other admins
 			if (req.user.role === "admin") {
 				return {
-					or: [{ id: { equals: req.user.id } }, { role: { not_equals: "admin" } }],
-				}
+					or: [
+						{ id: { equals: req.user.id } },
+						{ role: { not_equals: "admin" } },
+					],
+				};
 			}
-			// only users can update their own profile 
+			// only users can update their own profile
 			return {
 				or: [{ id: { equals: req.user.id } }],
 			};
@@ -57,8 +59,8 @@ export const Users = {
 		// Default auth fields including email, username, and password can be overridden by defining a custom field with the same name in your collection config.
 		// see https://payloadcms.com/docs/authentication/overview#access-control
 		{
-			name: 'email', // or 'username'
-			type: 'text',
+			name: "email", // or 'username'
+			type: "text",
 			access: {
 				// ! we does not allow users to update their email
 				update: () => false,
@@ -99,7 +101,8 @@ export const Users = {
 					// doc is the document being updated (target user)
 					if (!doc || typeof doc !== "object") return false;
 
-					const targetUserId = "id" in doc && typeof doc.id === "number" ? doc.id : null;
+					const targetUserId =
+						"id" in doc && typeof doc.id === "number" ? doc.id : null;
 					if (!targetUserId) return false;
 
 					const targetUserRole =

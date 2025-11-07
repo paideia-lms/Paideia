@@ -1,9 +1,8 @@
-import { existsSync } from "node:fs";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { SeedDataLoadError } from "app/utils/error";
 import { Result } from "typescript-result";
 import { testData } from "./predefined-seed-data";
 import { seedDataSchema } from "./seed-schema";
-import { SeedDataLoadError } from "app/utils/error";
 
 /**
  * Loads and validates seed data from seed.json file in project root
@@ -47,9 +46,9 @@ export const tryLoadSeedData = Result.wrap(
 	},
 	(error) =>
 		new SeedDataLoadError(
-			`Failed to load seed data: ${error instanceof Error ? error.message : String(error)}`, {
-			cause: error,
-		}
-		)
+			`Failed to load seed data: ${error instanceof Error ? error.message : String(error)}`,
+			{
+				cause: error,
+			},
+		),
 );
-

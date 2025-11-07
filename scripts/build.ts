@@ -1,8 +1,7 @@
 import { readdir } from "node:fs/promises";
-import { resolve } from "node:path";
 import os from "node:os";
+import { resolve } from "node:path";
 import { $ } from "bun";
-
 
 // Log OS information
 const platform = os.platform();
@@ -15,8 +14,12 @@ console.log(`   Type: ${os.type()}`);
 console.log(`   Release: ${os.release()}`);
 console.log(`   Version: ${os.version()}`);
 console.log(`   CPU Model: ${os.cpus()[0]?.model || "Unknown"}`);
-console.log(`   Total Memory: ${(os.totalmem() / 1024 / 1024 / 1024).toFixed(2)} GB`);
-console.log(`   Free Memory: ${(os.freemem() / 1024 / 1024 / 1024).toFixed(2)} GB`);
+console.log(
+	`   Total Memory: ${(os.totalmem() / 1024 / 1024 / 1024).toFixed(2)} GB`,
+);
+console.log(
+	`   Free Memory: ${(os.freemem() / 1024 / 1024 / 1024).toFixed(2)} GB`,
+);
 console.log(`   Uptime: ${(os.uptime() / 3600).toFixed(2)} hours`);
 console.log("");
 
@@ -45,7 +48,9 @@ function getBuildTarget(): { target: string; outfile: string } {
 		}
 	}
 
-	throw new Error(`Unsupported platform/architecture combination: ${platform} ${arch}`);
+	throw new Error(
+		`Unsupported platform/architecture combination: ${platform} ${arch}`,
+	);
 }
 
 // Check if we should build for all platforms (e.g., in CI)
@@ -103,12 +108,17 @@ console.log(buildFiles);
 
 // Check for native dependencies before cleaning up build directory
 console.log(`🔍 Checking for native dependencies in build/server/index.js...`);
-const checkResult = await $`./scripts/check-native-deps.sh build/server/index.js node_modules`.nothrow();
+const checkResult =
+	await $`./scripts/check-native-deps.sh build/server/index.js node_modules`.nothrow();
 
 if (checkResult.exitCode !== 0) {
-	console.error(`❌ Build aborted: Native dependencies detected in bundled code!`);
+	console.error(
+		`❌ Build aborted: Native dependencies detected in bundled code!`,
+	);
 	console.error(`   The build directory has been preserved for inspection.`);
-	console.error(`   Please review the native dependencies and update your code to avoid bundling them.`);
+	console.error(
+		`   Please review the native dependencies and update your code to avoid bundling them.`,
+	);
 	process.exit(1);
 }
 
@@ -138,12 +148,12 @@ async function generateVfs() {
 
 	return `export default {
   ${allFiles
-			.map((f, i) => {
-				// Strip 'client/' prefix for serving static assets
-				const servePath = f.startsWith("client/") ? f.replace("client/", "") : f;
-				return `"${servePath}": "${allContents[i]}"`;
-			})
-			.join(",\n")}
+		.map((f, i) => {
+			// Strip 'client/' prefix for serving static assets
+			const servePath = f.startsWith("client/") ? f.replace("client/", "") : f;
+			return `"${servePath}": "${allContents[i]}"`;
+		})
+		.join(",\n")}
 };
 `;
 }
@@ -157,7 +167,9 @@ console.log(`✨ generated server/vfs.ts`);
 const entrypoint = resolve(process.cwd(), "./server/index.ts");
 
 for (const buildConfig of buildTargets) {
-	console.log(`🔨 Building ${buildConfig.outfile} for ${buildConfig.target}...`);
+	console.log(
+		`🔨 Building ${buildConfig.outfile} for ${buildConfig.target}...`,
+	);
 	await Bun.build({
 		entrypoints: [entrypoint],
 		outdir: "./dist",
@@ -180,9 +192,6 @@ for (const buildConfig of buildTargets) {
 	});
 	console.log(`✅ Built ${buildConfig.outfile} for ${buildConfig.target}`);
 }
-
-
-
 
 console.log(`✅ No native dependencies detected in bundled code.`);
 // replace server/vfs.ts back to empty object

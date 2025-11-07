@@ -10,9 +10,9 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { IconAlertTriangle } from "@tabler/icons-react";
 import { isEmail, useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -192,8 +192,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function RegistrationView({ loaderData }: Route.ComponentProps) {
-	const { NODE_ENV, DEV_CONSTANTS, isFirstUser, registrationDisabled, isSandboxMode } =
-		loaderData;
+	const {
+		NODE_ENV,
+		DEV_CONSTANTS,
+		isFirstUser,
+		registrationDisabled,
+		isSandboxMode,
+	} = loaderData;
 
 	return (
 		<Container
@@ -237,8 +242,8 @@ export default function RegistrationView({ loaderData }: Route.ComponentProps) {
 								<strong>Warning:</strong> Sandbox mode is currently enabled. You
 								will automatically receive admin role upon registration, and you
 								can freely change your system role. This is intended for testing
-								and development purposes only. Data is temporary and will be reset
-								every midnight.
+								and development purposes only. Data is temporary and will be
+								reset every midnight.
 							</Text>
 						</Alert>
 					)}

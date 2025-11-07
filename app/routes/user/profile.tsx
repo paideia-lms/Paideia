@@ -224,11 +224,9 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 							{canEdit && (
 								<Button
 									component={Link}
-									to={
-										href("/user/overview/:id?", {
-											id: user.id.toString(),
-										})
-									}
+									to={href("/user/overview/:id?", {
+										id: user.id.toString(),
+									})}
 									variant="light"
 								>
 									Edit Profile

@@ -2,7 +2,7 @@
 
 /**
  * Script to build and push Docker images to Docker Hub and GitHub Container Registry
- * 
+ *
  * Requirements:
  * - GITHUB_TOKEN environment variable
  * - DOCKERHUB_USERNAME environment variable
@@ -10,7 +10,7 @@
  * - Binaries must exist in dist/ directory:
  *   - dist/paideia-linux-arm64
  *   - dist/paideia-linux-amd64 (or dist/paideia-linux-x64 which will be renamed)
- * 
+ *
  * Usage:
  *   bun scripts/push-docker.ts
  */
@@ -32,24 +32,26 @@ const dockerhubUsername = process.env.DOCKERHUB_USERNAME;
 const dockerhubToken = process.env.DOCKERHUB_TOKEN;
 
 if (!githubToken) {
-    console.error("❌ GITHUB_TOKEN environment variable is not set");
-    process.exit(1);
+	console.error("❌ GITHUB_TOKEN environment variable is not set");
+	process.exit(1);
 }
 
 if (!dockerhubUsername) {
-    console.error("❌ DOCKERHUB_USERNAME environment variable is not set");
-    process.exit(1);
+	console.error("❌ DOCKERHUB_USERNAME environment variable is not set");
+	process.exit(1);
 }
 
 if (!dockerhubToken) {
-    console.error("❌ DOCKERHUB_TOKEN environment variable is not set");
-    process.exit(1);
+	console.error("❌ DOCKERHUB_TOKEN environment variable is not set");
+	process.exit(1);
 }
 
 // Ensure dist directory exists
 if (!existsSync("dist")) {
-    console.error("❌ dist/ directory does not exist. Please build binaries first.");
-    process.exit(1);
+	console.error(
+		"❌ dist/ directory does not exist. Please build binaries first.",
+	);
+	process.exit(1);
 }
 
 // Check and prepare binaries
@@ -61,23 +63,25 @@ const amd64Binary = "dist/paideia-linux-amd64";
 
 // Check ARM64 binary
 if (!existsSync(arm64Binary)) {
-    console.error(`❌ ARM64 binary not found: ${arm64Binary}`);
-    console.error("   Please build binaries first: bun run build");
-    process.exit(1);
+	console.error(`❌ ARM64 binary not found: ${arm64Binary}`);
+	console.error("   Please build binaries first: bun run build");
+	process.exit(1);
 }
 console.log(`   ✅ Found ARM64 binary: ${arm64Binary}`);
 
 // Check and prepare AMD64 binary
 if (existsSync(amd64Binary)) {
-    console.log(`   ✅ Found AMD64 binary: ${amd64Binary}`);
+	console.log(`   ✅ Found AMD64 binary: ${amd64Binary}`);
 } else if (existsSync(x64Binary)) {
-    console.log(`   📝 Renaming ${x64Binary} to ${amd64Binary}`);
-    await $`mv ${x64Binary} ${amd64Binary}`;
-    console.log(`   ✅ AMD64 binary ready: ${amd64Binary}`);
+	console.log(`   📝 Renaming ${x64Binary} to ${amd64Binary}`);
+	await $`mv ${x64Binary} ${amd64Binary}`;
+	console.log(`   ✅ AMD64 binary ready: ${amd64Binary}`);
 } else {
-    console.error(`❌ AMD64/X64 binary not found: ${amd64Binary} or ${x64Binary}`);
-    console.error("   Please build binaries first: bun run build");
-    process.exit(1);
+	console.error(
+		`❌ AMD64/X64 binary not found: ${amd64Binary} or ${x64Binary}`,
+	);
+	console.error("   Please build binaries first: bun run build");
+	process.exit(1);
 }
 
 // Make binaries executable
@@ -114,20 +118,19 @@ console.log(`     - ${dockerhubUsername}/paideia:latest`);
 console.log("");
 
 try {
-    await $`docker buildx build --platform linux/arm64,linux/amd64 --file Dockerfile --tag ghcr.io/paideia-lms/paideia:${imageTag} --tag ghcr.io/paideia-lms/paideia:latest --tag ${dockerhubUsername}/paideia:${imageTag} --tag ${dockerhubUsername}/paideia:latest --push .`;
+	await $`docker buildx build --platform linux/arm64,linux/amd64 --file Dockerfile --tag ghcr.io/paideia-lms/paideia:${imageTag} --tag ghcr.io/paideia-lms/paideia:latest --tag ${dockerhubUsername}/paideia:${imageTag} --tag ${dockerhubUsername}/paideia:latest --push .`;
 
-    console.log("");
-    console.log("✅ Docker images built and pushed successfully!");
-    console.log("");
-    console.log("📦 Published images:");
-    console.log(`   - ghcr.io/paideia-lms/paideia:${imageTag}`);
-    console.log(`   - ghcr.io/paideia-lms/paideia:latest`);
-    console.log(`   - ${dockerhubUsername}/paideia:${imageTag}`);
-    console.log(`   - ${dockerhubUsername}/paideia:latest`);
+	console.log("");
+	console.log("✅ Docker images built and pushed successfully!");
+	console.log("");
+	console.log("📦 Published images:");
+	console.log(`   - ghcr.io/paideia-lms/paideia:${imageTag}`);
+	console.log(`   - ghcr.io/paideia-lms/paideia:latest`);
+	console.log(`   - ${dockerhubUsername}/paideia:${imageTag}`);
+	console.log(`   - ${dockerhubUsername}/paideia:latest`);
 } catch (error) {
-    console.error("");
-    console.error("❌ Failed to build and push Docker images");
-    console.error(error);
-    process.exit(1);
+	console.error("");
+	console.error("❌ Failed to build and push Docker images");
+	console.error(error);
+	process.exit(1);
 }
-

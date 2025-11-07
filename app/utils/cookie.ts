@@ -24,7 +24,11 @@ function getCookieDomain(domainUrl: string, headers: Headers): string {
 	}
 
 	// For localhost, omit domain entirely
-	if (hostname.includes("localhost") || hostname === "127.0.0.1" || hostname === "::1") {
+	if (
+		hostname.includes("localhost") ||
+		hostname === "127.0.0.1" ||
+		hostname === "::1"
+	) {
 		return "";
 	}
 
@@ -60,11 +64,13 @@ function shouldUseSecureCookie(domainUrl: string, headers: Headers): boolean {
 	const origin = headers.get("Origin");
 
 	// Check if using HTTPS
-	const isHttps = url.protocol === "https:" || (origin?.startsWith("https://") ?? false);
+	const isHttps =
+		url.protocol === "https:" || (origin?.startsWith("https://") ?? false);
 
 	// For localhost, IP addresses, and development domains (localcan.dev), allow non-secure in development
 	const hostname = url.hostname;
-	const isIpAddress = /^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.includes(":");
+	const isIpAddress =
+		/^(\d{1,3}\.){3}\d{1,3}$/.test(hostname) || hostname.includes(":");
 	if (
 		hostname.includes("localhost") ||
 		hostname === "127.0.0.1" ||
