@@ -12,7 +12,7 @@ import { getPayload, type Migration as MigrationType } from "payload";
 import { RouterContextProvider } from "react-router";
 import { migrations } from "src/migrations";
 import { createStorage } from "unstorage";
-// @ts-ignore this is okay 
+// @ts-expect-error this is okay
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { getHints } from "../app/utils/client-hints";
 import packageJson from "../package.json";
@@ -28,15 +28,15 @@ import { userModuleContextKey } from "./contexts/user-module-context";
 import { userProfileContextKey } from "./contexts/user-profile-context";
 import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
-import { runSeed } from "./utils/db/seed";
 import { asciiLogo } from "./utils/constants";
+import { dumpDatabase } from "./utils/db/dump";
 import { migrateFresh } from "./utils/db/migrate-fresh";
-import { tryResetSandbox } from "./utils/db/sandbox-reset";
 import {
 	getMigrationStatus,
 	printMigrationStatus,
 } from "./utils/db/migration-status";
-import { dumpDatabase } from "./utils/db/dump";
+import { tryResetSandbox } from "./utils/db/sandbox-reset";
+import { runSeed } from "./utils/db/seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
@@ -100,7 +100,6 @@ async function startServer() {
 	});
 
 	console.log("Mode: ", process.env.NODE_ENV);
-
 
 	// console.log("Payload: ", payload)
 	if (process.env.NODE_ENV === "development") {
@@ -327,7 +326,10 @@ migrateCommand
 migrateCommand
 	.command("dump")
 	.description("Dump database to SQL file")
-	.option("-o, --output <path>", "Output file path (relative to paideia_data directory)")
+	.option(
+		"-o, --output <path>",
+		"Output file path (relative to paideia_data directory)",
+	)
 	.action(async (options) => {
 		console.log(asciiLogo);
 		console.log("Dumping database...");

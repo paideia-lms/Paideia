@@ -29,7 +29,10 @@ import {
 import cx from "clsx";
 import { useEffect, useState } from "react";
 import { href, Link, Outlet, useNavigate } from "react-router";
-import { globalContextKey, type PageInfo } from "server/contexts/global-context";
+import {
+	globalContextKey,
+	type PageInfo,
+} from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
@@ -75,8 +78,8 @@ export default function UserLayout({
 						<strong>Warning:</strong> Sandbox mode is currently enabled. In this
 						mode, everyone who registers will automatically receive admin role,
 						and all users can freely change their system role. This is intended
-						for testing and development purposes only. Data is temporary and will
-						be reset every midnight.
+						for testing and development purposes only. Data is temporary and
+						will be reset every midnight.
 					</Text>
 				</Alert>
 			)}
@@ -207,9 +210,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId:
-																			authenticatedUser.avatar.filename,
-																	})
+																			filenameOrId:
+																				authenticatedUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -231,8 +234,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId: currentUser.avatar.filename,
-																	})
+																			filenameOrId: currentUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -250,8 +253,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filenameOrId`, {
-															filenameOrId: currentUser.avatar.filename,
-														})
+																filenameOrId: currentUser.avatar.filename,
+															})
 														: null
 												}
 												alt={
@@ -270,7 +273,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-											"Anonymous"
+												"Anonymous"
 											: "Not signed in"}
 									</Text>
 									{isAdmin && (
@@ -314,8 +317,8 @@ export function HeaderTabs({
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
-									// component={Link}
-									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>

@@ -68,7 +68,10 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
-import { ForbiddenResponse, InternalServerErrorResponse } from "./utils/responses";
+import {
+	ForbiddenResponse,
+	InternalServerErrorResponse,
+} from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 
 export const middleware = [
@@ -283,8 +286,6 @@ export const middleware = [
 		const currentUser =
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
-
-
 		// check if the user is in a course
 		if (routeHierarchy.some((route) => route.id === "layouts/course-layout")) {
 			const { id } = params as RouteParams<"layouts/course-layout">;
@@ -328,9 +329,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -380,9 +381,9 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -442,9 +443,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -496,9 +497,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				);
 

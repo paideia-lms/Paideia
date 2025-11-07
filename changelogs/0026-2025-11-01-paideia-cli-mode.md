@@ -163,22 +163,6 @@ migrateCommand
 ### ASCII Logo
 
 Created `server/utils/constants.ts`:
-```typescript
-export const asciiLogo = `
-╔══════════════════════════════════════╗
-║                                      ║
-║  ██████╗ █████╗ ██╗██████╗          ║
-║  ██╔══██╗██╔══██╗██║██╔══██╗         ║
-║  ██████╔╝███████║██║██║  ██║         ║
-║  ██╔═══╝ ██╔══██║██║██║  ██║         ║
-║  ██║     ██║  ██║██║██████╔╝         ║
-║  ╚═╝     ╚═╝  ╚═╝╚═╝╚═════╝          ║
-║                                      ║
-║  Learning Management System         ║
-║                                      ║
-╚══════════════════════════════════════╝
-`;
-```
 
 ### Process Exit Management
 
@@ -446,9 +430,6 @@ This ensures migrations are available in compiled binary without filesystem acce
 - [x] `paideia help` displays logo and help
 - [x] `paideia migrate status` shows migration status
 - [x] `paideia migrate up` runs pending migrations
-- [x] `paideia migrate down` rolls back last batch
-- [x] `paideia migrate refresh` refreshes migrations
-- [x] `paideia migrate reset` resets all migrations
 - [x] `paideia migrate fresh` drops and re-runs migrations
 - [x] Logo displays correctly on CLI commands
 - [x] Migration utilities work with compiled binary

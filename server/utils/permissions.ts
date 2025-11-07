@@ -1,7 +1,7 @@
 /**
  * public permissions checks
  * we can use this functions in client side and server side
- * 
+ *
  * all functions in this file will only return true or false and a reason
  */
 
@@ -311,7 +311,6 @@ export function canEditCourse(
 	);
 }
 
-
 /**
  * Checks if the current user is editing another admin user's profile.
  * This is a helper function used by field-specific permission checks.
@@ -444,13 +443,11 @@ export function canEditUserProfile(
  * @param isSandboxMode - Whether sandbox mode is enabled
  * @returns Permission result with allowed boolean and reason string
  */
-export function canEditProfileEmail(
-): PermissionResult {
+export function canEditProfileEmail(): PermissionResult {
 	return {
 		allowed: false,
 		reason: "Email cannot be changed by users",
 	};
-
 }
 
 /**

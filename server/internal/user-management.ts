@@ -166,7 +166,7 @@ export const tryCreateUser = Result.wrap(
 					bio,
 					avatar,
 					theme: theme ?? "light",
-					// ! TODO: automatically verify the user for now, we need to fix this in the future 
+					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},
 				user,
@@ -695,7 +695,7 @@ export const tryRegisterUser = Result.wrap(
 					lastName,
 					role: role ?? "student",
 					theme: "light",
-					// ! TODO: automatically verify the user for now, we need to fix this in the future 
+					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},
 				user,

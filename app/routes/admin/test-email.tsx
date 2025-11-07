@@ -347,14 +347,16 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 						</Text>
 						<Stack gap="xs" mt="xs">
 							<Text size="sm">
-								<strong>Option 1 (Resend):</strong> Set <strong>RESEND_API_KEY</strong>{" "}
-								environment variable (optionally <strong>EMAIL_FROM_ADDRESS</strong> and{" "}
+								<strong>Option 1 (Resend):</strong> Set{" "}
+								<strong>RESEND_API_KEY</strong> environment variable (optionally{" "}
+								<strong>EMAIL_FROM_ADDRESS</strong> and{" "}
 								<strong>EMAIL_FROM_NAME</strong>).
 							</Text>
 							<Text size="sm">
-								<strong>Option 2 (SMTP):</strong> Set <strong>SMTP_HOST</strong>,{" "}
-								<strong>SMTP_USER</strong>, and <strong>SMTP_PASS</strong>{" "}
-								environment variables (optionally <strong>EMAIL_FROM_ADDRESS</strong> and{" "}
+								<strong>Option 2 (SMTP):</strong> Set <strong>SMTP_HOST</strong>
+								, <strong>SMTP_USER</strong>, and <strong>SMTP_PASS</strong>{" "}
+								environment variables (optionally{" "}
+								<strong>EMAIL_FROM_ADDRESS</strong> and{" "}
 								<strong>EMAIL_FROM_NAME</strong>).
 							</Text>
 						</Stack>
@@ -409,10 +411,12 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 						{!emailProvider && (
 							<>
 								<Text size="sm">
-									<strong>From Address:</strong> {fromAddress || "(default, not configured)"}
+									<strong>From Address:</strong>{" "}
+									{fromAddress || "(default, not configured)"}
 								</Text>
 								<Text size="sm">
-									<strong>From Name:</strong> {fromName || "(default, not configured)"}
+									<strong>From Name:</strong>{" "}
+									{fromName || "(default, not configured)"}
 								</Text>
 							</>
 						)}
@@ -488,8 +492,8 @@ export default function TestEmailPage({ loaderData }: Route.ComponentProps) {
 					<Text size="sm">
 						<strong>Note:</strong> If you receive the test email, your email
 						configuration is working correctly. If not, please check your
-						environment variables and email provider settings (Resend API key or SMTP
-						credentials).
+						environment variables and email provider settings (Resend API key or
+						SMTP credentials).
 					</Text>
 				</Alert>
 			</Stack>
