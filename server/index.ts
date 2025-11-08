@@ -10,6 +10,7 @@ import { getPayload, type Migration as MigrationType } from "payload";
 import { RouterContextProvider } from "react-router";
 import { migrations } from "src/migrations";
 import { createStorage } from "unstorage";
+// biome-ignore lint/suspicious/noTsIgnore: <explanation>
 // @ts-ignore
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { getHints } from "../app/utils/client-hints";
