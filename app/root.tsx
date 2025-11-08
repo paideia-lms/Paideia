@@ -66,11 +66,14 @@ import {
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
+import { tryGetMaintenanceSettings } from "server/internal/maintenance-settings";
+import { RootErrorBoundary } from "./components/maintenance-mode-error-boundary";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,
+	MaintenanceModeResponse,
 } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 
@@ -86,6 +89,7 @@ export const middleware = [
 		let isLogin = false;
 		let isRegistration = false;
 		let isCatalog = false;
+		let isApi = false;
 		let isInCourse = false;
 		let isCourseSettings = false;
 		let isCourseParticipants = false;
@@ -133,8 +137,10 @@ export const middleware = [
 		let isAdminMigrations = false;
 		let isAdminDependencies = false;
 		let isAdminCronJobs = false;
+		let isAdminMaintenance = false;
 		for (const route of routeHierarchy) {
-			if (route.id === "layouts/server-admin-layout") isAdmin = true;
+			if (route.id.startsWith("routes/api/")) isApi = true;
+			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
 			else if (route.id === "routes/index") isDashboard = true;
 			else if (route.id === "routes/login") isLogin = true;
@@ -205,6 +211,8 @@ export const middleware = [
 			else if (route.id === "routes/admin/dependencies")
 				isAdminDependencies = true;
 			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
+			else if (route.id === "routes/admin/maintenance")
+				isAdminMaintenance = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -218,6 +226,7 @@ export const middleware = [
 				isLogin,
 				isRegistration,
 				isCatalog,
+				isApi,
 				isInCourse,
 				isCourseSettings,
 				isCourseParticipants,
@@ -265,6 +274,7 @@ export const middleware = [
 				isAdminMigrations,
 				isAdminDependencies,
 				isAdminCronJobs,
+				isAdminMaintenance,
 				params: params as Record<string, string>,
 			},
 		});
@@ -279,6 +289,50 @@ export const middleware = [
 
 		// Set the user context
 		context.set(userContextKey, userSession);
+	},
+	/**
+	 * check maintenance mode and block non-admin users
+	 */
+	async ({ request, context }) => {
+		const { payload, pageInfo } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		// Check maintenance mode
+		const maintenanceSettings = await tryGetMaintenanceSettings({
+			payload,
+			// ! this is a system request, we don't care about access control
+			overrideAccess: true,
+		});
+
+		if (!maintenanceSettings.ok) {
+			// If we can't get maintenance settings, allow access (fail open)
+			return;
+		}
+
+		const { maintenanceMode } = maintenanceSettings.value;
+
+		// If maintenance mode is enabled
+		if (maintenanceMode) {
+			const currentUser =
+				userSession?.effectiveUser || userSession?.authenticatedUser;
+
+			// Allow access to login and admin maintenance page
+			if (pageInfo.isLogin || pageInfo.isAdminMaintenance || pageInfo.isApi) {
+				return;
+			}
+
+			// Block non-admin users
+			if (!currentUser || currentUser.role !== "admin") {
+				// If we're already on the root route, throw error instead of redirecting
+				if (pageInfo.isDashboard) {
+					throw new MaintenanceModeResponse(
+						"The system is currently under maintenance. Only administrators can access the system at this time.",
+					);
+				}
+				// Otherwise, redirect to root route
+				throw redirect(href("/"));
+			}
+		}
 	},
 	/**
 	 * set the course context
@@ -569,16 +623,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	const theme = currentUser?.theme ?? "light";
 
 	// Check if we need to redirect to first-user creation
-	const url = new URL(request.url);
-
-	const currentPath = url.pathname;
-
 	// Skip redirect check for essential routes
-	if (
-		pageInfo.isRegistration ||
-		pageInfo.isLogin ||
-		currentPath.startsWith("/api/")
-	) {
+	if (pageInfo.isRegistration || pageInfo.isLogin || pageInfo.isApi) {
 		return {
 			users: users,
 			domainUrl: requestInfo.domainUrl,
@@ -630,6 +676,33 @@ function ClientHintCheck() {
 				__html: hintsUtils.getClientHintCheckScript(),
 			}}
 		/>
+	);
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+	return (
+		<html lang="en">
+			<head>
+				<meta charSet="utf-8" />
+				<meta name="viewport" content="width=device-width, initial-scale=1" />
+				<meta title="Paideia LMS" />
+				<meta name="description" content="Paideia LMS" />
+				<ClientHintCheck />
+				<link rel="icon" href={`/favicon.ico`} />
+				<link
+					rel="stylesheet"
+					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css`}
+				/>
+				<Meta />
+				<Links />
+				<ColorSchemeScript />
+			</head>
+			<body style={{ overscrollBehaviorX: "none" }}>
+				<MantineProvider>
+					<RootErrorBoundary error={error} />
+				</MantineProvider>
+			</body>
+		</html>
 	);
 }
 

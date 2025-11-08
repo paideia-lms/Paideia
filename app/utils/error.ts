@@ -250,6 +250,13 @@ export class SeedDataLoadError extends Error {
 	}
 }
 
+export class SandboxResetError extends Error {
+	static readonly type = "SandboxResetError";
+	get type() {
+		return SandboxResetError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||
@@ -290,6 +297,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof NonExistingWhiteboardError) return error;
 	else if (error instanceof EmailSendError) return error;
 	else if (error instanceof SeedDataLoadError) return error;
+	else if (error instanceof SandboxResetError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

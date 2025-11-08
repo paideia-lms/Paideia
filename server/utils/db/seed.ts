@@ -1,3 +1,7 @@
+import {
+	SeedDataLoadError,
+	transformError,
+} from "app/utils/error";
 import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
@@ -77,7 +81,7 @@ export { testData };
  * Seeds the development database with initial data
  * Only runs if the database is fresh (no users exist)
  */
-export const runSeed = Result.wrap(
+export const tryRunSeed = Result.wrap(
 	async (args: RunSeedArgs) => {
 		const { payload, seedData } = args;
 
@@ -738,7 +742,8 @@ export const runSeed = Result.wrap(
 		};
 	},
 	(error) =>
-		new Error(
+		transformError(error) ??
+		new SeedDataLoadError(
 			`Seed process failed: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );

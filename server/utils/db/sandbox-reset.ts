@@ -1,9 +1,14 @@
+import {
+	SandboxResetError,
+	SeedDataLoadError,
+	transformError,
+} from "app/utils/error";
 import type { Payload } from "payload";
 import { createLocalReq } from "payload";
 import { Result } from "typescript-result";
 import { envVars } from "../../env";
 import { tryLoadSeedData } from "./load-seed-data";
-import { runSeed } from "./seed";
+import { tryRunSeed } from "./seed";
 
 /**
  * Deletes all user data from the database while preserving system tables
@@ -272,7 +277,7 @@ export const tryResetSandbox = Result.wrap(
 		// Load seed data (falls back to testData if seed.json invalid/missing)
 		const seedDataResult = tryLoadSeedData();
 		if (!seedDataResult.ok) {
-			throw new Error(
+			throw new SandboxResetError(
 				`Failed to load seed data: ${seedDataResult.error.message}`,
 			);
 		}
@@ -280,19 +285,22 @@ export const tryResetSandbox = Result.wrap(
 		const seedData = seedDataResult.value;
 
 		// Run seed with loaded data
-		const seedResult = await runSeed({
+		const seedResult = await tryRunSeed({
 			payload,
 			seedData: seedData,
 		});
 
 		if (!seedResult.ok) {
-			throw new Error(`Failed to seed database: ${seedResult.error.message}`);
+			throw new SeedDataLoadError(
+				`Failed to seed database: ${seedResult.error.message}`,
+			);
 		}
 
 		console.log("✅ Sandbox database reset completed successfully");
 	},
 	(error) =>
-		new Error(
+		transformError(error) ??
+		new SandboxResetError(
 			`Sandbox reset failed: ${error instanceof Error ? error.message : String(error)}`,
 		),
 );

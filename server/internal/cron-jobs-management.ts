@@ -1,4 +1,6 @@
+import { desc, eq } from "@payloadcms/db-postgres/drizzle";
 import type { Payload } from "payload";
+import { payload_jobs, payload_jobs_log } from "src/payload-generated-schema";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 
@@ -13,9 +15,20 @@ export interface CronJobInfo {
 	previousRun: Date | null;
 }
 
+export interface CronJobHistoryEntry {
+	id: string;
+	taskSlug: string | null;
+	queue: string | null;
+	executedAt: string;
+	completedAt: string;
+	state: "succeeded" | "failed";
+	error: unknown | null;
+}
+
 export interface GetCronJobsResult {
 	cronJobs: CronJobInfo[];
 	cronEnabled: boolean;
+	jobHistory: CronJobHistoryEntry[];
 }
 
 /**
@@ -113,14 +126,87 @@ export const tryGetCronJobs = Result.wrap(
 			};
 		});
 
+		// Get job history from database
+		const jobHistoryResult = await tryGetCronJobHistory(payload, 100);
+		const jobHistory = jobHistoryResult.ok ? jobHistoryResult.value : [];
+
 		return {
 			cronJobs,
 			cronEnabled,
+			jobHistory,
 		};
 	},
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get cron jobs", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets cron job execution history from the database
+ * Queries payload_jobs for completed jobs, with optional join to payload_jobs_log for detailed execution info
+ */
+export const tryGetCronJobHistory = Result.wrap(
+	async (
+		payload: Payload,
+		historyLimit: number = 100,
+	): Promise<CronJobHistoryEntry[]> => {
+		const drizzle = payload.db.drizzle;
+
+		// Query job history from payload_jobs
+		// Left join with payload_jobs_log to get detailed execution info if available
+		// Show all jobs that have been created (no filter - show everything)
+		const history = await drizzle
+			.select({
+				jobId: payload_jobs.id,
+				logId: payload_jobs_log.id,
+				taskSlug: payload_jobs.taskSlug,
+				queue: payload_jobs.queue,
+				jobCreatedAt: payload_jobs.createdAt,
+				jobCompletedAt: payload_jobs.completedAt,
+				logExecutedAt: payload_jobs_log.executedAt,
+				logCompletedAt: payload_jobs_log.completedAt,
+				logState: payload_jobs_log.state,
+				jobHasError: payload_jobs.hasError,
+				logError: payload_jobs_log.error,
+				jobError: payload_jobs.error,
+			})
+			.from(payload_jobs)
+			.leftJoin(
+				payload_jobs_log,
+				eq(payload_jobs_log._parentID, payload_jobs.id),
+			)
+			.orderBy(desc(payload_jobs.createdAt))
+			.limit(historyLimit);
+
+		payload.logger.info(`Found ${history.length} cron job history entries`);
+
+		// Map the results to our interface
+		return history.map((entry) => {
+			const id = entry.logId ?? String(entry.jobId);
+			const executedAt =
+				entry.logExecutedAt ?? entry.jobCreatedAt ?? entry.jobCompletedAt ?? "";
+			const completedAt = entry.logCompletedAt ?? entry.jobCompletedAt ?? "";
+			const state =
+				entry.logState ??
+				(entry.jobHasError ? ("failed" as const) : ("succeeded" as const));
+			const error = entry.logError ?? entry.jobError ?? null;
+
+			return {
+				id,
+				taskSlug: entry.taskSlug ?? null,
+				queue: entry.queue ?? null,
+				executedAt,
+				completedAt,
+				state,
+				error,
+			};
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get cron job history", {
 			cause: error,
 		}),
 );
