@@ -2,7 +2,6 @@ import {
 	SandboxResetError,
 	SeedDataLoadError,
 	transformError,
-	UnknownError,
 } from "app/utils/error";
 import type { Payload } from "payload";
 import { createLocalReq } from "payload";
