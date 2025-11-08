@@ -1,7 +1,6 @@
 import {
 	SeedDataLoadError,
 	transformError,
-	UnknownError,
 } from "app/utils/error";
 import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
