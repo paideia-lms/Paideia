@@ -96,6 +96,10 @@ jobs:
     if: needs.version-check.outputs.should-publish == 'true'
     # Note: This job downloads its own copy of artifacts, so it's isolated from create-release job
 
+    permissions:
+      contents: read
+      packages: write
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
