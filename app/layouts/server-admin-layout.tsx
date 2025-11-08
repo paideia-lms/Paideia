@@ -96,7 +96,8 @@ export default function ServerAdminLayout({
 			pageInfo.isAdminSystem ||
 			pageInfo.isAdminTestEmail ||
 			pageInfo.isAdminDependencies ||
-			pageInfo.isAdminCronJobs
+			pageInfo.isAdminCronJobs ||
+			pageInfo.isAdminMaintenance
 		)
 			return AdminTab.Server;
 		if (pageInfo.isAdminMigrations) return AdminTab.Development;

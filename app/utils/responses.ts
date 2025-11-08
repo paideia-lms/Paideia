@@ -18,6 +18,7 @@ export const StatusCode = {
 	Redirect: 302 as const,
 	NotFound: 404 as const,
 	InternalServerError: 500 as const,
+	ServiceUnavailable: 503 as const,
 };
 
 export function ok<T>(value: T, init?: ResponseInitWithoutStatus) {
@@ -110,6 +111,17 @@ export class InternalServerErrorResponse extends Response {
 		super(message, {
 			status: StatusCode.InternalServerError,
 			statusText: "Internal Server Error",
+		});
+	}
+}
+
+export class MaintenanceModeResponse extends Response {
+	constructor(
+		message: string = "The system is currently under maintenance. Please try again later.",
+	) {
+		super(message, {
+			status: StatusCode.ServiceUnavailable,
+			statusText: "Service Unavailable",
 		});
 	}
 }

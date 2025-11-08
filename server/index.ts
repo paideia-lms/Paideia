@@ -29,7 +29,7 @@ import { reactRouter } from "./elysia-react-router";
 import sanitizedConfig from "./payload.config";
 import { asciiLogo } from "./utils/constants";
 import { tryResetSandbox } from "./utils/db/sandbox-reset";
-import { runSeed } from "./utils/db/seed";
+import { tryRunSeed } from "./utils/db/seed";
 import { getRequestInfo } from "./utils/get-request-info";
 import { detectPlatform } from "./utils/hosting-platform-detection";
 import { s3Client } from "./utils/s3-client";
@@ -60,7 +60,7 @@ async function startServer() {
 
 	// console.log("Payload: ", payload)
 	if (process.env.NODE_ENV === "development") {
-		await runSeed({ payload });
+		await tryRunSeed({ payload });
 	}
 	// Check if sandbox mode is enabled and reset database
 	else if (envVars.SANDBOX_MODE.enabled) {
@@ -126,6 +126,7 @@ async function startServer() {
 								isLogin: false,
 								isRegistration: false,
 								isCatalog: false,
+								isApi: false,
 								isInCourse: false,
 								isCourseSettings: false,
 								isCourseParticipants: false,
@@ -173,6 +174,7 @@ async function startServer() {
 								isAdminMigrations: false,
 								isAdminDependencies: false,
 								isAdminCronJobs: false,
+								isAdminMaintenance: false,
 								params: {},
 							},
 						});

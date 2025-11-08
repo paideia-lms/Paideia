@@ -40,7 +40,10 @@ import {
 	Users,
 	Whiteboards,
 } from "./collections";
-import { RegistrationSettings } from "./collections/globals";
+import {
+	MaintenanceSettings,
+	RegistrationSettings,
+} from "./collections/globals";
 import { envVars } from "./env";
 import { sandboxReset } from "./tasks/sandbox-reset";
 
@@ -193,7 +196,11 @@ const sanitizedConfig = buildConfig({
 		Groups,
 		UserGrades,
 	] as CollectionConfig[],
-	globals: [SystemGradeTable, RegistrationSettings] as GlobalConfig[],
+	globals: [
+		SystemGradeTable,
+		RegistrationSettings,
+		MaintenanceSettings,
+	] as GlobalConfig[],
 
 	admin: {
 		// ! when you use auto login, you can never logout
@@ -280,6 +287,7 @@ const sanitizedConfig = buildConfig({
 		}),
 	],
 	jobs: {
+		deleteJobOnComplete: false,
 		// the cron queue
 		autoRun: [
 			{

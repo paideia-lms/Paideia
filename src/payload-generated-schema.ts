@@ -2388,6 +2388,21 @@ export const registration_settings = pgTable("registration_settings", {
   }),
 });
 
+export const maintenance_settings = pgTable("maintenance_settings", {
+  id: serial("id").primaryKey(),
+  maintenanceMode: boolean("maintenance_mode").default(false),
+  updatedAt: timestamp("updated_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+  createdAt: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+});
+
 export const payload_jobs_stats = pgTable("payload_jobs_stats", {
   id: serial("id").primaryKey(),
   stats: jsonb("stats"),
@@ -3261,6 +3276,10 @@ export const relations_registration_settings = relations(
   registration_settings,
   () => ({}),
 );
+export const relations_maintenance_settings = relations(
+  maintenance_settings,
+  () => ({}),
+);
 export const relations_payload_jobs_stats = relations(
   payload_jobs_stats,
   () => ({}),
@@ -3344,6 +3363,7 @@ type DatabaseSchema = {
   system_grade_table_grade_letters: typeof system_grade_table_grade_letters;
   system_grade_table: typeof system_grade_table;
   registration_settings: typeof registration_settings;
+  maintenance_settings: typeof maintenance_settings;
   payload_jobs_stats: typeof payload_jobs_stats;
   relations_users_sessions: typeof relations_users_sessions;
   relations_users: typeof relations_users;
@@ -3399,6 +3419,7 @@ type DatabaseSchema = {
   relations_system_grade_table_grade_letters: typeof relations_system_grade_table_grade_letters;
   relations_system_grade_table: typeof relations_system_grade_table;
   relations_registration_settings: typeof relations_registration_settings;
+  relations_maintenance_settings: typeof relations_maintenance_settings;
   relations_payload_jobs_stats: typeof relations_payload_jobs_stats;
 };
 

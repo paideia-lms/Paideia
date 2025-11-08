@@ -71,3 +71,20 @@ export const RegistrationSettings = {
 		},
 	],
 } as const satisfies GlobalConfig;
+
+// Maintenance mode settings - controls system maintenance mode
+export const MaintenanceSettings = {
+	slug: "maintenance-settings",
+	fields: [
+		{
+			name: "maintenanceMode",
+			type: "checkbox",
+			label: "Maintenance Mode",
+			defaultValue: false,
+			admin: {
+				description:
+					"When enabled, only administrators can access the system. All other users will be blocked from logging in.",
+			},
+		},
+	],
+} as const satisfies GlobalConfig;

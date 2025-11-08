@@ -15,6 +15,7 @@ export type PageInfo = {
 	isLogin: boolean;
 	isRegistration: boolean;
 	isCatalog: boolean;
+	isApi: boolean;
 	isInCourse: boolean;
 	isCourseSettings: boolean;
 	isCourseParticipants: boolean;
@@ -68,6 +69,7 @@ export type PageInfo = {
 	isAdminMigrations: boolean;
 	isAdminDependencies: boolean;
 	isAdminCronJobs: boolean;
+	isAdminMaintenance: boolean;
 	/**
 	 * the params of the current route
 	 */

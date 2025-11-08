@@ -508,6 +508,10 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Test email", href: href("/admin/test-email") },
 					{ title: "CLI Dependencies", href: href("/admin/dependencies") },
 					{ title: "Cron jobs", href: href("/admin/cron-jobs") },
+					{
+						title: "Maintenance mode",
+						href: href("/admin/maintenance"),
+					},
 				],
 			},
 			file_redaction: {

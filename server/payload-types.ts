@@ -180,11 +180,13 @@ export interface Config {
   globals: {
     'system-grade-table': SystemGradeTable;
     'registration-settings': RegistrationSetting;
+    'maintenance-settings': MaintenanceSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
     'system-grade-table': SystemGradeTableSelect<false> | SystemGradeTableSelect<true>;
     'registration-settings': RegistrationSettingsSelect<false> | RegistrationSettingsSelect<true>;
+    'maintenance-settings': MaintenanceSettingsSelect<false> | MaintenanceSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -1968,6 +1970,19 @@ export interface RegistrationSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "maintenance-settings".
+ */
+export interface MaintenanceSetting {
+  id: number;
+  /**
+   * When enabled, only administrators can access the system. All other users will be blocked from logging in.
+   */
+  maintenanceMode?: boolean | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -2008,6 +2023,16 @@ export interface SystemGradeTableSelect<T extends boolean = true> {
 export interface RegistrationSettingsSelect<T extends boolean = true> {
   disableRegistration?: T;
   showRegistrationButton?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "maintenance-settings_select".
+ */
+export interface MaintenanceSettingsSelect<T extends boolean = true> {
+  maintenanceMode?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

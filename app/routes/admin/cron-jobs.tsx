@@ -1,3 +1,4 @@
+import { CodeHighlight } from "@mantine/code-highlight";
 import { Badge, Box, Paper, Stack, Table, Text, Title } from "@mantine/core";
 import { useInterval } from "@mantine/hooks";
 import { useRevalidator } from "react-router";
@@ -56,8 +57,34 @@ function formatDate(date: Date | null): string {
 	}).format(date);
 }
 
+function formatDateString(dateString: string | null): string {
+	if (!dateString) return "-";
+	try {
+		const date = new Date(dateString);
+		return new Intl.DateTimeFormat("en-US", {
+			dateStyle: "medium",
+			timeStyle: "medium",
+		}).format(date);
+	} catch {
+		return dateString;
+	}
+}
+
+function getJobName(taskSlug: string | null, queue: string | null): string {
+	if (taskSlug) {
+		if (taskSlug === "sandboxReset") {
+			return "Task: sandboxReset";
+		}
+		return `Task: ${taskSlug}`;
+	}
+	if (queue) {
+		return `Queue: ${queue}`;
+	}
+	return "Unknown";
+}
+
 export default function CronJobsPage({ loaderData }: Route.ComponentProps) {
-	const { cronJobs, cronEnabled } = loaderData;
+	const { cronJobs, cronEnabled, jobHistory } = loaderData;
 	const revalidator = useRevalidator();
 
 	useInterval(
@@ -151,6 +178,98 @@ export default function CronJobsPage({ loaderData }: Route.ComponentProps) {
 							<Text c="dimmed">No cron jobs configured</Text>
 						</Box>
 					)}
+				</Paper>
+
+				<Paper p="md" withBorder>
+					<Stack gap="md">
+						<div>
+							<Title order={2} size="h3">
+								Job History
+							</Title>
+							<Text c="dimmed" size="sm" mt="xs">
+								Recent execution history of cron jobs
+							</Text>
+						</div>
+
+						{jobHistory.length > 0 ? (
+							<Table>
+								<Table.Thead>
+									<Table.Tr>
+										<Table.Th>Job</Table.Th>
+										<Table.Th>Task Slug</Table.Th>
+										<Table.Th>Queue</Table.Th>
+										<Table.Th>Executed At</Table.Th>
+										<Table.Th>Completed At</Table.Th>
+										<Table.Th>State</Table.Th>
+										<Table.Th>Error</Table.Th>
+									</Table.Tr>
+								</Table.Thead>
+								<Table.Tbody>
+									{jobHistory.map((entry) => (
+										<Table.Tr key={entry.id}>
+											<Table.Td>
+												<Text size="sm">
+													{getJobName(entry.taskSlug, entry.queue)}
+												</Text>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm">{entry.taskSlug || "-"}</Text>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm">{entry.queue || "-"}</Text>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm">
+													{formatDateString(entry.executedAt)}
+												</Text>
+											</Table.Td>
+											<Table.Td>
+												<Text size="sm">
+													{formatDateString(entry.completedAt)}
+												</Text>
+											</Table.Td>
+											<Table.Td>
+												<Badge
+													color={entry.state === "succeeded" ? "green" : "red"}
+												>
+													{entry.state === "succeeded" ? "Succeeded" : "Failed"}
+												</Badge>
+											</Table.Td>
+											<Table.Td>
+												{entry.error ? (
+													<Box style={{ maxWidth: 500 }}>
+														<CodeHighlight
+															code={
+																typeof entry.error === "string"
+																	? entry.error
+																	: JSON.stringify(entry.error, null, 2)
+															}
+															language={
+																typeof entry.error === "string"
+																	? "text"
+																	: "json"
+															}
+															copyLabel="Copy error"
+															copiedLabel="Copied!"
+															radius="md"
+														/>
+													</Box>
+												) : (
+													<Text size="sm" c="dimmed">
+														-
+													</Text>
+												)}
+											</Table.Td>
+										</Table.Tr>
+									))}
+								</Table.Tbody>
+							</Table>
+						) : (
+							<Box p="md" style={{ textAlign: "center" }}>
+								<Text c="dimmed">No job history available</Text>
+							</Box>
+						)}
+					</Stack>
 				</Paper>
 			</Stack>
 		</Box>
