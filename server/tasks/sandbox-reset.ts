@@ -5,12 +5,16 @@ import { tryResetSandbox } from "../utils/db/sandbox-reset";
 /**
  * Payload task that resets the sandbox database daily at midnight
  * Only runs when SANDBOX_MODE is enabled
+ *
+ * This task deletes all user data (students, courses, etc.) while preserving
+ * system tables (payload-jobs, payload-jobs-log, payload-migrations, etc.)
+ * and then re-seeds the database with fresh data.
  */
 export const sandboxReset: TaskConfig<"sandboxReset"> = {
 	slug: "sandboxReset" as const,
 	schedule: [
 		{
-			cron: "0 0 * * *", // Daily at midnight
+			cron: "0 0 * * *", // Every midnight
 			queue: "nightly",
 			hooks: {
 				beforeSchedule: async () => {

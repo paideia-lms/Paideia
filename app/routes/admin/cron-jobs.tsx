@@ -1,0 +1,158 @@
+import { Badge, Box, Paper, Stack, Table, Text, Title } from "@mantine/core";
+import { useInterval } from "@mantine/hooks";
+import { useRevalidator } from "react-router";
+import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
+import { tryGetCronJobs } from "server/internal/cron-jobs-management";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import {
+	ForbiddenResponse,
+	InternalServerErrorResponse,
+} from "~/utils/responses";
+import type { Route } from "./+types/cron-jobs";
+
+export const loader = async ({ context }: Route.LoaderArgs) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	if (currentUser.role !== "admin") {
+		throw new ForbiddenResponse("Only admins can view cron jobs");
+	}
+
+	const cronJobsResult = await tryGetCronJobs(payload);
+
+	if (!cronJobsResult.ok) {
+		throw new InternalServerErrorResponse(
+			`Failed to get cron jobs: ${cronJobsResult.error.message}`,
+		);
+	}
+
+	return cronJobsResult.value;
+};
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+	return <DefaultErrorBoundary error={error} />;
+}
+
+function getStatusBadge(isActive: boolean) {
+	if (isActive) {
+		return <Badge color="green">Active</Badge>;
+	}
+	return <Badge color="gray">Inactive</Badge>;
+}
+
+function formatDate(date: Date | null): string {
+	if (!date) return "-";
+	return new Intl.DateTimeFormat("en-US", {
+		dateStyle: "medium",
+		timeStyle: "medium",
+	}).format(date);
+}
+
+export default function CronJobsPage({ loaderData }: Route.ComponentProps) {
+	const { cronJobs, cronEnabled } = loaderData;
+	const revalidator = useRevalidator();
+
+	useInterval(
+		() => {
+			revalidator.revalidate();
+		},
+		1000,
+		{ autoInvoke: true },
+	);
+
+	const rows = cronJobs.map((job) => (
+		<Table.Tr key={`${job.type}-${job.name}-${job.pattern}`}>
+			<Table.Td>
+				<Stack gap={2}>
+					<Text fw={500}>{job.name}</Text>
+					{job.description && (
+						<Text size="xs" c="dimmed">
+							{job.description}
+						</Text>
+					)}
+				</Stack>
+			</Table.Td>
+			<Table.Td>
+				<Text ff="monospace" size="sm" style={{ fontFamily: "monospace" }}>
+					{job.pattern}
+				</Text>
+			</Table.Td>
+			<Table.Td>
+				<Badge variant="light" color={job.type === "task" ? "blue" : "gray"}>
+					{job.type === "task" ? "Task" : "Queue"}
+				</Badge>
+			</Table.Td>
+			<Table.Td>
+				<Text size="sm">{job.queue || "-"}</Text>
+			</Table.Td>
+			<Table.Td>{getStatusBadge(job.isActive)}</Table.Td>
+			<Table.Td>
+				<Text size="sm">{formatDate(job.nextRun)}</Text>
+			</Table.Td>
+			<Table.Td>
+				<Text size="sm">{formatDate(job.previousRun)}</Text>
+			</Table.Td>
+		</Table.Tr>
+	));
+
+	return (
+		<Box pt="xl">
+			<title>Cron Jobs | Admin | Paideia LMS</title>
+			<meta
+				name="description"
+				content="View and monitor cron jobs in Paideia LMS"
+			/>
+			<meta property="og:title" content="Cron Jobs | Admin | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="View and monitor cron jobs in Paideia LMS"
+			/>
+
+			<Stack gap="lg">
+				<div>
+					<Title order={1}>Cron Jobs</Title>
+					<Text c="dimmed" size="sm" mt="xs">
+						View and monitor scheduled cron jobs configured in Payload CMS
+					</Text>
+					{!cronEnabled && (
+						<Text c="orange" size="sm" mt="xs">
+							Note: Cron jobs are currently disabled (cron: false). Jobs are
+							configured but not running.
+						</Text>
+					)}
+				</div>
+
+				<Paper p="md" withBorder>
+					{cronJobs.length > 0 ? (
+						<Table>
+							<Table.Thead>
+								<Table.Tr>
+									<Table.Th>Name</Table.Th>
+									<Table.Th>Pattern</Table.Th>
+									<Table.Th>Type</Table.Th>
+									<Table.Th>Queue</Table.Th>
+									<Table.Th>Status</Table.Th>
+									<Table.Th>Next Run</Table.Th>
+									<Table.Th>Previous Run</Table.Th>
+								</Table.Tr>
+							</Table.Thead>
+							<Table.Tbody>{rows}</Table.Tbody>
+						</Table>
+					) : (
+						<Box p="md" style={{ textAlign: "center" }}>
+							<Text c="dimmed">No cron jobs configured</Text>
+						</Box>
+					)}
+				</Paper>
+			</Stack>
+		</Box>
+	);
+}
