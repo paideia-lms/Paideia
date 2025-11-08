@@ -67,6 +67,7 @@ export type PageInfo = {
 	isAdminCategoryNew: boolean;
 	isAdminMigrations: boolean;
 	isAdminDependencies: boolean;
+	isAdminCronJobs: boolean;
 	/**
 	 * the params of the current route
 	 */

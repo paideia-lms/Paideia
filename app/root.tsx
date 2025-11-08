@@ -132,6 +132,7 @@ export const middleware = [
 		let isAdminRegistration = false;
 		let isAdminMigrations = false;
 		let isAdminDependencies = false;
+		let isAdminCronJobs = false;
 		for (const route of routeHierarchy) {
 			if (route.id === "layouts/server-admin-layout") isAdmin = true;
 			else if (route.id === "routes/course") isMyCourses = true;
@@ -203,6 +204,7 @@ export const middleware = [
 			else if (route.id === "routes/admin/migrations") isAdminMigrations = true;
 			else if (route.id === "routes/admin/dependencies")
 				isAdminDependencies = true;
+			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -262,6 +264,7 @@ export const middleware = [
 				isAdminCourseNew,
 				isAdminMigrations,
 				isAdminDependencies,
+				isAdminCronJobs,
 				params: params as Record<string, string>,
 			},
 		});

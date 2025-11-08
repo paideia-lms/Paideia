@@ -32,24 +32,41 @@ export interface RunSeedArgs {
 
 /**
  * Get file content from VFS as Buffer
+ * Falls back to file system in development mode if VFS is empty
  */
-function getVfsFileBuffer(
+async function getVfsFileBuffer(
 	vfs: Record<string, string>,
 	path: string,
-): Buffer | null {
+): Promise<Buffer | null> {
 	const base64Content = vfs[path];
-	if (!base64Content) return null;
-	return Buffer.from(base64Content, "base64");
+	if (base64Content) {
+		return Buffer.from(base64Content, "base64");
+	}
+
+	// Fallback to file system in development mode if VFS is empty
+	if (process.env.NODE_ENV === "development") {
+		try {
+			const file = Bun.file(path);
+			if (await file.exists()) {
+				const buffer = await file.arrayBuffer();
+				return Buffer.from(buffer);
+			}
+		} catch {
+			// Ignore errors, return null
+		}
+	}
+
+	return null;
 }
 
 /**
  * Get file content from VFS as text
  */
-function getVfsFileText(
+async function getVfsFileText(
 	vfs: Record<string, string>,
 	path: string,
-): string | null {
-	const buffer = getVfsFileBuffer(vfs, path);
+): Promise<string | null> {
+	const buffer = await getVfsFileBuffer(vfs, path);
 	if (!buffer) return null;
 	return buffer.toString("utf-8");
 }
@@ -113,33 +130,39 @@ export const runSeed = Result.wrap(
 
 		// Step 1.5: Create and assign admin avatar
 		console.log("🖼️  Creating admin avatar...");
-		const adminAvatarBuffer = getVfsFileBuffer(vfs, "fixture/paideia-logo.png");
-		if (!adminAvatarBuffer) {
-			throw new Error("Failed to load paideia-logo.png from VFS");
-		}
-		const adminAvatarResult = await tryCreateMedia(payload, {
-			file: adminAvatarBuffer,
-			filename: "paideia-logo.png",
-			mimeType: "image/png",
-			alt: "Admin avatar",
-			userId: adminUser.id,
-		});
-
-		if (adminAvatarResult.ok) {
-			const updateAdminResult = await tryUpdateUser({
-				payload,
+		const adminAvatarBuffer = await getVfsFileBuffer(
+			vfs,
+			"fixture/paideia-logo.png",
+		);
+		if (adminAvatarBuffer) {
+			const adminAvatarResult = await tryCreateMedia(payload, {
+				file: adminAvatarBuffer,
+				filename: "paideia-logo.png",
+				mimeType: "image/png",
+				alt: "Admin avatar",
 				userId: adminUser.id,
-				data: {
-					avatar: adminAvatarResult.value.media.id,
-				},
-				overrideAccess: true,
 			});
 
-			if (updateAdminResult.ok) {
-				console.log(
-					`✅ Admin avatar assigned with media ID: ${adminAvatarResult.value.media.id}`,
-				);
+			if (adminAvatarResult.ok) {
+				const updateAdminResult = await tryUpdateUser({
+					payload,
+					userId: adminUser.id,
+					data: {
+						avatar: adminAvatarResult.value.media.id,
+					},
+					overrideAccess: true,
+				});
+
+				if (updateAdminResult.ok) {
+					console.log(
+						`✅ Admin avatar assigned with media ID: ${adminAvatarResult.value.media.id}`,
+					);
+				}
 			}
+		} else {
+			console.log(
+				"⚠️  Skipping admin avatar creation: paideia-logo.png not found in VFS or file system",
+			);
 		}
 
 		// Step 2: Create second user (student)
@@ -168,33 +191,36 @@ export const runSeed = Result.wrap(
 
 		// Step 2.5: Create and assign student avatar
 		console.log("🖼️  Creating student avatar...");
-		const studentAvatarBuffer = getVfsFileBuffer(vfs, "fixture/gem.png");
-		if (!studentAvatarBuffer) {
-			throw new Error("Failed to load gem.png from VFS");
-		}
-		const studentAvatarResult = await tryCreateMedia(payload, {
-			file: studentAvatarBuffer,
-			filename: "gem.png",
-			mimeType: "image/png",
-			alt: "Student avatar",
-			userId: studentUser.id,
-		});
-
-		if (studentAvatarResult.ok) {
-			const updateStudentResult = await tryUpdateUser({
-				payload,
+		const studentAvatarBuffer = await getVfsFileBuffer(vfs, "fixture/gem.png");
+		if (studentAvatarBuffer) {
+			const studentAvatarResult = await tryCreateMedia(payload, {
+				file: studentAvatarBuffer,
+				filename: "gem.png",
+				mimeType: "image/png",
+				alt: "Student avatar",
 				userId: studentUser.id,
-				data: {
-					avatar: studentAvatarResult.value.media.id,
-				},
-				overrideAccess: true,
 			});
 
-			if (updateStudentResult.ok) {
-				console.log(
-					`✅ Student avatar assigned with media ID: ${studentAvatarResult.value.media.id}`,
-				);
+			if (studentAvatarResult.ok) {
+				const updateStudentResult = await tryUpdateUser({
+					payload,
+					userId: studentUser.id,
+					data: {
+						avatar: studentAvatarResult.value.media.id,
+					},
+					overrideAccess: true,
+				});
+
+				if (updateStudentResult.ok) {
+					console.log(
+						`✅ Student avatar assigned with media ID: ${studentAvatarResult.value.media.id}`,
+					);
+				}
 			}
+		} else {
+			console.log(
+				"⚠️  Skipping student avatar creation: gem.png not found in VFS or file system",
+			);
 		}
 
 		// Step 3: Create teacher user
@@ -534,22 +560,26 @@ export const runSeed = Result.wrap(
 				if (whiteboardFixtureLoaded) {
 					whiteboardContent = JSON.stringify({ shapes: [], bindings: [] });
 				} else {
-					const fixtureContent = getVfsFileText(
+					const fixtureContent = await getVfsFileText(
 						vfs,
 						"fixture/whiteboard-data.json",
 					);
 					if (!fixtureContent) {
-						throw new Error("Failed to load whiteboard-data.json from VFS");
-					}
-					// Validate and parse JSON to ensure it's valid before saving
-					try {
-						const parsed = JSON.parse(fixtureContent);
-						// Re-stringify to ensure consistent formatting
-						whiteboardContent = JSON.stringify(parsed);
-					} catch (error) {
-						console.error("Invalid JSON in whiteboard-data.json:", error);
-						// Fallback to empty content if JSON is invalid
+						console.log(
+							"⚠️  Skipping whiteboard fixture: whiteboard-data.json not found in VFS or file system, using empty default",
+						);
 						whiteboardContent = JSON.stringify({ shapes: [], bindings: [] });
+					} else {
+						// Validate and parse JSON to ensure it's valid before saving
+						try {
+							const parsed = JSON.parse(fixtureContent);
+							// Re-stringify to ensure consistent formatting
+							whiteboardContent = JSON.stringify(parsed);
+						} catch (error) {
+							console.error("Invalid JSON in whiteboard-data.json:", error);
+							// Fallback to empty content if JSON is invalid
+							whiteboardContent = JSON.stringify({ shapes: [], bindings: [] });
+						}
 					}
 					whiteboardFixtureLoaded = true;
 				}

@@ -95,10 +95,11 @@ export default function ServerAdminLayout({
 		if (
 			pageInfo.isAdminSystem ||
 			pageInfo.isAdminTestEmail ||
-			pageInfo.isAdminMigrations ||
-			pageInfo.isAdminDependencies
+			pageInfo.isAdminDependencies ||
+			pageInfo.isAdminCronJobs
 		)
 			return AdminTab.Server;
+		if (pageInfo.isAdminMigrations) return AdminTab.Development;
 		// Default to query param or 'general'
 		return activeTab ?? AdminTab.General;
 	};
