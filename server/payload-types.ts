@@ -262,6 +262,7 @@ export interface Media {
   id: number;
   alt?: string | null;
   caption?: string | null;
+  createdBy: number | User;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -1571,6 +1572,7 @@ export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;

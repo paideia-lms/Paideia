@@ -22,6 +22,7 @@ enum UserTab {
 	Modules = "modules",
 	Grades = "grades",
 	Notes = "notes",
+	Media = "media",
 }
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -113,6 +114,7 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 			pageInfo.isUserNoteEdit
 		)
 			return UserTab.Notes;
+		if (pageInfo.isUserMedia) return UserTab.Media;
 
 		// Default to Profile tab
 		return UserTab.Profile;
@@ -155,6 +157,13 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 			case UserTab.Notes:
 				navigate(
 					href("/user/notes/:id?", {
+						id: userIdParam ? userIdParam : undefined,
+					}),
+				);
+				break;
+			case UserTab.Media:
+				navigate(
+					href("/user/media/:id?", {
 						id: userIdParam ? userIdParam : undefined,
 					}),
 				);
@@ -204,6 +213,7 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 								<Tabs.Tab value={UserTab.Modules}>Modules</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Grades}>Grades</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Notes}>Notes</Tabs.Tab>
+								<Tabs.Tab value={UserTab.Media}>Media</Tabs.Tab>
 							</Tabs.List>
 						</Tabs>
 					</Group>

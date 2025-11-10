@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type {} from "@payloadcms/db-postgres";
+import type { } from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -1007,6 +1007,11 @@ export const media = pgTable(
     id: serial("id").primaryKey(),
     alt: varchar("alt"),
     caption: varchar("caption"),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references((): AnyPgColumn => users.id, {
+        onDelete: "set null",
+      }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1032,9 +1037,11 @@ export const media = pgTable(
     focalY: numeric("focal_y", { mode: "number" }),
   },
   (columns) => [
+    index("media_created_by_idx").on(columns.createdBy),
     index("media_updated_at_idx").on(columns.updatedAt),
     index("media_created_at_idx").on(columns.createdAt),
     uniqueIndex("media_filename_idx").on(columns.filename),
+    index("createdBy_6_idx").on(columns.createdBy),
   ],
 );
 
@@ -2739,7 +2746,13 @@ export const relations_course_activity_module_links = relations(
     }),
   }),
 );
-export const relations_media = relations(media, () => ({}));
+export const relations_media = relations(media, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [media.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
 export const relations_notes = relations(notes, ({ one }) => ({
   createdBy: one(users, {
     fields: [notes.createdBy],

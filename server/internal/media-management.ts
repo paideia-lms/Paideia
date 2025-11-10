@@ -1,7 +1,7 @@
 import "@total-typescript/ts-reset";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -83,6 +83,7 @@ export const tryCreateMedia = Result.wrap(
 				data: {
 					alt: alt || null,
 					caption: caption || null,
+					createdBy: userId,
 				},
 				file: {
 					data: file,
@@ -544,20 +545,27 @@ export const tryUpdateMedia = Result.wrap(
 );
 
 export interface DeleteMediaArgs {
-	id: number;
+	id: number | number[];
 	userId: number;
 }
 
+export interface DeleteMediaResult {
+	deletedMedia: Media[];
+}
+
 /**
- * Deletes a media record
+ * Deletes one or more media records
  *
  * This function:
- * 1. Validates the media record exists
- * 2. Deletes the media record
+ * 1. Validates the media records exist
+ * 2. Deletes the media record(s)
  * 3. Uses transactions to ensure atomicity
  */
 export const tryDeleteMedia = Result.wrap(
-	async (payload: Payload, args: DeleteMediaArgs): Promise<Media> => {
+	async (
+		payload: Payload,
+		args: DeleteMediaArgs,
+	): Promise<DeleteMediaResult> => {
 		const { id, userId } = args;
 
 		// Validate required fields
@@ -565,9 +573,16 @@ export const tryDeleteMedia = Result.wrap(
 			throw new InvalidArgumentError("Media ID is required");
 		}
 
+		if (Array.isArray(id) && id.length === 0) {
+			throw new InvalidArgumentError("At least one media ID is required");
+		}
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
+
+		// Normalize to array
+		const ids = Array.isArray(id) ? id : [id];
 
 		// Begin transaction
 		const transactionID = await payload.db.beginTransaction();
@@ -588,28 +603,49 @@ export const tryDeleteMedia = Result.wrap(
 				throw new InvalidArgumentError(`User with id '${userId}' not found`);
 			}
 
-			// Get the media record
-			const media = await payload.findByID({
+			// Get the media records before deletion
+			const mediaResults = await payload.find({
 				collection: "media",
-				id,
+				where: {
+					id: {
+						in: ids,
+					},
+				},
+				limit: ids.length,
 				req: { transactionID },
 			});
 
-			if (!media) {
-				throw new NonExistingMediaError(`Media with id '${id}' not found`);
+			const foundMedia = mediaResults.docs;
+
+			if (foundMedia.length === 0) {
+				throw new NonExistingMediaError(
+					`No media records found with the provided IDs`,
+				);
 			}
 
-			// Delete the media record
-			await payload.delete({
-				collection: "media",
-				id,
-				req: { transactionID },
-			});
+			if (foundMedia.length !== ids.length) {
+				const foundIds = foundMedia.map((m) => m.id);
+				const missingIds = ids.filter((id) => !foundIds.includes(id));
+				throw new NonExistingMediaError(
+					`Media records not found: ${missingIds.join(", ")}`,
+				);
+			}
+
+			// Delete all media records
+			for (const mediaId of ids) {
+				await payload.delete({
+					collection: "media",
+					id: mediaId,
+					req: { transactionID },
+				});
+			}
 
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
 
-			return media;
+			return {
+				deletedMedia: foundMedia,
+			};
 		} catch (error) {
 			// Rollback transaction on error
 			await payload.db.rollbackTransaction(transactionID);
@@ -695,6 +731,96 @@ export const tryGetMediaByMimeType = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get media by MIME type", {
+			cause: error,
+		}),
+);
+
+export interface FindMediaByUserArgs {
+	payload: Payload;
+	userId: number;
+	limit?: number;
+	page?: number;
+	depth?: number;
+	sort?: string;
+	user?: unknown;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+/**
+ * Finds media by user ID
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ */
+export const tryFindMediaByUser = Result.wrap(
+	async (
+		args: FindMediaByUserArgs,
+	): Promise<{
+		docs: Media[];
+		totalDocs: number;
+		limit: number;
+		totalPages: number;
+		page: number;
+		pagingCounter: number;
+		hasPrevPage: boolean;
+		hasNextPage: boolean;
+		prevPage: number | null;
+		nextPage: number | null;
+	}> => {
+		const {
+			payload,
+			userId,
+			limit = 10,
+			page = 1,
+			depth = 1,
+			sort = "-createdAt",
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate pagination parameters
+		if (limit <= 0) {
+			throw new InvalidArgumentError("Limit must be greater than 0");
+		}
+
+		if (page <= 0) {
+			throw new InvalidArgumentError("Page must be greater than 0");
+		}
+
+		// Find media with access control
+		const mediaResult = await payload.find({
+			collection: "media",
+			where: {
+				createdBy: {
+					equals: userId,
+				},
+			},
+			limit,
+			page,
+			depth,
+			sort,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		return {
+			docs: mediaResult.docs,
+			totalDocs: mediaResult.totalDocs,
+			limit: mediaResult.limit || limit,
+			totalPages: mediaResult.totalPages || 0,
+			page: mediaResult.page || page,
+			pagingCounter: mediaResult.pagingCounter || 0,
+			hasPrevPage: mediaResult.hasPrevPage || false,
+			hasNextPage: mediaResult.hasNextPage || false,
+			prevPage: mediaResult.prevPage || null,
+			nextPage: mediaResult.nextPage || null,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find media by user", {
 			cause: error,
 		}),
 );

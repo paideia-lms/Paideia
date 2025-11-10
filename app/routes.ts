@@ -34,6 +34,7 @@ export const routes = [
 			route("user/notes/:id?", "routes/user/notes.tsx"),
 			route("user/note/create", "routes/user/note-create.tsx"),
 			route("user/note/edit/:id", "routes/user/note-edit.tsx"),
+			route("user/media/:id?", "routes/user/media.tsx"),
 			layout("layouts/user-modules-layout.tsx", [
 				//  the id is the user id
 				route("user/modules/:id?", "routes/user/modules.tsx"),

@@ -47,6 +47,7 @@ export type PageInfo = {
 	isUserNotes: boolean;
 	isUserNoteCreate: boolean;
 	isUserNoteEdit: boolean;
+	isUserMedia: boolean;
 	isInUserModulesLayout: boolean;
 	isUserModuleNew: boolean;
 	isUserModuleEdit: boolean;

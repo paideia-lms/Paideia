@@ -154,6 +154,7 @@ async function startServer() {
 								isUserNotes: false,
 								isUserNoteCreate: false,
 								isUserNoteEdit: false,
+								isUserMedia: false,
 								isInUserModulesLayout: false,
 								isUserModuleNew: false,
 								isUserModuleEdit: false,

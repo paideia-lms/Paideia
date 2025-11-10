@@ -1,9 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.5.6)'
+        required: true
+        type: string
 
 jobs:
   version-check:
@@ -19,9 +22,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Get version from package.json
+      - name: Set version from input
         id: version
-        run: echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
+        run: echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Check if release already exists
         id: check-release
@@ -29,7 +32,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="${{ inputs.version }}"
           TAG="v${VERSION}"
           
           if gh release view "${TAG}" >/dev/null 2>&1; then
@@ -252,13 +255,23 @@ jobs:
             chmod +x release-assets/paideia.exe
           fi
 
-      - name: Extract version
+      - name: Set version from input
         id: version
-        run: echo "version=$(jq -r .version package.json)" >> $GITHUB_OUTPUT
+        run: echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
 
-      - name: Get tag from ref
+      - name: Set tag from version
         id: tag
-        run: echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        run: echo "tag=v${{ inputs.version }}" >> $GITHUB_OUTPUT
+
+      - name: Create Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
+          git push origin "v${{ inputs.version }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1

@@ -117,6 +117,7 @@ export const middleware = [
 		let isUserNotes = false;
 		let isUserNoteCreate = false;
 		let isUserNoteEdit = false;
+		let isUserMedia = false;
 		let isUserModuleNew = false;
 		let isUserModuleEdit = false;
 		let isUserModuleEditSetting = false;
@@ -184,6 +185,7 @@ export const middleware = [
 			else if (route.id === "routes/user/notes") isUserNotes = true;
 			else if (route.id === "routes/user/note-create") isUserNoteCreate = true;
 			else if (route.id === "routes/user/note-edit") isUserNoteEdit = true;
+			else if (route.id === "routes/user/media") isUserMedia = true;
 			else if (route.id === "routes/user/module/new") isUserModuleNew = true;
 			else if (route.id === "routes/user/module/edit") isUserModuleEdit = true;
 			else if (route.id === "routes/user/module/edit-setting")
@@ -254,6 +256,7 @@ export const middleware = [
 				isUserNotes,
 				isUserNoteCreate,
 				isUserNoteEdit,
+				isUserMedia,
 				isUserModuleNew,
 				isUserModuleEdit,
 				isUserModuleEditSetting,
@@ -386,9 +389,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -438,9 +441,9 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -500,9 +503,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -554,9 +557,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				);
 

@@ -625,3 +625,58 @@ export function canEditProfileRole(
 		reason: "System-wide role that determines user permissions",
 	};
 }
+
+/**
+ * Checks if the current user can delete a media file.
+ *
+ * Permission Rules:
+ * - Users can delete their own media files
+ * - Admins can delete any media file
+ *
+ * @param currentUser - The user attempting to delete (current logged-in user)
+ * @param mediaCreatedBy - The user ID who created the media file
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canDeleteMedia(
+	currentUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	mediaCreatedBy?: number,
+): PermissionResult {
+	if (!currentUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	if (mediaCreatedBy === undefined || mediaCreatedBy === null) {
+		return {
+			allowed: false,
+			reason: "Media creator information is missing",
+		};
+	}
+
+	const isOwnMedia = currentUser.id === mediaCreatedBy;
+	const isAdmin = currentUser.role === "admin";
+
+	if (isOwnMedia) {
+		return {
+			allowed: true,
+			reason: "You can delete your own media files",
+		};
+	}
+
+	if (isAdmin) {
+		return {
+			allowed: true,
+			reason: "Admins can delete any media file",
+		};
+	}
+
+	return {
+		allowed: false,
+		reason: "You can only delete your own media files",
+	};
+}

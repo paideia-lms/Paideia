@@ -57,6 +57,10 @@ in the loader of react router, we should throw ErrorResponse rather than just er
 
 when throwing error using typescript result, we should first create the error in `app/utils/error.ts` first. The error class should be used in the `transformError` in `Result.wrap` or `Result.try`.
 
+## permissions and access control
+
+all permissions should be check in the server loader rather than in the component. we should use `PermissionResult` from `server/utils/permissions.ts` to check the permission.
+
 ## Database 
 
 when an operation is doing multiple mutation to the database, we should **always** use transaction.
@@ -81,6 +85,10 @@ we should not expose the depth variable to args for internal functions. The outp
 ## Changelog
 
 changelog should be written in the `changelogs` folder. each changelog should be named like `0001-2025-01-01-feature-or-change-name.md`. the number should be the order of the changelog. the date should be the date of the changelog. the feature name should be the name of the feature. a standard changelog should look like this `changelogs/0016-2025-10-29-assignment-grading-page.md`.
+
+## Release note
+
+release note should be written in the `release-notes` folder. each release note should be named like `0.5.4-2025-11-08.md`. the date should be the date of the release note. the version should be the version of the release note. Release note aggregate all changelogs related to the release but be less specific and technical than changelog. should focus more on the features and the user impact, especially in term on user interface and user experience.
 
 ## Coding style
 
