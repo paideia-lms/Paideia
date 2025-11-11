@@ -1,6 +1,6 @@
 import "@total-typescript/ts-reset";
 import type { S3Client } from "@aws-sdk/client-s3";
-import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
 import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import {
@@ -1454,6 +1454,494 @@ export const tryGetSystemMediaStats = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get system media stats", {
+			cause: error,
+		}),
+);
+
+export interface OrphanedMediaFile {
+	filename: string;
+	size: number;
+	lastModified?: Date;
+}
+
+export interface GetOrphanedMediaArgs {
+	limit?: number;
+	page?: number;
+}
+
+export interface GetOrphanedMediaResult {
+	files: OrphanedMediaFile[];
+	totalFiles: number;
+	totalSize: number;
+	limit: number;
+	page: number;
+	totalPages: number;
+	hasPrevPage: boolean;
+	hasNextPage: boolean;
+	prevPage: number | null;
+	nextPage: number | null;
+}
+
+/**
+ * Gets all media files in S3 that are not managed by the system (not in database)
+ *
+ * This function:
+ * 1. Lists all files in S3 bucket
+ * 2. Gets all media filenames from database
+ * 3. Finds files in S3 that don't have a corresponding database record
+ * 4. Returns paginated results with metadata
+ */
+export const tryGetOrphanedMedia = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+		args: GetOrphanedMediaArgs = {},
+	): Promise<GetOrphanedMediaResult> => {
+		const { limit = 20, page = 1 } = args;
+
+		// Validate pagination parameters
+		if (limit <= 0) {
+			throw new InvalidArgumentError("Limit must be greater than 0");
+		}
+
+		if (page <= 0) {
+			throw new InvalidArgumentError("Page must be greater than 0");
+		}
+
+		// Get all filenames from database
+		const allMediaResult = await payload.find({
+			collection: "media",
+			limit: 10000, // Large limit to get all media filenames
+			depth: 0,
+			overrideAccess: true,
+		});
+
+		const dbFilenames = new Set<string>();
+		for (const media of allMediaResult.docs) {
+			if (media.filename) {
+				dbFilenames.add(media.filename);
+			}
+		}
+
+		// List all objects in S3 (handle pagination)
+		const s3Files: Array<{ Key: string; Size: number; LastModified?: Date }> = [];
+		let continuationToken: string | undefined;
+
+		do {
+			const listCommand = new ListObjectsV2Command({
+				Bucket: envVars.S3_BUCKET.value,
+				ContinuationToken: continuationToken,
+			});
+
+			const listResponse = await s3Client.send(listCommand);
+
+			if (listResponse.Contents) {
+				for (const obj of listResponse.Contents) {
+					if (obj.Key && obj.Size !== undefined) {
+						s3Files.push({
+							Key: obj.Key,
+							Size: obj.Size,
+							LastModified: obj.LastModified,
+						});
+					}
+				}
+			}
+
+			continuationToken = listResponse.NextContinuationToken;
+		} while (continuationToken);
+
+		// Find orphaned files (in S3 but not in database)
+		const orphanedFiles: OrphanedMediaFile[] = s3Files
+			.filter((file) => !dbFilenames.has(file.Key))
+			.map((file) => ({
+				filename: file.Key,
+				size: file.Size,
+				lastModified: file.LastModified,
+			}));
+
+		// Sort by filename for consistent pagination
+		orphanedFiles.sort((a, b) => a.filename.localeCompare(b.filename));
+
+		// Calculate pagination
+		const totalFiles = orphanedFiles.length;
+		const totalPages = Math.ceil(totalFiles / limit);
+		const startIndex = (page - 1) * limit;
+		const endIndex = startIndex + limit;
+		const paginatedFiles = orphanedFiles.slice(startIndex, endIndex);
+
+		// Calculate total size of all orphaned files
+		const totalSize = orphanedFiles.reduce((sum, file) => sum + file.size, 0);
+
+		return {
+			files: paginatedFiles,
+			totalFiles,
+			totalSize,
+			limit,
+			page,
+			totalPages,
+			hasPrevPage: page > 1,
+			hasNextPage: page < totalPages,
+			prevPage: page > 1 ? page - 1 : null,
+			nextPage: page < totalPages ? page + 1 : null,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get orphaned media", {
+			cause: error,
+		}),
+);
+
+export interface GetAllOrphanedFilenamesResult {
+	filenames: string[];
+	totalSize: number;
+}
+
+/**
+ * Gets all orphaned media filenames (without pagination)
+ *
+ * This function returns all filenames of orphaned files for bulk operations
+ */
+export const tryGetAllOrphanedFilenames = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+	): Promise<GetAllOrphanedFilenamesResult> => {
+		// Get all filenames from database
+		const allMediaResult = await payload.find({
+			collection: "media",
+			limit: 10000, // Large limit to get all media filenames
+			depth: 0,
+			overrideAccess: true,
+		});
+
+		const dbFilenames = new Set<string>();
+		for (const media of allMediaResult.docs) {
+			if (media.filename) {
+				dbFilenames.add(media.filename);
+			}
+		}
+
+		// List all objects in S3 (handle pagination)
+		const s3Files: Array<{ Key: string; Size: number }> = [];
+		let continuationToken: string | undefined;
+
+		do {
+			const listCommand = new ListObjectsV2Command({
+				Bucket: envVars.S3_BUCKET.value,
+				ContinuationToken: continuationToken,
+			});
+
+			const listResponse = await s3Client.send(listCommand);
+
+			if (listResponse.Contents) {
+				for (const obj of listResponse.Contents) {
+					if (obj.Key && obj.Size !== undefined) {
+						s3Files.push({
+							Key: obj.Key,
+							Size: obj.Size,
+						});
+					}
+				}
+			}
+
+			continuationToken = listResponse.NextContinuationToken;
+		} while (continuationToken);
+
+		// Find orphaned files (in S3 but not in database)
+		const orphanedFiles = s3Files.filter((file) => !dbFilenames.has(file.Key));
+
+		// Calculate total size
+		const totalSize = orphanedFiles.reduce((sum, file) => sum + file.Size, 0);
+
+		return {
+			filenames: orphanedFiles.map((file) => file.Key),
+			totalSize,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get all orphaned filenames", {
+			cause: error,
+		}),
+);
+
+export interface PruneAllOrphanedMediaResult {
+	deletedCount: number;
+	deletedFiles: string[];
+	errors: Array<{ filename: string; error: string }>;
+}
+
+/**
+ * Prunes all orphaned media files from S3
+ *
+ * This function:
+ * 1. Gets all filenames from database
+ * 2. Lists all files in S3
+ * 3. Identifies orphaned files (in S3 but not in database)
+ * 4. Deletes all orphaned files from S3 in batches
+ * 5. Returns results with any errors
+ */
+export const tryPruneAllOrphanedMedia = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+	): Promise<PruneAllOrphanedMediaResult> => {
+		// Get all filenames from database
+		const allMediaResult = await payload.find({
+			collection: "media",
+			limit: 10000, // Large limit to get all media filenames
+			depth: 0,
+			overrideAccess: true,
+		});
+
+		const dbFilenames = new Set<string>();
+		for (const media of allMediaResult.docs) {
+			if (media.filename) {
+				dbFilenames.add(media.filename);
+			}
+		}
+
+		// List all objects in S3 (handle pagination)
+		const s3Files: Array<{ Key: string }> = [];
+		let continuationToken: string | undefined;
+
+		do {
+			const listCommand = new ListObjectsV2Command({
+				Bucket: envVars.S3_BUCKET.value,
+				ContinuationToken: continuationToken,
+			});
+
+			const listResponse = await s3Client.send(listCommand);
+
+			if (listResponse.Contents) {
+				for (const obj of listResponse.Contents) {
+					if (obj.Key) {
+						s3Files.push({
+							Key: obj.Key,
+						});
+					}
+				}
+			}
+
+			continuationToken = listResponse.NextContinuationToken;
+		} while (continuationToken);
+
+		// Find orphaned files (in S3 but not in database)
+		const orphanedFilenames = s3Files
+			.filter((file) => !dbFilenames.has(file.Key))
+			.map((file) => file.Key);
+
+		if (orphanedFilenames.length === 0) {
+			return {
+				deletedCount: 0,
+				deletedFiles: [],
+				errors: [],
+			};
+		}
+
+		// Delete files from S3 in batches (S3 allows up to 1000 objects per request)
+		const batchSize = 1000;
+		const deletedFiles: string[] = [];
+		const errors: Array<{ filename: string; error: string }> = [];
+
+		for (let i = 0; i < orphanedFilenames.length; i += batchSize) {
+			const batch = orphanedFilenames.slice(i, i + batchSize);
+
+			const deleteCommand = new DeleteObjectsCommand({
+				Bucket: envVars.S3_BUCKET.value,
+				Delete: {
+					Objects: batch.map((filename) => ({ Key: filename })),
+				},
+			});
+
+			try {
+				const deleteResponse = await s3Client.send(deleteCommand);
+
+				if (deleteResponse.Deleted) {
+					for (const deleted of deleteResponse.Deleted) {
+						if (deleted.Key) {
+							deletedFiles.push(deleted.Key);
+						}
+					}
+				}
+
+				if (deleteResponse.Errors) {
+					for (const error of deleteResponse.Errors) {
+						if (error.Key) {
+							errors.push({
+								filename: error.Key,
+								error: error.Message || "Unknown error",
+							});
+						}
+					}
+				}
+			} catch {
+				// If batch deletion fails, try individual deletions
+				for (const filename of batch) {
+					try {
+						const singleDeleteCommand = new DeleteObjectCommand({
+							Bucket: envVars.S3_BUCKET.value,
+							Key: filename,
+						});
+
+						await s3Client.send(singleDeleteCommand);
+						deletedFiles.push(filename);
+					} catch (singleError) {
+						errors.push({
+							filename,
+							error:
+								singleError instanceof Error
+									? singleError.message
+									: "Unknown error",
+						});
+					}
+				}
+			}
+		}
+
+		return {
+			deletedCount: deletedFiles.length,
+			deletedFiles,
+			errors,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to prune all orphaned media", {
+			cause: error,
+		}),
+);
+
+export interface DeleteOrphanedMediaArgs {
+	filenames: string[];
+}
+
+export interface DeleteOrphanedMediaResult {
+	deletedCount: number;
+	deletedFiles: string[];
+	errors: Array<{ filename: string; error: string }>;
+}
+
+/**
+ * Deletes orphaned media files from S3
+ *
+ * This function:
+ * 1. Validates that files are actually orphaned (not in database)
+ * 2. Deletes files from S3 in batches
+ * 3. Returns results with any errors
+ */
+export const tryDeleteOrphanedMedia = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+		args: DeleteOrphanedMediaArgs,
+	): Promise<DeleteOrphanedMediaResult> => {
+		const { filenames } = args;
+
+		// Validate required fields
+		if (!filenames || filenames.length === 0) {
+			throw new InvalidArgumentError("At least one filename is required");
+		}
+
+		// Get all filenames from database to verify files are orphaned
+		const allMediaResult = await payload.find({
+			collection: "media",
+			where: {
+				filename: {
+					in: filenames,
+				},
+			},
+			limit: filenames.length,
+			depth: 0,
+			overrideAccess: true,
+		});
+
+		const dbFilenames = new Set<string>();
+		for (const media of allMediaResult.docs) {
+			if (media.filename) {
+				dbFilenames.add(media.filename);
+			}
+		}
+
+		// Filter out files that exist in database
+		const orphanedFilenames = filenames.filter((filename) => !dbFilenames.has(filename));
+
+		if (orphanedFilenames.length === 0) {
+			throw new InvalidArgumentError(
+				"All specified files exist in the database and cannot be deleted as orphaned files",
+			);
+		}
+
+		// Delete files from S3 in batches (S3 allows up to 1000 objects per request)
+		const batchSize = 1000;
+		const deletedFiles: string[] = [];
+		const errors: Array<{ filename: string; error: string }> = [];
+
+		for (let i = 0; i < orphanedFilenames.length; i += batchSize) {
+			const batch = orphanedFilenames.slice(i, i + batchSize);
+
+			const deleteCommand = new DeleteObjectsCommand({
+				Bucket: envVars.S3_BUCKET.value,
+				Delete: {
+					Objects: batch.map((filename) => ({ Key: filename })),
+				},
+			});
+
+			try {
+				const deleteResponse = await s3Client.send(deleteCommand);
+
+				if (deleteResponse.Deleted) {
+					for (const deleted of deleteResponse.Deleted) {
+						if (deleted.Key) {
+							deletedFiles.push(deleted.Key);
+						}
+					}
+				}
+
+				if (deleteResponse.Errors) {
+					for (const error of deleteResponse.Errors) {
+						if (error.Key) {
+							errors.push({
+								filename: error.Key,
+								error: error.Message || "Unknown error",
+							});
+						}
+					}
+				}
+			} catch {
+				// If batch deletion fails, try individual deletions
+				for (const filename of batch) {
+					try {
+						const singleDeleteCommand = new DeleteObjectCommand({
+							Bucket: envVars.S3_BUCKET.value,
+							Key: filename,
+						});
+
+						await s3Client.send(singleDeleteCommand);
+						deletedFiles.push(filename);
+					} catch (singleError) {
+						errors.push({
+							filename,
+							error:
+								singleError instanceof Error
+									? singleError.message
+									: "Unknown error",
+						});
+					}
+				}
+			}
+		}
+
+		return {
+			deletedCount: deletedFiles.length,
+			deletedFiles,
+			errors,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to delete orphaned media", {
 			cause: error,
 		}),
 );

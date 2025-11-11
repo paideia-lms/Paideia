@@ -2,15 +2,18 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import config from "../payload.config";
+import { envVars } from "../env";
 import { s3Client } from "../utils/s3-client";
 import {
 	tryCreateMedia,
 	tryDeleteMedia,
+	tryDeleteOrphanedMedia,
 	tryFindMediaByUser,
 	tryGetAllMedia,
 	tryGetMediaBufferFromFilename,
 	tryGetMediaById,
 	tryGetMediaByFilename,
+	tryGetOrphanedMedia,
 	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
 	tryRenameMedia,
@@ -693,5 +696,192 @@ describe("Media Management", () => {
 		});
 
 		expect(renameResult.ok).toBe(false);
+	});
+
+	test("should get orphaned media files", async () => {
+		// First, create a media file that will be in the database
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createResult = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-managed-file.png",
+			mimeType: "image/png",
+			userId: testUserId,
+		});
+
+		expect(createResult.ok).toBe(true);
+
+		// Upload a file directly to S3 (simulating an orphaned file)
+		// We'll use the S3 client to upload a file that won't be in the database
+		const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+		const orphanedFilename = "test-orphaned-file.png";
+		await s3Client.send(
+			new PutObjectCommand({
+				Bucket: envVars.S3_BUCKET.value,
+				Key: orphanedFilename,
+				Body: Buffer.from("orphaned file content"),
+			}),
+		);
+
+		// Get orphaned media
+		const result = await tryGetOrphanedMedia(payload, s3Client, {
+			limit: 10,
+			page: 1,
+		});
+
+		expect(result.ok).toBe(true);
+
+		if (result.ok) {
+			// Should find at least the orphaned file we created
+			const orphanedFiles = result.value.files.filter(
+				(file) => file.filename === orphanedFilename,
+			);
+			expect(orphanedFiles.length).toBeGreaterThan(0);
+
+			// Verify pagination structure
+			expect(result.value.totalFiles).toBeGreaterThanOrEqual(0);
+			expect(result.value.limit).toBe(10);
+			expect(result.value.page).toBe(1);
+			expect(typeof result.value.totalSize).toBe("number");
+
+			// Clean up orphaned file
+			const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+			await s3Client.send(
+				new DeleteObjectCommand({
+					Bucket: envVars.S3_BUCKET.value,
+					Key: orphanedFilename,
+				}),
+			);
+		}
+	});
+
+	test("should get orphaned media with pagination", async () => {
+		// Create multiple orphaned files
+		const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+		const orphanedFilenames: string[] = [];
+
+		for (let i = 0; i < 3; i++) {
+			const filename = `test-orphaned-pagination-${i}.png`;
+			orphanedFilenames.push(filename);
+			await s3Client.send(
+				new PutObjectCommand({
+					Bucket: envVars.S3_BUCKET.value,
+					Key: filename,
+					Body: Buffer.from(`orphaned file ${i}`),
+				}),
+			);
+		}
+
+		// Get first page
+		const result1 = await tryGetOrphanedMedia(payload, s3Client, {
+			limit: 2,
+			page: 1,
+		});
+
+		expect(result1.ok).toBe(true);
+
+		if (result1.ok) {
+			expect(result1.value.files.length).toBeLessThanOrEqual(2);
+			expect(result1.value.page).toBe(1);
+			expect(result1.value.limit).toBe(2);
+		}
+
+		// Clean up orphaned files
+		const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+		for (const filename of orphanedFilenames) {
+			await s3Client.send(
+				new DeleteObjectCommand({
+					Bucket: envVars.S3_BUCKET.value,
+					Key: filename,
+				}),
+			);
+		}
+	});
+
+	test("should delete orphaned media files", async () => {
+		// Create orphaned files
+		const { PutObjectCommand } = await import("@aws-sdk/client-s3");
+		const orphanedFilenames = [
+			"test-delete-orphaned-1.png",
+			"test-delete-orphaned-2.png",
+		];
+
+		for (const filename of orphanedFilenames) {
+			await s3Client.send(
+				new PutObjectCommand({
+					Bucket: envVars.S3_BUCKET.value,
+					Key: filename,
+					Body: Buffer.from("orphaned file content"),
+				}),
+			);
+		}
+
+		// Delete orphaned files
+		const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+			filenames: orphanedFilenames,
+		});
+
+		expect(result.ok).toBe(true);
+
+		if (result.ok) {
+			expect(result.value.deletedCount).toBe(2);
+			expect(result.value.deletedFiles.length).toBe(2);
+			expect(result.value.errors.length).toBe(0);
+
+			// Verify files are actually deleted from S3
+			const { GetObjectCommand } = await import("@aws-sdk/client-s3");
+			for (const filename of orphanedFilenames) {
+				try {
+					await s3Client.send(
+						new GetObjectCommand({
+							Bucket: envVars.S3_BUCKET.value,
+							Key: filename,
+						}),
+					);
+					// If we get here, file still exists (shouldn't happen)
+					expect(true).toBe(false);
+				} catch (error) {
+					// Expected: file should not exist
+					expect(error).toBeDefined();
+				}
+			}
+		}
+	});
+
+	test("should fail to delete non-orphaned media files", async () => {
+		// Create a managed media file
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createResult = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-managed-for-delete.png",
+			mimeType: "image/png",
+			userId: testUserId,
+		});
+
+		expect(createResult.ok).toBe(true);
+
+		if (!createResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const managedFilename = createResult.value.media.filename;
+
+		if (!managedFilename) {
+			throw new Error("Created media has no filename");
+		}
+
+		// Try to delete it as orphaned (should fail)
+		const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+			filenames: [managedFilename],
+		});
+
+		expect(result.ok).toBe(false);
+	});
+
+	test("should fail to delete orphaned media with empty array", async () => {
+		const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+			filenames: [],
+		});
+
+		expect(result.ok).toBe(false);
 	});
 });

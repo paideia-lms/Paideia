@@ -34,7 +34,7 @@ import {
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import prettyBytes from "pretty-bytes";
 import { href, Link, useFetcher } from "react-router";
 import { useForm } from "@mantine/form";
@@ -44,14 +44,16 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteMedia,
+	tryDeleteOrphanedMedia,
 	tryFindMediaByUser,
 	tryGetAllMedia,
+	tryGetOrphanedMedia,
 	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
+	tryPruneAllOrphanedMedia,
 	tryRenameMedia,
 } from "server/internal/media-management";
 import { tryFindAllUsers } from "server/internal/user-management";
-import { detectSystemResources } from "server/utils/bun-system-resources";
 import type { Media } from "server/payload-types";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import {
@@ -77,12 +79,14 @@ import type { Route } from "./+types/media";
 export const mediaSearchParams = {
 	userId: parseAsInteger,
 	page: parseAsInteger.withDefault(1),
+	orphanedPage: parseAsInteger.withDefault(1),
 };
 
 export const loadSearchParams = createLoader(mediaSearchParams);
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const globalContext = context.get(globalContextKey);
+	const { payload, s3Client } = globalContext;
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -97,7 +101,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	}
 
 	// Get search params
-	const { userId, page } = loadSearchParams(request);
+	const { userId, page, orphanedPage } = loadSearchParams(request);
 	const limit = 20;
 
 	// Fetch media - either for a specific user or all media
@@ -172,12 +176,6 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const stats = statsResult.ok ? statsResult.value : null;
 	const systemStats = systemStatsResult?.ok ? systemStatsResult.value : null;
 
-	// Fetch system resources for storage breakdown (only for system-wide view)
-	let systemResources = null;
-	if (!userId) {
-		systemResources = await detectSystemResources();
-	}
-
 	// Fetch users for the filter dropdown
 	const usersResult = await tryFindAllUsers({
 		payload,
@@ -198,6 +196,14 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		}))
 		: [];
 
+	// Fetch orphaned media files
+	const orphanedMediaResult = await tryGetOrphanedMedia(payload, s3Client, {
+		limit,
+		page: orphanedPage,
+	});
+
+	const orphanedMedia = orphanedMediaResult.ok ? orphanedMediaResult.value : null;
+
 	return {
 		media: mediaWithPermissions,
 		pagination: {
@@ -212,9 +218,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		},
 		stats,
 		systemStats,
-		systemResources,
 		selectedUserId: userId ?? null,
 		userOptions,
+		orphanedMedia,
 	};
 };
 
@@ -378,6 +384,68 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 		}
 
+		// For POST requests (delete orphaned media files)
+		if (request.method === "POST") {
+			const formData = await request.formData();
+			const actionType = formData.get("actionType")?.toString();
+
+			if (actionType === "deleteOrphaned") {
+				const filenamesParam = formData.get("filenames");
+
+				if (!filenamesParam) {
+					return badRequest({ error: "Filenames are required" });
+				}
+
+				// Parse filenames - can be a single filename or comma-separated filenames
+				let filenames: string[];
+				if (typeof filenamesParam === "string") {
+					filenames = filenamesParam
+						.split(",")
+						.map((name) => name.trim())
+						.filter((name) => name.length > 0);
+				} else {
+					return badRequest({ error: "Invalid filenames format" });
+				}
+
+				if (filenames.length === 0) {
+					return badRequest({ error: "At least one filename is required" });
+				}
+
+				const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+					filenames,
+				});
+
+				if (!result.ok) {
+					return badRequest({ error: result.error.message });
+				}
+
+				return ok({
+					message:
+						result.value.deletedCount === 1
+							? "Orphaned file deleted successfully"
+							: `${result.value.deletedCount} orphaned files deleted successfully`,
+				});
+			}
+
+			if (actionType === "pruneAllOrphaned") {
+				const result = await tryPruneAllOrphanedMedia(payload, s3Client);
+
+				if (!result.ok) {
+					return badRequest({ error: result.error.message });
+				}
+
+				if (result.value.deletedCount === 0) {
+					return ok({
+						message: "No orphaned files to delete",
+					});
+				}
+
+				return ok({
+					message: `Pruned ${result.value.deletedCount} orphaned file${result.value.deletedCount !== 1 ? "s" : ""} successfully`,
+				});
+			}
+		}
+
 		return badRequest({ error: "Invalid request method" });
 	} catch (error) {
 		await payload.db.rollbackTransaction(transactionID);
@@ -454,6 +522,24 @@ export function useRenameMedia() {
 
 	return {
 		renameMedia,
+		isLoading: fetcher.state !== "idle",
+		fetcher,
+	};
+}
+
+export function useDeleteOrphanedMedia() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const deleteOrphanedMedia = (filenames: string | string[]) => {
+		const formData = new FormData();
+		formData.append("actionType", "deleteOrphaned");
+		const names = Array.isArray(filenames) ? filenames : [filenames];
+		formData.append("filenames", names.join(","));
+		fetcher.submit(formData, { method: "POST" });
+	};
+
+	return {
+		deleteOrphanedMedia,
 		isLoading: fetcher.state !== "idle",
 		fetcher,
 	};
@@ -1315,15 +1401,115 @@ function MediaPagination({
 	);
 }
 
+// Orphaned Media File Type
+type OrphanedMediaFile = {
+	filename: string;
+	size: number;
+	lastModified?: Date;
+};
+
+// Orphaned Media Table Component
+function OrphanedMediaTable({
+	files,
+	selectedFilenames,
+	onSelectionChange,
+	onDelete,
+	pagination,
+	onPageChange,
+}: {
+	files: OrphanedMediaFile[];
+	selectedFilenames: string[];
+	onSelectionChange: (filenames: string[]) => void;
+	onDelete: (filenames: string[]) => void;
+	pagination: {
+		totalPages: number;
+		page: number;
+		hasPrevPage: boolean;
+		hasNextPage: boolean;
+	};
+	onPageChange: (page: number) => void;
+}) {
+	const columns = [
+		{
+			accessor: "filename",
+			title: "Filename",
+			render: (file: OrphanedMediaFile) => (
+				<Text size="sm" fw={500} lineClamp={1}>
+					{file.filename}
+				</Text>
+			),
+		},
+		{
+			accessor: "size",
+			title: "Size",
+			render: (file: OrphanedMediaFile) => (
+				<Text size="sm" c="dimmed">
+					{prettyBytes(file.size)}
+				</Text>
+			),
+		},
+	];
+
+	const selectedFiles = files.filter((file) =>
+		selectedFilenames.includes(file.filename),
+	);
+
+	return (
+		<Stack gap="md">
+			{selectedFilenames.length > 0 && (
+				<Group justify="space-between" align="center">
+					<Text size="sm" c="dimmed">
+						{selectedFilenames.length} file
+						{selectedFilenames.length !== 1 ? "s" : ""} selected
+					</Text>
+					<Button
+						color="red"
+						leftSection={<IconTrash size={16} />}
+						onClick={() => {
+							if (
+								window.confirm(
+									`Are you sure you want to delete ${selectedFilenames.length} orphaned file${selectedFilenames.length !== 1 ? "s" : ""}? This action cannot be undone.`,
+								)
+							) {
+								onDelete(selectedFilenames);
+							}
+						}}
+					>
+						Delete Selected
+					</Button>
+				</Group>
+			)}
+			<DataTable
+				records={files}
+				columns={columns}
+				selectedRecords={selectedFiles}
+				onSelectedRecordsChange={(records) => {
+					onSelectionChange(records.map((r) => r.filename));
+				}}
+				striped
+				highlightOnHover
+				withTableBorder
+				withColumnBorders
+				idAccessor="filename"
+			/>
+			<MediaPagination
+				totalPages={pagination.totalPages}
+				currentPage={pagination.page}
+				onPageChange={onPageChange}
+			/>
+		</Stack>
+	);
+}
+
 export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 	const {
 		media,
 		pagination,
 		stats,
 		systemStats,
-		systemResources,
 		selectedUserId: initialUserId,
 		userOptions,
+		orphanedMedia,
 	} = loaderData;
 	const [viewMode, setViewMode] = useState<"card" | "table">("card");
 	const [selectedRecords, setSelectedRecords] = useState<Media[]>([]);
@@ -1332,6 +1518,9 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 	const [previewFile, setPreviewFile] = useState<Media | null>(null);
 	const [renameModalOpened, setRenameModalOpened] = useState(false);
 	const [renameFile, setRenameFile] = useState<Media | null>(null);
+	const [selectedOrphanedFilenames, setSelectedOrphanedFilenames] = useState<
+		string[]
+	>([]);
 	const [userId, setUserId] = useQueryState(
 		"userId",
 		parseAsInteger.withOptions({
@@ -1344,9 +1533,17 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 			shallow: false,
 		}),
 	);
+	const [, setOrphanedPage] = useQueryState(
+		"orphanedPage",
+		parseAsInteger.withDefault(1).withOptions({
+			shallow: false,
+		}),
+	);
 	const { deleteMedia } = useDeleteMedia();
 	const { downloadMedia } = useDownloadMedia();
 	const { renameMedia } = useRenameMedia();
+	const { deleteOrphanedMedia, fetcher: orphanedFetcher } =
+		useDeleteOrphanedMedia();
 
 	// Sync userId from loader data
 	const currentUserId = userId ?? initialUserId;
@@ -1431,6 +1628,38 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 	const handleRename = (mediaId: number, newFilename: string) => {
 		renameMedia(mediaId, newFilename);
 	};
+
+	const handleOrphanedPageChange = (newPage: number) => {
+		setOrphanedPage(newPage);
+		// Clear selection when page changes
+		setSelectedOrphanedFilenames([]);
+	};
+
+	const handleOrphanedSelectionChange = (filenames: string[]) => {
+		setSelectedOrphanedFilenames(filenames);
+	};
+
+	const handleDeleteOrphaned = (filenames: string[]) => {
+		// Delete only selected files from current page
+		deleteOrphanedMedia(filenames);
+		// Clear selection after deletion
+		setSelectedOrphanedFilenames([]);
+	};
+
+	const handlePruneAllOrphaned = () => {
+		const formData = new FormData();
+		formData.append("actionType", "pruneAllOrphaned");
+		orphanedFetcher.submit(formData, { method: "POST" });
+	};
+
+	// Clear orphaned selection when fetcher completes successfully
+	useEffect(() => {
+		if (orphanedFetcher.state === "idle" && orphanedFetcher.data?.status === StatusCode.Ok) {
+			if (selectedOrphanedFilenames.length > 0) {
+				setSelectedOrphanedFilenames([]);
+			}
+		}
+	}, [orphanedFetcher.state, orphanedFetcher.data, selectedOrphanedFilenames.length]);
 
 	return (
 		<Container size="lg" py="xl">
@@ -1527,20 +1756,15 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 													</Box>
 												</Group>
 											</>
-										) : systemResources?.disk ? (
-											// System view: show system storage vs available disk space
+										) : (
+											// System view: just show total storage
 											<>
 												<DonutChart
 													data={[
 														{
-															name: "System Storage",
+															name: "Total Storage",
 															value: stats.totalSize,
 															color: "blue",
-														},
-														{
-															name: "Available",
-															value: systemResources.disk.available,
-															color: "green",
 														},
 													]}
 													withTooltip
@@ -1553,39 +1777,14 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 												<Group gap="xl" mt="md">
 													<Box>
 														<Text size="xs" c="dimmed">
-															System Storage
+															Total Storage
 														</Text>
 														<Text size="sm" fw={500}>
 															{prettyBytes(stats.totalSize)}
 														</Text>
 													</Box>
-													<Box>
-														<Text size="xs" c="dimmed">
-															Available
-														</Text>
-														<Text size="sm" fw={500}>
-															{prettyBytes(systemResources.disk.available)}
-														</Text>
-													</Box>
 												</Group>
 											</>
-										) : (
-											// Fallback: just show used storage
-											<DonutChart
-												data={[
-													{
-														name: "Used",
-														value: stats.totalSize,
-														color: "blue",
-													},
-												]}
-												withTooltip
-												withLabels
-												labelsType="value"
-												chartLabel={`${prettyBytes(stats.totalSize)}`}
-												h={300}
-												w="100%"
-											/>
 										)}
 									</Stack>
 								</Grid.Col>
@@ -1664,6 +1863,59 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 					onClose={handleCloseRenameModal}
 					onRename={handleRename}
 				/>
+
+				{/* Orphaned Media Section */}
+				{orphanedMedia && (
+					<Card withBorder padding="lg" radius="md">
+						<Stack gap="lg">
+							<Group justify="space-between" align="center">
+								<Title order={2}>Orphaned Media Files</Title>
+								{orphanedMedia.totalFiles > 0 && (
+									<Button
+										color="red"
+										leftSection={<IconTrash size={16} />}
+										onClick={() => {
+											if (
+												window.confirm(
+													`Are you sure you want to prune all ${orphanedMedia.totalFiles} orphaned file${orphanedMedia.totalFiles !== 1 ? "s" : ""}? This action cannot be undone.`,
+												)
+											) {
+												handlePruneAllOrphaned();
+											}
+										}}
+										loading={orphanedFetcher.state !== "idle"}
+									>
+										Prune All ({orphanedMedia.totalFiles})
+									</Button>
+								)}
+							</Group>
+							<Text size="sm" c="dimmed">
+								Files in S3 storage that are not managed by the system (not in
+								database). Total: {orphanedMedia.totalFiles} files (
+								{prettyBytes(orphanedMedia.totalSize)})
+							</Text>
+							{orphanedMedia.files.length === 0 ? (
+								<Text c="dimmed" ta="center" py="xl">
+									No orphaned media files found.
+								</Text>
+							) : (
+								<OrphanedMediaTable
+									files={orphanedMedia.files}
+									selectedFilenames={selectedOrphanedFilenames}
+									onSelectionChange={handleOrphanedSelectionChange}
+									onDelete={handleDeleteOrphaned}
+									pagination={{
+										totalPages: orphanedMedia.totalPages,
+										page: orphanedMedia.page,
+										hasPrevPage: orphanedMedia.hasPrevPage,
+										hasNextPage: orphanedMedia.hasNextPage,
+									}}
+									onPageChange={handleOrphanedPageChange}
+								/>
+							)}
+						</Stack>
+					</Card>
+				)}
 			</Stack>
 		</Container>
 	);

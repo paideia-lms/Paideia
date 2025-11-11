@@ -126,8 +126,9 @@ Implemented a comprehensive admin media management page that allows administrato
 **Features**:
 - Dynamic storage chart based on view context
 - User view: shows user storage vs system storage (all users)
-- System view: shows system storage vs available disk space
+- System view: shows total system storage
 - Visual comparison with donut charts
+- No disk space comparison (cloud S3 storage is unlimited in production)
 
 **Implementation**:
 - Updated `app/routes/admin/media.tsx`:
@@ -135,18 +136,19 @@ Implemented a comprehensive admin media management page that allows administrato
     - When viewing specific user (`currentUserId` and `systemStats` exist):
       - Shows "User Storage" (blue) vs "System Storage" (green)
       - Displays both user storage and total system storage values
-    - When viewing system-wide (`systemResources?.disk` exists):
-      - Shows "System Storage" (blue) vs "Available" (green)
-      - Displays system storage and available disk space
-    - Fallback: shows just "Used" storage if system resources unavailable
+    - When viewing system-wide:
+      - Shows "Total Storage" (blue) as a single value
+      - Displays total system storage value
+    - Removed disk space comparison since cloud S3 storage is unlimited
   - **Loader**:
     - Fetches system stats when viewing a user for comparison
-    - Fetches system resources (disk info) only for system-wide view
+    - Removed `systemResources` fetch (no longer needed)
 
 **Benefits**:
 - ✅ Clear visual comparison of user vs system storage
 - ✅ Context-aware chart display
 - ✅ Helps admins understand storage distribution
+- ✅ Appropriate for cloud storage (unlimited capacity)
 
 ### 5. Creator Information Display
 
@@ -282,9 +284,9 @@ The page uses `nuqs` library for URL-based state management:
 
 The storage visualization adapts based on context:
 - **User View**: Compares user's storage against total system storage
-- **System View**: Compares system storage against available disk space
-- Uses `systemResources` from `detectSystemResources` utility
-- Falls back gracefully when system resources unavailable
+- **System View**: Shows total system storage (no disk comparison)
+- Removed disk space comparison since cloud S3 storage is unlimited in production
+- Falls back gracefully when system stats unavailable
 
 ### Transaction Management
 
@@ -329,6 +331,7 @@ No database migrations required. This feature uses existing Media collection sch
 - `server/internal/media-management.ts` - Added `tryGetSystemMediaStats`, updated `tryDeleteMedia` signature
 - `server/internal/media-management.test.ts` - Updated tests for S3 deletion
 - `app/routes/user/media.tsx` - Updated `tryDeleteMedia` call, removed duplicate helpers
+- `app/routes/admin/media.tsx` - Removed systemResources fetch and disk space comparison
 - `app/routes.ts` - Added admin media route
 - `app/root.tsx` - Added `isAdminMedia` flag
 - `server/contexts/global-context.ts` - Added `isAdminMedia` to PageInfo
