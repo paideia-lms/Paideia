@@ -8,6 +8,7 @@ import {
     Group,
     Image,
     Menu,
+    Modal,
     Pagination,
     SegmentedControl,
     Stack,
@@ -19,6 +20,7 @@ import { DonutChart, PieChart } from "@mantine/charts";
 import {
     IconDots,
     IconDownload,
+    IconEye,
     IconFile,
     IconLayoutGrid,
     IconList,
@@ -479,6 +481,26 @@ function isImage(mimeType: string | null | undefined): boolean {
     return mimeType.startsWith("image/");
 }
 
+function isAudio(mimeType: string | null | undefined): boolean {
+    if (!mimeType) return false;
+    return mimeType.startsWith("audio/");
+}
+
+function isVideo(mimeType: string | null | undefined): boolean {
+    if (!mimeType) return false;
+    return mimeType.startsWith("video/");
+}
+
+function isPdf(mimeType: string | null | undefined): boolean {
+    if (!mimeType) return false;
+    return mimeType === "application/pdf";
+}
+
+function canPreview(mimeType: string | null | undefined): boolean {
+    if (!mimeType) return false;
+    return isImage(mimeType) || isAudio(mimeType) || isVideo(mimeType) || isPdf(mimeType);
+}
+
 function getTypeColor(type: string): string {
     const colorMap: Record<string, string> = {
         image: "blue",
@@ -594,17 +616,242 @@ function BatchActions({
     );
 }
 
+// Audio Preview Component
+function AudioPreview({
+    fileUrl,
+    filename,
+    inline = false,
+    onOpenModal,
+}: {
+    fileUrl: string;
+    filename: string;
+    inline?: boolean;
+    onOpenModal?: () => void;
+}) {
+    if (inline) {
+        return (
+            <Group
+                justify="center"
+                style={{
+                    width: "100%",
+                    minHeight: 150,
+                    cursor: onOpenModal ? "pointer" : "default",
+                }}
+                onClick={onOpenModal}
+            >
+                <audio
+                    controls
+                    style={{ width: "100%", maxWidth: "100%" }}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={filename}
+                >
+                    <source src={fileUrl} type="audio/mpeg" />
+                    <source src={fileUrl} type="audio/wav" />
+                    <source src={fileUrl} type="audio/ogg" />
+                    <track
+                        kind="captions"
+                        src="data:text/vtt;base64,V0VCVlRUCg=="
+                        label="No captions available"
+                        default={false}
+                    />
+                    Your browser does not support the audio element.
+                </audio>
+            </Group>
+        );
+    }
+
+    return (
+        <Stack gap="md" style={{ width: "100%" }}>
+            <audio controls style={{ width: "100%" }} aria-label={filename}>
+                <source src={fileUrl} type="audio/mpeg" />
+                <source src={fileUrl} type="audio/wav" />
+                <source src={fileUrl} type="audio/ogg" />
+                <track
+                    kind="captions"
+                    src="data:text/vtt;base64,V0VCVlRUCg=="
+                    label="No captions available"
+                    default={false}
+                />
+                Your browser does not support the audio element.
+            </audio>
+            <Text size="sm" c="dimmed">
+                {filename}
+            </Text>
+        </Stack>
+    );
+}
+
+// Video Preview Component
+function VideoPreview({
+    fileUrl,
+    filename,
+    inline = false,
+    onOpenModal,
+}: {
+    fileUrl: string;
+    filename: string;
+    inline?: boolean;
+    onOpenModal?: () => void;
+}) {
+    if (inline) {
+        return (
+            <Group
+                justify="center"
+                style={{
+                    width: "100%",
+                    minHeight: 150,
+                    maxHeight: 150,
+                    cursor: onOpenModal ? "pointer" : "default",
+                    overflow: "hidden",
+                }}
+                onClick={onOpenModal}
+            >
+                <video
+                    controls
+                    style={{
+                        maxWidth: "100%",
+                        maxHeight: "100%",
+                        objectFit: "contain",
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={filename}
+                >
+                    <source src={fileUrl} type="video/mp4" />
+                    <source src={fileUrl} type="video/webm" />
+                    <source src={fileUrl} type="video/ogg" />
+                    <track
+                        kind="captions"
+                        src="data:text/vtt;base64,V0VCVlRUCg=="
+                        label="No captions available"
+                        default={false}
+                    />
+                    Your browser does not support the video element.
+                </video>
+            </Group>
+        );
+    }
+
+    return (
+        <Stack gap="md" style={{ width: "100%" }}>
+            <video controls style={{ width: "100%", maxHeight: "80vh" }} aria-label={filename}>
+                <source src={fileUrl} type="video/mp4" />
+                <source src={fileUrl} type="video/webm" />
+                <source src={fileUrl} type="video/ogg" />
+                <track
+                    kind="captions"
+                    src="data:text/vtt;base64,V0VCVlRUCg=="
+                    label="No captions available"
+                    default={false}
+                />
+                Your browser does not support the video element.
+            </video>
+            <Text size="sm" c="dimmed">
+                {filename}
+            </Text>
+        </Stack>
+    );
+}
+
+// Media Preview Modal Component
+function MediaPreviewModal({
+    file,
+    opened,
+    onClose,
+}: {
+    file: Media | null;
+    opened: boolean;
+    onClose: () => void;
+}) {
+    if (!file) return null;
+
+    const mediaUrl = file.filename
+        ? href(`/api/media/file/:filenameOrId`, {
+            filenameOrId: file.filename,
+        })
+        : undefined;
+
+    if (!mediaUrl) return null;
+
+    const renderPreview = () => {
+        if (file.mimeType && isImage(file.mimeType)) {
+            return (
+                <Image
+                    src={mediaUrl}
+                    alt={file.alt ?? file.filename ?? "Media"}
+                    fit="contain"
+                    style={{ maxHeight: "80vh" }}
+                />
+            );
+        }
+
+        if (file.mimeType && isAudio(file.mimeType)) {
+            return (
+                <AudioPreview
+                    fileUrl={mediaUrl}
+                    filename={file.filename ?? "Audio"}
+                    inline={false}
+                />
+            );
+        }
+
+        if (file.mimeType && isVideo(file.mimeType)) {
+            return (
+                <VideoPreview
+                    fileUrl={mediaUrl}
+                    filename={file.filename ?? "Video"}
+                    inline={false}
+                />
+            );
+        }
+
+        if (file.mimeType && isPdf(file.mimeType)) {
+            return (
+                <iframe
+                    src={mediaUrl}
+                    style={{
+                        width: "100%",
+                        height: "80vh",
+                        border: "none",
+                    }}
+                    title={file.filename ?? "PDF Preview"}
+                />
+            );
+        }
+
+        return (
+            <Text c="dimmed" ta="center">
+                Preview not available for this file type
+            </Text>
+        );
+    };
+
+    return (
+        <Modal
+            opened={opened}
+            onClose={onClose}
+            title={file.filename ?? "Media Preview"}
+            size="xl"
+            centered
+        >
+            {renderPreview()}
+        </Modal>
+    );
+}
+
 // Media Action Menu Component
 function MediaActionMenu({
     file,
     onDownload,
     onDelete,
+    onPreview,
 }: {
     file: Media & { deletePermission?: { allowed: boolean; reason: string } };
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
+    onPreview?: (file: Media) => void;
 }) {
     const canDelete = file.deletePermission?.allowed ?? false;
+    const canPreviewFile = canPreview(file.mimeType ?? null);
     const mediaUrl = file.filename
         ? href(`/api/media/file/:filenameOrId`, {
             filenameOrId: file.filename,
@@ -619,6 +866,14 @@ function MediaActionMenu({
                 </ActionIcon>
             </Menu.Target>
             <Menu.Dropdown>
+                {canPreviewFile && onPreview && (
+                    <Menu.Item
+                        leftSection={<IconEye size={16} />}
+                        onClick={() => onPreview(file)}
+                    >
+                        Preview
+                    </Menu.Item>
+                )}
                 {mediaUrl && (
                     <Menu.Item
                         leftSection={<IconDownload size={16} />}
@@ -648,12 +903,14 @@ function MediaCard({
     onSelectionChange,
     onDownload,
     onDelete,
+    onOpenModal,
 }: {
     file: Media & { deletePermission?: { allowed: boolean; reason: string } };
     isSelected: boolean;
     onSelectionChange: (selected: boolean) => void;
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
+    onOpenModal?: (file: Media) => void;
 }) {
     const mediaUrl = file.filename
         ? href(`/api/media/file/:filenameOrId`, {
@@ -682,14 +939,29 @@ function MediaCard({
                             style={{ flexShrink: 0 }}
                         />
                         <Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
-                            {/* Thumbnail or Icon */}
+                            {/* Thumbnail, Preview, or Icon */}
                             <Group justify="center" style={{ minHeight: 150, overflow: "hidden" }}>
                                 {file.mimeType && isImage(file.mimeType) && mediaUrl ? (
                                     <Image
                                         src={mediaUrl}
                                         alt={file.alt ?? file.filename ?? "Media"}
                                         fit="contain"
-                                        style={{ maxHeight: 150, maxWidth: "100%" }}
+                                        style={{
+                                            maxHeight: 150,
+                                            maxWidth: "100%",
+                                        }}
+                                    />
+                                ) : file.mimeType && isAudio(file.mimeType) && mediaUrl ? (
+                                    <AudioPreview
+                                        fileUrl={mediaUrl}
+                                        filename={file.filename ?? "Audio"}
+                                        inline={true}
+                                    />
+                                ) : file.mimeType && isVideo(file.mimeType) && mediaUrl ? (
+                                    <VideoPreview
+                                        fileUrl={mediaUrl}
+                                        filename={file.filename ?? "Video"}
+                                        inline={true}
                                     />
                                 ) : (
                                     <Group
@@ -733,6 +1005,7 @@ function MediaCard({
                                     file={file}
                                     onDownload={onDownload}
                                     onDelete={onDelete}
+                                    onPreview={onOpenModal}
                                 />
                             </Group>
                         </Stack>
@@ -750,12 +1023,14 @@ function MediaCardView({
     onSelectionChange,
     onDownload,
     onDelete,
+    onOpenModal,
 }: {
     media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
     selectedCardIds: number[];
     onSelectionChange: (ids: number[]) => void;
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
+    onOpenModal?: (file: Media) => void;
 }) {
     const handleCheckboxChange = (fileId: number, checked: boolean) => {
         if (checked) {
@@ -775,6 +1050,7 @@ function MediaCardView({
                     onSelectionChange={(checked) => handleCheckboxChange(file.id, checked)}
                     onDownload={onDownload}
                     onDelete={onDelete}
+                    onOpenModal={onOpenModal}
                 />
             ))}
         </Grid>
@@ -788,12 +1064,14 @@ function MediaTableView({
     onSelectionChange,
     onDownload,
     onDelete,
+    onOpenModal,
 }: {
     media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
     selectedRecords: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
     onSelectionChange: (records: (Media & { deletePermission?: { allowed: boolean; reason: string } })[]) => void;
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
+    onOpenModal?: (file: Media) => void;
 }) {
     const columns = [
         {
@@ -839,6 +1117,7 @@ function MediaTableView({
                     file={file}
                     onDownload={onDownload}
                     onDelete={onDelete}
+                    onPreview={onOpenModal}
                 />
             ),
         },
@@ -899,6 +1178,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
     const [viewMode, setViewMode] = useState<"card" | "table">("card");
     const [selectedRecords, setSelectedRecords] = useState<Media[]>([]);
     const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+    const [previewModalOpened, setPreviewModalOpened] = useState(false);
+    const [previewFile, setPreviewFile] = useState<Media | null>(null);
     const fileInputId = useId();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { deleteMedia } = useDeleteMedia();
@@ -959,6 +1240,16 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
         setSelectedRecords(records);
         // Sync to card selection state
         setSelectedCardIds(records.map((r) => r.id));
+    };
+
+    const handleOpenModal = (file: Media) => {
+        setPreviewFile(file);
+        setPreviewModalOpened(true);
+    };
+
+    const handleCloseModal = () => {
+        setPreviewModalOpened(false);
+        setPreviewFile(null);
     };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1058,6 +1349,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                                             withTooltip
                                             withLabels
                                             labelsType="value"
+                                            h={300}
+                                            w="100%"
                                         />
                                     </Stack>
                                 </Grid.Col>
@@ -1082,6 +1375,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                                                 withLabels
                                                 labelsType="percent"
                                                 chartLabel={`${prettyBytes(stats.totalSize)} / ${prettyBytes(storageLimit)}`}
+                                                h={300}
+                                                w="100%"
                                             />
                                         ) : (
                                             <DonutChart
@@ -1096,6 +1391,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                                                 withLabels
                                                 labelsType="value"
                                                 chartLabel={`${prettyBytes(stats.totalSize)}`}
+                                                h={300}
+                                                w="100%"
                                             />
                                         )}
                                     </Stack>
@@ -1160,6 +1457,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                             onSelectionChange={setSelectedCardIds}
                             onDownload={handleDownload}
                             onDelete={handleDelete}
+                            onOpenModal={handleOpenModal}
                         />
                         <MediaPagination
                             totalPages={pagination.totalPages}
@@ -1182,6 +1480,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                             onSelectionChange={handleTableSelectionChange}
                             onDownload={handleDownload}
                             onDelete={handleDelete}
+                            onOpenModal={handleOpenModal}
                         />
                         <MediaPagination
                             totalPages={pagination.totalPages}
@@ -1193,6 +1492,13 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                         />
                     </>
                 )}
+
+                {/* Media Preview Modal */}
+                <MediaPreviewModal
+                    file={previewFile}
+                    opened={previewModalOpened}
+                    onClose={handleCloseModal}
+                />
             </Stack>
         </Container>
     );

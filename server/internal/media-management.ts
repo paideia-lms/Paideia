@@ -300,6 +300,32 @@ export interface GetMediaBufferFromIdResult {
 	buffer: Buffer;
 }
 
+export interface GetMediaStreamFromFilenameArgs {
+	filename: string;
+	depth?: number;
+	range?: { start: number; end?: number };
+}
+
+export interface GetMediaStreamFromFilenameResult {
+	media: Media;
+	stream: ReadableStream<Uint8Array>;
+	contentLength: number;
+	contentRange?: string;
+}
+
+export interface GetMediaStreamFromIdArgs {
+	id: number | string;
+	depth?: number;
+	range?: { start: number; end?: number };
+}
+
+export interface GetMediaStreamFromIdResult {
+	media: Media;
+	stream: ReadableStream<Uint8Array>;
+	contentLength: number;
+	contentRange?: string;
+}
+
 /**
  * Get a media record by ID and fetch the file buffer from S3
  *
@@ -369,6 +395,200 @@ export const tryGetMediaBufferFromId = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get media buffer from id", {
+			cause: error,
+		}),
+);
+
+/**
+ * Get a media record by filename and fetch the file stream from S3
+ *
+ * This function:
+ * 1. Validates the filename
+ * 2. Fetches the media record from the database
+ * 3. Fetches the file stream from S3 storage (with optional range support)
+ * 4. Returns the media record, stream, content length, and optional content range
+ */
+export const tryGetMediaStreamFromFilename = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+		args: GetMediaStreamFromFilenameArgs,
+	): Promise<GetMediaStreamFromFilenameResult> => {
+		const { filename, depth = 0, range } = args;
+
+		// Validate filename
+		if (!filename || filename.trim() === "") {
+			throw new InvalidArgumentError("Filename is required");
+		}
+
+		// First, get the media record from the database
+		const mediaResult = await tryGetMediaByFilename(payload, {
+			filename,
+			depth,
+		});
+
+		if (!mediaResult.ok) {
+			throw mediaResult.error;
+		}
+
+		const media = mediaResult.value;
+		const fileSize = media.filesize || 0;
+
+		// Build GetObjectCommand with optional range
+		const commandOptions: {
+			Bucket: string;
+			Key: string;
+			Range?: string;
+		} = {
+			Bucket: envVars.S3_BUCKET.value,
+			Key: filename,
+		};
+
+		if (range) {
+			const end = range.end !== undefined ? range.end : fileSize - 1;
+			commandOptions.Range = `bytes=${range.start}-${end}`;
+		}
+
+		const command = new GetObjectCommand(commandOptions);
+		const response = await s3Client.send(command);
+
+		if (!response.Body) {
+			throw new NonExistingMediaError(`File not found in storage: ${filename}`);
+		}
+
+		// Get content length from response or media record
+		const contentLength = response.ContentLength ?? fileSize;
+		const contentRange = response.ContentRange;
+
+		// Convert S3 stream to Web ReadableStream
+		const s3Stream = response.Body as unknown as AsyncIterable<Uint8Array>;
+		const stream = new ReadableStream({
+			async start(controller) {
+				try {
+					for await (const chunk of s3Stream) {
+						controller.enqueue(
+							chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk),
+						);
+					}
+					controller.close();
+				} catch (error) {
+					controller.error(error);
+				}
+			},
+		});
+
+		return {
+			media,
+			stream,
+			contentLength,
+			contentRange: contentRange || undefined,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get media stream from filename", {
+			cause: error,
+		}),
+);
+
+/**
+ * Get a media record by ID and fetch the file stream from S3
+ *
+ * This function:
+ * 1. Validates the ID
+ * 2. Fetches the media record from the database
+ * 3. Fetches the file stream from S3 storage using the filename (with optional range support)
+ * 4. Returns the media record, stream, content length, and optional content range
+ */
+export const tryGetMediaStreamFromId = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+		args: GetMediaStreamFromIdArgs,
+	): Promise<GetMediaStreamFromIdResult> => {
+		const { id, depth = 0, range } = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Media ID is required");
+		}
+
+		// First, get the media record from the database
+		const mediaResult = await tryGetMediaById(payload, {
+			id,
+			depth,
+		});
+
+		if (!mediaResult.ok) {
+			throw mediaResult.error;
+		}
+
+		const media = mediaResult.value;
+
+		// Fetch the file from S3 using the filename from the media record
+		if (!media.filename) {
+			throw new NonExistingMediaError(
+				`Media with id '${id}' has no associated filename`,
+			);
+		}
+
+		const fileSize = media.filesize || 0;
+
+		// Build GetObjectCommand with optional range
+		const commandOptions: {
+			Bucket: string;
+			Key: string;
+			Range?: string;
+		} = {
+			Bucket: envVars.S3_BUCKET.value,
+			Key: media.filename,
+		};
+
+		if (range) {
+			const end = range.end !== undefined ? range.end : fileSize - 1;
+			commandOptions.Range = `bytes=${range.start}-${end}`;
+		}
+
+		const command = new GetObjectCommand(commandOptions);
+		const response = await s3Client.send(command);
+
+		if (!response.Body) {
+			throw new NonExistingMediaError(
+				`File not found in storage: ${media.filename}`,
+			);
+		}
+
+		// Get content length from response or media record
+		const contentLength = response.ContentLength ?? fileSize;
+		const contentRange = response.ContentRange;
+
+		// Convert S3 stream to Web ReadableStream
+		const s3Stream = response.Body as unknown as AsyncIterable<Uint8Array>;
+		const stream = new ReadableStream({
+			async start(controller) {
+				try {
+					for await (const chunk of s3Stream) {
+						controller.enqueue(
+							chunk instanceof Uint8Array ? chunk : new Uint8Array(chunk),
+						);
+					}
+					controller.close();
+				} catch (error) {
+					controller.error(error);
+				}
+			},
+		});
+
+		return {
+			media,
+			stream,
+			contentLength,
+			contentRange: contentRange || undefined,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get media stream from id", {
 			cause: error,
 		}),
 );

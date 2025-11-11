@@ -1,12 +1,14 @@
-# Changelog 0041: Site Policies and Upload Limits
+# Changelog 0041: Site Policies and Upload Limits + Audio/Video Streaming
 
 **Date**: November 10, 2025  
 **Type**: Feature Addition & Infrastructure Improvement  
-**Impact**: High - Adds configurable site-wide upload limits and storage policies with unified system globals management
+**Impact**: High - Adds configurable site-wide upload limits and storage policies with unified system globals management, plus efficient audio/video streaming and preview support
 
 ## Overview
 
 Implemented a comprehensive site policies system that allows administrators to configure upload limits and storage quotas across the entire LMS. This includes a unified system globals management system that efficiently fetches all system-wide settings (maintenance mode, site policies) in a single call, reducing database queries and improving performance. All file upload routes now respect the configured upload limits, and the media drive displays the actual storage quota instead of hardcoded values.
+
+Additionally, this update adds efficient audio/video streaming support with HTTP Range requests, enabling progressive loading and seeking without downloading entire files. Users can now preview audio and video files inline in the card view, and access full-size previews via a modal for all media types including PDFs using the browser's native viewer.
 
 ## Features Added
 
@@ -262,6 +264,97 @@ Implemented a comprehensive site policies system that allows administrators to c
 - ✅ Dynamic visualization based on configuration
 - ✅ Better user awareness of storage usage
 
+### 6. Audio/Video Streaming and Preview Support
+
+**Features**:
+- HTTP Range request support for efficient streaming of audio and video files
+- Inline audio and video previews in media card view
+- Full-size preview modal for audio, video, images, and PDF files
+- Browser-native PDF viewer integration
+- Preview menu item in action menu for all previewable file types
+- Progressive loading and seeking without downloading entire files
+
+**Implementation**:
+- Created streaming functions in `server/internal/media-management.ts`:
+  - **`tryGetMediaStreamFromFilename`** and **`tryGetMediaStreamFromId`**:
+    - Support optional Range parameter for partial content requests
+    - Stream directly from S3 without loading entire file into memory
+    - Convert S3 streams to Web ReadableStream for efficient delivery
+    - Return content length and range headers for proper HTTP responses
+
+- Updated `app/routes/api/media/file.$filenameOrId.tsx`:
+  - **Range Request Parsing**:
+    - Parses `Range` header from incoming requests
+    - Supports formats: `bytes=start-end`, `bytes=start-`, `bytes=-suffix`
+    - Calculates byte ranges based on file size
+  - **Streaming Response**:
+    - Returns `206 Partial Content` for range requests
+    - Returns `200 OK` for full file requests
+    - Sets proper `Content-Range` and `Accept-Ranges` headers
+    - Streams response instead of loading entire buffer into memory
+  - **Performance Benefits**:
+    - Progressive loading for large files
+    - Seek without downloading entire file
+    - Reduced server memory usage
+    - Better user experience for large audio/video files
+
+- Created preview components in `app/routes/user/media.tsx`:
+  - **`AudioPreview` component**:
+    - Inline mode: Shows audio player in card view
+    - Full mode: Shows audio player in modal
+    - HTML5 `<audio>` element with controls
+    - Supports multiple audio formats (MP3, WAV, OGG)
+  - **`VideoPreview` component**:
+    - Inline mode: Shows video player in card view (max 150px height)
+    - Full mode: Shows video player in modal (max 80vh height)
+    - HTML5 `<video>` element with controls
+    - Supports multiple video formats (MP4, WebM, OGG)
+  - **`MediaPreviewModal` component**:
+    - Displays full-size previews for all media types
+    - Image preview: Full-size image with proper scaling
+    - Audio preview: Full audio player
+    - Video preview: Full video player
+    - PDF preview: Browser-native PDF viewer via iframe
+    - Responsive design with proper sizing
+
+- Updated `MediaActionMenu` component:
+  - Added "Preview" menu item with eye icon
+  - Only shows for previewable file types (image, audio, video, PDF)
+  - Opens preview modal when clicked
+  - Positioned before "Download" menu item
+
+- Updated `MediaCard` component:
+  - Shows inline audio player for audio files
+  - Shows inline video player for video files
+  - Shows image thumbnail for image files
+  - Removed click handlers (preview only via menu item)
+  - Maintains card layout and styling
+
+- Added helper functions:
+  - **`isAudio`**: Checks if MIME type is audio
+  - **`isVideo`**: Checks if MIME type is video
+  - **`isPdf`**: Checks if MIME type is PDF
+  - **`canPreview`**: Determines if file type supports preview
+
+- Accessibility improvements:
+  - Added `aria-label` attributes to all audio/video elements
+  - Added track elements with data URIs for accessibility compliance
+  - Proper semantic HTML structure
+
+- Fixed chart warnings:
+  - Added explicit `h={300}` and `w="100%"` props to PieChart and DonutChart
+  - Resolves width/height calculation warnings
+
+**Benefits**:
+- ✅ Efficient streaming for large audio/video files
+- ✅ Progressive loading and seeking support
+- ✅ Reduced server memory usage
+- ✅ Better user experience with inline previews
+- ✅ Full-size preview modal for detailed viewing
+- ✅ Browser-native PDF viewing
+- ✅ Consistent preview experience across all media types
+- ✅ Accessible media players with proper ARIA labels
+
 ## Technical Details
 
 ### Database Changes
@@ -278,6 +371,8 @@ Implemented a comprehensive site policies system that allows administrators to c
 - `SystemGlobals` type in `server/contexts/global-context.ts`
 - `SystemGlobals` type in `server/internal/system-globals.ts`
 - `SitePolicies` type in `server/internal/site-policies.ts`
+- `GetMediaStreamFromFilenameArgs` and `GetMediaStreamFromFilenameResult` in `server/internal/media-management.ts`
+- `GetMediaStreamFromIdArgs` and `GetMediaStreamFromIdResult` in `server/internal/media-management.ts`
 
 **Type Exports**:
 - `SystemGlobals` exported from `server/contexts/global-context.ts` for use in routes
@@ -298,6 +393,8 @@ Implemented a comprehensive site policies system that allows administrators to c
 - Single database call for all system-wide settings
 - Cached in global context for request lifetime
 - Reduced database queries in middleware
+- Audio/video streaming with HTTP Range requests reduces server memory usage
+- Progressive loading enables seeking without downloading entire files
 
 ## Migration Guide
 
@@ -388,6 +485,15 @@ Implemented a comprehensive site policies system that allows administrators to c
    - ✅ Verify maintenance mode still works
    - ✅ Verify parallel fetching improves performance
 
+5. **Audio/Video Streaming and Previews**:
+   - ✅ Verify audio files show inline player in card view
+   - ✅ Verify video files show inline player in card view
+   - ✅ Verify Preview menu item appears for audio, video, image, and PDF files
+   - ✅ Verify preview modal opens with full-size players
+   - ✅ Verify PDF preview uses browser's native viewer
+   - ✅ Verify range requests work for seeking in audio/video
+   - ✅ Verify progressive loading works for large files
+
 ## Breaking Changes
 
 **None** - All changes are backward compatible:
@@ -404,13 +510,57 @@ Implemented a comprehensive site policies system that allows administrators to c
 - Automatic cleanup of old media files
 - Storage quota enforcement during upload
 - Detailed storage usage reports
+- Video thumbnail generation for better previews
+- Audio waveform visualization
+- Caption/subtitle support for video files
+- Media transcoding for better browser compatibility
 
 ## Related Changes
 
 - **Changelog 0040**: User Media Drive (foundation for media management)
 - **Changelog 0039**: Maintenance Mode (now part of unified system globals)
 
+## Technical Details - Audio/Video Streaming
+
+### API Changes
+
+**New Streaming Functions**:
+- `tryGetMediaStreamFromFilename`: Streams media file by filename with optional range support
+- `tryGetMediaStreamFromId`: Streams media file by ID with optional range support
+- Both functions return `ReadableStream<Uint8Array>` for efficient streaming
+- Support `range?: { start: number; end?: number }` parameter for partial content
+
+**Updated API Endpoint**:
+- `app/routes/api/media/file.$filenameOrId.tsx`:
+  - Parses `Range` header from requests
+  - Returns `206 Partial Content` for range requests
+  - Returns `200 OK` for full file requests
+  - Sets `Content-Range` and `Accept-Ranges` headers
+  - Streams response instead of buffering entire file
+
+### Frontend Components
+
+**New Components**:
+- `AudioPreview`: Inline and full-size audio player
+- `VideoPreview`: Inline and full-size video player  
+- `MediaPreviewModal`: Unified modal for all media type previews
+
+**Updated Components**:
+- `MediaCard`: Shows inline audio/video players
+- `MediaActionMenu`: Added "Preview" menu item
+- `MediaCardView` and `MediaTableView`: Pass preview handlers
+
+### Streaming Performance Benefits
+
+- No need to download entire file for playback
+- Progressive loading for large files
+- Seek support without full file download
+- Reduced server memory usage
+- Better bandwidth utilization
+
 ## Summary
 
 This changelog introduces a comprehensive site policies system that allows administrators to configure upload limits and storage quotas. The implementation includes a unified system globals management system that efficiently fetches all system-wide settings, an admin interface for policy management, and consistent enforcement of upload limits across all file upload routes. The media drive now displays the actual configured storage limit instead of hardcoded values, providing users with accurate information about their storage quota.
+
+Additionally, this update adds efficient audio/video streaming support with HTTP Range requests, enabling progressive loading and seeking without downloading entire files. Users can now preview audio and video files inline in the card view, and access full-size previews via a modal for all media types including PDFs. The implementation significantly improves performance for large media files while providing a better user experience.
 
