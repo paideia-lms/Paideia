@@ -117,3 +117,46 @@ export const SitePolicies = {
 		},
 	],
 } as const satisfies GlobalConfig;
+
+// Appearance settings - controls site-level CSS stylesheets
+export const AppearanceSettings = {
+	slug: "appearance-settings",
+	fields: [
+		{
+			name: "additionalCssStylesheets",
+			type: "array",
+			label: "Additional CSS Stylesheets",
+			admin: {
+				description:
+					"Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence.",
+			},
+			fields: [
+				{
+					name: "url",
+					type: "text",
+					required: true,
+					label: "Stylesheet URL",
+					admin: {
+						description:
+							"Full URL to the CSS stylesheet (e.g., https://example.com/style.css). Must be a valid HTTP/HTTPS URL.",
+					},
+					validate: (value: string) => {
+						if (!value) {
+							return "URL is required";
+						}
+						try {
+							const url = new URL(value);
+							if (url.protocol !== "http:" && url.protocol !== "https:") {
+								return "URL must use HTTP or HTTPS protocol";
+							}
+							return true;
+						} catch {
+							return "Invalid URL format";
+						}
+					},
+				},
+			],
+			defaultValue: [],
+		},
+	],
+} as const satisfies GlobalConfig;

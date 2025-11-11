@@ -73,6 +73,7 @@ export type PageInfo = {
 	isAdminMaintenance: boolean;
 	isAdminSitePolicies: boolean;
 	isAdminMedia: boolean;
+	isAdminAppearance: boolean;
 	/**
 	 * the params of the current route
 	 */
@@ -90,6 +91,9 @@ export type SystemGlobals = {
 	sitePolicies: {
 		userMediaStorageTotal: number | null;
 		siteUploadLimit: number | null;
+	};
+	appearanceSettings: {
+		additionalCssStylesheets: string[];
 	};
 };
 

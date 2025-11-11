@@ -125,6 +125,9 @@ async function startServer() {
 									userMediaStorageTotal: null,
 									siteUploadLimit: null,
 								},
+								appearanceSettings: {
+									additionalCssStylesheets: [],
+								},
 							},
 							pageInfo: {
 								isInAdminLayout: false,
@@ -185,6 +188,7 @@ async function startServer() {
 								isAdminMaintenance: false,
 								isAdminSitePolicies: false,
 								isAdminMedia: false,
+								isAdminAppearance: false,
 								params: {},
 							},
 						});

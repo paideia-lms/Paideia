@@ -483,6 +483,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Courses" },
 					{ title: "Manage tags" },
 					{ title: "Additional HTML" },
+					{ title: "Additional CSS", href: href("/admin/appearance") },
 					{ title: "Templates" },
 					{ title: "Advanced theme settings" },
 					{ title: "Themes" },

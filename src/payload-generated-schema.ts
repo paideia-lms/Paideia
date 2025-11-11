@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type { } from "@payloadcms/db-postgres";
+import type {} from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -1009,7 +1009,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references((): AnyPgColumn => users.id, {
+      .references(() => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {
@@ -2430,6 +2430,43 @@ export const site_policies = pgTable("site_policies", {
   }),
 });
 
+export const appearance_settings_additional_css_stylesheets = pgTable(
+  "appearance_settings_additional_css_stylesheets",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    url: varchar("url").notNull(),
+  },
+  (columns) => [
+    index("appearance_settings_additional_css_stylesheets_order_idx").on(
+      columns._order,
+    ),
+    index("appearance_settings_additional_css_stylesheets_parent_id_idx").on(
+      columns._parentID,
+    ),
+    foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [appearance_settings.id],
+      name: "appearance_settings_additional_css_stylesheets_parent_id_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const appearance_settings = pgTable("appearance_settings", {
+  id: serial("id").primaryKey(),
+  updatedAt: timestamp("updated_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+  createdAt: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+});
+
 export const payload_jobs_stats = pgTable("payload_jobs_stats", {
   id: serial("id").primaryKey(),
   stats: jsonb("stats"),
@@ -3314,6 +3351,25 @@ export const relations_maintenance_settings = relations(
   () => ({}),
 );
 export const relations_site_policies = relations(site_policies, () => ({}));
+export const relations_appearance_settings_additional_css_stylesheets =
+  relations(appearance_settings_additional_css_stylesheets, ({ one }) => ({
+    _parentID: one(appearance_settings, {
+      fields: [appearance_settings_additional_css_stylesheets._parentID],
+      references: [appearance_settings.id],
+      relationName: "additionalCssStylesheets",
+    }),
+  }));
+export const relations_appearance_settings = relations(
+  appearance_settings,
+  ({ many }) => ({
+    additionalCssStylesheets: many(
+      appearance_settings_additional_css_stylesheets,
+      {
+        relationName: "additionalCssStylesheets",
+      },
+    ),
+  }),
+);
 export const relations_payload_jobs_stats = relations(
   payload_jobs_stats,
   () => ({}),
@@ -3399,6 +3455,8 @@ type DatabaseSchema = {
   registration_settings: typeof registration_settings;
   maintenance_settings: typeof maintenance_settings;
   site_policies: typeof site_policies;
+  appearance_settings_additional_css_stylesheets: typeof appearance_settings_additional_css_stylesheets;
+  appearance_settings: typeof appearance_settings;
   payload_jobs_stats: typeof payload_jobs_stats;
   relations_users_sessions: typeof relations_users_sessions;
   relations_users: typeof relations_users;
@@ -3456,6 +3514,8 @@ type DatabaseSchema = {
   relations_registration_settings: typeof relations_registration_settings;
   relations_maintenance_settings: typeof relations_maintenance_settings;
   relations_site_policies: typeof relations_site_policies;
+  relations_appearance_settings_additional_css_stylesheets: typeof relations_appearance_settings_additional_css_stylesheets;
+  relations_appearance_settings: typeof relations_appearance_settings;
   relations_payload_jobs_stats: typeof relations_payload_jobs_stats;
 };
 

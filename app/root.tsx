@@ -141,6 +141,7 @@ export const middleware = [
 		let isAdminMaintenance = false;
 		let isAdminSitePolicies = false;
 		let isAdminMedia = false;
+		let isAdminAppearance = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
 			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
@@ -222,6 +223,10 @@ export const middleware = [
 			)
 				isAdminSitePolicies = true;
 			else if (route.id === "routes/admin/media") isAdminMedia = true;
+			else if (
+				route.id === ("routes/admin/appearance" as typeof route.id)
+			)
+				isAdminAppearance = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -287,6 +292,7 @@ export const middleware = [
 				isAdminMaintenance,
 				isAdminSitePolicies,
 				isAdminMedia,
+				isAdminAppearance,
 				params: params as Record<string, string>,
 			},
 		});
@@ -324,6 +330,9 @@ export const middleware = [
 				sitePolicies: {
 					userMediaStorageTotal: null,
 					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
 				},
 			};
 
@@ -627,7 +636,8 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-	const { payload, requestInfo, pageInfo } = context.get(globalContextKey);
+	const { payload, requestInfo, pageInfo, systemGlobals } =
+		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
 	// console.log(routes)
@@ -655,6 +665,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			timestamp: timestamp,
 			pageInfo: pageInfo,
 			theme: theme,
+			additionalCssStylesheets:
+				systemGlobals.appearanceSettings.additionalCssStylesheets,
 		};
 	}
 
@@ -670,6 +682,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		pageInfo: pageInfo,
 		theme: theme,
 		isDevelopment: process.env.NODE_ENV === "development",
+		additionalCssStylesheets:
+			systemGlobals.appearanceSettings.additionalCssStylesheets,
 	};
 }
 
@@ -731,7 +745,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme, isDevelopment } = loaderData;
+	const { theme, isDevelopment, additionalCssStylesheets } = loaderData;
 
 	return (
 		<html
@@ -754,6 +768,10 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
 				/>
+				{/* Additional CSS stylesheets configured by admin */}
+				{additionalCssStylesheets.map((url) => (
+					<link key={url} rel="stylesheet" href={url} />
+				))}
 				{isDevelopment && (
 					<script
 						crossOrigin="anonymous"

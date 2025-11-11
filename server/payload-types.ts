@@ -182,6 +182,7 @@ export interface Config {
     'registration-settings': RegistrationSetting;
     'maintenance-settings': MaintenanceSetting;
     'site-policies': SitePolicy;
+    'appearance-settings': AppearanceSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
@@ -189,6 +190,7 @@ export interface Config {
     'registration-settings': RegistrationSettingsSelect<false> | RegistrationSettingsSelect<true>;
     'maintenance-settings': MaintenanceSettingsSelect<false> | MaintenanceSettingsSelect<true>;
     'site-policies': SitePoliciesSelect<false> | SitePoliciesSelect<true>;
+    'appearance-settings': AppearanceSettingsSelect<false> | AppearanceSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -2004,6 +2006,27 @@ export interface SitePolicy {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "appearance-settings".
+ */
+export interface AppearanceSetting {
+  id: number;
+  /**
+   * Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence.
+   */
+  additionalCssStylesheets?:
+    | {
+        /**
+         * Full URL to the CSS stylesheet (e.g., https://example.com/style.css). Must be a valid HTTP/HTTPS URL.
+         */
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -2065,6 +2088,21 @@ export interface MaintenanceSettingsSelect<T extends boolean = true> {
 export interface SitePoliciesSelect<T extends boolean = true> {
   userMediaStorageTotal?: T;
   siteUploadLimit?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "appearance-settings_select".
+ */
+export interface AppearanceSettingsSelect<T extends boolean = true> {
+  additionalCssStylesheets?:
+    | T
+    | {
+        url?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;
