@@ -12,6 +12,7 @@ import {
 	tryGetMediaById,
 	tryGetMediaByFilename,
 	tryGetUserMediaStats,
+	tryRenameMedia,
 } from "./media-management";
 import { tryCreateUser } from "./user-management";
 
@@ -560,5 +561,94 @@ describe("Media Management", () => {
 				expect(count).toBeGreaterThanOrEqual(0);
 			}
 		}
+	});
+
+	test("should rename media file", async () => {
+		// First create a media file
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createResult = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-rename-original.png",
+			mimeType: "image/png",
+			alt: "Test rename original",
+			userId: testUserId,
+		});
+
+		expect(createResult.ok).toBe(true);
+
+		if (!createResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const createdMedia = createResult.value.media;
+
+		// Ensure filename exists
+		if (!createdMedia.filename) {
+			throw new Error("Created media has no filename");
+		}
+
+		const newFilename = "test-rename-new.png";
+
+		// Rename the media file
+		const renameResult = await tryRenameMedia(payload, s3Client, {
+			id: createdMedia.id,
+			newFilename,
+			userId: testUserId,
+		});
+
+		expect(renameResult.ok).toBe(true);
+
+		if (renameResult.ok) {
+			const renamedMedia = renameResult.value.media;
+			expect(renamedMedia.filename).toBe(newFilename);
+			expect(renamedMedia.id).toBe(createdMedia.id);
+
+			// Verify the old file is gone and new file exists by trying to get it
+			const getOldResult = await tryGetMediaByFilename(payload, {
+				filename: createdMedia.filename,
+				depth: 0,
+			});
+			expect(getOldResult.ok).toBe(false);
+
+			const getNewResult = await tryGetMediaByFilename(payload, {
+				filename: newFilename,
+				depth: 0,
+			});
+			expect(getNewResult.ok).toBe(true);
+		}
+	});
+
+	test("should fail to rename media with duplicate filename", async () => {
+		// Create two media files
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createResult1 = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-rename-duplicate-1.png",
+			mimeType: "image/png",
+			userId: testUserId,
+		});
+
+		const createResult2 = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-rename-duplicate-2.png",
+			mimeType: "image/png",
+			userId: testUserId,
+		});
+
+		expect(createResult1.ok).toBe(true);
+		expect(createResult2.ok).toBe(true);
+
+		if (!createResult1.ok || !createResult2.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		// Try to rename the second file to the first file's name
+		const renameResult = await tryRenameMedia(payload, s3Client, {
+			id: createResult2.value.media.id,
+			newFilename: "test-rename-duplicate-1.png",
+			userId: testUserId,
+		});
+
+		expect(renameResult.ok).toBe(false);
 	});
 });

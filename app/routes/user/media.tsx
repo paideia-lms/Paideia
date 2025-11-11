@@ -13,6 +13,7 @@ import {
     SegmentedControl,
     Stack,
     Text,
+    TextInput,
     Title,
 } from "@mantine/core";
 import { DataTable } from "mantine-datatable";
@@ -26,6 +27,7 @@ import {
     IconList,
     IconPhoto,
     IconPlus,
+    IconPencil,
     IconTrash,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
@@ -38,6 +40,7 @@ import {
 import { useId, useRef, useState } from "react";
 import prettyBytes from "pretty-bytes";
 import { href, useFetcher } from "react-router";
+import { useForm } from "@mantine/form";
 import { globalContextKey } from "server/contexts/global-context";
 import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -51,6 +54,7 @@ import {
     tryDeleteMedia,
     tryFindMediaByUser,
     tryGetUserMediaStats,
+    tryRenameMedia,
 } from "server/internal/media-management";
 import type { Media } from "server/payload-types";
 import { canDeleteMedia } from "server/utils/permissions";
@@ -190,7 +194,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export const action = async ({ request, context, params }: Route.ActionArgs) => {
-    const { payload, systemGlobals } = context.get(globalContextKey);
+    const { payload, systemGlobals, s3Client } = context.get(globalContextKey);
     const userSession = context.get(userContextKey);
 
     if (!userSession?.isAuthenticated) {
@@ -221,6 +225,89 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
     const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
     try {
+        // For PATCH requests (update/rename), we can read formData directly
+        if (request.method === "PATCH") {
+            assertRequestMethod(request.method, "PATCH");
+
+            const formData = await request.formData();
+            const mediaIdParam = formData.get("mediaId");
+            const newFilename = formData.get("newFilename")?.toString();
+            const alt = formData.get("alt")?.toString();
+            const caption = formData.get("caption")?.toString();
+
+            if (!mediaIdParam) {
+                return badRequest({ error: "Media ID is required" });
+            }
+
+            const mediaId = Number(mediaIdParam);
+            if (Number.isNaN(mediaId)) {
+                return badRequest({ error: "Invalid media ID" });
+            }
+
+            // Fetch media record to check permissions
+            const mediaRecord = await payload.findByID({
+                collection: "media",
+                id: mediaId,
+                depth: 0,
+            });
+
+            if (!mediaRecord) {
+                return badRequest({ error: "Media not found" });
+            }
+
+            // Check permissions
+            const createdById =
+                typeof mediaRecord.createdBy === "object" && mediaRecord.createdBy !== null
+                    ? mediaRecord.createdBy.id
+                    : mediaRecord.createdBy;
+            const deletePermission = canDeleteMedia(currentUser, createdById);
+
+            if (!deletePermission.allowed) {
+                return unauthorized({
+                    error: deletePermission.reason || "You don't have permission to update this media",
+                });
+            }
+
+            // If newFilename is provided, rename the file
+            if (newFilename) {
+                const renameResult = await tryRenameMedia(payload, s3Client, {
+                    id: mediaId,
+                    newFilename,
+                    userId: currentUser.id,
+                    transactionID,
+                });
+
+                if (!renameResult.ok) {
+                    await payload.db.rollbackTransaction(transactionID);
+                    return badRequest({ error: renameResult.error.message });
+                }
+            }
+
+            // Update alt and caption if provided
+            if (alt !== undefined || caption !== undefined) {
+                const updateData: Partial<Media> = {};
+                if (alt !== undefined) {
+                    updateData.alt = alt;
+                }
+                if (caption !== undefined) {
+                    updateData.caption = caption;
+                }
+
+                await payload.update({
+                    collection: "media",
+                    id: mediaId,
+                    data: updateData,
+                    req: { transactionID },
+                });
+            }
+
+            await payload.db.commitTransaction(transactionID);
+
+            return ok({
+                message: "Media updated successfully",
+            });
+        }
+
         // For DELETE requests, we can read formData directly (no file uploads)
         if (request.method === "DELETE") {
             assertRequestMethod(request.method, "DELETE");
@@ -464,6 +551,23 @@ export function useUploadMedia() {
 
     return {
         uploadMedia,
+        isLoading: fetcher.state !== "idle",
+        fetcher,
+    };
+}
+
+export function useRenameMedia() {
+    const fetcher = useFetcher<typeof clientAction>();
+
+    const renameMedia = (mediaId: number, newFilename: string) => {
+        const formData = new FormData();
+        formData.append("mediaId", mediaId.toString());
+        formData.append("newFilename", newFilename);
+        fetcher.submit(formData, { method: "PATCH" });
+    };
+
+    return {
+        renameMedia,
         isLoading: fetcher.state !== "idle",
         fetcher,
     };
@@ -752,6 +856,66 @@ function VideoPreview({
     );
 }
 
+// Media Rename Modal Component
+function MediaRenameModal({
+    file,
+    opened,
+    onClose,
+    onRename,
+}: {
+    file: Media | null;
+    opened: boolean;
+    onClose: () => void;
+    onRename: (mediaId: number, newFilename: string) => void;
+}) {
+    const form = useForm({
+        mode: "uncontrolled",
+        initialValues: {
+            filename: file?.filename || "",
+        },
+        validate: {
+            filename: (value) =>
+                !value || value.trim().length === 0
+                    ? "Filename is required"
+                    : null,
+        },
+    });
+
+    const handleSubmit = form.onSubmit((values) => {
+        if (!file) {
+            return;
+        }
+        onRename(file.id, values.filename.trim());
+        onClose();
+    });
+
+    return (
+        <Modal
+            key={file?.id} // Reset state when file changes
+            opened={opened}
+            onClose={onClose}
+            title="Rename File"
+            centered
+        >
+            <form onSubmit={handleSubmit}>
+                <Stack gap="md">
+                    <TextInput
+                        label="Filename"
+                        placeholder="Enter new filename"
+                        {...form.getInputProps("filename")}
+                    />
+                    <Group justify="flex-end">
+                        <Button variant="subtle" onClick={onClose} type="button">
+                            Cancel
+                        </Button>
+                        <Button type="submit">Rename</Button>
+                    </Group>
+                </Stack>
+            </form>
+        </Modal>
+    );
+}
+
 // Media Preview Modal Component
 function MediaPreviewModal({
     file,
@@ -844,11 +1008,13 @@ function MediaActionMenu({
     onDownload,
     onDelete,
     onPreview,
+    onRename,
 }: {
     file: Media & { deletePermission?: { allowed: boolean; reason: string } };
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
     onPreview?: (file: Media) => void;
+    onRename?: (file: Media) => void;
 }) {
     const canDelete = file.deletePermission?.allowed ?? false;
     const canPreviewFile = canPreview(file.mimeType ?? null);
@@ -882,6 +1048,14 @@ function MediaActionMenu({
                         Download
                     </Menu.Item>
                 )}
+                {onRename && (
+                    <Menu.Item
+                        leftSection={<IconPencil size={16} />}
+                        onClick={() => onRename(file)}
+                    >
+                        Rename
+                    </Menu.Item>
+                )}
                 {canDelete && (
                     <Menu.Item
                         leftSection={<IconTrash size={16} />}
@@ -904,6 +1078,7 @@ function MediaCard({
     onDownload,
     onDelete,
     onOpenModal,
+    onRename,
 }: {
     file: Media & { deletePermission?: { allowed: boolean; reason: string } };
     isSelected: boolean;
@@ -911,6 +1086,7 @@ function MediaCard({
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
     onOpenModal?: (file: Media) => void;
+    onRename?: (file: Media) => void;
 }) {
     const mediaUrl = file.filename
         ? href(`/api/media/file/:filenameOrId`, {
@@ -1006,6 +1182,7 @@ function MediaCard({
                                     onDownload={onDownload}
                                     onDelete={onDelete}
                                     onPreview={onOpenModal}
+                                    onRename={onRename}
                                 />
                             </Group>
                         </Stack>
@@ -1024,6 +1201,7 @@ function MediaCardView({
     onDownload,
     onDelete,
     onOpenModal,
+    onRename,
 }: {
     media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
     selectedCardIds: number[];
@@ -1031,6 +1209,7 @@ function MediaCardView({
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
     onOpenModal?: (file: Media) => void;
+    onRename?: (file: Media) => void;
 }) {
     const handleCheckboxChange = (fileId: number, checked: boolean) => {
         if (checked) {
@@ -1051,6 +1230,7 @@ function MediaCardView({
                     onDownload={onDownload}
                     onDelete={onDelete}
                     onOpenModal={onOpenModal}
+                    onRename={onRename}
                 />
             ))}
         </Grid>
@@ -1065,6 +1245,7 @@ function MediaTableView({
     onDownload,
     onDelete,
     onOpenModal,
+    onRename,
 }: {
     media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
     selectedRecords: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
@@ -1072,6 +1253,7 @@ function MediaTableView({
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
     onOpenModal?: (file: Media) => void;
+    onRename?: (file: Media) => void;
 }) {
     const columns = [
         {
@@ -1118,6 +1300,7 @@ function MediaTableView({
                     onDownload={onDownload}
                     onDelete={onDelete}
                     onPreview={onOpenModal}
+                    onRename={onRename}
                 />
             ),
         },
@@ -1180,11 +1363,14 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
     const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
     const [previewModalOpened, setPreviewModalOpened] = useState(false);
     const [previewFile, setPreviewFile] = useState<Media | null>(null);
+    const [renameModalOpened, setRenameModalOpened] = useState(false);
+    const [renameFile, setRenameFile] = useState<Media | null>(null);
     const fileInputId = useId();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { deleteMedia } = useDeleteMedia();
     const { downloadMedia } = useDownloadMedia();
     const { uploadMedia } = useUploadMedia();
+    const { renameMedia } = useRenameMedia();
 
     const handleDownload = (file: Media) => {
         downloadMedia(file);
@@ -1250,6 +1436,20 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
     const handleCloseModal = () => {
         setPreviewModalOpened(false);
         setPreviewFile(null);
+    };
+
+    const handleOpenRenameModal = (file: Media) => {
+        setRenameFile(file);
+        setRenameModalOpened(true);
+    };
+
+    const handleCloseRenameModal = () => {
+        setRenameModalOpened(false);
+        setRenameFile(null);
+    };
+
+    const handleRename = (mediaId: number, newFilename: string) => {
+        renameMedia(mediaId, newFilename);
     };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1458,6 +1658,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                             onDownload={handleDownload}
                             onDelete={handleDelete}
                             onOpenModal={handleOpenModal}
+                            onRename={handleOpenRenameModal}
                         />
                         <MediaPagination
                             totalPages={pagination.totalPages}
@@ -1481,6 +1682,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                             onDownload={handleDownload}
                             onDelete={handleDelete}
                             onOpenModal={handleOpenModal}
+                            onRename={handleOpenRenameModal}
                         />
                         <MediaPagination
                             totalPages={pagination.totalPages}
@@ -1498,6 +1700,14 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                     file={previewFile}
                     opened={previewModalOpened}
                     onClose={handleCloseModal}
+                />
+
+                {/* Media Rename Modal */}
+                <MediaRenameModal
+                    file={renameFile}
+                    opened={renameModalOpened}
+                    onClose={handleCloseRenameModal}
+                    onRename={handleRename}
                 />
             </Stack>
         </Container>

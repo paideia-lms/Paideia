@@ -1,6 +1,6 @@
 import "@total-typescript/ts-reset";
 import type { S3Client } from "@aws-sdk/client-s3";
-import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { CopyObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3";
 import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import {
@@ -1041,6 +1041,166 @@ export const tryFindMediaByUser = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to find media by user", {
+			cause: error,
+		}),
+);
+
+export interface RenameMediaArgs {
+	id: number | string;
+	newFilename: string;
+	userId: number;
+	transactionID?: string | number;
+}
+
+export interface RenameMediaResult {
+	media: Media;
+}
+
+/**
+ * Renames a media file in both S3 and the database
+ *
+ * This function:
+ * 1. Validates the media record exists
+ * 2. Copies the file in S3 with the new filename
+ * 3. Deletes the old file from S3
+ * 4. Updates the media record in the database
+ * 5. Uses transactions to ensure atomicity
+ */
+export const tryRenameMedia = Result.wrap(
+	async (
+		payload: Payload,
+		s3Client: S3Client,
+		args: RenameMediaArgs,
+	): Promise<RenameMediaResult> => {
+		const {
+			id,
+			newFilename,
+			userId,
+			transactionID: providedTransactionID,
+		} = args;
+
+		// Validate required fields
+		if (!id) {
+			throw new InvalidArgumentError("Media ID is required");
+		}
+
+		if (!newFilename || newFilename.trim() === "") {
+			throw new InvalidArgumentError("New filename is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Use provided transaction or create a new one
+		const shouldManageTransaction = !providedTransactionID;
+		const transactionID =
+			providedTransactionID || (await payload.db.beginTransaction());
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		try {
+			// Get the media record
+			const mediaResult = await tryGetMediaById(payload, {
+				id,
+				depth: 0,
+			});
+
+			if (!mediaResult.ok) {
+				throw mediaResult.error;
+			}
+
+			const media = mediaResult.value;
+
+			// Verify user exists
+			const user = await payload.findByID({
+				collection: "users",
+				id: userId,
+				req: { transactionID },
+			});
+
+			if (!user) {
+				throw new InvalidArgumentError(`User with id '${userId}' not found`);
+			}
+
+			// Check if media has a filename
+			if (!media.filename) {
+				throw new NonExistingMediaError(
+					`Media with id '${id}' has no associated filename`,
+				);
+			}
+
+			const oldFilename = media.filename;
+
+			// If the new filename is the same as the old one, just return the media
+			if (oldFilename === newFilename) {
+				if (shouldManageTransaction) {
+					await payload.db.commitTransaction(transactionID);
+				}
+				return { media };
+			}
+
+			// Check if a media with the new filename already exists
+			const existingMediaResult = await tryGetMediaByFilename(payload, {
+				filename: newFilename,
+				depth: 0,
+				transactionID,
+			});
+
+			if (existingMediaResult.ok) {
+				throw new InvalidArgumentError(
+					`A media file with filename '${newFilename}' already exists`,
+				);
+			}
+
+			// Copy the file in S3 with the new filename
+			const copyCommand = new CopyObjectCommand({
+				Bucket: envVars.S3_BUCKET.value,
+				CopySource: `${envVars.S3_BUCKET.value}/${oldFilename}`,
+				Key: newFilename,
+			});
+
+			await s3Client.send(copyCommand);
+
+			// Delete the old file from S3
+			const deleteCommand = new DeleteObjectCommand({
+				Bucket: envVars.S3_BUCKET.value,
+				Key: oldFilename,
+			});
+
+			await s3Client.send(deleteCommand);
+
+			// Update the media record in the database
+			const updatedMedia = await payload.update({
+				collection: "media",
+				id,
+				data: {
+					filename: newFilename,
+				},
+				req: { transactionID },
+			});
+
+			// Commit transaction only if we created it
+			if (shouldManageTransaction) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return {
+				media: updatedMedia,
+			};
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (shouldManageTransaction) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to rename media", {
 			cause: error,
 		}),
 );
