@@ -101,6 +101,7 @@ export const routes = [
 			route("admin/dependencies", "routes/admin/dependencies.tsx"),
 			route("admin/cron-jobs", "routes/admin/cron-jobs.tsx"),
 			route("admin/maintenance", "routes/admin/maintenance.tsx"),
+			route("admin/sitepolicies", "routes/admin/sitepolicies.tsx"),
 		]),
 	]),
 ] as const satisfies RouteConfig;

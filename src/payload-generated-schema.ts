@@ -2410,6 +2410,26 @@ export const maintenance_settings = pgTable("maintenance_settings", {
   }),
 });
 
+export const site_policies = pgTable("site_policies", {
+  id: serial("id").primaryKey(),
+  userMediaStorageTotal: numeric("user_media_storage_total", {
+    mode: "number",
+  }).default(10737418240),
+  siteUploadLimit: numeric("site_upload_limit", { mode: "number" }).default(
+    20971520,
+  ),
+  updatedAt: timestamp("updated_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+  createdAt: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+});
+
 export const payload_jobs_stats = pgTable("payload_jobs_stats", {
   id: serial("id").primaryKey(),
   stats: jsonb("stats"),
@@ -3293,6 +3313,7 @@ export const relations_maintenance_settings = relations(
   maintenance_settings,
   () => ({}),
 );
+export const relations_site_policies = relations(site_policies, () => ({}));
 export const relations_payload_jobs_stats = relations(
   payload_jobs_stats,
   () => ({}),
@@ -3377,6 +3398,7 @@ type DatabaseSchema = {
   system_grade_table: typeof system_grade_table;
   registration_settings: typeof registration_settings;
   maintenance_settings: typeof maintenance_settings;
+  site_policies: typeof site_policies;
   payload_jobs_stats: typeof payload_jobs_stats;
   relations_users_sessions: typeof relations_users_sessions;
   relations_users: typeof relations_users;
@@ -3433,6 +3455,7 @@ type DatabaseSchema = {
   relations_system_grade_table: typeof relations_system_grade_table;
   relations_registration_settings: typeof relations_registration_settings;
   relations_maintenance_settings: typeof relations_maintenance_settings;
+  relations_site_policies: typeof relations_site_policies;
   relations_payload_jobs_stats: typeof relations_payload_jobs_stats;
 };
 

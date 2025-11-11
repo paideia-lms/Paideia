@@ -38,6 +38,11 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/new";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
@@ -64,7 +69,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -101,6 +106,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 	}
 
+	// Get upload limit from system globals
+	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+
 	try {
 		// Parse form data with upload handler
 		const uploadHandler = async (fileUpload: FileUpload) => {
@@ -131,6 +139,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
+			maxFileSize !== undefined ? { maxFileSize } : undefined,
 		);
 
 		const parsed = z
@@ -201,6 +210,22 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		// Rollback on any error
 		await payload.db.rollbackTransaction(transactionID);
 		console.error("User creation error:", error);
+
+		// Handle file size and count limit errors
+		if (error instanceof MaxFileSizeExceededError) {
+			return badRequest({
+				success: false,
+				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
+			});
+		}
+
+		if (error instanceof MaxFilesExceededError) {
+			return badRequest({
+				success: false,
+				error: error.message,
+			});
+		}
+
 		return badRequest({
 			success: false,
 			error: error instanceof Error ? error.message : "Failed to create user",

@@ -11,6 +11,7 @@ import {
 	tryGetMediaBufferFromFilename,
 	tryGetMediaById,
 	tryGetMediaByFilename,
+	tryGetUserMediaStats,
 } from "./media-management";
 import { tryCreateUser } from "./user-management";
 
@@ -506,5 +507,58 @@ describe("Media Management", () => {
 		});
 
 		expect(getResult.ok).toBe(true);
+	});
+
+	test("should get user media stats", async () => {
+		// Create some media files with different types
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-stats-1.png",
+			mimeType: "image/png",
+			userId: testUserId,
+		});
+
+		await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-stats-2.jpg",
+			mimeType: "image/jpeg",
+			userId: testUserId,
+		});
+
+		await tryCreateMedia(payload, {
+			file: Buffer.from("test pdf content"),
+			filename: "test-stats.pdf",
+			mimeType: "application/pdf",
+			userId: testUserId,
+		});
+
+		// Get stats
+		const result = await tryGetUserMediaStats({
+			payload,
+			userId: testUserId,
+			overrideAccess: true,
+		});
+
+		expect(result.ok).toBe(true);
+
+		if (result.ok) {
+			const stats = result.value;
+
+			// Check data shape
+			expect(typeof stats.count).toBe("number");
+			expect(stats.count).toBeGreaterThanOrEqual(0);
+			expect(typeof stats.totalSize).toBe("number");
+			expect(stats.totalSize).toBeGreaterThanOrEqual(0);
+			expect(typeof stats.mediaTypeCount).toBe("object");
+			expect(stats.mediaTypeCount).not.toBeNull();
+
+			// Check media type count structure
+			for (const [type, count] of Object.entries(stats.mediaTypeCount)) {
+				expect(typeof type).toBe("string");
+				expect(typeof count).toBe("number");
+				expect(count).toBeGreaterThanOrEqual(0);
+			}
+		}
 	});
 });

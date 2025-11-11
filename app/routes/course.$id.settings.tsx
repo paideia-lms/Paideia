@@ -43,6 +43,11 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/course.$id.settings";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -109,8 +114,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -148,7 +153,7 @@ export const action = async ({
 	context,
 	params,
 }: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { id } = params;
 	if (!userSession?.isAuthenticated) {
@@ -208,6 +213,9 @@ export const action = async ({
 			error: "Failed to begin transaction",
 		});
 	}
+
+	// Get upload limit from system globals
+	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	try {
 		// Store uploaded media info - map fieldName to uploaded filename
@@ -271,6 +279,7 @@ export const action = async ({
 		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
+			maxFileSize !== undefined ? { maxFileSize } : undefined,
 		);
 
 		// console.log(formData.get("category"));
@@ -369,6 +378,22 @@ export const action = async ({
 		// Rollback on any error
 		await payload.db.rollbackTransaction(transactionID);
 		console.error("Course update error:", error);
+
+		// Handle file size and count limit errors
+		if (error instanceof MaxFileSizeExceededError) {
+			return badRequest({
+				success: false,
+				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
+			});
+		}
+
+		if (error instanceof MaxFilesExceededError) {
+			return badRequest({
+				success: false,
+				error: error.message,
+			});
+		}
+
 		return badRequest({
 			success: false,
 			error: error instanceof Error ? error.message : "Failed to update course",

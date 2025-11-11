@@ -111,8 +111,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: profileUser.avatar.filename,
-					})
+					filenameOrId: profileUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -204,7 +204,7 @@ export const action = async ({
 	context,
 	params,
 }: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -235,6 +235,9 @@ export const action = async ({
 		});
 	}
 
+	// Get upload limit from system globals
+	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+
 	try {
 		const uploadHandler = async (fileUpload: FileUpload) => {
 			if (fileUpload.fieldName === "avatar") {
@@ -261,6 +264,7 @@ export const action = async ({
 		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
+			maxFileSize !== undefined ? { maxFileSize } : undefined,
 		);
 
 		const isAdmin = currentUser.role === "admin";

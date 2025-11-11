@@ -88,3 +88,32 @@ export const MaintenanceSettings = {
 		},
 	],
 } as const satisfies GlobalConfig;
+
+// Site policies settings - controls media storage and upload limits
+export const SitePolicies = {
+	slug: "site-policies",
+	fields: [
+		{
+			name: "userMediaStorageTotal",
+			type: "number",
+			label: "User Media Storage Total (bytes)",
+			admin: {
+				description:
+					"Maximum total storage allowed per user for media files. Leave empty for unlimited storage.",
+			},
+			min: 0,
+			defaultValue: 10 * 1024 * 1024 * 1024, // 10 GB
+		},
+		{
+			name: "siteUploadLimit",
+			type: "number",
+			label: "Site Upload Limit (bytes)",
+			admin: {
+				description:
+					"Maximum file size allowed for uploads across the site. Leave empty for unlimited size.",
+			},
+			min: 0,
+			defaultValue: 20 * 1024 * 1024, // 20 MB
+		},
+	],
+} as const satisfies GlobalConfig;

@@ -75,7 +75,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateMaintenanceSettings({
 		payload,
-		user: currentUser as unknown as import("server/payload-types").User,
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 		data: {
 			maintenanceMode,
 		},

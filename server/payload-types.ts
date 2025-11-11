@@ -181,12 +181,14 @@ export interface Config {
     'system-grade-table': SystemGradeTable;
     'registration-settings': RegistrationSetting;
     'maintenance-settings': MaintenanceSetting;
+    'site-policies': SitePolicy;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
     'system-grade-table': SystemGradeTableSelect<false> | SystemGradeTableSelect<true>;
     'registration-settings': RegistrationSettingsSelect<false> | RegistrationSettingsSelect<true>;
     'maintenance-settings': MaintenanceSettingsSelect<false> | MaintenanceSettingsSelect<true>;
+    'site-policies': SitePoliciesSelect<false> | SitePoliciesSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -1985,6 +1987,23 @@ export interface MaintenanceSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-policies".
+ */
+export interface SitePolicy {
+  id: number;
+  /**
+   * Maximum total storage allowed per user for media files. Leave empty for unlimited storage.
+   */
+  userMediaStorageTotal?: number | null;
+  /**
+   * Maximum file size allowed for uploads across the site. Leave empty for unlimited size.
+   */
+  siteUploadLimit?: number | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -2035,6 +2054,17 @@ export interface RegistrationSettingsSelect<T extends boolean = true> {
  */
 export interface MaintenanceSettingsSelect<T extends boolean = true> {
   maintenanceMode?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-policies_select".
+ */
+export interface SitePoliciesSelect<T extends boolean = true> {
+  userMediaStorageTotal?: T;
+  siteUploadLimit?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

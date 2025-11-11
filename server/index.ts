@@ -119,6 +119,13 @@ async function startServer() {
 							hints,
 							// some fake data for now
 							routeHierarchy: [],
+							systemGlobals: {
+								maintenanceSettings: { maintenanceMode: false },
+								sitePolicies: {
+									userMediaStorageTotal: null,
+									siteUploadLimit: null,
+								},
+							},
 							pageInfo: {
 								isInAdminLayout: false,
 								isMyCourses: false,
@@ -176,6 +183,7 @@ async function startServer() {
 								isAdminDependencies: false,
 								isAdminCronJobs: false,
 								isAdminMaintenance: false,
+								isAdminSitePolicies: false,
 								params: {},
 							},
 						});

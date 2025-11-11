@@ -15,6 +15,7 @@ import {
     Title,
 } from "@mantine/core";
 import { DataTable } from "mantine-datatable";
+import { DonutChart, PieChart } from "@mantine/charts";
 import {
     IconDots,
     IconDownload,
@@ -28,6 +29,10 @@ import {
 import { notifications } from "@mantine/notifications";
 import dayjs from "dayjs";
 import type { FileUpload, FileUploadHandler } from "@remix-run/form-data-parser";
+import {
+    MaxFilesExceededError,
+    MaxFileSizeExceededError,
+} from "@remix-run/form-data-parser";
 import { useId, useRef, useState } from "react";
 import prettyBytes from "pretty-bytes";
 import { href, useFetcher } from "react-router";
@@ -43,11 +48,12 @@ import {
     tryCreateMedia,
     tryDeleteMedia,
     tryFindMediaByUser,
+    tryGetUserMediaStats,
 } from "server/internal/media-management";
 import type { Media } from "server/payload-types";
 import { canDeleteMedia } from "server/utils/permissions";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
-import { getMimeTypesArray } from "~/utils/file-types";
+import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
 import { ContentType } from "~/utils/get-content-type";
 import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import { assertRequestMethod } from "~/utils/assert-request-method";
@@ -62,7 +68,7 @@ import {
 import type { Route } from "./+types/media";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-    const { payload } = context.get(globalContextKey);
+    const { payload, systemGlobals } = context.get(globalContextKey);
     const userSession = context.get(userContextKey);
 
     if (!userSession?.isAuthenticated) {
@@ -83,6 +89,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
     if (userId !== currentUser.id && currentUser.role !== "admin") {
         throw new ForbiddenResponse("You can only view your own media");
     }
+
+    // Get storage limit from system globals
+    const storageLimit = systemGlobals.sitePolicies.userMediaStorageTotal;
 
     // Get user profile context
     let userProfileContext: UserProfileContext | null = null;
@@ -146,6 +155,19 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
         };
     });
 
+    // Get media stats
+    const statsResult = await tryGetUserMediaStats({
+        payload,
+        userId,
+        user: {
+            ...currentUser,
+            avatar: currentUser.avatar?.id,
+        },
+        overrideAccess: false,
+    });
+
+    const stats = statsResult.ok ? statsResult.value : null;
+
     return {
         user: userProfileContext.profileUser,
         media: mediaWithPermissions,
@@ -160,11 +182,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
             nextPage: mediaResult.value.nextPage,
         },
         isOwnProfile: userId === currentUser.id,
+        stats,
+        storageLimit,
     };
 };
 
 export const action = async ({ request, context, params }: Route.ActionArgs) => {
-    const { payload } = context.get(globalContextKey);
+    const { payload, systemGlobals } = context.get(globalContextKey);
     const userSession = context.get(userContextKey);
 
     if (!userSession?.isAuthenticated) {
@@ -190,6 +214,9 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
     if (!transactionID) {
         return badRequest({ error: "Failed to begin transaction" });
     }
+
+    // Get upload limit from system globals
+    const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
     try {
         // For DELETE requests, we can read formData directly (no file uploads)
@@ -308,6 +335,10 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
         const parsedFormData = await parseFormDataWithFallback(
             request,
             uploadHandler as FileUploadHandler,
+            {
+                ...(maxFileSize !== undefined && { maxFileSize }),
+                maxFiles: 1, // Only one file at a time
+            },
         );
 
         // Update alt and caption if provided (optional fields)
@@ -338,6 +369,20 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
     } catch (error) {
         await payload.db.rollbackTransaction(transactionID);
         console.error("Media action error:", error);
+
+        // Handle file size and count limit errors
+        if (error instanceof MaxFileSizeExceededError) {
+            return badRequest({
+                error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
+            });
+        }
+
+        if (error instanceof MaxFilesExceededError) {
+            return badRequest({
+                error: error.message,
+            });
+        }
+
         return badRequest({
             error: error instanceof Error ? error.message : "Failed to process request",
         });
@@ -432,6 +477,22 @@ function getFileIcon(mimeType: string | null | undefined) {
 function isImage(mimeType: string | null | undefined): boolean {
     if (!mimeType) return false;
     return mimeType.startsWith("image/");
+}
+
+function getTypeColor(type: string): string {
+    const colorMap: Record<string, string> = {
+        image: "blue",
+        video: "red",
+        audio: "green",
+        pdf: "orange",
+        text: "cyan",
+        document: "indigo",
+        spreadsheet: "teal",
+        presentation: "pink",
+        archive: "gray",
+        other: "dark",
+    };
+    return colorMap[type] || "gray";
 }
 
 // Media Header Component
@@ -831,6 +892,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
         media,
         pagination,
         isOwnProfile,
+        stats,
+        storageLimit,
     } = loaderData;
     const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
     const [viewMode, setViewMode] = useState<"card" | "table">("card");
@@ -901,9 +964,26 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
-            // Validate file type
-            const acceptedMimeTypes = getMimeTypesArray();
-            if (!acceptedMimeTypes.includes(file.type)) {
+            // Get all MIME types from preset options for media upload
+            const allMimeTypes = PRESET_FILE_TYPE_OPTIONS.map((option) => option.mimeType);
+
+            // Also include common text-based MIME types that might not be in preset
+            const additionalTextTypes = [
+                "text/plain",
+                "text/markdown",
+                "text/yaml",
+                "application/json",
+                "application/xml",
+                "text/xml",
+                "text/html",
+                "text/css",
+                "text/javascript",
+                "application/javascript",
+            ];
+
+            const allAcceptedTypes = [...new Set([...allMimeTypes, ...additionalTextTypes])];
+
+            if (!allAcceptedTypes.includes(file.type)) {
                 notifications.show({
                     title: "Upload failed",
                     message: "File type not supported",
@@ -958,13 +1038,107 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                     onUploadClick={handleUploadClick}
                 />
 
+                {/* Temporary Stats Section */}
+                {stats && (
+                    <Card withBorder padding="lg" radius="md">
+                        <Stack gap="lg">
+                            <Title order={3}>Media Drive Statistics</Title>
+                            <Grid>
+                                <Grid.Col span={{ base: 12, md: 6 }}>
+                                    <Stack gap="md">
+                                        <Text fw={500}>Media by Type</Text>
+                                        <PieChart
+                                            data={Object.entries(stats.mediaTypeCount)
+                                                .filter(([, count]) => count > 0)
+                                                .map(([type, count]) => ({
+                                                    name: type.charAt(0).toUpperCase() + type.slice(1),
+                                                    value: count,
+                                                    color: getTypeColor(type),
+                                                }))}
+                                            withTooltip
+                                            withLabels
+                                            labelsType="value"
+                                        />
+                                    </Stack>
+                                </Grid.Col>
+                                <Grid.Col span={{ base: 12, md: 6 }}>
+                                    <Stack gap="md">
+                                        <Text fw={500}>Storage Usage</Text>
+                                        {storageLimit !== null && storageLimit !== undefined ? (
+                                            <DonutChart
+                                                data={[
+                                                    {
+                                                        name: "Used",
+                                                        value: stats.totalSize,
+                                                        color: "blue",
+                                                    },
+                                                    {
+                                                        name: "Available",
+                                                        value: Math.max(0, storageLimit - stats.totalSize),
+                                                        color: "gray.3",
+                                                    },
+                                                ]}
+                                                withTooltip
+                                                withLabels
+                                                labelsType="percent"
+                                                chartLabel={`${prettyBytes(stats.totalSize)} / ${prettyBytes(storageLimit)}`}
+                                            />
+                                        ) : (
+                                            <DonutChart
+                                                data={[
+                                                    {
+                                                        name: "Used",
+                                                        value: stats.totalSize,
+                                                        color: "blue",
+                                                    },
+                                                ]}
+                                                withTooltip
+                                                withLabels
+                                                labelsType="value"
+                                                chartLabel={`${prettyBytes(stats.totalSize)}`}
+                                            />
+                                        )}
+                                    </Stack>
+                                </Grid.Col>
+                            </Grid>
+                            <Group gap="md">
+                                <Text size="sm" c="dimmed">
+                                    Total Files: <strong>{stats.count}</strong>
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    Total Size: <strong>{prettyBytes(stats.totalSize)}</strong>
+                                </Text>
+                                <Text size="sm" c="dimmed">
+                                    Allowance: <strong>
+                                        {storageLimit !== null && storageLimit !== undefined
+                                            ? prettyBytes(storageLimit)
+                                            : "Unlimited"}
+                                    </strong>
+                                </Text>
+                            </Group>
+                        </Stack>
+                    </Card>
+                )}
+
                 {/* Hidden file input */}
                 {isOwnProfile && (
                     <input
                         id={fileInputId}
                         ref={fileInputRef}
                         type="file"
-                        accept={getMimeTypesArray().join(",")}
+                        accept={[
+                            ...PRESET_FILE_TYPE_OPTIONS.map((opt) => opt.mimeType),
+                            "text/plain",
+                            "text/markdown",
+                            "text/yaml",
+                            "application/json",
+                            "application/xml",
+                            "text/xml",
+                            "text/html",
+                            "text/css",
+                            "text/javascript",
+                            "application/javascript",
+                        ].join(",")}
                         onChange={handleFileSelect}
                         style={{ display: "none" }}
                     />

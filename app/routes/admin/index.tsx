@@ -95,7 +95,10 @@ const adminTabs: { [key: string]: AdminTab } = {
 				title: "Security",
 				items: [
 					{ title: "IP blocker" },
-					{ title: "Site security settings" },
+					{
+						title: "Site security settings",
+						href: href("/admin/sitepolicies"),
+					},
 					{ title: "HTTP security" },
 					{ title: "Notifications" },
 				],

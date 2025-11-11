@@ -824,3 +824,126 @@ export const tryFindMediaByUser = Result.wrap(
 			cause: error,
 		}),
 );
+
+export interface GetUserMediaStatsArgs {
+	payload: Payload;
+	userId: number;
+	user?: unknown;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+/**
+ * Gets media drive statistics for a user
+ *
+ * This function:
+ * 1. Fetches all media files for the user
+ * 2. Calculates total count, total size, and media type counts
+ * 3. Returns aggregated statistics
+ */
+export const tryGetUserMediaStats = Result.wrap(
+	async (
+		args: GetUserMediaStatsArgs,
+	): Promise<{
+		count: number;
+		totalSize: number;
+		mediaTypeCount: Record<string, number>;
+	}> => {
+		const {
+			payload,
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Fetch all media for the user (no pagination limit)
+		const mediaResult = await payload.find({
+			collection: "media",
+			where: {
+				createdBy: {
+					equals: userId,
+				},
+			},
+			limit: 10000, // Large limit to get all media
+			depth: 0,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		const media = mediaResult.docs;
+
+		// Calculate total count
+		const count = mediaResult.totalDocs;
+
+		// Calculate total size
+		const totalSize = media.reduce((sum, file) => {
+			return sum + (file.filesize || 0);
+		}, 0);
+
+		// Calculate media type counts
+		const mediaTypeCount: Record<string, number> = {};
+
+		for (const file of media) {
+			const mimeType = file.mimeType || "unknown";
+			let type = "other";
+
+			if (mimeType.startsWith("image/")) {
+				type = "image";
+			} else if (mimeType.startsWith("video/")) {
+				type = "video";
+			} else if (mimeType.startsWith("audio/")) {
+				type = "audio";
+			} else if (mimeType === "application/pdf") {
+				type = "pdf";
+			} else if (
+				mimeType.startsWith("text/") ||
+				mimeType === "application/json" ||
+				mimeType === "application/xml"
+			) {
+				type = "text";
+			} else if (
+				mimeType.includes("word") ||
+				mimeType.includes("document") ||
+				mimeType.includes("docx") ||
+				mimeType.includes("doc")
+			) {
+				type = "document";
+			} else if (
+				mimeType.includes("spreadsheet") ||
+				mimeType.includes("excel") ||
+				mimeType.includes("xlsx") ||
+				mimeType.includes("xls")
+			) {
+				type = "spreadsheet";
+			} else if (
+				mimeType.includes("presentation") ||
+				mimeType.includes("powerpoint") ||
+				mimeType.includes("pptx") ||
+				mimeType.includes("ppt")
+			) {
+				type = "presentation";
+			} else if (
+				mimeType.includes("zip") ||
+				mimeType.includes("archive") ||
+				mimeType.includes("compressed")
+			) {
+				type = "archive";
+			}
+
+			mediaTypeCount[type] = (mediaTypeCount[type] || 0) + 1;
+		}
+
+		return {
+			count,
+			totalSize,
+			mediaTypeCount,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get user media stats", {
+			cause: error,
+		}),
+);

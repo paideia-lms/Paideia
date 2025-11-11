@@ -54,6 +54,11 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/module.$id";
 
 const courseModuleSearchParams = {
@@ -275,7 +280,7 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload } = context.get(globalContextKey);
+	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -314,6 +319,9 @@ export const action = async ({
 		});
 	}
 
+	// Get upload limit from system globals
+	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+
 	try {
 		const uploadedFileIds: number[] = [];
 
@@ -344,6 +352,7 @@ export const action = async ({
 		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
+			maxFileSize !== undefined ? { maxFileSize } : undefined,
 		);
 
 		const parsed = z
@@ -450,6 +459,20 @@ export const action = async ({
 	} catch (error) {
 		await payload.db.rollbackTransaction(transactionID);
 		console.error("Assignment submission error:", error);
+
+		// Handle file size and count limit errors
+		if (error instanceof MaxFileSizeExceededError) {
+			return badRequest({
+				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
+			});
+		}
+
+		if (error instanceof MaxFilesExceededError) {
+			return badRequest({
+				error: error.message,
+			});
+		}
+
 		return badRequest({
 			error:
 				error instanceof Error ? error.message : "Failed to submit assignment",

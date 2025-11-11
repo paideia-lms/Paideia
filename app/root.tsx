@@ -66,7 +66,7 @@ import {
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
-import { tryGetMaintenanceSettings } from "server/internal/maintenance-settings";
+import { tryGetSystemGlobals } from "server/internal/system-globals";
 import { RootErrorBoundary } from "./components/maintenance-mode-error-boundary";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
@@ -139,6 +139,7 @@ export const middleware = [
 		let isAdminDependencies = false;
 		let isAdminCronJobs = false;
 		let isAdminMaintenance = false;
+		let isAdminSitePolicies = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
 			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
@@ -215,6 +216,10 @@ export const middleware = [
 			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
 			else if (route.id === "routes/admin/maintenance")
 				isAdminMaintenance = true;
+			else if (
+				route.id === ("routes/admin/sitepolicies" as typeof route.id)
+			)
+				isAdminSitePolicies = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -278,6 +283,7 @@ export const middleware = [
 				isAdminDependencies,
 				isAdminCronJobs,
 				isAdminMaintenance,
+				isAdminSitePolicies,
 				params: params as Record<string, string>,
 			},
 		});
@@ -294,25 +300,37 @@ export const middleware = [
 		context.set(userContextKey, userSession);
 	},
 	/**
-	 * check maintenance mode and block non-admin users
+	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
 	async ({ request, context }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
-		// Check maintenance mode
-		const maintenanceSettings = await tryGetMaintenanceSettings({
+		// Fetch all system globals in one call
+		const systemGlobalsResult = await tryGetSystemGlobals({
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
 		});
 
-		if (!maintenanceSettings.ok) {
-			// If we can't get maintenance settings, allow access (fail open)
-			return;
-		}
+		// If we can't get system globals, use defaults (fail open)
+		const systemGlobals = systemGlobalsResult.ok
+			? systemGlobalsResult.value
+			: {
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+			};
 
-		const { maintenanceMode } = maintenanceSettings.value;
+		// Store system globals in context for use throughout the app
+		context.set(globalContextKey, {
+			...context.get(globalContextKey),
+			systemGlobals,
+		});
+
+		const { maintenanceMode } = systemGlobals.maintenanceSettings;
 
 		// If maintenance mode is enabled
 		if (maintenanceMode) {
