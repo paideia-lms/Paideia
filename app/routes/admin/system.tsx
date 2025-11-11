@@ -1,7 +1,6 @@
 import {
 	Badge,
 	Box,
-	Button,
 	Container,
 	Group,
 	Paper,
@@ -9,11 +8,13 @@ import {
 	Stack,
 	Text,
 	Title,
+	Tooltip,
 } from "@mantine/core";
 import { useInterval } from "@mantine/hooks";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { tryGetSystemMediaStats } from "server/internal/media-management";
 import { detectSystemResources } from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/system";
@@ -39,9 +40,21 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Detect system resources (dynamic, needs to be refreshed)
 	const systemResources = await detectSystemResources();
 
+	// Get system media storage stats
+	const { payload } = context.get(globalContextKey);
+	const systemMediaStatsResult = await tryGetSystemMediaStats({
+		payload,
+		overrideAccess: true,
+	});
+
+	const systemStorage = systemMediaStatsResult.ok
+		? systemMediaStatsResult.value.totalSize
+		: 0;
+
 	return {
 		platformInfo,
 		systemResources,
+		systemStorage,
 		bunVersion,
 		bunRevision,
 	};
@@ -215,8 +228,10 @@ function PlatformInfoSection({
 
 function SystemResourcesSection({
 	systemResources,
+	systemStorage,
 }: {
 	systemResources: SystemResources;
+	systemStorage: number;
 }) {
 	const memoryStatus = getResourceStatus(systemResources.memory.percentage);
 	const diskStatus = systemResources.disk
@@ -346,12 +361,32 @@ function SystemResourcesSection({
 								{systemResources.disk.percentage.toFixed(1)}% used
 							</Badge>
 						</Group>
-						<Progress
-							value={systemResources.disk.percentage}
-							color={getStatusColor(diskStatus)}
-							size="lg"
-							mb="xs"
-						/>
+						<Progress.Root size="lg" mb="xs">
+							<Tooltip label={`System Storage – ${formatBytes(systemStorage)}`}>
+								<Progress.Section
+									value={(systemStorage / systemResources.disk.total) * 100}
+									color="blue"
+								>
+									<Progress.Label>System Storage</Progress.Label>
+								</Progress.Section>
+							</Tooltip>
+							<Tooltip
+								label={`Other – ${formatBytes(
+									Math.max(0, systemResources.disk.used - systemStorage),
+								)}`}
+							>
+								<Progress.Section
+									value={
+										(Math.max(0, systemResources.disk.used - systemStorage) /
+											systemResources.disk.total) *
+										100
+									}
+									color="gray"
+								>
+									<Progress.Label>Other</Progress.Label>
+								</Progress.Section>
+							</Tooltip>
+						</Progress.Root>
 						<Group gap="xl">
 							<Box>
 								<Text size="xs" c="dimmed">
@@ -363,10 +398,20 @@ function SystemResourcesSection({
 							</Box>
 							<Box>
 								<Text size="xs" c="dimmed">
-									Used
+									System Storage
 								</Text>
 								<Text size="sm" fw={500}>
-									{formatBytes(systemResources.disk.used)}
+									{formatBytes(systemStorage)}
+								</Text>
+							</Box>
+							<Box>
+								<Text size="xs" c="dimmed">
+									Other
+								</Text>
+								<Text size="sm" fw={500}>
+									{formatBytes(
+										Math.max(0, systemResources.disk.used - systemStorage),
+									)}
 								</Text>
 							</Box>
 							<Box>
@@ -478,7 +523,13 @@ function SystemResourcesSection({
 }
 
 export default function SystemPage({ loaderData }: Route.ComponentProps) {
-	const { platformInfo, systemResources, bunVersion, bunRevision } = loaderData;
+	const {
+		platformInfo,
+		systemResources,
+		systemStorage,
+		bunVersion,
+		bunRevision,
+	} = loaderData;
 	const revalidator = useRevalidator();
 
 	const { start, stop, active } = useInterval(
@@ -523,7 +574,10 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<PlatformInfoSection platformInfo={platformInfo} />
-				<SystemResourcesSection systemResources={systemResources} />
+				<SystemResourcesSection
+					systemResources={systemResources}
+					systemStorage={systemStorage}
+				/>
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
 					<Stack gap="md">

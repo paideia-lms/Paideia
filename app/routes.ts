@@ -15,6 +15,7 @@ export const routes = [
 		"api/media/file/:filenameOrId",
 		"routes/api/media/file.$filenameOrId.tsx",
 	),
+	route("api/user/:id/avatar", "routes/api/user.$id.avatar.tsx"),
 	route("api/d2-render", "routes/api/d2-render.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	route("api/batch-update-courses", "routes/api/batch-update-courses.tsx"),
@@ -102,6 +103,7 @@ export const routes = [
 			route("admin/cron-jobs", "routes/admin/cron-jobs.tsx"),
 			route("admin/maintenance", "routes/admin/maintenance.tsx"),
 			route("admin/sitepolicies", "routes/admin/sitepolicies.tsx"),
+			route("admin/media", "routes/admin/media.tsx"),
 		]),
 	]),
 ] as const satisfies RouteConfig;

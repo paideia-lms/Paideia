@@ -184,6 +184,7 @@ async function startServer() {
 								isAdminCronJobs: false,
 								isAdminMaintenance: false,
 								isAdminSitePolicies: false,
+								isAdminMedia: false,
 								params: {},
 							},
 						});

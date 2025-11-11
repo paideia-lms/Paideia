@@ -97,7 +97,8 @@ export default function ServerAdminLayout({
 			pageInfo.isAdminTestEmail ||
 			pageInfo.isAdminDependencies ||
 			pageInfo.isAdminCronJobs ||
-			pageInfo.isAdminMaintenance
+			pageInfo.isAdminMaintenance ||
+			pageInfo.isAdminMedia
 		)
 			return AdminTab.Server;
 		if (pageInfo.isAdminSitePolicies) return AdminTab.General;

@@ -1,0 +1,1671 @@
+import {
+	ActionIcon,
+	Avatar,
+	Box,
+	Button,
+	Card,
+	Checkbox,
+	Container,
+	Grid,
+	Group,
+	Image,
+	Menu,
+	Modal,
+	Pagination,
+	SegmentedControl,
+	Select,
+	Stack,
+	Text,
+	TextInput,
+	Title,
+} from "@mantine/core";
+import { DataTable } from "mantine-datatable";
+import { DonutChart, PieChart } from "@mantine/charts";
+import {
+	IconDots,
+	IconDownload,
+	IconEye,
+	IconFile,
+	IconLayoutGrid,
+	IconList,
+	IconPhoto,
+	IconPencil,
+	IconTrash,
+} from "@tabler/icons-react";
+import { notifications } from "@mantine/notifications";
+import dayjs from "dayjs";
+import { useState } from "react";
+import prettyBytes from "pretty-bytes";
+import { href, Link, useFetcher } from "react-router";
+import { useForm } from "@mantine/form";
+import { useQueryState } from "nuqs";
+import { createLoader, parseAsInteger } from "nuqs/server";
+import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
+import {
+	tryDeleteMedia,
+	tryFindMediaByUser,
+	tryGetAllMedia,
+	tryGetSystemMediaStats,
+	tryGetUserMediaStats,
+	tryRenameMedia,
+} from "server/internal/media-management";
+import { tryFindAllUsers } from "server/internal/user-management";
+import { detectSystemResources } from "server/utils/bun-system-resources";
+import type { Media } from "server/payload-types";
+import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import {
+	canPreview,
+	getFileIcon,
+	getTypeColor,
+	isAudio,
+	isImage,
+	isPdf,
+	isVideo,
+} from "~/utils/media-helpers";
+import { assertRequestMethod } from "~/utils/assert-request-method";
+import {
+	badRequest,
+	ForbiddenResponse,
+	ok,
+	StatusCode,
+	unauthorized,
+} from "~/utils/responses";
+import type { Route } from "./+types/media";
+
+// Define search params
+export const mediaSearchParams = {
+	userId: parseAsInteger,
+	page: parseAsInteger.withDefault(1),
+};
+
+export const loadSearchParams = createLoader(mediaSearchParams);
+
+export const loader = async ({ context, request }: Route.LoaderArgs) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	if (!currentUser || currentUser.role !== "admin") {
+		throw new ForbiddenResponse("Only admins can access this page");
+	}
+
+	// Get search params
+	const { userId, page } = loadSearchParams(request);
+	const limit = 20;
+
+	// Fetch media - either for a specific user or all media
+	let mediaResult: Awaited<ReturnType<typeof tryFindMediaByUser>> | Awaited<ReturnType<typeof tryGetAllMedia>>;
+	let statsResult: Awaited<ReturnType<typeof tryGetUserMediaStats>> | Awaited<ReturnType<typeof tryGetSystemMediaStats>>;
+	let systemStatsResult: Awaited<ReturnType<typeof tryGetSystemMediaStats>> | null = null;
+
+	if (userId) {
+		// Fetch media for specific user
+		mediaResult = await tryFindMediaByUser({
+			payload,
+			userId,
+			limit,
+			page,
+			depth: 1, // Include createdBy user info
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
+			overrideAccess: true,
+		});
+
+		// Get user-specific stats
+		statsResult = await tryGetUserMediaStats({
+			payload,
+			userId,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
+			overrideAccess: true,
+		});
+
+		// Also get system-wide stats for comparison
+		systemStatsResult = await tryGetSystemMediaStats({
+			payload,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
+			overrideAccess: true,
+		});
+	} else {
+		// Fetch all media in the system
+		mediaResult = await tryGetAllMedia(payload, {
+			limit,
+			page,
+			depth: 1, // Include createdBy user info
+		});
+
+		// Get system-wide media stats
+		statsResult = await tryGetSystemMediaStats({
+			payload,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+			},
+			overrideAccess: true,
+		});
+	}
+
+	if (!mediaResult.ok) {
+		throw new ForbiddenResponse("Failed to fetch media");
+	}
+
+	// Admin can delete/rename any media, so all have deletePermission
+	const mediaWithPermissions = mediaResult.value.docs.map((file) => ({
+		...file,
+		deletePermission: { allowed: true, reason: "" },
+	}));
+
+	const stats = statsResult.ok ? statsResult.value : null;
+	const systemStats = systemStatsResult?.ok ? systemStatsResult.value : null;
+
+	// Fetch system resources for storage breakdown (only for system-wide view)
+	let systemResources = null;
+	if (!userId) {
+		systemResources = await detectSystemResources();
+	}
+
+	// Fetch users for the filter dropdown
+	const usersResult = await tryFindAllUsers({
+		payload,
+		limit: 100,
+		page: 1,
+		sort: "-createdAt",
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
+		overrideAccess: true,
+	});
+
+	const userOptions = usersResult.ok
+		? usersResult.value.docs.map((user) => ({
+			value: user.id.toString(),
+			label: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+		}))
+		: [];
+
+	return {
+		media: mediaWithPermissions,
+		pagination: {
+			totalDocs: mediaResult.value.totalDocs,
+			limit: mediaResult.value.limit,
+			totalPages: mediaResult.value.totalPages,
+			page: mediaResult.value.page,
+			hasPrevPage: mediaResult.value.hasPrevPage,
+			hasNextPage: mediaResult.value.hasNextPage,
+			prevPage: mediaResult.value.prevPage,
+			nextPage: mediaResult.value.nextPage,
+		},
+		stats,
+		systemStats,
+		systemResources,
+		selectedUserId: userId ?? null,
+		userOptions,
+	};
+};
+
+export const action = async ({ request, context }: Route.ActionArgs) => {
+	const { payload, s3Client } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	if (!currentUser || currentUser.role !== "admin") {
+		return unauthorized({ error: "Only admins can perform this action" });
+	}
+
+	const transactionID = await payload.db.beginTransaction();
+
+	if (!transactionID) {
+		return badRequest({ error: "Failed to begin transaction" });
+	}
+
+	try {
+		// For PATCH requests (update/rename)
+		if (request.method === "PATCH") {
+			assertRequestMethod(request.method, "PATCH");
+
+			const formData = await request.formData();
+			const mediaIdParam = formData.get("mediaId");
+			const newFilename = formData.get("newFilename")?.toString();
+			const alt = formData.get("alt")?.toString();
+			const caption = formData.get("caption")?.toString();
+
+			if (!mediaIdParam) {
+				return badRequest({ error: "Media ID is required" });
+			}
+
+			const mediaId = Number(mediaIdParam);
+			if (Number.isNaN(mediaId)) {
+				return badRequest({ error: "Invalid media ID" });
+			}
+
+			// Fetch media record to verify it exists
+			const mediaRecord = await payload.findByID({
+				collection: "media",
+				id: mediaId,
+				depth: 0,
+				req: { transactionID },
+			});
+
+			if (!mediaRecord) {
+				return badRequest({ error: "Media not found" });
+			}
+
+			// If newFilename is provided, rename the file
+			if (newFilename) {
+				const renameResult = await tryRenameMedia(payload, s3Client, {
+					id: mediaId,
+					newFilename,
+					userId: currentUser.id,
+					transactionID,
+				});
+
+				if (!renameResult.ok) {
+					await payload.db.rollbackTransaction(transactionID);
+					return badRequest({ error: renameResult.error.message });
+				}
+			}
+
+			// Update alt and caption if provided
+			if (alt !== undefined || caption !== undefined) {
+				const updateData: Partial<Media> = {};
+				if (alt !== undefined) {
+					updateData.alt = alt;
+				}
+				if (caption !== undefined) {
+					updateData.caption = caption;
+				}
+
+				await payload.update({
+					collection: "media",
+					id: mediaId,
+					data: updateData,
+					req: { transactionID },
+				});
+			}
+
+			await payload.db.commitTransaction(transactionID);
+
+			return ok({
+				message: "Media updated successfully",
+			});
+		}
+
+		// For DELETE requests
+		if (request.method === "DELETE") {
+			assertRequestMethod(request.method, "DELETE");
+
+			const formData = await request.formData();
+			const mediaIdsParam = formData.get("mediaIds");
+
+			if (!mediaIdsParam) {
+				return badRequest({ error: "Media IDs are required" });
+			}
+
+			// Parse media IDs - can be a single ID or comma-separated IDs
+			let mediaIds: number[];
+			if (typeof mediaIdsParam === "string") {
+				mediaIds = mediaIdsParam
+					.split(",")
+					.map((id) => Number(id.trim()))
+					.filter((id) => !Number.isNaN(id));
+			} else {
+				return badRequest({ error: "Invalid media IDs format" });
+			}
+
+			if (mediaIds.length === 0) {
+				return badRequest({ error: "At least one media ID is required" });
+			}
+
+			// Verify all media records exist
+			const mediaRecords = await payload.find({
+				collection: "media",
+				where: {
+					id: {
+						in: mediaIds,
+					},
+				},
+				limit: mediaIds.length,
+				depth: 0,
+				req: { transactionID },
+			});
+
+			if (mediaRecords.docs.length !== mediaIds.length) {
+				const foundIds = mediaRecords.docs.map((m) => m.id);
+				const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
+				return badRequest({
+					error: `Media records not found: ${missingIds.join(", ")}`,
+				});
+			}
+
+			const result = await tryDeleteMedia(payload, s3Client, {
+				id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
+				userId: currentUser.id,
+			});
+
+			if (!result.ok) {
+				await payload.db.rollbackTransaction(transactionID);
+				return badRequest({ error: result.error.message });
+			}
+
+			await payload.db.commitTransaction(transactionID);
+
+			return ok({
+				message:
+					mediaIds.length === 1
+						? "Media deleted successfully"
+						: `${mediaIds.length} media files deleted successfully`,
+			});
+		}
+
+		return badRequest({ error: "Invalid request method" });
+	} catch (error) {
+		await payload.db.rollbackTransaction(transactionID);
+		console.error("Media action error:", error);
+
+		return badRequest({
+			error: error instanceof Error ? error.message : "Failed to process request",
+		});
+	}
+};
+
+export async function clientAction({
+	serverAction,
+}: Route.ClientActionArgs) {
+	const actionData = await serverAction();
+
+	if (actionData?.status === StatusCode.Ok) {
+		notifications.show({
+			title: "Success",
+			message: actionData.message || "Operation completed successfully",
+			color: "green",
+		});
+	} else {
+		notifications.show({
+			title: "Error",
+			message: actionData?.error || "Failed to process request",
+			color: "red",
+		});
+	}
+
+	return actionData;
+}
+
+export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
+	return <DefaultErrorBoundary error={error} />;
+};
+
+export function useDeleteMedia() {
+	const fetcher = useFetcher<typeof clientAction>();
+	const deleteMedia = async (mediaIds: number | number[]) => {
+		const formData = new FormData();
+		const ids = Array.isArray(mediaIds) ? mediaIds : [mediaIds];
+		formData.append("mediaIds", ids.join(","));
+		fetcher.submit(formData, { method: "DELETE" });
+	};
+	return {
+		deleteMedia,
+		isLoading: fetcher.state !== "idle",
+		fetcher,
+	};
+}
+
+export function useDownloadMedia() {
+	const downloadMedia = (file: Media) => {
+		if (!file.filename) return;
+		const url = `/api/media/file/${file.filename}?download=true`;
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = file.filename;
+		link.click();
+	};
+	return { downloadMedia };
+}
+
+export function useRenameMedia() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const renameMedia = (mediaId: number, newFilename: string) => {
+		const formData = new FormData();
+		formData.append("mediaId", mediaId.toString());
+		formData.append("newFilename", newFilename);
+		fetcher.submit(formData, { method: "PATCH" });
+	};
+
+	return {
+		renameMedia,
+		isLoading: fetcher.state !== "idle",
+		fetcher,
+	};
+}
+
+// Media Header Component
+function MediaHeader({
+	totalDocs,
+	viewMode,
+	onViewModeChange,
+	selectedUserId,
+	onUserIdChange,
+	userOptions,
+}: {
+	totalDocs: number;
+	viewMode: "card" | "table";
+	onViewModeChange: (value: "card" | "table") => void;
+	selectedUserId: number | null;
+	onUserIdChange: (userId: number | null) => void;
+	userOptions: Array<{ value: string; label: string }>;
+}) {
+	return (
+		<Stack gap="md">
+			<Group justify="space-between" align="center">
+				<Title order={1}>
+					{selectedUserId ? "User Media" : "System Media"}
+				</Title>
+				<Group gap="md">
+					<Text size="sm" c="dimmed">
+						{totalDocs} file{totalDocs !== 1 ? "s" : ""}
+					</Text>
+					<SegmentedControl
+						data={[
+							{
+								value: "card",
+								label: (
+									<Group gap="xs" w={64}>
+										<IconLayoutGrid size={16} />
+										<Text size="sm">Card</Text>
+									</Group>
+								),
+							},
+							{
+								value: "table",
+								label: (
+									<Group gap="xs" w={64}>
+										<IconList size={16} />
+										<Text size="sm">Table</Text>
+									</Group>
+								),
+							},
+						]}
+						value={viewMode}
+						onChange={(value) => onViewModeChange(value as "card" | "table")}
+					/>
+				</Group>
+			</Group>
+			<Select
+				label="Filter by User"
+				placeholder="Select a user to filter media (leave empty for all media)"
+				data={userOptions}
+				value={selectedUserId?.toString() || null}
+				onChange={(value) => {
+					onUserIdChange(value ? Number(value) : null);
+				}}
+				searchable
+				clearable
+				w={400}
+			/>
+		</Stack>
+	);
+}
+
+// Batch Actions Component
+function BatchActions({
+	selectedCount,
+	onDelete,
+}: {
+	selectedCount: number;
+	onDelete: () => void;
+}) {
+	if (selectedCount === 0) return null;
+
+	return (
+		<Group justify="space-between" align="center">
+			<Text size="sm" c="dimmed">
+				{selectedCount} file{selectedCount !== 1 ? "s" : ""} selected
+			</Text>
+			<Group gap="xs">
+				<Menu shadow="md">
+					<Menu.Target>
+						<ActionIcon variant="filled" color="red" size="lg">
+							<IconTrash size={18} />
+						</ActionIcon>
+					</Menu.Target>
+					<Menu.Dropdown>
+						<Menu.Item
+							leftSection={<IconTrash size={16} />}
+							color="red"
+							onClick={onDelete}
+						>
+							Delete {selectedCount} file{selectedCount !== 1 ? "s" : ""}
+						</Menu.Item>
+					</Menu.Dropdown>
+				</Menu>
+			</Group>
+		</Group>
+	);
+}
+
+// Audio Preview Component
+function AudioPreview({
+	fileUrl,
+	filename,
+	inline = false,
+	onOpenModal,
+}: {
+	fileUrl: string;
+	filename: string;
+	inline?: boolean;
+	onOpenModal?: () => void;
+}) {
+	if (inline) {
+		return (
+			<Group
+				justify="center"
+				style={{
+					width: "100%",
+					minHeight: 150,
+					cursor: onOpenModal ? "pointer" : "default",
+				}}
+				onClick={onOpenModal}
+			>
+				<audio
+					controls
+					style={{ width: "100%", maxWidth: "100%" }}
+					onClick={(e) => e.stopPropagation()}
+					aria-label={filename}
+				>
+					<source src={fileUrl} type="audio/mpeg" />
+					<source src={fileUrl} type="audio/wav" />
+					<source src={fileUrl} type="audio/ogg" />
+					<track
+						kind="captions"
+						src="data:text/vtt;base64,V0VCVlRUCg=="
+						label="No captions available"
+						default={false}
+					/>
+					Your browser does not support the audio element.
+				</audio>
+			</Group>
+		);
+	}
+
+	return (
+		<Stack gap="md" style={{ width: "100%" }}>
+			<audio controls style={{ width: "100%" }} aria-label={filename}>
+				<source src={fileUrl} type="audio/mpeg" />
+				<source src={fileUrl} type="audio/wav" />
+				<source src={fileUrl} type="audio/ogg" />
+				<track
+					kind="captions"
+					src="data:text/vtt;base64,V0VCVlRUCg=="
+					label="No captions available"
+					default={false}
+				/>
+				Your browser does not support the audio element.
+			</audio>
+			<Text size="sm" c="dimmed">
+				{filename}
+			</Text>
+		</Stack>
+	);
+}
+
+// Video Preview Component
+function VideoPreview({
+	fileUrl,
+	filename,
+	inline = false,
+	onOpenModal,
+}: {
+	fileUrl: string;
+	filename: string;
+	inline?: boolean;
+	onOpenModal?: () => void;
+}) {
+	if (inline) {
+		return (
+			<Group
+				justify="center"
+				style={{
+					width: "100%",
+					minHeight: 150,
+					maxHeight: 150,
+					cursor: onOpenModal ? "pointer" : "default",
+					overflow: "hidden",
+				}}
+				onClick={onOpenModal}
+			>
+				<video
+					controls
+					style={{
+						maxWidth: "100%",
+						maxHeight: "100%",
+						objectFit: "contain",
+					}}
+					onClick={(e) => e.stopPropagation()}
+					aria-label={filename}
+				>
+					<source src={fileUrl} type="video/mp4" />
+					<source src={fileUrl} type="video/webm" />
+					<source src={fileUrl} type="video/ogg" />
+					<track
+						kind="captions"
+						src="data:text/vtt;base64,V0VCVlRUCg=="
+						label="No captions available"
+						default={false}
+					/>
+					Your browser does not support the video element.
+				</video>
+			</Group>
+		);
+	}
+
+	return (
+		<Stack gap="md" style={{ width: "100%" }}>
+			<video controls style={{ width: "100%", maxHeight: "80vh" }} aria-label={filename}>
+				<source src={fileUrl} type="video/mp4" />
+				<source src={fileUrl} type="video/webm" />
+				<source src={fileUrl} type="video/ogg" />
+				<track
+					kind="captions"
+					src="data:text/vtt;base64,V0VCVlRUCg=="
+					label="No captions available"
+					default={false}
+				/>
+				Your browser does not support the video element.
+			</video>
+			<Text size="sm" c="dimmed">
+				{filename}
+			</Text>
+		</Stack>
+	);
+}
+
+// Media Rename Modal Component
+function MediaRenameModal({
+	file,
+	opened,
+	onClose,
+	onRename,
+}: {
+	file: Media | null;
+	opened: boolean;
+	onClose: () => void;
+	onRename: (mediaId: number, newFilename: string) => void;
+}) {
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			filename: file?.filename || "",
+		},
+		validate: {
+			filename: (value) =>
+				!value || value.trim().length === 0
+					? "Filename is required"
+					: null,
+		},
+	});
+
+	const handleSubmit = form.onSubmit((values) => {
+		if (!file) {
+			return;
+		}
+		onRename(file.id, values.filename.trim());
+		onClose();
+	});
+
+	return (
+		<Modal
+			key={file?.id} // Reset state when file changes
+			opened={opened}
+			onClose={onClose}
+			title="Rename File"
+			centered
+		>
+			<form onSubmit={handleSubmit}>
+				<Stack gap="md">
+					<TextInput
+						label="Filename"
+						placeholder="Enter new filename"
+						{...form.getInputProps("filename")}
+					/>
+					<Group justify="flex-end">
+						<Button variant="subtle" onClick={onClose} type="button">
+							Cancel
+						</Button>
+						<Button type="submit">Rename</Button>
+					</Group>
+				</Stack>
+			</form>
+		</Modal>
+	);
+}
+
+// Media Preview Modal Component
+function MediaPreviewModal({
+	file,
+	opened,
+	onClose,
+}: {
+	file: Media | null;
+	opened: boolean;
+	onClose: () => void;
+}) {
+	if (!file) return null;
+
+	const mediaUrl = file.filename
+		? href(`/api/media/file/:filenameOrId`, {
+			filenameOrId: file.filename,
+		})
+		: undefined;
+
+	if (!mediaUrl) return null;
+
+	const renderPreview = () => {
+		if (file.mimeType && isImage(file.mimeType)) {
+			return (
+				<Image
+					src={mediaUrl}
+					alt={file.alt ?? file.filename ?? "Media"}
+					fit="contain"
+					style={{ maxHeight: "80vh" }}
+				/>
+			);
+		}
+
+		if (file.mimeType && isAudio(file.mimeType)) {
+			return (
+				<AudioPreview
+					fileUrl={mediaUrl}
+					filename={file.filename ?? "Audio"}
+					inline={false}
+				/>
+			);
+		}
+
+		if (file.mimeType && isVideo(file.mimeType)) {
+			return (
+				<VideoPreview
+					fileUrl={mediaUrl}
+					filename={file.filename ?? "Video"}
+					inline={false}
+				/>
+			);
+		}
+
+		if (file.mimeType && isPdf(file.mimeType)) {
+			return (
+				<iframe
+					src={mediaUrl}
+					style={{
+						width: "100%",
+						height: "80vh",
+						border: "none",
+					}}
+					title={file.filename ?? "PDF Preview"}
+				/>
+			);
+		}
+
+		return (
+			<Text c="dimmed" ta="center">
+				Preview not available for this file type
+			</Text>
+		);
+	};
+
+	return (
+		<Modal
+			opened={opened}
+			onClose={onClose}
+			title={file.filename ?? "Media Preview"}
+			size="xl"
+			centered
+		>
+			{renderPreview()}
+		</Modal>
+	);
+}
+
+// Media Action Menu Component
+function MediaActionMenu({
+	file,
+	onDownload,
+	onDelete,
+	onPreview,
+	onRename,
+}: {
+	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
+	onDownload: (file: Media) => void;
+	onDelete: (file: Media) => void;
+	onPreview?: (file: Media) => void;
+	onRename?: (file: Media) => void;
+}) {
+	const canDelete = file.deletePermission?.allowed ?? true; // Admin can always delete
+	const canPreviewFile = canPreview(file.mimeType ?? null);
+	const mediaUrl = file.filename
+		? href(`/api/media/file/:filenameOrId`, {
+			filenameOrId: file.filename,
+		})
+		: undefined;
+
+	return (
+		<Menu shadow="md" width={200}>
+			<Menu.Target>
+				<ActionIcon variant="subtle" size="sm">
+					<IconDots size={16} />
+				</ActionIcon>
+			</Menu.Target>
+			<Menu.Dropdown>
+				{canPreviewFile && onPreview && (
+					<Menu.Item
+						leftSection={<IconEye size={16} />}
+						onClick={() => onPreview(file)}
+					>
+						Preview
+					</Menu.Item>
+				)}
+				{mediaUrl && (
+					<Menu.Item
+						leftSection={<IconDownload size={16} />}
+						onClick={() => onDownload(file)}
+					>
+						Download
+					</Menu.Item>
+				)}
+				{onRename && (
+					<Menu.Item
+						leftSection={<IconPencil size={16} />}
+						onClick={() => onRename(file)}
+					>
+						Rename
+					</Menu.Item>
+				)}
+				{canDelete && (
+					<Menu.Item
+						leftSection={<IconTrash size={16} />}
+						color="red"
+						onClick={() => onDelete(file)}
+					>
+						Delete
+					</Menu.Item>
+				)}
+			</Menu.Dropdown>
+		</Menu>
+	);
+}
+
+// Media Card Component
+function MediaCard({
+	file,
+	isSelected,
+	onSelectionChange,
+	onDownload,
+	onDelete,
+	onOpenModal,
+	onRename,
+}: {
+	file: Media & { deletePermission?: { allowed: boolean; reason: string } };
+	isSelected: boolean;
+	onSelectionChange: (selected: boolean) => void;
+	onDownload: (file: Media) => void;
+	onDelete: (file: Media) => void;
+	onOpenModal?: (file: Media) => void;
+	onRename?: (file: Media) => void;
+}) {
+	const mediaUrl = file.filename
+		? href(`/api/media/file/:filenameOrId`, {
+			filenameOrId: file.filename,
+		})
+		: undefined;
+
+	// Get creator info
+	const creatorId =
+		typeof file.createdBy === "object" && file.createdBy !== null
+			? file.createdBy.id
+			: file.createdBy;
+	const creatorName =
+		typeof file.createdBy === "object" && file.createdBy !== null
+			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() || "Unknown"
+			: "Unknown";
+	const creatorAvatarId =
+		typeof file.createdBy === "object" && file.createdBy !== null
+			? (typeof file.createdBy.avatar === "object" && file.createdBy.avatar !== null
+				? file.createdBy.avatar.id
+				: file.createdBy.avatar)
+			: null;
+	const creatorAvatarUrl = creatorAvatarId
+		? href(`/api/media/file/:filenameOrId`, {
+			filenameOrId: creatorAvatarId.toString(),
+		})
+		: undefined;
+	const profileUrl = creatorId
+		? href("/user/profile/:id?", {
+			id: creatorId.toString(),
+		})
+		: undefined;
+
+	return (
+		<Grid.Col key={file.id} span={{ base: 12, sm: 6, md: 4, lg: 3 }}>
+			<Card
+				withBorder
+				padding="md"
+				radius="md"
+				style={{
+					height: "100%",
+					display: "flex",
+					flexDirection: "column",
+					overflow: "hidden",
+				}}
+			>
+				<Stack gap="xs" style={{ flex: 1, minHeight: 0 }}>
+					<Group wrap="nowrap" align="flex-start" gap="xs">
+						<Checkbox
+							checked={isSelected}
+							onChange={(event) => onSelectionChange(event.currentTarget.checked)}
+							style={{ flexShrink: 0 }}
+						/>
+						<Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
+							{/* Thumbnail, Preview, or Icon */}
+							<Group justify="center" style={{ minHeight: 150, overflow: "hidden" }}>
+								{file.mimeType && isImage(file.mimeType) && mediaUrl ? (
+									<Image
+										src={mediaUrl}
+										alt={file.alt ?? file.filename ?? "Media"}
+										fit="contain"
+										style={{
+											maxHeight: 150,
+											maxWidth: "100%",
+										}}
+									/>
+								) : file.mimeType && isAudio(file.mimeType) && mediaUrl ? (
+									<AudioPreview
+										fileUrl={mediaUrl}
+										filename={file.filename ?? "Audio"}
+										inline={true}
+									/>
+								) : file.mimeType && isVideo(file.mimeType) && mediaUrl ? (
+									<VideoPreview
+										fileUrl={mediaUrl}
+										filename={file.filename ?? "Video"}
+										inline={true}
+									/>
+								) : (
+									<Group
+										justify="center"
+										style={{ width: "100%", height: 150 }}
+									>
+										{getFileIcon(file.mimeType ?? "application/octet-stream")}
+									</Group>
+								)}
+							</Group>
+
+							{/* File Info */}
+							<Stack gap={4} style={{ minWidth: 0 }}>
+								<Text
+									size="sm"
+									fw={500}
+									lineClamp={2}
+									title={file.filename ?? undefined}
+									style={{ wordBreak: "break-word" }}
+								>
+									{file.filename ?? "Untitled"}
+								</Text>
+								{profileUrl ? (
+									<Group gap="xs" align="center">
+										<Avatar
+											src={creatorAvatarUrl}
+											alt={creatorName}
+											size={20}
+											radius="xl"
+										/>
+										<Text
+											size="xs"
+											c="dimmed"
+											component={Link}
+											to={profileUrl}
+											style={{ textDecoration: "none" }}
+											onMouseEnter={(e) => {
+												e.currentTarget.style.textDecoration = "underline";
+											}}
+											onMouseLeave={(e) => {
+												e.currentTarget.style.textDecoration = "none";
+											}}
+										>
+											By: {creatorName}
+										</Text>
+									</Group>
+								) : (
+									<Group gap="xs" align="center">
+										<Avatar
+											src={creatorAvatarUrl}
+											alt={creatorName}
+											size={20}
+											radius="xl"
+										/>
+										<Text size="xs" c="dimmed">
+											By: {creatorName}
+										</Text>
+									</Group>
+								)}
+								<Group gap="xs" justify="space-between" wrap="nowrap">
+									<Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+										{prettyBytes(file.filesize || 0)}
+									</Text>
+									<Text size="xs" c="dimmed" style={{ flexShrink: 0 }}>
+										{dayjs(file.createdAt).format("MMM DD, YYYY")}
+									</Text>
+								</Group>
+								{file.alt && (
+									<Text size="xs" c="dimmed" lineClamp={1} style={{ wordBreak: "break-word" }}>
+										{file.alt}
+									</Text>
+								)}
+							</Stack>
+
+							{/* Actions */}
+							<Group gap="xs" justify="flex-end">
+								<MediaActionMenu
+									file={file}
+									onDownload={onDownload}
+									onDelete={onDelete}
+									onPreview={onOpenModal}
+									onRename={onRename}
+								/>
+							</Group>
+						</Stack>
+					</Group>
+				</Stack>
+			</Card>
+		</Grid.Col>
+	);
+}
+
+// Media Card View Component
+function MediaCardView({
+	media,
+	selectedCardIds,
+	onSelectionChange,
+	onDownload,
+	onDelete,
+	onOpenModal,
+	onRename,
+}: {
+	media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
+	selectedCardIds: number[];
+	onSelectionChange: (ids: number[]) => void;
+	onDownload: (file: Media) => void;
+	onDelete: (file: Media) => void;
+	onOpenModal?: (file: Media) => void;
+	onRename?: (file: Media) => void;
+}) {
+	const handleCheckboxChange = (fileId: number, checked: boolean) => {
+		if (checked) {
+			onSelectionChange([...selectedCardIds, fileId]);
+		} else {
+			onSelectionChange(selectedCardIds.filter((id) => id !== fileId));
+		}
+	};
+
+	return (
+		<Grid>
+			{media.map((file) => (
+				<MediaCard
+					key={file.id}
+					file={file}
+					isSelected={selectedCardIds.includes(file.id)}
+					onSelectionChange={(checked) => handleCheckboxChange(file.id, checked)}
+					onDownload={onDownload}
+					onDelete={onDelete}
+					onOpenModal={onOpenModal}
+					onRename={onRename}
+				/>
+			))}
+		</Grid>
+	);
+}
+
+// Media Table View Component
+function MediaTableView({
+	media,
+	selectedRecords,
+	onSelectionChange,
+	onDownload,
+	onDelete,
+	onOpenModal,
+	onRename,
+}: {
+	media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
+	selectedRecords: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
+	onSelectionChange: (records: (Media & { deletePermission?: { allowed: boolean; reason: string } })[]) => void;
+	onDownload: (file: Media) => void;
+	onDelete: (file: Media) => void;
+	onOpenModal?: (file: Media) => void;
+	onRename?: (file: Media) => void;
+}) {
+	const columns = [
+		{
+			accessor: "filename",
+			title: "Name",
+			render: (file: Media) => (
+				<Group gap="xs">
+					{file.mimeType?.startsWith("image/") ? (
+						<IconPhoto size={20} />
+					) : (
+						<IconFile size={20} />
+					)}
+					<Text size="sm" fw={500} lineClamp={1}>
+						{file.filename ?? "Untitled"}
+					</Text>
+				</Group>
+			),
+		},
+		{
+			accessor: "createdBy",
+			title: "Created By",
+			render: (file: Media) => {
+				const creatorId =
+					typeof file.createdBy === "object" && file.createdBy !== null
+						? file.createdBy.id
+						: file.createdBy;
+				const creatorName =
+					typeof file.createdBy === "object" && file.createdBy !== null
+						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() || "Unknown"
+						: "Unknown";
+				const creatorAvatarId =
+					typeof file.createdBy === "object" && file.createdBy !== null
+						? (typeof file.createdBy.avatar === "object" && file.createdBy.avatar !== null
+							? file.createdBy.avatar.id
+							: file.createdBy.avatar)
+						: null;
+				const creatorAvatarUrl = creatorAvatarId
+					? href(`/api/media/file/:filenameOrId`, {
+						filenameOrId: creatorAvatarId.toString(),
+					})
+					: undefined;
+				const profileUrl = creatorId
+					? href("/user/profile/:id?", {
+						id: creatorId.toString(),
+					})
+					: undefined;
+
+				return (
+					<Group gap="xs" align="center">
+						<Avatar
+							src={creatorAvatarUrl}
+							alt={creatorName}
+							size={24}
+							radius="xl"
+						/>
+						{profileUrl ? (
+							<Text
+								size="sm"
+								c="dimmed"
+								component={Link}
+								to={profileUrl}
+								style={{ textDecoration: "none" }}
+								onMouseEnter={(e) => {
+									e.currentTarget.style.textDecoration = "underline";
+								}}
+								onMouseLeave={(e) => {
+									e.currentTarget.style.textDecoration = "none";
+								}}
+							>
+								{creatorName}
+							</Text>
+						) : (
+							<Text size="sm" c="dimmed">
+								{creatorName}
+							</Text>
+						)}
+					</Group>
+				);
+			},
+		},
+		{
+			accessor: "filesize",
+			title: "Size",
+			render: (file: Media) => (
+				<Text size="sm" c="dimmed">
+					{prettyBytes(file.filesize || 0)}
+				</Text>
+			),
+		},
+		{
+			accessor: "createdAt",
+			title: "Created",
+			render: (file: Media) => (
+				<Text size="sm" c="dimmed">
+					{dayjs(file.createdAt).format("MMM DD, YYYY")}
+				</Text>
+			),
+		},
+		{
+			accessor: "actions",
+			title: "",
+			textAlign: "right" as const,
+			render: (file: Media & { deletePermission?: { allowed: boolean; reason: string } }) => (
+				<MediaActionMenu
+					file={file}
+					onDownload={onDownload}
+					onDelete={onDelete}
+					onPreview={onOpenModal}
+					onRename={onRename}
+				/>
+			),
+		},
+	];
+
+	return (
+		<DataTable
+			records={media}
+			columns={columns}
+			selectedRecords={selectedRecords}
+			onSelectedRecordsChange={onSelectionChange}
+			striped
+			highlightOnHover
+			withTableBorder
+			withColumnBorders
+			idAccessor="id"
+		/>
+	);
+}
+
+// Media Pagination Component
+function MediaPagination({
+	totalPages,
+	currentPage,
+	onPageChange,
+}: {
+	totalPages: number;
+	currentPage: number;
+	onPageChange: (page: number) => void;
+}) {
+	if (totalPages <= 1) return null;
+
+	return (
+		<Group justify="center">
+			<Pagination
+				total={totalPages}
+				value={currentPage}
+				onChange={(page) => {
+					onPageChange(page);
+				}}
+			/>
+		</Group>
+	);
+}
+
+export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
+	const {
+		media,
+		pagination,
+		stats,
+		systemStats,
+		systemResources,
+		selectedUserId: initialUserId,
+		userOptions,
+	} = loaderData;
+	const [viewMode, setViewMode] = useState<"card" | "table">("card");
+	const [selectedRecords, setSelectedRecords] = useState<Media[]>([]);
+	const [selectedCardIds, setSelectedCardIds] = useState<number[]>([]);
+	const [previewModalOpened, setPreviewModalOpened] = useState(false);
+	const [previewFile, setPreviewFile] = useState<Media | null>(null);
+	const [renameModalOpened, setRenameModalOpened] = useState(false);
+	const [renameFile, setRenameFile] = useState<Media | null>(null);
+	const [userId, setUserId] = useQueryState(
+		"userId",
+		parseAsInteger.withOptions({
+			shallow: false,
+		}),
+	);
+	const [, setPage] = useQueryState(
+		"page",
+		parseAsInteger.withDefault(1).withOptions({
+			shallow: false,
+		}),
+	);
+	const { deleteMedia } = useDeleteMedia();
+	const { downloadMedia } = useDownloadMedia();
+	const { renameMedia } = useRenameMedia();
+
+	// Sync userId from loader data
+	const currentUserId = userId ?? initialUserId;
+
+	const handleUserIdChange = (newUserId: number | null) => {
+		setUserId(newUserId);
+		// Reset to page 1 when user filter changes
+		setPage(1);
+	};
+
+	const handlePageChange = (newPage: number) => {
+		setPage(newPage);
+	};
+
+	const handleDownload = (file: Media) => {
+		downloadMedia(file);
+	};
+
+	const handleDelete = (file: Media & { deletePermission?: { allowed: boolean; reason: string } }) => {
+		if (
+			!window.confirm(
+				"Are you sure you want to delete this media file? This action cannot be undone.",
+			)
+		) {
+			return;
+		}
+
+		deleteMedia(file.id);
+	};
+
+	const handleBatchDelete = () => {
+		const idsToDelete =
+			viewMode === "card"
+				? selectedCardIds
+				: selectedRecords.map((r) => r.id);
+
+		if (idsToDelete.length === 0) {
+			return;
+		}
+
+		if (
+			!window.confirm(
+				`Are you sure you want to delete ${idsToDelete.length} media file${idsToDelete.length !== 1 ? "s" : ""}? This action cannot be undone.`,
+			)
+		) {
+			return;
+		}
+
+		deleteMedia(idsToDelete);
+
+		// Clear selection after submission
+		setSelectedCardIds([]);
+		setSelectedRecords([]);
+	};
+
+	const handleTableSelectionChange = (records: Media[]) => {
+		setSelectedRecords(records);
+		// Sync to card selection state
+		setSelectedCardIds(records.map((r) => r.id));
+	};
+
+	const handleOpenModal = (file: Media) => {
+		setPreviewFile(file);
+		setPreviewModalOpened(true);
+	};
+
+	const handleCloseModal = () => {
+		setPreviewModalOpened(false);
+		setPreviewFile(null);
+	};
+
+	const handleOpenRenameModal = (file: Media) => {
+		setRenameFile(file);
+		setRenameModalOpened(true);
+	};
+
+	const handleCloseRenameModal = () => {
+		setRenameModalOpened(false);
+		setRenameFile(null);
+	};
+
+	const handleRename = (mediaId: number, newFilename: string) => {
+		renameMedia(mediaId, newFilename);
+	};
+
+	return (
+		<Container size="lg" py="xl">
+			<title>Media Management | Site Administration | Paideia LMS</title>
+			<meta
+				name="description"
+				content="Manage all media files in the system"
+			/>
+			<meta property="og:title" content="Media Management | Site Administration | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="Manage all media files in the system"
+			/>
+
+			<Stack gap="xl">
+				<MediaHeader
+					totalDocs={pagination.totalDocs}
+					viewMode={viewMode}
+					onViewModeChange={setViewMode}
+					selectedUserId={currentUserId}
+					onUserIdChange={handleUserIdChange}
+					userOptions={userOptions}
+				/>
+
+				{/* Stats Section */}
+				{stats && (
+					<Card withBorder padding="lg" radius="md">
+						<Stack gap="lg">
+							<Title order={3}>
+								{currentUserId ? "User Media Statistics" : "System Media Statistics"}
+							</Title>
+							<Grid>
+								<Grid.Col span={{ base: 12, md: 6 }}>
+									<Stack gap="md">
+										<Text fw={500}>Media by Type</Text>
+										<PieChart
+											data={Object.entries(stats.mediaTypeCount)
+												.filter(([, count]) => count > 0)
+												.map(([type, count]) => ({
+													name: type.charAt(0).toUpperCase() + type.slice(1),
+													value: count,
+													color: getTypeColor(type),
+												}))}
+											withTooltip
+											withLabels
+											labelsType="value"
+											h={300}
+											w="100%"
+										/>
+									</Stack>
+								</Grid.Col>
+								<Grid.Col span={{ base: 12, md: 6 }}>
+									<Stack gap="md">
+										<Text fw={500}>Total Storage</Text>
+										{currentUserId && systemStats ? (
+											// User view: show user storage vs system storage
+											<>
+												<DonutChart
+													data={[
+														{
+															name: "User Storage",
+															value: stats.totalSize,
+															color: "blue",
+														},
+														{
+															name: "System Storage",
+															value: Math.max(0, systemStats.totalSize - stats.totalSize),
+															color: "green",
+														},
+													]}
+													withTooltip
+													withLabels
+													labelsType="value"
+													chartLabel={`${prettyBytes(stats.totalSize)}`}
+													h={300}
+													w="100%"
+												/>
+												<Group gap="xl" mt="md">
+													<Box>
+														<Text size="xs" c="dimmed">
+															User Storage
+														</Text>
+														<Text size="sm" fw={500}>
+															{prettyBytes(stats.totalSize)}
+														</Text>
+													</Box>
+													<Box>
+														<Text size="xs" c="dimmed">
+															System Storage
+														</Text>
+														<Text size="sm" fw={500}>
+															{prettyBytes(systemStats.totalSize)}
+														</Text>
+													</Box>
+												</Group>
+											</>
+										) : systemResources?.disk ? (
+											// System view: show system storage vs available disk space
+											<>
+												<DonutChart
+													data={[
+														{
+															name: "System Storage",
+															value: stats.totalSize,
+															color: "blue",
+														},
+														{
+															name: "Available",
+															value: systemResources.disk.available,
+															color: "green",
+														},
+													]}
+													withTooltip
+													withLabels
+													labelsType="value"
+													chartLabel={`${prettyBytes(stats.totalSize)}`}
+													h={300}
+													w="100%"
+												/>
+												<Group gap="xl" mt="md">
+													<Box>
+														<Text size="xs" c="dimmed">
+															System Storage
+														</Text>
+														<Text size="sm" fw={500}>
+															{prettyBytes(stats.totalSize)}
+														</Text>
+													</Box>
+													<Box>
+														<Text size="xs" c="dimmed">
+															Available
+														</Text>
+														<Text size="sm" fw={500}>
+															{prettyBytes(systemResources.disk.available)}
+														</Text>
+													</Box>
+												</Group>
+											</>
+										) : (
+											// Fallback: just show used storage
+											<DonutChart
+												data={[
+													{
+														name: "Used",
+														value: stats.totalSize,
+														color: "blue",
+													},
+												]}
+												withTooltip
+												withLabels
+												labelsType="value"
+												chartLabel={`${prettyBytes(stats.totalSize)}`}
+												h={300}
+												w="100%"
+											/>
+										)}
+									</Stack>
+								</Grid.Col>
+							</Grid>
+							<Group gap="md">
+								<Text size="sm" c="dimmed">
+									Total Files: <strong>{stats.count}</strong>
+								</Text>
+								<Text size="sm" c="dimmed">
+									Total Size: <strong>{prettyBytes(stats.totalSize)}</strong>
+								</Text>
+							</Group>
+						</Stack>
+					</Card>
+				)}
+
+				{media.length === 0 ? (
+					<Text c="dimmed" ta="center" py="xl">
+						No media files in the system.
+					</Text>
+				) : viewMode === "card" ? (
+					<>
+						<BatchActions
+							selectedCount={selectedCardIds.length}
+							onDelete={handleBatchDelete}
+						/>
+						<MediaCardView
+							media={media}
+							selectedCardIds={selectedCardIds}
+							onSelectionChange={setSelectedCardIds}
+							onDownload={handleDownload}
+							onDelete={handleDelete}
+							onOpenModal={handleOpenModal}
+							onRename={handleOpenRenameModal}
+						/>
+						<MediaPagination
+							totalPages={pagination.totalPages}
+							currentPage={pagination.page}
+							onPageChange={handlePageChange}
+						/>
+					</>
+				) : (
+					<>
+						<BatchActions
+							selectedCount={selectedRecords.length}
+							onDelete={handleBatchDelete}
+						/>
+						<MediaTableView
+							media={media}
+							selectedRecords={selectedRecords}
+							onSelectionChange={handleTableSelectionChange}
+							onDownload={handleDownload}
+							onDelete={handleDelete}
+							onOpenModal={handleOpenModal}
+							onRename={handleOpenRenameModal}
+						/>
+						<MediaPagination
+							totalPages={pagination.totalPages}
+							currentPage={pagination.page}
+							onPageChange={handlePageChange}
+						/>
+					</>
+				)}
+
+				{/* Media Preview Modal */}
+				<MediaPreviewModal
+					file={previewFile}
+					opened={previewModalOpened}
+					onClose={handleCloseModal}
+				/>
+
+				{/* Media Rename Modal */}
+				<MediaRenameModal
+					file={renameFile}
+					opened={renameModalOpened}
+					onClose={handleCloseRenameModal}
+					onRename={handleRename}
+				/>
+			</Stack>
+		</Container>
+	);
+}
+

@@ -515,6 +515,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 						title: "Maintenance mode",
 						href: href("/admin/maintenance"),
 					},
+					{ title: "Media management", href: href("/admin/media") },
 				],
 			},
 			file_redaction: {

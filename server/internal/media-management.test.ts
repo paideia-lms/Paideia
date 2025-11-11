@@ -11,6 +11,7 @@ import {
 	tryGetMediaBufferFromFilename,
 	tryGetMediaById,
 	tryGetMediaByFilename,
+	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
 	tryRenameMedia,
 } from "./media-management";
@@ -359,7 +360,7 @@ describe("Media Management", () => {
 		const createdMedia = createResult.value.media;
 
 		// Delete the media record
-		const deleteResult = await tryDeleteMedia(payload, {
+		const deleteResult = await tryDeleteMedia(payload, s3Client, {
 			id: createdMedia.id,
 			userId: testUserId,
 		});
@@ -370,13 +371,26 @@ describe("Media Management", () => {
 			expect(deleteResult.value.deletedMedia.length).toBe(1);
 			expect(deleteResult.value.deletedMedia[0].id).toBe(createdMedia.id);
 
-			// Verify the media is actually deleted
+			// Verify the media is actually deleted from database
 			const getResult = await tryGetMediaById(payload, {
 				id: createdMedia.id,
 				depth: 0,
 			});
 
 			expect(getResult.ok).toBe(false);
+
+			// Verify the file is deleted from S3 (if filename exists)
+			if (createdMedia.filename) {
+				const bufferResult = await tryGetMediaBufferFromFilename(
+					payload,
+					s3Client,
+					{
+						filename: createdMedia.filename,
+						depth: 0,
+					},
+				);
+				expect(bufferResult.ok).toBe(false);
+			}
 		}
 	});
 
@@ -424,7 +438,7 @@ describe("Media Management", () => {
 		];
 
 		// Delete all media records in batch
-		const deleteResult = await tryDeleteMedia(payload, {
+		const deleteResult = await tryDeleteMedia(payload, s3Client, {
 			id: mediaIds,
 			userId: testUserId,
 		});
@@ -451,7 +465,7 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to delete media with empty array", async () => {
-		const result = await tryDeleteMedia(payload, {
+		const result = await tryDeleteMedia(payload, s3Client, {
 			id: [],
 			userId: testUserId,
 		});
@@ -464,7 +478,7 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to delete non-existent media", async () => {
-		const result = await tryDeleteMedia(payload, {
+		const result = await tryDeleteMedia(payload, s3Client, {
 			id: 999999,
 			userId: testUserId,
 		});
@@ -493,7 +507,7 @@ describe("Media Management", () => {
 		const nonExistentId = 999999;
 
 		// Try to delete both existing and non-existent media
-		const result = await tryDeleteMedia(payload, {
+		const result = await tryDeleteMedia(payload, s3Client, {
 			id: [existingId, nonExistentId],
 			userId: testUserId,
 		});
@@ -538,6 +552,35 @@ describe("Media Management", () => {
 		const result = await tryGetUserMediaStats({
 			payload,
 			userId: testUserId,
+			overrideAccess: true,
+		});
+
+		expect(result.ok).toBe(true);
+
+		if (result.ok) {
+			const stats = result.value;
+
+			// Check data shape
+			expect(typeof stats.count).toBe("number");
+			expect(stats.count).toBeGreaterThanOrEqual(0);
+			expect(typeof stats.totalSize).toBe("number");
+			expect(stats.totalSize).toBeGreaterThanOrEqual(0);
+			expect(typeof stats.mediaTypeCount).toBe("object");
+			expect(stats.mediaTypeCount).not.toBeNull();
+
+			// Check media type count structure
+			for (const [type, count] of Object.entries(stats.mediaTypeCount)) {
+				expect(typeof type).toBe("string");
+				expect(typeof count).toBe("number");
+				expect(count).toBeGreaterThanOrEqual(0);
+			}
+		}
+	});
+
+	test("should get system media stats", async () => {
+		// Get stats for entire system
+		const result = await tryGetSystemMediaStats({
+			payload,
 			overrideAccess: true,
 		});
 

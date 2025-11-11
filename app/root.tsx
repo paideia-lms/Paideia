@@ -140,6 +140,7 @@ export const middleware = [
 		let isAdminCronJobs = false;
 		let isAdminMaintenance = false;
 		let isAdminSitePolicies = false;
+		let isAdminMedia = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
 			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
@@ -220,6 +221,7 @@ export const middleware = [
 				route.id === ("routes/admin/sitepolicies" as typeof route.id)
 			)
 				isAdminSitePolicies = true;
+			else if (route.id === "routes/admin/media") isAdminMedia = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -284,6 +286,7 @@ export const middleware = [
 				isAdminCronJobs,
 				isAdminMaintenance,
 				isAdminSitePolicies,
+				isAdminMedia,
 				params: params as Record<string, string>,
 			},
 		});

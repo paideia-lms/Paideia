@@ -72,6 +72,7 @@ export type PageInfo = {
 	isAdminCronJobs: boolean;
 	isAdminMaintenance: boolean;
 	isAdminSitePolicies: boolean;
+	isAdminMedia: boolean;
 	/**
 	 * the params of the current route
 	 */

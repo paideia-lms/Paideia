@@ -61,6 +61,15 @@ import { canDeleteMedia } from "server/utils/permissions";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
 import { ContentType } from "~/utils/get-content-type";
+import {
+    canPreview,
+    getFileIcon,
+    getTypeColor,
+    isAudio,
+    isImage,
+    isPdf,
+    isVideo,
+} from "~/utils/media-helpers";
 import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
@@ -370,7 +379,7 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
                 });
             }
 
-            const result = await tryDeleteMedia(payload, {
+            const result = await tryDeleteMedia(payload, s3Client, {
                 id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
                 userId: currentUser.id,
             });
@@ -522,7 +531,7 @@ export function useDeleteMedia() {
 export function useDownloadMedia() {
     const downloadMedia = (file: Media) => {
         if (!file.filename) return;
-        const url = `/api/media/file/${file.filename}?download=true`;
+        const url = href(`/api/media/file/:filenameOrId`, { filenameOrId: file.filename }) + "?download=true";
         const link = document.createElement("a");
         link.href = url;
         link.download = file.filename;
@@ -571,54 +580,6 @@ export function useRenameMedia() {
         isLoading: fetcher.state !== "idle",
         fetcher,
     };
-}
-
-function getFileIcon(mimeType: string | null | undefined) {
-    if (mimeType?.startsWith("image/")) {
-        return <IconPhoto size={48} />;
-    }
-    return <IconFile size={48} />;
-}
-
-function isImage(mimeType: string | null | undefined): boolean {
-    if (!mimeType) return false;
-    return mimeType.startsWith("image/");
-}
-
-function isAudio(mimeType: string | null | undefined): boolean {
-    if (!mimeType) return false;
-    return mimeType.startsWith("audio/");
-}
-
-function isVideo(mimeType: string | null | undefined): boolean {
-    if (!mimeType) return false;
-    return mimeType.startsWith("video/");
-}
-
-function isPdf(mimeType: string | null | undefined): boolean {
-    if (!mimeType) return false;
-    return mimeType === "application/pdf";
-}
-
-function canPreview(mimeType: string | null | undefined): boolean {
-    if (!mimeType) return false;
-    return isImage(mimeType) || isAudio(mimeType) || isVideo(mimeType) || isPdf(mimeType);
-}
-
-function getTypeColor(type: string): string {
-    const colorMap: Record<string, string> = {
-        image: "blue",
-        video: "red",
-        audio: "green",
-        pdf: "orange",
-        text: "cyan",
-        document: "indigo",
-        spreadsheet: "teal",
-        presentation: "pink",
-        archive: "gray",
-        other: "dark",
-    };
-    return colorMap[type] || "gray";
 }
 
 // Media Header Component
