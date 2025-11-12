@@ -92,13 +92,19 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				const fileBuffer = Buffer.from(arrayBuffer);
 
 				// Create media record within transaction
-				const mediaResult = await tryCreateMedia(payload, {
+				const mediaResult = await tryCreateMedia({
+					payload,
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					alt: "Note image",
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id ?? undefined,
+					},
+					req: { transactionID },
 				});
 
 				if (!mediaResult.ok) {
@@ -168,6 +174,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		}
 
 		// Create note with updated content
+		// Pass transaction context so filename resolution can see uncommitted media
+		const reqWithTransaction = { transactionID };
+
 		const result = await tryCreateNote({
 			payload,
 			data: {
@@ -180,6 +189,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				collection: "users",
 				avatar: currentUser.avatar?.id ?? undefined,
 			},
+			req: reqWithTransaction,
 			overrideAccess: false,
 		});
 

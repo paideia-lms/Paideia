@@ -151,6 +151,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
         depth: 0,
         user: {
             ...currentUser,
+            collection: "users",
             avatar: currentUser.avatar?.id,
         },
         overrideAccess: false,
@@ -179,6 +180,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
         userId,
         user: {
             ...currentUser,
+            collection: "users",
             avatar: currentUser.avatar?.id,
         },
         overrideAccess: false,
@@ -282,11 +284,18 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
 
             // If newFilename is provided, rename the file
             if (newFilename) {
-                const renameResult = await tryRenameMedia(payload, s3Client, {
+                const renameResult = await tryRenameMedia({
+                    payload,
+                    s3Client,
                     id: mediaId,
                     newFilename,
                     userId: currentUser.id,
-                    transactionID,
+                    user: {
+                        ...currentUser,
+                        collection: "users",
+                        avatar: currentUser.avatar?.id ?? undefined,
+                    },
+                    req: { transactionID },
                 });
 
                 if (!renameResult.ok) {
@@ -382,9 +391,17 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
                 });
             }
 
-            const result = await tryDeleteMedia(payload, s3Client, {
+            const result = await tryDeleteMedia({
+                payload,
+                s3Client,
                 id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
                 userId: currentUser.id,
+                user: {
+                    ...currentUser,
+                    collection: "users",
+                    avatar: currentUser.avatar?.id ?? undefined,
+                },
+                req: { transactionID },
             });
 
             if (!result.ok) {
@@ -411,12 +428,18 @@ export const action = async ({ request, context, params }: Route.ActionArgs) => 
                 const arrayBuffer = await fileUpload.arrayBuffer();
                 const fileBuffer = Buffer.from(arrayBuffer);
 
-                const mediaResult = await tryCreateMedia(payload, {
+                const mediaResult = await tryCreateMedia({
+                    payload,
                     file: fileBuffer,
                     filename: fileUpload.name,
                     mimeType: fileUpload.type,
                     userId: userId,
-                    transactionID,
+                    user: {
+                        ...currentUser,
+                        collection: "users",
+                        avatar: currentUser.avatar?.id ?? undefined,
+                    },
+                    req: { transactionID },
                 });
 
                 if (!mediaResult.ok) {

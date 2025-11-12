@@ -10,10 +10,13 @@ import {
 	tryUpdatePage,
 } from "./page-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateMedia } from "./media-management";
 
 describe("Page Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let testUser: { id: number };
+	let testMediaId: number;
+	let testMediaFilename: string;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -47,6 +50,25 @@ describe("Page Management Functions", () => {
 		}
 
 		testUser = userResult.value;
+
+		// Create test media file
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createMediaResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-page-media.png",
+			mimeType: "image/png",
+			alt: "Test page media",
+			userId: testUser.id,
+			overrideAccess: true,
+		});
+
+		if (!createMediaResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		testMediaId = createMediaResult.value.media.id;
+		testMediaFilename = createMediaResult.value.media.filename ?? "";
 	});
 
 	afterAll(async () => {
@@ -72,6 +94,11 @@ describe("Page Management Functions", () => {
 		if (result.ok) {
 			expect(result.value.content).toBe(createArgs.content);
 			expect(result.value.createdBy.id).toBe(testUser.id);
+			// Media array should be empty when no media references in HTML
+			expect(result.value.media).toBeDefined();
+			if (Array.isArray(result.value.media)) {
+				expect(result.value.media.length).toBe(0);
+			}
 		}
 	});
 
@@ -173,6 +200,72 @@ describe("Page Management Functions", () => {
 			expect(updateResult.ok).toBe(true);
 			if (updateResult.ok) {
 				expect(updateResult.value.content).toBe("<h1>Updated Content</h1>");
+				// Media array should be empty when no media references
+				expect(updateResult.value.media).toBeDefined();
+				if (Array.isArray(updateResult.value.media)) {
+					expect(updateResult.value.media.length).toBe(0);
+				}
+			}
+		}
+	});
+
+	test("should create a page with media references in HTML", async () => {
+		const html = `<h1>Test Page</h1><p>This is a test page with images.</p><img src="/api/media/file/${testMediaId}" alt="Test image" />`;
+
+		const createArgs: CreatePageArgs = {
+			payload,
+			content: html,
+			userId: testUser.id,
+			overrideAccess: true,
+		};
+
+		const result = await tryCreatePage(createArgs);
+
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(result.value.content).toBe(html);
+			expect(result.value.media).toBeDefined();
+			if (Array.isArray(result.value.media)) {
+				expect(result.value.media.length).toBe(1);
+				const mediaId = typeof result.value.media[0] === "number" ? result.value.media[0] : result.value.media[0]?.id;
+				expect(mediaId).toBe(testMediaId);
+			}
+		}
+	});
+
+	test("should update page media array when content changes", async () => {
+		// Create a page first
+		const createArgs: CreatePageArgs = {
+			payload,
+			content: "<h1>Original Content</h1>",
+			userId: testUser.id,
+			overrideAccess: true,
+		};
+
+		const createResult = await tryCreatePage(createArgs);
+		expect(createResult.ok).toBe(true);
+
+		if (createResult.ok) {
+			const pageId = createResult.value.id;
+
+			// Update the page with media reference
+			const updatedHtml = `<h1>Updated Content</h1><img src="/api/media/file/${testMediaId}" alt="Test image" />`;
+			const updateResult = await tryUpdatePage({
+				payload,
+				id: pageId,
+				content: updatedHtml,
+				overrideAccess: true,
+			});
+
+			expect(updateResult.ok).toBe(true);
+			if (updateResult.ok) {
+				expect(updateResult.value.content).toBe(updatedHtml);
+				expect(updateResult.value.media).toBeDefined();
+				if (Array.isArray(updateResult.value.media)) {
+					expect(updateResult.value.media.length).toBe(1);
+					const mediaId = typeof updateResult.value.media[0] === "number" ? updateResult.value.media[0] : updateResult.value.media[0]?.id;
+					expect(mediaId).toBe(testMediaId);
+				}
 			}
 		}
 	});

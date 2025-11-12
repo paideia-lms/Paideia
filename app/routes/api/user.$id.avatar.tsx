@@ -105,7 +105,9 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
     const rangeHeader = request.headers.get("Range");
 
     // Get media stream (without range first to get file size)
-    let result = await tryGetMediaStreamFromId(payload, s3Client, {
+    let result = await tryGetMediaStreamFromId({
+        payload,
+        s3Client,
         id: avatarMediaId,
         depth: 0,
     });
@@ -123,7 +125,9 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 
     // If range is requested and different from full file, fetch with range
     if (range && (range.start > 0 || range.end < fileSize - 1)) {
-        result = await tryGetMediaStreamFromId(payload, s3Client, {
+        result = await tryGetMediaStreamFromId({
+            payload,
+            s3Client,
             id: avatarMediaId,
             depth: 0,
             range,

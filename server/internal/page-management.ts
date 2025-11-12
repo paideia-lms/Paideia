@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -8,13 +8,13 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { User } from "../payload-types";
+import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
 
 export interface CreatePageArgs {
 	payload: Payload;
 	content?: string;
 	userId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -23,7 +23,7 @@ export interface UpdatePageArgs {
 	payload: Payload;
 	id: number;
 	content?: string;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -31,7 +31,7 @@ export interface UpdatePageArgs {
 export interface DeletePageArgs {
 	payload: Payload;
 	id: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -39,7 +39,7 @@ export interface DeletePageArgs {
 export interface GetPageByIdArgs {
 	payload: Payload;
 	id: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -59,12 +59,53 @@ export const tryCreatePage = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
+		// Parse media from HTML content
+		const mediaParseResult = tryParseMediaFromHtml(content || "");
+
+		if (!mediaParseResult.ok) {
+			throw mediaParseResult.error;
+		}
+
+		const { ids: parsedIds, filenames } = mediaParseResult.value;
+
+		// Resolve filenames to IDs in a single query
+		let resolvedIds: number[] = [];
+		if (filenames.length > 0) {
+			try {
+				const mediaResult = await payload.find({
+					collection: "media",
+					where: {
+						filename: {
+							in: filenames,
+						},
+					},
+					limit: filenames.length,
+					depth: 0,
+					pagination: false,
+					overrideAccess: true,
+					req,
+				});
+
+				resolvedIds = mediaResult.docs.map((doc) => doc.id);
+			} catch (error) {
+				// If media lookup fails, log warning but continue
+				console.warn(
+					`Failed to resolve media filenames to IDs:`,
+					error,
+				);
+			}
+		}
+
+		// Combine parsed IDs and resolved IDs
+		const mediaIds = [...parsedIds, ...resolvedIds];
+
 		const page = await payload
 			.create({
 				collection: "pages",
 				data: {
 					content: content || "",
 					createdBy: userId,
+					media: mediaIds.length > 0 ? mediaIds : undefined,
 				},
 				user,
 				req,
@@ -116,12 +157,59 @@ export const tryUpdatePage = Result.wrap(
 			throw new NonExistingPageError("Page not found");
 		}
 
+		// Parse media from HTML content if content is provided
+		let mediaIds: number[] = [];
+		if (content !== undefined) {
+			const mediaParseResult = tryParseMediaFromHtml(content || "");
+
+			if (!mediaParseResult.ok) {
+				throw mediaParseResult.error;
+			}
+
+			const { ids: parsedIds, filenames } = mediaParseResult.value;
+
+			// Resolve filenames to IDs in a single query
+			let resolvedIds: number[] = [];
+			if (filenames.length > 0) {
+				try {
+					const mediaResult = await payload.find({
+						collection: "media",
+						where: {
+							filename: {
+								in: filenames,
+							},
+						},
+						limit: filenames.length,
+						depth: 0,
+						pagination: false,
+						overrideAccess: true,
+						req:
+							req && "transactionID" in req && req.transactionID
+								? { transactionID: req.transactionID as string | number }
+								: undefined,
+					});
+
+					resolvedIds = mediaResult.docs.map((doc) => doc.id);
+				} catch (error) {
+					// If media lookup fails, log warning but continue
+					console.warn(
+						`Failed to resolve media filenames to IDs:`,
+						error,
+					);
+				}
+			}
+
+			// Combine parsed IDs and resolved IDs
+			mediaIds = [...parsedIds, ...resolvedIds];
+		}
+
 		const page = await payload
 			.update({
 				collection: "pages",
 				id,
 				data: {
 					content,
+					...(content !== undefined && { media: mediaIds.length > 0 ? mediaIds : [] }),
 				},
 				user,
 				req,

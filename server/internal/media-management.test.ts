@@ -27,6 +27,8 @@ import { tryCreateActivityModule } from "./activity-module-management";
 import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateAssignmentSubmission } from "./assignment-submission-management";
 import { tryCreateDiscussionSubmission } from "./discussion-management";
+import { tryCreateNote } from "./note-management";
+import { tryCreatePage } from "./page-management";
 
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -76,7 +78,8 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to create media with invalid data", async () => {
-		const result = await tryCreateMedia(payload, {
+		const result = await tryCreateMedia({
+			payload,
 			file: Buffer.from("test"),
 			filename: "",
 			mimeType: "image/jpeg",
@@ -88,11 +91,13 @@ describe("Media Management", () => {
 
 	test("Should create image media", async () => {
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const result = await tryCreateMedia(payload, {
+		const result = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "gem.png",
 			mimeType: "image/png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -111,9 +116,11 @@ describe("Media Management", () => {
 
 	test("should get all media in database", async () => {
 		// This is the main test case requested by the user
-		const result = await tryGetAllMedia(payload, {
+		const result = await tryGetAllMedia({
+			payload,
 			limit: 100, // Get a large number to get all media
 			page: 1,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -144,13 +151,15 @@ describe("Media Management", () => {
 	test("should get media by filename", async () => {
 		// First create a media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-gem-by-filename.png",
 			mimeType: "image/png",
 			alt: "Test gem image",
 			caption: "This is a test",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -168,9 +177,11 @@ describe("Media Management", () => {
 		}
 
 		// Now try to get it by filename
-		const getResult = await tryGetMediaByFilename(payload, {
+		const getResult = await tryGetMediaByFilename({
+			payload,
 			filename: createdMedia.filename,
 			depth: 0,
+			overrideAccess: true,
 		});
 
 		expect(getResult.ok).toBe(true);
@@ -188,7 +199,8 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to get media with non-existent filename", async () => {
-		const result = await tryGetMediaByFilename(payload, {
+		const result = await tryGetMediaByFilename({
+			payload,
 			filename: "non-existent-file-12345.png",
 			depth: 0,
 		});
@@ -198,7 +210,8 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to get media with empty filename", async () => {
-		const result = await tryGetMediaByFilename(payload, {
+		const result = await tryGetMediaByFilename({
+			payload,
 			filename: "",
 			depth: 0,
 		});
@@ -211,12 +224,14 @@ describe("Media Management", () => {
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 		const originalBuffer = Buffer.from(fileBuffer);
 
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: originalBuffer,
 			filename: "test-buffer-gem.png",
 			mimeType: "image/png",
 			alt: "Test buffer gem",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -235,9 +250,12 @@ describe("Media Management", () => {
 		console.log("Testing buffer retrieval for:", createdMedia.filename);
 
 		// Now try to get both media and buffer
-		const result = await tryGetMediaBufferFromFilename(payload, s3Client, {
+		const result = await tryGetMediaBufferFromFilename({
+			payload,
+			s3Client,
 			filename: createdMedia.filename,
 			depth: 0,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -263,7 +281,9 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to get buffer for non-existent file", async () => {
-		const result = await tryGetMediaBufferFromFilename(payload, s3Client, {
+		const result = await tryGetMediaBufferFromFilename({
+			payload,
+			s3Client,
 			filename: "non-existent-buffer-file.png",
 			depth: 0,
 		});
@@ -272,7 +292,9 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to get buffer with empty filename", async () => {
-		const result = await tryGetMediaBufferFromFilename(payload, s3Client, {
+		const result = await tryGetMediaBufferFromFilename({
+			payload,
+			s3Client,
 			filename: "",
 			depth: 0,
 		});
@@ -283,23 +305,27 @@ describe("Media Management", () => {
 	test("should find media by user", async () => {
 		// First create some media files for the test user
 		const fileBuffer1 = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult1 = await tryCreateMedia(payload, {
+		const createResult1 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer1),
 			filename: "test-user-media-1.png",
 			mimeType: "image/png",
 			alt: "Test media 1",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult1.ok).toBe(true);
 
 		const fileBuffer2 = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult2 = await tryCreateMedia(payload, {
+		const createResult2 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer2),
 			filename: "test-user-media-2.png",
 			mimeType: "image/png",
 			alt: "Test media 2",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult2.ok).toBe(true);
@@ -354,12 +380,14 @@ describe("Media Management", () => {
 	test("should delete a single media record", async () => {
 		// First create a media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-delete-single.png",
 			mimeType: "image/png",
 			alt: "Test delete single",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -371,9 +399,12 @@ describe("Media Management", () => {
 		const createdMedia = createResult.value.media;
 
 		// Delete the media record
-		const deleteResult = await tryDeleteMedia(payload, s3Client, {
+		const deleteResult = await tryDeleteMedia({
+			payload,
+			s3Client,
 			id: createdMedia.id,
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(deleteResult.ok).toBe(true);
@@ -383,23 +414,23 @@ describe("Media Management", () => {
 			expect(deleteResult.value.deletedMedia[0].id).toBe(createdMedia.id);
 
 			// Verify the media is actually deleted from database
-			const getResult = await tryGetMediaById(payload, {
+			const getResult = await tryGetMediaById({
+				payload,
 				id: createdMedia.id,
 				depth: 0,
+				overrideAccess: true,
 			});
 
 			expect(getResult.ok).toBe(false);
 
 			// Verify the file is deleted from S3 (if filename exists)
 			if (createdMedia.filename) {
-				const bufferResult = await tryGetMediaBufferFromFilename(
+				const bufferResult = await tryGetMediaBufferFromFilename({
 					payload,
 					s3Client,
-					{
-						filename: createdMedia.filename,
-						depth: 0,
-					},
-				);
+					filename: createdMedia.filename,
+					depth: 0,
+				});
 				expect(bufferResult.ok).toBe(false);
 			}
 		}
@@ -408,12 +439,14 @@ describe("Media Management", () => {
 	test("should fail to delete media with usage", async () => {
 		// Create a media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-delete-with-usage.png",
 			mimeType: "image/png",
 			alt: "Test delete with usage",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -434,9 +467,12 @@ describe("Media Management", () => {
 		});
 
 		// Try to delete the media (should fail)
-		const deleteResult = await tryDeleteMedia(payload, s3Client, {
+		const deleteResult = await tryDeleteMedia({
+			payload,
+			s3Client,
 			id: testMediaId,
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(deleteResult.ok).toBe(false);
@@ -446,9 +482,11 @@ describe("Media Management", () => {
 		}
 
 		// Verify the media still exists
-		const getResult = await tryGetMediaById(payload, {
+		const getResult = await tryGetMediaById({
+			payload,
 			id: testMediaId,
 			depth: 0,
+			overrideAccess: true,
 		});
 		expect(getResult.ok).toBe(true);
 	});
@@ -456,32 +494,38 @@ describe("Media Management", () => {
 	test("should delete multiple media records (batch delete)", async () => {
 		// Create multiple media files
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult1 = await tryCreateMedia(payload, {
+		const createResult1 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-batch-delete-1.png",
 			mimeType: "image/png",
 			alt: "Test batch delete 1",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult1.ok).toBe(true);
 
-		const createResult2 = await tryCreateMedia(payload, {
+		const createResult2 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-batch-delete-2.png",
 			mimeType: "image/png",
 			alt: "Test batch delete 2",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult2.ok).toBe(true);
 
-		const createResult3 = await tryCreateMedia(payload, {
+		const createResult3 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-batch-delete-3.png",
 			mimeType: "image/png",
 			alt: "Test batch delete 3",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult3.ok).toBe(true);
@@ -497,9 +541,12 @@ describe("Media Management", () => {
 		];
 
 		// Delete all media records in batch
-		const deleteResult = await tryDeleteMedia(payload, s3Client, {
+		const deleteResult = await tryDeleteMedia({
+			payload,
+			s3Client,
 			id: mediaIds,
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(deleteResult.ok).toBe(true);
@@ -513,9 +560,11 @@ describe("Media Management", () => {
 
 			// Verify all media are actually deleted
 			for (const mediaId of mediaIds) {
-				const getResult = await tryGetMediaById(payload, {
+				const getResult = await tryGetMediaById({
+					payload,
 					id: mediaId,
 					depth: 0,
+					overrideAccess: true,
 				});
 
 				expect(getResult.ok).toBe(false);
@@ -524,7 +573,9 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to delete media with empty array", async () => {
-		const result = await tryDeleteMedia(payload, s3Client, {
+		const result = await tryDeleteMedia({
+			payload,
+			s3Client,
 			id: [],
 			userId: testUserId,
 		});
@@ -537,7 +588,9 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to delete non-existent media", async () => {
-		const result = await tryDeleteMedia(payload, s3Client, {
+		const result = await tryDeleteMedia({
+			payload,
+			s3Client,
 			id: 999999,
 			userId: testUserId,
 		});
@@ -548,12 +601,14 @@ describe("Media Management", () => {
 	test("should fail to delete media when some IDs don't exist", async () => {
 		// Create one media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-partial-delete.png",
 			mimeType: "image/png",
 			alt: "Test partial delete",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -566,17 +621,22 @@ describe("Media Management", () => {
 		const nonExistentId = 999999;
 
 		// Try to delete both existing and non-existent media
-		const result = await tryDeleteMedia(payload, s3Client, {
+		const result = await tryDeleteMedia({
+			payload,
+			s3Client,
 			id: [existingId, nonExistentId],
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
 
 		// Verify the existing media was not deleted (transaction rollback)
-		const getResult = await tryGetMediaById(payload, {
+		const getResult = await tryGetMediaById({
+			payload,
 			id: existingId,
 			depth: 0,
+			overrideAccess: true,
 		});
 
 		expect(getResult.ok).toBe(true);
@@ -585,20 +645,24 @@ describe("Media Management", () => {
 	test("should fail to delete multiple media when one has usage", async () => {
 		// Create two media files
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult1 = await tryCreateMedia(payload, {
+		const createResult1 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-batch-delete-usage-1.png",
 			mimeType: "image/png",
 			alt: "Test batch delete usage 1",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
-		const createResult2 = await tryCreateMedia(payload, {
+		const createResult2 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-batch-delete-usage-2.png",
 			mimeType: "image/png",
 			alt: "Test batch delete usage 2",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult1.ok).toBe(true);
@@ -622,9 +686,12 @@ describe("Media Management", () => {
 		});
 
 		// Try to delete both media (should fail because mediaId1 has usage)
-		const result = await tryDeleteMedia(payload, s3Client, {
+		const result = await tryDeleteMedia({
+			payload,
+			s3Client,
 			id: [mediaId1, mediaId2],
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -634,13 +701,17 @@ describe("Media Management", () => {
 		}
 
 		// Verify both media still exist (transaction rollback)
-		const getResult1 = await tryGetMediaById(payload, {
+		const getResult1 = await tryGetMediaById({
+			payload,
 			id: mediaId1,
 			depth: 0,
+			overrideAccess: true,
 		});
-		const getResult2 = await tryGetMediaById(payload, {
+		const getResult2 = await tryGetMediaById({
+			payload,
 			id: mediaId2,
 			depth: 0,
+			overrideAccess: true,
 		});
 
 		expect(getResult1.ok).toBe(true);
@@ -650,25 +721,31 @@ describe("Media Management", () => {
 	test("should get user media stats", async () => {
 		// Create some media files with different types
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		await tryCreateMedia(payload, {
+		await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-stats-1.png",
 			mimeType: "image/png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
-		await tryCreateMedia(payload, {
+		await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-stats-2.jpg",
 			mimeType: "image/jpeg",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
-		await tryCreateMedia(payload, {
+		await tryCreateMedia({
+			payload,
 			file: Buffer.from("test pdf content"),
 			filename: "test-stats.pdf",
 			mimeType: "application/pdf",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		// Get stats
@@ -732,12 +809,14 @@ describe("Media Management", () => {
 	test("should rename media file", async () => {
 		// First create a media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-rename-original.png",
 			mimeType: "image/png",
 			alt: "Test rename original",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -756,10 +835,13 @@ describe("Media Management", () => {
 		const newFilename = "test-rename-new.png";
 
 		// Rename the media file
-		const renameResult = await tryRenameMedia(payload, s3Client, {
+		const renameResult = await tryRenameMedia({
+			payload,
+			s3Client,
 			id: createdMedia.id,
 			newFilename,
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(renameResult.ok).toBe(true);
@@ -770,15 +852,19 @@ describe("Media Management", () => {
 			expect(renamedMedia.id).toBe(createdMedia.id);
 
 			// Verify the old file is gone and new file exists by trying to get it
-			const getOldResult = await tryGetMediaByFilename(payload, {
+			const getOldResult = await tryGetMediaByFilename({
+				payload,
 				filename: createdMedia.filename,
 				depth: 0,
+				overrideAccess: true,
 			});
 			expect(getOldResult.ok).toBe(false);
 
-			const getNewResult = await tryGetMediaByFilename(payload, {
+			const getNewResult = await tryGetMediaByFilename({
+				payload,
 				filename: newFilename,
 				depth: 0,
+				overrideAccess: true,
 			});
 			expect(getNewResult.ok).toBe(true);
 		}
@@ -787,18 +873,22 @@ describe("Media Management", () => {
 	test("should fail to rename media with duplicate filename", async () => {
 		// Create two media files
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult1 = await tryCreateMedia(payload, {
+		const createResult1 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-rename-duplicate-1.png",
 			mimeType: "image/png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
-		const createResult2 = await tryCreateMedia(payload, {
+		const createResult2 = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-rename-duplicate-2.png",
 			mimeType: "image/png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult1.ok).toBe(true);
@@ -809,10 +899,13 @@ describe("Media Management", () => {
 		}
 
 		// Try to rename the second file to the first file's name
-		const renameResult = await tryRenameMedia(payload, s3Client, {
+		const renameResult = await tryRenameMedia({
+			payload,
+			s3Client,
 			id: createResult2.value.media.id,
 			newFilename: "test-rename-duplicate-1.png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(renameResult.ok).toBe(false);
@@ -821,11 +914,13 @@ describe("Media Management", () => {
 	test("should get orphaned media files", async () => {
 		// First, create a media file that will be in the database
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-managed-file.png",
 			mimeType: "image/png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -843,7 +938,9 @@ describe("Media Management", () => {
 		);
 
 		// Get orphaned media
-		const result = await tryGetOrphanedMedia(payload, s3Client, {
+		const result = await tryGetOrphanedMedia({
+			payload,
+			s3Client,
 			limit: 10,
 			page: 1,
 		});
@@ -892,7 +989,9 @@ describe("Media Management", () => {
 		}
 
 		// Get first page
-		const result1 = await tryGetOrphanedMedia(payload, s3Client, {
+		const result1 = await tryGetOrphanedMedia({
+			payload,
+			s3Client,
 			limit: 2,
 			page: 1,
 		});
@@ -936,7 +1035,9 @@ describe("Media Management", () => {
 		}
 
 		// Delete orphaned files
-		const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+		const result = await tryDeleteOrphanedMedia({
+			payload,
+			s3Client,
 			filenames: orphanedFilenames,
 		});
 
@@ -970,11 +1071,13 @@ describe("Media Management", () => {
 	test("should fail to delete non-orphaned media files", async () => {
 		// Create a managed media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createResult = await tryCreateMedia(payload, {
+		const createResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-managed-for-delete.png",
 			mimeType: "image/png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
@@ -990,7 +1093,9 @@ describe("Media Management", () => {
 		}
 
 		// Try to delete it as orphaned (should fail)
-		const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+		const result = await tryDeleteOrphanedMedia({
+			payload,
+			s3Client,
 			filenames: [managedFilename],
 		});
 
@@ -998,7 +1103,9 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to delete orphaned media with empty array", async () => {
-		const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+		const result = await tryDeleteOrphanedMedia({
+			payload,
+			s3Client,
 			filenames: [],
 		});
 
@@ -1008,12 +1115,14 @@ describe("Media Management", () => {
 	test("should find all media usages across collections", async () => {
 		// Create a media file to test with
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createMediaResult = await tryCreateMedia(payload, {
+		const createMediaResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-media-usages.png",
 			mimeType: "image/png",
 			alt: "Test media for usages",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createMediaResult.ok).toBe(true);
@@ -1235,9 +1344,74 @@ describe("Media Management", () => {
 			fieldPath: "attachments.0.file",
 		});
 
+		// 11. Create a note with media reference in HTML content
+		const noteHtml = `<p>This is a test note with an image.</p><img src="/api/media/file/${testMediaId}" alt="Note image" />`;
+		const noteResult = await tryCreateNote({
+			payload,
+			data: {
+				content: noteHtml,
+				createdBy: testUserId,
+			},
+			overrideAccess: true,
+		});
+
+		expect(noteResult.ok).toBe(true);
+		if (!noteResult.ok) {
+			throw new Error("Failed to create test note");
+		}
+		const noteId = noteResult.value.id;
+		usages.push({
+			collection: "notes",
+			fieldPath: "media.0",
+		});
+
+		// 12. Create a page with media reference in HTML content
+		const pageHtml = `<h1>Test Page</h1><p>This is a test page with an image.</p><img src="/api/media/file/${testMediaId}" alt="Page image" />`;
+		const pageResult = await tryCreatePage({
+			payload,
+			content: pageHtml,
+			userId: testUserId,
+			overrideAccess: true,
+		});
+
+		expect(pageResult.ok).toBe(true);
+		if (!pageResult.ok) {
+			throw new Error("Failed to create test page");
+		}
+		const pageId = pageResult.value.id;
+		usages.push({
+			collection: "pages",
+			fieldPath: "media.0",
+		});
+
+		// 13. Create a course with media reference in description HTML
+		const courseDescription = `<p>This is a test course description with an image.</p><img src="/api/media/file/${testMediaId}" alt="Course image" />`;
+		const courseWithMediaResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Test Course with Media",
+				description: courseDescription,
+				slug: `test-course-media-${Date.now()}`,
+				createdBy: testUserId,
+			},
+			overrideAccess: true,
+		});
+
+		expect(courseWithMediaResult.ok).toBe(true);
+		if (!courseWithMediaResult.ok) {
+			throw new Error("Failed to create test course with media");
+		}
+		const courseWithMediaId = courseWithMediaResult.value.id;
+		usages.push({
+			collection: "courses",
+			fieldPath: "media.0",
+		});
+
 		// Now find all usages of the media
-		const findUsagesResult = await tryFindMediaUsages(payload, {
+		const findUsagesResult = await tryFindMediaUsages({
+			payload,
 			mediaId: testMediaId,
+			overrideAccess: true,
 		});
 
 		expect(findUsagesResult.ok).toBe(true);
@@ -1247,9 +1421,9 @@ describe("Media Management", () => {
 
 		const { usages: foundUsages, totalUsages } = findUsagesResult.value;
 
-		// Verify we found all expected usages
-		expect(totalUsages).toBe(4);
-		expect(foundUsages.length).toBe(4);
+		// Verify we found all expected usages (4 original + 3 new = 7 total)
+		expect(totalUsages).toBe(7);
+		expect(foundUsages.length).toBe(7);
 
 		// Verify each expected usage is present
 		for (const expectedUsage of usages) {
@@ -1286,16 +1460,39 @@ describe("Media Management", () => {
 				u.fieldPath === "attachments.0.file",
 		);
 		expect(discussionUsage?.documentId).toBe(discussionSubmissionId);
+
+		// Verify note media array usage
+		const noteUsage = foundUsages.find(
+			(u) => u.collection === "notes" && u.fieldPath === "media.0",
+		);
+		expect(noteUsage).toBeDefined();
+		expect(noteUsage?.documentId).toBe(noteId);
+
+		// Verify page media array usage
+		const pageUsage = foundUsages.find(
+			(u) => u.collection === "pages" && u.fieldPath === "media.0",
+		);
+		expect(pageUsage).toBeDefined();
+		expect(pageUsage?.documentId).toBe(pageId);
+
+		// Verify course media array usage
+		const courseMediaUsage = foundUsages.find(
+			(u) => u.collection === "courses" && u.fieldPath === "media.0",
+		);
+		expect(courseMediaUsage).toBeDefined();
+		expect(courseMediaUsage?.documentId).toBe(courseWithMediaId);
 	});
 
 	test("should find no usages for media with no references", async () => {
 		// Create a media file that won't be used anywhere
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-		const createMediaResult = await tryCreateMedia(payload, {
+		const createMediaResult = await tryCreateMedia({
+			payload,
 			file: Buffer.from(fileBuffer),
 			filename: "test-unused-media.png",
 			mimeType: "image/png",
 			userId: testUserId,
+			overrideAccess: true,
 		});
 
 		expect(createMediaResult.ok).toBe(true);
@@ -1306,8 +1503,10 @@ describe("Media Management", () => {
 		const testMediaId = createMediaResult.value.media.id;
 
 		// Find usages (should be empty)
-		const findUsagesResult = await tryFindMediaUsages(payload, {
+		const findUsagesResult = await tryFindMediaUsages({
+			payload,
 			mediaId: testMediaId,
+			overrideAccess: true,
 		});
 
 		expect(findUsagesResult.ok).toBe(true);
@@ -1321,7 +1520,8 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to find usages for non-existent media", async () => {
-		const result = await tryFindMediaUsages(payload, {
+		const result = await tryFindMediaUsages({
+			payload,
 			mediaId: 999999,
 		});
 
@@ -1329,7 +1529,8 @@ describe("Media Management", () => {
 	});
 
 	test("should fail to find usages with invalid media ID", async () => {
-		const result = await tryFindMediaUsages(payload, {
+		const result = await tryFindMediaUsages({
+			payload,
 			mediaId: "",
 		});
 

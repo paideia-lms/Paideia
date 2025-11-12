@@ -122,6 +122,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			depth: 1, // Include createdBy user info
 			user: {
 				...currentUser,
+				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
 			overrideAccess: true,
@@ -133,6 +134,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			userId,
 			user: {
 				...currentUser,
+				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
 			overrideAccess: true,
@@ -143,13 +145,15 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			payload,
 			user: {
 				...currentUser,
+				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
 			overrideAccess: true,
 		});
 	} else {
 		// Fetch all media in the system
-		mediaResult = await tryGetAllMedia(payload, {
+		mediaResult = await tryGetAllMedia({
+			payload,
 			limit,
 			page,
 			depth: 1, // Include createdBy user info
@@ -160,6 +164,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			payload,
 			user: {
 				...currentUser,
+				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
 			overrideAccess: true,
@@ -200,7 +205,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		: [];
 
 	// Fetch orphaned media files
-	const orphanedMediaResult = await tryGetOrphanedMedia(payload, s3Client, {
+	const orphanedMediaResult = await tryGetOrphanedMedia({
+		payload,
+		s3Client,
 		limit,
 		page: orphanedPage,
 	});
@@ -282,11 +289,18 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 			// If newFilename is provided, rename the file
 			if (newFilename) {
-				const renameResult = await tryRenameMedia(payload, s3Client, {
+				const renameResult = await tryRenameMedia({
+					payload,
+					s3Client,
 					id: mediaId,
 					newFilename,
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id ?? undefined,
+					},
+					req: { transactionID },
 				});
 
 				if (!renameResult.ok) {
@@ -367,9 +381,17 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				});
 			}
 
-			const result = await tryDeleteMedia(payload, s3Client, {
+			const result = await tryDeleteMedia({
+				payload,
+				s3Client,
 				id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
 				userId: currentUser.id,
+				user: {
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar?.id ?? undefined,
+				},
+				req: { transactionID },
 			});
 
 			if (!result.ok) {
@@ -414,7 +436,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					return badRequest({ error: "At least one filename is required" });
 				}
 
-				const result = await tryDeleteOrphanedMedia(payload, s3Client, {
+				const result = await tryDeleteOrphanedMedia({
+					payload,
+					s3Client,
 					filenames,
 				});
 
@@ -431,7 +455,10 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			}
 
 			if (actionType === "pruneAllOrphaned") {
-				const result = await tryPruneAllOrphanedMedia(payload, s3Client);
+				const result = await tryPruneAllOrphanedMedia({
+					payload,
+					s3Client,
+				});
 
 				if (!result.ok) {
 					return badRequest({ error: result.error.message });

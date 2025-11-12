@@ -139,12 +139,15 @@ export const tryRunSeed = Result.wrap(
 			"fixture/paideia-logo.png",
 		);
 		if (adminAvatarBuffer) {
-			const adminAvatarResult = await tryCreateMedia(payload, {
+			const adminAvatarResult = await tryCreateMedia({
+				payload,
 				file: adminAvatarBuffer,
 				filename: "paideia-logo.png",
 				mimeType: "image/png",
 				alt: "Admin avatar",
 				userId: adminUser.id,
+				// ! this is a seeding process, we can override access
+				overrideAccess: true,
 			});
 
 			if (adminAvatarResult.ok) {
@@ -154,6 +157,7 @@ export const tryRunSeed = Result.wrap(
 					data: {
 						avatar: adminAvatarResult.value.media.id,
 					},
+					// ! this is a seeding process, we can override access because it is not part of the test suite and is not affected by the test suite.
 					overrideAccess: true,
 				});
 
@@ -197,12 +201,15 @@ export const tryRunSeed = Result.wrap(
 		console.log("🖼️  Creating student avatar...");
 		const studentAvatarBuffer = await getVfsFileBuffer(vfs, "fixture/gem.png");
 		if (studentAvatarBuffer) {
-			const studentAvatarResult = await tryCreateMedia(payload, {
+			const studentAvatarResult = await tryCreateMedia({
+				payload,
 				file: studentAvatarBuffer,
 				filename: "gem.png",
 				mimeType: "image/png",
 				alt: "Student avatar",
 				userId: studentUser.id,
+				// ! this is a seeding process, we can override access
+				overrideAccess: true,
 			});
 
 			if (studentAvatarResult.ok) {
@@ -212,6 +219,7 @@ export const tryRunSeed = Result.wrap(
 					data: {
 						avatar: studentAvatarResult.value.media.id,
 					},
+					// ! this is a seeding process, we can override access because it is not part of the test suite and is not affected by the test suite.
 					overrideAccess: true,
 				});
 
@@ -323,9 +331,9 @@ export const tryRunSeed = Result.wrap(
 		}
 		const csSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-					name: "Computer Science",
-					parent: stemCategory.value.id,
-				})
+				name: "Computer Science",
+				parent: stemCategory.value.id,
+			})
 			: null;
 		if (csSubcat && csSubcat.ok) {
 			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
@@ -335,9 +343,9 @@ export const tryRunSeed = Result.wrap(
 		}
 		const mathSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-					name: "Mathematics",
-					parent: stemCategory.value.id,
-				})
+				name: "Mathematics",
+				parent: stemCategory.value.id,
+			})
 			: null;
 		if (mathSubcat && mathSubcat.ok) {
 			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });

@@ -55,8 +55,14 @@ export const loader = async ({ request, context, params }: Route.LoaderArgs) => 
 
 	const { mediaId } = parsed.data;
 
-	const result = await tryFindMediaUsages(payload, {
+	const result = await tryFindMediaUsages({
+		payload,
 		mediaId,
+		user: {
+			...currentUser,
+			collection: "users",
+			avatar: currentUser.avatar?.id,
+		},
 	});
 
 	if (!result.ok) {
@@ -117,9 +123,9 @@ export function useMediaUsageData(options: UseMediaUsageDataOptions = {}) {
 	const data =
 		fetcher.data && "usages" in fetcher.data && "totalUsages" in fetcher.data
 			? {
-					usages: fetcher.data.usages,
-					totalUsages: fetcher.data.totalUsages,
-				}
+				usages: fetcher.data.usages,
+				totalUsages: fetcher.data.totalUsages,
+			}
 			: null;
 
 	// Extract error from failed response

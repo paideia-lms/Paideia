@@ -330,13 +330,19 @@ export const action = async ({
 				const arrayBuffer = await fileUpload.arrayBuffer();
 				const fileBuffer = Buffer.from(arrayBuffer);
 
-				const mediaResult = await tryCreateMedia(payload, {
+				const mediaResult = await tryCreateMedia({
+					payload,
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					alt: `Assignment submission file - ${fileUpload.name}`,
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id ?? undefined,
+					},
+					req: { transactionID },
 				});
 
 				if (!mediaResult.ok) {

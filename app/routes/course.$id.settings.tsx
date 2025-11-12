@@ -231,13 +231,19 @@ export const action = async ({
 				const fileBuffer = Buffer.from(arrayBuffer);
 
 				// Create media record within transaction
-				const mediaResult = await tryCreateMedia(payload, {
+				const mediaResult = await tryCreateMedia({
+					payload,
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					alt: "Course thumbnail",
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id,
+					},
+					req: { transactionID },
 				});
 
 				if (!mediaResult.ok) {
@@ -253,13 +259,19 @@ export const action = async ({
 				const fileBuffer = Buffer.from(arrayBuffer);
 
 				// Create media record within transaction
-				const mediaResult = await tryCreateMedia(payload, {
+				const mediaResult = await tryCreateMedia({
+					payload,
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					alt: "Course description image",
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id,
+					},
+					req: { transactionID },
 				});
 
 				if (!mediaResult.ok) {
@@ -340,6 +352,9 @@ export const action = async ({
 		}
 
 		// Update course (within the same transaction)
+		// Pass transaction context so filename resolution can see uncommitted media
+		const reqWithTransaction = { transactionID };
+
 		const updateResult = await tryUpdateCourse({
 			payload,
 			courseId,
@@ -352,9 +367,10 @@ export const action = async ({
 			},
 			user: {
 				...currentUser,
+				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
-			req: { transactionID },
+			req: reqWithTransaction,
 			overrideAccess: true,
 		});
 		if (!updateResult.ok) {

@@ -318,6 +318,7 @@ export interface Course {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -524,6 +525,7 @@ export interface Page {
   id: number;
   content?: string | null;
   createdBy: number | User;
+  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -847,6 +849,7 @@ export interface Note {
   createdBy: number | User;
   content: string;
   isPublic?: boolean | null;
+  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1322,6 +1325,7 @@ export interface CoursesSelect<T extends boolean = true> {
   groups?: T;
   category?: T;
   sections?: T;
+  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1427,6 +1431,7 @@ export interface ActivityModuleGrantsSelect<T extends boolean = true> {
 export interface PagesSelect<T extends boolean = true> {
   content?: T;
   createdBy?: T;
+  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1597,6 +1602,7 @@ export interface NotesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
   isPublic?: T;
+  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }

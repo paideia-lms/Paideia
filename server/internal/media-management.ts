@@ -1,7 +1,7 @@
 import "@total-typescript/ts-reset";
 import type { S3Client } from "@aws-sdk/client-s3";
 import { CopyObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
@@ -15,13 +15,16 @@ import { envVars } from "../env";
 import type { Media } from "../payload-types";
 
 export interface CreateMediaArgs {
+	payload: Payload;
 	file: Buffer;
 	filename: string;
 	mimeType: string;
 	alt?: string;
 	caption?: string;
 	userId: number;
-	transactionID?: string | number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface CreateMediaResult {
@@ -37,18 +40,18 @@ export interface CreateMediaResult {
  * 3. Uses transactions to ensure atomicity
  */
 export const tryCreateMedia = Result.wrap(
-	async (
-		payload: Payload,
-		args: CreateMediaArgs,
-	): Promise<CreateMediaResult> => {
+	async (args: CreateMediaArgs): Promise<CreateMediaResult> => {
 		const {
+			payload,
 			file,
 			filename,
 			mimeType,
 			alt,
 			caption,
 			userId,
-			transactionID: providedTransactionID,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -68,14 +71,19 @@ export const tryCreateMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Use provided transaction or create a new one
-		const shouldManageTransaction = !providedTransactionID;
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
 		const transactionID =
-			providedTransactionID || (await payload.db.beginTransaction());
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
+
+		// Construct req with transactionID
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
 
 		try {
 			// Create media record using Payload's upload functionality
@@ -92,11 +100,13 @@ export const tryCreateMedia = Result.wrap(
 					size: file.length,
 					mimetype: mimeType,
 				},
-				req: { transactionID },
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			// Commit transaction only if we created it
-			if (shouldManageTransaction) {
+			if (!transactionWasProvided) {
 				await payload.db.commitTransaction(transactionID);
 			}
 
@@ -105,7 +115,7 @@ export const tryCreateMedia = Result.wrap(
 			};
 		} catch (error) {
 			// Rollback transaction only if we created it
-			if (shouldManageTransaction) {
+			if (!transactionWasProvided) {
 				await payload.db.rollbackTransaction(transactionID);
 			}
 			throw error;
@@ -119,20 +129,29 @@ export const tryCreateMedia = Result.wrap(
 );
 
 export interface GetMediaByIdArgs {
+	payload: Payload;
 	id: number | string;
 	depth?: number;
-	transactionID?: string | number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetMediaByFilenameArgs {
+	payload: Payload;
 	filename: string;
 	depth?: number;
-	transactionID?: string | number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetMediaBufferFromFilenameArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	filename: string;
 	depth?: number;
+	overrideAccess?: boolean;
 }
 
 export interface GetMediaBufferFromFilenameResult {
@@ -147,8 +166,8 @@ export interface GetMediaBufferFromFilenameResult {
  * for relationships
  */
 export const tryGetMediaById = Result.wrap(
-	async (payload: Payload, args: GetMediaByIdArgs): Promise<Media> => {
-		const { id, depth = 1 } = args;
+	async (args: GetMediaByIdArgs): Promise<Media> => {
+		const { payload, id, depth = 1, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -166,6 +185,9 @@ export const tryGetMediaById = Result.wrap(
 				],
 			},
 			depth,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const media = mediaResult.docs[0];
@@ -190,8 +212,8 @@ export const tryGetMediaById = Result.wrap(
  * for relationships
  */
 export const tryGetMediaByFilename = Result.wrap(
-	async (payload: Payload, args: GetMediaByFilenameArgs): Promise<Media> => {
-		const { filename, depth = 1, transactionID } = args;
+	async (args: GetMediaByFilenameArgs): Promise<Media> => {
+		const { payload, filename, depth = 1, user = null, req, overrideAccess = false } = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -205,7 +227,9 @@ export const tryGetMediaByFilename = Result.wrap(
 				filename: { equals: filename },
 			},
 			depth,
-			req: transactionID ? { transactionID } : undefined,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const media = mediaResult.docs[0];
@@ -235,12 +259,8 @@ export const tryGetMediaByFilename = Result.wrap(
  * 4. Returns both the media record and the buffer
  */
 export const tryGetMediaBufferFromFilename = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: GetMediaBufferFromFilenameArgs,
-	): Promise<GetMediaBufferFromFilenameResult> => {
-		const { filename, depth = 0 } = args;
+	async (args: GetMediaBufferFromFilenameArgs): Promise<GetMediaBufferFromFilenameResult> => {
+		const { payload, s3Client, filename, depth = 0, overrideAccess = false } = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -248,9 +268,11 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 		}
 
 		// First, get the media record from the database
-		const mediaResult = await tryGetMediaByFilename(payload, {
+		const mediaResult = await tryGetMediaByFilename({
+			payload,
 			filename,
 			depth,
+			overrideAccess,
 		});
 
 		if (!mediaResult.ok) {
@@ -292,8 +314,11 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 );
 
 export interface GetMediaBufferFromIdArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	id: number | string;
 	depth?: number;
+	overrideAccess?: boolean;
 }
 
 export interface GetMediaBufferFromIdResult {
@@ -302,9 +327,12 @@ export interface GetMediaBufferFromIdResult {
 }
 
 export interface GetMediaStreamFromFilenameArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	filename: string;
 	depth?: number;
 	range?: { start: number; end?: number };
+	overrideAccess?: boolean;
 }
 
 export interface GetMediaStreamFromFilenameResult {
@@ -315,9 +343,12 @@ export interface GetMediaStreamFromFilenameResult {
 }
 
 export interface GetMediaStreamFromIdArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	id: number | string;
 	depth?: number;
 	range?: { start: number; end?: number };
+	overrideAccess?: boolean;
 }
 
 export interface GetMediaStreamFromIdResult {
@@ -337,12 +368,8 @@ export interface GetMediaStreamFromIdResult {
  * 4. Returns both the media record and the buffer
  */
 export const tryGetMediaBufferFromId = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: GetMediaBufferFromIdArgs,
-	): Promise<GetMediaBufferFromIdResult> => {
-		const { id, depth = 0 } = args;
+	async (args: GetMediaBufferFromIdArgs): Promise<GetMediaBufferFromIdResult> => {
+		const { payload, s3Client, id, depth = 0, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -350,9 +377,11 @@ export const tryGetMediaBufferFromId = Result.wrap(
 		}
 
 		// First, get the media record from the database
-		const mediaResult = await tryGetMediaById(payload, {
+		const mediaResult = await tryGetMediaById({
+			payload,
 			id,
 			depth,
+			overrideAccess,
 		});
 
 		if (!mediaResult.ok) {
@@ -410,12 +439,8 @@ export const tryGetMediaBufferFromId = Result.wrap(
  * 4. Returns the media record, stream, content length, and optional content range
  */
 export const tryGetMediaStreamFromFilename = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: GetMediaStreamFromFilenameArgs,
-	): Promise<GetMediaStreamFromFilenameResult> => {
-		const { filename, depth = 0, range } = args;
+	async (args: GetMediaStreamFromFilenameArgs): Promise<GetMediaStreamFromFilenameResult> => {
+		const { payload, s3Client, filename, depth = 0, range, overrideAccess = false } = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -423,9 +448,11 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
 		}
 
 		// First, get the media record from the database
-		const mediaResult = await tryGetMediaByFilename(payload, {
+		const mediaResult = await tryGetMediaByFilename({
+			payload,
 			filename,
 			depth,
+			overrideAccess,
 		});
 
 		if (!mediaResult.ok) {
@@ -502,12 +529,8 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
  * 4. Returns the media record, stream, content length, and optional content range
  */
 export const tryGetMediaStreamFromId = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: GetMediaStreamFromIdArgs,
-	): Promise<GetMediaStreamFromIdResult> => {
-		const { id, depth = 0, range } = args;
+	async (args: GetMediaStreamFromIdArgs): Promise<GetMediaStreamFromIdResult> => {
+		const { payload, s3Client, id, depth = 0, range, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -515,9 +538,11 @@ export const tryGetMediaStreamFromId = Result.wrap(
 		}
 
 		// First, get the media record from the database
-		const mediaResult = await tryGetMediaById(payload, {
+		const mediaResult = await tryGetMediaById({
+			payload,
 			id,
 			depth,
+			overrideAccess,
 		});
 
 		if (!mediaResult.ok) {
@@ -595,11 +620,15 @@ export const tryGetMediaStreamFromId = Result.wrap(
 );
 
 export interface GetAllMediaArgs {
+	payload: Payload;
 	limit?: number;
 	page?: number;
 	depth?: number;
 	sort?: string;
 	where?: Record<string, unknown>;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
@@ -608,10 +637,7 @@ export interface GetAllMediaArgs {
  * This function fetches media records with optional pagination, sorting, and filtering
  */
 export const tryGetAllMedia = Result.wrap(
-	async (
-		payload: Payload,
-		args: GetAllMediaArgs = {},
-	): Promise<{
+	async (args: GetAllMediaArgs): Promise<{
 		docs: Media[];
 		totalDocs: number;
 		limit: number;
@@ -624,11 +650,15 @@ export const tryGetAllMedia = Result.wrap(
 		nextPage: number | null;
 	}> => {
 		const {
+			payload,
 			limit = 10,
 			page = 1,
 			depth = 1,
 			sort = "-createdAt",
 			where = {},
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate pagination parameters
@@ -649,6 +679,9 @@ export const tryGetAllMedia = Result.wrap(
 			limit,
 			page,
 			sort,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return {
@@ -672,10 +705,14 @@ export const tryGetAllMedia = Result.wrap(
 );
 
 export interface UpdateMediaArgs {
+	payload: Payload;
 	id: number;
 	alt?: string;
 	caption?: string;
 	userId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
@@ -687,8 +724,8 @@ export interface UpdateMediaArgs {
  * 3. Uses transactions to ensure atomicity
  */
 export const tryUpdateMedia = Result.wrap(
-	async (payload: Payload, args: UpdateMediaArgs): Promise<Media> => {
-		const { id, alt, caption, userId } = args;
+	async (args: UpdateMediaArgs): Promise<Media> => {
+		const { payload, id, alt, caption, userId, user = null, req, overrideAccess = false } = args;
 
 		// Validate required fields
 		if (!id) {
@@ -699,22 +736,29 @@ export const tryUpdateMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
+		// Construct req with transactionID
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
 		try {
 			// Verify user exists
-			const user = await payload.findByID({
+			const userRecord = await payload.findByID({
 				collection: "users",
 				id: userId,
-				req: { transactionID },
+				req: reqWithTransaction,
 			});
 
-			if (!user) {
+			if (!userRecord) {
 				throw new InvalidArgumentError(`User with id '${userId}' not found`);
 			}
 
@@ -722,7 +766,9 @@ export const tryUpdateMedia = Result.wrap(
 			const media = await payload.findByID({
 				collection: "media",
 				id,
-				req: { transactionID },
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			if (!media) {
@@ -745,16 +791,22 @@ export const tryUpdateMedia = Result.wrap(
 				collection: "media",
 				id,
 				data: updateData,
-				req: { transactionID },
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			return updatedMedia;
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},
@@ -766,8 +818,13 @@ export const tryUpdateMedia = Result.wrap(
 );
 
 export interface DeleteMediaArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	id: number | number[];
 	userId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface DeleteMediaResult {
@@ -784,12 +841,8 @@ export interface DeleteMediaResult {
  * 4. Uses transactions to ensure atomicity
  */
 export const tryDeleteMedia = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: DeleteMediaArgs,
-	): Promise<DeleteMediaResult> => {
-		const { id, userId } = args;
+	async (args: DeleteMediaArgs): Promise<DeleteMediaResult> => {
+		const { payload, s3Client, id, userId, user = null, req, overrideAccess = false } = args;
 
 		// Validate required fields
 		if (!id) {
@@ -807,25 +860,21 @@ export const tryDeleteMedia = Result.wrap(
 		// Normalize to array
 		const ids = Array.isArray(id) ? id : [id];
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
+		// Construct req with transactionID
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
 		try {
-			// Verify user exists
-			const user = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: { transactionID },
-			});
-
-			if (!user) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
-
 			// Get the media records before deletion
 			const mediaResults = await payload.find({
 				collection: "media",
@@ -835,7 +884,9 @@ export const tryDeleteMedia = Result.wrap(
 					},
 				},
 				limit: ids.length,
-				req: { transactionID },
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			const foundMedia = mediaResults.docs;
@@ -857,8 +908,12 @@ export const tryDeleteMedia = Result.wrap(
 			// Check if any media has usage before deletion
 			const mediaWithUsage: Array<{ id: number; usages: number }> = [];
 			for (const media of foundMedia) {
-				const usagesResult = await tryFindMediaUsages(payload, {
+				const usagesResult = await tryFindMediaUsages({
+					payload,
 					mediaId: media.id,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 
 				if (usagesResult.ok && usagesResult.value.totalUsages > 0) {
@@ -897,19 +952,25 @@ export const tryDeleteMedia = Result.wrap(
 				await payload.delete({
 					collection: "media",
 					id: mediaId,
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 			}
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			return {
 				deletedMedia: foundMedia,
 			};
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},
@@ -921,10 +982,14 @@ export const tryDeleteMedia = Result.wrap(
 );
 
 export interface GetMediaByMimeTypeArgs {
+	payload: Payload;
 	mimeType: string;
 	limit?: number;
 	page?: number;
 	depth?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
@@ -933,10 +998,7 @@ export interface GetMediaByMimeTypeArgs {
  * This function fetches media records filtered by MIME type with pagination
  */
 export const tryGetMediaByMimeType = Result.wrap(
-	async (
-		payload: Payload,
-		args: GetMediaByMimeTypeArgs,
-	): Promise<{
+	async (args: GetMediaByMimeTypeArgs): Promise<{
 		docs: Media[];
 		totalDocs: number;
 		limit: number;
@@ -948,7 +1010,7 @@ export const tryGetMediaByMimeType = Result.wrap(
 		prevPage: number | null;
 		nextPage: number | null;
 	}> => {
-		const { mimeType, limit = 10, page = 1, depth = 1 } = args;
+		const { payload, mimeType, limit = 10, page = 1, depth = 1, user = null, req, overrideAccess = false } = args;
 
 		// Validate MIME type
 		if (!mimeType || mimeType.trim() === "") {
@@ -974,6 +1036,9 @@ export const tryGetMediaByMimeType = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return {
@@ -1003,7 +1068,7 @@ export interface FindMediaByUserArgs {
 	page?: number;
 	depth?: number;
 	sort?: string;
-	user?: unknown;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1087,10 +1152,14 @@ export const tryFindMediaByUser = Result.wrap(
 );
 
 export interface RenameMediaArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	id: number | string;
 	newFilename: string;
 	userId: number;
-	transactionID?: string | number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface RenameMediaResult {
@@ -1108,16 +1177,16 @@ export interface RenameMediaResult {
  * 5. Uses transactions to ensure atomicity
  */
 export const tryRenameMedia = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: RenameMediaArgs,
-	): Promise<RenameMediaResult> => {
+	async (args: RenameMediaArgs): Promise<RenameMediaResult> => {
 		const {
+			payload,
+			s3Client,
 			id,
 			newFilename,
 			userId,
-			transactionID: providedTransactionID,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -1133,20 +1202,27 @@ export const tryRenameMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Use provided transaction or create a new one
-		const shouldManageTransaction = !providedTransactionID;
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
 		const transactionID =
-			providedTransactionID || (await payload.db.beginTransaction());
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
+		// Construct req with transactionID
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
 		try {
 			// Get the media record
-			const mediaResult = await tryGetMediaById(payload, {
+			const mediaResult = await tryGetMediaById({
+				payload,
 				id,
 				depth: 0,
+				overrideAccess,
 			});
 
 			if (!mediaResult.ok) {
@@ -1156,13 +1232,13 @@ export const tryRenameMedia = Result.wrap(
 			const media = mediaResult.value;
 
 			// Verify user exists
-			const user = await payload.findByID({
+			const userRecord = await payload.findByID({
 				collection: "users",
 				id: userId,
-				req: { transactionID },
+				req: reqWithTransaction,
 			});
 
-			if (!user) {
+			if (!userRecord) {
 				throw new InvalidArgumentError(`User with id '${userId}' not found`);
 			}
 
@@ -1177,17 +1253,21 @@ export const tryRenameMedia = Result.wrap(
 
 			// If the new filename is the same as the old one, just return the media
 			if (oldFilename === newFilename) {
-				if (shouldManageTransaction) {
+				// Commit transaction only if we created it
+				if (!transactionWasProvided) {
 					await payload.db.commitTransaction(transactionID);
 				}
 				return { media };
 			}
 
 			// Check if a media with the new filename already exists
-			const existingMediaResult = await tryGetMediaByFilename(payload, {
+			const existingMediaResult = await tryGetMediaByFilename({
+				payload,
 				filename: newFilename,
 				depth: 0,
-				transactionID,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			if (existingMediaResult.ok) {
@@ -1220,11 +1300,13 @@ export const tryRenameMedia = Result.wrap(
 				data: {
 					filename: newFilename,
 				},
-				req: { transactionID },
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			// Commit transaction only if we created it
-			if (shouldManageTransaction) {
+			if (!transactionWasProvided) {
 				await payload.db.commitTransaction(transactionID);
 			}
 
@@ -1233,7 +1315,7 @@ export const tryRenameMedia = Result.wrap(
 			};
 		} catch (error) {
 			// Rollback transaction only if we created it
-			if (shouldManageTransaction) {
+			if (!transactionWasProvided) {
 				await payload.db.rollbackTransaction(transactionID);
 			}
 			throw error;
@@ -1249,7 +1331,7 @@ export const tryRenameMedia = Result.wrap(
 export interface GetUserMediaStatsArgs {
 	payload: Payload;
 	userId: number;
-	user?: unknown;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1371,7 +1453,7 @@ export const tryGetUserMediaStats = Result.wrap(
 
 export interface GetSystemMediaStatsArgs {
 	payload: Payload;
-	user?: unknown;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1492,6 +1574,8 @@ export interface OrphanedMediaFile {
 }
 
 export interface GetOrphanedMediaArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	limit?: number;
 	page?: number;
 }
@@ -1519,12 +1603,8 @@ export interface GetOrphanedMediaResult {
  * 4. Returns paginated results with metadata
  */
 export const tryGetOrphanedMedia = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: GetOrphanedMediaArgs = {},
-	): Promise<GetOrphanedMediaResult> => {
-		const { limit = 20, page = 1 } = args;
+	async (args: GetOrphanedMediaArgs): Promise<GetOrphanedMediaResult> => {
+		const { payload, s3Client, limit = 20, page = 1 } = args;
 
 		// Validate pagination parameters
 		if (limit <= 0) {
@@ -1619,6 +1699,11 @@ export const tryGetOrphanedMedia = Result.wrap(
 		}),
 );
 
+export interface GetAllOrphanedFilenamesArgs {
+	payload: Payload;
+	s3Client: S3Client;
+}
+
 export interface GetAllOrphanedFilenamesResult {
 	filenames: string[];
 	totalSize: number;
@@ -1630,10 +1715,8 @@ export interface GetAllOrphanedFilenamesResult {
  * This function returns all filenames of orphaned files for bulk operations
  */
 export const tryGetAllOrphanedFilenames = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-	): Promise<GetAllOrphanedFilenamesResult> => {
+	async (args: GetAllOrphanedFilenamesArgs): Promise<GetAllOrphanedFilenamesResult> => {
+		const { payload, s3Client } = args;
 		// Get all filenames from database
 		const allMediaResult = await payload.find({
 			collection: "media",
@@ -1709,11 +1792,14 @@ export interface PruneAllOrphanedMediaResult {
  * 4. Deletes all orphaned files from S3 in batches
  * 5. Returns results with any errors
  */
+export interface PruneAllOrphanedMediaArgs {
+	payload: Payload;
+	s3Client: S3Client;
+}
+
 export const tryPruneAllOrphanedMedia = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-	): Promise<PruneAllOrphanedMediaResult> => {
+	async (args: PruneAllOrphanedMediaArgs): Promise<PruneAllOrphanedMediaResult> => {
+		const { payload, s3Client } = args;
 		// Get all filenames from database
 		const allMediaResult = await payload.find({
 			collection: "media",
@@ -1841,6 +1927,8 @@ export const tryPruneAllOrphanedMedia = Result.wrap(
 );
 
 export interface DeleteOrphanedMediaArgs {
+	payload: Payload;
+	s3Client: S3Client;
 	filenames: string[];
 }
 
@@ -1859,12 +1947,8 @@ export interface DeleteOrphanedMediaResult {
  * 3. Returns results with any errors
  */
 export const tryDeleteOrphanedMedia = Result.wrap(
-	async (
-		payload: Payload,
-		s3Client: S3Client,
-		args: DeleteOrphanedMediaArgs,
-	): Promise<DeleteOrphanedMediaResult> => {
-		const { filenames } = args;
+	async (args: DeleteOrphanedMediaArgs): Promise<DeleteOrphanedMediaResult> => {
+		const { payload, s3Client, filenames } = args;
 
 		// Validate required fields
 		if (!filenames || filenames.length === 0) {
@@ -1980,7 +2064,11 @@ export interface MediaUsage {
 }
 
 export interface FindMediaUsagesArgs {
+	payload: Payload;
 	mediaId: number | string;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface FindMediaUsagesResult {
@@ -1998,11 +2086,8 @@ export interface FindMediaUsagesResult {
  * 4. Returns all usages with collection name, document ID, and field path
  */
 export const tryFindMediaUsages = Result.wrap(
-	async (
-		payload: Payload,
-		args: FindMediaUsagesArgs,
-	): Promise<FindMediaUsagesResult> => {
-		const { mediaId } = args;
+	async (args: FindMediaUsagesArgs): Promise<FindMediaUsagesResult> => {
+		const { payload, mediaId } = args;
 
 		// Validate media ID
 		if (!mediaId) {
@@ -2018,9 +2103,13 @@ export const tryFindMediaUsages = Result.wrap(
 		}
 
 		// Verify media exists
-		const mediaResult = await tryGetMediaById(payload, {
+		const mediaResult = await tryGetMediaById({
+			payload,
 			id: mediaId,
 			depth: 0,
+			user: args.user,
+			req: args.req,
+			overrideAccess: args.overrideAccess ?? false,
 		});
 
 		if (!mediaResult.ok) {
@@ -2039,6 +2128,8 @@ export const tryFindMediaUsages = Result.wrap(
 			},
 			depth: 0,
 			limit: 10000,
+			user: args.user,
+			req: args.req,
 			overrideAccess: true,
 		});
 
@@ -2060,6 +2151,8 @@ export const tryFindMediaUsages = Result.wrap(
 			},
 			depth: 0,
 			limit: 10000,
+			user: args.user,
+			req: args.req,
 			overrideAccess: true,
 		});
 
@@ -2076,6 +2169,8 @@ export const tryFindMediaUsages = Result.wrap(
 			collection: "assignment-submissions",
 			depth: 0,
 			limit: 10000,
+			user: args.user,
+			req: args.req,
 			overrideAccess: true,
 		});
 
@@ -2105,6 +2200,8 @@ export const tryFindMediaUsages = Result.wrap(
 			collection: "discussion-submissions",
 			depth: 0,
 			limit: 10000,
+			user: args.user,
+			req: args.req,
 			overrideAccess: true,
 		});
 
@@ -2124,6 +2221,87 @@ export const tryFindMediaUsages = Result.wrap(
 								fieldPath: `attachments.${i}.file`,
 							});
 						}
+					}
+				}
+			}
+		}
+
+		// Search notes collection for media array
+		const notesResult = await payload.find({
+			collection: "notes",
+			depth: 0,
+			limit: 10000,
+			user: args.user,
+			req: args.req,
+			overrideAccess: true,
+		});
+
+		for (const note of notesResult.docs) {
+			if (note.media && Array.isArray(note.media)) {
+				for (let i = 0; i < note.media.length; i++) {
+					const mediaItem = note.media[i];
+					const mediaId =
+						typeof mediaItem === "number" ? mediaItem : mediaItem?.id;
+					if (mediaId === normalizedMediaId) {
+						usages.push({
+							collection: "notes",
+							documentId: note.id,
+							fieldPath: `media.${i}`,
+						});
+					}
+				}
+			}
+		}
+
+		// Search pages collection for media array
+		const pagesResult = await payload.find({
+			collection: "pages",
+			depth: 0,
+			limit: 10000,
+			user: args.user,
+			req: args.req,
+			overrideAccess: true,
+		});
+
+		for (const page of pagesResult.docs) {
+			if (page.media && Array.isArray(page.media)) {
+				for (let i = 0; i < page.media.length; i++) {
+					const mediaItem = page.media[i];
+					const mediaId =
+						typeof mediaItem === "number" ? mediaItem : mediaItem?.id;
+					if (mediaId === normalizedMediaId) {
+						usages.push({
+							collection: "pages",
+							documentId: page.id,
+							fieldPath: `media.${i}`,
+						});
+					}
+				}
+			}
+		}
+
+		// Search courses collection for media array
+		const coursesMediaResult = await payload.find({
+			collection: "courses",
+			depth: 0,
+			limit: 10000,
+			user: args.user,
+			req: args.req,
+			overrideAccess: true,
+		});
+
+		for (const course of coursesMediaResult.docs) {
+			if (course.media && Array.isArray(course.media)) {
+				for (let i = 0; i < course.media.length; i++) {
+					const mediaItem = course.media[i];
+					const mediaId =
+						typeof mediaItem === "number" ? mediaItem : mediaItem?.id;
+					if (mediaId === normalizedMediaId) {
+						usages.push({
+							collection: "courses",
+							documentId: course.id,
+							fieldPath: `media.${i}`,
+						});
 					}
 				}
 			}

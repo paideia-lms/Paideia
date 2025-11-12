@@ -77,18 +77,8 @@ export async function action({ request, context }: Route.ActionArgs) {
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
-	
-	// Handle JSON string from FormData
-	let stylesheets = data.additionalCssStylesheets;
-	if (typeof stylesheets === "string") {
-		try {
-			stylesheets = JSON.parse(stylesheets);
-		} catch {
-			throw new ForbiddenResponse("Invalid JSON format");
-		}
-	}
 
-	const parsed = inputSchema.safeParse({ additionalCssStylesheets: stylesheets });
+	const parsed = inputSchema.safeParse(data);
 	if (!parsed.success) {
 		throw new ForbiddenResponse("Invalid payload");
 	}
@@ -210,8 +200,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 				})}
 			>
 				<Stack gap="sm">
-					{stylesheets.map((_, index) => (
-						<Group key={index} align="flex-start" wrap="nowrap">
+					{stylesheets.map((url, index) => (
+						<Group key={`${url}-${// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
+							index}`} align="flex-start" wrap="nowrap">
 							<TextInput
 								{...form.getInputProps(`stylesheets.${index}.url`)}
 								key={form.key(`stylesheets.${index}.url`)}
@@ -219,9 +210,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 								style={{ flex: 1 }}
 								error={
 									form.getValues().stylesheets[index]?.url &&
-									!form.getValues().stylesheets[index]?.url.match(
-										/^https?:\/\/.+/,
-									)
+										!form.getValues().stylesheets[index]?.url.match(
+											/^https?:\/\/.+/,
+										)
 										? "Must be a valid HTTP or HTTPS URL"
 										: undefined
 								}

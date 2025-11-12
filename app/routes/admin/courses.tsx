@@ -79,6 +79,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		sort: "-createdAt",
 		user: {
 			...currentUser,
+			collection: "users",
 			avatar: currentUser.avatar?.id,
 		},
 	});

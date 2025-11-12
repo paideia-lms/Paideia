@@ -1,4 +1,5 @@
-import type { GlobalConfig } from "payload";
+import type { GlobalConfig, TextFieldSingleValidation } from "payload";
+import { z } from "zod";
 
 // System-level Grade Table Global - default grade letters for the entire system
 export const SystemGradeTable = {
@@ -140,20 +141,9 @@ export const AppearanceSettings = {
 						description:
 							"Full URL to the CSS stylesheet (e.g., https://example.com/style.css). Must be a valid HTTP/HTTPS URL.",
 					},
-					validate: (value: string) => {
-						if (!value) {
-							return "URL is required";
-						}
-						try {
-							const url = new URL(value);
-							if (url.protocol !== "http:" && url.protocol !== "https:") {
-								return "URL must use HTTP or HTTPS protocol";
-							}
-							return true;
-						} catch {
-							return "Invalid URL format";
-						}
-					},
+					validate: ((value: string) => {
+						return z.url().safeParse(value).success;
+					}) as TextFieldSingleValidation
 				},
 			],
 			defaultValue: [],

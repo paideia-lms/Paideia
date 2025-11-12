@@ -181,7 +181,8 @@ export const action = async ({
 			return badRequest({ error: "Group name is required" });
 		}
 
-		const createResult = await tryCreateGroup(payload, request, {
+		const createResult = await tryCreateGroup({
+			payload,
 			name,
 			course: courseId,
 			parent: parentId ? Number(parentId) : undefined,
@@ -189,6 +190,7 @@ export const action = async ({
 			color: color || undefined,
 			maxMembers: maxMembers ? Number(maxMembers) : undefined,
 			isActive: true,
+			req: request,
 		});
 
 		if (!createResult.ok) {
@@ -204,7 +206,11 @@ export const action = async ({
 			return badRequest({ error: "Invalid group ID" });
 		}
 
-		const deleteResult = await tryDeleteGroup(payload, request, groupId);
+		const deleteResult = await tryDeleteGroup({
+			payload,
+			groupId,
+			req: request,
+		});
 
 		if (!deleteResult.ok) {
 			return badRequest({ error: deleteResult.error.message });

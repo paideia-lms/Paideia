@@ -115,6 +115,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			},
 			user: {
 				...currentUser,
+				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
 			overrideAccess: false,

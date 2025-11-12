@@ -118,13 +118,19 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				const fileBuffer = Buffer.from(arrayBuffer);
 
 				// Create media record within transaction using tryCreateMedia
-				const mediaResult = await tryCreateMedia(payload, {
+				const mediaResult = await tryCreateMedia({
+					payload,
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					alt: "User avatar",
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id ?? undefined,
+					},
+					req: { transactionID },
 				});
 
 				if (!mediaResult.ok) {
