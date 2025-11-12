@@ -2,11 +2,6 @@ name: Release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., 0.5.6)'
-        required: true
-        type: string
 
 jobs:
   version-check:
@@ -22,9 +17,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set version from input
+      - name: Read version from package.json
         id: version
-        run: echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Read version: ${VERSION}"
 
       - name: Check if release already exists
         id: check-release
@@ -32,7 +30,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
         run: |
-          VERSION="${{ inputs.version }}"
+          VERSION="${{ steps.version.outputs.version }}"
           TAG="v${VERSION}"
           
           if gh release view "${TAG}" >/dev/null 2>&1; then
@@ -255,21 +253,24 @@ jobs:
             chmod +x release-assets/paideia.exe
           fi
 
-      - name: Set version from input
+      - name: Read version from package.json
         id: version
-        run: echo "version=${{ inputs.version }}" >> $GITHUB_OUTPUT
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Read version: ${VERSION}"
 
       - name: Set tag from version
         id: tag
-        run: echo "tag=v${{ inputs.version }}" >> $GITHUB_OUTPUT
+        run: echo "tag=v${{ steps.version.outputs.version }}" >> $GITHUB_OUTPUT
 
       - name: Create Git Tag
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag -a "v${{ inputs.version }}" -m "Release v${{ inputs.version }}"
+          git tag -a "v${{ steps.version.outputs.version }}" -m "Release v${{ steps.version.outputs.version }}"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin "v${{ inputs.version }}"
+          git push origin "v${{ steps.version.outputs.version }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
