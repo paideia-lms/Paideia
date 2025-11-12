@@ -130,7 +130,7 @@ This generates:
 - **Functional React**: Always use functional components and hooks
 - **TypeScript**: Strict type checking is enabled. Avoid `as` type assertions in internal functions
 - **File Naming**: Use kebab-case for file names (e.g., `user-profile.tsx`)
-- **Max Line Length**: 1000 characters per file. Split into multiple files when exceeding
+- **Max File Length**: 1000 lines per file. Split into multiple files when exceeding
 - **Comments**: Add comments for complicated code to explain the logic
 
 ### Package Manager
