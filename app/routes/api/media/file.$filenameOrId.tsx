@@ -86,8 +86,6 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 		}
 		: null;
 
-	console.log("user", user);
-
 	// Check if download is requested via query parameter
 	const url = new URL(request.url);
 	const isDownload = url.searchParams.get("download") === "true";
@@ -139,6 +137,7 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 				depth: 0,
 				range,
 				user,
+				req: request,
 			})
 			: await tryGetMediaStreamFromFilename({
 				payload,
@@ -147,6 +146,7 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 				depth: 0,
 				range,
 				user,
+				req: request,
 			});
 
 		if (!result.ok) {

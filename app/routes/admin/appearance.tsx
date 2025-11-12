@@ -20,7 +20,7 @@ import {
 import { z } from "zod";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { ForbiddenResponse } from "~/utils/responses";
+import { badRequest, forbidden, ForbiddenResponse, ok, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/appearance";
 
 type AppearanceGlobal = {
@@ -58,7 +58,7 @@ const inputSchema = z.object({
 	additionalCssStylesheets: z
 		.array(
 			z.object({
-				url: z.string().url("Must be a valid URL"),
+				url: z.url("Must be a valid URL"),
 			}),
 		)
 		.optional(),
@@ -68,19 +68,19 @@ export async function action({ request, context }: Route.ActionArgs) {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
+		return unauthorized({ error: "Unauthorized" });
 	}
 	const currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can access this area");
+		return forbidden({ error: "Only admins can access this area" });
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
 	const parsed = inputSchema.safeParse(data);
 	if (!parsed.success) {
-		throw new ForbiddenResponse("Invalid payload");
+		return badRequest({ error: z.prettifyError(parsed.error) });
 	}
 	const { additionalCssStylesheets } = parsed.data;
 
@@ -97,18 +97,18 @@ export async function action({ request, context }: Route.ActionArgs) {
 	});
 
 	if (!updateResult.ok) {
-		throw new ForbiddenResponse(updateResult.error.message);
+		return forbidden({ error: updateResult.error.message });
 	}
 
-	return {
+	return ok({
 		success: true as const,
 		settings: updateResult.value as unknown as AppearanceGlobal,
-	};
+	});
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const res = await serverAction();
-	if (res?.success) {
+	if (res?.status === 200) {
 		notifications.show({
 			title: "Appearance settings updated",
 			message: "Your changes have been saved.",
@@ -117,7 +117,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	} else {
 		notifications.show({
 			title: "Failed to update",
-			message: "Unexpected error",
+			message: typeof res?.error === "string" ? res.error : "Unexpected error",
 			color: "red",
 		});
 	}
@@ -127,14 +127,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useUpdateAppearanceSettings() {
 	const fetcher = useFetcher<typeof clientAction>();
 	const update = (data: { additionalCssStylesheets: Array<{ url: string }> }) => {
-		const formData = new FormData();
-		formData.set(
-			"additionalCssStylesheets",
-			JSON.stringify(data.additionalCssStylesheets),
-		);
-		fetcher.submit(formData, {
+		fetcher.submit(data, {
 			method: "post",
 			action: href("/admin/appearance"),
+			encType: "application/json",
 		});
 	};
 	return { update, state: fetcher.state } as const;
@@ -200,7 +196,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 				})}
 			>
 				<Stack gap="sm">
-					{stylesheets.map((url, index) => (
+					{stylesheets.map(({ url }, index) => (
 						<Group key={`${url}-${// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
 							index}`} align="flex-start" wrap="nowrap">
 							<TextInput

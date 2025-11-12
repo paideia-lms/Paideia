@@ -29,7 +29,7 @@ import { tryCreateAssignmentSubmission } from "./assignment-submission-managemen
 import { tryCreateDiscussionSubmission } from "./discussion-management";
 import { tryCreateNote } from "./note-management";
 import { tryCreatePage } from "./page-management";
-
+import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let testUserId: number;
@@ -930,7 +930,6 @@ describe("Media Management", () => {
 
 		// Upload a file directly to S3 (simulating an orphaned file)
 		// We'll use the S3 client to upload a file that won't be in the database
-		const { PutObjectCommand } = await import("@aws-sdk/client-s3");
 		const orphanedFilename = "test-orphaned-file.png";
 		await s3Client.send(
 			new PutObjectCommand({
@@ -964,7 +963,6 @@ describe("Media Management", () => {
 			expect(typeof result.value.totalSize).toBe("number");
 
 			// Clean up orphaned file
-			const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
 			await s3Client.send(
 				new DeleteObjectCommand({
 					Bucket: envVars.S3_BUCKET.value,
@@ -976,7 +974,6 @@ describe("Media Management", () => {
 
 	test("should get orphaned media with pagination", async () => {
 		// Create multiple orphaned files
-		const { PutObjectCommand } = await import("@aws-sdk/client-s3");
 		const orphanedFilenames: string[] = [];
 
 		for (let i = 0; i < 3; i++) {
@@ -1008,7 +1005,6 @@ describe("Media Management", () => {
 		}
 
 		// Clean up orphaned files
-		const { DeleteObjectCommand } = await import("@aws-sdk/client-s3");
 		for (const filename of orphanedFilenames) {
 			await s3Client.send(
 				new DeleteObjectCommand({
@@ -1021,7 +1017,6 @@ describe("Media Management", () => {
 
 	test("should delete orphaned media files", async () => {
 		// Create orphaned files
-		const { PutObjectCommand } = await import("@aws-sdk/client-s3");
 		const orphanedFilenames = [
 			"test-delete-orphaned-1.png",
 			"test-delete-orphaned-2.png",
@@ -1052,7 +1047,6 @@ describe("Media Management", () => {
 			expect(result.value.errors.length).toBe(0);
 
 			// Verify files are actually deleted from S3
-			const { GetObjectCommand } = await import("@aws-sdk/client-s3");
 			for (const filename of orphanedFilenames) {
 				try {
 					await s3Client.send(

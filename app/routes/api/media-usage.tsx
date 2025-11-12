@@ -50,7 +50,7 @@ export const loader = async ({ request, context, params }: Route.LoaderArgs) => 
 	const parsed = inputSchema.safeParse({ mediaId: mediaIdParam });
 
 	if (!parsed.success) {
-		return badRequest({ error: z.treeifyError(parsed.error) });
+		return badRequest({ error: z.prettifyError(parsed.error) });
 	}
 
 	const { mediaId } = parsed.data;

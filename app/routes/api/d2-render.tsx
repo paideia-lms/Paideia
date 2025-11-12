@@ -28,7 +28,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const parsed = inputSchema.safeParse(data);
 
 	if (!parsed.success) {
-		return badRequest({ error: z.treeifyError(parsed.error) });
+		return badRequest({ error: z.prettifyError(parsed.error) });
 	}
 
 	const { code } = parsed.data;

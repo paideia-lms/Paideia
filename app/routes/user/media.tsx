@@ -110,6 +110,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
     // Get storage limit from system globals
     const storageLimit = systemGlobals.sitePolicies.userMediaStorageTotal;
+    const uploadLimit = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
     // Get user profile context
     let userProfileContext: UserProfileContext | null = null;
@@ -204,6 +205,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
         isOwnProfile: userId === currentUser.id,
         stats,
         storageLimit,
+        uploadLimit,
     };
 };
 
@@ -868,7 +870,7 @@ function MediaRenameModal({
         },
     });
 
-    // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+    // biome-ignore lint/correctness/useExhaustiveDependencies: form methods are stable and should not be in dependencies
     useEffect(() => {
         if (file) {
             form.setInitialValues({ filename: file.filename ?? "" });
@@ -1445,6 +1447,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
         isOwnProfile,
         stats,
         storageLimit,
+        uploadLimit,
     } = loaderData;
     const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
     const [viewMode, setViewMode] = useState<"card" | "table">("card");
@@ -1584,12 +1587,11 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                 return;
             }
 
-            // Validate file size (100MB)
-            const maxSize = 100 * 1024 ** 2;
-            if (file.size > maxSize) {
+            // Validate file size using server-provided limit
+            if (uploadLimit !== undefined && file.size > uploadLimit) {
                 notifications.show({
                     title: "Upload failed",
-                    message: "File size exceeds 100MB limit",
+                    message: `File size exceeds maximum allowed size of ${prettyBytes(uploadLimit)}`,
                     color: "red",
                 });
                 return;

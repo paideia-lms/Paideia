@@ -11,7 +11,7 @@ import {
 import { z } from "zod";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { ForbiddenResponse } from "~/utils/responses";
+import { badRequest, forbidden, ForbiddenResponse, ok, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/sitepolicies";
 
 type SitePoliciesGlobal = {
@@ -79,24 +79,27 @@ export async function action({ request, context }: Route.ActionArgs) {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
+		return unauthorized({ error: "Unauthorized" });
 	}
 	const currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can access this area");
+		return forbidden({ error: "Only admins can access this area" });
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const parsed = inputSchema.safeParse(data);
 	if (!parsed.success) {
-		throw new ForbiddenResponse("Invalid payload");
+		return badRequest({ error: z.prettifyError(parsed.error) });
 	}
 	const { userMediaStorageTotal, siteUploadLimit } = parsed.data;
 
 	const updateResult = await tryUpdateSitePolicies({
 		payload,
-		user: currentUser as unknown as import("server/payload-types").User,
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 		data: {
 			userMediaStorageTotal,
 			siteUploadLimit,
@@ -105,27 +108,31 @@ export async function action({ request, context }: Route.ActionArgs) {
 	});
 
 	if (!updateResult.ok) {
-		throw new ForbiddenResponse(updateResult.error.message);
+		return forbidden({ error: updateResult.error.message });
 	}
 
-	return {
+	return ok({
 		success: true as const,
 		settings: updateResult.value as unknown as SitePoliciesGlobal,
-	};
+	});
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const res = await serverAction();
-	if (res?.success) {
+	if (res?.status === 200) {
 		notifications.show({
 			title: "Site policies updated",
 			message: "Your changes have been saved.",
 			color: "green",
 		});
 	} else {
+		const errorMessage =
+			typeof res?.error === "string"
+				? res.error
+				: "Unexpected error";
 		notifications.show({
 			title: "Failed to update",
-			message: "Unexpected error",
+			message: errorMessage,
 			color: "red",
 		});
 	}
