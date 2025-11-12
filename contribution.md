@@ -204,7 +204,6 @@ This generates:
 
 ### Code Organization
 
-- **Max line length**: 1000 characters per file
 - **Split complex code**: When exceeding max length, split into multiple files for readability
 - **Complicated code**: Always add comments to explain the code
 
