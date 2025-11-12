@@ -1,10 +1,11 @@
 import dayjs from "dayjs";
-import type { Payload, TypedUser } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Notes } from "server/collections";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
+import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
 
 export interface CreateNoteArgs {
 	payload: Payload;
@@ -14,7 +15,7 @@ export interface CreateNoteArgs {
 		isPublic?: boolean;
 	};
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -26,7 +27,7 @@ export interface UpdateNoteArgs {
 		isPublic?: boolean;
 	};
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -34,7 +35,7 @@ export interface FindNoteByIdArgs {
 	payload: Payload;
 	noteId: number;
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -47,7 +48,7 @@ export interface SearchNotesArgs {
 		page?: number;
 	};
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -55,7 +56,7 @@ export interface DeleteNoteArgs {
 	payload: Payload;
 	noteId: number;
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -64,7 +65,7 @@ export interface FindNotesByUserArgs {
 	userId: number;
 	limit?: number;
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -99,6 +100,48 @@ export const tryCreateNote = Result.wrap(
 			throw new Error(`User with ID ${createdBy} not found`);
 		}
 
+		// Parse media from HTML content
+		const mediaParseResult = tryParseMediaFromHtml(content.trim());
+
+		if (!mediaParseResult.ok) {
+			throw mediaParseResult.error;
+		}
+
+		const { ids: parsedIds, filenames } = mediaParseResult.value;
+
+		// Resolve filenames to IDs in a single query
+		let resolvedIds: number[] = [];
+		if (filenames.length > 0) {
+			try {
+				const mediaResult = await payload.find({
+					collection: "media",
+					where: {
+						filename: {
+							in: filenames,
+						},
+					},
+					limit: filenames.length,
+					depth: 0,
+					pagination: false,
+					overrideAccess: true,
+					req: req?.transactionID
+						? { ...req, transactionID: req.transactionID }
+						: req,
+				});
+
+				resolvedIds = mediaResult.docs.map((doc) => doc.id);
+			} catch (error) {
+				// If media lookup fails, log warning but continue
+				console.warn(
+					`Failed to resolve media filenames to IDs:`,
+					error,
+				);
+			}
+		}
+
+		// Combine parsed IDs and resolved IDs
+		const mediaIds = [...parsedIds, ...resolvedIds];
+
 		// Create note with access control
 		const newNote = await payload.create({
 			collection: "notes",
@@ -106,6 +149,7 @@ export const tryCreateNote = Result.wrap(
 				content: content.trim(),
 				createdBy,
 				isPublic,
+				media: mediaIds.length > 0 ? mediaIds : undefined,
 			},
 			user,
 			req,
@@ -157,9 +201,52 @@ export const tryUpdateNote = Result.wrap(
 			}
 		}
 
-		const updateData: Record<string, string | boolean | undefined> = {};
+		const updateData: Record<string, string | boolean | number[] | undefined> = {};
 		if (data.content !== undefined) {
 			updateData.content = data.content.trim();
+
+			// Parse media from updated HTML content
+			const mediaParseResult = tryParseMediaFromHtml(data.content.trim());
+
+			if (!mediaParseResult.ok) {
+				throw mediaParseResult.error;
+			}
+
+			const { ids: parsedIds, filenames } = mediaParseResult.value;
+
+			// Resolve filenames to IDs in a single query
+			let resolvedIds: number[] = [];
+			if (filenames.length > 0) {
+				try {
+					const mediaResult = await payload.find({
+						collection: "media",
+						where: {
+							filename: {
+								in: filenames,
+							},
+						},
+						limit: filenames.length,
+						depth: 0,
+						pagination: false,
+						overrideAccess: true,
+						req: req?.transactionID
+							? { ...req, transactionID: req.transactionID }
+							: req,
+					});
+
+					resolvedIds = mediaResult.docs.map((doc) => doc.id);
+				} catch (error) {
+					// If media lookup fails, log warning but continue
+					console.warn(
+						`Failed to resolve media filenames to IDs:`,
+						error,
+					);
+				}
+			}
+
+			// Combine parsed IDs and resolved IDs
+			const mediaIds = [...parsedIds, ...resolvedIds];
+			updateData.media = mediaIds.length > 0 ? mediaIds : [];
 		}
 		if (data.isPublic !== undefined) {
 			updateData.isPublic = data.isPublic;
@@ -363,7 +450,7 @@ export interface GenerateNoteHeatmapArgs {
 	payload: Payload;
 	userId: number;
 	user?: TypedUser | null;
-	req?: Request;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 

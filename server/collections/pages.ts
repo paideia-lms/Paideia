@@ -22,6 +22,13 @@ export const Pages = {
 			required: true,
 			label: "Created By",
 		},
+		{
+			name: "media",
+			type: "relationship",
+			relationTo: "media",
+			hasMany: true,
+			label: "Media",
+		},
 	],
 	indexes: [
 		{

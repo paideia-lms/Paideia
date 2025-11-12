@@ -119,6 +119,16 @@ async function startServer() {
 							hints,
 							// some fake data for now
 							routeHierarchy: [],
+							systemGlobals: {
+								maintenanceSettings: { maintenanceMode: false },
+								sitePolicies: {
+									userMediaStorageTotal: null,
+									siteUploadLimit: null,
+								},
+								appearanceSettings: {
+									additionalCssStylesheets: [],
+								},
+							},
 							pageInfo: {
 								isInAdminLayout: false,
 								isMyCourses: false,
@@ -154,6 +164,7 @@ async function startServer() {
 								isUserNotes: false,
 								isUserNoteCreate: false,
 								isUserNoteEdit: false,
+								isUserMedia: false,
 								isInUserModulesLayout: false,
 								isUserModuleNew: false,
 								isUserModuleEdit: false,
@@ -175,6 +186,9 @@ async function startServer() {
 								isAdminDependencies: false,
 								isAdminCronJobs: false,
 								isAdminMaintenance: false,
+								isAdminSitePolicies: false,
+								isAdminMedia: false,
+								isAdminAppearance: false,
 								params: {},
 							},
 						});

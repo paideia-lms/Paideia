@@ -47,6 +47,7 @@ export type PageInfo = {
 	isUserNotes: boolean;
 	isUserNoteCreate: boolean;
 	isUserNoteEdit: boolean;
+	isUserMedia: boolean;
 	isInUserModulesLayout: boolean;
 	isUserModuleNew: boolean;
 	isUserModuleEdit: boolean;
@@ -70,6 +71,9 @@ export type PageInfo = {
 	isAdminDependencies: boolean;
 	isAdminCronJobs: boolean;
 	isAdminMaintenance: boolean;
+	isAdminSitePolicies: boolean;
+	isAdminMedia: boolean;
+	isAdminAppearance: boolean;
 	/**
 	 * the params of the current route
 	 */
@@ -80,6 +84,19 @@ export type PageInfo = {
  * global context for all the routes. it must exist in all the routes.
  * it cannot be null.
  */
+export type SystemGlobals = {
+	maintenanceSettings: {
+		maintenanceMode: boolean;
+	};
+	sitePolicies: {
+		userMediaStorageTotal: number | null;
+		siteUploadLimit: number | null;
+	};
+	appearanceSettings: {
+		additionalCssStylesheets: string[];
+	};
+};
+
 export const globalContext = createContext<{
 	payload: BasePayload;
 	elysia: Backend;
@@ -94,6 +111,7 @@ export const globalContext = createContext<{
 	bunVersion: string;
 	bunRevision: string;
 	hints: { timeZone?: string };
+	systemGlobals: SystemGlobals;
 }>();
 
 // ! we can use string as key, please see https://github.com/remix-run/react-router/blob/c1cddedf656271a3eec8368f2854c733b3fe27da/packages/react-router/lib/router/utils.ts#L209

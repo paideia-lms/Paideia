@@ -1,7 +1,7 @@
 import { Badge, Box, Stack, Title } from "@mantine/core";
 import { useQueryState } from "nuqs";
 import { href, Link } from "react-router";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import type { Route } from "./+types/index";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {
@@ -95,7 +95,10 @@ const adminTabs: { [key: string]: AdminTab } = {
 				title: "Security",
 				items: [
 					{ title: "IP blocker" },
-					{ title: "Site security settings" },
+					{
+						title: "Site security settings",
+						href: href("/admin/sitepolicies"),
+					},
 					{ title: "HTTP security" },
 					{ title: "Notifications" },
 				],
@@ -480,6 +483,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Courses" },
 					{ title: "Manage tags" },
 					{ title: "Additional HTML" },
+					{ title: "Additional CSS", href: href("/admin/appearance") },
 					{ title: "Templates" },
 					{ title: "Advanced theme settings" },
 					{ title: "Themes" },
@@ -512,6 +516,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 						title: "Maintenance mode",
 						href: href("/admin/maintenance"),
 					},
+					{ title: "Media management", href: href("/admin/media") },
 				],
 			},
 			file_redaction: {

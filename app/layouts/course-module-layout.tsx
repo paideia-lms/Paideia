@@ -18,7 +18,7 @@ import {
 	canSeeCourseModuleSettings,
 	canSeeModuleSubmissions,
 } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,

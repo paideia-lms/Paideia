@@ -9,7 +9,7 @@ import {
 	tryUpdateMaintenanceSettings,
 } from "server/internal/maintenance-settings";
 import { z } from "zod";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/maintenance";
@@ -75,7 +75,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateMaintenanceSettings({
 		payload,
-		user: currentUser as unknown as import("server/payload-types").User,
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id,
+		},
 		data: {
 			maintenanceMode,
 		},

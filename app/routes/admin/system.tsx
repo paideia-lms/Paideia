@@ -1,7 +1,6 @@
 import {
 	Badge,
 	Box,
-	Button,
 	Container,
 	Group,
 	Paper,
@@ -478,10 +477,15 @@ function SystemResourcesSection({
 }
 
 export default function SystemPage({ loaderData }: Route.ComponentProps) {
-	const { platformInfo, systemResources, bunVersion, bunRevision } = loaderData;
+	const {
+		platformInfo,
+		systemResources,
+		bunVersion,
+		bunRevision,
+	} = loaderData;
 	const revalidator = useRevalidator();
 
-	const { start, stop, active } = useInterval(
+	useInterval(
 		() => {
 			revalidator.revalidate();
 		},
@@ -523,7 +527,9 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<PlatformInfoSection platformInfo={platformInfo} />
-				<SystemResourcesSection systemResources={systemResources} />
+				<SystemResourcesSection
+					systemResources={systemResources}
+				/>
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
 					<Stack gap="md">

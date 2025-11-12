@@ -45,7 +45,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const parsed = inputSchema.safeParse(data);
 	if (!parsed.success) {
-		return badRequest({ error: z.treeifyError(parsed.error) });
+		return badRequest({ error: z.prettifyError(parsed.error) });
 	}
 
 	const { courseIds, status, category } = parsed.data;
@@ -61,6 +61,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			},
 			user: {
 				...currentUser,
+				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
 			overrideAccess: true,
@@ -80,10 +81,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
-			message:
-				typeof actionData.error === "string"
-					? actionData.error
-					: actionData.error.errors.join(", "),
+			message: actionData.error,
 			color: "red",
 		});
 	}

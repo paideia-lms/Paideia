@@ -190,6 +190,7 @@ export const tryGetCourseContext = async (
 		user: user
 			? {
 					...user,
+					collection: "users",
 					avatar: user.avatar?.id,
 				}
 			: null,

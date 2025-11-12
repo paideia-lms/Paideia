@@ -123,5 +123,12 @@ export const Courses = {
 			label: "Sections",
 			maxDepth: 2,
 		},
+		{
+			name: "media",
+			type: "relationship",
+			relationTo: "media",
+			hasMany: true,
+			label: "Media",
+		},
 	],
 } as const satisfies CollectionConfig;

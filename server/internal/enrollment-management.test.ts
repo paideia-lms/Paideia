@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryCreateGroup,
@@ -392,41 +392,93 @@ describe("Enrollment Management Functions", () => {
 		let mathGroupId: number;
 		let scienceGroupId: number;
 		let mockRequest: Request;
+		let testUserToken: string;
+
+		// Helper to get authenticated user from token
+		const getAuthUser = async (token: string): Promise<TypedUser | null> => {
+			const authResult = await payload.auth({
+				headers: new Headers({
+					Authorization: `Bearer ${token}`,
+				}),
+			});
+			return authResult.user;
+		};
 
 		beforeAll(async () => {
 			mockRequest = new Request("http://localhost:3000/test");
 
+			// Verify test user so they can login
+			await payload.update({
+				collection: "users",
+				id: testUserId,
+				data: {
+					_verified: true,
+				},
+				overrideAccess: true,
+			});
+
+			// Login to get token
+			const login = await payload.login({
+				collection: "users",
+				data: {
+					email: "test@example.com",
+					password: "testpassword123",
+				},
+			});
+
+			if (!login.token) {
+				throw new Error("Failed to get authentication token");
+			}
+
+			testUserToken = login.token;
+
 			// Create groups first
-			const artGroupResult = await tryCreateGroup(payload, mockRequest, {
+			const artGroupResult = await tryCreateGroup({
+				payload,
 				name: "art",
 				course: testCourseId,
+				req: mockRequest,
+				// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
+				overrideAccess: true,
 			});
 			expect(artGroupResult.ok).toBe(true);
 			if (artGroupResult.ok) {
 				artGroupId = artGroupResult.value.id;
 			}
 
-			const econGroupResult = await tryCreateGroup(payload, mockRequest, {
+			const econGroupResult = await tryCreateGroup({
+				payload,
 				name: "econ",
 				course: testCourseId,
+				req: mockRequest,
+				// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
+				overrideAccess: true,
 			});
 			expect(econGroupResult.ok).toBe(true);
 			if (econGroupResult.ok) {
 				econGroupId = econGroupResult.value.id;
 			}
 
-			const mathGroupResult = await tryCreateGroup(payload, mockRequest, {
+			const mathGroupResult = await tryCreateGroup({
+				payload,
 				name: "math",
 				course: testCourseId,
+				req: mockRequest,
+				// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
+				overrideAccess: true,
 			});
 			expect(mathGroupResult.ok).toBe(true);
 			if (mathGroupResult.ok) {
 				mathGroupId = mathGroupResult.value.id;
 			}
 
-			const scienceGroupResult = await tryCreateGroup(payload, mockRequest, {
+			const scienceGroupResult = await tryCreateGroup({
+				payload,
 				name: "science",
 				course: testCourseId,
+				req: mockRequest,
+				// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
+				overrideAccess: true,
 			});
 			expect(scienceGroupResult.ok).toBe(true);
 			if (scienceGroupResult.ok) {
@@ -443,6 +495,8 @@ describe("Enrollment Management Functions", () => {
 					lastName: "User5",
 					theme: "light",
 				},
+				// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
+				overrideAccess: true,
 			});
 
 			const enrollmentArgs: CreateEnrollmentArgs = {
@@ -472,13 +526,46 @@ describe("Enrollment Management Functions", () => {
 						lastName: "User6",
 						theme: "light",
 					},
+					overrideAccess: true,
 				});
 
+				// Verify user so they can login
+				await payload.update({
+					collection: "users",
+					id: testUser6.id,
+					data: {
+						_verified: true,
+					},
+					overrideAccess: true,
+				});
+
+				// Login to get token
+				const login6 = await payload.login({
+					collection: "users",
+					data: {
+						email: "test6@example.com",
+						password: "testpassword123",
+					},
+				});
+
+				if (!login6.token) {
+					throw new Error("Failed to get authentication token");
+				}
+
+				// Get authenticated user
+				const testUser6Auth = await getAuthUser(login6.token);
+				if (!testUser6Auth) {
+					throw new Error("Failed to get authenticated user");
+				}
+
 				// Create nested groups
-				const artGroup1Result = await tryCreateGroup(payload, mockRequest, {
+				const artGroup1Result = await tryCreateGroup({
+					payload,
+					req: mockRequest,
 					name: "group-1",
 					course: testCourseId,
 					parent: artGroupId,
+					user: testUser6Auth,
 				});
 				expect(artGroup1Result.ok).toBe(true);
 
@@ -560,10 +647,16 @@ describe("Enrollment Management Functions", () => {
 
 		describe("try get course with groups", () => {
 			test("should get course with groups", async () => {
+				// Get authenticated user
+				const testUserAuth = await getAuthUser(testUserToken);
+				if (!testUserAuth) {
+					throw new Error("Failed to get authenticated user");
+				}
+
 				const result = await tryFindCourseById({
 					payload,
 					courseId: testCourseId,
-					overrideAccess: true,
+					user: testUserAuth,
 				});
 
 				expect(result.ok).toBe(true);
@@ -572,7 +665,11 @@ describe("Enrollment Management Functions", () => {
 				}
 
 				// Get all groups for the course
-				const groupsResult = await tryFindGroupsByCourse(payload, testCourseId);
+				const groupsResult = await tryFindGroupsByCourse({
+					payload,
+					courseId: testCourseId,
+					user: testUserAuth,
+				});
 				expect(groupsResult.ok).toBe(true);
 				if (groupsResult.ok) {
 					expect(groupsResult.value.length).toBeGreaterThan(0);
@@ -674,12 +771,12 @@ describe("Enrollment Management Functions with Authentication", () => {
 		firstName?: string | null;
 		lastName?: string | null;
 		role?:
-			| "admin"
-			| "content-manager"
-			| "analytics-viewer"
-			| "instructor"
-			| "student"
-			| null;
+		| "admin"
+		| "content-manager"
+		| "analytics-viewer"
+		| "instructor"
+		| "student"
+		| null;
 		theme: "light" | "dark";
 		updatedAt: string;
 		createdAt: string;

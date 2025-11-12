@@ -15,10 +15,13 @@ import {
 } from "./course-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateMedia } from "./media-management";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let instructorId: number;
+	let testMediaId: number;
+	let testMediaFilename: string;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -52,6 +55,26 @@ describe("Course Management Functions", () => {
 		if (instructorResult.ok) {
 			instructorId = instructorResult.value.id;
 		}
+
+		// Create test media file
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createMediaResult = await tryCreateMedia({
+			payload,
+			file: Buffer.from(fileBuffer),
+			filename: "test-course-media.png",
+			mimeType: "image/png",
+			alt: "Test course media",
+			userId: instructorId,
+			// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
+			overrideAccess: true,
+		});
+
+		if (!createMediaResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		testMediaId = createMediaResult.value.media.id;
+		testMediaFilename = createMediaResult.value.media.filename ?? "";
 	});
 
 	afterAll(async () => {
@@ -85,6 +108,11 @@ describe("Course Management Functions", () => {
 				expect(result.value.title).toBe(courseArgs.data.title);
 				expect(result.value.description).toBe(courseArgs.data.description);
 				expect(result.value.status).toBe(courseArgs.data.status || "draft");
+				// Media array should be empty when no media references
+				expect(result.value.media).toBeDefined();
+				if (Array.isArray(result.value.media)) {
+					expect(result.value.media.length).toBe(0);
+				}
 			}
 		});
 
@@ -162,6 +190,83 @@ describe("Course Management Functions", () => {
 					expect(updateResult.value.title).toBe("Updated Title");
 					expect(updateResult.value.description).toBe("Updated description");
 					expect(updateResult.value.status).toBe("published");
+					// Media array should be empty when no media references
+					expect(updateResult.value.media).toBeDefined();
+					if (Array.isArray(updateResult.value.media)) {
+						expect(updateResult.value.media.length).toBe(0);
+					}
+				}
+			}
+		});
+
+		test("should create a course with media references in description", async () => {
+			const description = `<p>Learn the basics of JavaScript programming</p><img src="/api/media/file/${testMediaId}" alt="Course image" />`;
+
+			const courseArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "JavaScript Course with Media",
+					description,
+					createdBy: instructorId,
+					slug: "javascript-course-with-media",
+					status: "draft",
+				},
+				overrideAccess: true,
+			};
+
+			const result = await tryCreateCourse(courseArgs);
+
+			expect(result.ok).toBe(true);
+			if (result.ok) {
+				expect(result.value.description).toBe(description);
+				expect(result.value.media).toBeDefined();
+				if (Array.isArray(result.value.media)) {
+					expect(result.value.media.length).toBe(1);
+					const mediaId = typeof result.value.media[0] === "number" ? result.value.media[0] : result.value.media[0]?.id;
+					expect(mediaId).toBe(testMediaId);
+				}
+			}
+		});
+
+		test("should update course media array when description changes", async () => {
+			// First create a course
+			const createArgs: CreateCourseArgs = {
+				payload,
+				data: {
+					title: "Original Title",
+					description: "Original description without images",
+					createdBy: instructorId,
+					slug: "original-title-media-update",
+				},
+				overrideAccess: true,
+			};
+
+			const createResult = await tryCreateCourse(createArgs);
+			expect(createResult.ok).toBe(true);
+
+			if (createResult.ok) {
+				// Update with media reference
+				const updatedDescription = `<p>Updated description with images!</p><img src="/api/media/file/${testMediaId}" alt="Course image" />`;
+				const updateArgs: UpdateCourseArgs = {
+					payload,
+					courseId: createResult.value.id,
+					data: {
+						description: updatedDescription,
+					},
+					overrideAccess: true,
+				};
+
+				const updateResult = await tryUpdateCourse(updateArgs);
+
+				expect(updateResult.ok).toBe(true);
+				if (updateResult.ok) {
+					expect(updateResult.value.description).toBe(updatedDescription);
+					expect(updateResult.value.media).toBeDefined();
+					if (Array.isArray(updateResult.value.media)) {
+						expect(updateResult.value.media.length).toBe(1);
+						const mediaId = typeof updateResult.value.media[0] === "number" ? updateResult.value.media[0] : updateResult.value.media[0]?.id;
+						expect(mediaId).toBe(testMediaId);
+					}
 				}
 			}
 		});
@@ -1049,7 +1154,16 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: testUserId,
-				user: testUser,
+				user: testUser
+					? {
+						...testUser,
+						collection: "users",
+						avatar:
+							typeof testUser.avatar === "number"
+								? testUser.avatar
+								: testUser.avatar?.id ?? undefined,
+					}
+					: null,
 				overrideAccess: false,
 			});
 
@@ -1092,7 +1206,16 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: otherUserId,
-				user: testUser,
+				user: testUser
+					? {
+						...testUser,
+						collection: "users",
+						avatar:
+							typeof testUser.avatar === "number"
+								? testUser.avatar
+								: testUser.avatar?.id ?? undefined,
+					}
+					: null,
 				overrideAccess: true,
 			});
 
@@ -1138,7 +1261,16 @@ describe("Course Management Functions", () => {
 				const result = await tryGetUserAccessibleCourses({
 					payload,
 					userId: noCoursesUserResult.value.id,
-					user: noCoursesUser as any, // Cast to TypedUser for compatibility
+					user: noCoursesUser
+						? {
+							...noCoursesUser,
+							collection: "users",
+							avatar:
+								typeof noCoursesUser.avatar === "number"
+									? noCoursesUser.avatar
+									: noCoursesUser.avatar?.id ?? undefined,
+						}
+						: null,
 					overrideAccess: false,
 				});
 
@@ -1191,7 +1323,16 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: testUserId,
-				user: testUser as any, // Cast to TypedUser for compatibility
+				user: testUser
+					? {
+						...testUser,
+						collection: "users",
+						avatar:
+							typeof testUser.avatar === "number"
+								? testUser.avatar
+								: testUser.avatar?.id ?? undefined,
+					}
+					: null,
 				overrideAccess: false,
 			});
 

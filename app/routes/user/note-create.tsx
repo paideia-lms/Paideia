@@ -22,6 +22,11 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/note-create";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -44,7 +49,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 export const action = async ({ request, context }: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "POST");
 
-	const payload = context.get(globalContextKey).payload;
+	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -73,6 +78,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 	}
 
+	// Get upload limit from system globals
+	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+
 	try {
 		// Store uploaded media info - map fieldName to uploaded filename
 		const uploadedMedia: { fieldName: string; filename: string }[] = [];
@@ -84,13 +92,19 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				const fileBuffer = Buffer.from(arrayBuffer);
 
 				// Create media record within transaction
-				const mediaResult = await tryCreateMedia(payload, {
+				const mediaResult = await tryCreateMedia({
+					payload,
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					alt: "Note image",
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id ?? undefined,
+					},
+					req: { transactionID },
 				});
 
 				if (!mediaResult.ok) {
@@ -110,6 +124,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
+			maxFileSize !== undefined ? { maxFileSize } : undefined,
 		);
 
 		let content = formData.get("content") as string;
@@ -159,6 +174,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		}
 
 		// Create note with updated content
+		// Pass transaction context so filename resolution can see uncommitted media
+		const reqWithTransaction = { transactionID };
+
 		const result = await tryCreateNote({
 			payload,
 			data: {
@@ -171,6 +189,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				collection: "users",
 				avatar: currentUser.avatar?.id ?? undefined,
 			},
+			req: reqWithTransaction,
 			overrideAccess: false,
 		});
 
@@ -189,6 +208,20 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		// Rollback on any error
 		await payload.db.rollbackTransaction(transactionID);
 		console.error("Note creation error:", error);
+
+		// Handle file size and count limit errors
+		if (error instanceof MaxFileSizeExceededError) {
+			return badRequest({
+				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
+			});
+		}
+
+		if (error instanceof MaxFilesExceededError) {
+			return badRequest({
+				error: error.message,
+			});
+		}
+
 		return badRequest({
 			error: error instanceof Error ? error.message : "Failed to create note",
 		});

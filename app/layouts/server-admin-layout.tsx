@@ -3,7 +3,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import { tryGetContext } from "~/utils/try-get-context";
 import type { Route } from "./+types/server-admin-layout";
@@ -97,10 +97,13 @@ export default function ServerAdminLayout({
 			pageInfo.isAdminTestEmail ||
 			pageInfo.isAdminDependencies ||
 			pageInfo.isAdminCronJobs ||
-			pageInfo.isAdminMaintenance
+			pageInfo.isAdminMaintenance ||
+			pageInfo.isAdminMedia
 		)
 			return AdminTab.Server;
+		if (pageInfo.isAdminSitePolicies) return AdminTab.General;
 		if (pageInfo.isAdminMigrations) return AdminTab.Development;
+		if (pageInfo.isAdminAppearance) return AdminTab.Appearance;
 		// Default to query param or 'general'
 		return activeTab ?? AdminTab.General;
 	};

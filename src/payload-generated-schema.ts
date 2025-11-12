@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type {} from "@payloadcms/db-postgres";
+import type { } from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -273,6 +273,33 @@ export const courses = pgTable(
     index("courses_category_idx").on(columns.category),
     index("courses_updated_at_idx").on(columns.updatedAt),
     index("courses_created_at_idx").on(columns.createdAt),
+  ],
+);
+
+export const courses_rels = pgTable(
+  "courses_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("courses_rels_order_idx").on(columns.order),
+    index("courses_rels_parent_idx").on(columns.parent),
+    index("courses_rels_path_idx").on(columns.path),
+    index("courses_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [courses.id],
+      name: "courses_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "courses_rels_media_fk",
+    }).onDelete("cascade"),
   ],
 );
 
@@ -638,6 +665,33 @@ export const pages = pgTable(
     index("pages_updated_at_idx").on(columns.updatedAt),
     index("pages_created_at_idx").on(columns.createdAt),
     index("createdBy_1_idx").on(columns.createdBy),
+  ],
+);
+
+export const pages_rels = pgTable(
+  "pages_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("pages_rels_order_idx").on(columns.order),
+    index("pages_rels_parent_idx").on(columns.parent),
+    index("pages_rels_path_idx").on(columns.path),
+    index("pages_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [pages.id],
+      name: "pages_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "pages_rels_media_fk",
+    }).onDelete("cascade"),
   ],
 );
 
@@ -1007,6 +1061,11 @@ export const media = pgTable(
     id: serial("id").primaryKey(),
     alt: varchar("alt"),
     caption: varchar("caption"),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references((): AnyPgColumn => users.id, {
+        onDelete: "set null",
+      }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1032,9 +1091,11 @@ export const media = pgTable(
     focalY: numeric("focal_y", { mode: "number" }),
   },
   (columns) => [
+    index("media_created_by_idx").on(columns.createdBy),
     index("media_updated_at_idx").on(columns.updatedAt),
     index("media_created_at_idx").on(columns.createdAt),
     uniqueIndex("media_filename_idx").on(columns.filename),
+    index("createdBy_6_idx").on(columns.createdBy),
   ],
 );
 
@@ -1068,6 +1129,33 @@ export const notes = pgTable(
     index("notes_created_by_idx").on(columns.createdBy),
     index("notes_updated_at_idx").on(columns.updatedAt),
     index("notes_created_at_idx").on(columns.createdAt),
+  ],
+);
+
+export const notes_rels = pgTable(
+  "notes_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("notes_rels_order_idx").on(columns.order),
+    index("notes_rels_parent_idx").on(columns.parent),
+    index("notes_rels_path_idx").on(columns.path),
+    index("notes_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [notes.id],
+      name: "notes_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "notes_rels_media_fk",
+    }).onDelete("cascade"),
   ],
 );
 
@@ -2403,6 +2491,63 @@ export const maintenance_settings = pgTable("maintenance_settings", {
   }),
 });
 
+export const site_policies = pgTable("site_policies", {
+  id: serial("id").primaryKey(),
+  userMediaStorageTotal: numeric("user_media_storage_total", {
+    mode: "number",
+  }).default(10737418240),
+  siteUploadLimit: numeric("site_upload_limit", { mode: "number" }).default(
+    20971520,
+  ),
+  updatedAt: timestamp("updated_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+  createdAt: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+});
+
+export const appearance_settings_additional_css_stylesheets = pgTable(
+  "appearance_settings_additional_css_stylesheets",
+  {
+    _order: integer("_order").notNull(),
+    _parentID: integer("_parent_id").notNull(),
+    id: varchar("id").primaryKey(),
+    url: varchar("url").notNull(),
+  },
+  (columns) => [
+    index("appearance_settings_additional_css_stylesheets_order_idx").on(
+      columns._order,
+    ),
+    index("appearance_settings_additional_css_stylesheets_parent_id_idx").on(
+      columns._parentID,
+    ),
+    foreignKey({
+      columns: [columns["_parentID"]],
+      foreignColumns: [appearance_settings.id],
+      name: "appearance_settings_additional_css_stylesheets_parent_id_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
+export const appearance_settings = pgTable("appearance_settings", {
+  id: serial("id").primaryKey(),
+  updatedAt: timestamp("updated_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+  createdAt: timestamp("created_at", {
+    mode: "string",
+    withTimezone: true,
+    precision: 3,
+  }),
+});
+
 export const payload_jobs_stats = pgTable("payload_jobs_stats", {
   id: serial("id").primaryKey(),
   stats: jsonb("stats"),
@@ -2445,6 +2590,18 @@ export const relations_courses_tags = relations(courses_tags, ({ one }) => ({
     relationName: "tags",
   }),
 }));
+export const relations_courses_rels = relations(courses_rels, ({ one }) => ({
+  parent: one(courses, {
+    fields: [courses_rels.parent],
+    references: [courses.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [courses_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
 export const relations_courses = relations(courses, ({ one, many }) => ({
   thumbnail: one(media, {
     fields: [courses.thumbnail],
@@ -2463,6 +2620,9 @@ export const relations_courses = relations(courses, ({ one, many }) => ({
     fields: [courses.category],
     references: [course_categories.id],
     relationName: "category",
+  }),
+  _rels: many(courses_rels, {
+    relationName: "_rels",
   }),
 }));
 export const relations_course_sections = relations(
@@ -2603,11 +2763,26 @@ export const relations_activity_module_grants = relations(
     }),
   }),
 );
-export const relations_pages = relations(pages, ({ one }) => ({
+export const relations_pages_rels = relations(pages_rels, ({ one }) => ({
+  parent: one(pages, {
+    fields: [pages_rels.parent],
+    references: [pages.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [pages_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
+export const relations_pages = relations(pages, ({ one, many }) => ({
   createdBy: one(users, {
     fields: [pages.createdBy],
     references: [users.id],
     relationName: "createdBy",
+  }),
+  _rels: many(pages_rels, {
+    relationName: "_rels",
   }),
 }));
 export const relations_whiteboards = relations(whiteboards, ({ one }) => ({
@@ -2739,12 +2914,33 @@ export const relations_course_activity_module_links = relations(
     }),
   }),
 );
-export const relations_media = relations(media, () => ({}));
-export const relations_notes = relations(notes, ({ one }) => ({
+export const relations_media = relations(media, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [media.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+}));
+export const relations_notes_rels = relations(notes_rels, ({ one }) => ({
+  parent: one(notes, {
+    fields: [notes_rels.parent],
+    references: [notes.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [notes_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
+export const relations_notes = relations(notes, ({ one, many }) => ({
   createdBy: one(users, {
     fields: [notes.createdBy],
     references: [users.id],
     relationName: "createdBy",
+  }),
+  _rels: many(notes_rels, {
+    relationName: "_rels",
   }),
 }));
 export const relations_gradebooks = relations(gradebooks, ({ one }) => ({
@@ -3280,6 +3476,26 @@ export const relations_maintenance_settings = relations(
   maintenance_settings,
   () => ({}),
 );
+export const relations_site_policies = relations(site_policies, () => ({}));
+export const relations_appearance_settings_additional_css_stylesheets =
+  relations(appearance_settings_additional_css_stylesheets, ({ one }) => ({
+    _parentID: one(appearance_settings, {
+      fields: [appearance_settings_additional_css_stylesheets._parentID],
+      references: [appearance_settings.id],
+      relationName: "additionalCssStylesheets",
+    }),
+  }));
+export const relations_appearance_settings = relations(
+  appearance_settings,
+  ({ many }) => ({
+    additionalCssStylesheets: many(
+      appearance_settings_additional_css_stylesheets,
+      {
+        relationName: "additionalCssStylesheets",
+      },
+    ),
+  }),
+);
 export const relations_payload_jobs_stats = relations(
   payload_jobs_stats,
   () => ({}),
@@ -3313,6 +3529,7 @@ type DatabaseSchema = {
   users: typeof users;
   courses_tags: typeof courses_tags;
   courses: typeof courses;
+  courses_rels: typeof courses_rels;
   course_sections: typeof course_sections;
   course_categories: typeof course_categories;
   category_role_assignments: typeof category_role_assignments;
@@ -3321,6 +3538,7 @@ type DatabaseSchema = {
   activity_modules: typeof activity_modules;
   activity_module_grants: typeof activity_module_grants;
   pages: typeof pages;
+  pages_rels: typeof pages_rels;
   whiteboards: typeof whiteboards;
   assignments_allowed_file_types: typeof assignments_allowed_file_types;
   assignments: typeof assignments;
@@ -3333,6 +3551,7 @@ type DatabaseSchema = {
   course_activity_module_links: typeof course_activity_module_links;
   media: typeof media;
   notes: typeof notes;
+  notes_rels: typeof notes_rels;
   gradebooks: typeof gradebooks;
   gradebook_categories: typeof gradebook_categories;
   gradebook_items: typeof gradebook_items;
@@ -3364,10 +3583,14 @@ type DatabaseSchema = {
   system_grade_table: typeof system_grade_table;
   registration_settings: typeof registration_settings;
   maintenance_settings: typeof maintenance_settings;
+  site_policies: typeof site_policies;
+  appearance_settings_additional_css_stylesheets: typeof appearance_settings_additional_css_stylesheets;
+  appearance_settings: typeof appearance_settings;
   payload_jobs_stats: typeof payload_jobs_stats;
   relations_users_sessions: typeof relations_users_sessions;
   relations_users: typeof relations_users;
   relations_courses_tags: typeof relations_courses_tags;
+  relations_courses_rels: typeof relations_courses_rels;
   relations_courses: typeof relations_courses;
   relations_course_sections: typeof relations_course_sections;
   relations_course_categories: typeof relations_course_categories;
@@ -3376,6 +3599,7 @@ type DatabaseSchema = {
   relations_enrollments: typeof relations_enrollments;
   relations_activity_modules: typeof relations_activity_modules;
   relations_activity_module_grants: typeof relations_activity_module_grants;
+  relations_pages_rels: typeof relations_pages_rels;
   relations_pages: typeof relations_pages;
   relations_whiteboards: typeof relations_whiteboards;
   relations_assignments_allowed_file_types: typeof relations_assignments_allowed_file_types;
@@ -3388,6 +3612,7 @@ type DatabaseSchema = {
   relations_discussions: typeof relations_discussions;
   relations_course_activity_module_links: typeof relations_course_activity_module_links;
   relations_media: typeof relations_media;
+  relations_notes_rels: typeof relations_notes_rels;
   relations_notes: typeof relations_notes;
   relations_gradebooks: typeof relations_gradebooks;
   relations_gradebook_categories: typeof relations_gradebook_categories;
@@ -3420,6 +3645,9 @@ type DatabaseSchema = {
   relations_system_grade_table: typeof relations_system_grade_table;
   relations_registration_settings: typeof relations_registration_settings;
   relations_maintenance_settings: typeof relations_maintenance_settings;
+  relations_site_policies: typeof relations_site_policies;
+  relations_appearance_settings_additional_css_stylesheets: typeof relations_appearance_settings_additional_css_stylesheets;
+  relations_appearance_settings: typeof relations_appearance_settings;
   relations_payload_jobs_stats: typeof relations_payload_jobs_stats;
 };
 

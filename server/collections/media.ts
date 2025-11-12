@@ -15,6 +15,21 @@ export const Media = {
 			type: "textarea",
 			label: "Caption",
 		},
+		{
+			name: "createdBy",
+			type: "relationship",
+			relationTo: "users",
+			required: true,
+			label: "Created By",
+			access: {
+				update: () => false,
+			},
+		},
+	],
+	indexes: [
+		{
+			fields: ["createdBy"],
+		},
 	],
 	/**
 	 * sharp is only required when you use these upload collection features: index.ts:841-849

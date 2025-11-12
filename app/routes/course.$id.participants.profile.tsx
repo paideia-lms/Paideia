@@ -18,7 +18,7 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import { canImpersonateUser } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
@@ -69,13 +69,13 @@ export const loader = async ({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? canImpersonateUser(
-				userSession.authenticatedUser,
-				{
-					id: userId,
-					role: "student", // Enrolled users are not admins
-				},
-				userSession.isImpersonating,
-			)
+			userSession.authenticatedUser,
+			{
+				id: userId,
+				role: "student", // Enrolled users are not admins
+			},
+			userSession.isImpersonating,
+		)
 		: false;
 
 	return {

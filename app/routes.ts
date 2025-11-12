@@ -15,7 +15,9 @@ export const routes = [
 		"api/media/file/:filenameOrId",
 		"routes/api/media/file.$filenameOrId.tsx",
 	),
+	route("api/user/:id/avatar", "routes/api/user.$id.avatar.tsx"),
 	route("api/d2-render", "routes/api/d2-render.tsx"),
+	route("api/media-usage/:mediaId", "routes/api/media-usage.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	route("api/batch-update-courses", "routes/api/batch-update-courses.tsx"),
 	route("api/category-reorder", "routes/api/category-reorder.tsx"),
@@ -33,7 +35,8 @@ export const routes = [
 			route("user/grades/:id?", "routes/user/grades.tsx"),
 			route("user/notes/:id?", "routes/user/notes.tsx"),
 			route("user/note/create", "routes/user/note-create.tsx"),
-			route("user/note/edit/:id", "routes/user/note-edit.tsx"),
+			route("user/note/edit/:noteId", "routes/user/note-edit.tsx"),
+			route("user/media/:id?", "routes/user/media.tsx"),
 			layout("layouts/user-modules-layout.tsx", [
 				//  the id is the user id
 				route("user/modules/:id?", "routes/user/modules.tsx"),
@@ -100,6 +103,9 @@ export const routes = [
 			route("admin/dependencies", "routes/admin/dependencies.tsx"),
 			route("admin/cron-jobs", "routes/admin/cron-jobs.tsx"),
 			route("admin/maintenance", "routes/admin/maintenance.tsx"),
+			route("admin/sitepolicies", "routes/admin/sitepolicies.tsx"),
+			route("admin/media", "routes/admin/media.tsx"),
+			route("admin/appearance", "routes/admin/appearance.tsx"),
 		]),
 	]),
 ] as const satisfies RouteConfig;

@@ -37,7 +37,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const parsed = inputSchema.safeParse(data);
 
 	if (!parsed.success) {
-		return badRequest({ error: z.treeifyError(parsed.error) });
+		return badRequest({ error: z.prettifyError(parsed.error) });
 	}
 
 	const { courseId, sourceId, sourceType, targetId, targetType, location } =
@@ -79,10 +79,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
-			message:
-				typeof actionData.error === "string"
-					? actionData.error
-					: actionData.error.errors.join(", "),
+			message: actionData.error,
 			color: "red",
 		});
 	}

@@ -181,12 +181,16 @@ export interface Config {
     'system-grade-table': SystemGradeTable;
     'registration-settings': RegistrationSetting;
     'maintenance-settings': MaintenanceSetting;
+    'site-policies': SitePolicy;
+    'appearance-settings': AppearanceSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
     'system-grade-table': SystemGradeTableSelect<false> | SystemGradeTableSelect<true>;
     'registration-settings': RegistrationSettingsSelect<false> | RegistrationSettingsSelect<true>;
     'maintenance-settings': MaintenanceSettingsSelect<false> | MaintenanceSettingsSelect<true>;
+    'site-policies': SitePoliciesSelect<false> | SitePoliciesSelect<true>;
+    'appearance-settings': AppearanceSettingsSelect<false> | AppearanceSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -262,6 +266,7 @@ export interface Media {
   id: number;
   alt?: string | null;
   caption?: string | null;
+  createdBy: number | User;
   updatedAt: string;
   createdAt: string;
   url?: string | null;
@@ -313,6 +318,7 @@ export interface Course {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
+  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -519,6 +525,7 @@ export interface Page {
   id: number;
   content?: string | null;
   createdBy: number | User;
+  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -842,6 +849,7 @@ export interface Note {
   createdBy: number | User;
   content: string;
   isPublic?: boolean | null;
+  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1317,6 +1325,7 @@ export interface CoursesSelect<T extends boolean = true> {
   groups?: T;
   category?: T;
   sections?: T;
+  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1422,6 +1431,7 @@ export interface ActivityModuleGrantsSelect<T extends boolean = true> {
 export interface PagesSelect<T extends boolean = true> {
   content?: T;
   createdBy?: T;
+  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1571,6 +1581,7 @@ export interface CourseActivityModuleLinksSelect<T extends boolean = true> {
 export interface MediaSelect<T extends boolean = true> {
   alt?: T;
   caption?: T;
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
   url?: T;
@@ -1591,6 +1602,7 @@ export interface NotesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
   isPublic?: T;
+  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1983,6 +1995,44 @@ export interface MaintenanceSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-policies".
+ */
+export interface SitePolicy {
+  id: number;
+  /**
+   * Maximum total storage allowed per user for media files. Leave empty for unlimited storage.
+   */
+  userMediaStorageTotal?: number | null;
+  /**
+   * Maximum file size allowed for uploads across the site. Leave empty for unlimited size.
+   */
+  siteUploadLimit?: number | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "appearance-settings".
+ */
+export interface AppearanceSetting {
+  id: number;
+  /**
+   * Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence.
+   */
+  additionalCssStylesheets?:
+    | {
+        /**
+         * Full URL to the CSS stylesheet (e.g., https://example.com/style.css). Must be a valid HTTP/HTTPS URL.
+         */
+        url: string;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -2033,6 +2083,32 @@ export interface RegistrationSettingsSelect<T extends boolean = true> {
  */
 export interface MaintenanceSettingsSelect<T extends boolean = true> {
   maintenanceMode?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "site-policies_select".
+ */
+export interface SitePoliciesSelect<T extends boolean = true> {
+  userMediaStorageTotal?: T;
+  siteUploadLimit?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "appearance-settings_select".
+ */
+export interface AppearanceSettingsSelect<T extends boolean = true> {
+  additionalCssStylesheets?:
+    | T
+    | {
+        url?: T;
+        id?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

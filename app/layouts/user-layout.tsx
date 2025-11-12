@@ -11,7 +11,7 @@ import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindUserById } from "server/internal/user-management";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
@@ -22,6 +22,7 @@ enum UserTab {
 	Modules = "modules",
 	Grades = "grades",
 	Notes = "notes",
+	Media = "media",
 }
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -66,8 +67,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof targetUser.avatar === "object") {
 			avatarUrl = targetUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: targetUser.avatar.filename,
-					})
+					filenameOrId: targetUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -113,6 +114,7 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 			pageInfo.isUserNoteEdit
 		)
 			return UserTab.Notes;
+		if (pageInfo.isUserMedia) return UserTab.Media;
 
 		// Default to Profile tab
 		return UserTab.Profile;
@@ -155,6 +157,13 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 			case UserTab.Notes:
 				navigate(
 					href("/user/notes/:id?", {
+						id: userIdParam ? userIdParam : undefined,
+					}),
+				);
+				break;
+			case UserTab.Media:
+				navigate(
+					href("/user/media/:id?", {
 						id: userIdParam ? userIdParam : undefined,
 					}),
 				);
@@ -204,6 +213,7 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 								<Tabs.Tab value={UserTab.Modules}>Modules</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Grades}>Grades</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Notes}>Notes</Tabs.Tab>
+								<Tabs.Tab value={UserTab.Media}>Media</Tabs.Tab>
 							</Tabs.List>
 						</Tabs>
 					</Group>

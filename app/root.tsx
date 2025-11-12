@@ -66,8 +66,8 @@ import {
 import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
-import { tryGetMaintenanceSettings } from "server/internal/maintenance-settings";
-import { RootErrorBoundary } from "./components/maintenance-mode-error-boundary";
+import { tryGetSystemGlobals } from "server/internal/system-globals";
+import { RootErrorBoundary } from "./components/root-mode-error-boundary";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
@@ -117,6 +117,7 @@ export const middleware = [
 		let isUserNotes = false;
 		let isUserNoteCreate = false;
 		let isUserNoteEdit = false;
+		let isUserMedia = false;
 		let isUserModuleNew = false;
 		let isUserModuleEdit = false;
 		let isUserModuleEditSetting = false;
@@ -138,6 +139,9 @@ export const middleware = [
 		let isAdminDependencies = false;
 		let isAdminCronJobs = false;
 		let isAdminMaintenance = false;
+		let isAdminSitePolicies = false;
+		let isAdminMedia = false;
+		let isAdminAppearance = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
 			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
@@ -184,6 +188,7 @@ export const middleware = [
 			else if (route.id === "routes/user/notes") isUserNotes = true;
 			else if (route.id === "routes/user/note-create") isUserNoteCreate = true;
 			else if (route.id === "routes/user/note-edit") isUserNoteEdit = true;
+			else if (route.id === "routes/user/media") isUserMedia = true;
 			else if (route.id === "routes/user/module/new") isUserModuleNew = true;
 			else if (route.id === "routes/user/module/edit") isUserModuleEdit = true;
 			else if (route.id === "routes/user/module/edit-setting")
@@ -213,6 +218,15 @@ export const middleware = [
 			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
 			else if (route.id === "routes/admin/maintenance")
 				isAdminMaintenance = true;
+			else if (
+				route.id === ("routes/admin/sitepolicies" as typeof route.id)
+			)
+				isAdminSitePolicies = true;
+			else if (route.id === "routes/admin/media") isAdminMedia = true;
+			else if (
+				route.id === ("routes/admin/appearance" as typeof route.id)
+			)
+				isAdminAppearance = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -254,6 +268,7 @@ export const middleware = [
 				isUserNotes,
 				isUserNoteCreate,
 				isUserNoteEdit,
+				isUserMedia,
 				isUserModuleNew,
 				isUserModuleEdit,
 				isUserModuleEditSetting,
@@ -275,6 +290,9 @@ export const middleware = [
 				isAdminDependencies,
 				isAdminCronJobs,
 				isAdminMaintenance,
+				isAdminSitePolicies,
+				isAdminMedia,
+				isAdminAppearance,
 				params: params as Record<string, string>,
 			},
 		});
@@ -291,25 +309,40 @@ export const middleware = [
 		context.set(userContextKey, userSession);
 	},
 	/**
-	 * check maintenance mode and block non-admin users
+	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
 	async ({ request, context }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
-		// Check maintenance mode
-		const maintenanceSettings = await tryGetMaintenanceSettings({
+		// Fetch all system globals in one call
+		const systemGlobalsResult = await tryGetSystemGlobals({
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
 		});
 
-		if (!maintenanceSettings.ok) {
-			// If we can't get maintenance settings, allow access (fail open)
-			return;
-		}
+		// If we can't get system globals, use defaults (fail open)
+		const systemGlobals = systemGlobalsResult.ok
+			? systemGlobalsResult.value
+			: {
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+				},
+			};
 
-		const { maintenanceMode } = maintenanceSettings.value;
+		// Store system globals in context for use throughout the app
+		context.set(globalContextKey, {
+			...context.get(globalContextKey),
+			systemGlobals,
+		});
+
+		const { maintenanceMode } = systemGlobals.maintenanceSettings;
 
 		// If maintenance mode is enabled
 		if (maintenanceMode) {
@@ -386,9 +419,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -438,9 +471,9 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -500,9 +533,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -554,9 +587,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				);
 
@@ -603,7 +636,8 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ request, context }: Route.LoaderArgs) {
-	const { payload, requestInfo, pageInfo } = context.get(globalContextKey);
+	const { payload, requestInfo, pageInfo, systemGlobals } =
+		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
 	// console.log(routes)
@@ -631,6 +665,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			timestamp: timestamp,
 			pageInfo: pageInfo,
 			theme: theme,
+			additionalCssStylesheets:
+				systemGlobals.appearanceSettings.additionalCssStylesheets,
 		};
 	}
 
@@ -646,6 +682,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		pageInfo: pageInfo,
 		theme: theme,
 		isDevelopment: process.env.NODE_ENV === "development",
+		additionalCssStylesheets:
+			systemGlobals.appearanceSettings.additionalCssStylesheets,
 	};
 }
 
@@ -707,7 +745,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme, isDevelopment } = loaderData;
+	const { theme, isDevelopment, additionalCssStylesheets } = loaderData;
 
 	return (
 		<html
@@ -730,6 +768,10 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
 				/>
+				{/* Additional CSS stylesheets configured by admin */}
+				{additionalCssStylesheets.map((url) => (
+					<link key={url} rel="stylesheet" href={url} />
+				))}
 				{isDevelopment && (
 					<script
 						crossOrigin="anonymous"

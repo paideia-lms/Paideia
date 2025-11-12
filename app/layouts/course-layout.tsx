@@ -12,7 +12,7 @@ import {
 	canSeeCourseParticipants,
 	canSeeCourseSettings,
 } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/course-layout";

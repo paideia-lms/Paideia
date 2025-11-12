@@ -14,13 +14,22 @@ import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
 import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
-import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
+import {
+	badRequest,
+	NotFoundResponse,
+	StatusCode,
+} from "~/utils/responses";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/note-edit";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -36,7 +45,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const note = await tryFindNoteById({
 		payload,
-		noteId: Number(params.id),
+		noteId: Number(params.noteId),
 		user: {
 			...currentUser,
 			collection: "users",
@@ -69,7 +78,7 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	assertRequestMethod(request.method, "POST");
 
-	const payload = context.get(globalContextKey).payload;
+	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -83,7 +92,7 @@ export const action = async ({
 		throw new NotFoundResponse("Unauthorized");
 	}
 
-	const noteId = Number(params.id);
+	const noteId = Number(params.noteId);
 	if (Number.isNaN(noteId)) {
 		throw new NotFoundResponse("Invalid note ID");
 	}
@@ -97,6 +106,9 @@ export const action = async ({
 		});
 	}
 
+	// Get upload limit from system globals
+	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+
 	try {
 		// Store uploaded media info - map fieldName to uploaded filename
 		const uploadedMedia: { fieldName: string; filename: string }[] = [];
@@ -108,13 +120,19 @@ export const action = async ({
 				const fileBuffer = Buffer.from(arrayBuffer);
 
 				// Create media record within transaction
-				const mediaResult = await tryCreateMedia(payload, {
+				const mediaResult = await tryCreateMedia({
+					payload,
 					file: fileBuffer,
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					alt: "Note image",
 					userId: currentUser.id,
-					transactionID,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id,
+					},
+					req: { transactionID },
 				});
 
 				if (!mediaResult.ok) {
@@ -134,6 +152,7 @@ export const action = async ({
 		const formData = await parseFormDataWithFallback(
 			request,
 			uploadHandler as FileUploadHandler,
+			maxFileSize !== undefined ? { maxFileSize } : undefined,
 		);
 
 		let content = formData.get("content") as string;
@@ -183,6 +202,9 @@ export const action = async ({
 		}
 
 		// Update note with updated content
+		// Pass transaction context so filename resolution can see uncommitted media
+		const reqWithTransaction = { transactionID };
+
 		const result = await tryUpdateNote({
 			payload,
 			noteId,
@@ -195,6 +217,7 @@ export const action = async ({
 				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
+			req: reqWithTransaction,
 			overrideAccess: false,
 		});
 
@@ -213,6 +236,20 @@ export const action = async ({
 		// Rollback on any error
 		await payload.db.rollbackTransaction(transactionID);
 		console.error("Note update error:", error);
+
+		// Handle file size and count limit errors
+		if (error instanceof MaxFileSizeExceededError) {
+			return badRequest({
+				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
+			});
+		}
+
+		if (error instanceof MaxFilesExceededError) {
+			return badRequest({
+				error: error.message,
+			});
+		}
+
 		return badRequest({
 			error: error instanceof Error ? error.message : "Failed to update note",
 		});

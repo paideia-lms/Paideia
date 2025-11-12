@@ -1,4 +1,5 @@
-import type { GlobalConfig } from "payload";
+import type { GlobalConfig, TextFieldSingleValidation } from "payload";
+import { z } from "zod";
 
 // System-level Grade Table Global - default grade letters for the entire system
 export const SystemGradeTable = {
@@ -85,6 +86,67 @@ export const MaintenanceSettings = {
 				description:
 					"When enabled, only administrators can access the system. All other users will be blocked from logging in.",
 			},
+		},
+	],
+} as const satisfies GlobalConfig;
+
+// Site policies settings - controls media storage and upload limits
+export const SitePolicies = {
+	slug: "site-policies",
+	fields: [
+		{
+			name: "userMediaStorageTotal",
+			type: "number",
+			label: "User Media Storage Total (bytes)",
+			admin: {
+				description:
+					"Maximum total storage allowed per user for media files. Leave empty for unlimited storage.",
+			},
+			min: 0,
+			defaultValue: 10 * 1024 * 1024 * 1024, // 10 GB
+		},
+		{
+			name: "siteUploadLimit",
+			type: "number",
+			label: "Site Upload Limit (bytes)",
+			admin: {
+				description:
+					"Maximum file size allowed for uploads across the site. Leave empty for unlimited size.",
+			},
+			min: 0,
+			defaultValue: 20 * 1024 * 1024, // 20 MB
+		},
+	],
+} as const satisfies GlobalConfig;
+
+// Appearance settings - controls site-level CSS stylesheets
+export const AppearanceSettings = {
+	slug: "appearance-settings",
+	fields: [
+		{
+			name: "additionalCssStylesheets",
+			type: "array",
+			label: "Additional CSS Stylesheets",
+			admin: {
+				description:
+					"Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence.",
+			},
+			fields: [
+				{
+					name: "url",
+					type: "text",
+					required: true,
+					label: "Stylesheet URL",
+					admin: {
+						description:
+							"Full URL to the CSS stylesheet (e.g., https://example.com/style.css). Must be a valid HTTP/HTTPS URL.",
+					},
+					validate: ((value: string) => {
+						return z.url().safeParse(value).success;
+					}) as TextFieldSingleValidation
+				},
+			],
+			defaultValue: [],
 		},
 	],
 } as const satisfies GlobalConfig;

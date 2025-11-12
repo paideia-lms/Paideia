@@ -206,6 +206,20 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+export function useDeleteNote() {
+	const fetcher = useFetcher<typeof clientAction>();
+	const deleteNote = async (noteId: number) => {
+		const formData = new FormData();
+		formData.append("noteId", String(noteId));
+		fetcher.submit(formData, { method: "DELETE" });
+	};
+	return {
+		deleteNote,
+		isLoading: fetcher.state !== "idle",
+		fetcher,
+	};
+}
+
 // HeatmapSection component
 function HeatmapSection({
 	selectedYear,
@@ -251,10 +265,9 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${
-							value === null || value === 0
-								? "No notes"
-								: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
+							? "No notes"
+							: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}
@@ -498,7 +511,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 		timeZone,
 	} = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
-	const fetcher = useFetcher<typeof clientAction>();
+	const { deleteNote } = useDeleteNote();
 
 	const [selectedYear, setSelectedYear] = useState(
 		availableYears[0] || new Date().getFullYear(),
@@ -526,9 +539,7 @@ export default function NotesPage({ loaderData }: Route.ComponentProps) {
 			return;
 		}
 
-		const formData = new FormData();
-		formData.append("noteId", String(noteId));
-		fetcher.submit(formData, { method: "DELETE" });
+		deleteNote(noteId);
 	};
 
 	// Regenerate heatmap data mapping using client timezone
