@@ -5,6 +5,7 @@ import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
+	MediaInUseError,
 	NonExistingMediaError,
 	TransactionIdNotFoundError,
 	transformError,
@@ -850,6 +851,32 @@ export const tryDeleteMedia = Result.wrap(
 				const missingIds = ids.filter((id) => !foundIds.includes(id));
 				throw new NonExistingMediaError(
 					`Media records not found: ${missingIds.join(", ")}`,
+				);
+			}
+
+			// Check if any media has usage before deletion
+			const mediaWithUsage: Array<{ id: number; usages: number }> = [];
+			for (const media of foundMedia) {
+				const usagesResult = await tryFindMediaUsages(payload, {
+					mediaId: media.id,
+				});
+
+				if (usagesResult.ok && usagesResult.value.totalUsages > 0) {
+					mediaWithUsage.push({
+						id: media.id,
+						usages: usagesResult.value.totalUsages,
+					});
+				}
+			}
+
+			if (mediaWithUsage.length > 0) {
+				const mediaIdsWithUsage = mediaWithUsage.map((m) => m.id).join(", ");
+				const totalUsages = mediaWithUsage.reduce(
+					(sum, m) => sum + m.usages,
+					0,
+				);
+				throw new MediaInUseError(
+					`Cannot delete media file(s) ${mediaIdsWithUsage} because ${totalUsages} usage${totalUsages !== 1 ? "s" : ""} found. Please remove all references before deleting.`,
 				);
 			}
 
@@ -1942,6 +1969,174 @@ export const tryDeleteOrphanedMedia = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to delete orphaned media", {
+			cause: error,
+		}),
+);
+
+export interface MediaUsage {
+	collection: string;
+	documentId: number;
+	fieldPath: string; // e.g., "avatar", "thumbnail", "attachments.0.file"
+}
+
+export interface FindMediaUsagesArgs {
+	mediaId: number | string;
+}
+
+export interface FindMediaUsagesResult {
+	usages: MediaUsage[];
+	totalUsages: number;
+}
+
+/**
+ * Finds all usages of a media file across all collections
+ *
+ * This function:
+ * 1. Validates that the media exists
+ * 2. Searches through all collections that reference media
+ * 3. Handles both direct relationship fields and array fields
+ * 4. Returns all usages with collection name, document ID, and field path
+ */
+export const tryFindMediaUsages = Result.wrap(
+	async (
+		payload: Payload,
+		args: FindMediaUsagesArgs,
+	): Promise<FindMediaUsagesResult> => {
+		const { mediaId } = args;
+
+		// Validate media ID
+		if (!mediaId) {
+			throw new InvalidArgumentError("Media ID is required");
+		}
+
+		// Normalize media ID to number for comparison
+		const normalizedMediaId =
+			typeof mediaId === "string" ? Number.parseInt(mediaId, 10) : mediaId;
+
+		if (Number.isNaN(normalizedMediaId)) {
+			throw new InvalidArgumentError("Invalid media ID format");
+		}
+
+		// Verify media exists
+		const mediaResult = await tryGetMediaById(payload, {
+			id: mediaId,
+			depth: 0,
+		});
+
+		if (!mediaResult.ok) {
+			throw mediaResult.error;
+		}
+
+		const usages: MediaUsage[] = [];
+
+		// Search users collection for avatar field
+		const usersResult = await payload.find({
+			collection: "users",
+			where: {
+				avatar: {
+					equals: normalizedMediaId,
+				},
+			},
+			depth: 0,
+			limit: 10000,
+			overrideAccess: true,
+		});
+
+		for (const user of usersResult.docs) {
+			usages.push({
+				collection: "users",
+				documentId: user.id,
+				fieldPath: "avatar",
+			});
+		}
+
+		// Search courses collection for thumbnail field
+		const coursesResult = await payload.find({
+			collection: "courses",
+			where: {
+				thumbnail: {
+					equals: normalizedMediaId,
+				},
+			},
+			depth: 0,
+			limit: 10000,
+			overrideAccess: true,
+		});
+
+		for (const course of coursesResult.docs) {
+			usages.push({
+				collection: "courses",
+				documentId: course.id,
+				fieldPath: "thumbnail",
+			});
+		}
+
+		// Search assignment-submissions collection for attachments array
+		const assignmentSubmissionsResult = await payload.find({
+			collection: "assignment-submissions",
+			depth: 0,
+			limit: 10000,
+			overrideAccess: true,
+		});
+
+		for (const submission of assignmentSubmissionsResult.docs) {
+			if (submission.attachments && Array.isArray(submission.attachments)) {
+				for (let i = 0; i < submission.attachments.length; i++) {
+					const attachment = submission.attachments[i];
+					if (attachment && typeof attachment === "object" && "file" in attachment) {
+						const fileId =
+							typeof attachment.file === "number"
+								? attachment.file
+								: attachment.file?.id;
+						if (fileId === normalizedMediaId) {
+							usages.push({
+								collection: "assignment-submissions",
+								documentId: submission.id,
+								fieldPath: `attachments.${i}.file`,
+							});
+						}
+					}
+				}
+			}
+		}
+
+		// Search discussion-submissions collection for attachments array
+		const discussionSubmissionsResult = await payload.find({
+			collection: "discussion-submissions",
+			depth: 0,
+			limit: 10000,
+			overrideAccess: true,
+		});
+
+		for (const submission of discussionSubmissionsResult.docs) {
+			if (submission.attachments && Array.isArray(submission.attachments)) {
+				for (let i = 0; i < submission.attachments.length; i++) {
+					const attachment = submission.attachments[i];
+					if (attachment && typeof attachment === "object" && "file" in attachment) {
+						const fileId =
+							typeof attachment.file === "number"
+								? attachment.file
+								: attachment.file?.id;
+						if (fileId === normalizedMediaId) {
+							usages.push({
+								collection: "discussion-submissions",
+								documentId: submission.id,
+								fieldPath: `attachments.${i}.file`,
+							});
+						}
+					}
+				}
+			}
+		}
+
+		return {
+			usages,
+			totalUsages: usages.length,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find media usages", {
 			cause: error,
 		}),
 );

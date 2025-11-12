@@ -17,6 +17,7 @@ export const routes = [
 	),
 	route("api/user/:id/avatar", "routes/api/user.$id.avatar.tsx"),
 	route("api/d2-render", "routes/api/d2-render.tsx"),
+	route("api/media-usage/:mediaId", "routes/api/media-usage.tsx"),
 	route("api/course-structure-tree", "routes/api/course-structure-tree.tsx"),
 	route("api/batch-update-courses", "routes/api/batch-update-courses.tsx"),
 	route("api/category-reorder", "routes/api/category-reorder.tsx"),

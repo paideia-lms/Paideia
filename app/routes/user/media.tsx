@@ -23,6 +23,7 @@ import {
     IconDownload,
     IconEye,
     IconFile,
+    IconInfoCircle,
     IconLayoutGrid,
     IconList,
     IconPhoto,
@@ -37,7 +38,8 @@ import {
     MaxFilesExceededError,
     MaxFileSizeExceededError,
 } from "@remix-run/form-data-parser";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { usePrevious } from "@mantine/hooks";
 import prettyBytes from "pretty-bytes";
 import { href, useFetcher } from "react-router";
 import { useForm } from "@mantine/form";
@@ -56,6 +58,7 @@ import {
     tryGetUserMediaStats,
     tryRenameMedia,
 } from "server/internal/media-management";
+import { useMediaUsageData } from "~/routes/api/media-usage";
 import type { Media } from "server/payload-types";
 import { canDeleteMedia } from "server/utils/permissions";
 import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
@@ -842,6 +845,14 @@ function MediaRenameModal({
         },
     });
 
+    // biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+    useEffect(() => {
+        if (file) {
+            form.setInitialValues({ filename: file.filename ?? "" });
+            form.reset();
+        }
+    }, [file]);
+
     const handleSubmit = form.onSubmit((values) => {
         if (!file) {
             return;
@@ -873,6 +884,81 @@ function MediaRenameModal({
                     </Group>
                 </Stack>
             </form>
+        </Modal>
+    );
+}
+
+// Media Usage Modal Component
+function MediaUsageModal({
+    file,
+    opened,
+    onClose,
+}: {
+    file: Media | null;
+    opened: boolean;
+    onClose: () => void;
+}) {
+    const { fetchMediaUsage, data, loading, error } = useMediaUsageData();
+    const previousFileId = usePrevious(file?.id);
+    const previousOpened = usePrevious(opened);
+    const dataFileIdRef = useRef<number | null>(null);
+
+    // Fetch usage when modal opens or file changes
+    useEffect(() => {
+        if (opened && file) {
+            // Fetch if modal just opened or file ID changed
+            if (!previousOpened || file.id !== previousFileId) {
+                dataFileIdRef.current = file.id;
+                fetchMediaUsage(file.id);
+            }
+        }
+    }, [opened, file, previousOpened, previousFileId, fetchMediaUsage]);
+
+    return (
+        <Modal
+            opened={opened}
+            onClose={onClose}
+            title={file ? `Usage for ${file.filename ?? "Media"}` : "Media Usage"}
+            centered
+        >
+            <Stack gap="md">
+                {loading && <Text c="dimmed">Loading usage data...</Text>}
+                {error && (
+                    <Text c="red" size="sm">
+                        Error: {error}
+                    </Text>
+                )}
+                {data && file && file.id === dataFileIdRef.current && (
+                    <>
+                        <Text size="sm" fw={500}>
+                            Total Usages: {data.totalUsages}
+                        </Text>
+                        {data.totalUsages === 0 ? (
+                            <Text c="dimmed" size="sm">
+                                This media file is not currently used anywhere.
+                            </Text>
+                        ) : (
+                            <Stack gap="xs">
+                                {data.usages.map((usage) => (
+                                    <Card key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`} withBorder padding="xs">
+                                        <Group gap="xs" wrap="nowrap">
+                                            <Text size="sm" fw={500}>
+                                                {usage.collection}
+                                            </Text>
+                                            <Text size="sm" c="dimmed">
+                                                Document ID: {usage.documentId}
+                                            </Text>
+                                            <Text size="sm" c="dimmed">
+                                                Field: {usage.fieldPath}
+                                            </Text>
+                                        </Group>
+                                    </Card>
+                                ))}
+                            </Stack>
+                        )}
+                    </>
+                )}
+            </Stack>
         </Modal>
     );
 }
@@ -970,12 +1056,14 @@ function MediaActionMenu({
     onDelete,
     onPreview,
     onRename,
+    onShowUsage,
 }: {
     file: Media & { deletePermission?: { allowed: boolean; reason: string } };
     onDownload: (file: Media) => void;
     onDelete: (file: Media) => void;
     onPreview?: (file: Media) => void;
     onRename?: (file: Media) => void;
+    onShowUsage?: (file: Media) => void;
 }) {
     const canDelete = file.deletePermission?.allowed ?? false;
     const canPreviewFile = canPreview(file.mimeType ?? null);
@@ -1009,6 +1097,14 @@ function MediaActionMenu({
                         Download
                     </Menu.Item>
                 )}
+                {onShowUsage && (
+                    <Menu.Item
+                        leftSection={<IconInfoCircle size={16} />}
+                        onClick={() => onShowUsage(file)}
+                    >
+                        Show Usage
+                    </Menu.Item>
+                )}
                 {onRename && (
                     <Menu.Item
                         leftSection={<IconPencil size={16} />}
@@ -1040,6 +1136,7 @@ function MediaCard({
     onDelete,
     onOpenModal,
     onRename,
+    onOpenUsageModal,
 }: {
     file: Media & { deletePermission?: { allowed: boolean; reason: string } };
     isSelected: boolean;
@@ -1048,6 +1145,7 @@ function MediaCard({
     onDelete: (file: Media) => void;
     onOpenModal?: (file: Media) => void;
     onRename?: (file: Media) => void;
+    onOpenUsageModal?: (file: Media) => void;
 }) {
     const mediaUrl = file.filename
         ? href(`/api/media/file/:filenameOrId`, {
@@ -1144,6 +1242,7 @@ function MediaCard({
                                     onDelete={onDelete}
                                     onPreview={onOpenModal}
                                     onRename={onRename}
+                                    onShowUsage={onOpenUsageModal}
                                 />
                             </Group>
                         </Stack>
@@ -1163,6 +1262,7 @@ function MediaCardView({
     onDelete,
     onOpenModal,
     onRename,
+    onOpenUsageModal,
 }: {
     media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
     selectedCardIds: number[];
@@ -1171,6 +1271,7 @@ function MediaCardView({
     onDelete: (file: Media) => void;
     onOpenModal?: (file: Media) => void;
     onRename?: (file: Media) => void;
+    onOpenUsageModal?: (file: Media) => void;
 }) {
     const handleCheckboxChange = (fileId: number, checked: boolean) => {
         if (checked) {
@@ -1192,6 +1293,7 @@ function MediaCardView({
                     onDelete={onDelete}
                     onOpenModal={onOpenModal}
                     onRename={onRename}
+                    onOpenUsageModal={onOpenUsageModal}
                 />
             ))}
         </Grid>
@@ -1207,6 +1309,7 @@ function MediaTableView({
     onDelete,
     onOpenModal,
     onRename,
+    onOpenUsageModal,
 }: {
     media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
     selectedRecords: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
@@ -1215,6 +1318,7 @@ function MediaTableView({
     onDelete: (file: Media) => void;
     onOpenModal?: (file: Media) => void;
     onRename?: (file: Media) => void;
+    onOpenUsageModal?: (file: Media) => void;
 }) {
     const columns = [
         {
@@ -1262,6 +1366,7 @@ function MediaTableView({
                     onDelete={onDelete}
                     onPreview={onOpenModal}
                     onRename={onRename}
+                    onShowUsage={onOpenUsageModal}
                 />
             ),
         },
@@ -1326,6 +1431,8 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
     const [previewFile, setPreviewFile] = useState<Media | null>(null);
     const [renameModalOpened, setRenameModalOpened] = useState(false);
     const [renameFile, setRenameFile] = useState<Media | null>(null);
+    const [usageModalOpened, setUsageModalOpened] = useState(false);
+    const [usageFile, setUsageFile] = useState<Media | null>(null);
     const fileInputId = useId();
     const fileInputRef = useRef<HTMLInputElement>(null);
     const { deleteMedia } = useDeleteMedia();
@@ -1411,6 +1518,16 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 
     const handleRename = (mediaId: number, newFilename: string) => {
         renameMedia(mediaId, newFilename);
+    };
+
+    const handleOpenUsageModal = (file: Media) => {
+        setUsageFile(file);
+        setUsageModalOpened(true);
+    };
+
+    const handleCloseUsageModal = () => {
+        setUsageModalOpened(false);
+        setUsageFile(null);
     };
 
     const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1620,6 +1737,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                             onDelete={handleDelete}
                             onOpenModal={handleOpenModal}
                             onRename={handleOpenRenameModal}
+                            onOpenUsageModal={handleOpenUsageModal}
                         />
                         <MediaPagination
                             totalPages={pagination.totalPages}
@@ -1644,6 +1762,7 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                             onDelete={handleDelete}
                             onOpenModal={handleOpenModal}
                             onRename={handleOpenRenameModal}
+                            onOpenUsageModal={handleOpenUsageModal}
                         />
                         <MediaPagination
                             totalPages={pagination.totalPages}
@@ -1669,6 +1788,13 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
                     opened={renameModalOpened}
                     onClose={handleCloseRenameModal}
                     onRename={handleRename}
+                />
+
+                {/* Media Usage Modal */}
+                <MediaUsageModal
+                    file={usageFile}
+                    opened={usageModalOpened}
+                    onClose={handleCloseUsageModal}
                 />
             </Stack>
         </Container>

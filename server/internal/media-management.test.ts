@@ -9,6 +9,7 @@ import {
 	tryDeleteMedia,
 	tryDeleteOrphanedMedia,
 	tryFindMediaByUser,
+	tryFindMediaUsages,
 	tryGetAllMedia,
 	tryGetMediaBufferFromFilename,
 	tryGetMediaById,
@@ -19,6 +20,13 @@ import {
 	tryRenameMedia,
 } from "./media-management";
 import { tryCreateUser } from "./user-management";
+import { tryCreateCourse } from "./course-management";
+import { tryCreateEnrollment } from "./enrollment-management";
+import { tryCreateSection } from "./course-section-management";
+import { tryCreateActivityModule } from "./activity-module-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
+import { tryCreateAssignmentSubmission } from "./assignment-submission-management";
+import { tryCreateDiscussionSubmission } from "./discussion-management";
 
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -397,6 +405,54 @@ describe("Media Management", () => {
 		}
 	});
 
+	test("should fail to delete media with usage", async () => {
+		// Create a media file
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createResult = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-delete-with-usage.png",
+			mimeType: "image/png",
+			alt: "Test delete with usage",
+			userId: testUserId,
+		});
+
+		expect(createResult.ok).toBe(true);
+		if (!createResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const testMediaId = createResult.value.media.id;
+
+		// Use media as user avatar
+		await payload.update({
+			collection: "users",
+			id: testUserId,
+			data: {
+				avatar: testMediaId,
+			},
+			overrideAccess: true,
+		});
+
+		// Try to delete the media (should fail)
+		const deleteResult = await tryDeleteMedia(payload, s3Client, {
+			id: testMediaId,
+			userId: testUserId,
+		});
+
+		expect(deleteResult.ok).toBe(false);
+		if (!deleteResult.ok) {
+			expect(deleteResult.error.message).toContain("usage");
+			expect(deleteResult.error.message).toContain("Cannot delete");
+		}
+
+		// Verify the media still exists
+		const getResult = await tryGetMediaById(payload, {
+			id: testMediaId,
+			depth: 0,
+		});
+		expect(getResult.ok).toBe(true);
+	});
+
 	test("should delete multiple media records (batch delete)", async () => {
 		// Create multiple media files
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
@@ -517,7 +573,6 @@ describe("Media Management", () => {
 
 		expect(result.ok).toBe(false);
 
-
 		// Verify the existing media was not deleted (transaction rollback)
 		const getResult = await tryGetMediaById(payload, {
 			id: existingId,
@@ -525,6 +580,71 @@ describe("Media Management", () => {
 		});
 
 		expect(getResult.ok).toBe(true);
+	});
+
+	test("should fail to delete multiple media when one has usage", async () => {
+		// Create two media files
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createResult1 = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-batch-delete-usage-1.png",
+			mimeType: "image/png",
+			alt: "Test batch delete usage 1",
+			userId: testUserId,
+		});
+
+		const createResult2 = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-batch-delete-usage-2.png",
+			mimeType: "image/png",
+			alt: "Test batch delete usage 2",
+			userId: testUserId,
+		});
+
+		expect(createResult1.ok).toBe(true);
+		expect(createResult2.ok).toBe(true);
+
+		if (!createResult1.ok || !createResult2.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const mediaId1 = createResult1.value.media.id;
+		const mediaId2 = createResult2.value.media.id;
+
+		// Use mediaId1 as user avatar
+		await payload.update({
+			collection: "users",
+			id: testUserId,
+			data: {
+				avatar: mediaId1,
+			},
+			overrideAccess: true,
+		});
+
+		// Try to delete both media (should fail because mediaId1 has usage)
+		const result = await tryDeleteMedia(payload, s3Client, {
+			id: [mediaId1, mediaId2],
+			userId: testUserId,
+		});
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(result.error.message).toContain("usage");
+			expect(result.error.message).toContain("Cannot delete");
+		}
+
+		// Verify both media still exist (transaction rollback)
+		const getResult1 = await tryGetMediaById(payload, {
+			id: mediaId1,
+			depth: 0,
+		});
+		const getResult2 = await tryGetMediaById(payload, {
+			id: mediaId2,
+			depth: 0,
+		});
+
+		expect(getResult1.ok).toBe(true);
+		expect(getResult2.ok).toBe(true);
 	});
 
 	test("should get user media stats", async () => {
@@ -880,6 +1000,337 @@ describe("Media Management", () => {
 	test("should fail to delete orphaned media with empty array", async () => {
 		const result = await tryDeleteOrphanedMedia(payload, s3Client, {
 			filenames: [],
+		});
+
+		expect(result.ok).toBe(false);
+	});
+
+	test("should find all media usages across collections", async () => {
+		// Create a media file to test with
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createMediaResult = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-media-usages.png",
+			mimeType: "image/png",
+			alt: "Test media for usages",
+			userId: testUserId,
+		});
+
+		expect(createMediaResult.ok).toBe(true);
+		if (!createMediaResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const testMediaId = createMediaResult.value.media.id;
+		const usages: Array<{ collection: string; fieldPath: string }> = [];
+
+		// 1. Use media as user avatar
+		await payload.update({
+			collection: "users",
+			id: testUserId,
+			data: {
+				avatar: testMediaId,
+			},
+			overrideAccess: true,
+		});
+		usages.push({ collection: "users", fieldPath: "avatar" });
+
+		// 2. Create a course and use media as thumbnail
+		const courseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: "Test Course for Media Usages",
+				description: "A test course",
+				slug: `test-media-usages-course-${Date.now()}`,
+				createdBy: testUserId,
+				thumbnail: testMediaId,
+			},
+			overrideAccess: true,
+		});
+
+		expect(courseResult.ok).toBe(true);
+		if (!courseResult.ok) {
+			throw new Error("Failed to create test course");
+		}
+		const courseId = courseResult.value.id;
+		usages.push({ collection: "courses", fieldPath: "thumbnail" });
+
+		// 3. Create enrollment
+		const enrollmentResult = await tryCreateEnrollment({
+			payload,
+			user: testUserId,
+			course: courseId,
+			role: "student",
+			status: "active",
+			overrideAccess: true,
+		});
+
+		expect(enrollmentResult.ok).toBe(true);
+		if (!enrollmentResult.ok) {
+			throw new Error("Failed to create test enrollment");
+		}
+		const enrollmentId = enrollmentResult.value.id;
+
+		// 4. Create section
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: courseId,
+				title: "Test Section",
+				description: "A test section",
+			},
+			overrideAccess: true,
+		});
+
+		expect(sectionResult.ok).toBe(true);
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create test section");
+		}
+		const sectionId = sectionResult.value.id;
+
+		// 5. Create activity module with assignment
+		const activityModuleResult = await tryCreateActivityModule(payload, {
+			title: "Test Assignment",
+			description: "A test assignment",
+			type: "assignment",
+			status: "published",
+			userId: testUserId,
+			assignmentData: {
+				instructions: "Complete this assignment",
+				requireFileSubmission: true,
+				requireTextSubmission: false,
+			},
+		});
+
+		expect(activityModuleResult.ok).toBe(true);
+		if (!activityModuleResult.ok) {
+			throw new Error("Failed to create test activity module");
+		}
+		const activityModuleId = activityModuleResult.value.id;
+
+		// 6. Create course activity module link
+		const mockRequest = new Request("http://localhost:3000/test");
+		const linkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			mockRequest,
+			{
+				course: courseId,
+				activityModule: activityModuleId,
+				section: sectionId,
+				contentOrder: 0,
+			},
+		);
+
+		expect(linkResult.ok).toBe(true);
+		if (!linkResult.ok) {
+			throw new Error("Failed to create test course activity module link");
+		}
+		const courseModuleLinkId = linkResult.value.id;
+
+		// 7. Create assignment submission with media attachment
+		const assignmentSubmissionResult = await tryCreateAssignmentSubmission(
+			payload,
+			{
+				courseModuleLinkId,
+				studentId: testUserId,
+				enrollmentId,
+				attemptNumber: 1,
+				content: "Test submission content",
+				attachments: [
+					{
+						file: testMediaId,
+						description: "Test attachment",
+					},
+				],
+			},
+		);
+
+		expect(assignmentSubmissionResult.ok).toBe(true);
+		if (!assignmentSubmissionResult.ok) {
+			throw new Error("Failed to create test assignment submission");
+		}
+		const assignmentSubmissionId = assignmentSubmissionResult.value.id;
+		usages.push({
+			collection: "assignment-submissions",
+			fieldPath: "attachments.0.file",
+		});
+
+		// 8. Create activity module with discussion
+		const discussionActivityModuleResult = await tryCreateActivityModule(
+			payload,
+			{
+				title: "Test Discussion",
+				description: "A test discussion",
+				type: "discussion",
+				status: "published",
+				userId: testUserId,
+				discussionData: {
+					instructions: "Participate in this discussion",
+					allowAttachments: true,
+				},
+			},
+		);
+
+		expect(discussionActivityModuleResult.ok).toBe(true);
+		if (!discussionActivityModuleResult.ok) {
+			throw new Error("Failed to create test discussion activity module");
+		}
+		const discussionActivityModuleId = discussionActivityModuleResult.value.id;
+
+		// 9. Create course activity module link for discussion
+		const discussionLinkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			mockRequest,
+			{
+				course: courseId,
+				activityModule: discussionActivityModuleId,
+				section: sectionId,
+				contentOrder: 1,
+			},
+		);
+
+		expect(discussionLinkResult.ok).toBe(true);
+		if (!discussionLinkResult.ok) {
+			throw new Error(
+				"Failed to create test discussion course activity module link",
+			);
+		}
+		const discussionCourseModuleLinkId = discussionLinkResult.value.id;
+
+		// 10. Create discussion submission
+		const discussionSubmissionResult = await tryCreateDiscussionSubmission(
+			payload,
+			{
+				courseModuleLinkId: discussionCourseModuleLinkId,
+				studentId: testUserId,
+				enrollmentId,
+				postType: "thread",
+				title: "Test Discussion Thread",
+				content: "This is a test discussion thread",
+			},
+		);
+
+		expect(discussionSubmissionResult.ok).toBe(true);
+		if (!discussionSubmissionResult.ok) {
+			throw new Error("Failed to create test discussion submission");
+		}
+		const discussionSubmissionId = discussionSubmissionResult.value.id;
+
+		// Add attachment to discussion submission
+		await payload.update({
+			collection: "discussion-submissions",
+			id: discussionSubmissionId,
+			data: {
+				attachments: [
+					{
+						file: testMediaId,
+						description: "Test discussion attachment",
+					},
+				],
+			},
+			overrideAccess: true,
+		});
+		usages.push({
+			collection: "discussion-submissions",
+			fieldPath: "attachments.0.file",
+		});
+
+		// Now find all usages of the media
+		const findUsagesResult = await tryFindMediaUsages(payload, {
+			mediaId: testMediaId,
+		});
+
+		expect(findUsagesResult.ok).toBe(true);
+		if (!findUsagesResult.ok) {
+			throw new Error("Failed to find media usages");
+		}
+
+		const { usages: foundUsages, totalUsages } = findUsagesResult.value;
+
+		// Verify we found all expected usages
+		expect(totalUsages).toBe(4);
+		expect(foundUsages.length).toBe(4);
+
+		// Verify each expected usage is present
+		for (const expectedUsage of usages) {
+			const found = foundUsages.find(
+				(u) =>
+					u.collection === expectedUsage.collection &&
+					u.fieldPath === expectedUsage.fieldPath,
+			);
+			expect(found).toBeDefined();
+			expect(found?.documentId).toBeDefined();
+		}
+
+		// Verify specific document IDs
+		const userUsage = foundUsages.find(
+			(u) => u.collection === "users" && u.fieldPath === "avatar",
+		);
+		expect(userUsage?.documentId).toBe(testUserId);
+
+		const courseUsage = foundUsages.find(
+			(u) => u.collection === "courses" && u.fieldPath === "thumbnail",
+		);
+		expect(courseUsage?.documentId).toBe(courseId);
+
+		const assignmentUsage = foundUsages.find(
+			(u) =>
+				u.collection === "assignment-submissions" &&
+				u.fieldPath === "attachments.0.file",
+		);
+		expect(assignmentUsage?.documentId).toBe(assignmentSubmissionId);
+
+		const discussionUsage = foundUsages.find(
+			(u) =>
+				u.collection === "discussion-submissions" &&
+				u.fieldPath === "attachments.0.file",
+		);
+		expect(discussionUsage?.documentId).toBe(discussionSubmissionId);
+	});
+
+	test("should find no usages for media with no references", async () => {
+		// Create a media file that won't be used anywhere
+		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
+		const createMediaResult = await tryCreateMedia(payload, {
+			file: Buffer.from(fileBuffer),
+			filename: "test-unused-media.png",
+			mimeType: "image/png",
+			userId: testUserId,
+		});
+
+		expect(createMediaResult.ok).toBe(true);
+		if (!createMediaResult.ok) {
+			throw new Error("Failed to create test media");
+		}
+
+		const testMediaId = createMediaResult.value.media.id;
+
+		// Find usages (should be empty)
+		const findUsagesResult = await tryFindMediaUsages(payload, {
+			mediaId: testMediaId,
+		});
+
+		expect(findUsagesResult.ok).toBe(true);
+		if (!findUsagesResult.ok) {
+			throw new Error("Failed to find media usages");
+		}
+
+		const { usages, totalUsages } = findUsagesResult.value;
+		expect(totalUsages).toBe(0);
+		expect(usages.length).toBe(0);
+	});
+
+	test("should fail to find usages for non-existent media", async () => {
+		const result = await tryFindMediaUsages(payload, {
+			mediaId: 999999,
+		});
+
+		expect(result.ok).toBe(false);
+	});
+
+	test("should fail to find usages with invalid media ID", async () => {
+		const result = await tryFindMediaUsages(payload, {
+			mediaId: "",
 		});
 
 		expect(result.ok).toBe(false);
