@@ -32,7 +32,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	// Get platform info and Bun version from global context (static, detected at startup)
-	const { platformInfo, bunVersion, bunRevision } =
+	const { platformInfo, bunVersion, bunRevision, packageVersion } =
 		context.get(globalContextKey);
 
 	// Detect system resources (dynamic, needs to be refreshed)
@@ -43,6 +43,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		systemResources,
 		bunVersion,
 		bunRevision,
+		packageVersion,
 	};
 };
 
@@ -482,6 +483,7 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 		systemResources,
 		bunVersion,
 		bunRevision,
+		packageVersion,
 	} = loaderData;
 	const revalidator = useRevalidator();
 
@@ -527,9 +529,7 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<PlatformInfoSection platformInfo={platformInfo} />
-				<SystemResourcesSection
-					systemResources={systemResources}
-				/>
+				<SystemResourcesSection systemResources={systemResources} />
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
 					<Stack gap="md">
@@ -552,6 +552,20 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 								</Text>
 							</Box>
 						</Group>
+					</Stack>
+				</Paper>
+
+				<Paper withBorder shadow="sm" p="md" radius="md">
+					<Stack gap="md">
+						<Title order={2}>Application</Title>
+						<Box>
+							<Text size="xs" c="dimmed">
+								Version
+							</Text>
+							<Text size="sm" fw={500}>
+								{packageVersion}
+							</Text>
+						</Box>
 					</Stack>
 				</Paper>
 			</Stack>
