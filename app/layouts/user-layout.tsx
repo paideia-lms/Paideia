@@ -11,7 +11,7 @@ import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindUserById } from "server/internal/user-management";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
@@ -67,8 +67,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof targetUser.avatar === "object") {
 			avatarUrl = targetUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: targetUser.avatar.filename,
-					})
+					filenameOrId: targetUser.avatar.filename,
+				})
 				: null;
 		}
 	}

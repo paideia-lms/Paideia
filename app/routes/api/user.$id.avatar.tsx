@@ -1,4 +1,5 @@
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { tryFindUserById } from "server/internal/user-management";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import type { Route } from "./+types/user.$id.avatar";
@@ -70,12 +71,29 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
     const payload = context.get(globalContextKey).payload;
     const s3Client = context.get(globalContextKey).s3Client;
 
+    // Try to get user from context if available (optional for avatar access)
+    const userSession = context.get(userContextKey);
+    const currentUser = userSession?.isAuthenticated
+        ? (userSession.effectiveUser || userSession.authenticatedUser)
+        : null;
+
+    // Prepare user object for internal functions
+    // Normalize avatar to ID if it's an object
+    const requestUser = currentUser
+        ? {
+            ...currentUser,
+            avatar: typeof currentUser.avatar === "object" && currentUser.avatar !== null
+                ? currentUser.avatar.id
+                : currentUser.avatar,
+            collection: "users" as const,
+        }
+        : null;
+
     // Fetch user with avatar populated (depth 1 to get avatar object)
-    // Use overrideAccess: true to make avatars publicly accessible
     const userResult = await tryFindUserById({
         payload,
         userId: userIdNum,
-        overrideAccess: true,
+        user: requestUser,
     });
 
     if (!userResult.ok) {
@@ -110,6 +128,7 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
         s3Client,
         id: avatarMediaId,
         depth: 0,
+        user: requestUser,
     });
 
     if (!result.ok) {
@@ -131,6 +150,7 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
             id: avatarMediaId,
             depth: 0,
             range,
+            user: requestUser,
         });
 
         if (!result.ok) {

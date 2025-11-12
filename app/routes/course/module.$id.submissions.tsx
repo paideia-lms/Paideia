@@ -43,7 +43,7 @@ import {
 	canDeleteSubmissions,
 	canSeeModuleSubmissions,
 } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { GradingView } from "~/components/grading-view";
 import {
 	type SubmissionData,
@@ -273,10 +273,10 @@ function StudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter out draft submissions for display
@@ -364,8 +364,8 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					{latestSubmission &&
-					"submittedAt" in latestSubmission &&
-					latestSubmission.submittedAt
+						"submittedAt" in latestSubmission &&
+						latestSubmission.submittedAt
 						? new Date(latestSubmission.submittedAt).toLocaleString()
 						: "-"}
 				</Table.Td>
@@ -376,9 +376,9 @@ function StudentSubmissionRow({
 							to={
 								hasSubmissions && latestSubmission
 									? href("/course/module/:id/submissions", {
-											id: moduleLinkId.toString(),
-										}) +
-										`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
+										id: moduleLinkId.toString(),
+									}) +
+									`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
 									: "#"
 							}
 							size="xs"

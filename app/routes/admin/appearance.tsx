@@ -18,7 +18,7 @@ import {
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
 import { z } from "zod";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/appearance";

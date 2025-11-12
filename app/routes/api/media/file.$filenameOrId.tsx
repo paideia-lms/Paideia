@@ -1,4 +1,5 @@
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import {
 	tryGetMediaStreamFromFilename,
 	tryGetMediaStreamFromId,
@@ -67,6 +68,26 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 	const payload = context.get(globalContextKey).payload;
 	const s3Client = context.get(globalContextKey).s3Client;
 
+	// Try to get user from context if available (optional for public media access)
+	const userSession = context.get(userContextKey);
+	const currentUser = userSession?.isAuthenticated
+		? (userSession.effectiveUser || userSession.authenticatedUser)
+		: null;
+
+	// Prepare user object for internal functions
+	// Normalize avatar to ID if it's an object
+	const user = currentUser
+		? {
+			...currentUser,
+			avatar: typeof currentUser.avatar === "object" && currentUser.avatar !== null
+				? currentUser.avatar.id
+				: currentUser.avatar,
+			collection: "users" as const,
+		}
+		: null;
+
+	console.log("user", user);
+
 	// Check if download is requested via query parameter
 	const url = new URL(request.url);
 	const isDownload = url.searchParams.get("download") === "true";
@@ -85,12 +106,16 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 			s3Client,
 			id: filenameOrId,
 			depth: 0,
+			user,
+			req: request,
 		})
 		: await tryGetMediaStreamFromFilename({
 			payload,
 			s3Client,
 			filename: filenameOrId,
 			depth: 0,
+			user,
+			req: request,
 		});
 
 	if (!result.ok) {
@@ -113,6 +138,7 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 				id: filenameOrId,
 				depth: 0,
 				range,
+				user,
 			})
 			: await tryGetMediaStreamFromFilename({
 				payload,
@@ -120,6 +146,7 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 				filename: filenameOrId,
 				depth: 0,
 				range,
+				user,
 			});
 
 		if (!result.ok) {

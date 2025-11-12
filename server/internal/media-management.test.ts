@@ -286,6 +286,7 @@ describe("Media Management", () => {
 			s3Client,
 			filename: "non-existent-buffer-file.png",
 			depth: 0,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -297,6 +298,7 @@ describe("Media Management", () => {
 			s3Client,
 			filename: "",
 			depth: 0,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -430,6 +432,7 @@ describe("Media Management", () => {
 					s3Client,
 					filename: createdMedia.filename,
 					depth: 0,
+					overrideAccess: true,
 				});
 				expect(bufferResult.ok).toBe(false);
 			}

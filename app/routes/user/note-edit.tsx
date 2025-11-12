@@ -14,7 +14,7 @@ import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
@@ -45,7 +45,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const note = await tryFindNoteById({
 		payload,
-		noteId: Number(params.id),
+		noteId: Number(params.noteId),
 		user: {
 			...currentUser,
 			collection: "users",
@@ -92,7 +92,7 @@ export const action = async ({
 		throw new NotFoundResponse("Unauthorized");
 	}
 
-	const noteId = Number(params.id);
+	const noteId = Number(params.noteId);
 	if (Number.isNaN(noteId)) {
 		throw new NotFoundResponse("Invalid note ID");
 	}

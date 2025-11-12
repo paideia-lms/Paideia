@@ -3,7 +3,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
 import { tryGetContext } from "~/utils/try-get-context";
 import type { Route } from "./+types/server-admin-layout";

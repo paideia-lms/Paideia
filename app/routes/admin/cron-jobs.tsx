@@ -5,7 +5,7 @@ import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetCronJobs } from "server/internal/cron-jobs-management";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,

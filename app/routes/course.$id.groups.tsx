@@ -31,7 +31,7 @@ import {
 	tryDeleteGroup,
 } from "server/internal/course-management";
 import { canManageCourseGroups } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	BadRequestResponse,
 	badRequest,
@@ -157,8 +157,8 @@ export const action = async ({
 			undefined,
 			enrollment
 				? {
-						role: enrollment.role,
-					}
+					role: enrollment.role,
+				}
 				: undefined,
 		)
 	) {

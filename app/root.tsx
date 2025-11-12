@@ -67,7 +67,7 @@ import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
-import { RootErrorBoundary } from "./components/maintenance-mode-error-boundary";
+import { RootErrorBoundary } from "./components/root-mode-error-boundary";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {

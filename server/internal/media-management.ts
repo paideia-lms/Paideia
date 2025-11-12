@@ -151,6 +151,8 @@ export interface GetMediaBufferFromFilenameArgs {
 	s3Client: S3Client;
 	filename: string;
 	depth?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -260,7 +262,7 @@ export const tryGetMediaByFilename = Result.wrap(
  */
 export const tryGetMediaBufferFromFilename = Result.wrap(
 	async (args: GetMediaBufferFromFilenameArgs): Promise<GetMediaBufferFromFilenameResult> => {
-		const { payload, s3Client, filename, depth = 0, overrideAccess = false } = args;
+		const { payload, s3Client, filename, depth = 0, user = null, req, overrideAccess = false } = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -272,6 +274,8 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 			payload,
 			filename,
 			depth,
+			user,
+			req,
 			overrideAccess,
 		});
 
@@ -295,7 +299,7 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 
 		// Convert the stream to a buffer
 		const chunks: Uint8Array[] = [];
-		// @ts-expect-error - Body is a stream in Node.js
+		// @ts-ignore
 		for await (const chunk of response.Body) {
 			chunks.push(chunk);
 		}
@@ -318,6 +322,8 @@ export interface GetMediaBufferFromIdArgs {
 	s3Client: S3Client;
 	id: number | string;
 	depth?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -331,6 +337,8 @@ export interface GetMediaStreamFromFilenameArgs {
 	s3Client: S3Client;
 	filename: string;
 	depth?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
 	range?: { start: number; end?: number };
 	overrideAccess?: boolean;
 }
@@ -348,6 +356,8 @@ export interface GetMediaStreamFromIdArgs {
 	id: number | string;
 	depth?: number;
 	range?: { start: number; end?: number };
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -369,7 +379,7 @@ export interface GetMediaStreamFromIdResult {
  */
 export const tryGetMediaBufferFromId = Result.wrap(
 	async (args: GetMediaBufferFromIdArgs): Promise<GetMediaBufferFromIdResult> => {
-		const { payload, s3Client, id, depth = 0, overrideAccess = false } = args;
+		const { payload, s3Client, id, depth = 0, user = null, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -381,6 +391,7 @@ export const tryGetMediaBufferFromId = Result.wrap(
 			payload,
 			id,
 			depth,
+			user,
 			overrideAccess,
 		});
 
@@ -440,7 +451,7 @@ export const tryGetMediaBufferFromId = Result.wrap(
  */
 export const tryGetMediaStreamFromFilename = Result.wrap(
 	async (args: GetMediaStreamFromFilenameArgs): Promise<GetMediaStreamFromFilenameResult> => {
-		const { payload, s3Client, filename, depth = 0, range, overrideAccess = false } = args;
+		const { payload, s3Client, filename, depth = 0, range, user = null, req, overrideAccess = false } = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -452,6 +463,8 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
 			payload,
 			filename,
 			depth,
+			user,
+			req,
 			overrideAccess,
 		});
 
@@ -530,7 +543,7 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
  */
 export const tryGetMediaStreamFromId = Result.wrap(
 	async (args: GetMediaStreamFromIdArgs): Promise<GetMediaStreamFromIdResult> => {
-		const { payload, s3Client, id, depth = 0, range, overrideAccess = false } = args;
+		const { payload, s3Client, id, depth = 0, range, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -542,6 +555,8 @@ export const tryGetMediaStreamFromId = Result.wrap(
 			payload,
 			id,
 			depth,
+			user,
+			req,
 			overrideAccess,
 		});
 

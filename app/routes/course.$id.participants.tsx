@@ -13,7 +13,7 @@ import {
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
 import type { Enrollment } from "server/payload-types";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { DeleteEnrollmentModal } from "~/components/delete-enrollment-modal";
 import { EditEnrollmentModal } from "~/components/edit-enrollment-modal";
 import { EnrollUserModal } from "~/components/enroll-user-modal";

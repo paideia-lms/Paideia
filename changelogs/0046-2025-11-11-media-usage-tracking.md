@@ -332,6 +332,44 @@ Additionally, this PR includes significant refactoring to standardize internal f
 - ✅ Consistent test patterns
 - ✅ Easier to maintain tests
 
+### 10. Bug Fix: Access Control in Media API Routes
+
+**Problem**:
+- Some media management functions were missing `user` and `req` parameters
+- Public API routes (`/api/media/file/:filenameOrId` and `/api/user/:id/avatar`) were incorrectly using `overrideAccess: true`, bypassing access control
+- This could allow unauthorized access to media files
+
+**Solution**:
+- Added missing `user` and `req` parameters to `tryGetMediaBufferFromFilename` and `tryGetMediaStreamFromId` functions
+- Removed `overrideAccess: true` from public API routes
+- Updated routes to properly extract and pass authenticated user context
+- Routes now respect access control based on authenticated user (or `null` for unauthenticated requests)
+
+**Implementation**:
+- Updated `server/internal/media-management.ts`:
+  - Added `user?: TypedUser | null` and `req?: Partial<PayloadRequest>` to `GetMediaBufferFromFilenameArgs` interface
+  - Added `user?: TypedUser | null` and `req?: Partial<PayloadRequest>` to `GetMediaStreamFromIdArgs` interface
+  - Updated `tryGetMediaBufferFromFilename` to accept and propagate `user` and `req` parameters
+  - Updated `tryGetMediaStreamFromId` to accept and propagate `user` and `req` parameters
+- Updated `app/routes/api/media/file.$filenameOrId.tsx`:
+  - Removed `overrideAccess: true` from all `tryGetMediaStreamFromId` and `tryGetMediaStreamFromFilename` calls
+  - Added user context extraction from `userContextKey`
+  - Properly normalizes user object with `collection: "users"` property
+  - Passes authenticated user (or `null`) to media functions for proper access control
+- Updated `app/routes/api/user.$id.avatar.tsx`:
+  - Removed `overrideAccess: true` from all `tryGetMediaStreamFromId` calls
+  - Added user context extraction from `userContextKey`
+  - Properly normalizes user object with `collection: "users"` property
+  - Passes authenticated user (or `null`) to media functions for proper access control
+- Updated `server/internal/media-management.test.ts`:
+  - Added `overrideAccess: true` to test calls that were missing it (for test isolation)
+
+**Benefits**:
+- ✅ Proper access control enforcement for media files
+- ✅ Consistent function signatures across all media management functions
+- ✅ Better security by respecting user permissions
+- ✅ Unauthenticated requests properly handled
+
 ## Technical Details
 
 ### Usage Detection Strategy
@@ -426,10 +464,21 @@ This migration adds relationship tables for media references in courses, pages, 
 3. Updates the `media` relationship field automatically
 4. Works seamlessly with existing content that may not have media relationships populated
 
+## Bug Fixes
+
+### Access Control in Media API Routes
+
+**Fixed**: Missing `user` and `req` parameters in media stream functions and incorrect use of `overrideAccess: true` in public API routes.
+
+- Added `user` and `req` parameters to `tryGetMediaBufferFromFilename` and `tryGetMediaStreamFromId`
+- Removed `overrideAccess: true` from `/api/media/file/:filenameOrId` route
+- Removed `overrideAccess: true` from `/api/user/:id/avatar` route
+- Routes now properly respect access control based on authenticated user
+
 ## Files Changed
 
 ### Modified Files
-- `server/internal/media-management.ts` - Added `tryFindMediaUsages` function, standardized all function signatures, modified `tryDeleteMedia` to check usage
+- `server/internal/media-management.ts` - Added `tryFindMediaUsages` function, standardized all function signatures, modified `tryDeleteMedia` to check usage, fixed missing `user` and `req` parameters
 - `server/internal/page-management.ts` - Added HTML parsing and media relationship handling, standardized function signatures
 - `server/internal/note-management.ts` - Added HTML parsing and media relationship handling, standardized function signatures
 - `server/internal/course-management.ts` - Standardized function signatures, added media relationship support
@@ -453,8 +502,8 @@ This migration adds relationship tables for media references in courses, pages, 
 - `app/routes/course.$id.groups.tsx` - Updated to use standardized signatures
 - `app/routes/course/module.$id.tsx` - Updated to use standardized signatures
 - `app/routes/api/media-usage.tsx` - Updated to use standardized signatures
-- `app/routes/api/media/file.$filenameOrId.tsx` - Updated to use standardized signatures
-- `app/routes/api/user.$id.avatar.tsx` - Updated to use standardized signatures
+- `app/routes/api/media/file.$filenameOrId.tsx` - Updated to use standardized signatures, removed incorrect `overrideAccess: true`, added proper user context handling
+- `app/routes/api/user.$id.avatar.tsx` - Updated to use standardized signatures, removed incorrect `overrideAccess: true`, added proper user context handling
 - `app/routes/api/batch-update-courses.tsx` - Updated to use standardized signatures
 - `server/collections/courses.ts` - Added `media` relationship field
 - `server/collections/pages.ts` - Added `media` relationship field

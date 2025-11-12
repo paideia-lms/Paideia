@@ -61,7 +61,7 @@ import {
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import type { Media } from "server/payload-types";
 import { canDeleteMedia } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
 import { ContentType } from "~/utils/get-content-type";
 import {

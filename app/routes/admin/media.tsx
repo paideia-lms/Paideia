@@ -58,7 +58,7 @@ import {
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import { tryFindAllUsers } from "server/internal/user-management";
 import type { Media } from "server/payload-types";
-import { DefaultErrorBoundary } from "~/components/admin-error-boundary";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	canPreview,
 	getFileIcon,
