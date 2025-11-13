@@ -2,6 +2,7 @@ import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 import type { User } from "../payload-types";
+import { tryGetAnalyticsSettings } from "./analytics-settings";
 import { tryGetAppearanceSettings } from "./appearance-settings";
 import { tryGetMaintenanceSettings } from "./maintenance-settings";
 import { tryGetSitePolicies } from "./site-policies";
@@ -24,6 +25,18 @@ export type SystemGlobals = {
 	appearanceSettings: {
 		additionalCssStylesheets: string[];
 	};
+	analyticsSettings: {
+		additionalJsScripts: Array<{
+			src: string;
+			defer?: boolean;
+			async?: boolean;
+			dataWebsiteId?: string;
+			dataDomain?: string;
+			dataSite?: string;
+			dataMeasurementId?: string;
+			[key: `data-${string}`]: string | undefined;
+		}>;
+	};
 };
 
 /**
@@ -35,27 +48,37 @@ export const tryGetSystemGlobals = Result.wrap(
 		const { payload, user = null, req, overrideAccess = true } = args;
 
 		// Fetch all globals in parallel
-		const [maintenanceResult, sitePoliciesResult, appearanceResult] =
-			await Promise.all([
-				tryGetMaintenanceSettings({
-					payload,
-					user,
-					req,
-					overrideAccess,
-				}),
-				tryGetSitePolicies({
-					payload,
-					user,
-					req,
-					overrideAccess,
-				}),
-				tryGetAppearanceSettings({
-					payload,
-					user,
-					req,
-					overrideAccess,
-				}),
-			]);
+		const [
+			maintenanceResult,
+			sitePoliciesResult,
+			appearanceResult,
+			analyticsResult,
+		] = await Promise.all([
+			tryGetMaintenanceSettings({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+			tryGetSitePolicies({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+			tryGetAppearanceSettings({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+			tryGetAnalyticsSettings({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+		]);
 
 		// If any critical global fails, return defaults
 		const maintenanceSettings = maintenanceResult.ok
@@ -75,10 +98,17 @@ export const tryGetSystemGlobals = Result.wrap(
 					additionalCssStylesheets: [],
 				};
 
+		const analyticsSettings = analyticsResult.ok
+			? analyticsResult.value
+			: {
+					additionalJsScripts: [],
+				};
+
 		return {
 			maintenanceSettings,
 			sitePolicies,
 			appearanceSettings,
+			analyticsSettings,
 		};
 	},
 	(error) =>

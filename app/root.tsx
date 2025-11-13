@@ -142,6 +142,7 @@ export const middleware = [
 		let isAdminSitePolicies = false;
 		let isAdminMedia = false;
 		let isAdminAppearance = false;
+		let isAdminAnalytics = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
 			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
@@ -223,6 +224,8 @@ export const middleware = [
 			else if (route.id === "routes/admin/media") isAdminMedia = true;
 			else if (route.id === ("routes/admin/appearance" as typeof route.id))
 				isAdminAppearance = true;
+			else if (route.id === ("routes/admin/analytics" as typeof route.id))
+				isAdminAnalytics = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -289,6 +292,7 @@ export const middleware = [
 				isAdminSitePolicies,
 				isAdminMedia,
 				isAdminAppearance,
+				isAdminAnalytics,
 				params: params as Record<string, string>,
 			},
 		});
@@ -322,15 +326,18 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -415,9 +422,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -467,9 +474,9 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -529,9 +536,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -583,9 +590,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				);
 
@@ -663,6 +670,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			theme: theme,
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
+			additionalJsScripts:
+				systemGlobals.analyticsSettings.additionalJsScripts,
 		};
 	}
 
@@ -680,6 +689,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		isDevelopment: process.env.NODE_ENV === "development",
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
+		additionalJsScripts:
+			systemGlobals.analyticsSettings.additionalJsScripts,
 	};
 }
 
@@ -713,6 +724,54 @@ function ClientHintCheck() {
 	);
 }
 
+
+function AnalyticsScripts({ scripts }: { scripts: Route.ComponentProps["loaderData"]["additionalJsScripts"] }) {
+	return (
+		<>
+			{scripts.map((script, index) => {
+				const scriptProps: Record<string, string | boolean | number> = {
+					src: script.src,
+				};
+				if (script.defer) {
+					scriptProps.defer = true;
+				}
+				if (script.async) {
+					scriptProps.async = true;
+				}
+				// Convert camelCase data attributes to kebab-case HTML attributes
+				if (script.dataWebsiteId) {
+					scriptProps["data-website-id"] = script.dataWebsiteId;
+				}
+				if (script.dataDomain) {
+					scriptProps["data-domain"] = script.dataDomain;
+				}
+				if (script.dataSite) {
+					scriptProps["data-site"] = script.dataSite;
+				}
+				if (script.dataMeasurementId) {
+					scriptProps["data-measurement-id"] = script.dataMeasurementId;
+				}
+				// Also handle any other data-* attributes that might exist
+				Object.keys(script).forEach((key) => {
+					if (
+						key.startsWith("data-") &&
+						key !== "dataWebsiteId" &&
+						key !== "dataDomain" &&
+						key !== "dataSite" &&
+						key !== "dataMeasurementId"
+					) {
+						const value = script[key as `data-${string}`];
+						if (value !== undefined) {
+							scriptProps[key] = value;
+						}
+					}
+				});
+				return <script key={`${script.src}-${index}`} {...scriptProps} />;
+			})}
+		</>
+	);
+}
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return (
 		<html lang="en">
@@ -741,7 +800,8 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme, isDevelopment, additionalCssStylesheets } = loaderData;
+	const { theme, isDevelopment, additionalCssStylesheets, additionalJsScripts } =
+		loaderData;
 
 	return (
 		<html
@@ -768,6 +828,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				{additionalCssStylesheets.map((url) => (
 					<link key={url} rel="stylesheet" href={url} />
 				))}
+				{/* Additional JavaScript scripts configured by admin */}
+				<AnalyticsScripts scripts={additionalJsScripts} />
 				{isDevelopment && (
 					<script
 						crossOrigin="anonymous"

@@ -130,6 +130,9 @@ async function startServer() {
 								appearanceSettings: {
 									additionalCssStylesheets: [],
 								},
+								analyticsSettings: {
+									additionalJsScripts: [],
+								},
 							},
 							pageInfo: {
 								isInAdminLayout: false,
@@ -191,6 +194,7 @@ async function startServer() {
 								isAdminSitePolicies: false,
 								isAdminMedia: false,
 								isAdminAppearance: false,
+								isAdminAnalytics: false,
 								params: {},
 							},
 						});

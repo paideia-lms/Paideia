@@ -150,3 +150,88 @@ export const AppearanceSettings = {
 		},
 	],
 } as const satisfies GlobalConfig;
+
+// Analytics settings - controls site-level analytics scripts
+export const AnalyticsSettings = {
+	slug: "analytics-settings",
+	fields: [
+		{
+			name: "additionalJsScripts",
+			type: "array",
+			label: "Additional JavaScript Scripts",
+			admin: {
+				description:
+					"Add external JavaScript script tags that will be loaded on all pages. Scripts are loaded in the order listed. Only external scripts with src attribute are allowed for security.",
+			},
+			fields: [
+				{
+					name: "src",
+					type: "text",
+					required: true,
+					label: "Script URL",
+					admin: {
+						description:
+							"Full URL to the JavaScript file (e.g., https://cloud.umami.is/script.js). Must be a valid HTTP/HTTPS URL.",
+					},
+				},
+				{
+					name: "defer",
+					type: "checkbox",
+					label: "Defer",
+					defaultValue: false,
+					admin: {
+						description:
+							"When enabled, the script will be executed after the document has been parsed.",
+					},
+				},
+				{
+					name: "async",
+					type: "checkbox",
+					label: "Async",
+					defaultValue: false,
+					admin: {
+						description:
+							"When enabled, the script will be executed asynchronously as soon as it is available.",
+					},
+				},
+				{
+					name: "dataWebsiteId",
+					type: "text",
+					label: "Data Website ID",
+					admin: {
+						description:
+							"Data attribute for website ID (e.g., for Umami analytics). This will be added as data-website-id attribute.",
+					},
+				},
+				{
+					name: "dataDomain",
+					type: "text",
+					label: "Data Domain",
+					admin: {
+						description:
+							"Data attribute for domain (e.g., for Plausible analytics). This will be added as data-domain attribute.",
+					},
+				},
+				{
+					name: "dataSite",
+					type: "text",
+					label: "Data Site",
+					admin: {
+						description:
+							"Data attribute for site ID (e.g., for Fathom analytics). This will be added as data-site attribute.",
+					},
+				},
+				{
+					name: "dataMeasurementId",
+					type: "text",
+					label: "Data Measurement ID",
+					admin: {
+						description:
+							"Data attribute for measurement ID (e.g., for Google Analytics). This will be added as data-measurement-id attribute.",
+					},
+				},
+			],
+			defaultValue: [],
+		},
+	],
+} as const satisfies GlobalConfig;

@@ -74,6 +74,7 @@ export type PageInfo = {
 	isAdminSitePolicies: boolean;
 	isAdminMedia: boolean;
 	isAdminAppearance: boolean;
+	isAdminAnalytics: boolean;
 	/**
 	 * the params of the current route
 	 */
@@ -94,6 +95,18 @@ export type SystemGlobals = {
 	};
 	appearanceSettings: {
 		additionalCssStylesheets: string[];
+	};
+	analyticsSettings: {
+		additionalJsScripts: Array<{
+			src: string;
+			defer?: boolean;
+			async?: boolean;
+			dataWebsiteId?: string;
+			dataDomain?: string;
+			dataSite?: string;
+			dataMeasurementId?: string;
+			[key: `data-${string}`]: string | undefined;
+		}>;
 	};
 };
 
