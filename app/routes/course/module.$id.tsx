@@ -13,13 +13,19 @@ import type {
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
 import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import {
 	IconCalendar,
 	IconChevronLeft,
 	IconChevronRight,
 	IconClock,
 	IconInfoCircle,
 } from "@tabler/icons-react";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { createLoader, parseAsString } from "nuqs/server";
+import prettyBytes from "pretty-bytes";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import type { CourseModuleContext } from "server/contexts/course-module-context";
@@ -41,7 +47,6 @@ import { DiscussionPreview } from "~/components/activity-modules-preview/discuss
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
@@ -54,11 +59,6 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/module.$id";
 
 const courseModuleSearchParams = {
@@ -197,19 +197,19 @@ export const loader = async ({
 	const previousModule =
 		currentIndex > 0
 			? {
-				id: flattenedModules[currentIndex - 1].moduleLinkId,
-				title: flattenedModules[currentIndex - 1].title,
-				type: flattenedModules[currentIndex - 1].type,
-			}
+					id: flattenedModules[currentIndex - 1].moduleLinkId,
+					title: flattenedModules[currentIndex - 1].title,
+					type: flattenedModules[currentIndex - 1].type,
+				}
 			: null;
 
 	const nextModule =
 		currentIndex < flattenedModules.length - 1 && currentIndex !== -1
 			? {
-				id: flattenedModules[currentIndex + 1].moduleLinkId,
-				title: flattenedModules[currentIndex + 1].title,
-				type: flattenedModules[currentIndex + 1].type,
-			}
+					id: flattenedModules[currentIndex + 1].moduleLinkId,
+					title: flattenedModules[currentIndex + 1].title,
+					type: flattenedModules[currentIndex + 1].type,
+				}
 			: null;
 
 	// Get current user's submissions for assignments
@@ -248,15 +248,15 @@ export const loader = async ({
 	const userSubmissions =
 		courseModuleContext.module.type === "assignment"
 			? courseModuleContext.submissions.filter(
-				(sub) => "student" in sub && sub.student.id === currentUser.id,
-			)
+					(sub) => "student" in sub && sub.student.id === currentUser.id,
+				)
 			: [];
 
 	// Get the latest submission (draft or most recent)
 	const userSubmission =
 		userSubmissions.length > 0
 			? userSubmissions.find((sub) => sub.status === "draft") ||
-			userSubmissions[0]
+				userSubmissions[0]
 			: null;
 
 	return {
@@ -563,7 +563,7 @@ function ModuleDatesInfo({
 					{moduleSettings.dates.map((dateInfo) => (
 						<Group gap="xs" key={dateInfo.label}>
 							{dateInfo.label.includes("Opens") ||
-								dateInfo.label.includes("Available") ? (
+							dateInfo.label.includes("Available") ? (
 								<IconCalendar size={16} />
 							) : (
 								<IconClock size={16} />
@@ -579,7 +579,7 @@ function ModuleDatesInfo({
 								{dateInfo.value}
 								{dateInfo.isOverdue &&
 									(dateInfo.label.includes("Closes") ||
-										dateInfo.label.includes("deadline")
+									dateInfo.label.includes("deadline")
 										? " (Closed)"
 										: " (Overdue)")}
 							</Text>
@@ -623,34 +623,34 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				// Type guard to ensure we have an assignment submission
 				const assignmentSubmission =
 					userSubmission &&
-						"content" in userSubmission &&
-						"attachments" in userSubmission
+					"content" in userSubmission &&
+					"attachments" in userSubmission
 						? {
-							id: userSubmission.id,
-							status: userSubmission.status as
-								| "draft"
-								| "submitted"
-								| "graded"
-								| "returned",
-							content: (userSubmission.content as string) || null,
-							attachments: userSubmission.attachments
-								? userSubmission.attachments.map((att) => ({
-									file:
-										typeof att.file === "object" &&
-											att.file !== null &&
-											"id" in att.file
-											? att.file.id
-											: Number(att.file),
-									description: att.description as string | undefined,
-								}))
-								: null,
-							submittedAt: ("submittedAt" in userSubmission
-								? userSubmission.submittedAt
-								: null) as string | null,
-							attemptNumber: ("attemptNumber" in userSubmission
-								? userSubmission.attemptNumber
-								: 1) as number,
-						}
+								id: userSubmission.id,
+								status: userSubmission.status as
+									| "draft"
+									| "submitted"
+									| "graded"
+									| "returned",
+								content: (userSubmission.content as string) || null,
+								attachments: userSubmission.attachments
+									? userSubmission.attachments.map((att) => ({
+											file:
+												typeof att.file === "object" &&
+												att.file !== null &&
+												"id" in att.file
+													? att.file.id
+													: Number(att.file),
+											description: att.description as string | undefined,
+										}))
+									: null,
+								submittedAt: ("submittedAt" in userSubmission
+									? userSubmission.submittedAt
+									: null) as string | null,
+								attemptNumber: ("attemptNumber" in userSubmission
+									? userSubmission.attemptNumber
+									: 1) as number,
+							}
 						: null;
 
 				// Map all submissions for display - filter assignment submissions only
@@ -674,9 +674,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						attachments:
 							"attachments" in sub && sub.attachments
 								? (sub.attachments as Array<{
-									file: number | { id: number; filename: string };
-									description?: string;
-								}>)
+										file: number | { id: number; filename: string };
+										description?: string;
+									}>)
 								: null,
 					}));
 

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
+import { tryCreateMedia } from "./media-management";
 import {
 	type CreatePageArgs,
 	tryCreatePage,
@@ -10,7 +11,6 @@ import {
 	tryUpdatePage,
 } from "./page-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
-import { tryCreateMedia } from "./media-management";
 
 describe("Page Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -227,7 +227,10 @@ describe("Page Management Functions", () => {
 			expect(result.value.media).toBeDefined();
 			if (Array.isArray(result.value.media)) {
 				expect(result.value.media.length).toBe(1);
-				const mediaId = typeof result.value.media[0] === "number" ? result.value.media[0] : result.value.media[0]?.id;
+				const mediaId =
+					typeof result.value.media[0] === "number"
+						? result.value.media[0]
+						: result.value.media[0]?.id;
 				expect(mediaId).toBe(testMediaId);
 			}
 		}
@@ -263,7 +266,10 @@ describe("Page Management Functions", () => {
 				expect(updateResult.value.media).toBeDefined();
 				if (Array.isArray(updateResult.value.media)) {
 					expect(updateResult.value.media.length).toBe(1);
-					const mediaId = typeof updateResult.value.media[0] === "number" ? updateResult.value.media[0] : updateResult.value.media[0]?.id;
+					const mediaId =
+						typeof updateResult.value.media[0] === "number"
+							? updateResult.value.media[0]
+							: updateResult.value.media[0]?.id;
 					expect(mediaId).toBe(testMediaId);
 				}
 			}

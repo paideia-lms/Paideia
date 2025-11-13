@@ -19,6 +19,7 @@ import {
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
 import { href, Link, useFetcher } from "react-router";
 import type { Enrollment } from "server/contexts/course-context";
@@ -31,7 +32,6 @@ import {
 	tryDeleteGroup,
 } from "server/internal/course-management";
 import { canManageCourseGroups } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	BadRequestResponse,
 	badRequest,
@@ -157,8 +157,8 @@ export const action = async ({
 			undefined,
 			enrollment
 				? {
-					role: enrollment.role,
-				}
+						role: enrollment.role,
+					}
 				: undefined,
 		)
 	) {

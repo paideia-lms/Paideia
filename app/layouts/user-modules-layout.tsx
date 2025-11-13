@@ -18,6 +18,7 @@ import {
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { IconEdit, IconPlus, IconSearch } from "@tabler/icons-react";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { href, Link, Outlet } from "react-router";
@@ -25,7 +26,6 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
@@ -248,19 +248,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 																12,
 															)}
 														>

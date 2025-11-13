@@ -14,8 +14,8 @@ import {
 	type UpdateCourseArgs,
 } from "./course-management";
 import { tryCreateEnrollment } from "./enrollment-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
 import { tryCreateMedia } from "./media-management";
+import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -222,7 +222,10 @@ describe("Course Management Functions", () => {
 				expect(result.value.media).toBeDefined();
 				if (Array.isArray(result.value.media)) {
 					expect(result.value.media.length).toBe(1);
-					const mediaId = typeof result.value.media[0] === "number" ? result.value.media[0] : result.value.media[0]?.id;
+					const mediaId =
+						typeof result.value.media[0] === "number"
+							? result.value.media[0]
+							: result.value.media[0]?.id;
 					expect(mediaId).toBe(testMediaId);
 				}
 			}
@@ -264,7 +267,10 @@ describe("Course Management Functions", () => {
 					expect(updateResult.value.media).toBeDefined();
 					if (Array.isArray(updateResult.value.media)) {
 						expect(updateResult.value.media.length).toBe(1);
-						const mediaId = typeof updateResult.value.media[0] === "number" ? updateResult.value.media[0] : updateResult.value.media[0]?.id;
+						const mediaId =
+							typeof updateResult.value.media[0] === "number"
+								? updateResult.value.media[0]
+								: updateResult.value.media[0]?.id;
 						expect(mediaId).toBe(testMediaId);
 					}
 				}
@@ -1156,13 +1162,13 @@ describe("Course Management Functions", () => {
 				userId: testUserId,
 				user: testUser
 					? {
-						...testUser,
-						collection: "users",
-						avatar:
-							typeof testUser.avatar === "number"
-								? testUser.avatar
-								: testUser.avatar?.id ?? undefined,
-					}
+							...testUser,
+							collection: "users",
+							avatar:
+								typeof testUser.avatar === "number"
+									? testUser.avatar
+									: (testUser.avatar?.id ?? undefined),
+						}
 					: null,
 				overrideAccess: false,
 			});
@@ -1208,13 +1214,13 @@ describe("Course Management Functions", () => {
 				userId: otherUserId,
 				user: testUser
 					? {
-						...testUser,
-						collection: "users",
-						avatar:
-							typeof testUser.avatar === "number"
-								? testUser.avatar
-								: testUser.avatar?.id ?? undefined,
-					}
+							...testUser,
+							collection: "users",
+							avatar:
+								typeof testUser.avatar === "number"
+									? testUser.avatar
+									: (testUser.avatar?.id ?? undefined),
+						}
 					: null,
 				overrideAccess: true,
 			});
@@ -1263,13 +1269,13 @@ describe("Course Management Functions", () => {
 					userId: noCoursesUserResult.value.id,
 					user: noCoursesUser
 						? {
-							...noCoursesUser,
-							collection: "users",
-							avatar:
-								typeof noCoursesUser.avatar === "number"
-									? noCoursesUser.avatar
-									: noCoursesUser.avatar?.id ?? undefined,
-						}
+								...noCoursesUser,
+								collection: "users",
+								avatar:
+									typeof noCoursesUser.avatar === "number"
+										? noCoursesUser.avatar
+										: (noCoursesUser.avatar?.id ?? undefined),
+							}
 						: null,
 					overrideAccess: false,
 				});
@@ -1325,13 +1331,13 @@ describe("Course Management Functions", () => {
 				userId: testUserId,
 				user: testUser
 					? {
-						...testUser,
-						collection: "users",
-						avatar:
-							typeof testUser.avatar === "number"
-								? testUser.avatar
-								: testUser.avatar?.id ?? undefined,
-					}
+							...testUser,
+							collection: "users",
+							avatar:
+								typeof testUser.avatar === "number"
+									? testUser.avatar
+									: (testUser.avatar?.id ?? undefined),
+						}
 					: null,
 				overrideAccess: false,
 			});

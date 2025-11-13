@@ -1,11 +1,11 @@
 import { CodeHighlight } from "@mantine/code-highlight";
 import { Badge, Box, Paper, Stack, Table, Text, Title } from "@mantine/core";
 import { useInterval } from "@mantine/hooks";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useRevalidator } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetCronJobs } from "server/internal/cron-jobs-management";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	ForbiddenResponse,
 	InternalServerErrorResponse,

@@ -17,8 +17,13 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
 import * as cheerio from "cheerio";
+import prettyBytes from "pretty-bytes";
 import { useId, useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
@@ -43,11 +48,6 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/course.$id.settings";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -114,8 +114,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-			filenameOrId: thumbnailFileNameOrId,
-		})
+				filenameOrId: thumbnailFileNameOrId,
+			})
 		: null;
 
 	return {

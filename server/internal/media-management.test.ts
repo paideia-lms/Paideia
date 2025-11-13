@@ -1,9 +1,21 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
+import {
+	DeleteObjectCommand,
+	GetObjectCommand,
+	PutObjectCommand,
+} from "@aws-sdk/client-s3";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import config from "../payload.config";
 import { envVars } from "../env";
+import config from "../payload.config";
 import { s3Client } from "../utils/s3-client";
+import { tryCreateActivityModule } from "./activity-module-management";
+import { tryCreateAssignmentSubmission } from "./assignment-submission-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
+import { tryCreateCourse } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
+import { tryCreateDiscussionSubmission } from "./discussion-management";
+import { tryCreateEnrollment } from "./enrollment-management";
 import {
 	tryCreateMedia,
 	tryDeleteMedia,
@@ -12,24 +24,17 @@ import {
 	tryFindMediaUsages,
 	tryGetAllMedia,
 	tryGetMediaBufferFromFilename,
-	tryGetMediaById,
 	tryGetMediaByFilename,
+	tryGetMediaById,
 	tryGetOrphanedMedia,
 	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
 	tryRenameMedia,
 } from "./media-management";
-import { tryCreateUser } from "./user-management";
-import { tryCreateCourse } from "./course-management";
-import { tryCreateEnrollment } from "./enrollment-management";
-import { tryCreateSection } from "./course-section-management";
-import { tryCreateActivityModule } from "./activity-module-management";
-import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
-import { tryCreateAssignmentSubmission } from "./assignment-submission-management";
-import { tryCreateDiscussionSubmission } from "./discussion-management";
 import { tryCreateNote } from "./note-management";
 import { tryCreatePage } from "./page-management";
-import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3"
+import { tryCreateUser } from "./user-management";
+
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let testUserId: number;
@@ -107,7 +112,7 @@ describe("Media Management", () => {
 			// createdBy could be an object or ID, so check if it's a number or has an id property
 			const createdBy =
 				typeof result.value.media.createdBy === "object" &&
-					result.value.media.createdBy !== null
+				result.value.media.createdBy !== null
 					? result.value.media.createdBy.id
 					: result.value.media.createdBy;
 			expect(createdBy).toBe(testUserId);
@@ -206,7 +211,6 @@ describe("Media Management", () => {
 		});
 
 		expect(result.ok).toBe(false);
-
 	});
 
 	test("should fail to get media with empty filename", async () => {
@@ -556,7 +560,9 @@ describe("Media Management", () => {
 
 		if (deleteResult.ok) {
 			expect(deleteResult.value.deletedMedia.length).toBe(3);
-			const deletedIds = deleteResult.value.deletedMedia.map((m: { id: number }) => m.id);
+			const deletedIds = deleteResult.value.deletedMedia.map(
+				(m: { id: number }) => m.id,
+			);
 			expect(deletedIds).toContain(mediaIds[0]);
 			expect(deletedIds).toContain(mediaIds[1]);
 			expect(deletedIds).toContain(mediaIds[2]);
@@ -945,6 +951,7 @@ describe("Media Management", () => {
 			s3Client,
 			limit: 10,
 			page: 1,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -994,6 +1001,7 @@ describe("Media Management", () => {
 			s3Client,
 			limit: 2,
 			page: 1,
+			overrideAccess: true,
 		});
 
 		expect(result1.ok).toBe(true);
@@ -1037,6 +1045,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filenames: orphanedFilenames,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -1094,6 +1103,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filenames: [managedFilename],
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -1104,6 +1114,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filenames: [],
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);

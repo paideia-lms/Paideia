@@ -89,10 +89,7 @@ export const tryCreatePage = Result.wrap(
 				resolvedIds = mediaResult.docs.map((doc) => doc.id);
 			} catch (error) {
 				// If media lookup fails, log warning but continue
-				console.warn(
-					`Failed to resolve media filenames to IDs:`,
-					error,
-				);
+				console.warn(`Failed to resolve media filenames to IDs:`, error);
 			}
 		}
 
@@ -192,10 +189,7 @@ export const tryUpdatePage = Result.wrap(
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);
 				} catch (error) {
 					// If media lookup fails, log warning but continue
-					console.warn(
-						`Failed to resolve media filenames to IDs:`,
-						error,
-					);
+					console.warn(`Failed to resolve media filenames to IDs:`, error);
 				}
 			}
 
@@ -209,7 +203,9 @@ export const tryUpdatePage = Result.wrap(
 				id,
 				data: {
 					content,
-					...(content !== undefined && { media: mediaIds.length > 0 ? mediaIds : [] }),
+					...(content !== undefined && {
+						media: mediaIds.length > 0 ? mediaIds : [],
+					}),
 				},
 				user,
 				req,

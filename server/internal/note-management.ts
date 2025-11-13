@@ -132,10 +132,7 @@ export const tryCreateNote = Result.wrap(
 				resolvedIds = mediaResult.docs.map((doc) => doc.id);
 			} catch (error) {
 				// If media lookup fails, log warning but continue
-				console.warn(
-					`Failed to resolve media filenames to IDs:`,
-					error,
-				);
+				console.warn(`Failed to resolve media filenames to IDs:`, error);
 			}
 		}
 
@@ -201,7 +198,8 @@ export const tryUpdateNote = Result.wrap(
 			}
 		}
 
-		const updateData: Record<string, string | boolean | number[] | undefined> = {};
+		const updateData: Record<string, string | boolean | number[] | undefined> =
+			{};
 		if (data.content !== undefined) {
 			updateData.content = data.content.trim();
 
@@ -237,10 +235,7 @@ export const tryUpdateNote = Result.wrap(
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);
 				} catch (error) {
 					// If media lookup fails, log warning but continue
-					console.warn(
-						`Failed to resolve media filenames to IDs:`,
-						error,
-					);
+					console.warn(`Failed to resolve media filenames to IDs:`, error);
 				}
 			}
 

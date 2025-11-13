@@ -110,6 +110,7 @@ export const globalContext = createContext<{
 	platformInfo: PlatformDetectionResult;
 	bunVersion: string;
 	bunRevision: string;
+	packageVersion: string;
 	hints: { timeZone?: string };
 	systemGlobals: SystemGlobals;
 }>();

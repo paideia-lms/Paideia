@@ -1,7 +1,7 @@
 import type { FileUploadHandler } from "@remix-run/form-data-parser";
 import {
-	MaxFilesExceededError,
 	MaxFileSizeExceededError,
+	MaxFilesExceededError,
 	parseFormData,
 } from "@remix-run/form-data-parser";
 

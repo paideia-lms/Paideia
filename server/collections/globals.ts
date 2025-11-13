@@ -143,7 +143,7 @@ export const AppearanceSettings = {
 					},
 					validate: ((value: string) => {
 						return z.url().safeParse(value).success;
-					}) as TextFieldSingleValidation
+					}) as TextFieldSingleValidation,
 				},
 			],
 			defaultValue: [],

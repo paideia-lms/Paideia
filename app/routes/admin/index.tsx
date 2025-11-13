@@ -1,7 +1,7 @@
 import { Badge, Box, Stack, Title } from "@mantine/core";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useQueryState } from "nuqs";
 import { href, Link } from "react-router";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import type { Route } from "./+types/index";
 
 export const loader = async ({ request }: Route.LoaderArgs) => {

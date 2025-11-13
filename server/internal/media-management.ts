@@ -1,6 +1,12 @@
 import "@total-typescript/ts-reset";
 import type { S3Client } from "@aws-sdk/client-s3";
-import { CopyObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import {
+	CopyObjectCommand,
+	DeleteObjectCommand,
+	DeleteObjectsCommand,
+	GetObjectCommand,
+	ListObjectsV2Command,
+} from "@aws-sdk/client-s3";
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import {
@@ -169,7 +175,14 @@ export interface GetMediaBufferFromFilenameResult {
  */
 export const tryGetMediaById = Result.wrap(
 	async (args: GetMediaByIdArgs): Promise<Media> => {
-		const { payload, id, depth = 1, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			id,
+			depth = 1,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -215,7 +228,14 @@ export const tryGetMediaById = Result.wrap(
  */
 export const tryGetMediaByFilename = Result.wrap(
 	async (args: GetMediaByFilenameArgs): Promise<Media> => {
-		const { payload, filename, depth = 1, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			filename,
+			depth = 1,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -261,8 +281,18 @@ export const tryGetMediaByFilename = Result.wrap(
  * 4. Returns both the media record and the buffer
  */
 export const tryGetMediaBufferFromFilename = Result.wrap(
-	async (args: GetMediaBufferFromFilenameArgs): Promise<GetMediaBufferFromFilenameResult> => {
-		const { payload, s3Client, filename, depth = 0, user = null, req, overrideAccess = false } = args;
+	async (
+		args: GetMediaBufferFromFilenameArgs,
+	): Promise<GetMediaBufferFromFilenameResult> => {
+		const {
+			payload,
+			s3Client,
+			filename,
+			depth = 0,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -299,7 +329,7 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 
 		// Convert the stream to a buffer
 		const chunks: Uint8Array[] = [];
-		// @ts-ignore
+		// @ts-expect-error
 		for await (const chunk of response.Body) {
 			chunks.push(chunk);
 		}
@@ -378,8 +408,17 @@ export interface GetMediaStreamFromIdResult {
  * 4. Returns both the media record and the buffer
  */
 export const tryGetMediaBufferFromId = Result.wrap(
-	async (args: GetMediaBufferFromIdArgs): Promise<GetMediaBufferFromIdResult> => {
-		const { payload, s3Client, id, depth = 0, user = null, overrideAccess = false } = args;
+	async (
+		args: GetMediaBufferFromIdArgs,
+	): Promise<GetMediaBufferFromIdResult> => {
+		const {
+			payload,
+			s3Client,
+			id,
+			depth = 0,
+			user = null,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -450,8 +489,19 @@ export const tryGetMediaBufferFromId = Result.wrap(
  * 4. Returns the media record, stream, content length, and optional content range
  */
 export const tryGetMediaStreamFromFilename = Result.wrap(
-	async (args: GetMediaStreamFromFilenameArgs): Promise<GetMediaStreamFromFilenameResult> => {
-		const { payload, s3Client, filename, depth = 0, range, user = null, req, overrideAccess = false } = args;
+	async (
+		args: GetMediaStreamFromFilenameArgs,
+	): Promise<GetMediaStreamFromFilenameResult> => {
+		const {
+			payload,
+			s3Client,
+			filename,
+			depth = 0,
+			range,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -542,8 +592,19 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
  * 4. Returns the media record, stream, content length, and optional content range
  */
 export const tryGetMediaStreamFromId = Result.wrap(
-	async (args: GetMediaStreamFromIdArgs): Promise<GetMediaStreamFromIdResult> => {
-		const { payload, s3Client, id, depth = 0, range, user = null, req, overrideAccess = false } = args;
+	async (
+		args: GetMediaStreamFromIdArgs,
+	): Promise<GetMediaStreamFromIdResult> => {
+		const {
+			payload,
+			s3Client,
+			id,
+			depth = 0,
+			range,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -652,18 +713,7 @@ export interface GetAllMediaArgs {
  * This function fetches media records with optional pagination, sorting, and filtering
  */
 export const tryGetAllMedia = Result.wrap(
-	async (args: GetAllMediaArgs): Promise<{
-		docs: Media[];
-		totalDocs: number;
-		limit: number;
-		totalPages: number;
-		page: number;
-		pagingCounter: number;
-		hasPrevPage: boolean;
-		hasNextPage: boolean;
-		prevPage: number | null;
-		nextPage: number | null;
-	}> => {
+	async (args: GetAllMediaArgs) => {
 		const {
 			payload,
 			limit = 10,
@@ -740,7 +790,16 @@ export interface UpdateMediaArgs {
  */
 export const tryUpdateMedia = Result.wrap(
 	async (args: UpdateMediaArgs): Promise<Media> => {
-		const { payload, id, alt, caption, userId, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			id,
+			alt,
+			caption,
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate required fields
 		if (!id) {
@@ -857,7 +916,15 @@ export interface DeleteMediaResult {
  */
 export const tryDeleteMedia = Result.wrap(
 	async (args: DeleteMediaArgs): Promise<DeleteMediaResult> => {
-		const { payload, s3Client, id, userId, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			s3Client,
+			id,
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate required fields
 		if (!id) {
@@ -1013,7 +1080,9 @@ export interface GetMediaByMimeTypeArgs {
  * This function fetches media records filtered by MIME type with pagination
  */
 export const tryGetMediaByMimeType = Result.wrap(
-	async (args: GetMediaByMimeTypeArgs): Promise<{
+	async (
+		args: GetMediaByMimeTypeArgs,
+	): Promise<{
 		docs: Media[];
 		totalDocs: number;
 		limit: number;
@@ -1025,7 +1094,16 @@ export const tryGetMediaByMimeType = Result.wrap(
 		prevPage: number | null;
 		nextPage: number | null;
 	}> => {
-		const { payload, mimeType, limit = 10, page = 1, depth = 1, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			mimeType,
+			limit = 10,
+			page = 1,
+			depth = 1,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate MIME type
 		if (!mimeType || mimeType.trim() === "") {
@@ -1367,13 +1445,7 @@ export const tryGetUserMediaStats = Result.wrap(
 		totalSize: number;
 		mediaTypeCount: Record<string, number>;
 	}> => {
-		const {
-			payload,
-			userId,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, userId, user = null, req, overrideAccess = false } = args;
 
 		// Fetch all media for the user (no pagination limit)
 		const mediaResult = await payload.find({
@@ -1489,12 +1561,7 @@ export const tryGetSystemMediaStats = Result.wrap(
 		totalSize: number;
 		mediaTypeCount: Record<string, number>;
 	}> => {
-		const {
-			payload,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, user = null, req, overrideAccess = false } = args;
 
 		// Fetch all media in the system (no pagination limit)
 		const mediaResult = await payload.find({
@@ -1593,6 +1660,9 @@ export interface GetOrphanedMediaArgs {
 	s3Client: S3Client;
 	limit?: number;
 	page?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetOrphanedMediaResult {
@@ -1619,7 +1689,15 @@ export interface GetOrphanedMediaResult {
  */
 export const tryGetOrphanedMedia = Result.wrap(
 	async (args: GetOrphanedMediaArgs): Promise<GetOrphanedMediaResult> => {
-		const { payload, s3Client, limit = 20, page = 1 } = args;
+		const {
+			payload,
+			s3Client,
+			limit = 20,
+			page = 1,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate pagination parameters
 		if (limit <= 0) {
@@ -1635,7 +1713,9 @@ export const tryGetOrphanedMedia = Result.wrap(
 			collection: "media",
 			limit: 10000, // Large limit to get all media filenames
 			depth: 0,
-			overrideAccess: true,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const dbFilenames = new Set<string>();
@@ -1646,7 +1726,8 @@ export const tryGetOrphanedMedia = Result.wrap(
 		}
 
 		// List all objects in S3 (handle pagination)
-		const s3Files: Array<{ Key: string; Size: number; LastModified?: Date }> = [];
+		const s3Files: Array<{ Key: string; Size: number; LastModified?: Date }> =
+			[];
 		let continuationToken: string | undefined;
 
 		do {
@@ -1717,6 +1798,9 @@ export const tryGetOrphanedMedia = Result.wrap(
 export interface GetAllOrphanedFilenamesArgs {
 	payload: Payload;
 	s3Client: S3Client;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetAllOrphanedFilenamesResult {
@@ -1730,14 +1814,24 @@ export interface GetAllOrphanedFilenamesResult {
  * This function returns all filenames of orphaned files for bulk operations
  */
 export const tryGetAllOrphanedFilenames = Result.wrap(
-	async (args: GetAllOrphanedFilenamesArgs): Promise<GetAllOrphanedFilenamesResult> => {
-		const { payload, s3Client } = args;
+	async (
+		args: GetAllOrphanedFilenamesArgs,
+	): Promise<GetAllOrphanedFilenamesResult> => {
+		const {
+			payload,
+			s3Client,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 		// Get all filenames from database
 		const allMediaResult = await payload.find({
 			collection: "media",
 			limit: 10000, // Large limit to get all media filenames
 			depth: 0,
-			overrideAccess: true,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const dbFilenames = new Set<string>();
@@ -1810,17 +1904,30 @@ export interface PruneAllOrphanedMediaResult {
 export interface PruneAllOrphanedMediaArgs {
 	payload: Payload;
 	s3Client: S3Client;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export const tryPruneAllOrphanedMedia = Result.wrap(
-	async (args: PruneAllOrphanedMediaArgs): Promise<PruneAllOrphanedMediaResult> => {
-		const { payload, s3Client } = args;
+	async (
+		args: PruneAllOrphanedMediaArgs,
+	): Promise<PruneAllOrphanedMediaResult> => {
+		const {
+			payload,
+			s3Client,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 		// Get all filenames from database
 		const allMediaResult = await payload.find({
 			collection: "media",
 			limit: 10000, // Large limit to get all media filenames
 			depth: 0,
-			overrideAccess: true,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const dbFilenames = new Set<string>();
@@ -1945,6 +2052,9 @@ export interface DeleteOrphanedMediaArgs {
 	payload: Payload;
 	s3Client: S3Client;
 	filenames: string[];
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface DeleteOrphanedMediaResult {
@@ -1963,7 +2073,14 @@ export interface DeleteOrphanedMediaResult {
  */
 export const tryDeleteOrphanedMedia = Result.wrap(
 	async (args: DeleteOrphanedMediaArgs): Promise<DeleteOrphanedMediaResult> => {
-		const { payload, s3Client, filenames } = args;
+		const {
+			payload,
+			s3Client,
+			filenames,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate required fields
 		if (!filenames || filenames.length === 0) {
@@ -1980,7 +2097,9 @@ export const tryDeleteOrphanedMedia = Result.wrap(
 			},
 			limit: filenames.length,
 			depth: 0,
-			overrideAccess: true,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const dbFilenames = new Set<string>();
@@ -1991,7 +2110,9 @@ export const tryDeleteOrphanedMedia = Result.wrap(
 		}
 
 		// Filter out files that exist in database
-		const orphanedFilenames = filenames.filter((filename) => !dbFilenames.has(filename));
+		const orphanedFilenames = filenames.filter(
+			(filename) => !dbFilenames.has(filename),
+		);
 
 		if (orphanedFilenames.length === 0) {
 			throw new InvalidArgumentError(
@@ -2193,7 +2314,11 @@ export const tryFindMediaUsages = Result.wrap(
 			if (submission.attachments && Array.isArray(submission.attachments)) {
 				for (let i = 0; i < submission.attachments.length; i++) {
 					const attachment = submission.attachments[i];
-					if (attachment && typeof attachment === "object" && "file" in attachment) {
+					if (
+						attachment &&
+						typeof attachment === "object" &&
+						"file" in attachment
+					) {
 						const fileId =
 							typeof attachment.file === "number"
 								? attachment.file
@@ -2224,7 +2349,11 @@ export const tryFindMediaUsages = Result.wrap(
 			if (submission.attachments && Array.isArray(submission.attachments)) {
 				for (let i = 0; i < submission.attachments.length; i++) {
 					const attachment = submission.attachments[i];
-					if (attachment && typeof attachment === "object" && "file" in attachment) {
+					if (
+						attachment &&
+						typeof attachment === "object" &&
+						"file" in attachment
+					) {
 						const fileId =
 							typeof attachment.file === "number"
 								? attachment.file

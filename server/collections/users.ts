@@ -159,7 +159,6 @@ export const Users = {
 			type: "relationship",
 			relationTo: "media",
 			label: "Avatar",
-
 		},
 	],
 	slug: "users" as const,

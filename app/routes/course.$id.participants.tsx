@@ -1,5 +1,6 @@
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
 import { useFetcher } from "react-router";
 import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
@@ -13,7 +14,6 @@ import {
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
 import type { Enrollment } from "server/payload-types";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { DeleteEnrollmentModal } from "~/components/delete-enrollment-modal";
 import { EditEnrollmentModal } from "~/components/edit-enrollment-modal";
 import { EnrollUserModal } from "~/components/enroll-user-modal";

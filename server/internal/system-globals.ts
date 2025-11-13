@@ -65,15 +65,15 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-				userMediaStorageTotal: null,
-				siteUploadLimit: null,
-			};
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				};
 
 		const appearanceSettings = appearanceResult.ok
 			? appearanceResult.value
 			: {
-				additionalCssStylesheets: [],
-			};
+					additionalCssStylesheets: [],
+				};
 
 		return {
 			maintenanceSettings,
@@ -85,4 +85,3 @@ export const tryGetSystemGlobals = Result.wrap(
 		transformError(error) ??
 		new UnknownError("Failed to get system globals", { cause: error }),
 );
-

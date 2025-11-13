@@ -89,6 +89,7 @@ async function startServer() {
 	// Get Bun version and revision
 	const bunVersion = typeof Bun !== "undefined" ? Bun.version : "unknown";
 	const bunRevision = typeof Bun !== "undefined" ? Bun.revision : "unknown";
+	const packageVersion = packageJson.version;
 
 	const backend = new Elysia()
 		.state("payload", payload)
@@ -116,6 +117,7 @@ async function startServer() {
 							platformInfo,
 							bunVersion,
 							bunRevision,
+							packageVersion,
 							hints,
 							// some fake data for now
 							routeHierarchy: [],

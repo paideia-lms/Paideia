@@ -1,4 +1,5 @@
 import { Container, Group, Tabs, Text, Title } from "@mantine/core";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -12,7 +13,6 @@ import {
 	canSeeCourseParticipants,
 	canSeeCourseSettings,
 } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/course-layout";

@@ -47,7 +47,8 @@ export const MimeTypes = {
 	yml: (mime.getType(".yml") || "text/yaml") as "text/yaml",
 	html: (mime.getType(".html") || "text/html") as "text/html",
 	css: (mime.getType(".css") || "text/css") as "text/css",
-	javascript: (mime.getType(".js") || "application/javascript") as "application/javascript",
+	javascript: (mime.getType(".js") ||
+		"application/javascript") as "application/javascript",
 	// Video - additional formats
 	webm: (mime.getType(".webm") || "video/webm") as "video/webm",
 	avi: (mime.getType(".avi") || "video/x-msvideo") as "video/x-msvideo",

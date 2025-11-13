@@ -9,7 +9,13 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconPlus, IconTrash, IconArrowUp, IconArrowDown } from "@tabler/icons-react";
+import {
+	IconArrowDown,
+	IconArrowUp,
+	IconPlus,
+	IconTrash,
+} from "@tabler/icons-react";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -18,9 +24,14 @@ import {
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
 import { z } from "zod";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, forbidden, ForbiddenResponse, ok, unauthorized } from "~/utils/responses";
+import {
+	badRequest,
+	ForbiddenResponse,
+	forbidden,
+	ok,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/appearance";
 
 type AppearanceGlobal = {
@@ -126,7 +137,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export function useUpdateAppearanceSettings() {
 	const fetcher = useFetcher<typeof clientAction>();
-	const update = (data: { additionalCssStylesheets: Array<{ url: string }> }) => {
+	const update = (data: {
+		additionalCssStylesheets: Array<{ url: string }>;
+	}) => {
 		fetcher.submit(data, {
 			method: "post",
 			action: href("/admin/appearance"),
@@ -197,8 +210,14 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 			>
 				<Stack gap="sm">
 					{stylesheets.map(({ url }, index) => (
-						<Group key={`${url}-${// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
-							index}`} align="flex-start" wrap="nowrap">
+						<Group
+							key={`${url}-${
+								// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
+								index
+							}`}
+							align="flex-start"
+							wrap="nowrap"
+						>
 							<TextInput
 								{...form.getInputProps(`stylesheets.${index}.url`)}
 								key={form.key(`stylesheets.${index}.url`)}
@@ -206,9 +225,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 								style={{ flex: 1 }}
 								error={
 									form.getValues().stylesheets[index]?.url &&
-										!form.getValues().stylesheets[index]?.url.match(
-											/^https?:\/\/.+/,
-										)
+									!form
+										.getValues()
+										.stylesheets[index]?.url.match(/^https?:\/\/.+/)
 										? "Must be a valid HTTP or HTTPS URL"
 										: undefined
 								}
@@ -264,4 +283,3 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 		</Stack>
 	);
 }
-

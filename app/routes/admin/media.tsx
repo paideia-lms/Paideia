@@ -1,3 +1,4 @@
+import { DonutChart, PieChart } from "@mantine/charts";
 import {
 	ActionIcon,
 	Avatar,
@@ -19,8 +20,9 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
-import { DataTable } from "mantine-datatable";
-import { DonutChart, PieChart } from "@mantine/charts";
+import { useForm } from "@mantine/form";
+import { usePrevious } from "@mantine/hooks";
+import { notifications } from "@mantine/notifications";
 import {
 	IconDots,
 	IconDownload,
@@ -29,19 +31,18 @@ import {
 	IconInfoCircle,
 	IconLayoutGrid,
 	IconList,
-	IconPhoto,
 	IconPencil,
+	IconPhoto,
 	IconTrash,
 } from "@tabler/icons-react";
-import { notifications } from "@mantine/notifications";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
-import { useEffect, useRef, useState } from "react";
-import { usePrevious } from "@mantine/hooks";
-import prettyBytes from "pretty-bytes";
-import { href, Link, useFetcher } from "react-router";
-import { useForm } from "@mantine/form";
+import { DataTable } from "mantine-datatable";
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsInteger } from "nuqs/server";
+import prettyBytes from "pretty-bytes";
+import { useEffect, useRef, useState } from "react";
+import { href, Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -55,10 +56,10 @@ import {
 	tryPruneAllOrphanedMedia,
 	tryRenameMedia,
 } from "server/internal/media-management";
-import { useMediaUsageData } from "~/routes/api/media-usage";
 import { tryFindAllUsers } from "server/internal/user-management";
 import type { Media } from "server/payload-types";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
+import { useMediaUsageData } from "~/routes/api/media-usage";
+import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
 	canPreview,
 	getFileIcon,
@@ -68,7 +69,6 @@ import {
 	isPdf,
 	isVideo,
 } from "~/utils/media-helpers";
-import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -108,9 +108,15 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const limit = 20;
 
 	// Fetch media - either for a specific user or all media
-	let mediaResult: Awaited<ReturnType<typeof tryFindMediaByUser>> | Awaited<ReturnType<typeof tryGetAllMedia>>;
-	let statsResult: Awaited<ReturnType<typeof tryGetUserMediaStats>> | Awaited<ReturnType<typeof tryGetSystemMediaStats>>;
-	let systemStatsResult: Awaited<ReturnType<typeof tryGetSystemMediaStats>> | null = null;
+	let mediaResult:
+		| Awaited<ReturnType<typeof tryFindMediaByUser>>
+		| Awaited<ReturnType<typeof tryGetAllMedia>>;
+	let statsResult:
+		| Awaited<ReturnType<typeof tryGetUserMediaStats>>
+		| Awaited<ReturnType<typeof tryGetSystemMediaStats>>;
+	let systemStatsResult: Awaited<
+		ReturnType<typeof tryGetSystemMediaStats>
+	> | null = null;
 
 	if (userId) {
 		// Fetch media for specific user
@@ -148,7 +154,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
-			overrideAccess: true,
+			req: request,
 		});
 	} else {
 		// Fetch all media in the system
@@ -157,6 +163,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			limit,
 			page,
 			depth: 1, // Include createdBy user info
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id,
+			},
+			req: request,
 		});
 
 		// Get system-wide media stats
@@ -167,7 +179,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				collection: "users",
 				avatar: currentUser.avatar?.id,
 			},
-			overrideAccess: true,
+			req: request,
 		});
 	}
 
@@ -194,14 +206,15 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...currentUser,
 			avatar: currentUser.avatar?.id,
 		},
-		overrideAccess: true,
+		req: request,
 	});
 
 	const userOptions = usersResult.ok
 		? usersResult.value.docs.map((user) => ({
-			value: user.id.toString(),
-			label: `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-		}))
+				value: user.id.toString(),
+				label:
+					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+			}))
 		: [];
 
 	// Fetch orphaned media files
@@ -210,9 +223,17 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		s3Client,
 		limit,
 		page: orphanedPage,
+		user: {
+			...currentUser,
+			collection: "users",
+			avatar: currentUser.avatar?.id,
+		},
+		req: request,
 	});
 
-	const orphanedMedia = orphanedMediaResult.ok ? orphanedMediaResult.value : null;
+	const orphanedMedia = orphanedMediaResult.ok
+		? orphanedMediaResult.value
+		: null;
 
 	return {
 		media: mediaWithPermissions,
@@ -440,6 +461,13 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					payload,
 					s3Client,
 					filenames,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id ?? undefined,
+					},
+					req: { transactionID },
+					overrideAccess: true,
 				});
 
 				if (!result.ok) {
@@ -458,6 +486,13 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				const result = await tryPruneAllOrphanedMedia({
 					payload,
 					s3Client,
+					user: {
+						...currentUser,
+						collection: "users",
+						avatar: currentUser.avatar?.id ?? undefined,
+					},
+					req: { transactionID },
+					overrideAccess: true,
 				});
 
 				if (!result.ok) {
@@ -482,14 +517,13 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		console.error("Media action error:", error);
 
 		return badRequest({
-			error: error instanceof Error ? error.message : "Failed to process request",
+			error:
+				error instanceof Error ? error.message : "Failed to process request",
 		});
 	}
 };
 
-export async function clientAction({
-	serverAction,
-}: Route.ClientActionArgs) {
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData?.status === StatusCode.Ok) {
@@ -797,7 +831,11 @@ function VideoPreview({
 
 	return (
 		<Stack gap="md" style={{ width: "100%" }}>
-			<video controls style={{ width: "100%", maxHeight: "80vh" }} aria-label={filename}>
+			<video
+				controls
+				style={{ width: "100%", maxHeight: "80vh" }}
+				aria-label={filename}
+			>
 				<source src={fileUrl} type="video/mp4" />
 				<source src={fileUrl} type="video/webm" />
 				<source src={fileUrl} type="video/ogg" />
@@ -835,9 +873,7 @@ function MediaRenameModal({
 		},
 		validate: {
 			filename: (value) =>
-				!value || value.trim().length === 0
-					? "Filename is required"
-					: null,
+				!value || value.trim().length === 0 ? "Filename is required" : null,
 		},
 	});
 
@@ -898,8 +934,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1022,7 +1058,11 @@ function MediaUsageModal({
 						) : (
 							<Stack gap="xs">
 								{data.usages.map((usage) => (
-									<Card key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`} withBorder padding="xs">
+									<Card
+										key={`${usage.collection}-${usage.documentId}-${usage.fieldPath}`}
+										withBorder
+										padding="xs"
+									>
 										<Group gap="xs" wrap="nowrap">
 											<Text size="sm" fw={500}>
 												{usage.collection}
@@ -1065,8 +1105,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (
@@ -1145,8 +1185,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	// Get creator info
@@ -1156,23 +1196,25 @@ function MediaCard({
 			: file.createdBy;
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
-			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() || "Unknown"
+			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
+				"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
-			? (typeof file.createdBy.avatar === "object" && file.createdBy.avatar !== null
+			? typeof file.createdBy.avatar === "object" &&
+				file.createdBy.avatar !== null
 				? file.createdBy.avatar.id
-				: file.createdBy.avatar)
+				: file.createdBy.avatar
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: creatorAvatarId.toString(),
-		})
+				filenameOrId: creatorAvatarId.toString(),
+			})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-			id: creatorId.toString(),
-		})
+				id: creatorId.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1192,12 +1234,17 @@ function MediaCard({
 					<Group wrap="nowrap" align="flex-start" gap="xs">
 						<Checkbox
 							checked={isSelected}
-							onChange={(event) => onSelectionChange(event.currentTarget.checked)}
+							onChange={(event) =>
+								onSelectionChange(event.currentTarget.checked)
+							}
 							style={{ flexShrink: 0 }}
 						/>
 						<Stack gap="xs" style={{ flex: 1, minWidth: 0 }}>
 							{/* Thumbnail, Preview, or Icon */}
-							<Group justify="center" style={{ minHeight: 150, overflow: "hidden" }}>
+							<Group
+								justify="center"
+								style={{ minHeight: 150, overflow: "hidden" }}
+							>
 								{file.mimeType && isImage(file.mimeType) && mediaUrl ? (
 									<Image
 										src={mediaUrl}
@@ -1287,7 +1334,12 @@ function MediaCard({
 									</Text>
 								</Group>
 								{file.alt && (
-									<Text size="xs" c="dimmed" lineClamp={1} style={{ wordBreak: "break-word" }}>
+									<Text
+										size="xs"
+										c="dimmed"
+										lineClamp={1}
+										style={{ wordBreak: "break-word" }}
+									>
 										{file.alt}
 									</Text>
 								)}
@@ -1323,7 +1375,9 @@ function MediaCardView({
 	onRename,
 	onOpenUsageModal,
 }: {
-	media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
+	media: (Media & {
+		deletePermission?: { allowed: boolean; reason: string };
+	})[];
 	selectedCardIds: number[];
 	onSelectionChange: (ids: number[]) => void;
 	onDownload: (file: Media) => void;
@@ -1347,7 +1401,9 @@ function MediaCardView({
 					key={file.id}
 					file={file}
 					isSelected={selectedCardIds.includes(file.id)}
-					onSelectionChange={(checked) => handleCheckboxChange(file.id, checked)}
+					onSelectionChange={(checked) =>
+						handleCheckboxChange(file.id, checked)
+					}
 					onDownload={onDownload}
 					onDelete={onDelete}
 					onOpenModal={onOpenModal}
@@ -1370,9 +1426,17 @@ function MediaTableView({
 	onRename,
 	onOpenUsageModal,
 }: {
-	media: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
-	selectedRecords: (Media & { deletePermission?: { allowed: boolean; reason: string } })[];
-	onSelectionChange: (records: (Media & { deletePermission?: { allowed: boolean; reason: string } })[]) => void;
+	media: (Media & {
+		deletePermission?: { allowed: boolean; reason: string };
+	})[];
+	selectedRecords: (Media & {
+		deletePermission?: { allowed: boolean; reason: string };
+	})[];
+	onSelectionChange: (
+		records: (Media & {
+			deletePermission?: { allowed: boolean; reason: string };
+		})[],
+	) => void;
 	onDownload: (file: Media) => void;
 	onDelete: (file: Media) => void;
 	onOpenModal?: (file: Media) => void;
@@ -1406,23 +1470,25 @@ function MediaTableView({
 						: file.createdBy;
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
-						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() || "Unknown"
+						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
+							"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
-						? (typeof file.createdBy.avatar === "object" && file.createdBy.avatar !== null
+						? typeof file.createdBy.avatar === "object" &&
+							file.createdBy.avatar !== null
 							? file.createdBy.avatar.id
-							: file.createdBy.avatar)
+							: file.createdBy.avatar
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: creatorAvatarId.toString(),
-					})
+							filenameOrId: creatorAvatarId.toString(),
+						})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-						id: creatorId.toString(),
-					})
+							id: creatorId.toString(),
+						})
 					: undefined;
 
 				return (
@@ -1480,7 +1546,11 @@ function MediaTableView({
 			accessor: "actions",
 			title: "",
 			textAlign: "right" as const,
-			render: (file: Media & { deletePermission?: { allowed: boolean; reason: string } }) => (
+			render: (
+				file: Media & {
+					deletePermission?: { allowed: boolean; reason: string };
+				},
+			) => (
 				<MediaActionMenu
 					file={file}
 					onDownload={onDownload}
@@ -1696,7 +1766,9 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 		downloadMedia(file);
 	};
 
-	const handleDelete = (file: Media & { deletePermission?: { allowed: boolean; reason: string } }) => {
+	const handleDelete = (
+		file: Media & { deletePermission?: { allowed: boolean; reason: string } },
+	) => {
 		if (
 			!window.confirm(
 				"Are you sure you want to delete this media file? This action cannot be undone.",
@@ -1710,9 +1782,7 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 
 	const handleBatchDelete = () => {
 		const idsToDelete =
-			viewMode === "card"
-				? selectedCardIds
-				: selectedRecords.map((r) => r.id);
+			viewMode === "card" ? selectedCardIds : selectedRecords.map((r) => r.id);
 
 		if (idsToDelete.length === 0) {
 			return;
@@ -1798,21 +1868,28 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 
 	// Clear orphaned selection when fetcher completes successfully
 	useEffect(() => {
-		if (orphanedFetcher.state === "idle" && orphanedFetcher.data?.status === StatusCode.Ok) {
+		if (
+			orphanedFetcher.state === "idle" &&
+			orphanedFetcher.data?.status === StatusCode.Ok
+		) {
 			if (selectedOrphanedFilenames.length > 0) {
 				setSelectedOrphanedFilenames([]);
 			}
 		}
-	}, [orphanedFetcher.state, orphanedFetcher.data, selectedOrphanedFilenames.length]);
+	}, [
+		orphanedFetcher.state,
+		orphanedFetcher.data,
+		selectedOrphanedFilenames.length,
+	]);
 
 	return (
 		<Container size="lg" py="xl">
 			<title>Media Management | Site Administration | Paideia LMS</title>
+			<meta name="description" content="Manage all media files in the system" />
 			<meta
-				name="description"
-				content="Manage all media files in the system"
+				property="og:title"
+				content="Media Management | Site Administration | Paideia LMS"
 			/>
-			<meta property="og:title" content="Media Management | Site Administration | Paideia LMS" />
 			<meta
 				property="og:description"
 				content="Manage all media files in the system"
@@ -1833,7 +1910,9 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 					<Card withBorder padding="lg" radius="md">
 						<Stack gap="lg">
 							<Title order={3}>
-								{currentUserId ? "User Media Statistics" : "System Media Statistics"}
+								{currentUserId
+									? "User Media Statistics"
+									: "System Media Statistics"}
 							</Title>
 							<Grid>
 								<Grid.Col span={{ base: 12, md: 6 }}>
@@ -1870,7 +1949,10 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 														},
 														{
 															name: "System Storage",
-															value: Math.max(0, systemStats.totalSize - stats.totalSize),
+															value: Math.max(
+																0,
+																systemStats.totalSize - stats.totalSize,
+															),
 															color: "green",
 														},
 													]}
@@ -2073,4 +2155,3 @@ export default function AdminMediaPage({ loaderData }: Route.ComponentProps) {
 		</Container>
 	);
 }
-

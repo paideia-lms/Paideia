@@ -3,9 +3,9 @@ import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindMediaUsages } from "server/internal/media-management";
+import z from "zod";
 import { badRequest, NotFoundResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/media-usage";
-import z from "zod";
 
 const inputSchema = z.object({
 	mediaId: z.union([z.number(), z.string()]).transform((val) => {
@@ -26,7 +26,11 @@ const inputSchema = z.object({
 	}),
 });
 
-export const loader = async ({ request, context, params }: Route.LoaderArgs) => {
+export const loader = async ({
+	request,
+	context,
+	params,
+}: Route.LoaderArgs) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -76,7 +80,14 @@ export const loader = async ({ request, context, params }: Route.LoaderArgs) => 
 };
 
 export interface UseMediaUsageDataOptions {
-	onSuccess?: (data: { usages: Array<{ collection: string; documentId: number; fieldPath: string }>; totalUsages: number }) => void;
+	onSuccess?: (data: {
+		usages: Array<{
+			collection: string;
+			documentId: number;
+			fieldPath: string;
+		}>;
+		totalUsages: number;
+	}) => void;
 	onError?: (error: string) => void;
 }
 
@@ -123,9 +134,9 @@ export function useMediaUsageData(options: UseMediaUsageDataOptions = {}) {
 	const data =
 		fetcher.data && "usages" in fetcher.data && "totalUsages" in fetcher.data
 			? {
-				usages: fetcher.data.usages,
-				totalUsages: fetcher.data.totalUsages,
-			}
+					usages: fetcher.data.usages,
+					totalUsages: fetcher.data.totalUsages,
+				}
 			: null;
 
 	// Extract error from failed response
@@ -152,4 +163,3 @@ export function useMediaUsageData(options: UseMediaUsageDataOptions = {}) {
 		state: fetcher.state,
 	};
 }
-

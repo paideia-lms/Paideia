@@ -4,7 +4,13 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import * as cheerio from "cheerio";
+import prettyBytes from "pretty-bytes";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -14,22 +20,12 @@ import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
 import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
-import {
-	badRequest,
-	NotFoundResponse,
-	StatusCode,
-} from "~/utils/responses";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
+import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import type { Route } from "./+types/note-edit";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {

@@ -47,7 +47,29 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   	"created_at" timestamp(3) with time zone
   );
   
-  ALTER TABLE "media" ADD COLUMN "created_by_id" integer NOT NULL;
+  ALTER TABLE "media" ADD COLUMN "created_by_id" integer;
+  
+  UPDATE "media"
+  SET "created_by_id" = (
+    SELECT "id" FROM "users"
+    WHERE "role" = 'admin'
+    ORDER BY "id" ASC
+    LIMIT 1
+  )
+  WHERE "created_by_id" IS NULL
+  AND EXISTS (SELECT 1 FROM "users" WHERE "role" = 'admin' LIMIT 1);
+  
+  UPDATE "media"
+  SET "created_by_id" = (
+    SELECT "id" FROM "users"
+    ORDER BY "id" ASC
+    LIMIT 1
+  )
+  WHERE "created_by_id" IS NULL
+  AND EXISTS (SELECT 1 FROM "users" LIMIT 1);
+  
+  ALTER TABLE "media" ALTER COLUMN "created_by_id" SET NOT NULL;
+  
   ALTER TABLE "courses_rels" ADD CONSTRAINT "courses_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."courses"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "courses_rels" ADD CONSTRAINT "courses_rels_media_fk" FOREIGN KEY ("media_id") REFERENCES "public"."media"("id") ON DELETE cascade ON UPDATE no action;
   ALTER TABLE "pages_rels" ADD CONSTRAINT "pages_rels_parent_fk" FOREIGN KEY ("parent_id") REFERENCES "public"."pages"("id") ON DELETE cascade ON UPDATE no action;
@@ -69,7 +91,7 @@ export async function up({ db, payload, req }: MigrateUpArgs): Promise<void> {
   CREATE INDEX "notes_rels_media_id_idx" ON "notes_rels" USING btree ("media_id");
   CREATE INDEX "appearance_settings_additional_css_stylesheets_order_idx" ON "appearance_settings_additional_css_stylesheets" USING btree ("_order");
   CREATE INDEX "appearance_settings_additional_css_stylesheets_parent_id_idx" ON "appearance_settings_additional_css_stylesheets" USING btree ("_parent_id");
-  ALTER TABLE "media" ADD CONSTRAINT "media_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;
+  ALTER TABLE "media" ADD CONSTRAINT "media_created_by_id_users_id_fk" FOREIGN KEY ("created_by_id") REFERENCES "public"."users"("id") ON DELETE restrict ON UPDATE no action;
   CREATE INDEX "media_created_by_idx" ON "media" USING btree ("created_by_id");
   CREATE INDEX "createdBy_6_idx" ON "media" USING btree ("created_by_id");`)
 }
