@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { QuizSubmissions } from "server/collections";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -6,11 +6,13 @@ import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingQuizSubmissionError,
+	QuizTimeLimitExceededError,
 	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
 import { tryCreateUserGrade } from "./user-grade-management";
+import type { QuizSubmission } from "server/payload-types";
 
 export interface CreateQuizArgs {
 	title: string;
@@ -31,13 +33,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -73,13 +75,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -95,6 +97,7 @@ export interface UpdateQuizArgs {
 }
 
 export interface CreateQuizSubmissionArgs {
+	payload: Payload;
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -103,11 +106,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -115,20 +118,35 @@ export interface CreateQuizSubmissionArgs {
 		}>;
 	}>;
 	timeSpent?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface StartQuizAttemptArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	studentId: number;
+	enrollmentId: number;
+	attemptNumber?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateQuizSubmissionArgs {
+	payload: Payload;
 	id: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	answers?: Array<{
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -136,6 +154,9 @@ export interface UpdateQuizSubmissionArgs {
 		}>;
 	}>;
 	timeSpent?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GradeQuizSubmissionArgs {
@@ -147,20 +168,61 @@ export interface GradeQuizSubmissionArgs {
 }
 
 export interface GetQuizByIdArgs {
+	payload: Payload;
 	id: number | string;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetQuizSubmissionByIdArgs {
+	payload: Payload;
 	id: number | string;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface ListQuizSubmissionsArgs {
+	payload: Payload;
 	courseModuleLinkId?: number;
+	/**
+	 * The student ID to filter by. If not provided, all students will be included.
+	 */
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	limit?: number;
 	page?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface CheckInProgressSubmissionArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	studentId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface GetNextAttemptNumberArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	studentId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface SubmitQuizArgs {
+	payload: Payload;
+	submissionId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface QuizGradingResult {
@@ -303,8 +365,14 @@ export const tryCreateQuiz = Result.wrap(
  * Gets a quiz by ID
  */
 export const tryGetQuizById = Result.wrap(
-	async (payload: Payload, args: GetQuizByIdArgs) => {
-		const { id } = args;
+	async (args: GetQuizByIdArgs) => {
+		const {
+			payload,
+			id,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -322,6 +390,9 @@ export const tryGetQuizById = Result.wrap(
 				],
 			},
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const quiz = quizResult.docs[0];
@@ -481,17 +552,20 @@ export const tryDeleteQuiz = Result.wrap(
 );
 
 /**
- * Creates a new quiz submission
+ * Starts a new quiz attempt by creating an in_progress submission
+ * This is used when a student clicks "Start Quiz" button
  */
-export const tryCreateQuizSubmission = Result.wrap(
-	async (payload: Payload, args: CreateQuizSubmissionArgs) => {
+export const tryStartQuizAttempt = Result.wrap(
+	async (args: StartQuizAttemptArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber = 1,
-			answers,
-			timeSpent,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -504,13 +578,29 @@ export const tryCreateQuizSubmission = Result.wrap(
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
-		if (!answers || answers.length === 0) {
+
+		// Check if there's an existing in_progress submission for this student and quiz
+		const existingInProgressSubmission = await payload.find({
+			collection: "quiz-submissions",
+			where: {
+				and: [
+					{ courseModuleLink: { equals: courseModuleLinkId } },
+					{ student: { equals: studentId } },
+					{ status: { equals: "in_progress" satisfies QuizSubmission['status'] } },
+				],
+			},
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (existingInProgressSubmission.docs.length > 0) {
 			throw new InvalidArgumentError(
-				"Quiz submission must have at least one answer",
+				"Cannot start a new quiz attempt while another attempt is in progress. Please complete or submit your current attempt first.",
 			);
 		}
 
-		// Check if submission already exists for this attempt
+		// Check if submission already exists for this attempt number
 		const existingSubmission = await payload.find({
 			collection: "quiz-submissions",
 			where: {
@@ -520,6 +610,9 @@ export const tryCreateQuizSubmission = Result.wrap(
 					{ attemptNumber: { equals: attemptNumber } },
 				],
 			},
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (existingSubmission.docs.length > 0) {
@@ -550,7 +643,148 @@ export const tryCreateQuizSubmission = Result.wrap(
 				: null;
 
 		const isLate =
-			quiz && quiz.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+
+		const submission = await payload.create({
+			collection: "quiz-submissions",
+			data: {
+				courseModuleLink: courseModuleLinkId,
+				student: studentId,
+				enrollment: enrollmentId,
+				attemptNumber,
+				status: "in_progress",
+				startedAt: new Date().toISOString(),
+				answers: [],
+				isLate,
+			},
+			user,
+			req,
+			overrideAccess,
+		});
+
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
+
+		const courseModuleLinkRef = submission.courseModuleLink;
+		assertZodInternal(
+			"tryStartQuizAttempt: Course module link is required",
+			courseModuleLinkRef,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const student = submission.student;
+		assertZodInternal(
+			"tryStartQuizAttempt: Student is required",
+			student,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const enrollment = submission.enrollment;
+		assertZodInternal(
+			"tryStartQuizAttempt: Enrollment is required",
+			enrollment,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		return {
+			...submission,
+			courseModuleLink: courseModuleLinkRef.id,
+			student,
+			enrollment,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to start quiz attempt", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new quiz submission
+ */
+export const tryCreateQuizSubmission = Result.wrap(
+	async (args: CreateQuizSubmissionArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber = 1,
+			answers,
+			timeSpent,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+		if (!studentId) {
+			throw new InvalidArgumentError("Student ID is required");
+		}
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
+		}
+		if (!answers || answers.length === 0) {
+			throw new InvalidArgumentError(
+				"Quiz submission must have at least one answer",
+			);
+		}
+
+		// Check if submission already exists for this attempt
+		const existingSubmission = await payload.find({
+			collection: "quiz-submissions",
+			where: {
+				and: [
+					{ courseModuleLink: { equals: courseModuleLinkId } },
+					{ student: { equals: studentId } },
+					{ attemptNumber: { equals: attemptNumber } },
+				],
+			},
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (existingSubmission.docs.length > 0) {
+			throw new InvalidArgumentError(
+				`Submission already exists for attempt ${attemptNumber}`,
+			);
+		}
+
+		// Get course module link to access quiz
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and quiz
+		});
+
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
+		}
+
+		// Get quiz from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const quiz =
+			activityModule && typeof activityModule.quiz === "object"
+				? activityModule.quiz
+				: null;
+
+		const isLate =
+			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
 
 		const submission = await payload.create({
 			collection: "quiz-submissions",
@@ -564,6 +798,9 @@ export const tryCreateQuizSubmission = Result.wrap(
 				isLate,
 				timeSpent,
 			},
+			user,
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -615,8 +852,17 @@ export const tryCreateQuizSubmission = Result.wrap(
  * Updates a quiz submission
  */
 export const tryUpdateQuizSubmission = Result.wrap(
-	async (payload: Payload, args: UpdateQuizSubmissionArgs) => {
-		const { id, status, answers, timeSpent } = args;
+	async (args: UpdateQuizSubmissionArgs) => {
+		const {
+			payload,
+			id,
+			status,
+			answers,
+			timeSpent,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -645,6 +891,9 @@ export const tryUpdateQuizSubmission = Result.wrap(
 			collection: "quiz-submissions",
 			id,
 			data: updateData,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -696,8 +945,14 @@ export const tryUpdateQuizSubmission = Result.wrap(
  * Gets a quiz submission by ID
  */
 export const tryGetQuizSubmissionById = Result.wrap(
-	async (payload: Payload, args: GetQuizSubmissionByIdArgs) => {
-		const { id } = args;
+	async (args: GetQuizSubmissionByIdArgs) => {
+		const {
+			payload,
+			id,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -715,6 +970,9 @@ export const tryGetQuizSubmissionById = Result.wrap(
 				],
 			},
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const submission = submissionResult.docs[0];
@@ -774,7 +1032,15 @@ export const tryGetQuizSubmissionById = Result.wrap(
  * Submits a quiz (marks as completed)
  */
 export const trySubmitQuiz = Result.wrap(
-	async (payload: Payload, submissionId: number) => {
+	async (args: SubmitQuizArgs) => {
+		const {
+			payload,
+			submissionId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate ID
 		if (!submissionId) {
 			throw new InvalidArgumentError("Quiz submission ID is required");
@@ -784,6 +1050,9 @@ export const trySubmitQuiz = Result.wrap(
 		const currentSubmission = await payload.findByID({
 			collection: "quiz-submissions",
 			id: submissionId,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!currentSubmission) {
@@ -798,6 +1067,47 @@ export const trySubmitQuiz = Result.wrap(
 			);
 		}
 
+		// Check time limit if quiz has one
+		if (currentSubmission.startedAt) {
+			// Get course module link to access quiz time limit
+			const courseModuleLink = await payload.findByID({
+				collection: "course-activity-module-links",
+				id:
+					typeof currentSubmission.courseModuleLink === "object" &&
+						"id" in currentSubmission.courseModuleLink
+						? currentSubmission.courseModuleLink.id
+						: (currentSubmission.courseModuleLink as number),
+				depth: 2,
+				user,
+				req,
+				overrideAccess,
+			});
+
+			if (courseModuleLink) {
+				const activityModule =
+					typeof courseModuleLink.activityModule === "object"
+						? courseModuleLink.activityModule
+						: null;
+				const quiz =
+					activityModule && typeof activityModule.quiz === "object"
+						? activityModule.quiz
+						: null;
+
+				if (quiz?.timeLimit) {
+					const startedAt = new Date(currentSubmission.startedAt);
+					const now = new Date();
+					const timeElapsedMinutes =
+						(now.getTime() - startedAt.getTime()) / (1000 * 60);
+
+					if (timeElapsedMinutes > quiz.timeLimit) {
+						throw new QuizTimeLimitExceededError(
+							`Quiz time limit of ${quiz.timeLimit} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
+						);
+					}
+				}
+			}
+		}
+
 		// Update status to completed
 		const updatedSubmission = await payload.update({
 			collection: "quiz-submissions",
@@ -806,6 +1116,9 @@ export const trySubmitQuiz = Result.wrap(
 				status: "completed",
 				submittedAt: new Date().toISOString(),
 			},
+			user,
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -864,11 +1177,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1125,7 +1438,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-					"id" in currentSubmission.courseModuleLink
+						"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1290,41 +1603,49 @@ export const tryGradeQuizSubmission = Result.wrap(
  * Lists quiz submissions with filtering
  */
 export const tryListQuizSubmissions = Result.wrap(
-	async (payload: Payload, args: ListQuizSubmissionsArgs = {}) => {
+	async (args: ListQuizSubmissionsArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
-			status = "completed",
+			status,
 			limit = 10,
 			page = 1,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
-		const where: Record<string, { equals: unknown }> = {};
+		const whereConditions: Array<Record<string, { equals: unknown }>> = [];
 
 		if (courseModuleLinkId) {
-			where.courseModuleLink = {
-				equals: courseModuleLinkId,
-			};
+			whereConditions.push({
+				courseModuleLink: { equals: courseModuleLinkId },
+			});
 		}
 
 		if (studentId) {
-			where.student = {
-				equals: studentId,
-			};
+			whereConditions.push({
+				student: { equals: studentId },
+			});
 		}
 
 		if (enrollmentId) {
-			where.enrollment = {
-				equals: enrollmentId,
-			};
+			whereConditions.push({
+				enrollment: { equals: enrollmentId },
+			});
 		}
 
 		if (status) {
-			where.status = {
-				equals: status,
-			};
+			whereConditions.push({
+				status: { equals: status },
+			});
 		}
+
+		const where =
+			whereConditions.length > 0 ? { and: whereConditions } : undefined;
+
 
 		const result = await payload.find({
 			collection: "quiz-submissions",
@@ -1333,6 +1654,9 @@ export const tryListQuizSubmissions = Result.wrap(
 			page,
 			sort: "-createdAt",
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		// type narrowing
@@ -1379,6 +1703,107 @@ export const tryListQuizSubmissions = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to list quiz submissions", {
+			cause: error,
+		}),
+);
+
+/**
+ * Checks if there's an in_progress submission for a student and quiz
+ */
+export const tryCheckInProgressSubmission = Result.wrap(
+	async (args: CheckInProgressSubmissionArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			studentId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+		if (!studentId) {
+			throw new InvalidArgumentError("Student ID is required");
+		}
+
+		const result = await payload.find({
+			collection: "quiz-submissions",
+			where: {
+				and: [
+					{ courseModuleLink: { equals: courseModuleLinkId } },
+					{ student: { equals: studentId } },
+					{ status: { equals: "in_progress" } },
+				],
+			},
+			limit: 1,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		return {
+			hasInProgress: result.docs.length > 0,
+			submission: result.docs[0] || null,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to check in-progress submission", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets the next attempt number for a student and quiz
+ */
+export const tryGetNextAttemptNumber = Result.wrap(
+	async (args: GetNextAttemptNumberArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			studentId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+		if (!studentId) {
+			throw new InvalidArgumentError("Student ID is required");
+		}
+
+		const result = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId,
+			studentId,
+			limit: 100, // Get all submissions to find max attempt number
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!result.ok) {
+			throw result.error;
+		}
+
+		const maxAttemptNumber =
+			result.value.docs.length > 0
+				? Math.max(
+					...result.value.docs.map((sub) => sub.attemptNumber || 1),
+				)
+				: 0;
+
+		return maxAttemptNumber + 1;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get next attempt number", {
 			cause: error,
 		}),
 );

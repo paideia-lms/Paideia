@@ -37,7 +37,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	console.log("courseStructureTree", courseContext.courseStructureTree);
+	// console.log("courseStructureTree", courseContext.courseStructureTree);
 
 	return {
 		course: courseContext.course,

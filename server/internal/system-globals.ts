@@ -14,37 +14,13 @@ export interface GetSystemGlobalsArgs {
 	overrideAccess?: boolean;
 }
 
-export type SystemGlobals = {
-	maintenanceSettings: {
-		maintenanceMode: boolean;
-	};
-	sitePolicies: {
-		userMediaStorageTotal: number | null;
-		siteUploadLimit: number | null;
-	};
-	appearanceSettings: {
-		additionalCssStylesheets: string[];
-	};
-	analyticsSettings: {
-		additionalJsScripts: Array<{
-			src: string;
-			defer?: boolean;
-			async?: boolean;
-			dataWebsiteId?: string;
-			dataDomain?: string;
-			dataSite?: string;
-			dataMeasurementId?: string;
-			[key: `data-${string}`]: string | undefined;
-		}>;
-	};
-};
 
 /**
  * Fetch all system globals in a single call.
  * This is more efficient than fetching them individually.
  */
 export const tryGetSystemGlobals = Result.wrap(
-	async (args: GetSystemGlobalsArgs): Promise<SystemGlobals> => {
+	async (args: GetSystemGlobalsArgs) => {
 		const { payload, user = null, req, overrideAccess = true } = args;
 
 		// Fetch all globals in parallel
@@ -88,21 +64,21 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				};
+				userMediaStorageTotal: null,
+				siteUploadLimit: null,
+			};
 
-		const appearanceSettings = appearanceResult.ok
-			? appearanceResult.value
-			: {
-					additionalCssStylesheets: [],
-				};
+		const appearanceSettings = {
+			additionalCssStylesheets: appearanceResult.ok
+				? appearanceResult.value.additionalCssStylesheets ?? []
+				: [],
+		}
 
-		const analyticsSettings = analyticsResult.ok
-			? analyticsResult.value
-			: {
-					additionalJsScripts: [],
-				};
+		const analyticsSettings = {
+			additionalJsScripts: analyticsResult.ok
+				? analyticsResult.value.additionalJsScripts ?? []
+				: [],
+		}
 
 		return {
 			maintenanceSettings,

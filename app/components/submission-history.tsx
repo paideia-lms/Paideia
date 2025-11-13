@@ -35,16 +35,17 @@ export interface SubmissionData {
 	status: "draft" | "submitted" | "graded" | "returned";
 	content?: string | null;
 	submittedAt?: string | null;
+	startedAt?: string | null;
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}> | null;
 }
@@ -135,13 +136,13 @@ function SubmissionAttachments({
 }: {
 	attachments: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}>;
 }) {
@@ -281,11 +282,19 @@ export function SubmissionHistoryItem({
 								</Badge>
 							)}
 						</Group>
-						{submission.submittedAt && (
-							<Text size="xs" c="dimmed">
-								{new Date(submission.submittedAt).toLocaleString()}
-							</Text>
-						)}
+						<Group gap="xs">
+							{submission.startedAt && (
+								<Text size="xs" c="dimmed">
+									Started: {new Date(submission.startedAt).toLocaleString()}
+								</Text>
+							)}
+							{submission.submittedAt && (
+								<Text size="xs" c="dimmed">
+									{submission.startedAt ? "• " : ""}
+									Submitted: {new Date(submission.submittedAt).toLocaleString()}
+								</Text>
+							)}
+						</Group>
 					</Group>
 					{content && (
 						<div>
@@ -401,9 +410,15 @@ export function SubmissionHistoryItem({
 						</Text>
 					</Group>
 					<Group gap="sm">
+						{submission.startedAt && (
+							<Text size="sm" c="dimmed">
+								Started: {new Date(submission.startedAt).toLocaleString()}
+							</Text>
+						)}
 						{submission.submittedAt && (
 							<Text size="sm" c="dimmed">
-								{new Date(submission.submittedAt).toLocaleString()}
+								{submission.startedAt ? "• " : ""}
+								Submitted: {new Date(submission.submittedAt).toLocaleString()}
 							</Text>
 						)}
 						{(showDelete || showGrade) && (

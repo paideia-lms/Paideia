@@ -271,6 +271,13 @@ export class ScriptValidationError extends Error {
 	}
 }
 
+export class QuizTimeLimitExceededError extends Error {
+	static readonly type = "QuizTimeLimitExceededError";
+	get type() {
+		return QuizTimeLimitExceededError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||
@@ -314,6 +321,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof SandboxResetError) return error;
 	else if (error instanceof MediaInUseError) return error;
 	else if (error instanceof ScriptValidationError) return error;
+	else if (error instanceof QuizTimeLimitExceededError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

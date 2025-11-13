@@ -99,12 +99,12 @@ export type SystemGlobals = {
 	analyticsSettings: {
 		additionalJsScripts: Array<{
 			src: string;
-			defer?: boolean;
-			async?: boolean;
-			dataWebsiteId?: string;
-			dataDomain?: string;
-			dataSite?: string;
-			dataMeasurementId?: string;
+			defer?: boolean | null;
+			async?: boolean | null;
+			dataWebsiteId?: string | null;
+			dataDomain?: string | null;
+			dataSite?: string | null;
+			dataMeasurementId?: string | null;
 			[key: `data-${string}`]: string | undefined;
 		}>;
 	};

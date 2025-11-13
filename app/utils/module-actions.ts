@@ -13,8 +13,13 @@ export const DiscussionActions = {
 	REPLY: "reply",
 } as const;
 
+export const QuizActions = {
+	START_ATTEMPT: "startattempt",
+} as const;
+
 export type AssignmentAction =
 	(typeof AssignmentActions)[keyof typeof AssignmentActions];
 export type DiscussionAction =
 	(typeof DiscussionActions)[keyof typeof DiscussionActions];
-export type ModuleAction = AssignmentAction | DiscussionAction;
+export type QuizAction = (typeof QuizActions)[keyof typeof QuizActions];
+export type ModuleAction = AssignmentAction | DiscussionAction | QuizAction;
