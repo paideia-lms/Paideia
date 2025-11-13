@@ -771,12 +771,12 @@ describe("Enrollment Management Functions with Authentication", () => {
 		firstName?: string | null;
 		lastName?: string | null;
 		role?:
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer"
-		| "instructor"
-		| "student"
-		| null;
+			| "admin"
+			| "content-manager"
+			| "analytics-viewer"
+			| "instructor"
+			| "student"
+			| null;
 		theme: "light" | "dark";
 		updatedAt: string;
 		createdAt: string;

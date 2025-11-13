@@ -1,6 +1,15 @@
-import { Button, Group, NumberInput, Select, Stack, Text, Title } from "@mantine/core";
+import {
+	Button,
+	Group,
+	NumberInput,
+	Select,
+	Stack,
+	Text,
+	Title,
+} from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -9,9 +18,14 @@ import {
 	tryUpdateSitePolicies,
 } from "server/internal/site-policies";
 import { z } from "zod";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, forbidden, ForbiddenResponse, ok, unauthorized } from "~/utils/responses";
+import {
+	badRequest,
+	ForbiddenResponse,
+	forbidden,
+	ok,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/sitepolicies";
 
 type SitePoliciesGlobal = {
@@ -47,32 +61,26 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 const inputSchema = z.object({
-	userMediaStorageTotal: z.preprocess(
-		(val) => {
-			if (val === "" || val === null || val === undefined) {
-				return null;
-			}
-			if (typeof val === "string") {
-				const num = Number(val);
-				return Number.isNaN(num) ? null : num;
-			}
-			return typeof val === "number" ? val : null;
-		},
-		z.number().min(0).nullable().optional(),
-	),
-	siteUploadLimit: z.preprocess(
-		(val) => {
-			if (val === "" || val === null || val === undefined) {
-				return null;
-			}
-			if (typeof val === "string") {
-				const num = Number(val);
-				return Number.isNaN(num) ? null : num;
-			}
-			return typeof val === "number" ? val : null;
-		},
-		z.number().min(0).nullable().optional(),
-	),
+	userMediaStorageTotal: z.preprocess((val) => {
+		if (val === "" || val === null || val === undefined) {
+			return null;
+		}
+		if (typeof val === "string") {
+			const num = Number(val);
+			return Number.isNaN(num) ? null : num;
+		}
+		return typeof val === "number" ? val : null;
+	}, z.number().min(0).nullable().optional()),
+	siteUploadLimit: z.preprocess((val) => {
+		if (val === "" || val === null || val === undefined) {
+			return null;
+		}
+		if (typeof val === "string") {
+			const num = Number(val);
+			return Number.isNaN(num) ? null : num;
+		}
+		return typeof val === "number" ? val : null;
+	}, z.number().min(0).nullable().optional()),
 });
 
 export async function action({ request, context }: Route.ActionArgs) {
@@ -127,9 +135,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 		});
 	} else {
 		const errorMessage =
-			typeof res?.error === "string"
-				? res.error
-				: "Unexpected error";
+			typeof res?.error === "string" ? res.error : "Unexpected error";
 		notifications.show({
 			title: "Failed to update",
 			message: errorMessage,
@@ -146,7 +152,10 @@ export function useUpdateSitePolicies() {
 		siteUploadLimit: number | null;
 	}) => {
 		const formData = new FormData();
-		if (data.userMediaStorageTotal !== null && data.userMediaStorageTotal !== undefined) {
+		if (
+			data.userMediaStorageTotal !== null &&
+			data.userMediaStorageTotal !== undefined
+		) {
 			formData.set("userMediaStorageTotal", String(data.userMediaStorageTotal));
 		} else {
 			formData.set("userMediaStorageTotal", "");
@@ -219,7 +228,10 @@ export default function AdminSitePolicies({
 	const getStoragePreset = (value: number | null | undefined): string => {
 		if (value === null || value === undefined) return "";
 		const option = storageOptions.find(
-			(opt) => opt.value !== "" && opt.value !== "custom" && Number(opt.value) === value,
+			(opt) =>
+				opt.value !== "" &&
+				opt.value !== "custom" &&
+				Number(opt.value) === value,
 		);
 		return option ? option.value : "custom";
 	};
@@ -227,7 +239,10 @@ export default function AdminSitePolicies({
 	const getUploadLimitPreset = (value: number | null | undefined): string => {
 		if (value === null || value === undefined) return "";
 		const option = uploadLimitOptions.find(
-			(opt) => opt.value !== "" && opt.value !== "custom" && Number(opt.value) === value,
+			(opt) =>
+				opt.value !== "" &&
+				opt.value !== "custom" &&
+				Number(opt.value) === value,
 		);
 		return option ? option.value : "custom";
 	};
@@ -254,12 +269,12 @@ export default function AdminSitePolicies({
 					update({
 						userMediaStorageTotal:
 							values.userMediaStorageTotal !== undefined &&
-								values.userMediaStorageTotal !== null
+							values.userMediaStorageTotal !== null
 								? values.userMediaStorageTotal
 								: null,
 						siteUploadLimit:
 							values.siteUploadLimit !== undefined &&
-								values.siteUploadLimit !== null
+							values.siteUploadLimit !== null
 								? values.siteUploadLimit
 								: null,
 					});
@@ -296,7 +311,8 @@ export default function AdminSitePolicies({
 							min={0}
 							allowDecimal={false}
 							onChange={(value) => {
-								const numValue = typeof value === "string" ? Number(value) : value;
+								const numValue =
+									typeof value === "string" ? Number(value) : value;
 								form.setFieldValue("userMediaStorageTotal", numValue);
 								// Check if value matches a preset
 								const preset = getStoragePreset(numValue);
@@ -337,7 +353,8 @@ export default function AdminSitePolicies({
 							min={0}
 							allowDecimal={false}
 							onChange={(value) => {
-								const numValue = typeof value === "string" ? Number(value) : value;
+								const numValue =
+									typeof value === "string" ? Number(value) : value;
 								form.setFieldValue("siteUploadLimit", numValue);
 								// Check if value matches a preset
 								const preset = getUploadLimitPreset(numValue);
@@ -358,4 +375,3 @@ export default function AdminSitePolicies({
 		</Stack>
 	);
 }
-

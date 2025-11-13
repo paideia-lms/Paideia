@@ -4,7 +4,12 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
 import * as cheerio from "cheerio";
+import prettyBytes from "pretty-bytes";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -22,11 +27,6 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/note-create";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {

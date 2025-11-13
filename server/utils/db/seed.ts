@@ -1,7 +1,4 @@
-import {
-	SeedDataLoadError,
-	transformError,
-} from "app/utils/error";
+import { SeedDataLoadError, transformError } from "app/utils/error";
 import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
 import { Result } from "typescript-result";
@@ -331,9 +328,9 @@ export const tryRunSeed = Result.wrap(
 		}
 		const csSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Computer Science",
-				parent: stemCategory.value.id,
-			})
+					name: "Computer Science",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (csSubcat && csSubcat.ok) {
 			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
@@ -343,9 +340,9 @@ export const tryRunSeed = Result.wrap(
 		}
 		const mathSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-				name: "Mathematics",
-				parent: stemCategory.value.id,
-			})
+					name: "Mathematics",
+					parent: stemCategory.value.id,
+				})
 			: null;
 		if (mathSubcat && mathSubcat.ok) {
 			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });

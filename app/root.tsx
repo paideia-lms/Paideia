@@ -218,14 +218,10 @@ export const middleware = [
 			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
 			else if (route.id === "routes/admin/maintenance")
 				isAdminMaintenance = true;
-			else if (
-				route.id === ("routes/admin/sitepolicies" as typeof route.id)
-			)
+			else if (route.id === ("routes/admin/sitepolicies" as typeof route.id))
 				isAdminSitePolicies = true;
 			else if (route.id === "routes/admin/media") isAdminMedia = true;
-			else if (
-				route.id === ("routes/admin/appearance" as typeof route.id)
-			)
+			else if (route.id === ("routes/admin/appearance" as typeof route.id))
 				isAdminAppearance = true;
 		}
 
@@ -326,15 +322,15 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-				},
-			};
+					maintenanceSettings: { maintenanceMode: false },
+					sitePolicies: {
+						userMediaStorageTotal: null,
+						siteUploadLimit: null,
+					},
+					appearanceSettings: {
+						additionalCssStylesheets: [],
+					},
+				};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -419,9 +415,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -471,9 +467,9 @@ export const middleware = [
 					sectionId,
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -533,9 +529,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -587,9 +583,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				);
 

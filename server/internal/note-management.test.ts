@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
+import { tryCreateMedia } from "./media-management";
 import {
 	tryCreateNote,
 	tryDeleteNote,
@@ -12,7 +13,6 @@ import {
 	tryUpdateNote,
 } from "./note-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
-import { tryCreateMedia } from "./media-management";
 
 describe("Note Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -353,7 +353,10 @@ describe("Note Management Functions", () => {
 				expect(result.value.media).toBeDefined();
 				if (Array.isArray(result.value.media)) {
 					expect(result.value.media.length).toBe(1);
-					const mediaId = typeof result.value.media[0] === "number" ? result.value.media[0] : result.value.media[0]?.id;
+					const mediaId =
+						typeof result.value.media[0] === "number"
+							? result.value.media[0]
+							: result.value.media[0]?.id;
 					expect(mediaId).toBe(testMediaId);
 				}
 			}
@@ -394,7 +397,10 @@ describe("Note Management Functions", () => {
 				expect(updateResult.value.media).toBeDefined();
 				if (Array.isArray(updateResult.value.media)) {
 					expect(updateResult.value.media.length).toBe(1);
-					const mediaId = typeof updateResult.value.media[0] === "number" ? updateResult.value.media[0] : updateResult.value.media[0]?.id;
+					const mediaId =
+						typeof updateResult.value.media[0] === "number"
+							? updateResult.value.media[0]
+							: updateResult.value.media[0]?.id;
 					expect(mediaId).toBe(testMediaId);
 				}
 			}
@@ -1119,7 +1125,9 @@ describe("Note Management Functions", () => {
 			}
 
 			// Step 1: Create media file using fixture
-			const fileBuffer = await Bun.file("fixture/paideia-logo.png").arrayBuffer();
+			const fileBuffer = await Bun.file(
+				"fixture/paideia-logo.png",
+			).arrayBuffer();
 			const createMediaResult = await tryCreateMedia({
 				payload,
 				file: Buffer.from(fileBuffer),
@@ -1164,9 +1172,10 @@ describe("Note Management Functions", () => {
 			expect(result.value.media).toBeDefined();
 			if (Array.isArray(result.value.media)) {
 				expect(result.value.media.length).toBe(1);
-				const mediaId = typeof result.value.media[0] === "number"
-					? result.value.media[0]
-					: result.value.media[0]?.id;
+				const mediaId =
+					typeof result.value.media[0] === "number"
+						? result.value.media[0]
+						: result.value.media[0]?.id;
 				expect(mediaId).toBe(createdMedia.id);
 			} else {
 				throw new Error("Media should be an array");
@@ -1245,9 +1254,10 @@ describe("Note Management Functions", () => {
 				expect(result.value.media).toBeDefined();
 				if (Array.isArray(result.value.media)) {
 					expect(result.value.media.length).toBe(1);
-					const mediaId = typeof result.value.media[0] === "number"
-						? result.value.media[0]
-						: result.value.media[0]?.id;
+					const mediaId =
+						typeof result.value.media[0] === "number"
+							? result.value.media[0]
+							: result.value.media[0]?.id;
 					expect(mediaId).toBe(createdMedia.id);
 				} else {
 					throw new Error("Media should be an array");

@@ -10,6 +10,7 @@ import {
 	Title,
 } from "@mantine/core";
 import { IconUserCheck } from "@tabler/icons-react";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsInteger } from "nuqs/server";
 import { href, Link } from "react-router";
@@ -18,7 +19,6 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import { canImpersonateUser } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
@@ -69,13 +69,13 @@ export const loader = async ({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? canImpersonateUser(
-			userSession.authenticatedUser,
-			{
-				id: userId,
-				role: "student", // Enrolled users are not admins
-			},
-			userSession.isImpersonating,
-		)
+				userSession.authenticatedUser,
+				{
+					id: userId,
+					role: "student", // Enrolled users are not admins
+				},
+				userSession.isImpersonating,
+			)
 		: false;
 
 	return {

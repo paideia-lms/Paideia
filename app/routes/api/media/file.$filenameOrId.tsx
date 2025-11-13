@@ -58,7 +58,11 @@ function parseRangeHeader(
 	return { start, end };
 }
 
-export const loader = async ({ params, context, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	params,
+	context,
+	request,
+}: Route.LoaderArgs) => {
 	const filenameOrId = params.filenameOrId;
 
 	if (!filenameOrId) {
@@ -71,19 +75,20 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 	// Try to get user from context if available (optional for public media access)
 	const userSession = context.get(userContextKey);
 	const currentUser = userSession?.isAuthenticated
-		? (userSession.effectiveUser || userSession.authenticatedUser)
+		? userSession.effectiveUser || userSession.authenticatedUser
 		: null;
 
 	// Prepare user object for internal functions
 	// Normalize avatar to ID if it's an object
 	const user = currentUser
 		? {
-			...currentUser,
-			avatar: typeof currentUser.avatar === "object" && currentUser.avatar !== null
-				? currentUser.avatar.id
-				: currentUser.avatar,
-			collection: "users" as const,
-		}
+				...currentUser,
+				avatar:
+					typeof currentUser.avatar === "object" && currentUser.avatar !== null
+						? currentUser.avatar.id
+						: currentUser.avatar,
+				collection: "users" as const,
+			}
 		: null;
 
 	// Check if download is requested via query parameter
@@ -100,21 +105,21 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 	// For efficiency, we'll make one call and handle range parsing after getting media metadata
 	let result = isId
 		? await tryGetMediaStreamFromId({
-			payload,
-			s3Client,
-			id: filenameOrId,
-			depth: 0,
-			user,
-			req: request,
-		})
+				payload,
+				s3Client,
+				id: filenameOrId,
+				depth: 0,
+				user,
+				req: request,
+			})
 		: await tryGetMediaStreamFromFilename({
-			payload,
-			s3Client,
-			filename: filenameOrId,
-			depth: 0,
-			user,
-			req: request,
-		});
+				payload,
+				s3Client,
+				filename: filenameOrId,
+				depth: 0,
+				user,
+				req: request,
+			});
 
 	if (!result.ok) {
 		console.error("Failed to get media stream:", result.error.message);
@@ -131,26 +136,29 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 	if (range && (range.start > 0 || range.end < fileSize - 1)) {
 		result = isId
 			? await tryGetMediaStreamFromId({
-				payload,
-				s3Client,
-				id: filenameOrId,
-				depth: 0,
-				range,
-				user,
-				req: request,
-			})
+					payload,
+					s3Client,
+					id: filenameOrId,
+					depth: 0,
+					range,
+					user,
+					req: request,
+				})
 			: await tryGetMediaStreamFromFilename({
-				payload,
-				s3Client,
-				filename: filenameOrId,
-				depth: 0,
-				range,
-				user,
-				req: request,
-			});
+					payload,
+					s3Client,
+					filename: filenameOrId,
+					depth: 0,
+					range,
+					user,
+					req: request,
+				});
 
 		if (!result.ok) {
-			console.error("Failed to get media stream with range:", result.error.message);
+			console.error(
+				"Failed to get media stream with range:",
+				result.error.message,
+			);
 			return new Response("File not found", { status: 404 });
 		}
 	}
@@ -175,7 +183,8 @@ export const loader = async ({ params, context, request }: Route.LoaderArgs) => 
 
 		// Add download header if download is requested
 		if (isDownload && media.filename) {
-			headers["Content-Disposition"] = `attachment; filename="${media.filename}"`;
+			headers["Content-Disposition"] =
+				`attachment; filename="${media.filename}"`;
 		}
 
 		return new Response(stream, {

@@ -176,10 +176,7 @@ export const tryCreateCourse = Result.wrap(
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);
 				} catch (error) {
 					// If media lookup fails, log warning but continue
-					console.warn(
-						`Failed to resolve media filenames to IDs:`,
-						error,
-					);
+					console.warn(`Failed to resolve media filenames to IDs:`, error);
 				}
 			}
 
@@ -361,10 +358,7 @@ export const tryUpdateCourse = Result.wrap(
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);
 				} catch (error) {
 					// If media lookup fails, log warning but continue
-					console.warn(
-						`Failed to resolve media filenames to IDs:`,
-						error,
-					);
+					console.warn(`Failed to resolve media filenames to IDs:`, error);
 				}
 			}
 
@@ -599,11 +593,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-							...category,
-							parent,
-							courses: categoryCourses,
-							subcategories: categorySubcategories,
-						}
+								...category,
+								parent,
+								courses: categoryCourses,
+								subcategories: categorySubcategories,
+							}
 						: null,
 					sections,
 				};
@@ -1451,7 +1445,14 @@ export const tryFindGroupById = Result.wrap(
  */
 export const tryFindGroupsByCourse = Result.wrap(
 	async (args: FindGroupsByCourseArgs) => {
-		const { payload, courseId, limit = 100, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			courseId,
+			limit = 100,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!courseId) {
 			throw new InvalidArgumentError("Course ID is required");
@@ -1483,7 +1484,14 @@ export const tryFindGroupsByCourse = Result.wrap(
  */
 export const tryFindGroupByPath = Result.wrap(
 	async (args: FindGroupByPathArgs) => {
-		const { payload, courseId, path, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			courseId,
+			path,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!courseId) {
 			throw new InvalidArgumentError("Course ID is required");
@@ -1527,7 +1535,14 @@ export const tryFindGroupByPath = Result.wrap(
  */
 export const tryFindChildGroups = Result.wrap(
 	async (args: FindChildGroupsArgs) => {
-		const { payload, parentGroupId, limit = 100, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			parentGroupId,
+			limit = 100,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!parentGroupId) {
 			throw new InvalidArgumentError("Parent group ID is required");
@@ -1559,7 +1574,14 @@ export const tryFindChildGroups = Result.wrap(
  */
 export const tryFindRootGroups = Result.wrap(
 	async (args: FindRootGroupsArgs) => {
-		const { payload, courseId, limit = 100, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			courseId,
+			limit = 100,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!courseId) {
 			throw new InvalidArgumentError("Course ID is required");

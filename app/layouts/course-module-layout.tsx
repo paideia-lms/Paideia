@@ -8,6 +8,7 @@ import {
 	Title,
 	useMantineTheme,
 } from "@mantine/core";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -18,7 +19,6 @@ import {
 	canSeeCourseModuleSettings,
 	canSeeModuleSubmissions,
 } from "server/utils/permissions";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import {
 	getStatusBadgeColor,
 	getStatusLabel,

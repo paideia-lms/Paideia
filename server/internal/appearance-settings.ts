@@ -73,9 +73,7 @@ export const tryGetAppearanceSettings = Result.wrap(
  * Update appearance settings in the AppearanceSettings global.
  */
 export const tryUpdateAppearanceSettings = Result.wrap(
-	async (
-		args: UpdateAppearanceSettingsArgs,
-	): Promise<AppearanceSettings> => {
+	async (args: UpdateAppearanceSettingsArgs): Promise<AppearanceSettings> => {
 		const { payload, user, data, overrideAccess = false } = args;
 
 		// Validate URLs before saving
@@ -125,4 +123,3 @@ export const tryUpdateAppearanceSettings = Result.wrap(
 			cause: error,
 		}),
 );
-

@@ -19,7 +19,12 @@ import type {
 	FileUpload,
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
+import prettyBytes from "pretty-bytes";
 import { useState } from "react";
 import { redirect, useFetcher } from "react-router";
 import { Users } from "server/collections/users";
@@ -38,11 +43,6 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
 import type { Route } from "./+types/new";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
