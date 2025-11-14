@@ -1644,7 +1644,11 @@ export const tryGradeQuizSubmission = Result.wrap(
 					: updatedSubmission.submittedAt !== undefined
 						? String(updatedSubmission.submittedAt)
 						: undefined;
-			const userGradeResult = await tryCreateUserGrade(payload, request, {
+			const userGradeResult = await tryCreateUserGrade({
+				payload,
+				user: null,
+				req: { ...request, transactionID },
+				overrideAccess: false,
 				enrollmentId,
 				gradebookItemId,
 				baseGrade: gradeData.totalScore,
@@ -1654,7 +1658,6 @@ export const tryGradeQuizSubmission = Result.wrap(
 				feedback: gradeData.feedback,
 				gradedBy,
 				submittedAt: submittedAtString,
-				transactionID,
 			});
 
 			if (!userGradeResult.ok) {

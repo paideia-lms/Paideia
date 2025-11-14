@@ -14,9 +14,12 @@ import {
 	Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import { useEffect, useEffectEvent } from "react";
 import { useState } from "react";
-import { href, Link } from "react-router";
+import { href, Link, useNavigate } from "react-router";
+import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
 import { AttachmentViewer } from "~/components/attachment-viewer";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
@@ -112,15 +115,51 @@ export function GradingView({
 		},
 	});
 
-	const handleSubmit = (values: GradingFormValues) => {
-		console.log("Grading form submitted:", {
-			submissionId: submission.id,
-			score: values.score,
-			feedback: values.feedback,
-		});
-		// TODO: Implement actual grading submission
-		// After successful submission, navigate back to submissions list
-	};
+	const { gradeSubmission, isGrading, data } = useGradeSubmission();
+	const navigate = useNavigate();
+
+	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
+		const scoreValue =
+			typeof values.score === "number" ? values.score : Number.parseFloat(String(values.score));
+		if (Number.isNaN(scoreValue)) {
+			notifications.show({
+				title: "Error",
+				message: "Invalid score value",
+				color: "red",
+			});
+			return;
+		}
+
+		gradeSubmission(submission.id, scoreValue, values.feedback || undefined);
+	});
+
+	// Handle grading response
+	useEffect(() => {
+		if (data) {
+			if ("success" in data && data.success) {
+				notifications.show({
+					title: "Success",
+					message: "Grade submitted successfully",
+					color: "green",
+				});
+				// Navigate back to submissions list
+				navigate(
+					href("/course/module/:moduleLinkId/submissions", {
+						moduleLinkId: moduleLinkId.toString(),
+					}),
+				);
+			} else if ("error" in data) {
+				notifications.show({
+					title: "Error",
+					message:
+						typeof data.error === "string"
+							? data.error
+							: "Failed to submit grade",
+					color: "red",
+				});
+			}
+		}
+	}, [data, navigate, moduleLinkId]);
 
 	// Get student information
 	const student = submission.student;
@@ -310,7 +349,7 @@ export function GradingView({
 								</div>
 
 								<Group justify="flex-end">
-									<Button type="submit" variant="filled">
+									<Button type="submit" variant="filled" loading={isGrading}>
 										Submit Grade
 									</Button>
 								</Group>

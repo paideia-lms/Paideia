@@ -40,6 +40,7 @@ import {
 	tryDeleteAssignmentSubmission,
 	tryGetAssignmentSubmissionById,
 } from "server/internal/assignment-submission-management";
+import { tryGradeAssignmentSubmission } from "server/internal/user-grade-management";
 import {
 	canDeleteSubmissions,
 	canSeeModuleSubmissions,
@@ -150,8 +151,6 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-	assertRequestMethod(request.method, "DELETE");
-
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -163,39 +162,110 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Check if user can delete submissions
-	const canDelete = canDeleteSubmissions(
-		currentUser,
-		enrolmentContext?.enrolment,
-	);
-
-	if (!canDelete) {
-		return unauthorized({
-			error: "You don't have permission to delete submissions",
-		});
-	}
-
-	// Get submission ID from request
 	const formData = await request.formData();
-	const submissionId = formData.get("submissionId");
+	const method = request.method;
 
-	if (!submissionId || typeof submissionId !== "string") {
-		return badRequest({ error: "Submission ID is required" });
+	if (method === "DELETE") {
+		assertRequestMethod(request.method, "DELETE");
+
+		// Check if user can delete submissions
+		const canDelete = canDeleteSubmissions(
+			currentUser,
+			enrolmentContext?.enrolment,
+		);
+
+		if (!canDelete) {
+			return unauthorized({
+				error: "You don't have permission to delete submissions",
+			});
+		}
+
+		// Get submission ID from request
+		const submissionId = formData.get("submissionId");
+
+		if (!submissionId || typeof submissionId !== "string") {
+			return badRequest({ error: "Submission ID is required" });
+		}
+
+		const id = Number.parseInt(submissionId, 10);
+		if (Number.isNaN(id)) {
+			return badRequest({ error: "Invalid submission ID" });
+		}
+
+		// Delete the submission
+		const deleteResult = await tryDeleteAssignmentSubmission(payload, id);
+
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
+
+		return { success: true };
 	}
 
-	const id = Number.parseInt(submissionId, 10);
-	if (Number.isNaN(id)) {
-		return badRequest({ error: "Invalid submission ID" });
+	if (method === "POST") {
+		assertRequestMethod(request.method, "POST");
+
+		// Check if user can grade submissions (same as viewing submissions)
+		const canGrade = canSeeModuleSubmissions(
+			currentUser,
+			enrolmentContext?.enrolment,
+		);
+
+		if (!canGrade) {
+			return unauthorized({
+				error: "You don't have permission to grade submissions",
+			});
+		}
+
+		// Get form data
+		const submissionId = formData.get("submissionId");
+		const score = formData.get("score");
+		const feedback = formData.get("feedback");
+
+		// Validate submission ID
+		if (!submissionId || typeof submissionId !== "string") {
+			return badRequest({ error: "Submission ID is required" });
+		}
+
+		const id = Number.parseInt(submissionId, 10);
+		if (Number.isNaN(id)) {
+			return badRequest({ error: "Invalid submission ID" });
+		}
+
+		// Validate score
+		if (!score || typeof score !== "string") {
+			return badRequest({ error: "Score is required" });
+		}
+
+		const scoreValue = Number.parseFloat(score);
+		if (Number.isNaN(scoreValue) || scoreValue < 0) {
+			return badRequest({ error: "Invalid score value" });
+		}
+
+		// Grade the submission
+		const gradeResult = await tryGradeAssignmentSubmission({
+			payload,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id ?? null,
+			},
+			req: request,
+			submissionId: id,
+			score: scoreValue,
+			feedback: feedback && typeof feedback === "string" ? feedback : undefined,
+			gradedBy: currentUser.id,
+			status: "graded",
+		});
+
+		if (!gradeResult.ok) {
+			const errorMessage = String(gradeResult.error);
+			return badRequest({ error: errorMessage });
+		}
+
+		return { success: true, submission: gradeResult.value.submission };
 	}
 
-	// Delete the submission
-	const deleteResult = await tryDeleteAssignmentSubmission(payload, id);
-
-	if (!deleteResult.ok) {
-		return badRequest({ error: deleteResult.error.message });
-	}
-
-	return { success: true };
+	return badRequest({ error: "Unsupported method" });
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -206,20 +276,18 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 		(actionData.status === StatusCode.BadRequest ||
 			actionData.status === StatusCode.Unauthorized)
 	) {
+		const errorMessage =
+			"error" in actionData && typeof actionData.error === "string"
+				? actionData.error
+				: "Failed to process request";
 		notifications.show({
 			title: "Error",
-			message:
-				"error" in actionData && typeof actionData.error === "string"
-					? actionData.error
-					: "Failed to delete submission",
+			message: errorMessage,
 			color: "red",
 		});
 	} else if ("success" in actionData && actionData.success) {
-		notifications.show({
-			title: "Success",
-			message: "Submission deleted successfully",
-			color: "green",
-		});
+		// Determine which action succeeded based on the request method
+		// This will be handled by the specific hooks
 	}
 
 	return actionData;
@@ -464,18 +532,49 @@ function StudentSubmissionRow({
 const useDeleteSubmission = () => {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const deleteSubmission = (submissionId: number) => {
+	const deleteSubmission = (submissionId: number, moduleLinkId: number) => {
 		const formData = new FormData();
 		formData.append("submissionId", submissionId.toString());
 
 		fetcher.submit(formData, {
 			method: "DELETE",
+			action: href("/course/module/:moduleLinkId/submissions", {
+				moduleLinkId: moduleLinkId.toString(),
+			}),
 		});
 	};
 
 	return {
 		deleteSubmission,
 		isDeleting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
+export const useGradeSubmission = () => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const gradeSubmission = (
+		submissionId: number,
+		score: number,
+		feedback?: string,
+	) => {
+		const formData = new FormData();
+		formData.append("submissionId", submissionId.toString());
+		formData.append("score", score.toString());
+		if (feedback) {
+			formData.append("feedback", feedback);
+		}
+
+		fetcher.submit(formData, {
+			method: "POST",
+		});
+	};
+
+	return {
+		gradeSubmission,
+		isGrading: fetcher.state !== "idle",
 		state: fetcher.state,
 		data: fetcher.data,
 	};
@@ -490,6 +589,7 @@ export default function ModuleSubmissionsPage({
 }: Route.ComponentProps) {
 	const {
 		module,
+		moduleLinkId,
 		moduleSettings,
 		course,
 		enrollments,
@@ -556,10 +656,6 @@ export default function ModuleSubmissionsPage({
 		// TODO: Implement batch export functionality
 	};
 
-	const handleBatchGrade = () => {
-		console.log("Batch grade selected submissions:", selectedRows);
-		// TODO: Implement batch grading functionality
-	};
 
 	// Render content based on module type
 	const renderSubmissions = () => {
@@ -578,14 +674,6 @@ export default function ModuleSubmissionsPage({
 									</Text>
 								</Group>
 								<Group gap="xs">
-									<Button
-										variant="light"
-										leftSection={<IconPencil size={16} />}
-										onClick={handleBatchGrade}
-										size="sm"
-									>
-										Grade Selected
-									</Button>
 									<Button
 										variant="light"
 										leftSection={<IconMail size={16} />}
@@ -660,7 +748,7 @@ export default function ModuleSubmissionsPage({
 												isSelected={selectedRows.includes(enrollment.id)}
 												onSelectRow={handleSelectRow}
 												canDelete={canDelete}
-												onDeleteSubmission={deleteSubmission}
+												onDeleteSubmission={(submissionId) => deleteSubmission(submissionId, moduleLinkId)}
 												moduleLinkId={loaderData.moduleLinkId}
 											/>
 										);

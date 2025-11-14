@@ -916,7 +916,11 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 						? String(updatedSubmission.createdAt)
 						: undefined;
 
-			const userGradeResult = await tryCreateUserGrade(payload, request, {
+			const userGradeResult = await tryCreateUserGrade({
+				payload,
+				user: null,
+				req: { ...request, transactionID },
+				overrideAccess: false,
 				enrollmentId,
 				gradebookItemId,
 				baseGrade: grade,
@@ -926,7 +930,6 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 				feedback,
 				gradedBy,
 				submittedAt: submittedAtString,
-				transactionID,
 			});
 
 			if (!userGradeResult.ok) {

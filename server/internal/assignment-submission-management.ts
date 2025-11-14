@@ -665,7 +665,11 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			});
 
 			// Create user grade in gradebook
-			const userGradeResult = await tryCreateUserGrade(payload, request, {
+			const userGradeResult = await tryCreateUserGrade({
+				payload,
+				user: null,
+				req: { ...request, transactionID },
+				overrideAccess: false,
 				enrollmentId,
 				gradebookItemId,
 				baseGrade: grade,
@@ -675,7 +679,6 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				feedback,
 				gradedBy,
 				submittedAt: submittedAt || updatedSubmission.submittedAt || undefined,
-				transactionID,
 			});
 
 			if (!userGradeResult.ok) {

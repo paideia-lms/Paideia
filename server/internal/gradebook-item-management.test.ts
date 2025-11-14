@@ -3,12 +3,22 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
+import {
+	type CreateActivityModuleArgs,
+	tryCreateActivityModule,
+} from "./activity-module-management";
+import {
+	type CreateCourseActivityModuleLinkArgs,
+	tryCreateCourseActivityModuleLink,
+} from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import {
 	tryCreateGradebookItem,
 	tryDeleteGradebookItem,
 	tryFindGradebookItemById,
+	tryFindGradebookItemByCourseModuleLink,
 	tryGetCategoryItems,
 	tryGetGradebookItemsInOrder,
 	tryGetItemsWithUserGrades,
@@ -426,6 +436,132 @@ describe("Gradebook Item Management", () => {
 				expect(item.extraCredit).toBe(true);
 				expect(item.maxGrade).toBeGreaterThan(0);
 			});
+		}
+	});
+
+	it("should find gradebook item by course module link", async () => {
+		// Create an activity module (assignment type)
+		const activityModuleArgs: CreateActivityModuleArgs = {
+			title: "Test Assignment for Gradebook Item",
+			description: "Test assignment description",
+			type: "assignment",
+			status: "published",
+			userId: instructor.id,
+			assignmentData: {
+				instructions: "Complete this assignment",
+				requireFileSubmission: false,
+				requireTextSubmission: true,
+			},
+		};
+
+		const activityModuleResult = await tryCreateActivityModule(
+			payload,
+			activityModuleArgs,
+		);
+
+		expect(activityModuleResult.ok).toBe(true);
+		if (!activityModuleResult.ok) {
+			throw new Error("Failed to create activity module");
+		}
+
+		const activityModuleId = activityModuleResult.value.id;
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: testCourse.id,
+				title: "Test Section for Gradebook Item",
+				description: "Test section",
+			},
+			overrideAccess: true,
+		});
+
+		expect(sectionResult.ok).toBe(true);
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+
+		// Create course-activity-module-link
+		const linkArgs: CreateCourseActivityModuleLinkArgs = {
+			course: testCourse.id,
+			activityModule: activityModuleId,
+			section: sectionResult.value.id,
+			contentOrder: 0,
+		};
+
+		const linkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			{} as Request,
+			linkArgs,
+		);
+
+		expect(linkResult.ok).toBe(true);
+		if (!linkResult.ok) {
+			throw new Error("Failed to create course activity module link");
+		}
+
+		const courseModuleLinkId = linkResult.value.id;
+
+		// Create a gradebook item linked to the course module link
+		const gradebookItemResult = await tryCreateGradebookItem(
+			payload,
+			{} as Request,
+			{
+				gradebookId: testGradebook.id,
+				categoryId: null,
+				name: "Test Assignment Gradebook Item",
+				description: "Gradebook item for test assignment",
+				activityModuleId: courseModuleLinkId,
+				maxGrade: 100,
+				minGrade: 0,
+				weight: 20,
+				extraCredit: false,
+				sortOrder: 10,
+			},
+		);
+
+		expect(gradebookItemResult.ok).toBe(true);
+		if (!gradebookItemResult.ok) {
+			throw new Error("Failed to create gradebook item");
+		}
+
+		const gradebookItemId = gradebookItemResult.value.id;
+
+		// Test finding the gradebook item by course module link
+		const findResult = await tryFindGradebookItemByCourseModuleLink({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseModuleLinkId,
+		});
+
+		expect(findResult.ok).toBe(true);
+		if (findResult.ok) {
+			expect(findResult.value.id).toBe(gradebookItemId);
+			expect(findResult.value.name).toBe("Test Assignment Gradebook Item");
+			expect(findResult.value.activityModule).toBeDefined();
+			const activityModule =
+				typeof findResult.value.activityModule === "number"
+					? findResult.value.activityModule
+					: findResult.value.activityModule?.id;
+			expect(activityModule).toBe(courseModuleLinkId);
+		}
+	});
+
+	it("should fail to find gradebook item for non-existent course module link", async () => {
+		const result = await tryFindGradebookItemByCourseModuleLink({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseModuleLinkId: 99999, // Non-existent course module link ID
+		});
+
+		expect(result.ok).toBe(false);
+		if (!result.ok) {
+			expect(String(result.error)).toContain("not found");
 		}
 	});
 });
