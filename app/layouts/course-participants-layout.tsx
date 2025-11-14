@@ -20,14 +20,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -66,13 +62,13 @@ export default function CourseParticipantsLayout({
 
 		switch (value) {
 			case ParticipantsTab.Participants:
-				navigate(href("/course/:id/participants", { id: courseId }));
+				navigate(href("/course/:courseId/participants", { courseId: courseId }));
 				break;
 			case ParticipantsTab.Profile:
-				navigate(href("/course/:id/participants/profile", { id: courseId }));
+				navigate(href("/course/:courseId/participants/profile", { courseId: courseId }));
 				break;
 			case ParticipantsTab.Groups:
-				navigate(href("/course/:id/groups", { id: courseId }));
+				navigate(href("/course/:courseId/groups", { courseId: courseId }));
 				break;
 		}
 	};

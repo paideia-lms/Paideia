@@ -26,7 +26,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const courseId = Number.parseInt(params.id, 10);
+	const courseId = Number.parseInt(params.courseId, 10);
 	if (Number.isNaN(courseId)) {
 		throw new BadRequestResponse("Invalid course ID");
 	}
@@ -47,10 +47,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					userId: enrolmentContext.enrolment.userId,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				userId: enrolmentContext.enrolment.userId,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 

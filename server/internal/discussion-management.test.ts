@@ -687,8 +687,10 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(replyResult.ok).toBe(true);
 
 		// List all submissions for this course module link
-		const listResult = await tryListDiscussionSubmissions(payload, {
+		const listResult = await tryListDiscussionSubmissions({
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
+			overrideAccess: true,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -704,8 +706,10 @@ describe("Discussion Management - Full Workflow", () => {
 		});
 
 		// Test filtering by post type
-		const threadListResult = await tryListDiscussionSubmissions(payload, {
+		const threadListResult = await tryListDiscussionSubmissions({
+			payload,
 			postType: "thread",
+			overrideAccess: true,
 		});
 
 		expect(threadListResult.ok).toBe(true);
@@ -717,8 +721,10 @@ describe("Discussion Management - Full Workflow", () => {
 		});
 
 		// Test filtering by student
-		const studentListResult = await tryListDiscussionSubmissions(payload, {
+		const studentListResult = await tryListDiscussionSubmissions({
+			payload,
 			studentId,
+			overrideAccess: true,
 		});
 
 		expect(studentListResult.ok).toBe(true);
@@ -1019,10 +1025,12 @@ describe("Discussion Management - Full Workflow", () => {
 		}
 
 		// Test pagination
-		const page1Result = await tryListDiscussionSubmissions(payload, {
+		const page1Result = await tryListDiscussionSubmissions({
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			limit: 2,
 			page: 1,
+			overrideAccess: true,
 		});
 
 		expect(page1Result.ok).toBe(true);

@@ -73,7 +73,7 @@ export function CreateGradeItemModal({
 				{
 					method: "POST",
 					encType: ContentType.JSON,
-					action: href("/course/:id/grades", { id: courseId.toString() }),
+					action: href("/course/:courseId/grades", { courseId: courseId.toString() }),
 				},
 			);
 		}
@@ -275,7 +275,7 @@ export function CreateCategoryModal({
 				{
 					method: "POST",
 					encType: ContentType.JSON,
-					action: href("/course/:id/grades", { id: courseId.toString() }),
+					action: href("/course/:courseId/grades", { courseId: courseId.toString() }),
 				},
 			);
 		}

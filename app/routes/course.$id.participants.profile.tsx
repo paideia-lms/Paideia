@@ -44,6 +44,7 @@ export const loader = async ({
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -51,11 +52,6 @@ export const loader = async ({
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
-	}
 
 	// Get course view data using the course context
 	if (!courseContext) {
@@ -69,13 +65,13 @@ export const loader = async ({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? canImpersonateUser(
-				userSession.authenticatedUser,
-				{
-					id: userId,
-					role: "student", // Enrolled users are not admins
-				},
-				userSession.isImpersonating,
-			)
+			userSession.authenticatedUser,
+			{
+				id: userId,
+				role: "student", // Enrolled users are not admins
+			},
+			userSession.isImpersonating,
+		)
 		: false;
 
 	return {
@@ -101,8 +97,9 @@ export default function CourseParticipantsProfilePage({
 	} = loaderData;
 	const { impersonate, isLoading } = useImpersonate();
 
+
 	// Redirect back to the course page after impersonation
-	const redirectPath = href("/course/:id", { id: course.id.toString() });
+	const redirectPath = href("/course/:courseId", { courseId: String(course.id) });
 	const [selectedUserId, setSelectedUserId] = useQueryState(
 		"userId",
 		parseAsInteger.withOptions({

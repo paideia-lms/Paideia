@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { AssignmentSubmissions } from "server/collections";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -34,9 +34,9 @@ export interface UpdateAssignmentSubmissionArgs {
 	attachments?: Array<
 		| number
 		| {
-				file: number;
-				description?: string;
-		  }
+			file: number;
+			description?: string;
+		}
 	>;
 	timeSpent?: number;
 	transactionID?: string | number;
@@ -57,12 +57,16 @@ export interface GetAssignmentSubmissionByIdArgs {
 }
 
 export interface ListAssignmentSubmissionsArgs {
+	payload: Payload;
 	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "draft" | "submitted" | "graded" | "returned";
 	limit?: number;
 	page?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
@@ -741,14 +745,18 @@ export const tryGradeAssignmentSubmission = Result.wrap(
  * Lists assignment submissions with optional filtering
  */
 export const tryListAssignmentSubmissions = Result.wrap(
-	async (payload: Payload, args: ListAssignmentSubmissionsArgs = {}) => {
+	async (args: ListAssignmentSubmissionsArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			status,
 			limit = 10,
 			page = 1,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		const where: Record<string, { equals: unknown }> = {};
@@ -784,6 +792,9 @@ export const tryListAssignmentSubmissions = Result.wrap(
 			page,
 			sort: "-createdAt",
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		// type narrowing

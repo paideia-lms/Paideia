@@ -28,12 +28,11 @@ enum CourseTab {
 	Backup = "backup",
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const { payload, pageInfo } = context.get(globalContextKey);
+export const loader = async ({ context }: Route.LoaderArgs) => {
+	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
-	const { id } = params as RouteParams<"layouts/course-layout">;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -41,11 +40,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const courseId = Number.parseInt(id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new ForbiddenResponse("Invalid course ID");
-	}
 
 	// Get course view data for tab context
 	if (!courseContext) {
@@ -115,25 +109,25 @@ export default function CourseLayout({
 
 		switch (value) {
 			case CourseTab.Course:
-				navigate(href("/course/:id", { id: courseId }));
+				navigate(href("/course/:courseId", { courseId: courseId }));
 				break;
 			case CourseTab.Settings:
-				navigate(href("/course/:id/settings", { id: courseId }));
+				navigate(href("/course/:courseId/settings", { courseId: courseId }));
 				break;
 			case CourseTab.Participants:
-				navigate(href("/course/:id/participants", { id: courseId }));
+				navigate(href("/course/:courseId/participants", { courseId: courseId }));
 				break;
 			case CourseTab.Grades:
-				navigate(href("/course/:id/grades", { id: courseId }));
+				navigate(href("/course/:courseId/grades", { courseId: courseId }));
 				break;
 			case CourseTab.Modules:
-				navigate(href("/course/:id/modules", { id: courseId }));
+				navigate(href("/course/:courseId/modules", { courseId: courseId }));
 				break;
 			case CourseTab.Bin:
-				navigate(href("/course/:id/bin", { id: courseId }));
+				navigate(href("/course/:courseId/bin", { courseId: courseId }));
 				break;
 			case CourseTab.Backup:
-				navigate(href("/course/:id/backup", { id: courseId }));
+				navigate(href("/course/:courseId/backup", { courseId: courseId }));
 				break;
 		}
 	};

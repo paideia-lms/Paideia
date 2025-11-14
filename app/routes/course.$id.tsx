@@ -27,14 +27,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -140,8 +136,8 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 							{canEdit && (
 								<Button
 									component={Link}
-									to={href("/course/:id/section/new", {
-										id: course.id.toString(),
+									to={href("/course/:courseId/section/new", {
+										courseId: String(course.id),
 									})}
 									leftSection={<IconPlus size={16} />}
 									size="sm"
@@ -162,8 +158,8 @@ export default function CourseViewPage({ loaderData }: Route.ComponentProps) {
 										padding="md"
 										withBorder
 										component={Link}
-										to={href("/course/section/:id", {
-											id: section.id.toString(),
+										to={href("/course/section/:sectionId", {
+											sectionId: String(section.id),
 										})}
 									>
 										<Stack gap="xs">

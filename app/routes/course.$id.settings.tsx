@@ -55,14 +55,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new ForbiddenResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -114,8 +110,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -155,7 +151,7 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
-	const { id } = params;
+	const { courseId } = params;
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({
 			success: false,
@@ -166,13 +162,8 @@ export const action = async ({
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	const courseId = Number.parseInt(id, 10);
-	if (Number.isNaN(courseId)) {
-		return badRequest({
-			success: false,
-			error: "Invalid course ID",
-		});
-	}
+
+
 
 	// Get user's enrollment for this course
 	const enrollments = await payload.find({
@@ -357,7 +348,7 @@ export const action = async ({
 
 		const updateResult = await tryUpdateCourse({
 			payload,
-			courseId,
+			courseId: Number(courseId),
 			data: {
 				title: parsed.data.title,
 				description,
@@ -431,7 +422,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			if (actionData.redirectTo) {
 				throw redirect(actionData.redirectTo);
 			}
-			throw redirect(href("/course/:id", { id: actionData.id.toString() }));
+			throw redirect(href("/course/:courseId", { courseId: String(actionData.id) }));
 		}
 	} else if ("error" in actionData) {
 		notifications.show({
@@ -448,7 +439,7 @@ export function useEditCourse() {
 	const editCourse = async (courseId: number, formData: FormData) => {
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/:id/settings", { id: courseId.toString() }),
+			action: href("/course/:courseId/settings", { courseId: String(courseId) }),
 			encType: "multipart/form-data",
 		});
 	};

@@ -298,8 +298,8 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 								size="sm"
 								fw={cell.isCategory ? 600 : 500}
 								component={Link}
-								to={href("/course/module/:id", {
-									id: cell.activityModuleLinkId.toString(),
+								to={href("/course/module/:moduleLinkId", {
+									moduleLinkId: cell.activityModuleLinkId.toString(),
 								})}
 								style={{ cursor: "pointer" }}
 							>

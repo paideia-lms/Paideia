@@ -242,6 +242,24 @@ type SubmissionType = SubmissionData & {
 	};
 };
 
+type QuizSubmissionType = {
+	id: number;
+	status: "in_progress" | "completed" | "graded" | "returned";
+	attemptNumber: number;
+	startedAt?: string | null;
+	submittedAt?: string | null;
+	timeSpent?: number | null;
+	totalScore?: number | null;
+	maxScore?: number | null;
+	percentage?: number | null;
+	student: {
+		id: number;
+		firstName?: string | null;
+		lastName?: string | null;
+		email?: string | null;
+	};
+};
+
 // ============================================================================
 // Sub-components
 // ============================================================================
@@ -273,10 +291,10 @@ function StudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter out draft submissions for display
@@ -319,8 +337,8 @@ function StudentSubmissionRow({
 							<Anchor
 								component={Link}
 								to={
-									href("/course/:id/participants/profile", {
-										id: courseId.toString(),
+									href("/course/:courseId/participants/profile", {
+										courseId: String(courseId),
 									}) + `?userId=${enrollment.userId}`
 								}
 								size="sm"
@@ -364,8 +382,8 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					{latestSubmission &&
-					"submittedAt" in latestSubmission &&
-					latestSubmission.submittedAt
+						"submittedAt" in latestSubmission &&
+						latestSubmission.submittedAt
 						? new Date(latestSubmission.submittedAt).toLocaleString()
 						: "-"}
 				</Table.Td>
@@ -375,10 +393,10 @@ function StudentSubmissionRow({
 							component={Link}
 							to={
 								hasSubmissions && latestSubmission
-									? href("/course/module/:id/submissions", {
-											id: moduleLinkId.toString(),
-										}) +
-										`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
+									? href("/course/module/:moduleLinkId/submissions", {
+										moduleLinkId: String(moduleLinkId),
+									}) +
+									`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
 									: "#"
 							}
 							size="xs"
@@ -656,16 +674,169 @@ export default function ModuleSubmissionsPage({
 		}
 
 		if (module.type === "quiz") {
+			// Create a map of quiz submissions by student ID
+			const quizSubmissionsByStudent = new Map<number, QuizSubmissionType[]>();
+			for (const submission of submissions) {
+				if (
+					"attemptNumber" in submission &&
+					"status" in submission &&
+					submission.status !== undefined
+				) {
+					const studentId = submission.student.id;
+					if (!quizSubmissionsByStudent.has(studentId)) {
+						quizSubmissionsByStudent.set(studentId, []);
+					}
+					quizSubmissionsByStudent
+						.get(studentId)
+						?.push(submission as QuizSubmissionType);
+				}
+			}
+
+			// Sort submissions by attempt number (newest first) for each student
+			for (const [studentId, studentSubmissions] of quizSubmissionsByStudent) {
+				quizSubmissionsByStudent.set(
+					studentId,
+					studentSubmissions.sort((a, b) => b.attemptNumber - a.attemptNumber),
+				);
+			}
+
 			return (
-				<Paper withBorder shadow="sm" p="xl" radius="md">
-					<Group justify="center" align="center" style={{ minHeight: 200 }}>
-						<div style={{ textAlign: "center" }}>
-							<Title order={3} c="dimmed" mb="md">
-								Quiz Results
-							</Title>
-							<Text c="dimmed">Quiz results view coming soon...</Text>
-						</div>
-					</Group>
+				<Paper withBorder shadow="sm" p="md" radius="md">
+					<ScrollArea>
+						<Table highlightOnHover style={{ minWidth: 900 }}>
+							<Table.Thead>
+								<Table.Tr>
+									<Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
+									<Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
+									<Table.Th style={{ minWidth: 100 }}>Status</Table.Th>
+									<Table.Th style={{ minWidth: 80 }}>Attempts</Table.Th>
+									<Table.Th style={{ minWidth: 100 }}>Score</Table.Th>
+									<Table.Th style={{ minWidth: 120 }}>Time Spent</Table.Th>
+									<Table.Th style={{ minWidth: 180 }}>Latest Submission</Table.Th>
+								</Table.Tr>
+							</Table.Thead>
+							<Table.Tbody>
+								{enrollments.map((enrollment) => {
+									const studentSubmissions =
+										quizSubmissionsByStudent.get(enrollment.userId) || [];
+									const latestSubmission = studentSubmissions[0];
+									const email = enrollment.email || "-";
+
+									// Calculate total score if graded
+									const gradedSubmissions = studentSubmissions.filter(
+										(s) => s.status === "graded" || s.status === "returned",
+									);
+									const totalScore = gradedSubmissions.reduce(
+										(sum, s) => sum + (s.totalScore || 0),
+										0,
+									);
+									const maxScore = gradedSubmissions.reduce(
+										(sum, s) => sum + (s.maxScore || 0),
+										0,
+									);
+									const averagePercentage =
+										gradedSubmissions.length > 0
+											? gradedSubmissions.reduce(
+												(sum, s) => sum + (s.percentage || 0),
+												0,
+											) / gradedSubmissions.length
+											: null;
+
+									return (
+										<Table.Tr key={enrollment.id}>
+											<Table.Td>
+												<Anchor
+													component={Link}
+													to={
+														href("/course/:courseId/participants/profile", {
+															courseId: String(course.id),
+														}) + `?userId=${enrollment.userId}`
+													}
+													size="sm"
+												>
+													{enrollment.name}
+												</Anchor>
+											</Table.Td>
+											<Table.Td>{email}</Table.Td>
+											<Table.Td>
+												{latestSubmission ? (
+													<Badge
+														color={
+															latestSubmission.status === "graded"
+																? "green"
+																: latestSubmission.status === "returned"
+																	? "blue"
+																	: latestSubmission.status === "completed"
+																		? "yellow"
+																		: "gray"
+														}
+														variant="light"
+													>
+														{latestSubmission.status === "in_progress"
+															? "In Progress"
+															: latestSubmission.status === "completed"
+																? "Completed"
+																: latestSubmission.status === "graded"
+																	? "Graded"
+																	: "Returned"}
+													</Badge>
+												) : (
+													<Badge color="gray" variant="light">
+														No submission
+													</Badge>
+												)}
+											</Table.Td>
+											<Table.Td>
+												{studentSubmissions.length > 0 ? (
+													<Text size="sm">{studentSubmissions.length}</Text>
+												) : (
+													<Text size="sm" c="dimmed">
+														0
+													</Text>
+												)}
+											</Table.Td>
+											<Table.Td>
+												{averagePercentage !== null ? (
+													<Text size="sm" fw={500}>
+														{totalScore > 0 && maxScore > 0
+															? `${totalScore}/${maxScore}`
+															: ""}{" "}
+														({averagePercentage.toFixed(1)}%)
+													</Text>
+												) : latestSubmission?.status === "completed" ? (
+													<Text size="sm" c="dimmed">
+														Pending
+													</Text>
+												) : (
+													<Text size="sm" c="dimmed">
+														-
+													</Text>
+												)}
+											</Table.Td>
+											<Table.Td>
+												{latestSubmission?.timeSpent ? (
+													<Text size="sm">
+														{Math.round(latestSubmission.timeSpent)} min
+													</Text>
+												) : (
+													<Text size="sm" c="dimmed">
+														-
+													</Text>
+												)}
+											</Table.Td>
+											<Table.Td>
+												{latestSubmission?.submittedAt
+													? new Date(latestSubmission.submittedAt).toLocaleString()
+													: latestSubmission?.startedAt
+														? `Started: ${new Date(latestSubmission.startedAt).toLocaleString()}`
+														: "-"}
+											</Table.Td>
+										</Table.Tr>
+									);
+								})}
+							</Table.Tbody>
+						</Table>
+					</ScrollArea>
 				</Paper>
 			);
 		}

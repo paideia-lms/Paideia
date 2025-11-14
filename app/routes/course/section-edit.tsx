@@ -133,8 +133,8 @@ export default function SectionEditPage({ loaderData }: Route.ComponentProps) {
 							<Group justify="flex-end" mt="md">
 								<Button
 									component={Link}
-									to={href("/course/section/:id", {
-										id: section.id.toString(),
+									to={href("/course/section/:sectionId", {
+										sectionId: String(section.id),
 									})}
 									variant="light"
 									disabled={isLoading}

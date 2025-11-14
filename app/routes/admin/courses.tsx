@@ -109,7 +109,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -333,8 +333,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																		(id) => id !== course.id,
-																	),
+																	(id) => id !== course.id,
+																),
 														)
 													}
 												/>
@@ -384,8 +384,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 													<Menu.Dropdown>
 														<Menu.Item
 															component={Link}
-															to={href("/course/:id", {
-																id: String(course.id),
+															to={href("/course/:courseId", {
+																courseId: String(course.id),
 															})}
 															leftSection={<IconEye size={16} />}
 														>
@@ -393,8 +393,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 														</Menu.Item>
 														<Menu.Item
 															component={Link}
-															to={href("/course/:id/settings", {
-																id: String(course.id),
+															to={href("/course/:courseId/settings", {
+																courseId: String(course.id),
 															})}
 															leftSection={<IconSettings size={16} />}
 														>
@@ -403,8 +403,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 														<Menu.Divider />
 														<Menu.Item
 															component={Link}
-															to={href("/course/:id/modules", {
-																id: String(course.id),
+															to={href("/course/:courseId/modules", {
+																courseId: String(course.id),
 															})}
 															leftSection={<IconFolder size={16} />}
 														>
@@ -412,8 +412,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 														</Menu.Item>
 														<Menu.Item
 															component={Link}
-															to={href("/course/:id/participants", {
-																id: String(course.id),
+															to={href("/course/:courseId/participants", {
+																courseId: String(course.id),
 															})}
 															leftSection={<IconUsers size={16} />}
 														>
@@ -421,8 +421,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 														</Menu.Item>
 														<Menu.Item
 															component={Link}
-															to={href("/course/:id/grades", {
-																id: String(course.id),
+															to={href("/course/:courseId/grades", {
+																courseId: String(course.id),
 															})}
 															leftSection={<IconReportAnalytics size={16} />}
 														>
@@ -430,8 +430,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 														</Menu.Item>
 														<Menu.Item
 															component={Link}
-															to={href("/course/:id/backup", {
-																id: String(course.id),
+															to={href("/course/:courseId/backup", {
+																courseId: String(course.id),
 															})}
 															leftSection={<IconDatabase size={16} />}
 														>

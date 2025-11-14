@@ -459,7 +459,7 @@ export function CourseStructureTree({
 					<Button
 						size="compact-xs"
 						component={Link}
-						to={href("/course/:id", { id: courseId.toString() })}
+						to={href("/course/:courseId", { courseId: courseId.toString() })}
 						variant="light"
 					>
 						Root

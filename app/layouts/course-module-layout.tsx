@@ -73,16 +73,18 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 export default function CourseModuleLayout({
 	loaderData,
+	params
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const {
 		module,
 		moduleSettings,
-		moduleLinkId,
+		// moduleLinkId,
 		pageInfo,
 		currentUser,
 		enrolment,
 	} = loaderData;
+	const { moduleLinkId } = params;
 
 	const theme = useMantineTheme();
 	// Determine current tab based on route matches
@@ -98,17 +100,17 @@ export default function CourseModuleLayout({
 	const handleTabChange = (value: string | null) => {
 		if (!value) return;
 
-		const moduleId = moduleLinkId.toString();
+
 
 		switch (value) {
 			case ModuleTab.Preview:
-				navigate(href("/course/module/:id", { id: moduleId }));
+				navigate(href("/course/module/:moduleLinkId", { moduleLinkId }));
 				break;
 			case ModuleTab.Setting:
-				navigate(href("/course/module/:id/edit", { id: moduleId }));
+				navigate(href("/course/module/:moduleLinkId/edit", { moduleLinkId }));
 				break;
 			case ModuleTab.Submissions:
-				navigate(href("/course/module/:id/submissions", { id: moduleId }));
+				navigate(href("/course/module/:moduleLinkId/submissions", { moduleLinkId }));
 				break;
 		}
 	};

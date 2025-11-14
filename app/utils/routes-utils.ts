@@ -1,14 +1,15 @@
 import { routes } from "virtual:react-router/server-build";
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
 import { matchRoutes, type Register } from "react-router";
+import type { AllUnionFields } from "type-fest"
 
 export type RouteId = keyof Register["routeModules"];
 type RoutePage<T extends RouteId> = Simplify<
 	Extract<Register["routeFiles"][keyof Register["routeFiles"]], { id: T }>
 >["page"];
-export type RouteParams<T extends RouteId> = Simplify<
+export type RouteParams<T extends RouteId> = AllUnionFields<Simplify<
 	Register["pages"][RoutePage<T>]["params"]
->;
+>>;
 
 /**
  * the matched info

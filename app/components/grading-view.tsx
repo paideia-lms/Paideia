@@ -38,23 +38,23 @@ export interface GradingViewProps {
 		content?: string | null;
 		submittedAt?: string | null;
 		student:
-			| {
-					id: number;
-					firstName?: string | null;
-					lastName?: string | null;
-					email?: string | null;
-			  }
-			| number;
+		| {
+			id: number;
+			firstName?: string | null;
+			lastName?: string | null;
+			email?: string | null;
+		}
+		| number;
 		attachments?: Array<{
 			file:
-				| number
-				| {
-						id: number;
-						filename?: string | null;
-						mimeType?: string | null;
-						filesize?: number | null;
-						url?: string | null;
-				  };
+			| number
+			| {
+				id: number;
+				filename?: string | null;
+				mimeType?: string | null;
+				filesize?: number | null;
+				url?: string | null;
+			};
 			description?: string | null;
 		}> | null;
 	};
@@ -127,7 +127,7 @@ export function GradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-				student.email
+			student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -143,8 +143,8 @@ export function GradingView({
 			<Container size="xl">
 				<Button
 					component={Link}
-					to={href("/course/module/:id/submissions", {
-						id: moduleLinkId.toString(),
+					to={href("/course/module/:moduleLinkId/submissions", {
+						moduleLinkId: moduleLinkId.toString(),
 					})}
 					variant="subtle"
 				>
@@ -219,12 +219,12 @@ export function GradingView({
 														typeof file === "object"
 															? file
 															: {
-																	id: file,
-																	filename: null,
-																	mimeType: null,
-																	filesize: null,
-																	url: null,
-																};
+																id: file,
+																filename: null,
+																mimeType: null,
+																filesize: null,
+																url: null,
+															};
 													const filename =
 														fileData.filename || `File ${fileData.id}`;
 													const isExpanded =

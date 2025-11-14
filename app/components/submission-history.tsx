@@ -433,8 +433,8 @@ export function SubmissionHistoryItem({
 										<Menu.Item
 											component={Link}
 											to={
-												href("/course/module/:id/submissions", {
-													id: moduleLinkId.toString(),
+												href("/course/module/:moduleLinkId/submissions", {
+													moduleLinkId: moduleLinkId.toString(),
 												}) +
 												`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
 											}

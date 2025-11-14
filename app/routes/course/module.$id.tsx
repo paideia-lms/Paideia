@@ -45,6 +45,7 @@ import {
 	tryGetNextAttemptNumber,
 	tryListQuizSubmissions,
 	tryStartQuizAttempt,
+	trySubmitQuiz,
 } from "server/internal/quiz-submission-management";
 import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
 import { canSubmitAssignment } from "server/utils/permissions";
@@ -54,6 +55,12 @@ import { DiscussionPreview } from "~/components/activity-modules-preview/discuss
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizInstructionsView } from "~/components/activity-modules-preview/quiz-instructions-view";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
+import type {
+	Question,
+	QuizAnswers,
+	QuizConfig,
+} from "server/json/raw-quiz-config.types.v2";
+import { isRegularQuiz } from "server/json/raw-quiz-config.types.v2";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
 import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
@@ -177,10 +184,7 @@ export const loader = async ({
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const moduleLinkId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(moduleLinkId)) {
-		throw new BadRequestResponse("Invalid module link ID");
-	}
+	const { moduleLinkId } = params;
 
 	// Get course context to ensure user has access to this course
 	if (!courseContext) {
@@ -199,7 +203,7 @@ export const loader = async ({
 
 	// Find current module index
 	const currentIndex = flattenedModules.findIndex(
-		(m) => m.moduleLinkId === moduleLinkId,
+		(m) => m.moduleLinkId === Number(moduleLinkId),
 	);
 
 	// Get previous and next modules
@@ -268,7 +272,7 @@ export const loader = async ({
 		// Fetch only the current student's quiz submissions
 		const quizSubmissionsResult = await tryListQuizSubmissions({
 			payload,
-			courseModuleLinkId: moduleLinkId,
+			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
 			limit: 1000,
 			user: {
@@ -346,7 +350,7 @@ export const action = async ({
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
-
+	const { moduleLinkId } = params;
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
@@ -359,23 +363,99 @@ export const action = async ({
 		return badRequest({ error: "Enrollment not found" });
 	}
 
-	const moduleLinkId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(moduleLinkId)) {
-		return badRequest({ error: "Invalid module link ID" });
-	}
-
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Check if this is a quiz start attempt action
+	// Check if this is a quiz action
 	const { action: actionParam } = loadSearchParams(request);
 	const isQuizStart =
 		courseModuleContext.module.type === "quiz" &&
 		actionParam === QuizActions.START_ATTEMPT;
+	const isQuizSubmit =
+		courseModuleContext.module.type === "quiz" &&
+		actionParam === QuizActions.SUBMIT_QUIZ;
 
 	// Only students can submit assignments or start quizzes
 	if (!canSubmitAssignment(enrolmentContext.enrolment)) {
 		throw new ForbiddenResponse("Only students can submit assignments");
+	}
+
+	// Handle quiz submission
+	if (isQuizSubmit) {
+		const formData = await request.formData();
+		const submissionIdParam = formData.get("submissionId");
+		const answersJson = formData.get("answers");
+		const timeSpentParam = formData.get("timeSpent");
+
+		if (!submissionIdParam) {
+			return badRequest({ error: "Submission ID is required" });
+		}
+
+		const submissionId = Number.parseInt(
+			typeof submissionIdParam === "string" ? submissionIdParam : "",
+			10,
+		);
+		if (Number.isNaN(submissionId)) {
+			return badRequest({ error: "Invalid submission ID" });
+		}
+
+		// Parse answers if provided
+		let answers: Array<{
+			questionId: string;
+			questionText: string;
+			questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
+			selectedAnswer?: string;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected: boolean;
+			}>;
+		}> | undefined;
+
+		if (answersJson && typeof answersJson === "string") {
+			try {
+				answers = JSON.parse(answersJson) as typeof answers;
+			} catch {
+				return badRequest({ error: "Invalid answers format" });
+			}
+		}
+
+		// Parse timeSpent if provided
+		let timeSpent: number | undefined;
+		if (timeSpentParam) {
+			const parsed = Number.parseFloat(
+				typeof timeSpentParam === "string" ? timeSpentParam : "",
+			);
+			if (!Number.isNaN(parsed)) {
+				timeSpent = parsed;
+			}
+		}
+
+		const submitResult = await trySubmitQuiz({
+			payload,
+			submissionId,
+			answers,
+			timeSpent,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id ?? undefined,
+			},
+			overrideAccess: false,
+		});
+
+		if (!submitResult.ok) {
+			return badRequest({ error: submitResult.error.message });
+		}
+
+		// Redirect to remove showQuiz parameter and show instructions view
+		return redirect(
+			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }),
+		);
 	}
 
 	// Handle quiz start attempt
@@ -383,7 +463,7 @@ export const action = async ({
 		// Check if there's already an in_progress submission
 		const checkResult = await tryCheckInProgressSubmission({
 			payload,
-			courseModuleLinkId: moduleLinkId,
+			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
 			user: {
 				...currentUser,
@@ -400,8 +480,8 @@ export const action = async ({
 		// If there's an in_progress submission, reuse it by redirecting with showQuiz parameter
 		if (checkResult.value.hasInProgress) {
 			return redirect(
-				href("/course/module/:id", {
-					id: moduleLinkId.toString(),
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
 				}) + "?showQuiz=true",
 			);
 		}
@@ -410,7 +490,7 @@ export const action = async ({
 		// Get next attempt number
 		const nextAttemptResult = await tryGetNextAttemptNumber({
 			payload,
-			courseModuleLinkId: moduleLinkId,
+			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
 			user: {
 				...currentUser,
@@ -426,7 +506,7 @@ export const action = async ({
 
 		const startResult = await tryStartQuizAttempt({
 			payload,
-			courseModuleLinkId: moduleLinkId,
+			courseModuleLinkId: Number(moduleLinkId),
 			studentId: currentUser.id,
 			enrollmentId: enrolmentContext.enrolment.id,
 			attemptNumber: nextAttemptResult.value,
@@ -444,8 +524,8 @@ export const action = async ({
 
 		// Redirect with showQuiz parameter to show the quiz preview
 		return redirect(
-			href("/course/module/:id", {
-				id: moduleLinkId.toString(),
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
 			}) + "?showQuiz=true",
 		);
 	}
@@ -573,7 +653,7 @@ export const action = async ({
 		} else {
 			// Create new submission with next attempt number
 			const createResult = await tryCreateAssignmentSubmission(payload, {
-				courseModuleLinkId: moduleLinkId,
+				courseModuleLinkId: Number(moduleLinkId),
 				studentId: currentUser.id,
 				enrollmentId: enrolmentContext.enrolment.id,
 				content: textContent,
@@ -605,7 +685,7 @@ export const action = async ({
 		await payload.db.commitTransaction(transactionID);
 
 		return redirect(
-			href("/course/module/:id", { id: moduleLinkId.toString() }),
+			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }),
 		);
 	} catch (error) {
 		await payload.db.rollbackTransaction(transactionID);
@@ -687,8 +767,8 @@ const useStartQuizAttempt = (moduleLinkId: number) => {
 		const formData = new FormData();
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:id", {
-				id: moduleLinkId.toString(),
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
 			}) + `?action=${QuizActions.START_ATTEMPT}`,
 		});
 	};
@@ -700,6 +780,193 @@ const useStartQuizAttempt = (moduleLinkId: number) => {
 		data: fetcher.data,
 	};
 };
+
+const useSubmitQuiz = (moduleLinkId: number) => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const submitQuiz = (
+		submissionId: number,
+		answers: Array<{
+			questionId: string;
+			questionText: string;
+			questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
+			selectedAnswer?: string;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected: boolean;
+			}>;
+		}>,
+		timeSpent?: number,
+	) => {
+		const formData = new FormData();
+		formData.append("submissionId", submissionId.toString());
+		formData.append("answers", JSON.stringify(answers));
+		if (timeSpent !== undefined) {
+			formData.append("timeSpent", timeSpent.toString());
+		}
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?action=${QuizActions.SUBMIT_QUIZ}`,
+		});
+	};
+
+	return {
+		submitQuiz,
+		isSubmitting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
+/**
+ * Transform QuizAnswers from quiz preview format to submission format
+ */
+function transformQuizAnswersToSubmissionFormat(
+	quizConfig: QuizConfig,
+	answers: QuizAnswers,
+): Array<{
+	questionId: string;
+	questionText: string;
+	questionType:
+	| "multiple_choice"
+	| "true_false"
+	| "short_answer"
+	| "essay"
+	| "fill_blank";
+	selectedAnswer?: string;
+	multipleChoiceAnswers?: Array<{
+		option: string;
+		isSelected: boolean;
+	}>;
+}> {
+	const result: Array<{
+		questionId: string;
+		questionText: string;
+		questionType:
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
+		selectedAnswer?: string;
+		multipleChoiceAnswers?: Array<{
+			option: string;
+			isSelected: boolean;
+		}>;
+	}> = [];
+
+	// Helper to map question type from quiz config to submission format
+	const mapQuestionType = (
+		type: Question["type"],
+	): "multiple_choice" | "true_false" | "short_answer" | "essay" | "fill_blank" => {
+		switch (type) {
+			case "multiple-choice":
+				return "multiple_choice";
+			case "short-answer":
+				return "short_answer";
+			case "long-answer":
+			case "article":
+				return "essay";
+			case "fill-in-the-blank":
+				return "fill_blank";
+			case "choice":
+				return "multiple_choice";
+			case "ranking":
+			case "single-selection-matrix":
+			case "multiple-selection-matrix":
+			case "whiteboard":
+				// These types don't have direct mapping, use essay as fallback
+				return "essay";
+			default:
+				return "essay";
+		}
+	};
+
+	// Get all questions from quiz config
+	const questions: Question[] = [];
+	if (isRegularQuiz(quizConfig)) {
+		for (const page of quizConfig.pages || []) {
+			questions.push(...page.questions);
+		}
+	} else {
+		// For container quizzes, we'd need to handle nested quizzes
+		// For now, we'll only handle regular quizzes
+	}
+
+	// Transform each answer
+	for (const [questionId, answerValue] of Object.entries(answers)) {
+		const question = questions.find((q) => q.id === questionId);
+		if (!question) continue;
+
+		const questionType = mapQuestionType(question.type);
+		const submissionAnswer: {
+			questionId: string;
+			questionText: string;
+			questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
+			selectedAnswer?: string;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected: boolean;
+			}>;
+		} = {
+			questionId,
+			questionText: question.prompt,
+			questionType,
+		};
+
+		// Handle different answer value types
+		if (typeof answerValue === "string") {
+			// Single string answer (multiple-choice, short-answer, long-answer, article)
+			if (question.type === "multiple-choice" || question.type === "short-answer") {
+				submissionAnswer.selectedAnswer = answerValue;
+			} else {
+				// For long-answer and article, store as selectedAnswer
+				submissionAnswer.selectedAnswer = answerValue;
+			}
+		} else if (Array.isArray(answerValue)) {
+			// Array answer (fill-in-the-blank, choice, ranking)
+			if (question.type === "choice" && "options" in question) {
+				// For choice questions, create multipleChoiceAnswers
+				const options = question.options;
+				submissionAnswer.multipleChoiceAnswers = Object.keys(options).map(
+					(optionKey) => ({
+						option: optionKey,
+						isSelected: answerValue.includes(optionKey),
+					}),
+				);
+			} else {
+				// For other array types, join as comma-separated string
+				submissionAnswer.selectedAnswer = answerValue.join(", ");
+			}
+		} else if (typeof answerValue === "object" && answerValue !== null) {
+			// Object answer (fill-in-the-blank with blanks, matrix questions)
+			if (question.type === "fill-in-the-blank") {
+				// Join object values as comma-separated string
+				submissionAnswer.selectedAnswer = Object.values(answerValue).join(", ");
+			} else {
+				// For matrix questions, stringify the object
+				submissionAnswer.selectedAnswer = JSON.stringify(answerValue);
+			}
+		}
+
+		result.push(submissionAnswer);
+	}
+
+	return result;
+}
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -767,6 +1034,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	} = loaderData;
 	const { submitAssignment, isSubmitting } = useSubmitAssignment();
 	const { startQuizAttempt } = useStartQuizAttempt(loaderData.moduleLinkId);
+	const { submitQuiz } = useSubmitQuiz(loaderData.moduleLinkId);
 	const [showQuiz] = useQueryState(
 		"showQuiz",
 		parseAsString.withDefault(""),
@@ -905,10 +1173,42 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 
 				// Show QuizPreview only if showQuiz parameter is true AND there's an active attempt
 				if (showQuiz === "true" && hasActiveAttempt) {
+					// Find the in_progress submission
+					const activeSubmission = quizSubmissions.find(
+						(sub) => sub.status === "in_progress",
+					);
+
+					const handleQuizSubmit = (answers: QuizAnswers) => {
+						if (!activeSubmission) return;
+
+						const transformedAnswers = transformQuizAnswersToSubmissionFormat(
+							quizConfig,
+							answers,
+						);
+
+						// Calculate time spent if startedAt exists
+						let timeSpent: number | undefined;
+						if (
+							activeSubmission &&
+							"startedAt" in activeSubmission &&
+							activeSubmission.startedAt
+						) {
+							const startedAt = new Date(activeSubmission.startedAt);
+							const now = new Date();
+							timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
+						}
+
+						submitQuiz(activeSubmission.id, transformedAnswers, timeSpent);
+					};
+
 					return (
 						<>
 							<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-							<QuizPreview quizConfig={quizConfig} />
+							<QuizPreview
+								quizConfig={quizConfig}
+								submissionId={activeSubmission?.id}
+								onSubmit={handleQuizSubmit}
+							/>
 						</>
 					);
 				}
@@ -990,8 +1290,8 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					{previousModule ? (
 						<Button
 							component={Link}
-							to={href("/course/module/:id", {
-								id: previousModule.id.toString(),
+							to={href("/course/module/:moduleLinkId", {
+								moduleLinkId: String(previousModule.id),
 							})}
 							leftSection={<IconChevronLeft size={16} />}
 							variant="light"
@@ -1004,8 +1304,8 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					{nextModule ? (
 						<Button
 							component={Link}
-							to={href("/course/module/:id", {
-								id: nextModule.id.toString(),
+							to={href("/course/module/:moduleLinkId", {
+								moduleLinkId: String(nextModule.id),
 							})}
 							rightSection={<IconChevronRight size={16} />}
 							variant="light"

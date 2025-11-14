@@ -73,10 +73,10 @@ export default function CourseSectionLayout({
 
 		switch (value) {
 			case SectionTab.Section:
-				navigate(href("/course/section/:id", { id: sectionId }));
+				navigate(href("/course/section/:sectionId", { sectionId: String(sectionId) }));
 				break;
 			case SectionTab.Setting:
-				navigate(href("/course/section/:id/edit", { id: sectionId }));
+				navigate(href("/course/section/:sectionId/edit", { sectionId: String(sectionId) }));
 				break;
 		}
 	};

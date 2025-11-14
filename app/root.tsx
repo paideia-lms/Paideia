@@ -374,31 +374,23 @@ export const middleware = [
 	 * set the course context
 	 */
 	async ({ context, params }) => {
-		const { payload, routeHierarchy, pageInfo } = context.get(globalContextKey);
+		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const currentUser =
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		// check if the user is in a course
-		if (routeHierarchy.some((route) => route.id === "layouts/course-layout")) {
-			const { id } = params as RouteParams<"layouts/course-layout">;
-
-			if (Number.isNaN(id)) return;
-
-			// default course id is the id from params
-			let courseId: number = Number(id);
-
+		if (pageInfo.isInCourse) {
+			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
+			let { courseId } = params as RouteParams<"layouts/course-layout">;
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
-				const { id: moduleId } = params as RouteParams<
-					"routes/course/module.$id" | "routes/course/module.$id.edit"
-				>;
-
-				if (Number.isNaN(moduleId)) return;
+				const { moduleLinkId } = params as RouteParams<"layouts/course-module-layout">;
+				if (Number.isNaN(moduleLinkId)) return;
 
 				const moduleContext = await tryFindCourseActivityModuleLinkById(
 					payload,
-					Number(moduleId),
+					Number(moduleLinkId),
 				);
 
 				if (!moduleContext.ok) return;
@@ -406,14 +398,12 @@ export const middleware = [
 				const module = moduleContext.value;
 				const { course } = module;
 				// update the course id to the course id from the module
-				courseId = course.id;
+				courseId = String(course.id);
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
 			if (pageInfo.isCourseSection || pageInfo.isCourseSectionEdit) {
-				const { id: sectionId } = pageInfo.isCourseSectionEdit
-					? (params as RouteParams<"routes/course/section-edit">)
-					: (params as RouteParams<"routes/course/section.$id">);
+				const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
 
 				if (Number.isNaN(sectionId)) return;
 
@@ -432,12 +422,12 @@ export const middleware = [
 
 				const section = sectionContext.value;
 				// update the course id to the course id from the section
-				courseId = section.course;
+				courseId = String(section.course);
 			}
 
 			const courseContextResult = await tryGetCourseContext(
 				payload,
-				courseId,
+				Number(courseId),
 				currentUser || null,
 			);
 
@@ -452,7 +442,7 @@ export const middleware = [
 	},
 	// set the course section context
 	async ({ context, params }) => {
-		const { payload, routeHierarchy } = context.get(globalContextKey);
+		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 
@@ -461,17 +451,17 @@ export const middleware = [
 
 		// Check if we're in a course section layout
 		if (
-			routeHierarchy.some(
-				(route) => route.id === "layouts/course-section-layout",
-			)
+			pageInfo.isInCourseSectionLayout
 		) {
 			// Get section ID from params
-			const sectionId = params.id ? Number(params.id) : null;
+			const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
 
-			if (sectionId && !Number.isNaN(sectionId) && courseContext) {
+			if (Number.isNaN(sectionId)) return;
+
+			if (courseContext) {
 				const sectionResult = await tryFindSectionById({
 					payload,
-					sectionId,
+					sectionId: Number(sectionId),
 					user: currentUser
 						? {
 							...currentUser,
@@ -579,14 +569,14 @@ export const middleware = [
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
 
-			const { id: moduleId } =
+			const { moduleLinkId } =
 				params as RouteParams<"layouts/course-module-layout">;
 
 			// Get module link ID from params
-			if (moduleId && !Number.isNaN(moduleId)) {
+			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
 				const courseModuleContextResult = await tryGetCourseModuleContext(
 					payload,
-					Number(moduleId),
+					Number(moduleLinkId),
 					courseContext.courseId,
 					currentUser
 						? {

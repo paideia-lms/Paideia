@@ -30,14 +30,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
-
+	const { courseId } = params;
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -56,8 +51,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					role: enrolmentContext.enrolment.role,
-				}
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 

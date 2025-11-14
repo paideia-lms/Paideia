@@ -220,6 +220,22 @@ export interface GetNextAttemptNumberArgs {
 export interface SubmitQuizArgs {
 	payload: Payload;
 	submissionId: number;
+	answers?: Array<{
+		questionId: string;
+		questionText: string;
+		questionType:
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
+		selectedAnswer?: string;
+		multipleChoiceAnswers?: Array<{
+			option: string;
+			isSelected: boolean;
+		}>;
+	}>;
+	timeSpent?: number;
 	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
@@ -1108,14 +1124,27 @@ export const trySubmitQuiz = Result.wrap(
 			}
 		}
 
+		// Build update data
+		const updateData: Record<string, unknown> = {
+			status: "completed",
+			submittedAt: new Date().toISOString(),
+		};
+
+		// Add answers if provided
+		if (args.answers !== undefined) {
+			updateData.answers = args.answers;
+		}
+
+		// Add timeSpent if provided
+		if (args.timeSpent !== undefined) {
+			updateData.timeSpent = args.timeSpent;
+		}
+
 		// Update status to completed
 		const updatedSubmission = await payload.update({
 			collection: "quiz-submissions",
 			id: submissionId,
-			data: {
-				status: "completed",
-				submittedAt: new Date().toISOString(),
-			},
+			data: updateData,
 			user,
 			req,
 			overrideAccess,

@@ -469,8 +469,10 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 	test("should list assignment submissions with filtering", async () => {
 		// List all submissions for this activity module
-		const listResult = await tryListAssignmentSubmissions(payload, {
+		const listResult = await tryListAssignmentSubmissions({
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
+			overrideAccess: true,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -486,8 +488,10 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		});
 
 		// Test filtering by student
-		const studentListResult = await tryListAssignmentSubmissions(payload, {
+		const studentListResult = await tryListAssignmentSubmissions({
+			payload,
 			studentId,
+			overrideAccess: true,
 		});
 
 		expect(studentListResult.ok).toBe(true);
@@ -499,8 +503,10 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		});
 
 		// Test filtering by status
-		const draftListResult = await tryListAssignmentSubmissions(payload, {
+		const draftListResult = await tryListAssignmentSubmissions({
+			payload,
 			status: "draft",
+			overrideAccess: true,
 		});
 
 		expect(draftListResult.ok).toBe(true);
@@ -697,10 +703,12 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		}
 
 		// Test pagination
-		const page1Result = await tryListAssignmentSubmissions(payload, {
+		const page1Result = await tryListAssignmentSubmissions({
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			limit: 2,
 			page: 1,
+			overrideAccess: true,
 		});
 
 		expect(page1Result.ok).toBe(true);

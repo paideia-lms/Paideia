@@ -90,14 +90,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -123,6 +119,7 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
@@ -130,11 +127,6 @@ export const action = async ({
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		return badRequest({ error: "Invalid course ID" });
-	}
 
 	// Get user's enrollment for this course
 	const enrollments = await payload.find({
@@ -157,8 +149,8 @@ export const action = async ({
 			undefined,
 			enrollment
 				? {
-						role: enrollment.role,
-					}
+					role: enrollment.role,
+				}
 				: undefined,
 		)
 	) {
@@ -184,7 +176,7 @@ export const action = async ({
 		const createResult = await tryCreateGroup({
 			payload,
 			name,
-			course: courseId,
+			course: Number(courseId),
 			parent: parentId ? Number(parentId) : undefined,
 			description: description || undefined,
 			color: color || undefined,

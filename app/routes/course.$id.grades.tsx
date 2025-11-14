@@ -30,11 +30,7 @@ import type { Route } from "./+types/course.$id.grades";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
-	}
+	const { courseId } = params;
 
 	// Get course view data using the course context
 	if (!courseContext) {
@@ -56,7 +52,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -71,18 +67,14 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return badRequest({ error: "Unauthorized" });
 	}
 
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		return badRequest({ error: "Invalid course ID" });
-	}
-
 	// Get gradebook for this course
-	const gradebookResult = await tryFindGradebookByCourseId(payload, courseId);
+	const gradebookResult = await tryFindGradebookByCourseId(payload, Number(courseId));
 	if (!gradebookResult.ok) {
 		return badRequest({ error: "Gradebook not found for this course" });
 	}

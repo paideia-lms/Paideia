@@ -172,13 +172,17 @@ export function SingleQuizPreview({
 	const handleSubmit = () => {
 		if (!quizConfig) return;
 		const answers = quiz.answers;
-		setSubmittedAnswers(answers);
-		setShowResults(true);
 
-		// Call onSubmit callback if provided (for nested quiz wrapper)
+		// Call onSubmit callback if provided (for real submission)
 		if (onSubmit) {
 			onSubmit(answers);
+			// Don't show results modal for real submission - redirect will happen
+			return;
 		}
+
+		// Only show mock results modal if no onSubmit callback (for testing/preview)
+		setSubmittedAnswers(answers);
+		setShowResults(true);
 	};
 
 	const handleGlobalTimerExpire = () => {
@@ -620,9 +624,14 @@ export function SingleQuizPreview({
 // Main QuizPreview component - handles both regular and nested quizzes
 interface QuizPreviewProps {
 	quizConfig: QuizConfig;
+	submissionId?: number;
+	onSubmit?: (answers: QuizAnswers) => void;
 }
 
-export function QuizPreview({ quizConfig }: QuizPreviewProps) {
+export function QuizPreview({
+	quizConfig,
+	onSubmit,
+}: QuizPreviewProps) {
 	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
 
 	// For container quizzes, use nested quiz state
@@ -638,7 +647,12 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 
 	// Regular quiz - just render SingleQuizPreview directly
 	if (isRegularQuiz(quizConfig)) {
-		return <SingleQuizPreview quizConfig={quizConfig} />;
+		return (
+			<SingleQuizPreview
+				quizConfig={quizConfig}
+				onSubmit={onSubmit}
+			/>
+		);
 	}
 
 	// Container quiz logic
@@ -717,8 +731,8 @@ export function QuizPreview({ quizConfig }: QuizPreviewProps) {
 					initialAnswers={
 						isViewingCompletedQuiz
 							? nestedQuizState.submittedAnswers[
-									nestedQuizState.currentNestedQuizId
-								]
+							nestedQuizState.currentNestedQuizId
+							]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {

@@ -1,4 +1,4 @@
-import type { BasePayload } from "payload";
+import type { BasePayload, PayloadRequest, TypedUser } from "payload";
 import { createContext } from "react-router";
 import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
@@ -157,6 +157,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 		moduleLinkId: number,
 		courseId: number,
 		currentUser: User | null,
+		req?: Partial<PayloadRequest>,
 	) => {
 		// Fetch the module link
 		const moduleLinkResult = await tryFindCourseActivityModuleLinkById(
@@ -307,20 +308,24 @@ export const tryGetCourseModuleContext = Result.wrap(
 			updatedAt: activityModule.updatedAt,
 		};
 
+		// Format user for internal functions
+		const formattedUser: TypedUser | null = currentUser
+			? {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar
+					? typeof currentUser.avatar === "number"
+						? currentUser.avatar
+						: currentUser.avatar.id
+					: undefined,
+			}
+			: null;
+
 		// Get course structure to determine next/previous modules
 		const courseStructureResult = await tryGetCourseStructure({
 			payload,
 			courseId,
-			user: currentUser
-				? {
-					...currentUser,
-					avatar: currentUser?.avatar
-						? typeof currentUser.avatar === "number"
-							? currentUser.avatar
-							: currentUser.avatar.id
-						: undefined,
-				}
-				: null,
+			user: formattedUser,
 			overrideAccess: false,
 		});
 
@@ -350,9 +355,13 @@ export const tryGetCourseModuleContext = Result.wrap(
 		> = [];
 
 		if (transformedModule.type === "assignment") {
-			const submissionsResult = await tryListAssignmentSubmissions(payload, {
+			const submissionsResult = await tryListAssignmentSubmissions({
+				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
+				user: formattedUser,
+				req,
+				overrideAccess: false,
 			});
 			if (submissionsResult.ok) {
 				submissions = submissionsResult.value
@@ -363,14 +372,21 @@ export const tryGetCourseModuleContext = Result.wrap(
 				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
+				user: formattedUser,
+				req,
+				overrideAccess: false,
 			});
 			if (submissionsResult.ok) {
 				submissions = submissionsResult.value.docs as QuizSubmissionResolved[];
 			}
 		} else if (transformedModule.type === "discussion") {
-			const submissionsResult = await tryListDiscussionSubmissions(payload, {
+			const submissionsResult = await tryListDiscussionSubmissions({
+				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
+				user: formattedUser,
+				req,
+				overrideAccess: false,
 			});
 			if (submissionsResult.ok) {
 				submissions = submissionsResult.value
