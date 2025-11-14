@@ -150,6 +150,7 @@ async function startServer() {
 								isCourseGroups: false,
 								isCourseGrades: false,
 								isCourseGradesLayout: false,
+								isCourseGradesSingleView: false,
 								isCourseModules: false,
 								isCourseBin: false,
 								isCourseBackup: false,

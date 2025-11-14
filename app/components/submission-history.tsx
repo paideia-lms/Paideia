@@ -288,11 +288,12 @@ export function SubmissionHistoryItem({
 							)}
 							{submission.status === "graded" &&
 								submission.grade?.baseGrade !== null &&
-								submission.grade?.baseGrade !== undefined &&
-								submission.grade?.maxGrade !== null &&
-								submission.grade?.maxGrade !== undefined && (
+								submission.grade?.baseGrade !== undefined && (
 									<Badge color="green" size="sm" variant="filled">
-										{submission.grade.baseGrade}/{submission.grade.maxGrade}
+										{submission.grade.maxGrade !== null &&
+											submission.grade.maxGrade !== undefined
+											? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
+											: submission.grade.baseGrade}
 									</Badge>
 								)}
 						</Group>
@@ -428,11 +429,12 @@ export function SubmissionHistoryItem({
 						</Badge>
 						{submission.status === "graded" &&
 							submission.grade?.baseGrade !== null &&
-							submission.grade?.baseGrade !== undefined &&
-							submission.grade?.maxGrade !== null &&
-							submission.grade?.maxGrade !== undefined && (
+							submission.grade?.baseGrade !== undefined && (
 								<Badge color="green" variant="filled">
-									{submission.grade.baseGrade}/{submission.grade.maxGrade}
+									{submission.grade.maxGrade !== null &&
+										submission.grade.maxGrade !== undefined
+										? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
+										: submission.grade.baseGrade}
 								</Badge>
 							)}
 						<Text size="xs" c="dimmed">

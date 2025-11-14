@@ -3,7 +3,15 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
+import { tryCreateActivityModule } from "./activity-module-management";
+import {
+	tryCreateAssignmentSubmission,
+	tryGradeAssignmentSubmission,
+	trySubmitAssignment,
+} from "./assignment-submission-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
@@ -20,7 +28,7 @@ import {
 	tryGetSingleUserGradesJsonRepresentation,
 	tryGetUserGradesForGradebook,
 	tryGetUserGradesJsonRepresentation,
-	tryGradeAssignmentSubmission,
+	tryReleaseGrade,
 	tryRemoveAdjustment,
 	tryToggleAdjustment,
 	tryUpdateUserGrade,
@@ -878,31 +886,259 @@ describe("User Grade Management", () => {
 		}
 	});
 
-	it("should grade assignment submission and create user grade", async () => {
-		// This test requires a full setup with course module link, assignment, and submission
-		// For now, we'll test the core logic by creating a gradebook item with activityModule
-		// and verifying tryGradeAssignmentSubmission can find it
-		// Note: Full integration test would require creating assignment submission
-		// which is complex and better tested in assignment-submission-management.test.ts
+	it("should release grade from submission to user-grade", async () => {
+		// This test verifies that tryReleaseGrade correctly releases grades from submissions to user-grades
+		// Note: Full integration test requires creating assignment submission and grading it first
+		// which is tested in assignment-submission-management.test.ts
 
-		// Create a gradebook item linked to an activity module (if we had one)
-		// For this test, we'll verify the function signature and basic error handling
-		const invalidResult = await tryGradeAssignmentSubmission({
+		// Test with non-existent enrollment - should fail
+		const invalidResult = await tryReleaseGrade({
 			payload,
 			user: null,
 			req: mockRequest,
 			overrideAccess: false,
-			submissionId: 99999, // Non-existent submission
-			score: 85,
-			feedback: "Test feedback",
-			gradedBy: instructor.id,
-			status: "graded",
+			courseActivityModuleLinkId: 99999,
+			enrollmentId: 99999,
 		});
 
-		// Should fail because submission doesn't exist
+		// Should fail because enrollment doesn't exist
 		expect(invalidResult.ok).toBe(false);
-		if (!invalidResult.ok) {
-			expect(String(invalidResult.error)).toContain("submission");
+	});
+
+	it("should show grade in JSON representation after grading assignment submission", async () => {
+		// Create an assignment activity module
+		const activityModuleResult = await tryCreateActivityModule(payload, {
+			title: "Programming Exercise: Calculator",
+			description: "Build a calculator application",
+			type: "assignment",
+			status: "published",
+			userId: instructor.id,
+			assignmentData: {
+				instructions: "Create a calculator that can perform basic operations",
+				dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+				requireTextSubmission: true,
+				requireFileSubmission: false,
+			},
+		});
+
+		expect(activityModuleResult.ok).toBe(true);
+		if (!activityModuleResult.ok) {
+			throw new Error("Failed to create activity module");
 		}
+		const activityModule = activityModuleResult.value;
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: testCourse.id,
+				title: "Assignments Section",
+				description: "Section for assignments",
+			},
+			overrideAccess: true,
+		});
+
+		expect(sectionResult.ok).toBe(true);
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+		const section = sectionResult.value;
+
+		// Create course-activity-module-link (this automatically creates a gradebook item)
+		const courseActivityModuleLinkArgs = {
+			course: testCourse.id,
+			activityModule: activityModule.id,
+			section: section.id,
+			contentOrder: 0,
+		};
+
+		const courseActivityModuleLinkResult =
+			await tryCreateCourseActivityModuleLink(
+				payload,
+				mockRequest,
+				courseActivityModuleLinkArgs,
+			);
+
+		expect(courseActivityModuleLinkResult.ok).toBe(true);
+		if (!courseActivityModuleLinkResult.ok) {
+			throw new Error("Failed to create course-activity-module-link");
+		}
+		const courseModuleLink = courseActivityModuleLinkResult.value;
+
+		// Verify gradebook item was created automatically
+		const gradebookItems = await payload.find({
+			collection: "gradebook-items",
+			where: {
+				activityModule: {
+					equals: courseModuleLink.id,
+				},
+			},
+		});
+
+		expect(gradebookItems.docs.length).toBeGreaterThan(0);
+		const gradebookItem = gradebookItems.docs[0];
+
+		// Create an assignment submission
+		const submissionResult = await tryCreateAssignmentSubmission({
+			payload,
+			courseModuleLinkId: courseModuleLink.id,
+			studentId: student.id,
+			enrollmentId: testEnrollment.id,
+			attemptNumber: 1,
+			content: "Here is my calculator implementation",
+			timeSpent: 3600, // 1 hour
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(submissionResult.ok).toBe(true);
+		if (!submissionResult.ok) {
+			throw new Error("Failed to create assignment submission");
+		}
+		const submission = submissionResult.value;
+
+		// Submit the assignment
+		const submitResult = await trySubmitAssignment({
+			payload,
+			submissionId: submission.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+		expect(submitResult.ok).toBe(true);
+		if (!submitResult.ok) {
+			throw new Error("Failed to submit assignment");
+		}
+
+		// Grade the assignment submission (only updates submission, doesn't create user-grade)
+		const gradeResult = await tryGradeAssignmentSubmission({
+			payload,
+			request: mockRequest,
+			id: submission.id,
+			grade: 85,
+			feedback: "Great work! Your calculator implementation is excellent.",
+			gradedBy: instructor.id,
+			user: null,
+			overrideAccess: true,
+		});
+
+		expect(gradeResult.ok).toBe(true);
+		if (!gradeResult.ok) {
+			throw new Error(`Failed to grade assignment: ${gradeResult.error}`);
+		}
+
+		// Verify submission was graded but user-grade was NOT created yet
+		const gradedSubmission = gradeResult.value;
+		expect(gradedSubmission.status).toBe("graded");
+		const submissionWithGrade = gradedSubmission as typeof gradedSubmission & {
+			grade?: number | null;
+			feedback?: string | null;
+		};
+		expect(submissionWithGrade.grade).toBe(85);
+		expect(submissionWithGrade.feedback).toBe(
+			"Great work! Your calculator implementation is excellent.",
+		);
+
+		// Verify no user-grade exists yet
+		const gradeBeforeRelease = await tryFindUserGradeByEnrollmentAndItem({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: gradebookItem.id,
+		});
+		expect(gradeBeforeRelease.ok).toBe(false);
+
+		// Now release the grade - this should create the user-grade
+		const releaseResult = await tryReleaseGrade({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			courseActivityModuleLinkId: courseModuleLink.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+		expect(releaseResult.ok).toBe(true);
+		if (!releaseResult.ok) {
+			throw new Error(`Failed to release grade: ${releaseResult.error}`);
+		}
+
+		// Verify user-grade was created after release
+		const gradeAfterRelease = await tryFindUserGradeByEnrollmentAndItem({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: gradebookItem.id,
+		});
+
+		expect(gradeAfterRelease.ok).toBe(true);
+		if (!gradeAfterRelease.ok) {
+			throw new Error("User grade should exist after release");
+		}
+
+		const userGrade = gradeAfterRelease.value;
+		expect(userGrade.baseGrade).toBe(85);
+		expect(userGrade.feedback).toBe(
+			"Great work! Your calculator implementation is excellent.",
+		);
+		const submissionValue =
+			typeof userGrade.submission === "number"
+				? userGrade.submission
+				: typeof userGrade.submission === "object" &&
+					userGrade.submission !== null &&
+					"value" in userGrade.submission
+					? typeof userGrade.submission.value === "number"
+						? userGrade.submission.value
+						: userGrade.submission.value?.id
+					: null;
+		expect(submissionValue).toBe(submission.id);
+		expect(userGrade.submissionType).toBe("assignment");
+
+		// Get single user grades JSON representation
+		const jsonResult = await tryGetSingleUserGradesJsonRepresentation({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+		expect(jsonResult.ok).toBe(true);
+		if (!jsonResult.ok) {
+			throw new Error("Failed to get user grades JSON representation");
+		}
+
+		const jsonData = jsonResult.value;
+
+		// Verify the grade appears in the JSON representation
+		expect(jsonData.course_id).toBe(testCourse.id);
+		expect(jsonData.gradebook_id).toBe(testGradebook.id);
+		expect(jsonData.enrollment.enrollment_id).toBe(testEnrollment.id);
+		expect(jsonData.enrollment.user_id).toBe(student.id);
+
+		// Find the gradebook item in the items array
+		const gradedItem = jsonData.enrollment.items.find(
+			(item) => item.item_id === gradebookItem.id,
+		);
+
+		expect(gradedItem).toBeDefined();
+		if (gradedItem) {
+			expect(gradedItem.base_grade).toBe(85);
+			expect(gradedItem.feedback).toBe(
+				"Great work! Your calculator implementation is excellent.",
+			);
+			expect(gradedItem.status).toBe("graded");
+			expect(gradedItem.graded_at).toBeDefined();
+			expect(gradedItem.item_name).toBe("Programming Exercise: Calculator");
+		}
+
+		// Verify graded_items count is updated
+		expect(jsonData.enrollment.graded_items).toBeGreaterThan(0);
 	});
 });

@@ -755,6 +755,10 @@ export interface AssignmentSubmission {
   attemptNumber: number;
   status: 'draft' | 'submitted' | 'graded' | 'returned';
   submittedAt?: string | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
   content?: string | null;
   attachments?:
     | {
@@ -1679,6 +1683,10 @@ export interface AssignmentSubmissionsSelect<T extends boolean = true> {
   attemptNumber?: T;
   status?: T;
   submittedAt?: T;
+  grade?: T;
+  feedback?: T;
+  gradedBy?: T;
+  gradedAt?: T;
   content?: T;
   attachments?:
     | T

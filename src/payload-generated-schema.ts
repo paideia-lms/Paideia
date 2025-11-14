@@ -1344,6 +1344,16 @@ export const assignment_submissions = pgTable(
       withTimezone: true,
       precision: 3,
     }),
+    grade: numeric("grade", { mode: "number" }),
+    feedback: varchar("feedback"),
+    gradedBy: integer("graded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gradedAt: timestamp("graded_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
     content: varchar("content"),
     isLate: boolean("is_late").default(false),
     timeSpent: numeric("time_spent", { mode: "number" }),
@@ -1368,6 +1378,7 @@ export const assignment_submissions = pgTable(
     ),
     index("assignment_submissions_student_idx").on(columns.student),
     index("assignment_submissions_enrollment_idx").on(columns.enrollment),
+    index("assignment_submissions_graded_by_idx").on(columns.gradedBy),
     index("assignment_submissions_updated_at_idx").on(columns.updatedAt),
     index("assignment_submissions_created_at_idx").on(columns.createdAt),
     index("courseModuleLink_idx").on(columns.courseModuleLink),
@@ -3060,6 +3071,11 @@ export const relations_assignment_submissions = relations(
       fields: [assignment_submissions.enrollment],
       references: [enrollments.id],
       relationName: "enrollment",
+    }),
+    gradedBy: one(users, {
+      fields: [assignment_submissions.gradedBy],
+      references: [users.id],
+      relationName: "gradedBy",
     }),
     attachments: many(assignment_submissions_attachments, {
       relationName: "attachments",

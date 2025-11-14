@@ -83,6 +83,10 @@ export const routes = [
 			]),
 			layout("layouts/course-grades-layout.tsx", [
 				route("course/:courseId/grades", "routes/course.$id.grades.tsx"),
+				route(
+					"course/:courseId/grades/singleview",
+					"routes/course.$id.grades.singleview.tsx",
+				),
 			]),
 			route("course/:courseId/modules", "routes/course.$id.modules.tsx"),
 			route("course/:courseId/bin", "routes/course.$id.bin.tsx"),

@@ -70,6 +70,7 @@ export function useUpdateGradeItem() {
 		values: {
 			name?: string;
 			description?: string;
+			categoryId?: number | null;
 			maxGrade?: number;
 			minGrade?: number;
 			weight?: number;

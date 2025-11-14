@@ -16,21 +16,23 @@ import {
 	tryUpdateGradebookItem,
 } from "server/internal/gradebook-item-management";
 import { tryFindGradebookByCourseId } from "server/internal/gradebook-management";
+import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { GraderReportView } from "~/components/gradebook/report-view";
 import { inputSchema } from "~/components/gradebook/schemas";
 import { GradebookSetupView } from "~/components/gradebook/setup-view";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
-	BadRequestResponse,
 	badRequest,
 	ForbiddenResponse,
 	ok,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
 	const { courseId } = params;
+	const payload = context.get(globalContextKey).payload;
+	const userSession = context.get(userContextKey);
 
 	// Get course view data using the course context
 	if (!courseContext) {
@@ -38,6 +40,35 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	const gradebookSetupForUI = courseContext.gradebookSetupForUI;
+
+	// Prepare user object for internal functions
+	const currentUser =
+		userSession?.isAuthenticated
+			? userSession.effectiveUser || userSession.authenticatedUser
+			: null;
+
+
+	// Fetch user grades for the course
+	let userGrades = null;
+	const userGradesResult = await tryGetUserGradesJsonRepresentation({
+		payload,
+		user: currentUser
+			? {
+				...currentUser,
+				avatar:
+					typeof currentUser.avatar === "object" && currentUser.avatar !== null
+						? currentUser.avatar.id
+						: currentUser.avatar,
+			}
+			: null,
+		req: request,
+		overrideAccess: false,
+		courseId: Number(courseId),
+	});
+
+	if (userGradesResult.ok) {
+		userGrades = userGradesResult.value;
+	}
 
 	return {
 		course: courseContext.course,
@@ -57,6 +88,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
 		totalMaxGrade: gradebookSetupForUI?.totals.totalMaxGrade ?? 0,
+		userGrades,
 	};
 };
 
@@ -83,6 +115,8 @@ export const action = async ({
 	const gradebookId = gradebook.id;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
+
+	console.log(data)
 	const parsedData = inputSchema.safeParse(data);
 
 	if (!parsedData.success) {
@@ -167,6 +201,7 @@ export const action = async ({
 			{
 				name: parsedData.data.name,
 				description: parsedData.data.description,
+				categoryId: parsedData.data.categoryId ?? null,
 				maxGrade: parsedData.data.maxGrade,
 				minGrade: parsedData.data.minGrade,
 				weight: parsedData.data.weight,

@@ -213,6 +213,21 @@ export function canSeeCourseModuleSettings(
 	);
 }
 
+export function canSeeUserModules(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+) {
+	// Students cannot see user modules tab
+	if (user?.role === "student") {
+		return false;
+	}
+
+	// All other roles (admin, content-manager, teacher, manager, ta) can see modules
+	return true;
+}
+
 export function canEditUserModule(
 	user?: {
 		id: number;

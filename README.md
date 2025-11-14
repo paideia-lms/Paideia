@@ -1,4 +1,4 @@
-# 🌿 Paideia LMS
+# Paideia LMS
 
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/paideia-lms/Paideia)
 
@@ -6,491 +6,155 @@
 > This project is in active development and is not yet ready for production use.
 
 > [!NOTE] 
-> We're actively looking for **contributors** and **sponsors** to help build and maintain Paideia LMS. Whether you're a developer, educator, or organization interested in supporting open-source education technology, we'd love to hear from you.
+> We're looking for contributors and sponsors. If you're interested in helping build a modern alternative to traditional LMS platforms, we'd love to hear from you.
 
-A modern, lightweight Learning Management System (LMS) built with [Bun](https://bun.sh) and [React Router v7](https://reactrouter.com/). Designed for extreme ease of management and deployment as a single executable.
+A lightweight Learning Management System built with [Bun](https://bun.sh) and [React Router v7](https://reactrouter.com/). Deploys as a single executable.
 
 ![Dashboard](doc/assets/dashboard.webp)
 
-## 🎯 Vision
+## What is Paideia?
 
-Paideia LMS aims to be the modern alternative to traditional LMS platforms like Moodle. Built from the ground up with modern web technologies, it focuses on simplicity, performance, and developer experience while maintaining powerful LMS capabilities.
+Paideia LMS is a modern alternative to platforms like Moodle. It's built with modern web tech, focuses on simplicity and performance, and packages everything into a single binary.
 
-### Core Features
+**Features:**
+- Course management (assignments, quizzes, content, grading)
+- User management with role-based access control
+- Payment integration
+- Version control and change tracking
+- RESTful API
+- Import from Moodle, Canvas, and other LMS platforms
 
-- **📚 Course Management**: Create and manage courses with assignments, quizzes, content, and grading
-- **👥 User Management**: Comprehensive user creation and role-based access control
-- **🔐 Access Control**: Fine-grained permissions and security
-- **💳 Payment Integration**: Built-in payment processing capabilities
-- **📊 Telemetry & Observability**: Advanced monitoring and analytics
-- **🔄 Version Control**: Track changes and maintain course history
-- **🔌 API**: RESTful API for integrations and extensions
-- **📦 Single Executable**: Extremely easy deployment and management
-- **🔄 LMS Import**: Import courses and data from Moodle, Canvas, and other LMS platforms
-- **🔗 Integrations**: Connect with external tools and services
+**Architecture:**
+- Single executable deployment
+- Lightweight and fast
+- No dynamic plugins (everything built-in)
+- Designed for server deployments, not serverless
+- Built with Bun, React Router v7, and TypeScript
 
-### Architecture Principles
+Paideia LMS is **free and non-profit forever**. We welcome sponsors and donations to support development.
 
-- **🚀 Single Executable**: Package and deploy as one binary for maximum portability
-- **🐰 Lightweight**: Minimal resource usage with fast startup times
-- **🛡️ No Dynamic Plugins**: Built-in functionality without complex plugin management
-- **🏢 Organization-Hosted**: Designed for server-based deployments, not serverless
-- **⚡ Modern Stack**: Bun runtime + React Router v7 + TypeScript
+## Documentation
 
-## 💝 Free and Non-Profit
-
-Paideia LMS will remain **free and non-profit forever** to benefit all organizations, educational institutions, and communities worldwide. We welcome sponsors and donations to support ongoing development and maintenance.
-
-## 📚 Documentation
-
-Complete documentation is available at [docs.paideialms.com](https://docs.paideialms.com)
+Full docs at [docs.paideialms.com](https://docs.paideialms.com)
 
 ## Installation
 
-### Option 1: Binary Installation (Recommended)
+See `docker-compose.yml` and `docker-compose.paideia.yml` for configuration details.
 
-Download the pre-built binary from [GitHub Releases](https://github.com/paideia-lms/paideia/releases) for your platform:
-
-#### Quick Start (Copy & Paste)
-
-Choose your platform and run one of these blocks in your terminal. All steps—download, setup, and run—are included so you can get started in seconds.
-
----
-
-##### macOS ARM64 (Apple Silicon)
+**Quick start:**
 ```sh
-curl -L -o paideia https://github.com/paideia-lms/paideia/releases/latest/download/paideia-macos-arm64
-chmod +x paideia
-xattr -c paideia
-cat > .env <<EOF
-DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
-S3_URL=http://localhost:9000/paideia-bucket
-S3_ACCESS_KEY=paideia_minio
-S3_SECRET_KEY=paideia_minio_secret
-S3_ENDPOINT_URL=http://localhost:9000
-S3_BUCKET=paideia-bucket
-PAYLOAD_SECRET=paideia_payload_secret
-SANDBOX_MODE=0
-EOF
-docker compose up -d
-./paideia
+docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
 ```
 
----
+Access:
+- Frontend: http://localhost:3000
+- Backend: http://localhost:3001
+- MinIO Console: http://localhost:9001
 
-##### Linux ARM64
-```sh
-curl -L -o paideia-linux-arm64 https://github.com/paideia-lms/paideia/releases/latest/download/paideia-linux-arm64
-chmod +x paideia-linux-arm64
-cat > .env <<EOF
-DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
-S3_URL=http://localhost:9000/paideia-bucket
-S3_ACCESS_KEY=paideia_minio
-S3_SECRET_KEY=paideia_minio_secret
-S3_ENDPOINT_URL=http://localhost:9000
-S3_BUCKET=paideia-bucket
-PAYLOAD_SECRET=paideia_payload_secret
-SANDBOX_MODE=0
-EOF
-docker compose up -d
-./paideia-linux-arm64
-```
+**Binary installation:** Download from [GitHub Releases](https://github.com/paideia-lms/paideia/releases) and configure environment variables as shown in the docker-compose files.
 
----
-
-##### Linux x64
-```sh
-curl -L -o paideia-linux-x64 https://github.com/paideia-lms/paideia/releases/latest/download/paideia-linux-x64
-chmod +x paideia-linux-x64
-cat > .env <<EOF
-DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
-S3_URL=http://localhost:9000/paideia-bucket
-S3_ACCESS_KEY=paideia_minio
-S3_SECRET_KEY=paideia_minio_secret
-S3_ENDPOINT_URL=http://localhost:9000
-S3_BUCKET=paideia-bucket
-PAYLOAD_SECRET=paideia_payload_secret
-SANDBOX_MODE=0
-EOF
-docker compose up -d
-./paideia-linux-x64
-```
-
----
-
-When setup completes, the application will be available at:  
-- **Frontend**: http://localhost:3000  
-- **Backend**: http://localhost:3001
-
-
-### Option 2: Docker Compose (Full Stack)
-
-Run the complete stack using Docker Compose with pre-built images:
-
-1. **Start all services** (infrastructure + Paideia application):
-   ```sh
-   docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
-   ```
-
-   This will:
-   - Pull the Paideia image from GitHub Container Registry (`ghcr.io/paideia-lms/paideia:latest`)
-   - Start PostgreSQL, MinIO, Drizzle Gateway, and Paideia
-   - All services configured to work together
-
-2. **Access the application:**
-   - **Frontend**: http://localhost:3000
-   - **Backend**: http://localhost:3001
-   - **MinIO Console**: http://localhost:9001
-
-3. **Stop all services:**
-   ```sh
-   docker compose -f docker-compose.yml -f docker-compose.paideia.yml down
-   ```
-
-### Environment Variables
-
-The `.env` file or Docker Compose environment variables should include:
-
-**Required:**
-- `DATABASE_URL` - PostgreSQL connection string
-- `S3_URL` - MinIO/S3 service URL
-- `S3_ACCESS_KEY` - S3 access key
-- `S3_SECRET_KEY` - S3 secret key
-- `S3_ENDPOINT_URL` - S3 endpoint URL (without bucket name)
-- `S3_BUCKET` - S3 bucket name
-- `PAYLOAD_SECRET` - Secret key for Payload CMS (generate a strong random string)
-
-**Optional:**
-- `PORT` - Backend port (default: 3001)
-- `FRONTEND_PORT` - Frontend port (default: 3000)
-- `CORS_ORIGINS` - CORS allowed origins (comma-separated URLs or `*` for all origins, defaults to localhost)
-- `SMTP_HOST` - SMTP server host for email
-- `SMTP_USER` - SMTP username
-- `SMTP_PASS` - SMTP password
-- `RESEND_API_KEY` - Resend API key (alternative to SMTP)
-- `EMAIL_FROM_ADDRESS` - Email sender address (default: info@paideialms.com)
-- `EMAIL_FROM_NAME` - Email sender name (default: Paideia LMS)
-- `SANDBOX_MODE` - Enable sandbox mode for development/testing (default: 0)
-
-See `server/env.ts` for the complete list of environment variables.
-
-### Sample .env File
-
-Create a `.env` file in the same directory where you run the binary:
-
-```env
-# Database
-DATABASE_URL=postgresql://paideia:paideia_password@localhost:5432/paideia_db
-
-# S3/MinIO
-S3_URL=http://localhost:9000/paideia-bucket
-S3_ACCESS_KEY=paideia_minio
-S3_SECRET_KEY=paideia_minio_secret
-S3_ENDPOINT_URL=http://localhost:9000
-S3_BUCKET=paideia-bucket
-S3_REGION=us-east-1
-
-# Payload
-PAYLOAD_SECRET=paideia_payload_secret
-
-# Ports (optional, defaults shown)
-PORT=3001
-FRONTEND_PORT=3000
-
-# Email (optional - uncomment if using SMTP)
-# SMTP_HOST=smtp.example.com
-# SMTP_USER=your-email@example.com
-# SMTP_PASS=your-password
-
-# Email (optional - uncomment if using Resend)
-# RESEND_API_KEY=your-resend-api-key
-
-# Email sender (optional, defaults shown)
-EMAIL_FROM_ADDRESS=info@paideialms.com
-EMAIL_FROM_NAME=Paideia LMS
-
-# CORS (optional - defaults to localhost if not set)
-# Allow all origins (not recommended for production)
-# CORS_ORIGINS=*
-# Allow specific origins (comma-separated)
-# CORS_ORIGINS=http://localhost:3001,https://example.com,https://*.localcan.dev
-
-# Sandbox mode (optional, default: 0)
-SANDBOX_MODE=0
-```
-
-**Note:** The `.env` file must be in the same directory where you execute the binary. The binary will read environment variables from this file.
+See `server/env.ts` for environment variable documentation.
 
 ## Development
 
-### Docker Compose Setup
-
-The project uses two separate docker compose files to separate infrastructure services from the Paideia application:
-
-- **`docker-compose.yml`**: Contains infrastructure services (PostgreSQL, MinIO, Drizzle Gateway)
-- **`docker-compose.paideia.yml`**: Contains the Paideia application service
-
-This separation prevents accidentally starting the Paideia Docker container during development.
-
-### App Only Development
-
-Start only the infrastructure services for development:
-
+Start infrastructure services:
 ```sh
 docker compose up -d
 ```
 
-Or use the dev script which starts infrastructure services and runs the app locally:
-
+Or use the dev script:
 ```sh
 bun dev
 ```
 
-This starts:
-- **PostgreSQL**: localhost:5432 (paideia/paideia_password)
-- **MinIO**: http://localhost:9000 (API) / http://localhost:9001 (Web UI)
-  - Access Key: paideia_minio
-  - Secret Key: paideia_minio_secret
-- **Drizzle Gateway**: localhost:4983
-  - Master Password: your_master_password
-  - Database URL: postgresql://paideia:paideia_password@postgres:5432/paideia_db
-- **App** (via `bun dev`): http://localhost:3000
+This starts PostgreSQL (localhost:5432), MinIO (localhost:9000/9001), Drizzle Gateway (localhost:4983), and the app (localhost:3000).
 
-To stop the infrastructure services:
+The project uses two docker compose files:
+- `docker-compose.yml` - Infrastructure services (PostgreSQL, MinIO, Drizzle Gateway)
+- `docker-compose.paideia.yml` - Paideia application
 
-```sh
-docker compose down
-```
+This keeps the app container separate during development so you can run it locally with `bun dev` for hot-reloading.
 
 ## Production
 
-Build for production:
-
+Build:
 ```sh
 bun run build
 ```
 
-Run in production mode:
-
+Run:
 ```sh
 bun start
 ```
 
 ### Releasing
 
-To create a new release and trigger the automated GitHub Actions workflow:
+1. Update version in `package.json`
+2. Commit and push:
+   ```sh
+   git add package.json
+   git commit -m "chore: bump version to X.X.X"
+   git push origin main
+   ```
+3. Create and push a git tag:
+   ```sh
+   git tag vX.X.X
+   git push origin vX.X.X
+   ```
 
-1. **Update the version in `package.json`** to match your desired release version (e.g., `0.5.0`)
+The GitHub Actions workflow will build binaries and Docker images automatically. Check progress in the [Actions tab](https://github.com/paideia-lms/paideia/actions).
 
-2. **Commit and push your changes:**
+### Building Linux Binary
 
-```sh
-git add package.json
-git commit -m "chore: bump version to 0.5.0"
-git push origin main
-```
-
-3. **Create and push a git tag** matching the version with a `v` prefix:
-
-```sh
-git tag v0.5.0
-git push origin v0.5.0
-```
-
-The workflow will automatically:
-- Check if a release for this version already exists (to avoid duplicate builds)
-- Build macOS ARM64 and Linux ARM64 binaries
-- Build and push a Docker image to GitHub Container Registry (`ghcr.io/paideia-lms/paideia`) with tags:
-  - `v{VERSION}` (e.g., `v0.5.0`)
-  - `latest`
-- Create a GitHub release with both binaries attached
-
-You can monitor the workflow progress in the [Actions tab](https://github.com/paideia-lms/paideia/actions) of the repository.
-
-**Note:** The tag name (e.g., `v0.5.0`) must match the version in `package.json` (e.g., `0.5.0`) with a `v` prefix. If a release for that version already exists, the workflow will skip all build steps to save resources.
-
-### Docker
-
-#### Running with Docker Compose
-
-To run the complete Paideia stack (including the Paideia application) with Docker Compose, use both configuration files:
-
-```sh
-docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d
-```
-
-This starts all services:
-- Infrastructure services from `docker-compose.yml` (PostgreSQL, MinIO, Drizzle Gateway)
-- Paideia application from `docker-compose.paideia.yml`
-
-To stop all services:
-
-```sh
-docker compose -f docker-compose.yml -f docker-compose.paideia.yml down
-```
-
-**Note:** During development, use only `docker-compose.yml` to start infrastructure services without the Paideia container. This allows you to run the application locally with `bun dev` for hot-reloading and easier debugging.
-
-#### Building the Linux Binary
-
-The Linux binary must be built in a Linux environment to ensure native dependencies (like `sharp`) are correctly compiled for Linux ARM64. You can use `Dockerfile.build` to create a build environment:
-
-**Option 1: Using Docker Build Environment (Interactive)**
-
-The `Dockerfile.build` creates an interactive build container where you can manually build the Linux binary:
-
-1. **Create and start the build container:**
+The Linux binary must be built in a Linux environment. Use the Docker build environment:
 
 ```sh
 bun run docker:build-binary
-```
-
-This will:
-- Build the Docker image with all dependencies
-- Start a container named `paideia-builder`
-- Print instructions for entering the container
-
-2. **Enter the container:**
-
-```sh
 bun run docker:builder-shell
-```
-
-Or manually:
-```sh
-docker exec -it paideia-builder /bin/bash
-```
-
-3. **Build the Linux binary inside the container:**
-
-```sh
+# Inside container:
 bun scripts/build-linux.ts
-```
-
-4. **Copy the binary from the container:**
-
-```sh
+# Exit container, then:
 bun run docker:copy-binary
 ```
 
-Or manually:
-```sh
-mkdir -p dist
-docker cp paideia-builder:/build/dist/paideia-linux-arm64 ./dist/
-```
-
-**Option 2: Using build-linux.ts in a Linux Environment**
-
-If you have access to a Linux machine or Linux container:
-
+Or if you have a Linux machine:
 ```sh
 bun run build:linux
 ```
 
-**Note:** Building the Linux binary on macOS won't work correctly because native dependencies like `sharp` will bundle the macOS version, which won't run on Linux. Always build the Linux binary in a Linux environment.
-
-#### Building the Runtime Docker Image
-
-Once you have the Linux binary in `dist/paideia-linux-arm64`, build the runtime Docker image:
-
+Build the Docker image:
 ```sh
 docker build -t paideia:latest .
 ```
 
-The runtime image is minimal and only contains the pre-built binary, making it perfect for deployment and GitHub releases.
-
-Run the container with environment variables from a `.env` file:
-
+Run with environment variables:
 ```sh
-docker run -d \
-  --name paideia \
-  -p 3000:3000 \
-  -p 3001:3001 \
-  --env-file .env \
-  paideia:latest
+docker run -d --name paideia -p 3000:3000 -p 3001:3001 --env-file .env paideia:latest
 ```
-
-Alternatively, you can pass environment variables directly:
-
-```sh
-docker run -d \
-  --name paideia \
-  -p 3000:3000 \
-  -p 3001:3001 \
-  -e DATABASE_URL=postgresql://paideia:paideia_password@postgres:5432/paideia_db \
-  -e S3_URL=http://minio:9000 \
-  -e S3_ACCESS_KEY=paideia_minio \
-  -e S3_SECRET_KEY=paideia_minio_secret \
-  -e S3_ENDPOINT_URL=http://minio:9000 \
-  -e S3_BUCKET=paideia \
-  -e PAYLOAD_SECRET=your-secret-key-here \
-  paideia:latest
-```
-
-**Required Environment Variables:**
-
-- `DATABASE_URL` - PostgreSQL connection string
-- `S3_URL` - MinIO/S3 service URL
-- `S3_ACCESS_KEY` - S3 access key
-- `S3_SECRET_KEY` - S3 secret key
-- `S3_ENDPOINT_URL` - S3 endpoint URL (without bucket name)
-- `S3_BUCKET` - S3 bucket name
-- `PAYLOAD_SECRET` - Secret key for Payload CMS (generate a strong random string)
-
-**Optional Environment Variables:**
-
-- `PORT` - Backend port (default: 3001)
-- `FRONTEND_PORT` - Frontend port (default: 3000)
-- `SMTP_HOST` - SMTP server host
-- `SMTP_USER` - SMTP username
-- `SMTP_PASS` - SMTP password
-- `RESEND_API_KEY` - Resend API key for email
-- `EMAIL_FROM_ADDRESS` - Email sender address (default: info@paideialms.com)
-- `EMAIL_FROM_NAME` - Email sender name (default: Paideia LMS)
-- `SANDBOX_MODE` - Enable sandbox mode (default: 0)
-
-**Note:** The Docker image includes the Linux ARM64 binary. For production deployments, ensure your Docker host supports ARM64 architecture or build the binary for your target platform.
 
 ## Tech Stack
 
-- **[Bun](https://bun.sh)** - Fast JavaScript runtime and bundler
-- **[React Router v7](https://reactrouter.com/)** - Modern React framework
-- **[Elysia](https://elysiajs.com)** - High-performance web framework
-- **[TypeScript](https://typescriptlang.org/)** - Type-safe JavaScript
-- **[Payload CMS](https://payloadcms.com/)** - Headless CMS
-- **[Mantine](https://mantine.dev/)** - Modern React components
+- [Bun](https://bun.sh) - Runtime and bundler
+- [React Router v7](https://reactrouter.com/) - React framework
+- [Elysia](https://elysiajs.com) - Web framework
+- [TypeScript](https://typescriptlang.org/) - Type safety
+- [Payload CMS](https://payloadcms.com/) - Headless CMS
+- [Mantine](https://mantine.dev/) - UI components
 
-Development tools:
-- **[Biome](https://biomejs.dev/)** - Linter and formatter
-- **[Lefthook](https://lefthook.dev/)** - Git hooks
-- **[Playwright](https://playwright.dev/)** - Browser automation
-
-### Single Executable
-
-Build and package as a standalone binary:
-
-```sh
-bun run build
-```
+Development tools: Biome, Lefthook, Playwright
 
 ## Contributing
 
-We welcome contributions! This project is built with modern development practices and aims to be a community-driven alternative to traditional LMS platforms.
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=paideia-lms/Paideia&type=date&legend=top-left)](https://www.star-history.com/#paideia-lms/Paideia&type=date&legend=top-left)
+Contributions welcome! This is a community-driven project built with modern development practices.
 
 ## License
 
 Paideia LMS is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).
 
-### What this means:
+- Free and open source
+- Schools can use without restrictions
+- Modifications must be shared
+- All forks must use AGPL-3.0
+- We discourage commercial hosting of this software for schools as a paid service
 
-- ✅ **Free and Open Source**: Use, modify, and distribute freely
-- ✅ **Schools and Educational Institutions**: Can host and use without restrictions
-- ✅ **Modifications Must Be Shared**: If you modify and host this software, you must share your changes
-- ✅ **Same License Required**: All forks and derivatives must use AGPL-3.0
-- ⚠️ **Commercial Hosting Restrictions**: While the license permits commercial use, we strongly discourage organizations from hosting this software for schools as a paid service. The spirit of this project is to remain freely accessible to educational institutions.
-
-If you're interested in commercial partnerships or support services that align with our mission, please reach out to discuss collaboration opportunities.
+If you're interested in commercial partnerships that align with our mission, reach out to discuss.

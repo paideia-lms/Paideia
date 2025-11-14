@@ -16,20 +16,20 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { useClipboard, useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import {
 	IconChevronDown,
 	IconChevronRight,
 	IconDots,
-	IconDownload,
 	IconMail,
 	IconPencil,
+	IconSend,
 	IconTrash,
 } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { href, Link, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -39,11 +39,10 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteAssignmentSubmission,
 	tryGetAssignmentSubmissionById,
-} from "server/internal/assignment-submission-management";
-import {
-	tryFindUserGradesBySubmissionIds,
 	tryGradeAssignmentSubmission,
-} from "server/internal/user-grade-management";
+} from "server/internal/assignment-submission-management";
+import { tryFindGradebookItemByCourseModuleLink } from "server/internal/gradebook-item-management";
+import { tryReleaseGrade } from "server/internal/user-grade-management";
 import {
 	canDeleteSubmissions,
 	canSeeModuleSubmissions,
@@ -124,10 +123,17 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	let gradingSubmission = null;
 	let gradingGrade = null;
 	if (action === AssignmentActions.GRADE_SUBMISSION && submissionId) {
-		const submissionResult = await tryGetAssignmentSubmissionById(
+		const submissionResult = await tryGetAssignmentSubmissionById({
 			payload,
-			{ id: submissionId },
-		);
+			id: submissionId,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id ?? undefined,
+			},
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!submissionResult.ok) {
 			throw badRequest({ error: submissionResult.error.message });
@@ -142,78 +148,77 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 		gradingSubmission = submission;
 
-		// Try to find existing user grade for this submission
-		const gradesResult = await tryFindUserGradesBySubmissionIds({
-			payload,
-			user: currentUser
-				? {
+		// Get grade from submission itself (grades are now stored on submissions)
+		const submissionWithGrade = submission as typeof submission & {
+			grade?: number | null;
+			feedback?: string | null;
+		};
+		if (
+			submissionWithGrade.grade !== null &&
+			submissionWithGrade.grade !== undefined
+		) {
+			// Try to get maxGrade from gradebook item
+			let maxGrade: number | null = null;
+			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
+				payload,
+				user: {
 					...currentUser,
-					avatar: currentUser.avatar?.id ?? null,
-				}
-				: null,
-			req: undefined,
-			overrideAccess: false,
-			submissionIds: [submissionId],
-			submissionType: "assignment",
-		});
+					avatar: currentUser.avatar?.id ?? undefined,
+				},
+				req: request,
+				overrideAccess: false,
+				courseModuleLinkId: courseModuleContext.moduleLinkId,
+			});
 
-		if (gradesResult.ok) {
-			const grade = gradesResult.value.get(submissionId);
-			if (grade) {
-				gradingGrade = {
-					baseGrade: grade.baseGrade,
-					maxGrade: grade.maxGrade,
-					feedback: grade.feedback,
-				};
+			if (gradebookItemResult.ok) {
+				maxGrade = gradebookItemResult.value.maxGrade ?? null;
 			}
+
+			gradingGrade = {
+				baseGrade: submissionWithGrade.grade,
+				maxGrade,
+				feedback: submissionWithGrade.feedback || null,
+			};
 		}
 	}
 
-	// Fetch user grades for all submissions
-	const submissionIds = courseModuleContext.submissions.map((s) => s.id);
-	let gradesBySubmissionId = new Map<
-		number,
-		{
-			baseGrade: number | null;
-			maxGrade: number | null;
-			gradedAt: string | null;
-			feedback: string | null;
-		}
-	>();
+	// Fetch gradebook item to get maxGrade for all submissions
+	let maxGrade: number | null = null;
+	const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
+		payload,
+		user: {
+			...currentUser,
+			avatar: currentUser.avatar?.id ?? undefined,
+		},
+		req: request,
+		overrideAccess: false,
+		courseModuleLinkId: courseModuleContext.moduleLinkId,
+	});
 
-	if (submissionIds.length > 0 && courseModuleContext.module.type === "assignment") {
-		const gradesResult = await tryFindUserGradesBySubmissionIds({
-			payload,
-			user: currentUser
-				? {
-					...currentUser,
-					avatar: currentUser.avatar?.id ?? null,
-				}
-				: null,
-			req: undefined,
-			overrideAccess: false,
-			submissionIds,
-			submissionType: "assignment",
-		});
-
-		if (gradesResult.ok) {
-			gradesBySubmissionId = gradesResult.value;
-		}
+	if (gradebookItemResult.ok) {
+		maxGrade = gradebookItemResult.value.maxGrade ?? null;
 	}
 
-	// Map submissions with grades
+	// Map submissions with grades from submission.grade field
 	const submissionsWithGrades = courseModuleContext.submissions.map(
 		(submission) => {
-			const grade = gradesBySubmissionId.get(submission.id);
+			const submissionWithGrade = submission as typeof submission & {
+				grade?: number | null;
+				feedback?: string | null;
+				gradedAt?: string | null;
+			};
 			return {
 				...submission,
-				grade: grade
-					? {
-						baseGrade: grade.baseGrade,
-						maxGrade: grade.maxGrade,
-						gradedAt: grade.gradedAt,
-					}
-					: null,
+				grade:
+					submissionWithGrade.grade !== null &&
+						submissionWithGrade.grade !== undefined
+						? {
+							baseGrade: submissionWithGrade.grade,
+							maxGrade,
+							gradedAt: submissionWithGrade.gradedAt || null,
+							feedback: submissionWithGrade.feedback || null,
+						}
+						: null,
 			};
 		},
 	);
@@ -275,7 +280,17 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		}
 
 		// Delete the submission
-		const deleteResult = await tryDeleteAssignmentSubmission(payload, id);
+		const deleteResult = await tryDeleteAssignmentSubmission({
+			payload,
+			id,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id ?? undefined,
+			},
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!deleteResult.ok) {
 			return badRequest({ error: deleteResult.error.message });
@@ -324,19 +339,20 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			return badRequest({ error: "Invalid score value" });
 		}
 
-		// Grade the submission
+		// Grade the submission (only updates submission, doesn't create user-grade)
 		const gradeResult = await tryGradeAssignmentSubmission({
 			payload,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id ?? null,
-			},
-			req: request,
-			submissionId: id,
-			score: scoreValue,
+			request,
+			id,
+			grade: scoreValue,
 			feedback: feedback && typeof feedback === "string" ? feedback : undefined,
 			gradedBy: currentUser.id,
-			status: "graded",
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id ?? undefined,
+			},
+			overrideAccess: false,
 		});
 
 		if (!gradeResult.ok) {
@@ -344,7 +360,67 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			return badRequest({ error: errorMessage });
 		}
 
-		return { success: true, submission: gradeResult.value.submission };
+		return { success: true, submission: gradeResult.value };
+	}
+
+	if (method === "PUT") {
+		assertRequestMethod(request.method, "PUT");
+
+		// Check if user can grade submissions (same as viewing submissions)
+		const canGrade = canSeeModuleSubmissions(
+			currentUser,
+			enrolmentContext?.enrolment,
+		);
+
+		if (!canGrade) {
+			return unauthorized({
+				error: "You don't have permission to release grades",
+			});
+		}
+
+		// Get form data for release grade
+		const courseModuleLinkId = formData.get("courseModuleLinkId");
+		const enrollmentId = formData.get("enrollmentId");
+
+		// Validate course module link ID
+		if (!courseModuleLinkId || typeof courseModuleLinkId !== "string") {
+			return badRequest({ error: "Course module link ID is required" });
+		}
+
+		const courseModuleLinkIdValue = Number.parseInt(courseModuleLinkId, 10);
+		if (Number.isNaN(courseModuleLinkIdValue)) {
+			return badRequest({ error: "Invalid course module link ID" });
+		}
+
+		// Validate enrollment ID
+		if (!enrollmentId || typeof enrollmentId !== "string") {
+			return badRequest({ error: "Enrollment ID is required" });
+		}
+
+		const enrollmentIdValue = Number.parseInt(enrollmentId, 10);
+		if (Number.isNaN(enrollmentIdValue)) {
+			return badRequest({ error: "Invalid enrollment ID" });
+		}
+
+		// Release the grade
+		const releaseResult = await tryReleaseGrade({
+			payload,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id ?? null,
+			},
+			req: request,
+			overrideAccess: false,
+			courseActivityModuleLinkId: courseModuleLinkIdValue,
+			enrollmentId: enrollmentIdValue,
+		});
+
+		if (!releaseResult.ok) {
+			const errorMessage = String(releaseResult.error);
+			return badRequest({ error: errorMessage });
+		}
+
+		return { success: true, released: true };
 	}
 
 	return badRequest({ error: "Unsupported method" });
@@ -423,6 +499,8 @@ function StudentSubmissionRow({
 	canDelete,
 	onDeleteSubmission,
 	moduleLinkId,
+	onReleaseGrade,
+	isReleasing,
 }: {
 	courseId: number;
 	enrollment: Route.ComponentProps["loaderData"]["enrollments"][number];
@@ -432,6 +510,8 @@ function StudentSubmissionRow({
 	canDelete: boolean;
 	onDeleteSubmission: (submissionId: number) => void;
 	moduleLinkId: number;
+	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
+	isReleasing?: boolean;
 }) {
 	const [opened, { toggle }] = useDisclosure(false);
 
@@ -539,23 +619,47 @@ function StudentSubmissionRow({
 				</Table.Td>
 				<Table.Td>
 					<Group gap="xs">
-						<Button
-							component={Link}
-							to={
-								hasSubmissions && latestSubmission
-									? href("/course/module/:moduleLinkId/submissions", {
-										moduleLinkId: String(moduleLinkId),
-									}) +
-									`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
-									: "#"
-							}
-							size="xs"
-							variant="light"
-							leftSection={<IconPencil size={14} />}
-							disabled={!hasSubmissions}
-						>
-							Grade
-						</Button>
+						{hasSubmissions && latestSubmission ? (
+							<Menu position="bottom-end">
+								<Menu.Target>
+									<ActionIcon variant="light" size="lg">
+										<IconDots size={18} />
+									</ActionIcon>
+								</Menu.Target>
+								<Menu.Dropdown>
+									<Menu.Item
+										component={Link}
+										to={
+											href("/course/module/:moduleLinkId/submissions", {
+												moduleLinkId: String(moduleLinkId),
+											}) +
+											`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
+										}
+										leftSection={<IconPencil size={14} />}
+									>
+										Grade
+									</Menu.Item>
+									{latestSubmission.grade &&
+										latestSubmission.grade.baseGrade !== null &&
+										latestSubmission.grade.baseGrade !== undefined &&
+										onReleaseGrade && (
+											<Menu.Item
+												leftSection={<IconSend size={14} />}
+												onClick={() => {
+													onReleaseGrade(moduleLinkId, enrollment.id);
+												}}
+												disabled={isReleasing}
+											>
+												{isReleasing ? "Releasing..." : "Release Grade"}
+											</Menu.Item>
+										)}
+								</Menu.Dropdown>
+							</Menu>
+						) : (
+							<Button size="xs" variant="light" disabled>
+								Actions
+							</Button>
+						)}
 					</Group>
 				</Table.Td>
 			</Table.Tr>
@@ -662,6 +766,26 @@ export const useGradeSubmission = () => {
 	};
 };
 
+export const useReleaseGrade = () => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const releaseGrade = (courseModuleLinkId: number, enrollmentId: number) => {
+		const formData = new FormData();
+		formData.append("courseModuleLinkId", String(courseModuleLinkId));
+		formData.append("enrollmentId", String(enrollmentId));
+		fetcher.submit(formData, {
+			method: "PUT",
+		});
+	};
+
+	return {
+		releaseGrade,
+		isReleasing: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
 // ============================================================================
 // Main Component
 // ============================================================================
@@ -684,9 +808,32 @@ export default function ModuleSubmissionsPage({
 	// Call hooks unconditionally at the top
 	const [selectedRows, setSelectedRows] = useState<number[]>([]);
 	const { deleteSubmission } = useDeleteSubmission();
+	const clipboard = useClipboard({ timeout: 2000 });
+	const { releaseGrade, isReleasing, data: releaseData } = useReleaseGrade();
+
+	// Show notification when grade is successfully released
+	useEffect(() => {
+		if (
+			releaseData &&
+			"success" in releaseData &&
+			releaseData.success &&
+			"released" in releaseData &&
+			releaseData.released
+		) {
+			notifications.show({
+				title: "Success",
+				message: "Grade released successfully",
+				color: "green",
+			});
+		}
+	}, [releaseData]);
 
 	// If we're in grading mode, show the grading view
 	if (action === AssignmentActions.GRADE_SUBMISSION && gradingSubmission) {
+		const submissionWithRelations = gradingSubmission as typeof gradingSubmission & {
+			enrollment?: { id: number } | number | null;
+			courseModuleLink?: { id: number } | number | null;
+		};
 		return (
 			<GradingView
 				submission={gradingSubmission}
@@ -695,6 +842,10 @@ export default function ModuleSubmissionsPage({
 				course={course}
 				moduleLinkId={loaderData.moduleLinkId}
 				grade={loaderData.gradingGrade}
+				onReleaseGrade={releaseGrade}
+				isReleasing={isReleasing}
+				enrollment={submissionWithRelations.enrollment}
+				courseModuleLink={submissionWithRelations.courseModuleLink}
 			/>
 		);
 	}
@@ -728,15 +879,24 @@ export default function ModuleSubmissionsPage({
 		);
 	};
 
-	// Mock batch actions
-	const handleBatchEmail = () => {
-		console.log("Send email to selected students:", selectedRows);
-		// TODO: Implement batch email functionality
-	};
+	// Batch actions
+	const handleBatchEmailCopy = () => {
+		const selectedEnrollments = enrollments.filter((e) =>
+			selectedRows.includes(e.id),
+		);
+		const emailAddresses = selectedEnrollments
+			.map((e) => e.email)
+			.filter((email): email is string => email !== null && email !== undefined)
+			.join(", ");
 
-	const handleBatchExport = () => {
-		console.log("Export selected submissions:", selectedRows);
-		// TODO: Implement batch export functionality
+		if (emailAddresses) {
+			clipboard.copy(emailAddresses);
+			notifications.show({
+				title: "Copied",
+				message: `Copied ${selectedEnrollments.length} email address${selectedEnrollments.length !== 1 ? "es" : ""} to clipboard`,
+				color: "green",
+			});
+		}
 	};
 
 
@@ -759,19 +919,12 @@ export default function ModuleSubmissionsPage({
 								<Group gap="xs">
 									<Button
 										variant="light"
+										color={clipboard.copied ? "teal" : "blue"}
 										leftSection={<IconMail size={16} />}
-										onClick={handleBatchEmail}
+										onClick={handleBatchEmailCopy}
 										size="sm"
 									>
-										Email
-									</Button>
-									<Button
-										variant="light"
-										leftSection={<IconDownload size={16} />}
-										onClick={handleBatchExport}
-										size="sm"
-									>
-										Export
+										{clipboard.copied ? "Copied!" : "Copy Emails"}
 									</Button>
 									<Menu position="bottom-end">
 										<Menu.Target>
@@ -833,6 +986,8 @@ export default function ModuleSubmissionsPage({
 												canDelete={canDelete}
 												onDeleteSubmission={(submissionId) => deleteSubmission(submissionId, moduleLinkId)}
 												moduleLinkId={loaderData.moduleLinkId}
+												onReleaseGrade={releaseGrade}
+												isReleasing={isReleasing}
 											/>
 										);
 									})}

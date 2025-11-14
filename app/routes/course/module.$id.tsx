@@ -68,7 +68,6 @@ import { ContentType } from "~/utils/get-content-type";
 import { AssignmentActions, QuizActions } from "~/utils/module-actions";
 import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
-	BadRequestResponse,
 	badRequest,
 	ForbiddenResponse,
 	StatusCode,
@@ -636,12 +635,19 @@ export const action = async ({
 
 		if (existingDraftSubmission) {
 			// Update existing draft submission
-			const updateResult = await tryUpdateAssignmentSubmission(payload, {
+			const updateResult = await tryUpdateAssignmentSubmission({
+				payload,
 				id: existingDraftSubmission.id,
 				content: textContent,
 				attachments: attachments.length > 0 ? attachments : undefined,
 				status: "draft",
-				transactionID,
+				user: {
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar?.id ?? undefined,
+				},
+				req: { transactionID },
+				overrideAccess: false,
 			});
 
 			if (!updateResult.ok) {
@@ -652,14 +658,21 @@ export const action = async ({
 			submissionId = existingDraftSubmission.id;
 		} else {
 			// Create new submission with next attempt number
-			const createResult = await tryCreateAssignmentSubmission(payload, {
+			const createResult = await tryCreateAssignmentSubmission({
+				payload,
 				courseModuleLinkId: Number(moduleLinkId),
 				studentId: currentUser.id,
 				enrollmentId: enrolmentContext.enrolment.id,
 				content: textContent,
 				attachments: attachments.length > 0 ? attachments : undefined,
 				attemptNumber: nextAttemptNumber,
-				transactionID,
+				user: {
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar?.id ?? undefined,
+				},
+				req: { transactionID },
+				overrideAccess: false,
 			});
 
 			if (!createResult.ok) {
@@ -671,11 +684,17 @@ export const action = async ({
 		}
 
 		// Submit the assignment (change status to submitted)
-		const submitResult = await trySubmitAssignment(
+		const submitResult = await trySubmitAssignment({
 			payload,
 			submissionId,
-			transactionID.toString(),
-		);
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id ?? undefined,
+			},
+			req: { transactionID },
+			overrideAccess: false,
+		});
 
 		if (!submitResult.ok) {
 			await payload.db.rollbackTransaction(transactionID);

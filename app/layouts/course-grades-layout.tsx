@@ -1,7 +1,7 @@
 import { Container, Tabs } from "@mantine/core";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useQueryState } from "nuqs";
-import { Outlet } from "react-router";
+import { href, Outlet, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -14,6 +14,7 @@ import classes from "./header-tabs.module.css";
 enum GradesTab {
 	Report = "report",
 	Setup = "setup",
+	SingleView = "singleview",
 }
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -73,11 +74,41 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 export default function CourseGradesLayout({
 	loaderData,
+	matches,
 }: Route.ComponentProps) {
-	const { course } = loaderData;
-	const [activeTab, setActiveTab] = useQueryState("tab", {
-		defaultValue: GradesTab.Report,
-	});
+	const { course, pageInfo } = loaderData;
+	const navigate = useNavigate();
+	const [tabQueryParam] = useQueryState("tab");
+
+	// Determine current tab based on route matches
+	const getCurrentTab = () => {
+		if (pageInfo.isCourseGradesSingleView) return GradesTab.SingleView;
+		if (tabQueryParam === "setup") return GradesTab.Setup;
+		// Default to Report tab
+		return GradesTab.Report;
+	};
+
+	const handleTabChange = (value: string | null) => {
+		if (!value) return;
+
+		const courseId = course.id.toString();
+
+		switch (value) {
+			case GradesTab.Report:
+				navigate(href("/course/:courseId/grades", { courseId }));
+				break;
+			case GradesTab.Setup:
+				navigate(
+					href("/course/:courseId/grades", { courseId }) + "?tab=setup",
+				);
+				break;
+			case GradesTab.SingleView:
+				navigate(
+					href("/course/:courseId/grades/singleview", { courseId }),
+				);
+				break;
+		}
+	};
 
 	return (
 		<Container size="xl" py="xl">
@@ -93,8 +124,8 @@ export default function CourseGradesLayout({
 			/>
 
 			<Tabs
-				value={activeTab ?? GradesTab.Report}
-				onChange={(value) => setActiveTab(value)}
+				value={getCurrentTab()}
+				onChange={handleTabChange}
 				variant="outline"
 				mb="md"
 				classNames={{
@@ -106,6 +137,7 @@ export default function CourseGradesLayout({
 				<Tabs.List>
 					<Tabs.Tab value={GradesTab.Report}>Grader Report</Tabs.Tab>
 					<Tabs.Tab value={GradesTab.Setup}>Gradebook Setup</Tabs.Tab>
+					<Tabs.Tab value={GradesTab.SingleView}>Single View</Tabs.Tab>
 				</Tabs.List>
 			</Tabs>
 

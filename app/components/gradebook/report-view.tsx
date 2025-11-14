@@ -9,6 +9,7 @@ import {
 	Text,
 } from "@mantine/core";
 import { href, Link } from "react-router";
+import type { UserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { getModuleIcon } from "../../utils/module-helper";
 
 // ============================================================================
@@ -30,6 +31,7 @@ type GradebookJson = {
 export type GraderReportData = {
 	enrollments: Enrollment[];
 	gradebookJson: GradebookJson | null;
+	userGrades: UserGradesJsonRepresentation | null;
 };
 
 // ============================================================================
@@ -245,7 +247,7 @@ function buildHeadersRecursive(
 }
 
 export function GraderReportView({ data }: { data: GraderReportData }) {
-	const { enrollments, gradebookJson } = data;
+	const { enrollments, gradebookJson, userGrades } = data;
 
 	if (!gradebookJson) {
 		return (
@@ -265,6 +267,49 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 	// Build hierarchical header structure
 	const headerRows = buildHeaderRows(gradebook_setup.items);
 	const totalColumns = allItems.length;
+
+	// Create a nested map structure for quick grade lookup: Map<enrollmentId, Map<itemId, baseGrade>>
+	const gradesByEnrollmentAndItem = new Map<
+		number,
+		Map<number, number | null>
+	>();
+	const finalGradesByEnrollment = new Map<number, number | null>();
+
+	if (userGrades) {
+		// Debug: Log enrollment IDs from userGrades
+		const userGradesEnrollmentIds = userGrades.enrollments.map(
+			(e) => e.enrollment_id,
+		);
+		// Debug: Log enrollment IDs from course context
+		const courseEnrollmentIds = enrollments.map((e) => e.id);
+
+		for (const enrollment of userGrades.enrollments) {
+			const itemGradesMap = new Map<number, number | null>();
+			for (const item of enrollment.items) {
+				// Store all grades, including null, so we can distinguish between "no grade" and "grade is 0"
+				itemGradesMap.set(item.item_id, item.base_grade ?? null);
+			}
+			gradesByEnrollmentAndItem.set(enrollment.enrollment_id, itemGradesMap);
+			finalGradesByEnrollment.set(
+				enrollment.enrollment_id,
+				enrollment.final_grade ?? null,
+			);
+		}
+
+		// Debug logging (remove after debugging)
+		if (
+			userGradesEnrollmentIds.length > 0 ||
+			courseEnrollmentIds.length > 0
+		) {
+			console.log("UserGrades enrollment IDs:", userGradesEnrollmentIds);
+			console.log("Course enrollment IDs:", courseEnrollmentIds);
+			console.log("Gradebook item IDs:", allItems.map((i) => i.id));
+			console.log(
+				"UserGrades item IDs:",
+				userGrades.enrollments.flatMap((e) => e.items.map((i) => i.item_id)),
+			);
+		}
+	}
 
 	// Helper to render cells for a row, handling gaps with empty cells
 	const renderRowCells = (row: HeaderRow) => {
@@ -385,37 +430,59 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 								</Table.Td>
 							</Table.Tr>
 						) : (
-							enrollments.map((enrollment: (typeof enrollments)[number]) => (
-								<Table.Tr key={enrollment.id}>
-									<Table.Td>
-										<Group gap="sm">
-											<Avatar size="sm" radius="xl" color="blue">
-												{enrollment.name.charAt(0)}
-											</Avatar>
-											<div>
-												<Text size="sm" fw={500}>
-													{enrollment.name}
-												</Text>
-												<Text size="xs" c="dimmed">
-													{enrollment.email}
-												</Text>
-											</div>
-										</Group>
-									</Table.Td>
-									{allItems.map((item) => (
-										<Table.Td key={item.id}>
-											<Text size="sm" c="dimmed">
-												-
-											</Text>
+							enrollments.map((enrollment: (typeof enrollments)[number]) => {
+								const enrollmentGrades =
+									gradesByEnrollmentAndItem.get(enrollment.id);
+								const finalGrade = finalGradesByEnrollment.get(enrollment.id);
+
+								return (
+									<Table.Tr key={enrollment.id}>
+										<Table.Td>
+											<Group gap="sm">
+												<Avatar size="sm" radius="xl" color="blue">
+													{enrollment.name.charAt(0)}
+												</Avatar>
+												<div>
+													<Text size="sm" fw={500}>
+														{enrollment.name}
+													</Text>
+													<Text size="xs" c="dimmed">
+														{enrollment.email}
+													</Text>
+												</div>
+											</Group>
 										</Table.Td>
-									))}
-									<Table.Td>
-										<Text size="sm" fw={500}>
-											-
-										</Text>
-									</Table.Td>
-								</Table.Tr>
-							))
+										{allItems.map((item) => {
+											const grade =
+												enrollmentGrades?.get(item.id);
+											// Check if grade exists in map (could be null, which means no grade was set)
+											const hasGrade = enrollmentGrades?.has(item.id) ?? false;
+											return (
+												<Table.Td key={item.id}>
+													{hasGrade && grade !== null && grade !== undefined ? (
+														<Text size="sm">{grade}</Text>
+													) : (
+														<Text size="sm" c="dimmed">
+															-
+														</Text>
+													)}
+												</Table.Td>
+											);
+										})}
+										<Table.Td>
+											{finalGrade !== null && finalGrade !== undefined ? (
+												<Text size="sm" fw={500}>
+													{finalGrade.toFixed(2)}
+												</Text>
+											) : (
+												<Text size="sm" fw={500} c="dimmed">
+													-
+												</Text>
+											)}
+										</Table.Td>
+									</Table.Tr>
+								);
+							})
 						)}
 					</Table.Tbody>
 				</Table>

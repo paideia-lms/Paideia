@@ -1,13 +1,10 @@
 import type { Payload, PayloadRequest } from "payload";
-import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import { GradebookItems } from "server/collections/gradebook-items";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
-	GradebookCategoryNotFoundError,
 	GradebookItemNotFoundError,
-	GradebookNotFoundError,
 	InvalidGradeValueError,
 	InvalidSortOrderError,
 	TransactionIdNotFoundError,
@@ -34,6 +31,7 @@ export interface CreateGradebookItemArgs {
 export interface UpdateGradebookItemArgs {
 	name?: string;
 	description?: string;
+	categoryId?: number | null;
 	activityModuleId?: number | null;
 	maxGrade?: number;
 	minGrade?: number;
@@ -231,10 +229,23 @@ export const tryUpdateGradebookItem = Result.wrap(
 		// 	}
 		// }
 
+		// Build update data, mapping categoryId to category and excluding categoryId
+		const { categoryId, activityModuleId, ...restArgs } = args;
+		const updateData: Record<string, unknown> = {
+			...restArgs,
+		};
+
+		if (categoryId !== undefined) {
+			updateData.category = categoryId;
+		}
+		if (activityModuleId !== undefined) {
+			updateData.activityModule = activityModuleId;
+		}
+
 		const updatedItem = await payload.update({
 			collection: GradebookItems.slug,
 			id: itemId,
-			data: args,
+			data: updateData,
 			req: request,
 		});
 
@@ -362,7 +373,10 @@ export const tryGetCategoryItems = Result.wrap(
  */
 export const tryGetNextItemSortOrder = Result.wrap(
 	async (payload: Payload, gradebookId: number, categoryId?: number | null) => {
-		const where: any = {
+		const where: {
+			gradebook: { equals: number };
+			category?: { equals: number | null };
+		} = {
 			gradebook: {
 				equals: gradebookId,
 			},
@@ -526,9 +540,6 @@ export const tryFindGradebookItemByCourseModuleLink = Result.wrap(
 	async (args: FindGradebookItemByCourseModuleLinkArgs) => {
 		const { payload, user, req, overrideAccess = false, courseModuleLinkId } = args;
 
-		console.log('tryFindGradebookItemByCourseModuleLink: courseModuleLinkId', courseModuleLinkId);
-
-		console.log('tryFindGradebookItemByCourseModuleLink: user', user);
 
 		const items = await payload.find({
 			collection: GradebookItems.slug,
@@ -543,7 +554,6 @@ export const tryFindGradebookItemByCourseModuleLink = Result.wrap(
 			overrideAccess
 		});
 
-		console.log('tryFindGradebookItemByCourseModuleLink: items', items);
 
 		if (items.docs.length === 0) {
 			throw new GradebookItemNotFoundError(

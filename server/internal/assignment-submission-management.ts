@@ -1,5 +1,6 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { AssignmentSubmissions } from "server/collections";
+import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -11,9 +12,9 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { DEFAULT_ALLOWED_FILE_TYPES } from "~/utils/file-types";
-import { tryCreateUserGrade } from "./user-grade-management";
 
 export interface CreateAssignmentSubmissionArgs {
+	payload: Payload;
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -24,10 +25,13 @@ export interface CreateAssignmentSubmissionArgs {
 		description?: string;
 	}>;
 	timeSpent?: number;
-	transactionID?: string | number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateAssignmentSubmissionArgs {
+	payload: Payload;
 	id: number;
 	status?: "draft" | "submitted" | "graded" | "returned";
 	content?: string;
@@ -39,21 +43,36 @@ export interface UpdateAssignmentSubmissionArgs {
 		}
 	>;
 	timeSpent?: number;
-	transactionID?: string | number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GradeAssignmentSubmissionArgs {
+	payload: Payload;
+	request: Request;
 	id: number;
 	grade: number;
 	feedback?: string;
 	gradedBy: number;
-	enrollmentId: number;
-	gradebookItemId: number;
-	submittedAt?: string;
+	user?: TypedUser | null;
+	overrideAccess?: boolean;
 }
 
 export interface GetAssignmentSubmissionByIdArgs {
+	payload: Payload;
 	id: number | string;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface DeleteAssignmentSubmissionArgs {
+	payload: Payload;
+	id: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface ListAssignmentSubmissionsArgs {
@@ -139,8 +158,9 @@ function validateFileAttachments(
  * Creates a new assignment submission using Payload local API
  */
 export const tryCreateAssignmentSubmission = Result.wrap(
-	async (payload: Payload, args: CreateAssignmentSubmissionArgs) => {
+	async (args: CreateAssignmentSubmissionArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -148,7 +168,9 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			content,
 			attachments,
 			timeSpent,
-			transactionID,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -162,114 +184,149 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
 
-		// Check if submission already exists for this attempt
-		const existingSubmission = await payload.find({
-			collection: "assignment-submissions",
-			where: {
-				and: [
-					{ courseModuleLink: { equals: courseModuleLinkId } },
-					{ student: { equals: studentId } },
-					{ attemptNumber: { equals: attemptNumber } },
-				],
-			},
-			req: transactionID ? { transactionID } : undefined,
-		});
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
-		if (existingSubmission.docs.length > 0) {
-			throw new InvalidArgumentError(
-				`Submission already exists for attempt ${attemptNumber}`,
-			);
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
-		// Get course module link to access assignment
-		const courseModuleLink = await payload.findByID({
-			collection: "course-activity-module-links",
-			id: courseModuleLinkId,
-			depth: 2, // Need to get activity module and assignment
-			req: transactionID ? { transactionID } : undefined,
-		});
+		// Construct req with transactionID
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
 
-		if (!courseModuleLink) {
-			throw new InvalidArgumentError("Course module link not found");
-		}
-
-		// Get assignment from activity module
-		const activityModule =
-			typeof courseModuleLink.activityModule === "object"
-				? courseModuleLink.activityModule
-				: null;
-		const assignment =
-			activityModule && typeof activityModule.assignment === "object"
-				? activityModule.assignment
-				: null;
-
-		// Validate file attachments if provided
-		if (attachments && attachments.length > 0) {
-			const mediaFileIds = attachments.map((a) => a.file);
-			const mediaFiles = await payload.find({
-				collection: "media",
+		try {
+			// Check if submission already exists for this attempt
+			const existingSubmission = await payload.find({
+				collection: "assignment-submissions",
 				where: {
-					id: { in: mediaFileIds },
+					and: [
+						{ courseModuleLink: { equals: courseModuleLinkId } },
+						{ student: { equals: studentId } },
+						{ attemptNumber: { equals: attemptNumber } },
+					],
 				},
-				req: transactionID ? { transactionID } : undefined,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
-			validateFileAttachments(attachments, assignment, mediaFiles.docs);
+			if (existingSubmission.docs.length > 0) {
+				throw new InvalidArgumentError(
+					`Submission already exists for attempt ${attemptNumber}`,
+				);
+			}
+
+			// Get course module link to access assignment
+			const courseModuleLink = await payload.findByID({
+				collection: "course-activity-module-links",
+				id: courseModuleLinkId,
+				depth: 2, // Need to get activity module and assignment
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			if (!courseModuleLink) {
+				throw new InvalidArgumentError("Course module link not found");
+			}
+
+			// Get assignment from activity module
+			const activityModule =
+				typeof courseModuleLink.activityModule === "object"
+					? courseModuleLink.activityModule
+					: null;
+			const assignment =
+				activityModule && typeof activityModule.assignment === "object"
+					? activityModule.assignment
+					: null;
+
+			// Validate file attachments if provided
+			if (attachments && attachments.length > 0) {
+				const mediaFileIds = attachments.map((a) => a.file);
+				const mediaFiles = await payload.find({
+					collection: "media",
+					where: {
+						id: { in: mediaFileIds },
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				});
+
+				validateFileAttachments(attachments, assignment, mediaFiles.docs);
+			}
+
+			const isLate = assignment?.dueDate
+				? new Date() > new Date(assignment.dueDate)
+				: false;
+
+			const submission = await payload.create({
+				collection: "assignment-submissions",
+				data: {
+					courseModuleLink: courseModuleLinkId,
+					student: studentId,
+					enrollment: enrollmentId,
+					attemptNumber,
+					status: "draft",
+					content,
+					attachments,
+					isLate,
+					timeSpent,
+				},
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			////////////////////////////////////////////////////
+			// type narrowing
+			////////////////////////////////////////////////////
+
+			const courseModuleLinkRef = submission.courseModuleLink;
+			assertZodInternal(
+				"tryCreateAssignmentSubmission: Course module link is required",
+				courseModuleLinkRef,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const student = submission.student;
+			assertZodInternal(
+				"tryCreateAssignmentSubmission: Student is required",
+				student,
+				z.object({ id: z.number() }),
+			);
+
+			const enrollment = submission.enrollment;
+			assertZodInternal(
+				"tryCreateAssignmentSubmission: Enrollment is required",
+				enrollment,
+				z.object({ id: z.number() }),
+			);
+
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return {
+				...submission,
+				courseModuleLink: courseModuleLinkRef,
+				student,
+				enrollment,
+			};
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
 		}
-
-		const isLate = assignment?.dueDate
-			? new Date() > new Date(assignment.dueDate)
-			: false;
-
-		const submission = await payload.create({
-			collection: "assignment-submissions",
-			data: {
-				courseModuleLink: courseModuleLinkId,
-				student: studentId,
-				enrollment: enrollmentId,
-				attemptNumber,
-				status: "draft",
-				content,
-				attachments,
-				isLate,
-				timeSpent,
-			},
-			req: transactionID ? { transactionID } : undefined,
-		});
-
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const courseModuleLinkRef = submission.courseModuleLink;
-		assertZodInternal(
-			"tryCreateAssignmentSubmission: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = submission.student;
-		assertZodInternal(
-			"tryCreateAssignmentSubmission: Student is required",
-			student,
-			z.object({ id: z.number() }),
-		);
-
-		const enrollment = submission.enrollment;
-		assertZodInternal(
-			"tryCreateAssignmentSubmission: Enrollment is required",
-			enrollment,
-			z.object({ id: z.number() }),
-		);
-
-		return {
-			...submission,
-			courseModuleLink: courseModuleLinkRef,
-			student,
-			enrollment,
-		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -282,8 +339,14 @@ export const tryCreateAssignmentSubmission = Result.wrap(
  * Get an assignment submission by ID
  */
 export const tryGetAssignmentSubmissionById = Result.wrap(
-	async (payload: Payload, args: GetAssignmentSubmissionByIdArgs) => {
-		const { id } = args;
+	async (args: GetAssignmentSubmissionByIdArgs) => {
+		const {
+			payload,
+			id,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -301,6 +364,9 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
 				],
 			},
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const submission = submissionResult.docs[0];
@@ -354,140 +420,185 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
  * Updates an assignment submission
  */
 export const tryUpdateAssignmentSubmission = Result.wrap(
-	async (payload: Payload, args: UpdateAssignmentSubmissionArgs) => {
-		const { id, status, content, attachments, timeSpent, transactionID } = args;
+	async (args: UpdateAssignmentSubmissionArgs) => {
+		const {
+			payload,
+			id,
+			status,
+			content,
+			attachments,
+			timeSpent,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
 			throw new InvalidArgumentError("Assignment submission ID is required");
 		}
 
-		// Get existing submission to access assignment configuration
-		const existingSubmission = await payload.findByID({
-			collection: "assignment-submissions",
-			id,
-			depth: 0,
-			req: transactionID ? { transactionID } : undefined,
-		});
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
-		if (!existingSubmission) {
-			throw new NonExistingAssignmentSubmissionError(
-				`Assignment submission with id '${id}' not found`,
-			);
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
-		// Validate file attachments if being updated
-		if (attachments !== undefined && attachments.length > 0) {
-			// Get course module link to access assignment
-			const courseModuleLinkId =
-				typeof existingSubmission.courseModuleLink === "object"
-					? existingSubmission.courseModuleLink.id
-					: existingSubmission.courseModuleLink;
+		// Construct req with transactionID
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
 
-			const courseModuleLink = await payload.findByID({
-				collection: "course-activity-module-links",
-				id: courseModuleLinkId,
-				depth: 2,
-				req: transactionID ? { transactionID } : undefined,
+		try {
+			// Get existing submission to access assignment configuration
+			const existingSubmission = await payload.findByID({
+				collection: "assignment-submissions",
+				id,
+				depth: 0,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
-			const activityModule =
-				typeof courseModuleLink.activityModule === "object"
-					? courseModuleLink.activityModule
-					: null;
-			const assignment =
-				activityModule && typeof activityModule.assignment === "object"
-					? activityModule.assignment
-					: null;
-
-			// Extract file IDs from attachments (could be numbers or objects)
-			const fileIds = attachments
-				.map((a) => (typeof a === "number" ? a : a.file))
-				.filter((id): id is number => typeof id === "number");
-
-			if (fileIds.length > 0) {
-				const mediaFiles = await payload.find({
-					collection: "media",
-					where: {
-						id: { in: fileIds },
-					},
-					req: transactionID ? { transactionID } : undefined,
-				});
-
-				// Convert attachments to proper format for validation
-				const attachmentsForValidation = attachments.map((a) =>
-					typeof a === "number" ? { file: a } : a,
-				);
-
-				validateFileAttachments(
-					attachmentsForValidation,
-					assignment,
-					mediaFiles.docs,
+			if (!existingSubmission) {
+				throw new NonExistingAssignmentSubmissionError(
+					`Assignment submission with id '${id}' not found`,
 				);
 			}
-		}
 
-		// Build update data object
-		const updateData: Record<string, unknown> = {};
-		if (status !== undefined) updateData.status = status;
-		if (content !== undefined) updateData.content = content;
-		if (attachments !== undefined) updateData.attachments = attachments;
-		if (timeSpent !== undefined) updateData.timeSpent = timeSpent;
+			// Validate file attachments if being updated
+			if (attachments !== undefined && attachments.length > 0) {
+				// Get course module link to access assignment
+				const courseModuleLinkId =
+					typeof existingSubmission.courseModuleLink === "object"
+						? existingSubmission.courseModuleLink.id
+						: existingSubmission.courseModuleLink;
 
-		// If status is being changed to submitted, set submittedAt
-		if (status === "submitted") {
-			updateData.submittedAt = new Date().toISOString();
-		}
+				const courseModuleLink = await payload.findByID({
+					collection: "course-activity-module-links",
+					id: courseModuleLinkId,
+					depth: 2,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				});
 
-		// Validate that at least one field is being updated
-		if (Object.keys(updateData).length === 0) {
-			throw new InvalidArgumentError(
-				"At least one field must be provided for update",
+				const activityModule =
+					typeof courseModuleLink.activityModule === "object"
+						? courseModuleLink.activityModule
+						: null;
+				const assignment =
+					activityModule && typeof activityModule.assignment === "object"
+						? activityModule.assignment
+						: null;
+
+				// Extract file IDs from attachments (could be numbers or objects)
+				const fileIds = attachments
+					.map((a) => (typeof a === "number" ? a : a.file))
+					.filter((id): id is number => typeof id === "number");
+
+				if (fileIds.length > 0) {
+					const mediaFiles = await payload.find({
+						collection: "media",
+						where: {
+							id: { in: fileIds },
+						},
+						user,
+						req: reqWithTransaction,
+						overrideAccess,
+					});
+
+					// Convert attachments to proper format for validation
+					const attachmentsForValidation = attachments.map((a) =>
+						typeof a === "number" ? { file: a } : a,
+					);
+
+					validateFileAttachments(
+						attachmentsForValidation,
+						assignment,
+						mediaFiles.docs,
+					);
+				}
+			}
+
+			// Build update data object
+			const updateData: Record<string, unknown> = {};
+			if (status !== undefined) updateData.status = status;
+			if (content !== undefined) updateData.content = content;
+			if (attachments !== undefined) updateData.attachments = attachments;
+			if (timeSpent !== undefined) updateData.timeSpent = timeSpent;
+
+			// If status is being changed to submitted, set submittedAt
+			if (status === "submitted") {
+				updateData.submittedAt = new Date().toISOString();
+			}
+
+			// Validate that at least one field is being updated
+			if (Object.keys(updateData).length === 0) {
+				throw new InvalidArgumentError(
+					"At least one field must be provided for update",
+				);
+			}
+
+			const updatedSubmission = await payload.update({
+				collection: "assignment-submissions",
+				id,
+				data: updateData,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			////////////////////////////////////////////////////
+			// type narrowing
+			////////////////////////////////////////////////////
+
+			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
+			assertZodInternal(
+				"tryUpdateAssignmentSubmission: Course module link is required",
+				courseModuleLinkRef,
+				z.object({ id: z.number() }),
 			);
+
+			const student = updatedSubmission.student;
+			assertZodInternal(
+				"tryUpdateAssignmentSubmission: Student is required",
+				student,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const enrollment = updatedSubmission.enrollment;
+			assertZodInternal(
+				"tryUpdateAssignmentSubmission: Enrollment is required",
+				enrollment,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: courseModuleLinkRef,
+				student,
+				enrollment,
+			};
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
 		}
-
-		const updatedSubmission = await payload.update({
-			collection: "assignment-submissions",
-			id,
-			data: updateData,
-			req: transactionID ? { transactionID } : undefined,
-		});
-
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-		assertZodInternal(
-			"tryUpdateAssignmentSubmission: Course module link is required",
-			courseModuleLinkRef,
-			z.object({ id: z.number() }),
-		);
-
-		const student = updatedSubmission.student;
-		assertZodInternal(
-			"tryUpdateAssignmentSubmission: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = updatedSubmission.enrollment;
-		assertZodInternal(
-			"tryUpdateAssignmentSubmission: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
-			...updatedSubmission,
-			courseModuleLink: courseModuleLinkRef,
-			student,
-			enrollment,
-		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -496,85 +607,130 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 		}),
 );
 
+export interface SubmitAssignmentArgs {
+	payload: Payload;
+	submissionId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 /**
  * Submits an assignment (changes status from draft to submitted)
  */
 export const trySubmitAssignment = Result.wrap(
-	async (
-		payload: Payload,
-		submissionId: number,
-		transactionID?: string | number,
-	) => {
+	async (args: SubmitAssignmentArgs) => {
+		const {
+			payload,
+			submissionId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate ID
 		if (!submissionId) {
 			throw new InvalidArgumentError("Assignment submission ID is required");
 		}
 
-		// Get the current submission
-		const currentSubmission = await payload.findByID({
-			collection: "assignment-submissions",
-			id: submissionId,
-			req: transactionID ? { transactionID } : undefined,
-		});
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
-		if (!currentSubmission) {
-			throw new NonExistingAssignmentSubmissionError(
-				`Assignment submission with id '${submissionId}' not found`,
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		// Construct req with transactionID
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
+		try {
+			// Get the current submission
+			const currentSubmission = await payload.findByID({
+				collection: "assignment-submissions",
+				id: submissionId,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			if (!currentSubmission) {
+				throw new NonExistingAssignmentSubmissionError(
+					`Assignment submission with id '${submissionId}' not found`,
+				);
+			}
+
+			if (currentSubmission.status !== "draft") {
+				throw new InvalidArgumentError(
+					"Only draft submissions can be submitted",
+				);
+			}
+
+			// Update status to submitted
+			const updatedSubmission = await payload.update({
+				collection: "assignment-submissions",
+				id: submissionId,
+				data: {
+					status: "submitted",
+					submittedAt: new Date().toISOString(),
+				},
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			////////////////////////////////////////////////////
+			// type narrowing
+			////////////////////////////////////////////////////
+
+			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
+			assertZodInternal(
+				"trySubmitAssignment: Course module link is required",
+				courseModuleLinkRef,
+				z.object({
+					id: z.number(),
+				}),
 			);
+
+			const student = updatedSubmission.student;
+			assertZodInternal(
+				"trySubmitAssignment: Student is required",
+				student,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			const enrollment = updatedSubmission.enrollment;
+			assertZodInternal(
+				"trySubmitAssignment: Enrollment is required",
+				enrollment,
+				z.object({
+					id: z.number(),
+				}),
+			);
+
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return {
+				...updatedSubmission,
+				courseModuleLink: courseModuleLinkRef,
+				student,
+				enrollment,
+			};
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
 		}
-
-		if (currentSubmission.status !== "draft") {
-			throw new InvalidArgumentError("Only draft submissions can be submitted");
-		}
-
-		// Update status to submitted
-		const updatedSubmission = await payload.update({
-			collection: "assignment-submissions",
-			id: submissionId,
-			data: {
-				status: "submitted",
-				submittedAt: new Date().toISOString(),
-			},
-			req: transactionID ? { transactionID } : undefined,
-		});
-
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-		assertZodInternal(
-			"trySubmitAssignment: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = updatedSubmission.student;
-		assertZodInternal(
-			"trySubmitAssignment: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = updatedSubmission.enrollment;
-		assertZodInternal(
-			"trySubmitAssignment: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
-			...updatedSubmission,
-			courseModuleLink: courseModuleLinkRef,
-			student,
-			enrollment,
-		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -584,22 +740,20 @@ export const trySubmitAssignment = Result.wrap(
 );
 
 /**
- * Grades an assignment submission and creates gradebook entry
+ * Grades an assignment submission by updating the submission with grade and feedback
+ * This does NOT update user-grades - use tryReleaseGrade to release grades to gradebook
  */
 export const tryGradeAssignmentSubmission = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		args: GradeAssignmentSubmissionArgs,
-	) => {
+	async (args: GradeAssignmentSubmissionArgs) => {
 		const {
+			payload,
+			request,
 			id,
 			grade,
 			feedback,
 			gradedBy,
-			enrollmentId,
-			gradebookItemId,
-			submittedAt,
+			user = null,
+			overrideAccess = false,
 		} = args;
 
 		// Validate ID
@@ -612,18 +766,6 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			throw new InvalidArgumentError("Grade cannot be negative");
 		}
 
-		// Validate required gradebook fields
-		if (!enrollmentId) {
-			throw new InvalidArgumentError(
-				"Enrollment ID is required for gradebook integration",
-			);
-		}
-		if (!gradebookItemId) {
-			throw new InvalidArgumentError(
-				"Gradebook item ID is required for gradebook integration",
-			);
-		}
-
 		// Start transaction
 		const transactionID = await payload.db.beginTransaction();
 
@@ -632,11 +774,20 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 		}
 
 		try {
-			// Get the current submission
+			// Construct req with transactionID
+			const reqWithTransaction: Partial<PayloadRequest> = {
+				...request,
+				transactionID,
+			};
+
+			// Get the current submission with depth to access course module link
 			const currentSubmission = await payload.findByID({
 				collection: AssignmentSubmissions.slug,
 				id,
-				req: { transactionID },
+				depth: 1,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			if (!currentSubmission) {
@@ -651,44 +802,69 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				);
 			}
 
-			// Note: No need to verify assignment exists separately as it's accessed
-			// through the course module link relationship
+			// Optionally validate grade against gradebook item limits if gradebook item exists
+			const courseModuleLinkId =
+				typeof currentSubmission.courseModuleLink === "number"
+					? currentSubmission.courseModuleLink
+					: currentSubmission.courseModuleLink.id;
 
-			// Update submission with grade
-			const updatedSubmission = await payload.update({
+			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
+				payload,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+				courseModuleLinkId,
+			});
+
+			if (gradebookItemResult.ok) {
+				const gradebookItem = gradebookItemResult.value;
+				if (
+					grade < gradebookItem.minGrade ||
+					grade > gradebookItem.maxGrade
+				) {
+					throw new InvalidArgumentError(
+						`Grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					);
+				}
+			}
+
+			const now = new Date().toISOString();
+
+			// Update submission with grade, feedback, gradedBy, gradedAt, and status
+			// Note: Using Record<string, unknown> because Payload types haven't been regenerated yet
+			await payload.update({
 				collection: AssignmentSubmissions.slug,
 				id,
 				data: {
+					grade,
+					feedback,
+					gradedBy,
+					gradedAt: now,
 					status: "graded",
-				},
-				req: { transactionID },
+				} as Record<string, unknown>,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
-
-			// Create user grade in gradebook
-			const userGradeResult = await tryCreateUserGrade({
-				payload,
-				user: null,
-				req: { ...request, transactionID },
-				overrideAccess: false,
-				enrollmentId,
-				gradebookItemId,
-				baseGrade: grade,
-				baseGradeSource: "submission",
-				submission: id,
-				submissionType: "assignment",
-				feedback,
-				gradedBy,
-				submittedAt: submittedAt || updatedSubmission.submittedAt || undefined,
-			});
-
-			if (!userGradeResult.ok) {
-				throw new Error(
-					`Failed to create gradebook entry: ${userGradeResult.error}`,
-				);
-			}
 
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
+
+			// Fetch the updated submission with depth for return value
+			const updatedSubmission = await payload.findByID({
+				collection: AssignmentSubmissions.slug,
+				id,
+				depth: 1,
+				user,
+				req: { ...request },
+				overrideAccess,
+			});
+
+			if (!updatedSubmission) {
+				throw new NonExistingAssignmentSubmissionError(
+					`Failed to fetch updated submission with id '${id}'`,
+				);
+			}
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -726,10 +902,6 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				courseModuleLink: courseModuleLinkRef,
 				student,
 				enrollment,
-				grade,
-				feedback,
-				gradedBy,
-				userGrade: userGradeResult.value,
 			};
 		} catch (error) {
 			// Rollback transaction on error
@@ -852,7 +1024,15 @@ export const tryListAssignmentSubmissions = Result.wrap(
  * Deletes an assignment submission
  */
 export const tryDeleteAssignmentSubmission = Result.wrap(
-	async (payload: Payload, id: number) => {
+	async (args: DeleteAssignmentSubmissionArgs) => {
+		const {
+			payload,
+			id,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate ID
 		if (!id) {
 			throw new InvalidArgumentError("Assignment submission ID is required");
@@ -862,6 +1042,9 @@ export const tryDeleteAssignmentSubmission = Result.wrap(
 		const existingSubmission = await payload.findByID({
 			collection: "assignment-submissions",
 			id,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!existingSubmission) {
@@ -873,6 +1056,9 @@ export const tryDeleteAssignmentSubmission = Result.wrap(
 		const deletedSubmission = await payload.delete({
 			collection: "assignment-submissions",
 			id,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return deletedSubmission;

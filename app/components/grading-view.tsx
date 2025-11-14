@@ -81,6 +81,14 @@ export interface GradingViewProps {
 		maxGrade: number | null;
 		feedback: string | null;
 	} | null;
+	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
+	isReleasing?: boolean;
+	enrollment?: {
+		id: number;
+	} | number | null;
+	courseModuleLink?: {
+		id: number;
+	} | number | null;
 }
 
 // ============================================================================
@@ -94,6 +102,10 @@ export function GradingView({
 	course,
 	moduleLinkId,
 	grade,
+	onReleaseGrade,
+	isReleasing = false,
+	enrollment,
+	courseModuleLink,
 }: GradingViewProps) {
 	// Track individual attachment expansion state (all expanded by default)
 	const [expandedAttachments, setExpandedAttachments] = useState<
@@ -358,6 +370,30 @@ export function GradingView({
 									<Button type="submit" variant="filled" loading={isGrading}>
 										Submit Grade
 									</Button>
+									{grade?.baseGrade !== null &&
+										grade?.baseGrade !== undefined &&
+										submission.status === "graded" &&
+										onReleaseGrade &&
+										enrollment &&
+										courseModuleLink && (
+											<Button
+												variant="outline"
+												loading={isReleasing}
+												onClick={() => {
+													const enrollmentId =
+														typeof enrollment === "number"
+															? enrollment
+															: enrollment.id;
+													const courseModuleLinkId =
+														typeof courseModuleLink === "number"
+															? courseModuleLink
+															: courseModuleLink.id;
+													onReleaseGrade(courseModuleLinkId, enrollmentId);
+												}}
+											>
+												Release Grade
+											</Button>
+										)}
 								</Group>
 							</Stack>
 						</form>
