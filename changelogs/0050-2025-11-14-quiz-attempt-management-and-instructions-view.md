@@ -130,3 +130,62 @@ This changelog documents the implementation of a comprehensive quiz attempt mana
 - Consider adding time remaining display during active quiz attempts
 - Consider adding bulk attempt management for instructors
 
+## Incomplete Features
+
+### Quiz Reports (In Progress - Not Complete)
+
+**Status:** Partially Implemented - Backend functions created, tests pending
+
+**Overview:**
+Started implementation of quiz reports functionality to provide instructors with comprehensive analytics on student quiz performance. The backend internal functions have been created but the feature is not yet complete.
+
+**What's Been Implemented:**
+
+- **Backend Functions**: Created two internal functions in `server/internal/quiz-submission-management.ts`:
+  - `tryGetQuizGradesReport`: Generates a detailed grades report showing all student attempts with per-question scores and overall averages
+  - `tryGetQuizStatisticsReport`: Generates question-level statistics including difficulty metrics and response distributions for multiple choice questions
+
+- **Type Definitions**: Added TypeScript interfaces:
+  - `GetQuizGradesReportArgs` and `QuizGradesReport` for grades report
+  - `GetQuizStatisticsReportArgs` and `QuizStatisticsReport` for statistics report
+
+- **Report Features**:
+  - Student attempt details (status, start/completion times, time spent, scores)
+  - Per-question score breakdown for each attempt
+  - Overall averages across completed/graded attempts
+  - Per-question averages
+  - Question-level statistics (answered count, correct/incorrect counts, difficulty percentage)
+  - Response distribution for multiple choice questions
+  - Overall quiz statistics (total attempts, completed attempts, average scores)
+
+**What's Missing:**
+
+- Test cases for both report functions (test structure created but not yet added to test file)
+- Frontend UI components to display the reports
+- API endpoints to expose the report functions
+- Integration with the course module submissions page
+- Export functionality (CSV/PDF export of reports)
+
+**Next Steps (When Resuming):**
+
+1. Complete test cases in `server/internal/quiz-submission-management.test.ts`:
+   - Test `tryGetQuizGradesReport` with various scenarios
+   - Test `tryGetQuizStatisticsReport` with question statistics
+   - Test edge cases (empty submissions, invalid course module links)
+   - Test averages calculations and response distributions
+
+2. Create API endpoints to expose the report functions
+
+3. Build frontend components to display:
+   - Quiz grades report table (similar to Moodle's quiz grades report)
+   - Quiz statistics report with question-level breakdown
+   - Charts/visualizations for statistics
+
+4. Integrate reports into the course module submissions page
+
+5. Add export functionality for reports
+
+**Files Modified:**
+- `server/internal/quiz-submission-management.ts` (interfaces and functions added)
+- `server/internal/quiz-submission-management.test.ts` (imports added, tests pending)
+

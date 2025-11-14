@@ -259,6 +259,102 @@ export interface QuizGradingResult {
 	feedback: string;
 }
 
+export interface GetQuizGradesReportArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface QuizGradesReport {
+	courseModuleLinkId: number;
+	quiz: {
+		id: number;
+		title: string;
+		maxScore: number;
+		questions: Array<{
+			id: string;
+			questionText: string;
+			questionType: string;
+			maxPoints: number;
+		}>;
+	};
+	attempts: Array<{
+		submissionId: number;
+		student: {
+			id: number;
+			firstName: string;
+			lastName: string;
+			email: string;
+		};
+		attemptNumber: number;
+		status: "in_progress" | "completed" | "graded" | "returned";
+		startedAt: string | null;
+		submittedAt: string | null;
+		timeSpent: number | null;
+		totalScore: number | null;
+		maxScore: number | null;
+		percentage: number | null;
+		questionScores: Array<{
+			questionId: string;
+			pointsEarned: number;
+			maxPoints: number;
+			isCorrect: boolean | null;
+		}>;
+	}>;
+	averages: {
+		overallAverage: number;
+		overallAverageCount: number;
+		questionAverages: Array<{
+			questionId: string;
+			averageScore: number;
+			count: number;
+		}>;
+	};
+}
+
+export interface GetQuizStatisticsReportArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface QuizStatisticsReport {
+	courseModuleLinkId: number;
+	quiz: {
+		id: number;
+		title: string;
+		totalQuestions: number;
+		maxScore: number;
+	};
+	overallStats: {
+		totalAttempts: number;
+		completedAttempts: number;
+		averageScore: number;
+		averagePercentage: number;
+	};
+	questionStatistics: Array<{
+		questionId: string;
+		questionText: string;
+		questionType: string;
+		maxPoints: number;
+		totalAttempts: number;
+		answeredCount: number;
+		correctCount: number;
+		incorrectCount: number;
+		averageScore: number;
+		difficulty: number; // percentage who got it correct (0-100)
+		responseDistribution?: Array<{
+			option: string;
+			count: number;
+			percentage: number;
+		}>; // For multiple choice questions
+	}>;
+}
+
 /**
  * Creates a new quiz
  */
@@ -1869,6 +1965,474 @@ export const tryDeleteQuizSubmission = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to delete quiz submission", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets quiz grades report for a course module
+ */
+export const tryGetQuizGradesReport = Result.wrap(
+	async (args: GetQuizGradesReportArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+
+		// Get course module link to access quiz
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and quiz
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
+		}
+
+		// Get quiz from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const quiz =
+			activityModule && typeof activityModule.quiz === "object"
+				? activityModule.quiz
+				: null;
+
+		if (!quiz || !quiz.id) {
+			throw new InvalidArgumentError("Quiz not found");
+		}
+
+		// Get all submissions for this course module link
+		const submissionsResult = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId,
+			limit: 1000, // Get all submissions
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!submissionsResult.ok) {
+			throw submissionsResult.error;
+		}
+
+		const submissions = submissionsResult.value.docs;
+
+		// Build quiz questions map
+		const questionsMap = new Map<
+			string,
+			{ questionText: string; questionType: string; maxPoints: number }
+		>();
+		const questions = quiz.questions || [];
+		for (const question of questions) {
+			if (question.id) {
+				questionsMap.set(question.id.toString(), {
+					questionText: question.questionText,
+					questionType: question.questionType,
+					maxPoints: question.points,
+				});
+			}
+		}
+
+		// Process submissions
+		const attempts: QuizGradesReport["attempts"] = [];
+		const completedAttempts: Array<{
+			totalScore: number;
+			maxScore: number;
+			questionScores: Array<{
+				questionId: string;
+				pointsEarned: number;
+				maxPoints: number;
+			}>;
+		}> = [];
+
+		for (const submission of submissions) {
+			// Type narrowing for student
+			const student =
+				typeof submission.student === "object" ? submission.student : null;
+			if (!student) {
+				continue;
+			}
+
+			// Extract question scores from answers
+			const questionScores: Array<{
+				questionId: string;
+				pointsEarned: number;
+				maxPoints: number;
+				isCorrect: boolean | null;
+			}> = [];
+
+			const answers = submission.answers || [];
+			for (const answer of answers) {
+				const question = questionsMap.get(answer.questionId);
+				if (question) {
+					const pointsEarned = answer.pointsEarned ?? 0;
+					const maxPoints = question.maxPoints;
+					questionScores.push({
+						questionId: answer.questionId,
+						pointsEarned,
+						maxPoints,
+						isCorrect: answer.isCorrect ?? null,
+					});
+				}
+			}
+
+			// Fill in missing questions with zero scores
+			for (const [questionId, question] of questionsMap.entries()) {
+				if (!questionScores.find((qs) => qs.questionId === questionId)) {
+					questionScores.push({
+						questionId,
+						pointsEarned: 0,
+						maxPoints: question.maxPoints,
+						isCorrect: null,
+					});
+				}
+			}
+
+			// Calculate time spent if both dates are available
+			let timeSpent: number | null = null;
+			if (submission.startedAt && submission.submittedAt) {
+				const started = new Date(submission.startedAt);
+				const submitted = new Date(submission.submittedAt);
+				timeSpent = Math.round(
+					(submitted.getTime() - started.getTime()) / 1000 / 60,
+				); // minutes
+			}
+
+			attempts.push({
+				submissionId: submission.id,
+				student: {
+					id: student.id,
+					firstName: student.firstName || "",
+					lastName: student.lastName || "",
+					email: student.email || "",
+				},
+				attemptNumber: submission.attemptNumber,
+				status: submission.status,
+				startedAt: submission.startedAt || null,
+				submittedAt: submission.submittedAt || null,
+				timeSpent,
+				totalScore: submission.totalScore ?? null,
+				maxScore: submission.maxScore ?? null,
+				percentage: submission.percentage ?? null,
+				questionScores,
+			});
+
+			// Collect completed/graded attempts for averages
+			if (
+				submission.status === "completed" ||
+				submission.status === "graded" ||
+				submission.status === "returned"
+			) {
+				if (
+					submission.totalScore !== null &&
+					submission.totalScore !== undefined &&
+					submission.maxScore !== null &&
+					submission.maxScore !== undefined
+				) {
+					completedAttempts.push({
+						totalScore: submission.totalScore,
+						maxScore: submission.maxScore,
+						questionScores: questionScores.map((qs) => ({
+							questionId: qs.questionId,
+							pointsEarned: qs.pointsEarned,
+							maxPoints: qs.maxPoints,
+						})),
+					});
+				}
+			}
+		}
+
+		// Calculate overall averages
+		let overallAverage = 0;
+		let overallAverageCount = 0;
+		if (completedAttempts.length > 0) {
+			const totalScoreSum = completedAttempts.reduce(
+				(sum, attempt) => sum + attempt.totalScore,
+				0,
+			);
+			overallAverage = totalScoreSum / completedAttempts.length;
+			overallAverageCount = completedAttempts.length;
+		}
+
+		// Calculate per-question averages
+		const questionAverages: Array<{
+			questionId: string;
+			averageScore: number;
+			count: number;
+		}> = [];
+
+		for (const [questionId] of questionsMap.entries()) {
+			const questionAttempts = completedAttempts
+				.map((attempt) => {
+					const qs = attempt.questionScores.find(
+						(q) => q.questionId === questionId,
+					);
+					return qs ? qs.pointsEarned : null;
+				})
+				.filter((score): score is number => score !== null);
+
+			if (questionAttempts.length > 0) {
+				const averageScore =
+					questionAttempts.reduce((sum, score) => sum + score, 0) /
+					questionAttempts.length;
+				questionAverages.push({
+					questionId,
+					averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
+					count: questionAttempts.length,
+				});
+			}
+		}
+
+		// Calculate max score from quiz points or sum of question points
+		const maxScore =
+			quiz.points ??
+			questions.reduce((sum, q) => sum + q.points, 0);
+
+		return {
+			courseModuleLinkId,
+			quiz: {
+				id: quiz.id,
+				title: quiz.title,
+				maxScore,
+				questions: Array.from(questionsMap.entries()).map(([id, q]) => ({
+					id,
+					questionText: q.questionText,
+					questionType: q.questionType,
+					maxPoints: q.maxPoints,
+				})),
+			},
+			attempts,
+			averages: {
+				overallAverage: Math.round(overallAverage * 100) / 100, // Round to 2 decimals
+				overallAverageCount,
+				questionAverages,
+			},
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get quiz grades report", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets quiz statistics report for a course module
+ */
+export const tryGetQuizStatisticsReport = Result.wrap(
+	async (args: GetQuizStatisticsReportArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+
+		// Get course module link to access quiz
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and quiz
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
+		}
+
+		// Get quiz from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const quiz =
+			activityModule && typeof activityModule.quiz === "object"
+				? activityModule.quiz
+				: null;
+
+		if (!quiz || !quiz.id) {
+			throw new InvalidArgumentError("Quiz not found");
+		}
+
+		// Get all submissions for this course module link
+		const submissionsResult = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId,
+			limit: 1000, // Get all submissions
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!submissionsResult.ok) {
+			throw submissionsResult.error;
+		}
+
+		const submissions = submissionsResult.value.docs;
+		const questions = quiz.questions || [];
+
+		// Calculate overall statistics
+		const totalAttempts = submissions.length;
+		const completedAttempts = submissions.filter(
+			(s) =>
+				s.status === "completed" ||
+				s.status === "graded" ||
+				s.status === "returned",
+		);
+
+		let averageScore = 0;
+		let averagePercentage = 0;
+		if (completedAttempts.length > 0) {
+			const scores = completedAttempts
+				.map((s) => s.totalScore)
+				.filter((score): score is number => score !== null && score !== undefined);
+			const percentages = completedAttempts
+				.map((s) => s.percentage)
+				.filter((p): p is number => p !== null && p !== undefined);
+
+			if (scores.length > 0) {
+				averageScore =
+					scores.reduce((sum, score) => sum + score, 0) / scores.length;
+			}
+			if (percentages.length > 0) {
+				averagePercentage =
+					percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+			}
+		}
+
+		// Calculate question statistics
+		const questionStatistics: QuizStatisticsReport["questionStatistics"] = [];
+
+		for (const question of questions) {
+			if (!question.id) continue;
+
+			const questionId = question.id.toString();
+			let answeredCount = 0;
+			let correctCount = 0;
+			let incorrectCount = 0;
+			const scores: number[] = [];
+			const responseCounts = new Map<string, number>(); // For multiple choice
+
+			for (const submission of submissions) {
+				const answers = submission.answers || [];
+				const answer = answers.find((a) => a.questionId === questionId);
+
+				if (answer) {
+					answeredCount++;
+					const pointsEarned = answer.pointsEarned ?? 0;
+					scores.push(pointsEarned);
+
+					if (answer.isCorrect === true) {
+						correctCount++;
+					} else if (answer.isCorrect === false) {
+						incorrectCount++;
+					}
+
+					// For multiple choice questions, track response distribution
+					if (question.questionType === "multiple_choice" && answer.multipleChoiceAnswers) {
+						for (const choice of answer.multipleChoiceAnswers) {
+							if (choice.isSelected) {
+								const currentCount = responseCounts.get(choice.option) || 0;
+								responseCounts.set(choice.option, currentCount + 1);
+							}
+						}
+					} else if (answer.selectedAnswer) {
+						// For other question types, track selected answer
+						const currentCount = responseCounts.get(answer.selectedAnswer) || 0;
+						responseCounts.set(answer.selectedAnswer, currentCount + 1);
+					}
+				}
+			}
+
+			const averageScore =
+				scores.length > 0
+					? scores.reduce((sum, score) => sum + score, 0) / scores.length
+					: 0;
+
+			const difficulty =
+				answeredCount > 0
+					? Math.round((correctCount / answeredCount) * 100 * 100) / 100
+					: 0;
+
+			// Build response distribution for multiple choice
+			let responseDistribution: Array<{
+				option: string;
+				count: number;
+				percentage: number;
+			}> | undefined;
+
+			if (question.questionType === "multiple_choice" && responseCounts.size > 0) {
+				responseDistribution = Array.from(responseCounts.entries()).map(
+					([option, count]) => ({
+						option,
+						count,
+						percentage: Math.round((count / answeredCount) * 100 * 100) / 100,
+					}),
+				);
+			}
+
+			questionStatistics.push({
+				questionId,
+				questionText: question.questionText,
+				questionType: question.questionType,
+				maxPoints: question.points,
+				totalAttempts,
+				answeredCount,
+				correctCount,
+				incorrectCount,
+				averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
+				difficulty,
+				responseDistribution,
+			});
+		}
+
+		// Calculate max score from quiz points or sum of question points
+		const maxScore =
+			quiz.points ??
+			questions.reduce((sum, q) => sum + q.points, 0);
+
+		return {
+			courseModuleLinkId,
+			quiz: {
+				id: quiz.id,
+				title: quiz.title,
+				totalQuestions: questions.length,
+				maxScore,
+			},
+			overallStats: {
+				totalAttempts,
+				completedAttempts: completedAttempts.length,
+				averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
+				averagePercentage: Math.round(averagePercentage * 100) / 100, // Round to 2 decimals
+			},
+			questionStatistics,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get quiz statistics report", {
 			cause: error,
 		}),
 );

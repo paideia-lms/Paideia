@@ -29,6 +29,8 @@ import {
 	tryCreateQuizSubmission,
 	tryDeleteQuizSubmission,
 	tryGetQuizById,
+	tryGetQuizGradesReport,
+	tryGetQuizStatisticsReport,
 	tryGetQuizSubmissionById,
 	tryGradeQuizSubmission,
 	tryListQuizSubmissions,
