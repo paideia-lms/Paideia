@@ -76,6 +76,11 @@ export interface GradingViewProps {
 		title: string;
 	};
 	moduleLinkId: number;
+	grade?: {
+		baseGrade: number | null;
+		maxGrade: number | null;
+		feedback: string | null;
+	} | null;
 }
 
 // ============================================================================
@@ -88,6 +93,7 @@ export function GradingView({
 	moduleSettings,
 	course,
 	moduleLinkId,
+	grade,
 }: GradingViewProps) {
 	// Track individual attachment expansion state (all expanded by default)
 	const [expandedAttachments, setExpandedAttachments] = useState<
@@ -110,8 +116,8 @@ export function GradingView({
 	const form = useForm<GradingFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
-			score: "",
-			feedback: "",
+			score: grade?.baseGrade ?? "",
+			feedback: grade?.feedback ?? "",
 		},
 	});
 
@@ -330,7 +336,7 @@ export function GradingView({
 									label="Score"
 									placeholder="Enter score"
 									min={0}
-									max={100}
+									max={grade?.maxGrade ?? 100}
 									key={form.key("score")}
 									{...form.getInputProps("score")}
 								/>
@@ -340,7 +346,7 @@ export function GradingView({
 										Feedback
 									</Text>
 									<SimpleRichTextEditor
-										content=""
+										content={grade?.feedback ?? ""}
 										placeholder="Provide feedback for the student..."
 										onChange={(value) => {
 											form.setFieldValue("feedback", value);

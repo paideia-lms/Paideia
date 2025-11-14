@@ -584,6 +584,101 @@ export const tryFindUserGradeByEnrollmentAndItem = Result.wrap(
 	},
 );
 
+export interface FindUserGradesBySubmissionIdsArgs {
+	payload: Payload;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+	submissionIds: number[];
+	submissionType: "assignment" | "quiz" | "discussion";
+}
+
+/**
+ * Finds user grades by submission IDs
+ * Note: Since we can't query polymorphic relationships directly with "in",
+ * we query by submissionType and filter in memory
+ */
+export const tryFindUserGradesBySubmissionIds = Result.wrap(
+	async (args: FindUserGradesBySubmissionIdsArgs) => {
+		const {
+			payload,
+			user = null,
+			req,
+			overrideAccess = false,
+			submissionIds,
+			submissionType,
+		} = args;
+
+		if (submissionIds.length === 0) {
+			return new Map<
+				number,
+				{
+					baseGrade: number | null;
+					maxGrade: number | null;
+					gradedAt: string | null;
+					feedback: string | null;
+				}
+			>();
+		}
+
+		const submissionIdsSet = new Set(submissionIds);
+		const gradesBySubmissionId = new Map<
+			number,
+			{
+				baseGrade: number | null;
+				maxGrade: number | null;
+				gradedAt: string | null;
+				feedback: string | null;
+			}
+		>();
+
+		// Query user grades by submissionType since we can't query polymorphic relationships directly
+		const userGradesResult = await payload.find({
+			collection: UserGrades.slug,
+			where: {
+				submissionType: {
+					equals: submissionType,
+				},
+			},
+			limit: 1000,
+			depth: 1,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		for (const grade of userGradesResult.docs) {
+			const submission =
+				grade.submission?.relationTo === `${submissionType}-submissions`
+					? grade.submission.value
+					: null;
+			if (submission) {
+				const submissionId =
+					typeof submission === "number" ? submission : submission.id;
+				// Only include grades for submissions we're interested in
+				if (submissionIdsSet.has(submissionId)) {
+					gradesBySubmissionId.set(submissionId, {
+						baseGrade:
+							grade.isOverridden && grade.overrideGrade !== null && grade.overrideGrade !== undefined
+								? grade.overrideGrade
+								: grade.baseGrade ?? null,
+						maxGrade: grade.maxGrade ?? null,
+						gradedAt: grade.gradedAt ?? null,
+						feedback: grade.feedback ?? null,
+					});
+				}
+			}
+		}
+
+		return gradesBySubmissionId;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to find user grades by submission IDs", {
+			cause: error,
+		}),
+);
+
 export interface DeleteUserGradeArgs {
 	payload: Payload;
 	user?: User | null;

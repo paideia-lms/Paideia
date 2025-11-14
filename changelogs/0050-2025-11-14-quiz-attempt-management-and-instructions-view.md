@@ -42,7 +42,14 @@ This changelog documents the implementation of a comprehensive quiz attempt mana
 - **Time Display Format**: Shows both start time and submission time when available:
   - "Started: [date/time]" for in-progress attempts
   - "Started: [date/time] • Submitted: [date/time]" for completed attempts
-- **Compact Variant**: Updated compact variant to show start times alongside submission times
+- **Graded Time Display**: Added `gradedAt` field to grade data and displays graded time in submission history:
+  - Shows "Graded: [date/time]" when submission is graded and graded time is available
+  - Appears alongside start and submission times with bullet separator
+- **Grade Display**: Added grade badge display in submission history showing score (e.g., "78/100") for graded submissions
+  - Displays as green filled badge next to status badge
+  - Shows `baseGrade/maxGrade` format
+  - Only displays when submission is graded and grade data is available
+- **Compact Variant**: Updated compact variant to show start times, submission times, graded times, and grades alongside submission times
 
 ### Permission Management
 
@@ -59,6 +66,28 @@ This changelog documents the implementation of a comprehensive quiz attempt mana
 - **Student-Specific Submissions**: Modified `module.$id.tsx` loader to fetch quiz submissions separately for students, as they don't have permission to see all submissions from course module context
 - **Explicit Queries**: Uses `tryListQuizSubmissions` with `studentId` filter and `overrideAccess: false` to respect student permissions
 - **Proper User Context**: Passes properly formatted user object with `collection: "users"` and mapped avatar field
+
+### Grading View Enhancements
+
+- **Pre-filled Form Values**: Grading form now pre-fills with existing grade data when editing a previously graded submission
+  - Score field shows the existing `baseGrade` (or `overrideGrade` if overridden)
+  - Feedback field shows existing feedback content
+  - Max score input uses the grade's `maxGrade` value
+- **Grade Data Loading**: Loader fetches user grade data for submissions when in grading mode
+  - Retrieves grade information including `baseGrade`, `maxGrade`, `feedback`, and `gradedAt`
+  - Handles overridden grades correctly (uses `overrideGrade` when `isOverridden` is true)
+
+### Internal Function Architecture
+
+- **New Internal Function**: Created `tryFindUserGradesBySubmissionIds` in `server/internal/user-grade-management.ts`
+  - Handles querying user grades by submission IDs without using Payload directly in React Router routes
+  - Works around polymorphic relationship limitations by querying by `submissionType` and filtering in memory
+  - Returns a Map of submission IDs to grade data including `baseGrade`, `maxGrade`, `gradedAt`, and `feedback`
+  - Properly handles user type formatting with avatar field mapping
+- **Loader Refactoring**: Updated `module.$id.submissions.tsx` loader to use internal functions instead of direct Payload calls
+  - Fetches grades for all submissions using `tryFindUserGradesBySubmissionIds`
+  - Fetches grade for single submission when in grading mode
+  - Maps grade data to submissions for display in submission history
 
 ### Error Handling
 
@@ -81,9 +110,12 @@ This changelog documents the implementation of a comprehensive quiz attempt mana
 
 - `app/components/activity-modules-preview/quiz-instructions-view.tsx` (new)
 - `app/components/submission-history.tsx`
+- `app/components/grading-view.tsx`
 - `app/routes/course/module.$id.tsx`
+- `app/routes/course/module.$id.submissions.tsx`
 - `server/internal/quiz-submission-management.ts`
 - `server/internal/quiz-submission-management.test.ts`
+- `server/internal/user-grade-management.ts`
 - `server/utils/permissions.ts`
 - `server/utils/error.ts`
 - `app/utils/module-actions.ts`
@@ -99,6 +131,12 @@ This changelog documents the implementation of a comprehensive quiz attempt mana
   - `status`: "in_progress" | "completed" | "graded" | "returned"
   - `startedAt`: Timestamp when attempt was started
   - `attemptNumber`: Sequential attempt number
+- Uses existing `user-grades` collection fields:
+  - `baseGrade`: Base grade value
+  - `overrideGrade`: Override grade value (when `isOverridden` is true)
+  - `maxGrade`: Maximum grade (virtual field from gradebook item)
+  - `gradedAt`: Timestamp when grade was assigned
+  - `feedback`: Feedback text for the submission
 
 ## User Impact
 
@@ -115,6 +153,9 @@ This changelog documents the implementation of a comprehensive quiz attempt mana
 - **Accurate Tracking**: Better visibility into student attempt patterns with start times
 - **Time Limit Enforcement**: Automatic rejection of submissions that exceed time limits
 - **Prevented Duplicates**: System prevents multiple concurrent attempts automatically
+- **Grade Visibility**: Can see grades (e.g., "78/100") directly in submission history without opening individual submissions
+- **Grading Efficiency**: When editing grades, form is pre-filled with existing values, making updates faster
+- **Graded Time Tracking**: Can see when each submission was graded in the submission history
 
 ## Migration Notes
 

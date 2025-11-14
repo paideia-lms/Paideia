@@ -48,6 +48,11 @@ export interface SubmissionData {
 		};
 		description?: string;
 	}> | null;
+	grade?: {
+		baseGrade: number | null;
+		maxGrade: number | null;
+		gradedAt?: string | null;
+	} | null;
 }
 
 // ============================================================================
@@ -281,6 +286,15 @@ export function SubmissionHistoryItem({
 									Returned
 								</Badge>
 							)}
+							{submission.status === "graded" &&
+								submission.grade?.baseGrade !== null &&
+								submission.grade?.baseGrade !== undefined &&
+								submission.grade?.maxGrade !== null &&
+								submission.grade?.maxGrade !== undefined && (
+									<Badge color="green" size="sm" variant="filled">
+										{submission.grade.baseGrade}/{submission.grade.maxGrade}
+									</Badge>
+								)}
 						</Group>
 						<Group gap="xs">
 							{submission.startedAt && (
@@ -294,6 +308,13 @@ export function SubmissionHistoryItem({
 									Submitted: {new Date(submission.submittedAt).toLocaleString()}
 								</Text>
 							)}
+							{submission.status === "graded" &&
+								submission.grade?.gradedAt && (
+									<Text size="xs" c="dimmed">
+										{(submission.startedAt || submission.submittedAt) ? "• " : ""}
+										Graded: {new Date(submission.grade.gradedAt).toLocaleString()}
+									</Text>
+								)}
 						</Group>
 					</Group>
 					{content && (
@@ -405,6 +426,15 @@ export function SubmissionHistoryItem({
 						>
 							{submission.status}
 						</Badge>
+						{submission.status === "graded" &&
+							submission.grade?.baseGrade !== null &&
+							submission.grade?.baseGrade !== undefined &&
+							submission.grade?.maxGrade !== null &&
+							submission.grade?.maxGrade !== undefined && (
+								<Badge color="green" variant="filled">
+									{submission.grade.baseGrade}/{submission.grade.maxGrade}
+								</Badge>
+							)}
 						<Text size="xs" c="dimmed">
 							ID: {submission.id}
 						</Text>
@@ -421,6 +451,13 @@ export function SubmissionHistoryItem({
 								Submitted: {new Date(submission.submittedAt).toLocaleString()}
 							</Text>
 						)}
+						{submission.status === "graded" &&
+							submission.grade?.gradedAt && (
+								<Text size="sm" c="dimmed">
+									{(submission.startedAt || submission.submittedAt) ? "• " : ""}
+									Graded: {new Date(submission.grade.gradedAt).toLocaleString()}
+								</Text>
+							)}
 						{(showDelete || showGrade) && (
 							<Menu position="bottom-end" shadow="md">
 								<Menu.Target>

@@ -477,6 +477,10 @@ bun run build
 
 We welcome contributions! This project is built with modern development practices and aims to be a community-driven alternative to traditional LMS platforms.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=paideia-lms/Paideia&type=date&legend=top-left)](https://www.star-history.com/#paideia-lms/Paideia&type=date&legend=top-left)
+
 ## License
 
 Paideia LMS is licensed under the [GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE).

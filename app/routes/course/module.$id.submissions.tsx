@@ -40,7 +40,10 @@ import {
 	tryDeleteAssignmentSubmission,
 	tryGetAssignmentSubmissionById,
 } from "server/internal/assignment-submission-management";
-import { tryGradeAssignmentSubmission } from "server/internal/user-grade-management";
+import {
+	tryFindUserGradesBySubmissionIds,
+	tryGradeAssignmentSubmission,
+} from "server/internal/user-grade-management";
 import {
 	canDeleteSubmissions,
 	canSeeModuleSubmissions,
@@ -115,11 +118,14 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Parse search params to check if we're in grading mode
 	const { action, submissionId } = loadSearchParams(request);
 
+	const payload = context.get(globalContextKey).payload;
+
 	// If we're in grading mode, fetch the submission
 	let gradingSubmission = null;
+	let gradingGrade = null;
 	if (action === AssignmentActions.GRADE_SUBMISSION && submissionId) {
 		const submissionResult = await tryGetAssignmentSubmissionById(
-			context.get(globalContextKey).payload,
+			payload,
 			{ id: submissionId },
 		);
 
@@ -135,17 +141,93 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		}
 
 		gradingSubmission = submission;
+
+		// Try to find existing user grade for this submission
+		const gradesResult = await tryFindUserGradesBySubmissionIds({
+			payload,
+			user: currentUser
+				? {
+					...currentUser,
+					avatar: currentUser.avatar?.id ?? null,
+				}
+				: null,
+			req: undefined,
+			overrideAccess: false,
+			submissionIds: [submissionId],
+			submissionType: "assignment",
+		});
+
+		if (gradesResult.ok) {
+			const grade = gradesResult.value.get(submissionId);
+			if (grade) {
+				gradingGrade = {
+					baseGrade: grade.baseGrade,
+					maxGrade: grade.maxGrade,
+					feedback: grade.feedback,
+				};
+			}
+		}
 	}
+
+	// Fetch user grades for all submissions
+	const submissionIds = courseModuleContext.submissions.map((s) => s.id);
+	let gradesBySubmissionId = new Map<
+		number,
+		{
+			baseGrade: number | null;
+			maxGrade: number | null;
+			gradedAt: string | null;
+			feedback: string | null;
+		}
+	>();
+
+	if (submissionIds.length > 0 && courseModuleContext.module.type === "assignment") {
+		const gradesResult = await tryFindUserGradesBySubmissionIds({
+			payload,
+			user: currentUser
+				? {
+					...currentUser,
+					avatar: currentUser.avatar?.id ?? null,
+				}
+				: null,
+			req: undefined,
+			overrideAccess: false,
+			submissionIds,
+			submissionType: "assignment",
+		});
+
+		if (gradesResult.ok) {
+			gradesBySubmissionId = gradesResult.value;
+		}
+	}
+
+	// Map submissions with grades
+	const submissionsWithGrades = courseModuleContext.submissions.map(
+		(submission) => {
+			const grade = gradesBySubmissionId.get(submission.id);
+			return {
+				...submission,
+				grade: grade
+					? {
+						baseGrade: grade.baseGrade,
+						maxGrade: grade.maxGrade,
+						gradedAt: grade.gradedAt,
+					}
+					: null,
+			};
+		},
+	);
 
 	return {
 		module: courseModuleContext.module,
 		moduleSettings: courseModuleContext.moduleLinkSettings,
 		course: courseContext.course,
 		enrollments,
-		submissions: courseModuleContext.submissions,
+		submissions: submissionsWithGrades,
 		moduleLinkId: courseModuleContext.moduleLinkId,
 		canDelete,
 		gradingSubmission,
+		gradingGrade,
 		action,
 	};
 };
@@ -612,6 +694,7 @@ export default function ModuleSubmissionsPage({
 				moduleSettings={moduleSettings}
 				course={course}
 				moduleLinkId={loaderData.moduleLinkId}
+				grade={loaderData.gradingGrade}
 			/>
 		);
 	}
