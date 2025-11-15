@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { QuizSubmissions } from "server/collections";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -6,11 +6,13 @@ import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingQuizSubmissionError,
+	QuizTimeLimitExceededError,
 	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
 import { tryCreateUserGrade } from "./user-grade-management";
+import type { QuizSubmission } from "server/payload-types";
 
 export interface CreateQuizArgs {
 	title: string;
@@ -31,13 +33,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -73,13 +75,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -95,6 +97,7 @@ export interface UpdateQuizArgs {
 }
 
 export interface CreateQuizSubmissionArgs {
+	payload: Payload;
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -103,11 +106,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -115,20 +118,35 @@ export interface CreateQuizSubmissionArgs {
 		}>;
 	}>;
 	timeSpent?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface StartQuizAttemptArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	studentId: number;
+	enrollmentId: number;
+	attemptNumber?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateQuizSubmissionArgs {
+	payload: Payload;
 	id: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	answers?: Array<{
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -136,6 +154,9 @@ export interface UpdateQuizSubmissionArgs {
 		}>;
 	}>;
 	timeSpent?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GradeQuizSubmissionArgs {
@@ -147,20 +168,77 @@ export interface GradeQuizSubmissionArgs {
 }
 
 export interface GetQuizByIdArgs {
+	payload: Payload;
 	id: number | string;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetQuizSubmissionByIdArgs {
+	payload: Payload;
 	id: number | string;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface ListQuizSubmissionsArgs {
+	payload: Payload;
 	courseModuleLinkId?: number;
+	/**
+	 * The student ID to filter by. If not provided, all students will be included.
+	 */
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	limit?: number;
 	page?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface CheckInProgressSubmissionArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	studentId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface GetNextAttemptNumberArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	studentId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface SubmitQuizArgs {
+	payload: Payload;
+	submissionId: number;
+	answers?: Array<{
+		questionId: string;
+		questionText: string;
+		questionType:
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
+		selectedAnswer?: string;
+		multipleChoiceAnswers?: Array<{
+			option: string;
+			isSelected: boolean;
+		}>;
+	}>;
+	timeSpent?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface QuizGradingResult {
@@ -179,6 +257,102 @@ export interface QuizGradingResult {
 		explanation?: string | null;
 	}>;
 	feedback: string;
+}
+
+export interface GetQuizGradesReportArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface QuizGradesReport {
+	courseModuleLinkId: number;
+	quiz: {
+		id: number;
+		title: string;
+		maxScore: number;
+		questions: Array<{
+			id: string;
+			questionText: string;
+			questionType: string;
+			maxPoints: number;
+		}>;
+	};
+	attempts: Array<{
+		submissionId: number;
+		student: {
+			id: number;
+			firstName: string;
+			lastName: string;
+			email: string;
+		};
+		attemptNumber: number;
+		status: "in_progress" | "completed" | "graded" | "returned";
+		startedAt: string | null;
+		submittedAt: string | null;
+		timeSpent: number | null;
+		totalScore: number | null;
+		maxScore: number | null;
+		percentage: number | null;
+		questionScores: Array<{
+			questionId: string;
+			pointsEarned: number;
+			maxPoints: number;
+			isCorrect: boolean | null;
+		}>;
+	}>;
+	averages: {
+		overallAverage: number;
+		overallAverageCount: number;
+		questionAverages: Array<{
+			questionId: string;
+			averageScore: number;
+			count: number;
+		}>;
+	};
+}
+
+export interface GetQuizStatisticsReportArgs {
+	payload: Payload;
+	courseModuleLinkId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface QuizStatisticsReport {
+	courseModuleLinkId: number;
+	quiz: {
+		id: number;
+		title: string;
+		totalQuestions: number;
+		maxScore: number;
+	};
+	overallStats: {
+		totalAttempts: number;
+		completedAttempts: number;
+		averageScore: number;
+		averagePercentage: number;
+	};
+	questionStatistics: Array<{
+		questionId: string;
+		questionText: string;
+		questionType: string;
+		maxPoints: number;
+		totalAttempts: number;
+		answeredCount: number;
+		correctCount: number;
+		incorrectCount: number;
+		averageScore: number;
+		difficulty: number; // percentage who got it correct (0-100)
+		responseDistribution?: Array<{
+			option: string;
+			count: number;
+			percentage: number;
+		}>; // For multiple choice questions
+	}>;
 }
 
 /**
@@ -303,8 +477,14 @@ export const tryCreateQuiz = Result.wrap(
  * Gets a quiz by ID
  */
 export const tryGetQuizById = Result.wrap(
-	async (payload: Payload, args: GetQuizByIdArgs) => {
-		const { id } = args;
+	async (args: GetQuizByIdArgs) => {
+		const {
+			payload,
+			id,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -322,6 +502,9 @@ export const tryGetQuizById = Result.wrap(
 				],
 			},
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const quiz = quizResult.docs[0];
@@ -481,17 +664,20 @@ export const tryDeleteQuiz = Result.wrap(
 );
 
 /**
- * Creates a new quiz submission
+ * Starts a new quiz attempt by creating an in_progress submission
+ * This is used when a student clicks "Start Quiz" button
  */
-export const tryCreateQuizSubmission = Result.wrap(
-	async (payload: Payload, args: CreateQuizSubmissionArgs) => {
+export const tryStartQuizAttempt = Result.wrap(
+	async (args: StartQuizAttemptArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
 			attemptNumber = 1,
-			answers,
-			timeSpent,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -504,13 +690,29 @@ export const tryCreateQuizSubmission = Result.wrap(
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
-		if (!answers || answers.length === 0) {
+
+		// Check if there's an existing in_progress submission for this student and quiz
+		const existingInProgressSubmission = await payload.find({
+			collection: "quiz-submissions",
+			where: {
+				and: [
+					{ courseModuleLink: { equals: courseModuleLinkId } },
+					{ student: { equals: studentId } },
+					{ status: { equals: "in_progress" satisfies QuizSubmission['status'] } },
+				],
+			},
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (existingInProgressSubmission.docs.length > 0) {
 			throw new InvalidArgumentError(
-				"Quiz submission must have at least one answer",
+				"Cannot start a new quiz attempt while another attempt is in progress. Please complete or submit your current attempt first.",
 			);
 		}
 
-		// Check if submission already exists for this attempt
+		// Check if submission already exists for this attempt number
 		const existingSubmission = await payload.find({
 			collection: "quiz-submissions",
 			where: {
@@ -520,6 +722,9 @@ export const tryCreateQuizSubmission = Result.wrap(
 					{ attemptNumber: { equals: attemptNumber } },
 				],
 			},
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (existingSubmission.docs.length > 0) {
@@ -550,7 +755,148 @@ export const tryCreateQuizSubmission = Result.wrap(
 				: null;
 
 		const isLate =
-			quiz && quiz.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+
+		const submission = await payload.create({
+			collection: "quiz-submissions",
+			data: {
+				courseModuleLink: courseModuleLinkId,
+				student: studentId,
+				enrollment: enrollmentId,
+				attemptNumber,
+				status: "in_progress",
+				startedAt: new Date().toISOString(),
+				answers: [],
+				isLate,
+			},
+			user,
+			req,
+			overrideAccess,
+		});
+
+		////////////////////////////////////////////////////
+		// type narrowing
+		////////////////////////////////////////////////////
+
+		const courseModuleLinkRef = submission.courseModuleLink;
+		assertZodInternal(
+			"tryStartQuizAttempt: Course module link is required",
+			courseModuleLinkRef,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const student = submission.student;
+		assertZodInternal(
+			"tryStartQuizAttempt: Student is required",
+			student,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		const enrollment = submission.enrollment;
+		assertZodInternal(
+			"tryStartQuizAttempt: Enrollment is required",
+			enrollment,
+			z.object({
+				id: z.number(),
+			}),
+		);
+
+		return {
+			...submission,
+			courseModuleLink: courseModuleLinkRef.id,
+			student,
+			enrollment,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to start quiz attempt", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new quiz submission
+ */
+export const tryCreateQuizSubmission = Result.wrap(
+	async (args: CreateQuizSubmissionArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber = 1,
+			answers,
+			timeSpent,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+		if (!studentId) {
+			throw new InvalidArgumentError("Student ID is required");
+		}
+		if (!enrollmentId) {
+			throw new InvalidArgumentError("Enrollment ID is required");
+		}
+		if (!answers || answers.length === 0) {
+			throw new InvalidArgumentError(
+				"Quiz submission must have at least one answer",
+			);
+		}
+
+		// Check if submission already exists for this attempt
+		const existingSubmission = await payload.find({
+			collection: "quiz-submissions",
+			where: {
+				and: [
+					{ courseModuleLink: { equals: courseModuleLinkId } },
+					{ student: { equals: studentId } },
+					{ attemptNumber: { equals: attemptNumber } },
+				],
+			},
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (existingSubmission.docs.length > 0) {
+			throw new InvalidArgumentError(
+				`Submission already exists for attempt ${attemptNumber}`,
+			);
+		}
+
+		// Get course module link to access quiz
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and quiz
+		});
+
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
+		}
+
+		// Get quiz from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const quiz =
+			activityModule && typeof activityModule.quiz === "object"
+				? activityModule.quiz
+				: null;
+
+		const isLate =
+			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
 
 		const submission = await payload.create({
 			collection: "quiz-submissions",
@@ -564,6 +910,9 @@ export const tryCreateQuizSubmission = Result.wrap(
 				isLate,
 				timeSpent,
 			},
+			user,
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -615,8 +964,17 @@ export const tryCreateQuizSubmission = Result.wrap(
  * Updates a quiz submission
  */
 export const tryUpdateQuizSubmission = Result.wrap(
-	async (payload: Payload, args: UpdateQuizSubmissionArgs) => {
-		const { id, status, answers, timeSpent } = args;
+	async (args: UpdateQuizSubmissionArgs) => {
+		const {
+			payload,
+			id,
+			status,
+			answers,
+			timeSpent,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -645,6 +1003,9 @@ export const tryUpdateQuizSubmission = Result.wrap(
 			collection: "quiz-submissions",
 			id,
 			data: updateData,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -696,8 +1057,14 @@ export const tryUpdateQuizSubmission = Result.wrap(
  * Gets a quiz submission by ID
  */
 export const tryGetQuizSubmissionById = Result.wrap(
-	async (payload: Payload, args: GetQuizSubmissionByIdArgs) => {
-		const { id } = args;
+	async (args: GetQuizSubmissionByIdArgs) => {
+		const {
+			payload,
+			id,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -715,6 +1082,9 @@ export const tryGetQuizSubmissionById = Result.wrap(
 				],
 			},
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		const submission = submissionResult.docs[0];
@@ -774,7 +1144,15 @@ export const tryGetQuizSubmissionById = Result.wrap(
  * Submits a quiz (marks as completed)
  */
 export const trySubmitQuiz = Result.wrap(
-	async (payload: Payload, submissionId: number) => {
+	async (args: SubmitQuizArgs) => {
+		const {
+			payload,
+			submissionId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate ID
 		if (!submissionId) {
 			throw new InvalidArgumentError("Quiz submission ID is required");
@@ -784,6 +1162,9 @@ export const trySubmitQuiz = Result.wrap(
 		const currentSubmission = await payload.findByID({
 			collection: "quiz-submissions",
 			id: submissionId,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!currentSubmission) {
@@ -798,14 +1179,71 @@ export const trySubmitQuiz = Result.wrap(
 			);
 		}
 
+		// Check time limit if quiz has one
+		if (currentSubmission.startedAt) {
+			// Get course module link to access quiz time limit
+			const courseModuleLink = await payload.findByID({
+				collection: "course-activity-module-links",
+				id:
+					typeof currentSubmission.courseModuleLink === "object" &&
+						"id" in currentSubmission.courseModuleLink
+						? currentSubmission.courseModuleLink.id
+						: (currentSubmission.courseModuleLink as number),
+				depth: 2,
+				user,
+				req,
+				overrideAccess,
+			});
+
+			if (courseModuleLink) {
+				const activityModule =
+					typeof courseModuleLink.activityModule === "object"
+						? courseModuleLink.activityModule
+						: null;
+				const quiz =
+					activityModule && typeof activityModule.quiz === "object"
+						? activityModule.quiz
+						: null;
+
+				if (quiz?.timeLimit) {
+					const startedAt = new Date(currentSubmission.startedAt);
+					const now = new Date();
+					const timeElapsedMinutes =
+						(now.getTime() - startedAt.getTime()) / (1000 * 60);
+
+					if (timeElapsedMinutes > quiz.timeLimit) {
+						throw new QuizTimeLimitExceededError(
+							`Quiz time limit of ${quiz.timeLimit} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
+						);
+					}
+				}
+			}
+		}
+
+		// Build update data
+		const updateData: Record<string, unknown> = {
+			status: "completed",
+			submittedAt: new Date().toISOString(),
+		};
+
+		// Add answers if provided
+		if (args.answers !== undefined) {
+			updateData.answers = args.answers;
+		}
+
+		// Add timeSpent if provided
+		if (args.timeSpent !== undefined) {
+			updateData.timeSpent = args.timeSpent;
+		}
+
 		// Update status to completed
 		const updatedSubmission = await payload.update({
 			collection: "quiz-submissions",
 			id: submissionId,
-			data: {
-				status: "completed",
-				submittedAt: new Date().toISOString(),
-			},
+			data: updateData,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -864,11 +1302,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1125,7 +1563,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-					"id" in currentSubmission.courseModuleLink
+						"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1206,7 +1644,11 @@ export const tryGradeQuizSubmission = Result.wrap(
 					: updatedSubmission.submittedAt !== undefined
 						? String(updatedSubmission.submittedAt)
 						: undefined;
-			const userGradeResult = await tryCreateUserGrade(payload, request, {
+			const userGradeResult = await tryCreateUserGrade({
+				payload,
+				user: null,
+				req: { ...request, transactionID },
+				overrideAccess: false,
 				enrollmentId,
 				gradebookItemId,
 				baseGrade: gradeData.totalScore,
@@ -1216,7 +1658,6 @@ export const tryGradeQuizSubmission = Result.wrap(
 				feedback: gradeData.feedback,
 				gradedBy,
 				submittedAt: submittedAtString,
-				transactionID,
 			});
 
 			if (!userGradeResult.ok) {
@@ -1290,41 +1731,49 @@ export const tryGradeQuizSubmission = Result.wrap(
  * Lists quiz submissions with filtering
  */
 export const tryListQuizSubmissions = Result.wrap(
-	async (payload: Payload, args: ListQuizSubmissionsArgs = {}) => {
+	async (args: ListQuizSubmissionsArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
-			status = "completed",
+			status,
 			limit = 10,
 			page = 1,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
-		const where: Record<string, { equals: unknown }> = {};
+		const whereConditions: Array<Record<string, { equals: unknown }>> = [];
 
 		if (courseModuleLinkId) {
-			where.courseModuleLink = {
-				equals: courseModuleLinkId,
-			};
+			whereConditions.push({
+				courseModuleLink: { equals: courseModuleLinkId },
+			});
 		}
 
 		if (studentId) {
-			where.student = {
-				equals: studentId,
-			};
+			whereConditions.push({
+				student: { equals: studentId },
+			});
 		}
 
 		if (enrollmentId) {
-			where.enrollment = {
-				equals: enrollmentId,
-			};
+			whereConditions.push({
+				enrollment: { equals: enrollmentId },
+			});
 		}
 
 		if (status) {
-			where.status = {
-				equals: status,
-			};
+			whereConditions.push({
+				status: { equals: status },
+			});
 		}
+
+		const where =
+			whereConditions.length > 0 ? { and: whereConditions } : undefined;
+
 
 		const result = await payload.find({
 			collection: "quiz-submissions",
@@ -1333,6 +1782,9 @@ export const tryListQuizSubmissions = Result.wrap(
 			page,
 			sort: "-createdAt",
 			depth: 1, // Fetch related data
+			user,
+			req,
+			overrideAccess,
 		});
 
 		// type narrowing
@@ -1384,6 +1836,107 @@ export const tryListQuizSubmissions = Result.wrap(
 );
 
 /**
+ * Checks if there's an in_progress submission for a student and quiz
+ */
+export const tryCheckInProgressSubmission = Result.wrap(
+	async (args: CheckInProgressSubmissionArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			studentId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+		if (!studentId) {
+			throw new InvalidArgumentError("Student ID is required");
+		}
+
+		const result = await payload.find({
+			collection: "quiz-submissions",
+			where: {
+				and: [
+					{ courseModuleLink: { equals: courseModuleLinkId } },
+					{ student: { equals: studentId } },
+					{ status: { equals: "in_progress" } },
+				],
+			},
+			limit: 1,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		return {
+			hasInProgress: result.docs.length > 0,
+			submission: result.docs[0] || null,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to check in-progress submission", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets the next attempt number for a student and quiz
+ */
+export const tryGetNextAttemptNumber = Result.wrap(
+	async (args: GetNextAttemptNumberArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			studentId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+		if (!studentId) {
+			throw new InvalidArgumentError("Student ID is required");
+		}
+
+		const result = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId,
+			studentId,
+			limit: 100, // Get all submissions to find max attempt number
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!result.ok) {
+			throw result.error;
+		}
+
+		const maxAttemptNumber =
+			result.value.docs.length > 0
+				? Math.max(
+					...result.value.docs.map((sub) => sub.attemptNumber || 1),
+				)
+				: 0;
+
+		return maxAttemptNumber + 1;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get next attempt number", {
+			cause: error,
+		}),
+);
+
+/**
  * Deletes a quiz submission
  */
 export const tryDeleteQuizSubmission = Result.wrap(
@@ -1415,6 +1968,474 @@ export const tryDeleteQuizSubmission = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to delete quiz submission", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets quiz grades report for a course module
+ */
+export const tryGetQuizGradesReport = Result.wrap(
+	async (args: GetQuizGradesReportArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+
+		// Get course module link to access quiz
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and quiz
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
+		}
+
+		// Get quiz from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const quiz =
+			activityModule && typeof activityModule.quiz === "object"
+				? activityModule.quiz
+				: null;
+
+		if (!quiz || !quiz.id) {
+			throw new InvalidArgumentError("Quiz not found");
+		}
+
+		// Get all submissions for this course module link
+		const submissionsResult = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId,
+			limit: 1000, // Get all submissions
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!submissionsResult.ok) {
+			throw submissionsResult.error;
+		}
+
+		const submissions = submissionsResult.value.docs;
+
+		// Build quiz questions map
+		const questionsMap = new Map<
+			string,
+			{ questionText: string; questionType: string; maxPoints: number }
+		>();
+		const questions = quiz.questions || [];
+		for (const question of questions) {
+			if (question.id) {
+				questionsMap.set(question.id.toString(), {
+					questionText: question.questionText,
+					questionType: question.questionType,
+					maxPoints: question.points,
+				});
+			}
+		}
+
+		// Process submissions
+		const attempts: QuizGradesReport["attempts"] = [];
+		const completedAttempts: Array<{
+			totalScore: number;
+			maxScore: number;
+			questionScores: Array<{
+				questionId: string;
+				pointsEarned: number;
+				maxPoints: number;
+			}>;
+		}> = [];
+
+		for (const submission of submissions) {
+			// Type narrowing for student
+			const student =
+				typeof submission.student === "object" ? submission.student : null;
+			if (!student) {
+				continue;
+			}
+
+			// Extract question scores from answers
+			const questionScores: Array<{
+				questionId: string;
+				pointsEarned: number;
+				maxPoints: number;
+				isCorrect: boolean | null;
+			}> = [];
+
+			const answers = submission.answers || [];
+			for (const answer of answers) {
+				const question = questionsMap.get(answer.questionId);
+				if (question) {
+					const pointsEarned = answer.pointsEarned ?? 0;
+					const maxPoints = question.maxPoints;
+					questionScores.push({
+						questionId: answer.questionId,
+						pointsEarned,
+						maxPoints,
+						isCorrect: answer.isCorrect ?? null,
+					});
+				}
+			}
+
+			// Fill in missing questions with zero scores
+			for (const [questionId, question] of questionsMap.entries()) {
+				if (!questionScores.find((qs) => qs.questionId === questionId)) {
+					questionScores.push({
+						questionId,
+						pointsEarned: 0,
+						maxPoints: question.maxPoints,
+						isCorrect: null,
+					});
+				}
+			}
+
+			// Calculate time spent if both dates are available
+			let timeSpent: number | null = null;
+			if (submission.startedAt && submission.submittedAt) {
+				const started = new Date(submission.startedAt);
+				const submitted = new Date(submission.submittedAt);
+				timeSpent = Math.round(
+					(submitted.getTime() - started.getTime()) / 1000 / 60,
+				); // minutes
+			}
+
+			attempts.push({
+				submissionId: submission.id,
+				student: {
+					id: student.id,
+					firstName: student.firstName || "",
+					lastName: student.lastName || "",
+					email: student.email || "",
+				},
+				attemptNumber: submission.attemptNumber,
+				status: submission.status,
+				startedAt: submission.startedAt || null,
+				submittedAt: submission.submittedAt || null,
+				timeSpent,
+				totalScore: submission.totalScore ?? null,
+				maxScore: submission.maxScore ?? null,
+				percentage: submission.percentage ?? null,
+				questionScores,
+			});
+
+			// Collect completed/graded attempts for averages
+			if (
+				submission.status === "completed" ||
+				submission.status === "graded" ||
+				submission.status === "returned"
+			) {
+				if (
+					submission.totalScore !== null &&
+					submission.totalScore !== undefined &&
+					submission.maxScore !== null &&
+					submission.maxScore !== undefined
+				) {
+					completedAttempts.push({
+						totalScore: submission.totalScore,
+						maxScore: submission.maxScore,
+						questionScores: questionScores.map((qs) => ({
+							questionId: qs.questionId,
+							pointsEarned: qs.pointsEarned,
+							maxPoints: qs.maxPoints,
+						})),
+					});
+				}
+			}
+		}
+
+		// Calculate overall averages
+		let overallAverage = 0;
+		let overallAverageCount = 0;
+		if (completedAttempts.length > 0) {
+			const totalScoreSum = completedAttempts.reduce(
+				(sum, attempt) => sum + attempt.totalScore,
+				0,
+			);
+			overallAverage = totalScoreSum / completedAttempts.length;
+			overallAverageCount = completedAttempts.length;
+		}
+
+		// Calculate per-question averages
+		const questionAverages: Array<{
+			questionId: string;
+			averageScore: number;
+			count: number;
+		}> = [];
+
+		for (const [questionId] of questionsMap.entries()) {
+			const questionAttempts = completedAttempts
+				.map((attempt) => {
+					const qs = attempt.questionScores.find(
+						(q) => q.questionId === questionId,
+					);
+					return qs ? qs.pointsEarned : null;
+				})
+				.filter((score): score is number => score !== null);
+
+			if (questionAttempts.length > 0) {
+				const averageScore =
+					questionAttempts.reduce((sum, score) => sum + score, 0) /
+					questionAttempts.length;
+				questionAverages.push({
+					questionId,
+					averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
+					count: questionAttempts.length,
+				});
+			}
+		}
+
+		// Calculate max score from quiz points or sum of question points
+		const maxScore =
+			quiz.points ??
+			questions.reduce((sum, q) => sum + q.points, 0);
+
+		return {
+			courseModuleLinkId,
+			quiz: {
+				id: quiz.id,
+				title: quiz.title,
+				maxScore,
+				questions: Array.from(questionsMap.entries()).map(([id, q]) => ({
+					id,
+					questionText: q.questionText,
+					questionType: q.questionType,
+					maxPoints: q.maxPoints,
+				})),
+			},
+			attempts,
+			averages: {
+				overallAverage: Math.round(overallAverage * 100) / 100, // Round to 2 decimals
+				overallAverageCount,
+				questionAverages,
+			},
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get quiz grades report", {
+			cause: error,
+		}),
+);
+
+/**
+ * Gets quiz statistics report for a course module
+ */
+export const tryGetQuizStatisticsReport = Result.wrap(
+	async (args: GetQuizStatisticsReportArgs) => {
+		const {
+			payload,
+			courseModuleLinkId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Validate required fields
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
+		}
+
+		// Get course module link to access quiz
+		const courseModuleLink = await payload.findByID({
+			collection: "course-activity-module-links",
+			id: courseModuleLinkId,
+			depth: 2, // Need to get activity module and quiz
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!courseModuleLink) {
+			throw new InvalidArgumentError("Course module link not found");
+		}
+
+		// Get quiz from activity module
+		const activityModule =
+			typeof courseModuleLink.activityModule === "object"
+				? courseModuleLink.activityModule
+				: null;
+		const quiz =
+			activityModule && typeof activityModule.quiz === "object"
+				? activityModule.quiz
+				: null;
+
+		if (!quiz || !quiz.id) {
+			throw new InvalidArgumentError("Quiz not found");
+		}
+
+		// Get all submissions for this course module link
+		const submissionsResult = await tryListQuizSubmissions({
+			payload,
+			courseModuleLinkId,
+			limit: 1000, // Get all submissions
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!submissionsResult.ok) {
+			throw submissionsResult.error;
+		}
+
+		const submissions = submissionsResult.value.docs;
+		const questions = quiz.questions || [];
+
+		// Calculate overall statistics
+		const totalAttempts = submissions.length;
+		const completedAttempts = submissions.filter(
+			(s) =>
+				s.status === "completed" ||
+				s.status === "graded" ||
+				s.status === "returned",
+		);
+
+		let averageScore = 0;
+		let averagePercentage = 0;
+		if (completedAttempts.length > 0) {
+			const scores = completedAttempts
+				.map((s) => s.totalScore)
+				.filter((score): score is number => score !== null && score !== undefined);
+			const percentages = completedAttempts
+				.map((s) => s.percentage)
+				.filter((p): p is number => p !== null && p !== undefined);
+
+			if (scores.length > 0) {
+				averageScore =
+					scores.reduce((sum, score) => sum + score, 0) / scores.length;
+			}
+			if (percentages.length > 0) {
+				averagePercentage =
+					percentages.reduce((sum, p) => sum + p, 0) / percentages.length;
+			}
+		}
+
+		// Calculate question statistics
+		const questionStatistics: QuizStatisticsReport["questionStatistics"] = [];
+
+		for (const question of questions) {
+			if (!question.id) continue;
+
+			const questionId = question.id.toString();
+			let answeredCount = 0;
+			let correctCount = 0;
+			let incorrectCount = 0;
+			const scores: number[] = [];
+			const responseCounts = new Map<string, number>(); // For multiple choice
+
+			for (const submission of submissions) {
+				const answers = submission.answers || [];
+				const answer = answers.find((a) => a.questionId === questionId);
+
+				if (answer) {
+					answeredCount++;
+					const pointsEarned = answer.pointsEarned ?? 0;
+					scores.push(pointsEarned);
+
+					if (answer.isCorrect === true) {
+						correctCount++;
+					} else if (answer.isCorrect === false) {
+						incorrectCount++;
+					}
+
+					// For multiple choice questions, track response distribution
+					if (question.questionType === "multiple_choice" && answer.multipleChoiceAnswers) {
+						for (const choice of answer.multipleChoiceAnswers) {
+							if (choice.isSelected) {
+								const currentCount = responseCounts.get(choice.option) || 0;
+								responseCounts.set(choice.option, currentCount + 1);
+							}
+						}
+					} else if (answer.selectedAnswer) {
+						// For other question types, track selected answer
+						const currentCount = responseCounts.get(answer.selectedAnswer) || 0;
+						responseCounts.set(answer.selectedAnswer, currentCount + 1);
+					}
+				}
+			}
+
+			const averageScore =
+				scores.length > 0
+					? scores.reduce((sum, score) => sum + score, 0) / scores.length
+					: 0;
+
+			const difficulty =
+				answeredCount > 0
+					? Math.round((correctCount / answeredCount) * 100 * 100) / 100
+					: 0;
+
+			// Build response distribution for multiple choice
+			let responseDistribution: Array<{
+				option: string;
+				count: number;
+				percentage: number;
+			}> | undefined;
+
+			if (question.questionType === "multiple_choice" && responseCounts.size > 0) {
+				responseDistribution = Array.from(responseCounts.entries()).map(
+					([option, count]) => ({
+						option,
+						count,
+						percentage: Math.round((count / answeredCount) * 100 * 100) / 100,
+					}),
+				);
+			}
+
+			questionStatistics.push({
+				questionId,
+				questionText: question.questionText,
+				questionType: question.questionType,
+				maxPoints: question.points,
+				totalAttempts,
+				answeredCount,
+				correctCount,
+				incorrectCount,
+				averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
+				difficulty,
+				responseDistribution,
+			});
+		}
+
+		// Calculate max score from quiz points or sum of question points
+		const maxScore =
+			quiz.points ??
+			questions.reduce((sum, q) => sum + q.points, 0);
+
+		return {
+			courseModuleLinkId,
+			quiz: {
+				id: quiz.id,
+				title: quiz.title,
+				totalQuestions: questions.length,
+				maxScore,
+			},
+			overallStats: {
+				totalAttempts,
+				completedAttempts: completedAttempts.length,
+				averageScore: Math.round(averageScore * 100) / 100, // Round to 2 decimals
+				averagePercentage: Math.round(averagePercentage * 100) / 100, // Round to 2 decimals
+			},
+			questionStatistics,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get quiz statistics report", {
 			cause: error,
 		}),
 );

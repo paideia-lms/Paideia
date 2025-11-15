@@ -39,7 +39,7 @@ export function useCreateModuleLink() {
 			{ intent: "create", activityModuleId, ...(sectionId && { sectionId }) },
 			{
 				method: "post",
-				action: href("/course/:id/modules", { id: courseId.toString() }),
+				action: href("/course/:courseId/modules", { courseId: courseId.toString() }),
 				encType: ContentType.JSON,
 			},
 		);
@@ -63,7 +63,7 @@ export function useDeleteModuleLink() {
 			{ intent: "delete", linkId, ...(redirectTo && { redirectTo }) },
 			{
 				method: "post",
-				action: href("/course/:id/modules", { id: courseId.toString() }),
+				action: href("/course/:courseId/modules", { courseId: courseId.toString() }),
 				encType: ContentType.JSON,
 			},
 		);
@@ -81,14 +81,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 	const userAccessContext = context.get(userAccessContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		throw new BadRequestResponse("Invalid course ID");
 	}
 
 	// Get course view data using the course context
@@ -106,10 +102,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					userId: enrolmentContext.enrolment.userId,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				userId: enrolmentContext.enrolment.userId,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -161,18 +157,13 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
-
+	const { courseId } = params;
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		return badRequest({ error: "Invalid course ID" });
-	}
 
 	// Get user's enrollment for this course
 	const enrollments = await payload.find({
@@ -196,10 +187,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					userId: enrollment.user as number,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				userId: enrollment.user as number,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -232,7 +223,7 @@ export const action = async ({
 				const sectionResult = await tryCreateSection({
 					payload,
 					data: {
-						course: courseId,
+						course: Number(courseId),
 						title: "Default Section",
 						description: "Default section for activity modules",
 					},
@@ -252,7 +243,7 @@ export const action = async ({
 				payload,
 				request,
 				{
-					course: courseId,
+					course: Number(courseId),
 					activityModule: parsedData.data.activityModuleId,
 					section: targetSectionId,
 					order: 0,

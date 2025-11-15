@@ -144,6 +144,16 @@ export default function AdminMaintenance({ loaderData }: Route.ComponentProps) {
 	});
 	return (
 		<Stack gap="md" my="lg">
+			<title>Maintenance Mode | Admin | Paideia LMS</title>
+			<meta name="description" content="Configure maintenance mode settings" />
+			<meta
+				property="og:title"
+				content="Maintenance Mode | Admin | Paideia LMS"
+			/>
+			<meta
+				property="og:description"
+				content="Configure maintenance mode settings"
+			/>
 			<Title order={2}>Maintenance Mode</Title>
 			<Text c="dimmed" size="sm">
 				When maintenance mode is enabled, only administrators can access the

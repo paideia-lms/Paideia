@@ -35,18 +35,24 @@ export interface SubmissionData {
 	status: "draft" | "submitted" | "graded" | "returned";
 	content?: string | null;
 	submittedAt?: string | null;
+	startedAt?: string | null;
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}> | null;
+	grade?: {
+		baseGrade: number | null;
+		maxGrade: number | null;
+		gradedAt?: string | null;
+	} | null;
 }
 
 // ============================================================================
@@ -135,13 +141,13 @@ function SubmissionAttachments({
 }: {
 	attachments: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}>;
 }) {
@@ -280,12 +286,37 @@ export function SubmissionHistoryItem({
 									Returned
 								</Badge>
 							)}
+							{submission.status === "graded" &&
+								submission.grade?.baseGrade !== null &&
+								submission.grade?.baseGrade !== undefined && (
+									<Badge color="green" size="sm" variant="filled">
+										{submission.grade.maxGrade !== null &&
+											submission.grade.maxGrade !== undefined
+											? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
+											: submission.grade.baseGrade}
+									</Badge>
+								)}
 						</Group>
-						{submission.submittedAt && (
-							<Text size="xs" c="dimmed">
-								{new Date(submission.submittedAt).toLocaleString()}
-							</Text>
-						)}
+						<Group gap="xs">
+							{submission.startedAt && (
+								<Text size="xs" c="dimmed">
+									Started: {new Date(submission.startedAt).toLocaleString()}
+								</Text>
+							)}
+							{submission.submittedAt && (
+								<Text size="xs" c="dimmed">
+									{submission.startedAt ? "• " : ""}
+									Submitted: {new Date(submission.submittedAt).toLocaleString()}
+								</Text>
+							)}
+							{submission.status === "graded" &&
+								submission.grade?.gradedAt && (
+									<Text size="xs" c="dimmed">
+										{(submission.startedAt || submission.submittedAt) ? "• " : ""}
+										Graded: {new Date(submission.grade.gradedAt).toLocaleString()}
+									</Text>
+								)}
+						</Group>
 					</Group>
 					{content && (
 						<div>
@@ -396,16 +427,39 @@ export function SubmissionHistoryItem({
 						>
 							{submission.status}
 						</Badge>
+						{submission.status === "graded" &&
+							submission.grade?.baseGrade !== null &&
+							submission.grade?.baseGrade !== undefined && (
+								<Badge color="green" variant="filled">
+									{submission.grade.maxGrade !== null &&
+										submission.grade.maxGrade !== undefined
+										? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
+										: submission.grade.baseGrade}
+								</Badge>
+							)}
 						<Text size="xs" c="dimmed">
 							ID: {submission.id}
 						</Text>
 					</Group>
 					<Group gap="sm">
-						{submission.submittedAt && (
+						{submission.startedAt && (
 							<Text size="sm" c="dimmed">
-								{new Date(submission.submittedAt).toLocaleString()}
+								Started: {new Date(submission.startedAt).toLocaleString()}
 							</Text>
 						)}
+						{submission.submittedAt && (
+							<Text size="sm" c="dimmed">
+								{submission.startedAt ? "• " : ""}
+								Submitted: {new Date(submission.submittedAt).toLocaleString()}
+							</Text>
+						)}
+						{submission.status === "graded" &&
+							submission.grade?.gradedAt && (
+								<Text size="sm" c="dimmed">
+									{(submission.startedAt || submission.submittedAt) ? "• " : ""}
+									Graded: {new Date(submission.grade.gradedAt).toLocaleString()}
+								</Text>
+							)}
 						{(showDelete || showGrade) && (
 							<Menu position="bottom-end" shadow="md">
 								<Menu.Target>
@@ -418,8 +472,8 @@ export function SubmissionHistoryItem({
 										<Menu.Item
 											component={Link}
 											to={
-												href("/course/module/:id/submissions", {
-													id: moduleLinkId.toString(),
+												href("/course/module/:moduleLinkId/submissions", {
+													moduleLinkId: moduleLinkId.toString(),
 												}) +
 												`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${submission.id}`
 											}

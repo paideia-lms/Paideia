@@ -78,14 +78,14 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Extract subsections and modules from the structure section
 	const subsections: CourseStructureSection[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureSection => item.type === "section",
-			)
+			(item): item is CourseStructureSection => item.type === "section",
+		)
 		: [];
 
 	const modules: CourseStructureItem[] = structureSection
 		? structureSection.content.filter(
-				(item): item is CourseStructureItem => item.type === "activity-module",
-			)
+			(item): item is CourseStructureItem => item.type === "activity-module",
+		)
 		: [];
 
 	// Get available modules from user access context
@@ -164,8 +164,8 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 								<Button
 									variant="subtle"
 									component={Link}
-									to={`${href("/course/:id/section/new", {
-										id: course.id.toString(),
+									to={`${href("/course/:courseId/section/new", {
+										courseId: course.id.toString(),
 									})}?parentSection=${section.id}`}
 									leftSection={<IconPlus size={16} />}
 									size="sm"
@@ -184,8 +184,8 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 										padding="md"
 										withBorder
 										component={Link}
-										to={href("/course/section/:id", {
-											id: subsection.id.toString(),
+										to={href("/course/section/:sectionId", {
+											sectionId: subsection.id.toString(),
 										})}
 										style={{ cursor: "pointer" }}
 									>
@@ -259,7 +259,7 @@ export default function SectionPage({ loaderData }: Route.ComponentProps) {
 										padding="md"
 										withBorder
 										component={Link}
-										to={href("/course/module/:id", { id: item.id.toString() })}
+										to={href("/course/module/:moduleLinkId", { moduleLinkId: String(item.id) })}
 									>
 										<Group justify="space-between">
 											<Group>

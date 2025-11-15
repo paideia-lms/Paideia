@@ -53,7 +53,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		}
 
 		// Redirect to course root after successful deletion
-		throw redirect(href("/course/:id", { id: courseId.toString() }));
+		throw redirect(href("/course/:courseId", { courseId: courseId.toString() }));
 	} catch (error) {
 		if (error instanceof Response) throw error;
 		console.error("Failed to delete section:", error);

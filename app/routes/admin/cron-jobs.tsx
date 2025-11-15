@@ -146,9 +146,6 @@ export default function CronJobsPage({ loaderData }: Route.ComponentProps) {
 			<Stack gap="lg">
 				<div>
 					<Title order={1}>Cron Jobs</Title>
-					<Text c="dimmed" size="sm" mt="xs">
-						View and monitor scheduled cron jobs configured in Payload CMS
-					</Text>
 					{!cronEnabled && (
 						<Text c="orange" size="sm" mt="xs">
 							Note: Cron jobs are currently disabled (cron: false). Jobs are

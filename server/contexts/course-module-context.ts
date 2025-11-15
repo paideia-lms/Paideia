@@ -1,4 +1,4 @@
-import type { BasePayload } from "payload";
+import type { BasePayload, PayloadRequest, TypedUser } from "payload";
 import { createContext } from "react-router";
 import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
@@ -57,12 +57,12 @@ export type CourseModuleUser = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+	}
+	| null;
 };
 
 export type CourseModulePageData = {
@@ -157,6 +157,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 		moduleLinkId: number,
 		courseId: number,
 		currentUser: User | null,
+		req?: Partial<PayloadRequest>,
 	) => {
 		// Fetch the module link
 		const moduleLinkResult = await tryFindCourseActivityModuleLinkById(
@@ -237,90 +238,94 @@ export const tryGetCourseModuleContext = Result.wrap(
 			},
 			page:
 				activityModule.type === "page" &&
-				typeof activityModule.page === "object" &&
-				activityModule.page !== null
+					typeof activityModule.page === "object" &&
+					activityModule.page !== null
 					? {
-							id: activityModule.page.id,
-							content: activityModule.page.content || null,
-						}
+						id: activityModule.page.id,
+						content: activityModule.page.content || null,
+					}
 					: null,
 			whiteboard:
 				activityModule.type === "whiteboard" &&
-				typeof activityModule.whiteboard === "object" &&
-				activityModule.whiteboard !== null
+					typeof activityModule.whiteboard === "object" &&
+					activityModule.whiteboard !== null
 					? {
-							id: activityModule.whiteboard.id,
-							content: activityModule.whiteboard.content || null,
-						}
+						id: activityModule.whiteboard.id,
+						content: activityModule.whiteboard.content || null,
+					}
 					: null,
 			assignment:
 				activityModule.type === "assignment" &&
-				typeof activityModule.assignment === "object" &&
-				activityModule.assignment !== null
+					typeof activityModule.assignment === "object" &&
+					activityModule.assignment !== null
 					? {
-							id: activityModule.assignment.id,
-							instructions: activityModule.assignment.instructions || null,
-							dueDate: activityModule.assignment.dueDate || null,
-							maxAttempts: activityModule.assignment.maxAttempts || null,
-							allowLateSubmissions:
-								activityModule.assignment.allowLateSubmissions || null,
-							requireTextSubmission:
-								activityModule.assignment.requireTextSubmission || null,
-							requireFileSubmission:
-								activityModule.assignment.requireFileSubmission || null,
-							allowedFileTypes:
-								activityModule.assignment.allowedFileTypes || null,
-							maxFileSize: activityModule.assignment.maxFileSize || null,
-							maxFiles: activityModule.assignment.maxFiles || null,
-						}
+						id: activityModule.assignment.id,
+						instructions: activityModule.assignment.instructions || null,
+						dueDate: activityModule.assignment.dueDate || null,
+						maxAttempts: activityModule.assignment.maxAttempts || null,
+						allowLateSubmissions:
+							activityModule.assignment.allowLateSubmissions || null,
+						requireTextSubmission:
+							activityModule.assignment.requireTextSubmission || null,
+						requireFileSubmission:
+							activityModule.assignment.requireFileSubmission || null,
+						allowedFileTypes:
+							activityModule.assignment.allowedFileTypes || null,
+						maxFileSize: activityModule.assignment.maxFileSize || null,
+						maxFiles: activityModule.assignment.maxFiles || null,
+					}
 					: null,
 			quiz:
 				activityModule.type === "quiz" &&
-				typeof activityModule.quiz === "object" &&
-				activityModule.quiz !== null
+					typeof activityModule.quiz === "object" &&
+					activityModule.quiz !== null
 					? {
-							id: activityModule.quiz.id,
-							instructions: activityModule.quiz.instructions || null,
-							dueDate: activityModule.quiz.dueDate || null,
-							maxAttempts: activityModule.quiz.maxAttempts || null,
-							points: activityModule.quiz.points || null,
-							timeLimit: activityModule.quiz.timeLimit || null,
-							gradingType: activityModule.quiz.gradingType || null,
-							rawQuizConfig: activityModule.quiz
-								.rawQuizConfig as unknown as QuizConfig | null,
-						}
+						id: activityModule.quiz.id,
+						instructions: activityModule.quiz.instructions || null,
+						dueDate: activityModule.quiz.dueDate || null,
+						maxAttempts: activityModule.quiz.maxAttempts || null,
+						points: activityModule.quiz.points || null,
+						timeLimit: activityModule.quiz.timeLimit || null,
+						gradingType: activityModule.quiz.gradingType || null,
+						rawQuizConfig: activityModule.quiz
+							.rawQuizConfig as unknown as QuizConfig | null,
+					}
 					: null,
 			discussion:
 				activityModule.type === "discussion" &&
-				typeof activityModule.discussion === "object" &&
-				activityModule.discussion !== null
+					typeof activityModule.discussion === "object" &&
+					activityModule.discussion !== null
 					? {
-							id: activityModule.discussion.id,
-							instructions: activityModule.discussion.instructions || null,
-							dueDate: activityModule.discussion.dueDate || null,
-							requireThread: activityModule.discussion.requireThread || null,
-							requireReplies: activityModule.discussion.requireReplies || null,
-							minReplies: activityModule.discussion.minReplies || null,
-						}
+						id: activityModule.discussion.id,
+						instructions: activityModule.discussion.instructions || null,
+						dueDate: activityModule.discussion.dueDate || null,
+						requireThread: activityModule.discussion.requireThread || null,
+						requireReplies: activityModule.discussion.requireReplies || null,
+						minReplies: activityModule.discussion.minReplies || null,
+					}
 					: null,
 			createdAt: activityModule.createdAt,
 			updatedAt: activityModule.updatedAt,
 		};
 
+		// Format user for internal functions
+		const formattedUser: TypedUser | null = currentUser
+			? {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar
+					? typeof currentUser.avatar === "number"
+						? currentUser.avatar
+						: currentUser.avatar.id
+					: undefined,
+			}
+			: null;
+
 		// Get course structure to determine next/previous modules
 		const courseStructureResult = await tryGetCourseStructure({
 			payload,
 			courseId,
-			user: currentUser
-				? {
-						...currentUser,
-						avatar: currentUser?.avatar
-							? typeof currentUser.avatar === "number"
-								? currentUser.avatar
-								: currentUser.avatar.id
-							: undefined,
-					}
-				: null,
+			user: formattedUser,
 			overrideAccess: false,
 		});
 
@@ -350,26 +355,38 @@ export const tryGetCourseModuleContext = Result.wrap(
 		> = [];
 
 		if (transformedModule.type === "assignment") {
-			const submissionsResult = await tryListAssignmentSubmissions(payload, {
+			const submissionsResult = await tryListAssignmentSubmissions({
+				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
+				user: formattedUser,
+				req,
+				overrideAccess: false,
 			});
 			if (submissionsResult.ok) {
 				submissions = submissionsResult.value
 					.docs as AssignmentSubmissionResolved[];
 			}
 		} else if (transformedModule.type === "quiz") {
-			const submissionsResult = await tryListQuizSubmissions(payload, {
+			const submissionsResult = await tryListQuizSubmissions({
+				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
+				user: formattedUser,
+				req,
+				overrideAccess: false,
 			});
 			if (submissionsResult.ok) {
 				submissions = submissionsResult.value.docs as QuizSubmissionResolved[];
 			}
 		} else if (transformedModule.type === "discussion") {
-			const submissionsResult = await tryListDiscussionSubmissions(payload, {
+			const submissionsResult = await tryListDiscussionSubmissions({
+				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
+				user: formattedUser,
+				req,
+				overrideAccess: false,
 			});
 			if (submissionsResult.ok) {
 				submissions = submissionsResult.value

@@ -1,5 +1,7 @@
 import {
+	Anchor,
 	Avatar,
+	Badge,
 	Button,
 	Container,
 	Group,
@@ -55,6 +57,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	return {
 		user: userProfileContext.profileUser,
+		enrollments: userProfileContext.enrollments,
 		isOwnProfile: userId === currentUser.id,
 		canEdit,
 		canImpersonate,
@@ -171,9 +174,20 @@ export const useImpersonate = () => {
 };
 
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
-	const { user, isOwnProfile, canEdit, canImpersonate } = loaderData;
+	const { user, enrollments, isOwnProfile, canEdit, canImpersonate } = loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const { impersonate, isLoading } = useImpersonate();
+
+	// Sort enrollments: active first, then by enrolledAt date (newest first)
+	const sortedEnrollments = [...enrollments].sort((a, b) => {
+		// Active enrollments first
+		if (a.status === "active" && b.status !== "active") return -1;
+		if (a.status !== "active" && b.status === "active") return 1;
+		// Then sort by enrolledAt (newest first)
+		const dateA = a.enrolledAt ? new Date(a.enrolledAt).getTime() : 0;
+		const dateB = b.enrolledAt ? new Date(b.enrolledAt).getTime() : 0;
+		return dateB - dateA;
+	});
 
 	return (
 		<Container size="md" py="xl">
@@ -266,6 +280,87 @@ export default function ProfilePage({ loaderData }: Route.ComponentProps) {
 							View Modules
 						</Button>
 					</Group>
+				</Paper>
+
+				{/* Courses Section */}
+				<Paper withBorder shadow="md" p="xl" radius="md">
+					<Stack gap="md">
+						<div>
+							<Title order={3} mb="xs">
+								Courses
+							</Title>
+							<Text size="sm" c="dimmed">
+								{isOwnProfile ? "Your" : "Their"} course enrollments
+							</Text>
+						</div>
+						{sortedEnrollments.length > 0 ? (
+							<Stack gap="xs">
+								{sortedEnrollments.map((enrollment) => {
+									const isActive = enrollment.status === "active";
+									const courseLink = href("/course/:courseId", {
+										courseId: enrollment.course.id.toString(),
+									});
+
+									return (
+										<Group
+											key={enrollment.id}
+											justify="space-between"
+											align="center"
+											wrap="nowrap"
+										>
+											<Group gap="sm" style={{ flex: 1 }} wrap="nowrap">
+												<Anchor
+													component={Link}
+													to={courseLink}
+													size="sm"
+													c={isActive ? undefined : "dimmed"}
+													style={{
+														textDecoration: isActive ? undefined : "none",
+													}}
+												>
+													{enrollment.course.title}
+												</Anchor>
+												<Badge
+													size="sm"
+													variant="light"
+													color={
+														enrollment.status === "active"
+															? "green"
+															: enrollment.status === "completed"
+																? "blue"
+																: enrollment.status === "dropped"
+																	? "red"
+																	: "gray"
+													}
+												>
+													{enrollment.status === "active"
+														? "Active"
+														: enrollment.status === "completed"
+															? "Completed"
+															: enrollment.status === "dropped"
+																? "Dropped"
+																: "Inactive"}
+												</Badge>
+												{enrollment.role !== "student" && (
+													<Badge size="sm" variant="outline" color="grape">
+														{enrollment.role === "teacher"
+															? "Teacher"
+															: enrollment.role === "ta"
+																? "TA"
+																: "Manager"}
+													</Badge>
+												)}
+											</Group>
+										</Group>
+									);
+								})}
+							</Stack>
+						) : (
+							<Text size="sm" c="dimmed">
+								No course enrollments
+							</Text>
+						)}
+					</Stack>
 				</Paper>
 
 				{/* Notes Link */}

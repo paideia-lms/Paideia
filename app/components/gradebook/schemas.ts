@@ -24,6 +24,7 @@ export const updateItemSchema = z.object({
 	itemId: z.coerce.number(),
 	name: z.string().min(1, "Name is required").optional(),
 	description: z.string().optional(),
+	categoryId: z.coerce.number().optional().nullable(),
 	maxGrade: z.coerce.number().optional(),
 	minGrade: z.coerce.number().optional(),
 	weight: z.coerce.number().optional(),

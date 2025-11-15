@@ -24,6 +24,7 @@ export type PageInfo = {
 	isCourseGroups: boolean;
 	isCourseGrades: boolean;
 	isCourseGradesLayout: boolean;
+	isCourseGradesSingleView: boolean;
 	isCourseModules: boolean;
 	isCourseBin: boolean;
 	isCourseBackup: boolean;
@@ -74,6 +75,7 @@ export type PageInfo = {
 	isAdminSitePolicies: boolean;
 	isAdminMedia: boolean;
 	isAdminAppearance: boolean;
+	isAdminAnalytics: boolean;
 	/**
 	 * the params of the current route
 	 */
@@ -94,6 +96,18 @@ export type SystemGlobals = {
 	};
 	appearanceSettings: {
 		additionalCssStylesheets: string[];
+	};
+	analyticsSettings: {
+		additionalJsScripts: Array<{
+			src: string;
+			defer?: boolean | null;
+			async?: boolean | null;
+			dataWebsiteId?: string | null;
+			dataDomain?: string | null;
+			dataSite?: string | null;
+			dataMeasurementId?: string | null;
+			[key: `data-${string}`]: string | undefined;
+		}>;
 	};
 };
 

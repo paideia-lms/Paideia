@@ -183,6 +183,7 @@ export interface Config {
     'maintenance-settings': MaintenanceSetting;
     'site-policies': SitePolicy;
     'appearance-settings': AppearanceSetting;
+    'analytics-settings': AnalyticsSetting;
     'payload-jobs-stats': PayloadJobsStat;
   };
   globalsSelect: {
@@ -191,6 +192,7 @@ export interface Config {
     'maintenance-settings': MaintenanceSettingsSelect<false> | MaintenanceSettingsSelect<true>;
     'site-policies': SitePoliciesSelect<false> | SitePoliciesSelect<true>;
     'appearance-settings': AppearanceSettingsSelect<false> | AppearanceSettingsSelect<true>;
+    'analytics-settings': AnalyticsSettingsSelect<false> | AnalyticsSettingsSelect<true>;
     'payload-jobs-stats': PayloadJobsStatsSelect<false> | PayloadJobsStatsSelect<true>;
   };
   locale: null;
@@ -753,6 +755,10 @@ export interface AssignmentSubmission {
   attemptNumber: number;
   status: 'draft' | 'submitted' | 'graded' | 'returned';
   submittedAt?: string | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
   content?: string | null;
   attachments?:
     | {
@@ -1677,6 +1683,10 @@ export interface AssignmentSubmissionsSelect<T extends boolean = true> {
   attemptNumber?: T;
   status?: T;
   submittedAt?: T;
+  grade?: T;
+  feedback?: T;
+  gradedBy?: T;
+  gradedAt?: T;
   content?: T;
   attachments?:
     | T
@@ -2033,6 +2043,51 @@ export interface AppearanceSetting {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "analytics-settings".
+ */
+export interface AnalyticsSetting {
+  id: number;
+  /**
+   * Add external JavaScript script tags that will be loaded on all pages. Scripts are loaded in the order listed. Only external scripts with src attribute are allowed for security.
+   */
+  additionalJsScripts?:
+    | {
+        /**
+         * Full URL to the JavaScript file (e.g., https://cloud.umami.is/script.js). Must be a valid HTTP/HTTPS URL.
+         */
+        src: string;
+        /**
+         * When enabled, the script will be executed after the document has been parsed.
+         */
+        defer?: boolean | null;
+        /**
+         * When enabled, the script will be executed asynchronously as soon as it is available.
+         */
+        async?: boolean | null;
+        /**
+         * Data attribute for website ID (e.g., for Umami analytics). This will be added as data-website-id attribute.
+         */
+        dataWebsiteId?: string | null;
+        /**
+         * Data attribute for domain (e.g., for Plausible analytics). This will be added as data-domain attribute.
+         */
+        dataDomain?: string | null;
+        /**
+         * Data attribute for site ID (e.g., for Fathom analytics). This will be added as data-site attribute.
+         */
+        dataSite?: string | null;
+        /**
+         * Data attribute for measurement ID (e.g., for Google Analytics). This will be added as data-measurement-id attribute.
+         */
+        dataMeasurementId?: string | null;
+        id?: string | null;
+      }[]
+    | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-jobs-stats".
  */
 export interface PayloadJobsStat {
@@ -2107,6 +2162,27 @@ export interface AppearanceSettingsSelect<T extends boolean = true> {
     | T
     | {
         url?: T;
+        id?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "analytics-settings_select".
+ */
+export interface AnalyticsSettingsSelect<T extends boolean = true> {
+  additionalJsScripts?:
+    | T
+    | {
+        src?: T;
+        defer?: T;
+        async?: T;
+        dataWebsiteId?: T;
+        dataDomain?: T;
+        dataSite?: T;
+        dataMeasurementId?: T;
         id?: T;
       };
   updatedAt?: T;

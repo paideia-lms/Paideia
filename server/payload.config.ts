@@ -41,6 +41,7 @@ import {
 	Whiteboards,
 } from "./collections";
 import {
+	AnalyticsSettings,
 	AppearanceSettings,
 	MaintenanceSettings,
 	RegistrationSettings,
@@ -204,6 +205,7 @@ const sanitizedConfig = buildConfig({
 		MaintenanceSettings,
 		SitePolicies,
 		AppearanceSettings,
+		AnalyticsSettings,
 	] as GlobalConfig[],
 
 	admin: {

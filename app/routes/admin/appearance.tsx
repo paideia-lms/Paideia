@@ -190,6 +190,16 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<Stack gap="md" my="lg">
+			<title>Additional CSS Stylesheets | Admin | Paideia LMS</title>
+			<meta
+				name="description"
+				content="Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence. Only HTTP and HTTPS URLs are supported."
+			/>
+			<meta property="og:title" content="Additional CSS Stylesheets | Admin | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence. Only HTTP and HTTPS URLs are supported."
+			/>
 			<Title order={2}>Additional CSS Stylesheets</Title>
 			<Text c="dimmed" size="sm">
 				Add external CSS stylesheet URLs that will be loaded on all pages.
@@ -214,7 +224,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 							key={`${url}-${
 								// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
 								index
-							}`}
+								}`}
 							align="flex-start"
 							wrap="nowrap"
 						>
@@ -225,9 +235,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 								style={{ flex: 1 }}
 								error={
 									form.getValues().stylesheets[index]?.url &&
-									!form
-										.getValues()
-										.stylesheets[index]?.url.match(/^https?:\/\/.+/)
+										!form
+											.getValues()
+											.stylesheets[index]?.url.match(/^https?:\/\/.+/)
 										? "Must be a valid HTTP or HTTPS URL"
 										: undefined
 								}

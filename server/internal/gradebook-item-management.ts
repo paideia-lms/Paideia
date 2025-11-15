@@ -1,19 +1,18 @@
-import type { Payload } from "payload";
-import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
+import type { Payload, PayloadRequest } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
-	GradebookCategoryNotFoundError,
 	GradebookItemNotFoundError,
-	GradebookNotFoundError,
 	InvalidGradeValueError,
 	InvalidSortOrderError,
 	TransactionIdNotFoundError,
+	transformError,
+	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import type { Enrollment, GradebookItem, UserGrade } from "../payload-types";
+import type { Enrollment, GradebookItem, User, UserGrade } from "../payload-types";
 
 export interface CreateGradebookItemArgs {
 	gradebookId: number;
@@ -32,6 +31,7 @@ export interface CreateGradebookItemArgs {
 export interface UpdateGradebookItemArgs {
 	name?: string;
 	description?: string;
+	categoryId?: number | null;
 	activityModuleId?: number | null;
 	maxGrade?: number;
 	minGrade?: number;
@@ -160,8 +160,12 @@ export const tryCreateGradebookItem = Result.wrap(
 		}
 	},
 	(error) =>
-		new Error(
-			`Failed to create gradebook item: ${error instanceof Error ? error.message : String(error)}`,
+		transformError(error) ??
+		new UnknownError(
+			"Failed to create gradebook item",
+			{
+				cause: error,
+			},
 		),
 );
 
@@ -211,32 +215,49 @@ export const tryUpdateGradebookItem = Result.wrap(
 		}
 
 		// Check if activity module exists (if being updated)
-		if (args.activityModuleId !== undefined && args.activityModuleId !== null) {
-			const activityModule = await payload.findByID({
-				collection: CourseActivityModuleLinks.slug,
-				id: args.activityModuleId,
-				req: request,
-			});
+		// if (args.activityModuleId !== undefined && args.activityModuleId !== null) {
+		// 	const activityModule = await payload.findByID({
+		// 		collection: CourseActivityModuleLinks.slug,
+		// 		id: args.activityModuleId,
+		// 		req: request,
+		// 	});
 
-			if (!activityModule) {
-				throw new Error(
-					`Activity module with ID ${args.activityModuleId} not found`,
-				);
-			}
+		// 	if (!activityModule) {
+		// 		throw new Error(
+		// 			`Activity module with ID ${args.activityModuleId} not found`,
+		// 		);
+		// 	}
+		// }
+
+		// Build update data, mapping categoryId to category and excluding categoryId
+		const { categoryId, activityModuleId, ...restArgs } = args;
+		const updateData: Record<string, unknown> = {
+			...restArgs,
+		};
+
+		if (categoryId !== undefined) {
+			updateData.category = categoryId;
+		}
+		if (activityModuleId !== undefined) {
+			updateData.activityModule = activityModuleId;
 		}
 
 		const updatedItem = await payload.update({
 			collection: GradebookItems.slug,
 			id: itemId,
-			data: args,
+			data: updateData,
 			req: request,
 		});
 
 		return updatedItem as GradebookItem;
 	},
 	(error) =>
-		new Error(
-			`Failed to update gradebook item: ${error instanceof Error ? error.message : String(error)}`,
+		transformError(error) ??
+		new UnknownError(
+			`Failed to update gradebook item`,
+			{
+				cause: error,
+			},
 		),
 );
 
@@ -284,8 +305,12 @@ export const tryDeleteGradebookItem = Result.wrap(
 		return deletedItem as GradebookItem;
 	},
 	(error) =>
-		new Error(
-			`Failed to delete gradebook item: ${error instanceof Error ? error.message : String(error)}`,
+		transformError(error) ??
+		new UnknownError(
+			"Failed to delete gradebook item",
+			{
+				cause: error,
+			},
 		),
 );
 
@@ -334,8 +359,12 @@ export const tryGetCategoryItems = Result.wrap(
 		return items.docs as GradebookItem[];
 	},
 	(error) =>
-		new Error(
+		transformError(error) ??
+		new UnknownError(
 			`Failed to get category items: ${error instanceof Error ? error.message : String(error)}`,
+			{
+				cause: error,
+			},
 		),
 );
 
@@ -344,7 +373,10 @@ export const tryGetCategoryItems = Result.wrap(
  */
 export const tryGetNextItemSortOrder = Result.wrap(
 	async (payload: Payload, gradebookId: number, categoryId?: number | null) => {
-		const where: any = {
+		const where: {
+			gradebook: { equals: number };
+			category?: { equals: number | null };
+		} = {
 			gradebook: {
 				equals: gradebookId,
 			},
@@ -415,8 +447,12 @@ export const tryReorderItems = Result.wrap(
 		}
 	},
 	(error) =>
-		new Error(
+		transformError(error) ??
+		new UnknownError(
 			`Failed to reorder items: ${error instanceof Error ? error.message : String(error)}`,
+			{
+				cause: error,
+			},
 		),
 );
 
@@ -480,7 +516,58 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 		return itemsWithGrades as GradebookItem[];
 	},
 	(error) =>
-		new Error(
+		transformError(error) ??
+		new UnknownError(
 			`Failed to get items with user grades: ${error instanceof Error ? error.message : String(error)}`,
+			{
+				cause: error,
+			},
+		),
+);
+
+export interface FindGradebookItemByCourseModuleLinkArgs {
+	payload: Payload;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+	courseModuleLinkId: number;
+}
+
+/**
+ * Finds a gradebook item by course module link (course-activity-module-link)
+ */
+export const tryFindGradebookItemByCourseModuleLink = Result.wrap(
+	async (args: FindGradebookItemByCourseModuleLinkArgs) => {
+		const { payload, user, req, overrideAccess = false, courseModuleLinkId } = args;
+
+
+		const items = await payload.find({
+			collection: GradebookItems.slug,
+			where: {
+				activityModule: {
+					equals: courseModuleLinkId,
+				},
+			},
+			limit: 1,
+			user,
+			req,
+			overrideAccess
+		});
+
+
+		if (items.docs.length === 0) {
+			throw new GradebookItemNotFoundError(
+				`Gradebook item not found for course module link ${courseModuleLinkId}`,
+			);
+		}
+
+		return items.docs[0] as GradebookItem;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError(
+			`Failed to find gradebook item by course module link: ${error instanceof Error ? error.message : String(error)}`, {
+			cause: error,
+		},
 		),
 );

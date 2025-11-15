@@ -14,9 +14,12 @@ import {
 	Title,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
+import { useEffect, useEffectEvent } from "react";
 import { useState } from "react";
-import { href, Link } from "react-router";
+import { href, Link, useNavigate } from "react-router";
+import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
 import { AttachmentViewer } from "~/components/attachment-viewer";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
@@ -38,23 +41,23 @@ export interface GradingViewProps {
 		content?: string | null;
 		submittedAt?: string | null;
 		student:
-			| {
-					id: number;
-					firstName?: string | null;
-					lastName?: string | null;
-					email?: string | null;
-			  }
-			| number;
+		| {
+			id: number;
+			firstName?: string | null;
+			lastName?: string | null;
+			email?: string | null;
+		}
+		| number;
 		attachments?: Array<{
 			file:
-				| number
-				| {
-						id: number;
-						filename?: string | null;
-						mimeType?: string | null;
-						filesize?: number | null;
-						url?: string | null;
-				  };
+			| number
+			| {
+				id: number;
+				filename?: string | null;
+				mimeType?: string | null;
+				filesize?: number | null;
+				url?: string | null;
+			};
 			description?: string | null;
 		}> | null;
 	};
@@ -73,6 +76,19 @@ export interface GradingViewProps {
 		title: string;
 	};
 	moduleLinkId: number;
+	grade?: {
+		baseGrade: number | null;
+		maxGrade: number | null;
+		feedback: string | null;
+	} | null;
+	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
+	isReleasing?: boolean;
+	enrollment?: {
+		id: number;
+	} | number | null;
+	courseModuleLink?: {
+		id: number;
+	} | number | null;
 }
 
 // ============================================================================
@@ -85,6 +101,11 @@ export function GradingView({
 	moduleSettings,
 	course,
 	moduleLinkId,
+	grade,
+	onReleaseGrade,
+	isReleasing = false,
+	enrollment,
+	courseModuleLink,
 }: GradingViewProps) {
 	// Track individual attachment expansion state (all expanded by default)
 	const [expandedAttachments, setExpandedAttachments] = useState<
@@ -107,27 +128,63 @@ export function GradingView({
 	const form = useForm<GradingFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
-			score: "",
-			feedback: "",
+			score: grade?.baseGrade ?? "",
+			feedback: grade?.feedback ?? "",
 		},
 	});
 
-	const handleSubmit = (values: GradingFormValues) => {
-		console.log("Grading form submitted:", {
-			submissionId: submission.id,
-			score: values.score,
-			feedback: values.feedback,
-		});
-		// TODO: Implement actual grading submission
-		// After successful submission, navigate back to submissions list
-	};
+	const { gradeSubmission, isGrading, data } = useGradeSubmission();
+	const navigate = useNavigate();
+
+	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
+		const scoreValue =
+			typeof values.score === "number" ? values.score : Number.parseFloat(String(values.score));
+		if (Number.isNaN(scoreValue)) {
+			notifications.show({
+				title: "Error",
+				message: "Invalid score value",
+				color: "red",
+			});
+			return;
+		}
+
+		gradeSubmission(submission.id, scoreValue, values.feedback || undefined);
+	});
+
+	// Handle grading response
+	useEffect(() => {
+		if (data) {
+			if ("success" in data && data.success) {
+				notifications.show({
+					title: "Success",
+					message: "Grade submitted successfully",
+					color: "green",
+				});
+				// Navigate back to submissions list
+				navigate(
+					href("/course/module/:moduleLinkId/submissions", {
+						moduleLinkId: moduleLinkId.toString(),
+					}),
+				);
+			} else if ("error" in data) {
+				notifications.show({
+					title: "Error",
+					message:
+						typeof data.error === "string"
+							? data.error
+							: "Failed to submit grade",
+					color: "red",
+				});
+			}
+		}
+	}, [data, navigate, moduleLinkId]);
 
 	// Get student information
 	const student = submission.student;
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-				student.email
+			student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -143,8 +200,8 @@ export function GradingView({
 			<Container size="xl">
 				<Button
 					component={Link}
-					to={href("/course/module/:id/submissions", {
-						id: moduleLinkId.toString(),
+					to={href("/course/module/:moduleLinkId/submissions", {
+						moduleLinkId: moduleLinkId.toString(),
 					})}
 					variant="subtle"
 				>
@@ -219,12 +276,12 @@ export function GradingView({
 														typeof file === "object"
 															? file
 															: {
-																	id: file,
-																	filename: null,
-																	mimeType: null,
-																	filesize: null,
-																	url: null,
-																};
+																id: file,
+																filename: null,
+																mimeType: null,
+																filesize: null,
+																url: null,
+															};
 													const filename =
 														fileData.filename || `File ${fileData.id}`;
 													const isExpanded =
@@ -291,7 +348,7 @@ export function GradingView({
 									label="Score"
 									placeholder="Enter score"
 									min={0}
-									max={100}
+									max={grade?.maxGrade ?? 100}
 									key={form.key("score")}
 									{...form.getInputProps("score")}
 								/>
@@ -301,7 +358,7 @@ export function GradingView({
 										Feedback
 									</Text>
 									<SimpleRichTextEditor
-										content=""
+										content={grade?.feedback ?? ""}
 										placeholder="Provide feedback for the student..."
 										onChange={(value) => {
 											form.setFieldValue("feedback", value);
@@ -310,9 +367,33 @@ export function GradingView({
 								</div>
 
 								<Group justify="flex-end">
-									<Button type="submit" variant="filled">
+									<Button type="submit" variant="filled" loading={isGrading}>
 										Submit Grade
 									</Button>
+									{grade?.baseGrade !== null &&
+										grade?.baseGrade !== undefined &&
+										submission.status === "graded" &&
+										onReleaseGrade &&
+										enrollment &&
+										courseModuleLink && (
+											<Button
+												variant="outline"
+												loading={isReleasing}
+												onClick={() => {
+													const enrollmentId =
+														typeof enrollment === "number"
+															? enrollment
+															: enrollment.id;
+													const courseModuleLinkId =
+														typeof courseModuleLink === "number"
+															? courseModuleLink
+															: courseModuleLink.id;
+													onReleaseGrade(courseModuleLinkId, enrollmentId);
+												}}
+											>
+												Release Grade
+											</Button>
+										)}
 								</Group>
 							</Stack>
 						</form>

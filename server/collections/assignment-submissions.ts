@@ -113,6 +113,28 @@ export const AssignmentSubmissions = {
 			label: "Submitted At",
 		},
 		{
+			name: "grade",
+			type: "number",
+			label: "Grade",
+			min: 0,
+		},
+		{
+			name: "feedback",
+			type: "textarea",
+			label: "Feedback",
+		},
+		{
+			name: "gradedBy",
+			type: "relationship",
+			relationTo: "users",
+			label: "Graded By",
+		},
+		{
+			name: "gradedAt",
+			type: "date",
+			label: "Graded At",
+		},
+		{
 			name: "content",
 			type: "textarea",
 			label: "Submission Content",

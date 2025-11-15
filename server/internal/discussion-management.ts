@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { DiscussionSubmissions } from "server/collections";
 import type { DiscussionSubmission } from "server/payload-types";
 import { assertZodInternal } from "server/utils/type-narrowing";
@@ -47,6 +47,7 @@ export interface GetDiscussionSubmissionByIdArgs {
 }
 
 export interface ListDiscussionSubmissionsArgs {
+	payload: Payload;
 	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
@@ -56,6 +57,9 @@ export interface ListDiscussionSubmissionsArgs {
 	limit?: number;
 	page?: number;
 	sortBy?: "recent" | "upvoted" | "active" | "alphabetical";
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetThreadWithRepliesArgs {
@@ -722,8 +726,9 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
  * Lists discussion submissions with filtering
  */
 export const tryListDiscussionSubmissions = Result.wrap(
-	async (payload: Payload, args: ListDiscussionSubmissionsArgs = {}) => {
+	async (args: ListDiscussionSubmissionsArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -733,6 +738,9 @@ export const tryListDiscussionSubmissions = Result.wrap(
 			sortBy = "recent",
 			limit = 10,
 			page = 1,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		const where: Record<string, { equals: unknown }> = {};
@@ -782,6 +790,9 @@ export const tryListDiscussionSubmissions = Result.wrap(
 			sort,
 			depth: 1, // Fetch related data
 			pagination: false,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		// type narrowing
@@ -905,7 +916,11 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 						? String(updatedSubmission.createdAt)
 						: undefined;
 
-			const userGradeResult = await tryCreateUserGrade(payload, request, {
+			const userGradeResult = await tryCreateUserGrade({
+				payload,
+				user: null,
+				req: { ...request, transactionID },
+				overrideAccess: false,
 				enrollmentId,
 				gradebookItemId,
 				baseGrade: grade,
@@ -915,7 +930,6 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 				feedback,
 				gradedBy,
 				submittedAt: submittedAtString,
-				transactionID,
 			});
 
 			if (!userGradeResult.ok) {

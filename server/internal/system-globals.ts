@@ -2,6 +2,7 @@ import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 import type { User } from "../payload-types";
+import { tryGetAnalyticsSettings } from "./analytics-settings";
 import { tryGetAppearanceSettings } from "./appearance-settings";
 import { tryGetMaintenanceSettings } from "./maintenance-settings";
 import { tryGetSitePolicies } from "./site-policies";
@@ -13,49 +14,47 @@ export interface GetSystemGlobalsArgs {
 	overrideAccess?: boolean;
 }
 
-export type SystemGlobals = {
-	maintenanceSettings: {
-		maintenanceMode: boolean;
-	};
-	sitePolicies: {
-		userMediaStorageTotal: number | null;
-		siteUploadLimit: number | null;
-	};
-	appearanceSettings: {
-		additionalCssStylesheets: string[];
-	};
-};
 
 /**
  * Fetch all system globals in a single call.
  * This is more efficient than fetching them individually.
  */
 export const tryGetSystemGlobals = Result.wrap(
-	async (args: GetSystemGlobalsArgs): Promise<SystemGlobals> => {
+	async (args: GetSystemGlobalsArgs) => {
 		const { payload, user = null, req, overrideAccess = true } = args;
 
 		// Fetch all globals in parallel
-		const [maintenanceResult, sitePoliciesResult, appearanceResult] =
-			await Promise.all([
-				tryGetMaintenanceSettings({
-					payload,
-					user,
-					req,
-					overrideAccess,
-				}),
-				tryGetSitePolicies({
-					payload,
-					user,
-					req,
-					overrideAccess,
-				}),
-				tryGetAppearanceSettings({
-					payload,
-					user,
-					req,
-					overrideAccess,
-				}),
-			]);
+		const [
+			maintenanceResult,
+			sitePoliciesResult,
+			appearanceResult,
+			analyticsResult,
+		] = await Promise.all([
+			tryGetMaintenanceSettings({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+			tryGetSitePolicies({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+			tryGetAppearanceSettings({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+			tryGetAnalyticsSettings({
+				payload,
+				user,
+				req,
+				overrideAccess,
+			}),
+		]);
 
 		// If any critical global fails, return defaults
 		const maintenanceSettings = maintenanceResult.ok
@@ -65,20 +64,27 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				};
+				userMediaStorageTotal: null,
+				siteUploadLimit: null,
+			};
 
-		const appearanceSettings = appearanceResult.ok
-			? appearanceResult.value
-			: {
-					additionalCssStylesheets: [],
-				};
+		const appearanceSettings = {
+			additionalCssStylesheets: appearanceResult.ok
+				? appearanceResult.value.additionalCssStylesheets ?? []
+				: [],
+		}
+
+		const analyticsSettings = {
+			additionalJsScripts: analyticsResult.ok
+				? analyticsResult.value.additionalJsScripts ?? []
+				: [],
+		}
 
 		return {
 			maintenanceSettings,
 			sitePolicies,
 			appearanceSettings,
+			analyticsSettings,
 		};
 	},
 	(error) =>

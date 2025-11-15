@@ -13,7 +13,6 @@ import {
 	Text,
 	TextInput,
 	Title,
-	useMantineColorScheme,
 	useMantineTheme,
 } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
@@ -30,6 +29,7 @@ import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/user-modules-layout";
+import { canSeeUserModules } from "server/utils/permissions";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
@@ -53,6 +53,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Check if user can access this data
 	if (userId !== currentUser.id && currentUser.role !== "admin") {
 		throw new ForbiddenResponse("You can only view your own data");
+	}
+
+	if (!canSeeUserModules(currentUser)) {
+		throw new ForbiddenResponse("You don't have permission to access this page");
 	}
 
 	// Fetch the target user
@@ -248,19 +252,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 																12,
 															)}
 														>

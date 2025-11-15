@@ -418,8 +418,8 @@ export function EnrollmentsSection({
 															fw={500}
 															component={Link}
 															to={
-																href("/course/:id/participants/profile", {
-																	id: courseId.toString(),
+																href("/course/:courseId/participants/profile", {
+																	courseId: courseId.toString(),
 																}) + `?userId=${enrollment.userId}`
 															}
 														>

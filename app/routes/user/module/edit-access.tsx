@@ -297,7 +297,7 @@ function LinkedCoursesSection({
 									<Table.Td>
 										<Text
 											component="a"
-											href={href("/course/:id", { id: String(course.id) })}
+											href={href("/course/:courseId", { courseId: String(course.id) })}
 											fw={500}
 											style={{ textDecoration: "none" }}
 										>
@@ -318,8 +318,8 @@ function LinkedCoursesSection({
 														<List.Item key={l.id}>
 															<Text
 																component={Link}
-																to={href("/course/module/:id", {
-																	id: String(l.id),
+																to={href("/course/module/:moduleLinkId", {
+																	moduleLinkId: String(l.id),
 																})}
 																fw={500}
 															>

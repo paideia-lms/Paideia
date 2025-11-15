@@ -213,6 +213,21 @@ export function canSeeCourseModuleSettings(
 	);
 }
 
+export function canSeeUserModules(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+) {
+	// Students cannot see user modules tab
+	if (user?.role === "student") {
+		return false;
+	}
+
+	// All other roles (admin, content-manager, teacher, manager, ta) can see modules
+	return true;
+}
+
 export function canEditUserModule(
 	user?: {
 		id: number;
@@ -247,6 +262,85 @@ export function canSeeModuleSubmissions(
 
 export function canSubmitAssignment(enrolment?: { role?: Enrollment["role"] }) {
 	return enrolment?.role === "student";
+}
+
+/**
+ * Checks if a user can participate in discussions (create threads and replies).
+ * Any user with an active enrollment can participate, regardless of role.
+ *
+ * @param enrolment - The enrollment object with status field
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canParticipateInDiscussion(
+	enrolment?: { status?: Enrollment["status"] },
+): PermissionResult {
+	if (!enrolment) {
+		return {
+			allowed: false,
+			reason: "Enrollment not found",
+		};
+	}
+
+	if (enrolment.status !== "active") {
+		return {
+			allowed: false,
+			reason: "Only users with active enrollment can participate in discussions",
+		};
+	}
+
+	return {
+		allowed: true,
+		reason: "You can participate in discussions",
+	};
+}
+
+/**
+ * Checks if a student can start a new quiz attempt.
+ *
+ * Permission Rules:
+ * - Can start if no max attempts are set, OR
+ * - Can start if attempt count (including in_progress) is less than max attempts, OR
+ * - Can start if there's an in_progress attempt (so student can continue/resume it)
+ *
+ * @param maxAttempts - Maximum number of attempts allowed (null means unlimited)
+ * @param attemptCount - Total number of attempts started (including in_progress)
+ * @param hasInProgressAttempt - Whether there's currently an in_progress attempt
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canStartQuizAttempt(
+	maxAttempts: number | null,
+	attemptCount: number,
+	hasInProgressAttempt: boolean,
+): PermissionResult {
+	// No max attempts set - always allowed
+	if (maxAttempts === null) {
+		return {
+			allowed: true,
+			reason: "No attempt limit set",
+		};
+	}
+
+	// Can start if attempt count is less than max
+	if (attemptCount < maxAttempts) {
+		return {
+			allowed: true,
+			reason: `You have ${maxAttempts - attemptCount} attempt${maxAttempts - attemptCount !== 1 ? "s" : ""} remaining`,
+		};
+	}
+
+	// Can start if there's an in_progress attempt (to continue/resume it)
+	if (hasInProgressAttempt) {
+		return {
+			allowed: true,
+			reason: "You can continue your in-progress attempt",
+		};
+	}
+
+	// Maximum attempts reached
+	return {
+		allowed: false,
+		reason: `Maximum attempts (${maxAttempts}) reached`,
+	};
 }
 
 export function canDeleteSubmissions(

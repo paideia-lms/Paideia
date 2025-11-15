@@ -23,14 +23,18 @@ import {
 import {
 	type CreateQuizArgs,
 	type CreateQuizSubmissionArgs,
+	type StartQuizAttemptArgs,
 	calculateQuizGrade,
 	tryCreateQuiz,
 	tryCreateQuizSubmission,
 	tryDeleteQuizSubmission,
 	tryGetQuizById,
+	tryGetQuizGradesReport,
+	tryGetQuizStatisticsReport,
 	tryGetQuizSubmissionById,
 	tryGradeQuizSubmission,
 	tryListQuizSubmissions,
+	tryStartQuizAttempt,
 	trySubmitQuiz,
 	tryUpdateQuizSubmission,
 	type UpdateQuizSubmissionArgs,
@@ -50,6 +54,7 @@ describe("Quiz Management - Full Workflow", () => {
 	let activityModuleId: number;
 	let quizId: number;
 	let courseActivityModuleLinkId: number;
+	let sectionId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -238,6 +243,7 @@ describe("Quiz Management - Full Workflow", () => {
 		if (!sectionResult.ok) {
 			throw new Error("Failed to create section");
 		}
+		sectionId = sectionResult.value.id;
 
 		// Create course-activity-module-link
 		const linkArgs: CreateCourseActivityModuleLinkArgs = {
@@ -400,6 +406,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should create quiz submission (student workflow)", async () => {
 		const args: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -437,9 +444,10 @@ describe("Quiz Management - Full Workflow", () => {
 				},
 			],
 			timeSpent: 15,
+			overrideAccess: true,
 		};
 
-		const result = await tryCreateQuizSubmission(payload, args);
+		const result = await tryCreateQuizSubmission(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -462,6 +470,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should update quiz submission (student editing answers)", async () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -479,9 +488,10 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateQuizSubmission(payload, createArgs);
+		const createResult = await tryCreateQuizSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -489,6 +499,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// Update the submission
 		const updateArgs: UpdateQuizSubmissionArgs = {
+			payload,
 			id: submissionId,
 			answers: [
 				{
@@ -504,9 +515,10 @@ describe("Quiz Management - Full Workflow", () => {
 				},
 			],
 			timeSpent: 20,
+			overrideAccess: true,
 		};
 
-		const updateResult = await tryUpdateQuizSubmission(payload, updateArgs);
+		const updateResult = await tryUpdateQuizSubmission(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok)
 			throw new Error("Test Error: Failed to update quiz submission");
@@ -522,6 +534,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should submit quiz (student submits for grading)", async () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -558,16 +571,21 @@ describe("Quiz Management - Full Workflow", () => {
 						"Education is very important for personal development and societal progress. It helps individuals acquire knowledge, skills, and critical thinking abilities that are essential for success in life.",
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateQuizSubmission(payload, createArgs);
+		const createResult = await tryCreateQuizSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Submit the quiz
-		const submitResult = await trySubmitQuiz(payload, submissionId);
+		const submitResult = await trySubmitQuiz({
+			payload,
+			submissionId,
+			overrideAccess: true,
+		});
 		expect(submitResult.ok).toBe(true);
 		if (!submitResult.ok) return;
 
@@ -579,7 +597,11 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should calculate quiz grade automatically", async () => {
 		// First get the quiz to get the actual question IDs
-		const quizResult = await tryGetQuizById(payload, { id: quizId });
+		const quizResult = await tryGetQuizById({
+			payload,
+			id: quizId,
+			overrideAccess: true,
+		});
 		expect(quizResult.ok).toBe(true);
 		if (!quizResult.ok) return;
 
@@ -694,7 +716,11 @@ describe("Quiz Management - Full Workflow", () => {
 		const gradingGradebookItemId = gradingGradebookItemResult.value.id;
 
 		// First get the quiz to get the actual question IDs
-		const quizResult = await tryGetQuizById(payload, { id: quizId });
+		const quizResult = await tryGetQuizById({
+			payload,
+			id: quizId,
+			overrideAccess: true,
+		});
 		expect(quizResult.ok).toBe(true);
 		if (!quizResult.ok) return;
 
@@ -703,6 +729,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// First create and submit a quiz
 		const createArgs: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -739,16 +766,21 @@ describe("Quiz Management - Full Workflow", () => {
 						"Education is very important for personal development and societal progress. It helps individuals acquire knowledge, skills, and critical thinking abilities that are essential for success in life.",
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateQuizSubmission(payload, createArgs);
+		const createResult = await tryCreateQuizSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Submit the quiz
-		const submitResult = await trySubmitQuiz(payload, submissionId);
+		const submitResult = await trySubmitQuiz({
+			payload,
+			submissionId,
+			overrideAccess: true,
+		});
 		expect(submitResult.ok).toBe(true);
 		if (!submitResult.ok) return;
 
@@ -781,7 +813,11 @@ describe("Quiz Management - Full Workflow", () => {
 	});
 
 	test("should get quiz by ID", async () => {
-		const result = await tryGetQuizById(payload, { id: quizId });
+		const result = await tryGetQuizById({
+			payload,
+			id: quizId,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -796,6 +832,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should get quiz submission by ID", async () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -813,17 +850,20 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateQuizSubmission(payload, createArgs);
+		const createResult = await tryCreateQuizSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Get the submission by ID
-		const getResult = await tryGetQuizSubmissionById(payload, {
+		const getResult = await tryGetQuizSubmissionById({
+			payload,
 			id: submissionId,
+			overrideAccess: true,
 		});
 
 		expect(getResult.ok).toBe(true);
@@ -841,8 +881,10 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should list quiz submissions with filtering", async () => {
 		// List all submissions for this activity module
-		const listResult = await tryListQuizSubmissions(payload, {
+		const listResult = await tryListQuizSubmissions({
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
+			overrideAccess: true,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -858,8 +900,10 @@ describe("Quiz Management - Full Workflow", () => {
 		});
 
 		// Test filtering by student
-		const studentListResult = await tryListQuizSubmissions(payload, {
+		const studentListResult = await tryListQuizSubmissions({
+			payload,
 			studentId,
+			overrideAccess: true,
 		});
 
 		expect(studentListResult.ok).toBe(true);
@@ -871,8 +915,10 @@ describe("Quiz Management - Full Workflow", () => {
 		});
 
 		// Test filtering by status
-		const inProgressListResult = await tryListQuizSubmissions(payload, {
+		const inProgressListResult = await tryListQuizSubmissions({
+			payload,
 			status: "in_progress",
+			overrideAccess: true,
 		});
 
 		expect(inProgressListResult.ok).toBe(true);
@@ -887,6 +933,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should handle late submissions", async () => {
 		// Create a submission after the due date (simulate late submission)
 		const lateArgs: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -904,9 +951,10 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const result = await tryCreateQuizSubmission(payload, lateArgs);
+		const result = await tryCreateQuizSubmission(lateArgs);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -920,6 +968,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should prevent duplicate submissions for same attempt", async () => {
 		const args: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -937,20 +986,22 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
 		// Create first submission
-		const firstResult = await tryCreateQuizSubmission(payload, args);
+		const firstResult = await tryCreateQuizSubmission(args);
 		expect(firstResult.ok).toBe(true);
 
 		// Try to create duplicate submission for same attempt
-		const duplicateResult = await tryCreateQuizSubmission(payload, args);
+		const duplicateResult = await tryCreateQuizSubmission(args);
 		expect(duplicateResult.ok).toBe(false);
 	});
 
 	test("should only allow grading of completed quizzes", async () => {
 		// Create an in-progress submission
 		const createArgs: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -968,9 +1019,10 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateQuizSubmission(payload, createArgs);
+		const createResult = await tryCreateQuizSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -990,6 +1042,7 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should delete quiz submission", async () => {
 		// Create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -1007,9 +1060,10 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateQuizSubmission(payload, createArgs);
+		const createResult = await tryCreateQuizSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -1020,8 +1074,10 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify submission is deleted
-		const getResult = await tryGetQuizSubmissionById(payload, {
+		const getResult = await tryGetQuizSubmissionById({
+			payload,
 			id: submissionId,
+			overrideAccess: true,
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -1030,6 +1086,7 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create multiple submissions for pagination testing
 		for (let i = 0; i < 5; i++) {
 			const createArgs: CreateQuizSubmissionArgs = {
+				payload,
 				courseModuleLinkId: courseActivityModuleLinkId,
 				studentId,
 				enrollmentId,
@@ -1047,17 +1104,20 @@ describe("Quiz Management - Full Workflow", () => {
 						],
 					},
 				],
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateQuizSubmission(payload, createArgs);
+			const createResult = await tryCreateQuizSubmission(createArgs);
 			expect(createResult.ok).toBe(true);
 		}
 
 		// Test pagination
-		const page1Result = await tryListQuizSubmissions(payload, {
+		const page1Result = await tryListQuizSubmissions({
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			limit: 2,
 			page: 1,
+			overrideAccess: true,
 		});
 
 		expect(page1Result.ok).toBe(true);
@@ -1073,41 +1133,49 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should fail with invalid arguments", async () => {
 		// Test missing course module link ID
 		const invalidArgs1: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: undefined as never,
 			studentId,
 			enrollmentId,
 			answers: [],
+			overrideAccess: true,
 		};
 
-		const result1 = await tryCreateQuizSubmission(payload, invalidArgs1);
+		const result1 = await tryCreateQuizSubmission(invalidArgs1);
 		expect(result1.ok).toBe(false);
 
 		// Test missing student ID
 		const invalidArgs2: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId: undefined as never,
 			enrollmentId,
 			answers: [],
+			overrideAccess: true,
 		};
 
-		const result2 = await tryCreateQuizSubmission(payload, invalidArgs2);
+		const result2 = await tryCreateQuizSubmission(invalidArgs2);
 		expect(result2.ok).toBe(false);
 
 		// Test missing answers
 		const invalidArgs3: CreateQuizSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			answers: [],
+			overrideAccess: true,
 		};
 
-		const result3 = await tryCreateQuizSubmission(payload, invalidArgs3);
+		const result3 = await tryCreateQuizSubmission(invalidArgs3);
 		expect(result3.ok).toBe(false);
 	});
 
 	test("should fail to get non-existent submission", async () => {
-		const result = await tryGetQuizSubmissionById(payload, {
+		const result = await tryGetQuizSubmissionById({
+			payload,
 			id: 99999,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -1115,6 +1183,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should fail to update non-existent submission", async () => {
 		const updateArgs: UpdateQuizSubmissionArgs = {
+			payload,
 			id: 99999,
 			answers: [
 				{
@@ -1129,9 +1198,10 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
-		const result = await tryUpdateQuizSubmission(payload, updateArgs);
+		const result = await tryUpdateQuizSubmission(updateArgs);
 		expect(result.ok).toBe(false);
 	});
 
@@ -1202,7 +1272,11 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(createdQuiz.rawQuizConfig).toBeDefined();
 
 		// Retrieve the quiz and verify rawQuizConfig is present
-		const getResult = await tryGetQuizById(payload, { id: createdQuiz.id });
+		const getResult = await tryGetQuizById({
+			payload,
+			id: createdQuiz.id,
+			overrideAccess: true,
+		});
 		expect(getResult.ok).toBe(true);
 		if (!getResult.ok) return;
 
@@ -1210,5 +1284,789 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(retrievedQuiz.rawQuizConfig).toBeDefined();
 		// Note: rawQuizConfig is stored as JSON, so deep comparison might require parsing
 		expect(retrievedQuiz.title).toBe("Quiz with Raw Config");
+	});
+
+	test("should reject submission after time limit exceeded", async () => {
+		// Create a quiz with a very short time limit (1 minute)
+		const quickQuizArgs: CreateQuizArgs = {
+			title: "Quick Quiz",
+			description: "A quiz with 1 minute time limit",
+			instructions: "Complete quickly",
+			dueDate: `${year}-12-31T23:59:59Z`,
+			maxAttempts: 1,
+			points: 100,
+			gradingType: "automatic",
+			timeLimit: 1, // 1 minute
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 100,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+					],
+				},
+			],
+			createdBy: teacherId,
+		};
+
+		const quickQuizResult = await tryCreateQuiz(payload, quickQuizArgs);
+		expect(quickQuizResult.ok).toBe(true);
+		if (!quickQuizResult.ok) return;
+
+		// Create activity module with this quiz
+		const quickActivityModuleArgs: CreateActivityModuleArgs = {
+			title: "Quick Quiz Module",
+			description: "Module with quick quiz",
+			type: "quiz",
+			status: "published",
+			userId: teacherId,
+			quizData: {
+				instructions: "Complete quickly",
+				dueDate: `${year}-12-31T23:59:59Z`,
+				maxAttempts: 1,
+				points: 100,
+				gradingType: "automatic",
+				timeLimit: 1, // 1 minute
+				questions: [
+					{
+						questionText: "What is 2 + 2?",
+						questionType: "multiple_choice",
+						points: 100,
+						options: [
+							{ text: "3", isCorrect: false },
+							{ text: "4", isCorrect: true },
+						],
+					},
+				],
+			},
+		};
+
+		const quickActivityModuleResult = await tryCreateActivityModule(
+			payload,
+			quickActivityModuleArgs,
+		);
+		expect(quickActivityModuleResult.ok).toBe(true);
+		if (!quickActivityModuleResult.ok) return;
+
+		const quickActivityModuleId = quickActivityModuleResult.value.id;
+
+		// Create course-activity-module-link
+		const quickLinkArgs: CreateCourseActivityModuleLinkArgs = {
+			course: courseId,
+			activityModule: quickActivityModuleId,
+			section: sectionId,
+			order: 0,
+		};
+
+		const quickLinkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			mockRequest,
+			quickLinkArgs,
+		);
+		expect(quickLinkResult.ok).toBe(true);
+		if (!quickLinkResult.ok) return;
+
+		const quickCourseActivityModuleLinkId = quickLinkResult.value.id;
+
+		// Start quiz attempt
+		const quickStartArgs: StartQuizAttemptArgs = {
+			payload,
+			courseModuleLinkId: quickCourseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber: 1,
+			overrideAccess: true,
+		};
+
+		const quickStartResult = await tryStartQuizAttempt(quickStartArgs);
+		expect(quickStartResult.ok).toBe(true);
+		if (!quickStartResult.ok) return;
+
+		const quickSubmissionId = quickStartResult.value.id;
+
+		// Manually update startedAt to be 2 minutes ago (exceeding 1 minute limit)
+		const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+		await payload.update({
+			collection: "quiz-submissions",
+			id: quickSubmissionId,
+			data: {
+				startedAt: twoMinutesAgo,
+			},
+		});
+
+		// Try to submit - should fail due to time limit
+		const submitResult = await trySubmitQuiz({
+			payload,
+			submissionId: quickSubmissionId,
+			overrideAccess: true,
+		});
+		expect(submitResult.ok).toBe(false);
+		if (submitResult.ok) return;
+
+		expect(submitResult.error.message).toContain("time limit");
+	});
+});
+
+describe("Quiz Attempt Management - Start and Retrieve", () => {
+	let payload: Awaited<ReturnType<typeof getPayload>>;
+	let mockRequest: Request;
+	let teacherId: number;
+	let studentId: number;
+	let courseId: number;
+	let enrollmentId: number;
+	let courseActivityModuleLinkId: number;
+	let sectionId: number;
+
+	beforeAll(async () => {
+		// Refresh environment and database for clean test state
+		try {
+			await $`bun run migrate:fresh --force-accept-warning`;
+			await $`bun scripts/clean-s3.ts`;
+		} catch (error) {
+			console.warn("Migration failed, continuing with existing state:", error);
+		}
+
+		payload = await getPayload({
+			config: sanitizedConfig,
+		});
+
+		mockRequest = new Request("http://localhost:3000/test");
+
+		// Create teacher user
+		const teacherArgs: CreateUserArgs = {
+			payload,
+			data: {
+				email: "quiz-attempt-teacher@example.com",
+				password: "password123",
+				firstName: "John",
+				lastName: "Teacher",
+				role: "student",
+			},
+			overrideAccess: true,
+		};
+
+		const teacherResult = await tryCreateUser(teacherArgs);
+		if (!teacherResult.ok) {
+			throw new Error("Test Error: Failed to create test teacher");
+		}
+		teacherId = teacherResult.value.id;
+
+		// Create student user
+		const studentArgs: CreateUserArgs = {
+			payload,
+			data: {
+				email: "quiz-attempt-student@example.com",
+				password: "password123",
+				firstName: "Jane",
+				lastName: "Student",
+				role: "student",
+			},
+			overrideAccess: true,
+		};
+
+		const studentResult = await tryCreateUser(studentArgs);
+		if (!studentResult.ok) {
+			throw new Error("Test Error: Failed to create test student");
+		}
+		studentId = studentResult.value.id;
+
+		// Create course
+		const courseArgs: CreateCourseArgs = {
+			payload,
+			data: {
+				title: "Quiz Attempt Test Course",
+				description: "A test course for quiz attempts",
+				slug: "quiz-attempt-test-course",
+				createdBy: teacherId,
+			},
+			overrideAccess: true,
+		};
+
+		const courseResult = await tryCreateCourse(courseArgs);
+		if (!courseResult.ok) {
+			throw new Error("Test Error: Failed to create test course");
+		}
+		courseId = courseResult.value.id;
+
+		// Create enrollment
+		const enrollmentArgs: CreateEnrollmentArgs = {
+			payload,
+			user: studentId,
+			course: courseId,
+			role: "student",
+			status: "active",
+			overrideAccess: true,
+		};
+
+		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
+		if (!enrollmentResult.ok) {
+			throw new Error("Test Error: Failed to create test enrollment");
+		}
+		enrollmentId = enrollmentResult.value.id;
+
+		// Create activity module with quiz
+		const activityModuleArgs: CreateActivityModuleArgs = {
+			title: "Test Quiz",
+			description: "A test quiz for attempt workflow",
+			type: "quiz",
+			status: "published",
+			userId: teacherId,
+			quizData: {
+				instructions: "Complete this quiz",
+				dueDate: `${year}-12-31T23:59:59Z`,
+				maxAttempts: 3,
+				points: 100,
+				gradingType: "automatic",
+				questions: [
+					{
+						questionText: "What is 2 + 2?",
+						questionType: "multiple_choice",
+						points: 100,
+						options: [
+							{ text: "3", isCorrect: false },
+							{ text: "4", isCorrect: true },
+						],
+					},
+				],
+			},
+		};
+
+		const activityModuleResult = await tryCreateActivityModule(
+			payload,
+			activityModuleArgs,
+		);
+		if (!activityModuleResult.ok) {
+			throw new Error("Test Error: Failed to create test activity module");
+		}
+		const activityModuleId = activityModuleResult.value.id;
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: courseId,
+				title: "Test Section",
+				description: "Test section",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+		sectionId = sectionResult.value.id;
+
+		// Create course-activity-module-link
+		const linkArgs: CreateCourseActivityModuleLinkArgs = {
+			course: courseId,
+			activityModule: activityModuleId,
+			section: sectionId,
+			order: 0,
+		};
+
+		const linkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			mockRequest,
+			linkArgs,
+		);
+		if (!linkResult.ok) {
+			throw new Error("Test Error: Failed to create course-activity-module-link");
+		}
+		courseActivityModuleLinkId = linkResult.value.id;
+	});
+
+	afterAll(async () => {
+		// reset the database 
+		await $`bun run migrate:fresh --force-accept-warning`;
+		await $`bun scripts/clean-s3.ts`;
+	});
+
+	test("should start quiz attempt and retrieve it", async () => {
+		const startArgs: StartQuizAttemptArgs = {
+			payload,
+			courseModuleLinkId: courseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber: 1,
+			overrideAccess: true,
+		};
+
+		const startResult = await tryStartQuizAttempt(startArgs);
+		expect(startResult.ok).toBe(true);
+		if (!startResult.ok) return;
+
+		const startedSubmission = startResult.value;
+		expect(startedSubmission.status).toBe("in_progress");
+		expect(startedSubmission.attemptNumber).toBe(1);
+		expect(startedSubmission.startedAt).toBeDefined();
+		expect(startedSubmission.answers).toEqual([]);
+
+		// Retrieve the submission
+		const getResult = await tryGetQuizSubmissionById({
+			payload,
+			id: startedSubmission.id,
+			overrideAccess: true,
+		});
+
+		expect(getResult.ok).toBe(true);
+		if (!getResult.ok) return;
+
+		const retrievedSubmission = getResult.value;
+		expect(retrievedSubmission.id).toBe(startedSubmission.id);
+		expect(retrievedSubmission.status).toBe("in_progress");
+		expect(retrievedSubmission.attemptNumber).toBe(1);
+		expect(retrievedSubmission.startedAt).toBeDefined();
+	});
+});
+
+describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
+	let payload: Awaited<ReturnType<typeof getPayload>>;
+	let mockRequest: Request;
+	let teacherId: number;
+	let studentId: number;
+	let courseId: number;
+	let enrollmentId: number;
+	let courseActivityModuleLinkId: number;
+	let sectionId: number;
+
+	beforeAll(async () => {
+		// Refresh environment and database for clean test state
+		try {
+			await $`bun run migrate:fresh --force-accept-warning`;
+			await $`bun scripts/clean-s3.ts`;
+		} catch (error) {
+			console.warn("Migration failed, continuing with existing state:", error);
+		}
+
+		payload = await getPayload({
+			config: sanitizedConfig,
+		});
+
+		mockRequest = new Request("http://localhost:3000/test");
+
+		// Create teacher user
+		const teacherArgs: CreateUserArgs = {
+			payload,
+			data: {
+				email: "quiz-duplicate-teacher@example.com",
+				password: "password123",
+				firstName: "John",
+				lastName: "Teacher",
+				role: "student",
+			},
+			overrideAccess: true,
+		};
+
+		const teacherResult = await tryCreateUser(teacherArgs);
+		if (!teacherResult.ok) {
+			throw new Error("Test Error: Failed to create test teacher");
+		}
+		teacherId = teacherResult.value.id;
+
+		// Create student user
+		const studentArgs: CreateUserArgs = {
+			payload,
+			data: {
+				email: "quiz-duplicate-student@example.com",
+				password: "password123",
+				firstName: "Jane",
+				lastName: "Student",
+				role: "student",
+			},
+			overrideAccess: true,
+		};
+
+		const studentResult = await tryCreateUser(studentArgs);
+		if (!studentResult.ok) {
+			throw new Error("Test Error: Failed to create test student");
+		}
+		studentId = studentResult.value.id;
+
+		// Create course
+		const courseArgs: CreateCourseArgs = {
+			payload,
+			data: {
+				title: "Quiz Duplicate Test Course",
+				description: "A test course for duplicate attempts",
+				slug: "quiz-duplicate-test-course",
+				createdBy: teacherId,
+			},
+			overrideAccess: true,
+		};
+
+		const courseResult = await tryCreateCourse(courseArgs);
+		if (!courseResult.ok) {
+			throw new Error("Test Error: Failed to create test course");
+		}
+		courseId = courseResult.value.id;
+
+		// Create enrollment
+		const enrollmentArgs: CreateEnrollmentArgs = {
+			payload,
+			user: studentId,
+			course: courseId,
+			role: "student",
+			status: "active",
+			overrideAccess: true,
+		};
+
+		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
+		if (!enrollmentResult.ok) {
+			throw new Error("Test Error: Failed to create test enrollment");
+		}
+		enrollmentId = enrollmentResult.value.id;
+
+		// Create activity module with quiz
+		const activityModuleArgs: CreateActivityModuleArgs = {
+			title: "Test Quiz",
+			description: "A test quiz for duplicate attempts",
+			type: "quiz",
+			status: "published",
+			userId: teacherId,
+			quizData: {
+				instructions: "Complete this quiz",
+				dueDate: `${year}-12-31T23:59:59Z`,
+				maxAttempts: 3,
+				points: 100,
+				gradingType: "automatic",
+				questions: [
+					{
+						questionText: "What is 2 + 2?",
+						questionType: "multiple_choice",
+						points: 100,
+						options: [
+							{ text: "3", isCorrect: false },
+							{ text: "4", isCorrect: true },
+						],
+					},
+				],
+			},
+		};
+
+		const activityModuleResult = await tryCreateActivityModule(
+			payload,
+			activityModuleArgs,
+		);
+		if (!activityModuleResult.ok) {
+			throw new Error("Test Error: Failed to create test activity module");
+		}
+		const activityModuleId = activityModuleResult.value.id;
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: courseId,
+				title: "Test Section",
+				description: "Test section",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+		sectionId = sectionResult.value.id;
+
+		// Create course-activity-module-link
+		const linkArgs: CreateCourseActivityModuleLinkArgs = {
+			course: courseId,
+			activityModule: activityModuleId,
+			section: sectionId,
+			order: 0,
+		};
+
+		const linkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			mockRequest,
+			linkArgs,
+		);
+		if (!linkResult.ok) {
+			throw new Error("Test Error: Failed to create course-activity-module-link");
+		}
+		courseActivityModuleLinkId = linkResult.value.id;
+	});
+
+	afterAll(async () => {
+		// reset the database 
+		await $`bun run migrate:fresh --force-accept-warning`;
+		await $`bun scripts/clean-s3.ts`;
+	});
+
+	test("should prevent starting new attempt if previous is in_progress", async () => {
+		// Start first attempt
+		const startArgs1: StartQuizAttemptArgs = {
+			payload,
+			courseModuleLinkId: courseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber: 1,
+			overrideAccess: true,
+		};
+
+		const startResult1 = await tryStartQuizAttempt(startArgs1);
+		expect(startResult1.ok).toBe(true);
+		if (!startResult1.ok) return;
+
+		// Try to start a second attempt while first is in_progress
+		const startArgs2: StartQuizAttemptArgs = {
+			payload,
+			courseModuleLinkId: courseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber: 2,
+			overrideAccess: true,
+		};
+
+		const startResult2 = await tryStartQuizAttempt(startArgs2);
+		expect(startResult2.ok).toBe(false);
+		if (startResult2.ok) return;
+
+		expect(startResult2.error.message).toContain(
+			"Cannot start a new quiz attempt while another attempt is in progress",
+		);
+	});
+});
+
+describe("Quiz Submission Management - Time Limit", () => {
+	let payload: Awaited<ReturnType<typeof getPayload>>;
+	let mockRequest: Request;
+	let teacherId: number;
+	let studentId: number;
+	let courseId: number;
+	let enrollmentId: number;
+	let sectionId: number;
+
+	beforeAll(async () => {
+		// Refresh environment and database for clean test state
+		try {
+			await $`bun run migrate:fresh --force-accept-warning`;
+			await $`bun scripts/clean-s3.ts`;
+		} catch (error) {
+			console.warn("Migration failed, continuing with existing state:", error);
+		}
+
+		payload = await getPayload({
+			config: sanitizedConfig,
+		});
+
+		mockRequest = new Request("http://localhost:3000/test");
+
+		// Create teacher user
+		const teacherArgs: CreateUserArgs = {
+			payload,
+			data: {
+				email: "quiz-timelimit-teacher@example.com",
+				password: "password123",
+				firstName: "John",
+				lastName: "Teacher",
+				role: "student",
+			},
+			overrideAccess: true,
+		};
+
+		const teacherResult = await tryCreateUser(teacherArgs);
+		if (!teacherResult.ok) {
+			throw new Error("Test Error: Failed to create test teacher");
+		}
+		teacherId = teacherResult.value.id;
+
+		// Create student user
+		const studentArgs: CreateUserArgs = {
+			payload,
+			data: {
+				email: "quiz-timelimit-student@example.com",
+				password: "password123",
+				firstName: "Jane",
+				lastName: "Student",
+				role: "student",
+			},
+			overrideAccess: true,
+		};
+
+		const studentResult = await tryCreateUser(studentArgs);
+		if (!studentResult.ok) {
+			throw new Error("Test Error: Failed to create test student");
+		}
+		studentId = studentResult.value.id;
+
+		// Create course
+		const courseArgs: CreateCourseArgs = {
+			payload,
+			data: {
+				title: "Quiz Time Limit Test Course",
+				description: "A test course for time limit",
+				slug: "quiz-timelimit-test-course",
+				createdBy: teacherId,
+			},
+			overrideAccess: true,
+		};
+
+		const courseResult = await tryCreateCourse(courseArgs);
+		if (!courseResult.ok) {
+			throw new Error("Test Error: Failed to create test course");
+		}
+		courseId = courseResult.value.id;
+
+		// Create enrollment
+		const enrollmentArgs: CreateEnrollmentArgs = {
+			payload,
+			user: studentId,
+			course: courseId,
+			role: "student",
+			status: "active",
+			overrideAccess: true,
+		};
+
+		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
+		if (!enrollmentResult.ok) {
+			throw new Error("Test Error: Failed to create test enrollment");
+		}
+		enrollmentId = enrollmentResult.value.id;
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: courseId,
+				title: "Test Section",
+				description: "Test section",
+			},
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+		sectionId = sectionResult.value.id;
+	});
+
+	afterAll(async () => {
+		await $`bun run migrate:fresh --force-accept-warning`;
+		await $`bun scripts/clean-s3.ts`;
+	});
+
+	test("should reject submission after time limit exceeded", async () => {
+		// Create a quiz with a very short time limit (1 minute)
+		const quickQuizArgs: CreateQuizArgs = {
+			title: "Quick Quiz",
+			description: "A quiz with 1 minute time limit",
+			instructions: "Complete quickly",
+			dueDate: `${year}-12-31T23:59:59Z`,
+			maxAttempts: 1,
+			points: 100,
+			gradingType: "automatic",
+			timeLimit: 1, // 1 minute
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 100,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+					],
+				},
+			],
+			createdBy: teacherId,
+		};
+
+		const quickQuizResult = await tryCreateQuiz(payload, quickQuizArgs);
+		expect(quickQuizResult.ok).toBe(true);
+		if (!quickQuizResult.ok) return;
+
+		// Create activity module with this quiz
+		const quickActivityModuleArgs: CreateActivityModuleArgs = {
+			title: "Quick Quiz Module",
+			description: "Module with quick quiz",
+			type: "quiz",
+			status: "published",
+			userId: teacherId,
+			quizData: {
+				instructions: "Complete quickly",
+				dueDate: `${year}-12-31T23:59:59Z`,
+				maxAttempts: 1,
+				points: 100,
+				gradingType: "automatic",
+				timeLimit: 1, // 1 minute
+				questions: [
+					{
+						questionText: "What is 2 + 2?",
+						questionType: "multiple_choice",
+						points: 100,
+						options: [
+							{ text: "3", isCorrect: false },
+							{ text: "4", isCorrect: true },
+						],
+					},
+				],
+			},
+		};
+
+		const quickActivityModuleResult = await tryCreateActivityModule(
+			payload,
+			quickActivityModuleArgs,
+		);
+		expect(quickActivityModuleResult.ok).toBe(true);
+		if (!quickActivityModuleResult.ok) return;
+
+		const quickActivityModuleId = quickActivityModuleResult.value.id;
+
+		// Create course-activity-module-link
+		const quickLinkArgs: CreateCourseActivityModuleLinkArgs = {
+			course: courseId,
+			activityModule: quickActivityModuleId,
+			section: sectionId,
+			order: 0,
+		};
+
+		const quickLinkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			mockRequest,
+			quickLinkArgs,
+		);
+		expect(quickLinkResult.ok).toBe(true);
+		if (!quickLinkResult.ok) return;
+
+		const quickCourseActivityModuleLinkId = quickLinkResult.value.id;
+
+		// Start quiz attempt
+		const quickStartArgs: StartQuizAttemptArgs = {
+			payload,
+			courseModuleLinkId: quickCourseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber: 1,
+			overrideAccess: true,
+		};
+
+		const quickStartResult = await tryStartQuizAttempt(quickStartArgs);
+		expect(quickStartResult.ok).toBe(true);
+		if (!quickStartResult.ok) return;
+
+		const quickSubmissionId = quickStartResult.value.id;
+
+		// Manually update startedAt to be 2 minutes ago (exceeding 1 minute limit)
+		const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+		await payload.update({
+			collection: "quiz-submissions",
+			id: quickSubmissionId,
+			data: {
+				startedAt: twoMinutesAgo,
+			},
+		});
+
+		// Try to submit - should fail due to time limit
+		const submitResult = await trySubmitQuiz({
+			payload,
+			submissionId: quickSubmissionId,
+			overrideAccess: true,
+		});
+		expect(submitResult.ok).toBe(false);
+		if (submitResult.ok) return;
+
+		expect(submitResult.error.message).toContain("time limit");
 	});
 });

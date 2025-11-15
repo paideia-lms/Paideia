@@ -264,6 +264,41 @@ export class MediaInUseError extends Error {
 	}
 }
 
+export class ScriptValidationError extends Error {
+	static readonly type = "ScriptValidationError";
+	get type() {
+		return ScriptValidationError.type;
+	}
+}
+
+export class QuizTimeLimitExceededError extends Error {
+	static readonly type = "QuizTimeLimitExceededError";
+	get type() {
+		return QuizTimeLimitExceededError.type;
+	}
+}
+
+export class DuplicateUserGradeError extends Error {
+	static readonly type = "DuplicateUserGradeError";
+	get type() {
+		return DuplicateUserGradeError.type;
+	}
+}
+
+export class UserNotFoundError extends Error {
+	static readonly type = "UserNotFoundError";
+	get type() {
+		return UserNotFoundError.type;
+	}
+}
+
+export class EnrollmentCourseMismatchError extends Error {
+	static readonly type = "EnrollmentCourseMismatchError";
+	get type() {
+		return EnrollmentCourseMismatchError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||
@@ -306,6 +341,11 @@ export function transformError(error: unknown) {
 	else if (error instanceof SeedDataLoadError) return error;
 	else if (error instanceof SandboxResetError) return error;
 	else if (error instanceof MediaInUseError) return error;
+	else if (error instanceof ScriptValidationError) return error;
+	else if (error instanceof QuizTimeLimitExceededError) return error;
+	else if (error instanceof DuplicateUserGradeError) return error;
+	else if (error instanceof UserNotFoundError) return error;
+	else if (error instanceof EnrollmentCourseMismatchError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

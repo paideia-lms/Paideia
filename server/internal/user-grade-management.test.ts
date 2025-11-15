@@ -3,7 +3,15 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
+import { tryCreateActivityModule } from "./activity-module-management";
+import {
+	tryCreateAssignmentSubmission,
+	tryGradeAssignmentSubmission,
+	trySubmitAssignment,
+} from "./assignment-submission-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
@@ -20,6 +28,7 @@ import {
 	tryGetSingleUserGradesJsonRepresentation,
 	tryGetUserGradesForGradebook,
 	tryGetUserGradesJsonRepresentation,
+	tryReleaseGrade,
 	tryRemoveAdjustment,
 	tryToggleAdjustment,
 	tryUpdateUserGrade,
@@ -206,7 +215,11 @@ describe("User Grade Management", () => {
 	});
 
 	it("should create a user grade", async () => {
-		const result = await tryCreateUserGrade(payload, {} as Request, {
+		const result = await tryCreateUserGrade({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: testItem.id,
 			baseGrade: 85,
@@ -223,7 +236,11 @@ describe("User Grade Management", () => {
 	});
 
 	it("should not create duplicate grade for same enrollment and item", async () => {
-		const result = await tryCreateUserGrade(payload, {} as Request, {
+		const result = await tryCreateUserGrade({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: testItem.id,
 			baseGrade: 90,
@@ -233,7 +250,11 @@ describe("User Grade Management", () => {
 	});
 
 	it("should not create grade with invalid value", async () => {
-		const result = await tryCreateUserGrade(payload, {} as Request, {
+		const result = await tryCreateUserGrade({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: testItem2.id,
 			baseGrade: 150, // Invalid: > maxGrade (50)
@@ -243,7 +264,13 @@ describe("User Grade Management", () => {
 	});
 
 	it("should find grade by ID", async () => {
-		const result = await tryFindUserGradeById(payload, testGrade.id);
+		const result = await tryFindUserGradeById({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			gradeId: testGrade.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -253,11 +280,14 @@ describe("User Grade Management", () => {
 	});
 
 	it("should find grade by enrollment and item", async () => {
-		const result = await tryFindUserGradeByEnrollmentAndItem(
+		const result = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			testEnrollment.id,
-			testItem.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: testItem.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -266,15 +296,15 @@ describe("User Grade Management", () => {
 	});
 
 	it("should update grade", async () => {
-		const result = await tryUpdateUserGrade(
+		const result = await tryUpdateUserGrade({
 			payload,
-			{} as Request,
-			testGrade.id,
-			{
-				baseGrade: 90,
-				feedback: "Excellent work!",
-			},
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			gradeId: testGrade.id,
+			baseGrade: 90,
+			feedback: "Excellent work!",
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -284,11 +314,14 @@ describe("User Grade Management", () => {
 	});
 
 	it("should get user grades for gradebook", async () => {
-		const result = await tryGetUserGradesForGradebook(
+		const result = await tryGetUserGradesForGradebook({
 			payload,
-			testEnrollment.id,
-			testGradebook.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookId: testGradebook.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -299,7 +332,13 @@ describe("User Grade Management", () => {
 	});
 
 	it("should get grades for item", async () => {
-		const result = await tryGetGradesForItem(payload, testItem.id);
+		const result = await tryGetGradesForItem({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			gradebookItemId: testItem.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -309,7 +348,11 @@ describe("User Grade Management", () => {
 	});
 
 	it("should bulk update user grades", async () => {
-		const result = await tryBulkUpdateUserGrades(payload, {} as Request, {
+		const result = await tryBulkUpdateUserGrades({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			grades: [
 				{
@@ -329,11 +372,14 @@ describe("User Grade Management", () => {
 	});
 
 	it("should calculate user final grade", async () => {
-		const result = await tryCalculateUserFinalGrade(
+		const result = await tryCalculateUserFinalGrade({
 			payload,
-			testEnrollment.id,
-			testGradebook.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookId: testGradebook.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -345,11 +391,13 @@ describe("User Grade Management", () => {
 	});
 
 	it("should delete grade", async () => {
-		const result = await tryDeleteUserGrade(
+		const result = await tryDeleteUserGrade({
 			payload,
-			{} as Request,
-			testGrade.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			gradeId: testGrade.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -358,16 +406,25 @@ describe("User Grade Management", () => {
 	});
 
 	it("should not find deleted grade", async () => {
-		const result = await tryFindUserGradeById(payload, testGrade.id);
+		const result = await tryFindUserGradeById({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			gradeId: testGrade.id,
+		});
 
 		expect(result.ok).toBe(false);
 	});
 
 	it("should get user grades JSON representation", async () => {
-		const result = await tryGetUserGradesJsonRepresentation(
+		const result = await tryGetUserGradesJsonRepresentation({
 			payload,
-			testCourse.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -386,11 +443,14 @@ describe("User Grade Management", () => {
 	});
 
 	it("should get single user grades JSON representation", async () => {
-		const result = await tryGetSingleUserGradesJsonRepresentation(
+		const result = await tryGetSingleUserGradesJsonRepresentation({
 			payload,
-			testCourse.id,
-			testEnrollment.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+			enrollmentId: testEnrollment.id,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -406,11 +466,14 @@ describe("User Grade Management", () => {
 	});
 
 	it("should fail to get single user grades for non-existent enrollment", async () => {
-		const result = await tryGetSingleUserGradesJsonRepresentation(
+		const result = await tryGetSingleUserGradesJsonRepresentation({
 			payload,
-			testCourse.id,
-			99999, // Non-existent enrollment ID
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+			enrollmentId: 99999, // Non-existent enrollment ID
+		});
 
 		expect(result.ok).toBe(false);
 	});
@@ -430,11 +493,14 @@ describe("User Grade Management", () => {
 
 		expect(anotherCourseResult.ok).toBe(true);
 		if (anotherCourseResult.ok) {
-			const result = await tryGetSingleUserGradesJsonRepresentation(
+			const result = await tryGetSingleUserGradesJsonRepresentation({
 				payload,
-				anotherCourseResult.value.id,
-				testEnrollment.id, // This enrollment belongs to testCourse, not anotherCourse
-			);
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+				courseId: anotherCourseResult.value.id,
+				enrollmentId: testEnrollment.id, // This enrollment belongs to testCourse, not anotherCourse
+			});
 
 			expect(result.ok).toBe(false);
 		}
@@ -442,7 +508,11 @@ describe("User Grade Management", () => {
 
 	it("should add bonus adjustment to user grade", async () => {
 		// First create a grade
-		const gradeResult = await tryCreateUserGrade(payload, {} as Request, {
+		const gradeResult = await tryCreateUserGrade({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: testItem.id,
 			baseGrade: 85,
@@ -458,7 +528,11 @@ describe("User Grade Management", () => {
 		const grade = gradeResult.value;
 
 		// Add bonus adjustment
-		const adjustmentResult = await tryAddAdjustment(payload, {} as Request, {
+		const adjustmentResult = await tryAddAdjustment({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			gradeId: grade.id,
 			type: "bonus",
 			points: 5,
@@ -477,11 +551,14 @@ describe("User Grade Management", () => {
 
 	it("should add penalty adjustment to user grade", async () => {
 		// Get the grade from previous test
-		const gradeResult = await tryFindUserGradeByEnrollmentAndItem(
+		const gradeResult = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			testEnrollment.id,
-			testItem.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: testItem.id,
+		});
 
 		expect(gradeResult.ok).toBe(true);
 		if (!gradeResult.ok) {
@@ -491,7 +568,11 @@ describe("User Grade Management", () => {
 		const grade = gradeResult.value;
 
 		// Add penalty adjustment
-		const adjustmentResult = await tryAddAdjustment(payload, {} as Request, {
+		const adjustmentResult = await tryAddAdjustment({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			gradeId: grade.id,
 			type: "penalty",
 			points: -2,
@@ -509,11 +590,14 @@ describe("User Grade Management", () => {
 
 	it("should toggle adjustment active status", async () => {
 		// Get the grade from previous test
-		const gradeResult = await tryFindUserGradeByEnrollmentAndItem(
+		const gradeResult = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			testEnrollment.id,
-			testItem.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: testItem.id,
+		});
 
 		expect(gradeResult.ok).toBe(true);
 		if (!gradeResult.ok) {
@@ -528,12 +612,14 @@ describe("User Grade Management", () => {
 		}
 
 		// Toggle adjustment
-		const toggleResult = await tryToggleAdjustment(
+		const toggleResult = await tryToggleAdjustment({
 			payload,
-			{} as Request,
-			grade.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			gradeId: grade.id,
 			adjustmentId,
-		);
+		});
 
 		expect(toggleResult.ok).toBe(true);
 		if (toggleResult.ok) {
@@ -543,11 +629,14 @@ describe("User Grade Management", () => {
 
 	it("should remove adjustment from user grade", async () => {
 		// Get the grade from previous test
-		const gradeResult = await tryFindUserGradeByEnrollmentAndItem(
+		const gradeResult = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			testEnrollment.id,
-			testItem.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: testItem.id,
+		});
 
 		expect(gradeResult.ok).toBe(true);
 		if (!gradeResult.ok) {
@@ -562,7 +651,11 @@ describe("User Grade Management", () => {
 		}
 
 		// Remove adjustment
-		const removeResult = await tryRemoveAdjustment(payload, {} as Request, {
+		const removeResult = await tryRemoveAdjustment({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			gradeId: grade.id,
 			adjustmentId,
 		});
@@ -576,11 +669,14 @@ describe("User Grade Management", () => {
 
 	it("should calculate final grade with adjustments", async () => {
 		// Get the grade with adjustments
-		const gradeResult = await tryFindUserGradeByEnrollmentAndItem(
+		const gradeResult = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			testEnrollment.id,
-			testItem.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: testItem.id,
+		});
 
 		expect(gradeResult.ok).toBe(true);
 		if (!gradeResult.ok) {
@@ -588,11 +684,14 @@ describe("User Grade Management", () => {
 		}
 
 		// Calculate final grade
-		const finalGradeResult = await tryCalculateUserFinalGrade(
+		const finalGradeResult = await tryCalculateUserFinalGrade({
 			payload,
-			testEnrollment.id,
-			testGradebook.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookId: testGradebook.id,
+		});
 
 		expect(finalGradeResult.ok).toBe(true);
 		if (finalGradeResult.ok) {
@@ -628,7 +727,11 @@ describe("User Grade Management", () => {
 		}
 
 		// Create a grade for the extra credit item
-		const extraCreditGrade = await tryCreateUserGrade(payload, {} as Request, {
+		const extraCreditGrade = await tryCreateUserGrade({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: extraCreditItem.value.id,
 			baseGrade: 20,
@@ -642,11 +745,14 @@ describe("User Grade Management", () => {
 		}
 
 		// Calculate final grade with extra credit
-		const finalGradeResult = await tryCalculateUserFinalGrade(
+		const finalGradeResult = await tryCalculateUserFinalGrade({
 			payload,
-			testEnrollment.id,
-			testGradebook.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookId: testGradebook.id,
+		});
 
 		expect(finalGradeResult.ok).toBe(true);
 		if (finalGradeResult.ok) {
@@ -686,7 +792,11 @@ describe("User Grade Management", () => {
 		}
 
 		// Create a grade for the zero weight extra credit
-		const zeroWeightGrade = await tryCreateUserGrade(payload, {} as Request, {
+		const zeroWeightGrade = await tryCreateUserGrade({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: zeroWeightExtraCredit.value.id,
 			baseGrade: 8,
@@ -700,11 +810,14 @@ describe("User Grade Management", () => {
 		}
 
 		// Calculate final grade - should not affect total weight
-		const finalGradeResult = await tryCalculateUserFinalGrade(
+		const finalGradeResult = await tryCalculateUserFinalGrade({
 			payload,
-			testEnrollment.id,
-			testGradebook.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookId: testGradebook.id,
+		});
 
 		expect(finalGradeResult.ok).toBe(true);
 		if (finalGradeResult.ok) {
@@ -718,11 +831,14 @@ describe("User Grade Management", () => {
 
 	it("should calculate final grade with adjustments and extra credit", async () => {
 		// Get the grade with adjustments from previous tests
-		const gradeResult = await tryFindUserGradeByEnrollmentAndItem(
+		const gradeResult = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			testEnrollment.id,
-			testItem.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: testItem.id,
+		});
 
 		expect(gradeResult.ok).toBe(true);
 		if (!gradeResult.ok) {
@@ -730,7 +846,11 @@ describe("User Grade Management", () => {
 		}
 
 		// Add another bonus adjustment
-		const additionalBonus = await tryAddAdjustment(payload, {} as Request, {
+		const additionalBonus = await tryAddAdjustment({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			gradeId: gradeResult.value.id,
 			type: "curve",
 			points: 3,
@@ -741,11 +861,14 @@ describe("User Grade Management", () => {
 		expect(additionalBonus.ok).toBe(true);
 
 		// Calculate final grade with all factors
-		const finalGradeResult = await tryCalculateUserFinalGrade(
+		const finalGradeResult = await tryCalculateUserFinalGrade({
 			payload,
-			testEnrollment.id,
-			testGradebook.id,
-		);
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookId: testGradebook.id,
+		});
 
 		expect(finalGradeResult.ok).toBe(true);
 		if (finalGradeResult.ok) {
@@ -761,5 +884,261 @@ describe("User Grade Management", () => {
 			// Total weight should be reasonable (85 from previous tests)
 			expect(finalGradeResult.value.totalWeight).toBe(85);
 		}
+	});
+
+	it("should release grade from submission to user-grade", async () => {
+		// This test verifies that tryReleaseGrade correctly releases grades from submissions to user-grades
+		// Note: Full integration test requires creating assignment submission and grading it first
+		// which is tested in assignment-submission-management.test.ts
+
+		// Test with non-existent enrollment - should fail
+		const invalidResult = await tryReleaseGrade({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: false,
+			courseActivityModuleLinkId: 99999,
+			enrollmentId: 99999,
+		});
+
+		// Should fail because enrollment doesn't exist
+		expect(invalidResult.ok).toBe(false);
+	});
+
+	it("should show grade in JSON representation after grading assignment submission", async () => {
+		// Create an assignment activity module
+		const activityModuleResult = await tryCreateActivityModule(payload, {
+			title: "Programming Exercise: Calculator",
+			description: "Build a calculator application",
+			type: "assignment",
+			status: "published",
+			userId: instructor.id,
+			assignmentData: {
+				instructions: "Create a calculator that can perform basic operations",
+				dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+				requireTextSubmission: true,
+				requireFileSubmission: false,
+			},
+		});
+
+		expect(activityModuleResult.ok).toBe(true);
+		if (!activityModuleResult.ok) {
+			throw new Error("Failed to create activity module");
+		}
+		const activityModule = activityModuleResult.value;
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: testCourse.id,
+				title: "Assignments Section",
+				description: "Section for assignments",
+			},
+			overrideAccess: true,
+		});
+
+		expect(sectionResult.ok).toBe(true);
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+		const section = sectionResult.value;
+
+		// Create course-activity-module-link (this automatically creates a gradebook item)
+		const courseActivityModuleLinkArgs = {
+			course: testCourse.id,
+			activityModule: activityModule.id,
+			section: section.id,
+			contentOrder: 0,
+		};
+
+		const courseActivityModuleLinkResult =
+			await tryCreateCourseActivityModuleLink(
+				payload,
+				mockRequest,
+				courseActivityModuleLinkArgs,
+			);
+
+		expect(courseActivityModuleLinkResult.ok).toBe(true);
+		if (!courseActivityModuleLinkResult.ok) {
+			throw new Error("Failed to create course-activity-module-link");
+		}
+		const courseModuleLink = courseActivityModuleLinkResult.value;
+
+		// Verify gradebook item was created automatically
+		const gradebookItems = await payload.find({
+			collection: "gradebook-items",
+			where: {
+				activityModule: {
+					equals: courseModuleLink.id,
+				},
+			},
+		});
+
+		expect(gradebookItems.docs.length).toBeGreaterThan(0);
+		const gradebookItem = gradebookItems.docs[0];
+
+		// Create an assignment submission
+		const submissionResult = await tryCreateAssignmentSubmission({
+			payload,
+			courseModuleLinkId: courseModuleLink.id,
+			studentId: student.id,
+			enrollmentId: testEnrollment.id,
+			attemptNumber: 1,
+			content: "Here is my calculator implementation",
+			timeSpent: 3600, // 1 hour
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(submissionResult.ok).toBe(true);
+		if (!submissionResult.ok) {
+			throw new Error("Failed to create assignment submission");
+		}
+		const submission = submissionResult.value;
+
+		// Submit the assignment
+		const submitResult = await trySubmitAssignment({
+			payload,
+			submissionId: submission.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+		expect(submitResult.ok).toBe(true);
+		if (!submitResult.ok) {
+			throw new Error("Failed to submit assignment");
+		}
+
+		// Grade the assignment submission (only updates submission, doesn't create user-grade)
+		const gradeResult = await tryGradeAssignmentSubmission({
+			payload,
+			request: mockRequest,
+			id: submission.id,
+			grade: 85,
+			feedback: "Great work! Your calculator implementation is excellent.",
+			gradedBy: instructor.id,
+			user: null,
+			overrideAccess: true,
+		});
+
+		expect(gradeResult.ok).toBe(true);
+		if (!gradeResult.ok) {
+			throw new Error(`Failed to grade assignment: ${gradeResult.error}`);
+		}
+
+		// Verify submission was graded but user-grade was NOT created yet
+		const gradedSubmission = gradeResult.value;
+		expect(gradedSubmission.status).toBe("graded");
+		const submissionWithGrade = gradedSubmission as typeof gradedSubmission & {
+			grade?: number | null;
+			feedback?: string | null;
+		};
+		expect(submissionWithGrade.grade).toBe(85);
+		expect(submissionWithGrade.feedback).toBe(
+			"Great work! Your calculator implementation is excellent.",
+		);
+
+		// Verify no user-grade exists yet
+		const gradeBeforeRelease = await tryFindUserGradeByEnrollmentAndItem({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: gradebookItem.id,
+		});
+		expect(gradeBeforeRelease.ok).toBe(false);
+
+		// Now release the grade - this should create the user-grade
+		const releaseResult = await tryReleaseGrade({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			courseActivityModuleLinkId: courseModuleLink.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+		expect(releaseResult.ok).toBe(true);
+		if (!releaseResult.ok) {
+			throw new Error(`Failed to release grade: ${releaseResult.error}`);
+		}
+
+		// Verify user-grade was created after release
+		const gradeAfterRelease = await tryFindUserGradeByEnrollmentAndItem({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: gradebookItem.id,
+		});
+
+		expect(gradeAfterRelease.ok).toBe(true);
+		if (!gradeAfterRelease.ok) {
+			throw new Error("User grade should exist after release");
+		}
+
+		const userGrade = gradeAfterRelease.value;
+		expect(userGrade.baseGrade).toBe(85);
+		expect(userGrade.feedback).toBe(
+			"Great work! Your calculator implementation is excellent.",
+		);
+		const submissionValue =
+			typeof userGrade.submission === "number"
+				? userGrade.submission
+				: typeof userGrade.submission === "object" &&
+					userGrade.submission !== null &&
+					"value" in userGrade.submission
+					? typeof userGrade.submission.value === "number"
+						? userGrade.submission.value
+						: userGrade.submission.value?.id
+					: null;
+		expect(submissionValue).toBe(submission.id);
+		expect(userGrade.submissionType).toBe("assignment");
+
+		// Get single user grades JSON representation
+		const jsonResult = await tryGetSingleUserGradesJsonRepresentation({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+		expect(jsonResult.ok).toBe(true);
+		if (!jsonResult.ok) {
+			throw new Error("Failed to get user grades JSON representation");
+		}
+
+		const jsonData = jsonResult.value;
+
+		// Verify the grade appears in the JSON representation
+		expect(jsonData.course_id).toBe(testCourse.id);
+		expect(jsonData.gradebook_id).toBe(testGradebook.id);
+		expect(jsonData.enrollment.enrollment_id).toBe(testEnrollment.id);
+		expect(jsonData.enrollment.user_id).toBe(student.id);
+
+		// Find the gradebook item in the items array
+		const gradedItem = jsonData.enrollment.items.find(
+			(item) => item.item_id === gradebookItem.id,
+		);
+
+		expect(gradedItem).toBeDefined();
+		if (gradedItem) {
+			expect(gradedItem.base_grade).toBe(85);
+			expect(gradedItem.feedback).toBe(
+				"Great work! Your calculator implementation is excellent.",
+			);
+			expect(gradedItem.status).toBe("graded");
+			expect(gradedItem.graded_at).toBeDefined();
+			expect(gradedItem.item_name).toBe("Programming Exercise: Calculator");
+		}
+
+		// Verify graded_items count is updated
+		expect(jsonData.enrollment.graded_items).toBeGreaterThan(0);
 	});
 });

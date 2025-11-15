@@ -1,6 +1,7 @@
 import { SeedDataLoadError, transformError } from "app/utils/error";
 import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
+import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { Result } from "typescript-result";
 import {
 	type CreateActivityModuleArgs,
@@ -328,9 +329,9 @@ export const tryRunSeed = Result.wrap(
 		}
 		const csSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-					name: "Computer Science",
-					parent: stemCategory.value.id,
-				})
+				name: "Computer Science",
+				parent: stemCategory.value.id,
+			})
 			: null;
 		if (csSubcat && csSubcat.ok) {
 			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
@@ -340,9 +341,9 @@ export const tryRunSeed = Result.wrap(
 		}
 		const mathSubcat = stemCategory.ok
 			? await tryCreateCategory(payload, mockRequest, {
-					name: "Mathematics",
-					parent: stemCategory.value.id,
-				})
+				name: "Mathematics",
+				parent: stemCategory.value.id,
+			})
 			: null;
 		if (mathSubcat && mathSubcat.ok) {
 			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });
@@ -611,14 +612,23 @@ export const tryRunSeed = Result.wrap(
 					},
 				};
 			} else if (moduleData.type === "quiz") {
+				const quizData: {
+					instructions?: string;
+					points?: number;
+					timeLimit?: number;
+					rawQuizConfig?: QuizConfig;
+				} = {
+					instructions: moduleData.instructions,
+					points: moduleData.points,
+					timeLimit: moduleData.timeLimit,
+				};
+				if (moduleData.rawQuizConfig) {
+					quizData.rawQuizConfig = moduleData.rawQuizConfig as QuizConfig;
+				}
 				moduleArgs = {
 					...baseArgs,
 					type: "quiz" as const,
-					quizData: {
-						instructions: moduleData.instructions,
-						points: moduleData.points,
-						timeLimit: moduleData.timeLimit,
-					},
+					quizData,
 				};
 			} else {
 				moduleArgs = {

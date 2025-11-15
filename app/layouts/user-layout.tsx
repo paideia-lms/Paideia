@@ -12,6 +12,7 @@ import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindUserById } from "server/internal/user-management";
+import { canSeeUserModules } from "server/utils/permissions";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
@@ -67,11 +68,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof targetUser.avatar === "object") {
 			avatarUrl = targetUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: targetUser.avatar.filename,
-					})
+					filenameOrId: targetUser.avatar.filename,
+				})
 				: null;
 		}
 	}
+
+	const canSeeModules = canSeeUserModules(currentUser);
 
 	return {
 		user: {
@@ -84,6 +87,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		pageInfo: pageInfo,
 		isOwnData: userId === currentUser.id,
+		canSeeModules,
 	};
 };
 
@@ -93,7 +97,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 export default function UserLayout({ loaderData }: Route.ComponentProps) {
 	const navigate = useNavigate();
-	const { user, pageInfo, isOwnData } = loaderData;
+	const { user, pageInfo, isOwnData, canSeeModules } = loaderData;
 
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 
@@ -210,7 +214,9 @@ export default function UserLayout({ loaderData }: Route.ComponentProps) {
 							<Tabs.List>
 								<Tabs.Tab value={UserTab.Profile}>Profile</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Preference}>Preference</Tabs.Tab>
-								<Tabs.Tab value={UserTab.Modules}>Modules</Tabs.Tab>
+								{canSeeModules && (
+									<Tabs.Tab value={UserTab.Modules}>Modules</Tabs.Tab>
+								)}
 								<Tabs.Tab value={UserTab.Grades}>Grades</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Notes}>Notes</Tabs.Tab>
 								<Tabs.Tab value={UserTab.Media}>Media</Tabs.Tab>

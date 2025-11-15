@@ -98,6 +98,7 @@ export const middleware = [
 		let isCourseGroups = false;
 		let isCourseGrades = false;
 		let isCourseGradesLayout = false;
+		let isCourseGradesSingleView = false;
 		let isCourseModules = false;
 		let isCourseBin = false;
 		let isCourseBackup = false;
@@ -142,6 +143,7 @@ export const middleware = [
 		let isAdminSitePolicies = false;
 		let isAdminMedia = false;
 		let isAdminAppearance = false;
+		let isAdminAnalytics = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
 			else if (route.id === "layouts/server-admin-layout") isAdmin = true;
@@ -163,6 +165,8 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.grades") isCourseGrades = true;
 			else if (route.id === "layouts/course-grades-layout")
 				isCourseGradesLayout = true;
+			else if (route.id === "routes/course.$id.grades.singleview")
+				isCourseGradesSingleView = true;
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
@@ -223,6 +227,8 @@ export const middleware = [
 			else if (route.id === "routes/admin/media") isAdminMedia = true;
 			else if (route.id === ("routes/admin/appearance" as typeof route.id))
 				isAdminAppearance = true;
+			else if (route.id === ("routes/admin/analytics" as typeof route.id))
+				isAdminAnalytics = true;
 		}
 
 		// set the route hierarchy and page info to the context
@@ -245,6 +251,7 @@ export const middleware = [
 				isCourseGroups,
 				isCourseGrades,
 				isCourseGradesLayout,
+				isCourseGradesSingleView,
 				isCourseModules,
 				isCourseBin,
 				isCourseBackup,
@@ -289,6 +296,7 @@ export const middleware = [
 				isAdminSitePolicies,
 				isAdminMedia,
 				isAdminAppearance,
+				isAdminAnalytics,
 				params: params as Record<string, string>,
 			},
 		});
@@ -322,15 +330,18 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -367,31 +378,23 @@ export const middleware = [
 	 * set the course context
 	 */
 	async ({ context, params }) => {
-		const { payload, routeHierarchy, pageInfo } = context.get(globalContextKey);
+		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const currentUser =
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		// check if the user is in a course
-		if (routeHierarchy.some((route) => route.id === "layouts/course-layout")) {
-			const { id } = params as RouteParams<"layouts/course-layout">;
-
-			if (Number.isNaN(id)) return;
-
-			// default course id is the id from params
-			let courseId: number = Number(id);
-
+		if (pageInfo.isInCourse) {
+			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
+			let { courseId } = params as RouteParams<"layouts/course-layout">;
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
-				const { id: moduleId } = params as RouteParams<
-					"routes/course/module.$id" | "routes/course/module.$id.edit"
-				>;
-
-				if (Number.isNaN(moduleId)) return;
+				const { moduleLinkId } = params as RouteParams<"layouts/course-module-layout">;
+				if (Number.isNaN(moduleLinkId)) return;
 
 				const moduleContext = await tryFindCourseActivityModuleLinkById(
 					payload,
-					Number(moduleId),
+					Number(moduleLinkId),
 				);
 
 				if (!moduleContext.ok) return;
@@ -399,14 +402,12 @@ export const middleware = [
 				const module = moduleContext.value;
 				const { course } = module;
 				// update the course id to the course id from the module
-				courseId = course.id;
+				courseId = String(course.id);
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
 			if (pageInfo.isCourseSection || pageInfo.isCourseSectionEdit) {
-				const { id: sectionId } = pageInfo.isCourseSectionEdit
-					? (params as RouteParams<"routes/course/section-edit">)
-					: (params as RouteParams<"routes/course/section.$id">);
+				const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
 
 				if (Number.isNaN(sectionId)) return;
 
@@ -415,9 +416,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -425,12 +426,12 @@ export const middleware = [
 
 				const section = sectionContext.value;
 				// update the course id to the course id from the section
-				courseId = section.course;
+				courseId = String(section.course);
 			}
 
 			const courseContextResult = await tryGetCourseContext(
 				payload,
-				courseId,
+				Number(courseId),
 				currentUser || null,
 			);
 
@@ -445,7 +446,7 @@ export const middleware = [
 	},
 	// set the course section context
 	async ({ context, params }) => {
-		const { payload, routeHierarchy } = context.get(globalContextKey);
+		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 
@@ -454,22 +455,22 @@ export const middleware = [
 
 		// Check if we're in a course section layout
 		if (
-			routeHierarchy.some(
-				(route) => route.id === "layouts/course-section-layout",
-			)
+			pageInfo.isInCourseSectionLayout
 		) {
 			// Get section ID from params
-			const sectionId = params.id ? Number(params.id) : null;
+			const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
 
-			if (sectionId && !Number.isNaN(sectionId) && courseContext) {
+			if (Number.isNaN(sectionId)) return;
+
+			if (courseContext) {
 				const sectionResult = await tryFindSectionById({
 					payload,
-					sectionId,
+					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -529,9 +530,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -572,20 +573,20 @@ export const middleware = [
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
 
-			const { id: moduleId } =
+			const { moduleLinkId } =
 				params as RouteParams<"layouts/course-module-layout">;
 
 			// Get module link ID from params
-			if (moduleId && !Number.isNaN(moduleId)) {
+			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
 				const courseModuleContextResult = await tryGetCourseModuleContext(
 					payload,
-					Number(moduleId),
+					Number(moduleLinkId),
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				);
 
@@ -663,6 +664,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			theme: theme,
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
+			additionalJsScripts:
+				systemGlobals.analyticsSettings.additionalJsScripts,
 		};
 	}
 
@@ -680,6 +683,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		isDevelopment: process.env.NODE_ENV === "development",
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
+		additionalJsScripts:
+			systemGlobals.analyticsSettings.additionalJsScripts,
 	};
 }
 
@@ -713,6 +718,54 @@ function ClientHintCheck() {
 	);
 }
 
+
+function AnalyticsScripts({ scripts }: { scripts: Route.ComponentProps["loaderData"]["additionalJsScripts"] }) {
+	return (
+		<>
+			{scripts.map((script, index) => {
+				const scriptProps: Record<string, string | boolean | number> = {
+					src: script.src,
+				};
+				if (script.defer) {
+					scriptProps.defer = true;
+				}
+				if (script.async) {
+					scriptProps.async = true;
+				}
+				// Convert camelCase data attributes to kebab-case HTML attributes
+				if (script.dataWebsiteId) {
+					scriptProps["data-website-id"] = script.dataWebsiteId;
+				}
+				if (script.dataDomain) {
+					scriptProps["data-domain"] = script.dataDomain;
+				}
+				if (script.dataSite) {
+					scriptProps["data-site"] = script.dataSite;
+				}
+				if (script.dataMeasurementId) {
+					scriptProps["data-measurement-id"] = script.dataMeasurementId;
+				}
+				// Also handle any other data-* attributes that might exist
+				Object.keys(script).forEach((key) => {
+					if (
+						key.startsWith("data-") &&
+						key !== "dataWebsiteId" &&
+						key !== "dataDomain" &&
+						key !== "dataSite" &&
+						key !== "dataMeasurementId"
+					) {
+						const value = script[key as `data-${string}`];
+						if (value !== undefined) {
+							scriptProps[key] = value;
+						}
+					}
+				});
+				return <script key={`${script.src}-${index}`} {...scriptProps} />;
+			})}
+		</>
+	);
+}
+
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return (
 		<html lang="en">
@@ -741,7 +794,8 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme, isDevelopment, additionalCssStylesheets } = loaderData;
+	const { theme, isDevelopment, additionalCssStylesheets, additionalJsScripts } =
+		loaderData;
 
 	return (
 		<html
@@ -768,6 +822,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				{additionalCssStylesheets.map((url) => (
 					<link key={url} rel="stylesheet" href={url} />
 				))}
+				{/* Additional JavaScript scripts configured by admin */}
+				<AnalyticsScripts scripts={additionalJsScripts} />
 				{isDevelopment && (
 					<script
 						crossOrigin="anonymous"

@@ -57,36 +57,40 @@ export const routes = [
 		route("course", "routes/course.tsx"),
 		layout("layouts/course-layout.tsx", [
 			layout("layouts/course-content-layout.tsx", [
-				route("course/:id", "routes/course.$id.tsx"),
+				route("course/:courseId", "routes/course.$id.tsx"),
 				layout("layouts/course-module-layout.tsx", [
-					route("course/module/:id", "routes/course/module.$id.tsx"),
-					route("course/module/:id/edit", "routes/course/module.$id.edit.tsx"),
+					route("course/module/:moduleLinkId", "routes/course/module.$id.tsx"),
+					route("course/module/:moduleLinkId/edit", "routes/course/module.$id.edit.tsx"),
 					route(
-						"course/module/:id/submissions",
+						"course/module/:moduleLinkId/submissions",
 						"routes/course/module.$id.submissions.tsx",
 					),
 				]),
 				layout("layouts/course-section-layout.tsx", [
-					route("course/section/:id", "routes/course/section.$id.tsx"),
-					route("course/section/:id/edit", "routes/course/section-edit.tsx"),
+					route("course/section/:sectionId", "routes/course/section.$id.tsx"),
+					route("course/section/:sectionId/edit", "routes/course/section-edit.tsx"),
 				]),
 			]),
-			route("course/:id/section/new", "routes/course/section-new.tsx"),
-			route("course/:id/settings", "routes/course.$id.settings.tsx"),
+			route("course/:courseId/section/new", "routes/course/section-new.tsx"),
+			route("course/:courseId/settings", "routes/course.$id.settings.tsx"),
 			layout("layouts/course-participants-layout.tsx", [
-				route("course/:id/participants", "routes/course.$id.participants.tsx"),
+				route("course/:courseId/participants", "routes/course.$id.participants.tsx"),
 				route(
-					"course/:id/participants/profile",
+					"course/:courseId/participants/profile",
 					"routes/course.$id.participants.profile.tsx",
 				),
-				route("course/:id/groups", "routes/course.$id.groups.tsx"),
+				route("course/:courseId/groups", "routes/course.$id.groups.tsx"),
 			]),
 			layout("layouts/course-grades-layout.tsx", [
-				route("course/:id/grades", "routes/course.$id.grades.tsx"),
+				route("course/:courseId/grades", "routes/course.$id.grades.tsx"),
+				route(
+					"course/:courseId/grades/singleview",
+					"routes/course.$id.grades.singleview.tsx",
+				),
 			]),
-			route("course/:id/modules", "routes/course.$id.modules.tsx"),
-			route("course/:id/bin", "routes/course.$id.bin.tsx"),
-			route("course/:id/backup", "routes/course.$id.backup.tsx"),
+			route("course/:courseId/modules", "routes/course.$id.modules.tsx"),
+			route("course/:courseId/bin", "routes/course.$id.bin.tsx"),
+			route("course/:courseId/backup", "routes/course.$id.backup.tsx"),
 		]),
 		layout("layouts/server-admin-layout.tsx", [
 			route("admin/*", "routes/admin/index.tsx"),
@@ -106,6 +110,7 @@ export const routes = [
 			route("admin/sitepolicies", "routes/admin/sitepolicies.tsx"),
 			route("admin/media", "routes/admin/media.tsx"),
 			route("admin/appearance", "routes/admin/appearance.tsx"),
+			route("admin/analytics", "routes/admin/analytics.tsx"),
 		]),
 	]),
 ] as const satisfies RouteConfig;

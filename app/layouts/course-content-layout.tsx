@@ -37,7 +37,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	console.log("courseStructureTree", courseContext.courseStructureTree);
+	// console.log("courseStructureTree", courseContext.courseStructureTree);
 
 	return {
 		course: courseContext.course,
@@ -61,7 +61,7 @@ export default function CourseContentLayout({
 		enrolment,
 		pageInfo: { isCourseSection, isCourseModule },
 	} = loaderData;
-	const { id } = params;
+	const { courseId, sectionId, moduleLinkId } = params;
 
 	const canEdit = canUpdateCourseStructure(currentUser, enrolment);
 	const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
@@ -86,9 +86,9 @@ export default function CourseContentLayout({
 									<CourseStructureTree
 										currentItemId={
 											isCourseSection
-												? `s${id}`
+												? `s${sectionId}`
 												: isCourseModule
-													? `m${id}`
+													? `m${moduleLinkId}`
 													: undefined
 										}
 										readOnly={!canEdit}

@@ -40,14 +40,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
+	const { moduleLinkId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
-	}
-
-	const moduleLinkId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(moduleLinkId)) {
-		throw new ForbiddenResponse("Invalid module link ID");
 	}
 
 	if (!courseContext) {
@@ -93,14 +89,10 @@ export const action = async ({
 
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
-	}
-
-	const moduleLinkId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(moduleLinkId)) {
-		return badRequest({ error: "Invalid module link ID" });
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
@@ -183,7 +175,7 @@ export const action = async ({
 	const result = await tryUpdateCourseModuleSettings(
 		payload,
 		request,
-		moduleLinkId,
+		Number(moduleLinkId),
 		settings,
 	);
 
@@ -192,7 +184,7 @@ export const action = async ({
 	}
 
 	// Redirect to the module page
-	return redirect(href("/course/module/:id", { id: moduleLinkId.toString() }));
+	return redirect(href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }));
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -295,7 +287,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 			// Assignment fields
 			allowSubmissionsFrom:
 				existingSettings?.type === "assignment" &&
-				existingSettings.allowSubmissionsFrom
+					existingSettings.allowSubmissionsFrom
 					? new Date(existingSettings.allowSubmissionsFrom)
 					: null,
 			assignmentDueDate:
@@ -347,7 +339,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 				deleteModuleLink(
 					moduleLinkId,
 					course.id,
-					href("/course/:id", { id: course.id.toString() }),
+					href("/course/:courseId", { courseId: String(course.id) }),
 				);
 			},
 		});
@@ -474,8 +466,8 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 									variant="subtle"
 									onClick={() =>
 										navigate(
-											href("/course/module/:id", {
-												id: moduleLinkId.toString(),
+											href("/course/module/:moduleLinkId", {
+												moduleLinkId: String(moduleLinkId),
 											}),
 										)
 									}

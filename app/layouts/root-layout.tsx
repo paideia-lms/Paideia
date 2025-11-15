@@ -4,7 +4,6 @@ import {
 	Badge,
 	Container,
 	Group,
-	Indicator,
 	Menu,
 	Tabs,
 	Text,
@@ -34,6 +33,7 @@ import {
 	type PageInfo,
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
+import { canSeeUserModules } from "server/utils/permissions";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
@@ -50,6 +50,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession,
 		theme,
 		isSandboxMode,
+		canSeeUserModules: canSeeUserModules(currentUser),
 	};
 };
 
@@ -58,7 +59,7 @@ export default function UserLayout({
 	matches,
 }: Route.ComponentProps) {
 	const { pageInfo } = matches[0].loaderData;
-	const { theme } = loaderData;
+	const { theme, canSeeUserModules } = loaderData;
 	const { setColorScheme } = useMantineColorScheme();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: theme is intentionally the only dependency
@@ -83,7 +84,7 @@ export default function UserLayout({
 					</Text>
 				</Alert>
 			)}
-			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} />
+			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} canSeeUserModules={canSeeUserModules} />
 			{/* Sandbox Mode Warning */}
 			<Outlet />
 		</>
@@ -99,9 +100,11 @@ enum Tab {
 export function HeaderTabs({
 	userSession,
 	pageInfo,
+	canSeeUserModules,
 }: {
 	userSession: UserSession | null;
 	pageInfo: PageInfo;
+	canSeeUserModules: boolean;
 }) {
 	const navigate = useNavigate();
 	const [userMenuOpened, setUserMenuOpened] = useState(false);
@@ -121,8 +124,13 @@ export function HeaderTabs({
 	// If in a course, redirect back to that course after stopping impersonation
 	const getStopImpersonationRedirect = () => {
 		if (pageInfo.isInCourse) {
-			const { id } = pageInfo.params as RouteParams<"layouts/course-layout">;
-			return href("/course/:id", { id });
+			const { courseId, moduleLinkId, sectionId } = pageInfo.params as RouteParams<"layouts/course-layout">;
+			if (courseId)
+				return href("/course/:courseId", { courseId });
+			else if (moduleLinkId)
+				return href("/course/module/:moduleLinkId", { moduleLinkId });
+			else if (sectionId)
+				return href("/course/section/:sectionId", { sectionId });
 		}
 		return href("/"); // Default to dashboard
 	};
@@ -210,9 +218,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId:
-																				authenticatedUser.avatar.filename,
-																		})
+																		filenameOrId:
+																			authenticatedUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -234,8 +242,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId: currentUser.avatar.filename,
-																		})
+																		filenameOrId: currentUser.avatar.filename,
+																	})
 																	: null
 															}
 															alt={
@@ -253,8 +261,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filenameOrId`, {
-																filenameOrId: currentUser.avatar.filename,
-															})
+															filenameOrId: currentUser.avatar.filename,
+														})
 														: null
 												}
 												alt={
@@ -273,7 +281,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+											"Anonymous"
 											: "Not signed in"}
 									</Text>
 									{isAdmin && (
@@ -297,15 +305,17 @@ export function HeaderTabs({
 									>
 										Profile
 									</Menu.Item>
-									<Menu.Item
-										leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
-										component={Link}
-										to={href("/user/modules/:id?", {
-											id: currentUser?.id ? String(currentUser.id) : "",
-										})}
-									>
-										Modules
-									</Menu.Item>
+									{canSeeUserModules && (
+										<Menu.Item
+											leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
+											component={Link}
+											to={href("/user/modules/:id?", {
+												id: currentUser?.id ? String(currentUser.id) : "",
+											})}
+										>
+											Modules
+										</Menu.Item>
+									)}
 									<Menu.Item
 										leftSection={<IconSchool size={16} stroke={1.5} />}
 										component={Link}
@@ -317,8 +327,8 @@ export function HeaderTabs({
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
-										// component={Link}
-										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+									// component={Link}
+									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>

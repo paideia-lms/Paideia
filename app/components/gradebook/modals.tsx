@@ -73,7 +73,7 @@ export function CreateGradeItemModal({
 				{
 					method: "POST",
 					encType: ContentType.JSON,
-					action: href("/course/:id/grades", { id: courseId.toString() }),
+					action: href("/course/:courseId/grades", { courseId: courseId.toString() }),
 				},
 			);
 		}
@@ -112,9 +112,13 @@ export function CreateGradeItemModal({
 
 	const handleSubmit = form.onSubmit((values) => {
 		if (isEditMode && itemId) {
+			const categoryId = values.category
+				? Number.parseInt(values.category, 10)
+				: null;
 			updateGradeItem(courseId, itemId, {
 				name: values.name,
 				description: values.description || undefined,
+				categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
 				maxGrade: values.maxGrade
 					? Number.parseFloat(values.maxGrade)
 					: undefined,
@@ -178,7 +182,6 @@ export function CreateGradeItemModal({
 						placeholder="Select category (optional)"
 						data={categoryOptions}
 						clearable
-						disabled={isEditMode}
 					/>
 
 					<NumberInput
@@ -275,7 +278,7 @@ export function CreateCategoryModal({
 				{
 					method: "POST",
 					encType: ContentType.JSON,
-					action: href("/course/:id/grades", { id: courseId.toString() }),
+					action: href("/course/:courseId/grades", { courseId: courseId.toString() }),
 				},
 			);
 		}
@@ -363,7 +366,6 @@ export function CreateCategoryModal({
 						placeholder="Select parent category (optional)"
 						data={parentOptions}
 						clearable
-						disabled={isEditMode}
 					/>
 
 					<NumberInput

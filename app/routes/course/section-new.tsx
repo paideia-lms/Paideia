@@ -44,12 +44,12 @@ export const loader = async ({
 }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
+	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const courseId = Number.parseInt(params.id, 10);
 	if (Number.isNaN(courseId)) {
 		throw new ForbiddenResponse("Invalid course ID");
 	}
@@ -84,7 +84,7 @@ export const loader = async ({
 	const { payload } = context.get(globalContextKey);
 	const sectionsResult = await tryFindSectionsByCourse({
 		payload,
-		courseId,
+		courseId: Number(courseId),
 		user: {
 			...currentUser,
 			avatar: currentUser.avatar?.id,
@@ -119,11 +119,7 @@ export const action = async ({
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	const courseId = Number.parseInt(params.id, 10);
-	if (Number.isNaN(courseId)) {
-		return badRequest({ error: "Invalid course ID" });
-	}
-
+	const { courseId } = params;
 	const formData = await request.formData();
 	const title = formData.get("title") as string;
 	const description = formData.get("description") as string;
@@ -150,7 +146,7 @@ export const action = async ({
 	const result = await tryCreateSection({
 		payload,
 		data: {
-			course: courseId,
+			course: Number(courseId),
 			title: title.trim(),
 			description: description.trim(),
 			parentSection: parentSectionId,
@@ -170,7 +166,7 @@ export const action = async ({
 
 	// Redirect to the new section page
 	return redirect(
-		href("/course/section/:id", { id: newSection.id.toString() }),
+		href("/course/section/:sectionId", { sectionId: newSection.id.toString() }),
 	);
 };
 
@@ -297,7 +293,7 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 								<Button
 									variant="subtle"
 									onClick={() =>
-										navigate(href("/course/:id", { id: course.id.toString() }))
+										navigate(href("/course/:courseId", { courseId: course.id.toString() }))
 									}
 									disabled={isLoading}
 								>

@@ -130,6 +130,9 @@ async function startServer() {
 								appearanceSettings: {
 									additionalCssStylesheets: [],
 								},
+								analyticsSettings: {
+									additionalJsScripts: [],
+								},
 							},
 							pageInfo: {
 								isInAdminLayout: false,
@@ -147,6 +150,7 @@ async function startServer() {
 								isCourseGroups: false,
 								isCourseGrades: false,
 								isCourseGradesLayout: false,
+								isCourseGradesSingleView: false,
 								isCourseModules: false,
 								isCourseBin: false,
 								isCourseBackup: false,
@@ -191,6 +195,7 @@ async function startServer() {
 								isAdminSitePolicies: false,
 								isAdminMedia: false,
 								isAdminAppearance: false,
+								isAdminAnalytics: false,
 								params: {},
 							},
 						});

@@ -52,7 +52,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 				title: "Analytics",
 				items: [
 					{ title: "Site information" },
-					{ title: "Analytics settings" },
+					{ title: "Analytics settings", href: href("/admin/analytics") },
 					{ title: "Analytics models" },
 				],
 			},
