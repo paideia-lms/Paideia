@@ -70,10 +70,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 export default function CourseBackupPage({ loaderData }: Route.ComponentProps) {
 	const { course } = loaderData;
+	const title = `Course Reuse | ${course.title} | Paideia LMS`;
 
 	return (
 		<Container size="lg" py="xl">
-			<title>Course Reuse | {course.title} | Paideia LMS</title>
+			<title>{title}</title>
 			<meta name="description" content="Course reuse and backup management" />
 			<meta
 				property="og:title"

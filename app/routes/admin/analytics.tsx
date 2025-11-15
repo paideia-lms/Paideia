@@ -406,6 +406,16 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 
 	return (
 		<Stack gap="md" my="lg">
+			<title>Analytics Scripts | Admin | Paideia LMS</title>
+			<meta
+				name="description"
+				content="Add external JavaScript script tags that will be loaded on all pages. Scripts are loaded in the order listed. Only external scripts with src attribute are allowed for security. Common analytics providers include Plausible, Umami, Google Analytics, and Fathom."
+			/>
+			<meta property="og:title" content="Analytics Scripts | Admin | Paideia LMS" />
+			<meta
+				property="og:description"
+				content="Add external JavaScript script tags that will be loaded on all pages. Scripts are loaded in the order listed. Only external scripts with src attribute are allowed for security. Common analytics providers include Plausible, Umami, Google Analytics, and Fathom."
+			/>
 			<Title order={2}>Analytics Scripts</Title>
 			<Text c="dimmed" size="sm">
 				Add external JavaScript script tags that will be loaded on all pages.

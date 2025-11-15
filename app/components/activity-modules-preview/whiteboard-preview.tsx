@@ -39,7 +39,7 @@ export function WhiteboardPreview({ content }: WhiteboardPreviewProps) {
 		}
 	}, [colorScheme]);
 
-	console.log(initialData);
+	// console.log(initialData);
 
 	return (
 		<Paper

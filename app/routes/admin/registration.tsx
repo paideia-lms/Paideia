@@ -157,6 +157,16 @@ export default function AdminRegistration({
 	});
 	return (
 		<Stack gap="md" my="lg">
+			<title>Registration Settings | Admin | Paideia LMS</title>
+			<meta name="description" content="Configure user registration settings" />
+			<meta
+				property="og:title"
+				content="Registration Settings | Admin | Paideia LMS"
+			/>
+			<meta
+				property="og:description"
+				content="Configure user registration settings"
+			/>
 			{/* <pre>
                 {JSON.stringify(loaderData, null, 2)}
             </pre> */}

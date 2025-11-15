@@ -70,6 +70,7 @@ export const seedDataSchema = z.object({
 					instructions: z.string(),
 					points: z.number().int().positive(),
 					timeLimit: z.number().int().positive(),
+					rawQuizConfig: z.unknown().optional(),
 				}),
 				z.object({
 					type: z.literal("assignment"),

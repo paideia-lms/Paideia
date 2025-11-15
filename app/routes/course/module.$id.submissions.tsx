@@ -490,6 +490,298 @@ type QuizSubmissionType = {
 // Sub-components
 // ============================================================================
 
+function QuizSubmissionHistoryItem({
+	attemptNumber,
+	submission,
+}: {
+	attemptNumber: number;
+	submission: QuizSubmissionType;
+}) {
+	return (
+		<Paper withBorder p="md" radius="sm">
+			<Stack gap="md">
+				<Group justify="space-between">
+					<Group gap="sm">
+						<Badge size="sm" variant="light">
+							Attempt {attemptNumber}
+						</Badge>
+						<Badge
+							color={
+								submission.status === "graded"
+									? "green"
+									: submission.status === "returned"
+										? "blue"
+										: submission.status === "completed"
+											? "yellow"
+											: "gray"
+							}
+							variant="light"
+						>
+							{submission.status === "in_progress"
+								? "In Progress"
+								: submission.status === "completed"
+									? "Completed"
+									: submission.status === "graded"
+										? "Graded"
+										: "Returned"}
+						</Badge>
+						{submission.status === "graded" || submission.status === "returned" ? (
+							<Badge color="green" variant="filled">
+								{submission.totalScore !== null &&
+									submission.totalScore !== undefined &&
+									submission.maxScore !== null &&
+									submission.maxScore !== undefined
+									? `${submission.totalScore}/${submission.maxScore}`
+									: submission.totalScore !== null &&
+										submission.totalScore !== undefined
+										? String(submission.totalScore)
+										: "-"}
+								{submission.percentage !== null &&
+									submission.percentage !== undefined
+									? ` (${submission.percentage.toFixed(1)}%)`
+									: ""}
+							</Badge>
+						) : null}
+						<Text size="xs" c="dimmed">
+							ID: {submission.id}
+						</Text>
+					</Group>
+				</Group>
+				<Group gap="sm">
+					{submission.startedAt && (
+						<Text size="sm" c="dimmed">
+							Started: {new Date(submission.startedAt).toLocaleString()}
+						</Text>
+					)}
+					{submission.submittedAt && (
+						<Text size="sm" c="dimmed">
+							{submission.startedAt ? "• " : ""}
+							Submitted: {new Date(submission.submittedAt).toLocaleString()}
+						</Text>
+					)}
+					{submission.timeSpent && (
+						<Text size="sm" c="dimmed">
+							{(submission.startedAt || submission.submittedAt) ? "• " : ""}
+							Time Spent: {Math.round(submission.timeSpent)} min
+						</Text>
+					)}
+				</Group>
+			</Stack>
+		</Paper>
+	);
+}
+
+function QuizStudentSubmissionRow({
+	courseId,
+	enrollment,
+	studentSubmissions,
+}: {
+	courseId: number;
+	enrollment: Route.ComponentProps["loaderData"]["enrollments"][number];
+	studentSubmissions: QuizSubmissionType[] | undefined;
+}) {
+	const [opened, { toggle }] = useDisclosure(false);
+
+	const latestSubmission = studentSubmissions?.[0];
+	const email = enrollment.email || "-";
+
+	// Sort submissions by attempt number (newest first)
+	const sortedSubmissions = studentSubmissions
+		? [...studentSubmissions].sort((a, b) => {
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
+		: [];
+
+	// Filter to show all submissions that have been submitted (have submittedAt)
+	// or are completed/graded/returned
+	const submittedSubmissions = sortedSubmissions.filter(
+		(sub) =>
+			sub.submittedAt !== null ||
+			sub.status === "completed" ||
+			sub.status === "graded" ||
+			sub.status === "returned",
+	);
+
+	const hasSubmissions = submittedSubmissions.length > 0;
+
+	// Calculate total score if graded
+	const gradedSubmissions = sortedSubmissions.filter(
+		(s) => s.status === "graded" || s.status === "returned",
+	);
+	const totalScore = gradedSubmissions.reduce(
+		(sum, s) => sum + (s.totalScore || 0),
+		0,
+	);
+	const maxScore = gradedSubmissions.reduce(
+		(sum, s) => sum + (s.maxScore || 0),
+		0,
+	);
+	const averagePercentage =
+		gradedSubmissions.length > 0
+			? gradedSubmissions.reduce(
+				(sum, s) => sum + (s.percentage || 0),
+				0,
+			) / gradedSubmissions.length
+			: null;
+
+	return (
+		<>
+			<Table.Tr>
+				<Table.Td>
+					<Group gap="xs" wrap="nowrap">
+						{hasSubmissions && (
+							<ActionIcon
+								variant="subtle"
+								size="sm"
+								onClick={toggle}
+								aria-label={opened ? "Collapse" : "Expand"}
+							>
+								{opened ? (
+									<IconChevronDown size={16} />
+								) : (
+									<IconChevronRight size={16} />
+								)}
+							</ActionIcon>
+						)}
+						{!hasSubmissions && <Box style={{ width: 28 }} />}
+						<div>
+							<Anchor
+								component={Link}
+								to={
+									href("/course/:courseId/participants/profile", {
+										courseId: String(courseId),
+									}) + `?userId=${enrollment.userId}`
+								}
+								size="sm"
+							>
+								{enrollment.name}
+							</Anchor>
+						</div>
+					</Group>
+				</Table.Td>
+				<Table.Td>{email}</Table.Td>
+				<Table.Td>
+					{latestSubmission ? (
+						<Badge
+							color={
+								latestSubmission.status === "graded"
+									? "green"
+									: latestSubmission.status === "returned"
+										? "blue"
+										: latestSubmission.status === "completed"
+											? "yellow"
+											: "gray"
+							}
+							variant="light"
+						>
+							{latestSubmission.status === "in_progress"
+								? "In Progress"
+								: latestSubmission.status === "completed"
+									? "Completed"
+									: latestSubmission.status === "graded"
+										? "Graded"
+										: "Returned"}
+						</Badge>
+					) : (
+						<Badge color="gray" variant="light">
+							No submission
+						</Badge>
+					)}
+				</Table.Td>
+				<Table.Td>
+					{hasSubmissions ? (
+						<Text size="sm">{submittedSubmissions.length}</Text>
+					) : (
+						<Text size="sm" c="dimmed">
+							0
+						</Text>
+					)}
+				</Table.Td>
+				<Table.Td>
+					{averagePercentage !== null ? (
+						<Text size="sm" fw={500}>
+							{totalScore > 0 && maxScore > 0
+								? `${totalScore}/${maxScore}`
+								: ""}{" "}
+							({averagePercentage.toFixed(1)}%)
+						</Text>
+					) : latestSubmission?.status === "completed" ? (
+						<Text size="sm" c="dimmed">
+							Pending
+						</Text>
+					) : (
+						<Text size="sm" c="dimmed">
+							-
+						</Text>
+					)}
+				</Table.Td>
+				<Table.Td>
+					{latestSubmission?.timeSpent ? (
+						<Text size="sm">
+							{Math.round(latestSubmission.timeSpent)} min
+						</Text>
+					) : (
+						<Text size="sm" c="dimmed">
+							-
+						</Text>
+					)}
+				</Table.Td>
+				<Table.Td>
+					{latestSubmission?.submittedAt
+						? new Date(latestSubmission.submittedAt).toLocaleString()
+						: latestSubmission?.startedAt
+							? `Started: ${new Date(latestSubmission.startedAt).toLocaleString()}`
+							: "-"}
+				</Table.Td>
+			</Table.Tr>
+			{hasSubmissions && (
+				<Table.Tr>
+					<Table.Td colSpan={7} p={0}>
+						<Collapse in={opened}>
+							<Box p="md">
+								<Stack gap="md">
+									<Text size="sm" fw={600}>
+										Submission History ({submittedSubmissions.length}{" "}
+										{submittedSubmissions.length === 1 ? "attempt" : "attempts"}
+										)
+									</Text>
+									{/* sort by submittedAt descending */}
+									{submittedSubmissions
+										.sort((a, b) => {
+											const dateA = a.submittedAt
+												? new Date(a.submittedAt)
+												: a.startedAt
+													? new Date(a.startedAt)
+													: new Date(0);
+											const dateB = b.submittedAt
+												? new Date(b.submittedAt)
+												: b.startedAt
+													? new Date(b.startedAt)
+													: new Date(0);
+											return dateB.getTime() - dateA.getTime();
+										})
+										.map((submission, index) => (
+											<QuizSubmissionHistoryItem
+												key={submission.id}
+												attemptNumber={
+													submission.attemptNumber ??
+													submittedSubmissions.length - index
+												}
+												submission={submission}
+											/>
+										))}
+								</Stack>
+							</Box>
+						</Collapse>
+					</Table.Td>
+				</Table.Tr>
+			)}
+		</>
+	);
+}
+
 function StudentSubmissionRow({
 	courseId,
 	enrollment,
@@ -1044,120 +1336,15 @@ export default function ModuleSubmissionsPage({
 							<Table.Tbody>
 								{enrollments.map((enrollment) => {
 									const studentSubmissions =
-										quizSubmissionsByStudent.get(enrollment.userId) || [];
-									const latestSubmission = studentSubmissions[0];
-									const email = enrollment.email || "-";
-
-									// Calculate total score if graded
-									const gradedSubmissions = studentSubmissions.filter(
-										(s) => s.status === "graded" || s.status === "returned",
-									);
-									const totalScore = gradedSubmissions.reduce(
-										(sum, s) => sum + (s.totalScore || 0),
-										0,
-									);
-									const maxScore = gradedSubmissions.reduce(
-										(sum, s) => sum + (s.maxScore || 0),
-										0,
-									);
-									const averagePercentage =
-										gradedSubmissions.length > 0
-											? gradedSubmissions.reduce(
-												(sum, s) => sum + (s.percentage || 0),
-												0,
-											) / gradedSubmissions.length
-											: null;
+										quizSubmissionsByStudent.get(enrollment.userId);
 
 									return (
-										<Table.Tr key={enrollment.id}>
-											<Table.Td>
-												<Anchor
-													component={Link}
-													to={
-														href("/course/:courseId/participants/profile", {
-															courseId: String(course.id),
-														}) + `?userId=${enrollment.userId}`
-													}
-													size="sm"
-												>
-													{enrollment.name}
-												</Anchor>
-											</Table.Td>
-											<Table.Td>{email}</Table.Td>
-											<Table.Td>
-												{latestSubmission ? (
-													<Badge
-														color={
-															latestSubmission.status === "graded"
-																? "green"
-																: latestSubmission.status === "returned"
-																	? "blue"
-																	: latestSubmission.status === "completed"
-																		? "yellow"
-																		: "gray"
-														}
-														variant="light"
-													>
-														{latestSubmission.status === "in_progress"
-															? "In Progress"
-															: latestSubmission.status === "completed"
-																? "Completed"
-																: latestSubmission.status === "graded"
-																	? "Graded"
-																	: "Returned"}
-													</Badge>
-												) : (
-													<Badge color="gray" variant="light">
-														No submission
-													</Badge>
-												)}
-											</Table.Td>
-											<Table.Td>
-												{studentSubmissions.length > 0 ? (
-													<Text size="sm">{studentSubmissions.length}</Text>
-												) : (
-													<Text size="sm" c="dimmed">
-														0
-													</Text>
-												)}
-											</Table.Td>
-											<Table.Td>
-												{averagePercentage !== null ? (
-													<Text size="sm" fw={500}>
-														{totalScore > 0 && maxScore > 0
-															? `${totalScore}/${maxScore}`
-															: ""}{" "}
-														({averagePercentage.toFixed(1)}%)
-													</Text>
-												) : latestSubmission?.status === "completed" ? (
-													<Text size="sm" c="dimmed">
-														Pending
-													</Text>
-												) : (
-													<Text size="sm" c="dimmed">
-														-
-													</Text>
-												)}
-											</Table.Td>
-											<Table.Td>
-												{latestSubmission?.timeSpent ? (
-													<Text size="sm">
-														{Math.round(latestSubmission.timeSpent)} min
-													</Text>
-												) : (
-													<Text size="sm" c="dimmed">
-														-
-													</Text>
-												)}
-											</Table.Td>
-											<Table.Td>
-												{latestSubmission?.submittedAt
-													? new Date(latestSubmission.submittedAt).toLocaleString()
-													: latestSubmission?.startedAt
-														? `Started: ${new Date(latestSubmission.startedAt).toLocaleString()}`
-														: "-"}
-											</Table.Td>
-										</Table.Tr>
+										<QuizStudentSubmissionRow
+											key={enrollment.id}
+											courseId={course.id}
+											enrollment={enrollment}
+											studentSubmissions={studentSubmissions}
+										/>
 									);
 								})}
 							</Table.Tbody>
