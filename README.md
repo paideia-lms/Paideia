@@ -1,5 +1,6 @@
 # Paideia LMS
 
+[![GitHub stars](https://img.shields.io/github/stars/paideia-lms/paideia?style=social)](https://github.com/paideia-lms/paideia)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/paideia-lms/Paideia)
 
 > [!IMPORTANT] 
@@ -158,3 +159,7 @@ Paideia LMS is licensed under the [GNU Affero General Public License v3.0 (AGPL-
 - We discourage commercial hosting of this software for schools as a paid service
 
 If you're interested in commercial partnerships that align with our mission, reach out to discuss.
+
+---
+
+[![Star History Chart](https://api.star-history.com/svg?repos=paideia-lms/paideia&type=Date)](https://star-history.com/#paideia-lms/paideia&Date)
