@@ -15,6 +15,8 @@ import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
+import { userContextKey } from "server/contexts/user-context";
+import { canSeeUserModules } from "server/utils/permissions";
 
 enum ModuleEditTab {
 	Preview = "preview",
@@ -25,6 +27,18 @@ enum ModuleEditTab {
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { pageInfo } = context.get(globalContextKey);
 	const userModuleContext = context.get(userModuleContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	if (!canSeeUserModules(currentUser)) {
+		throw new ForbiddenResponse("You don't have permission to access this module");
+	}
 
 	if (!userModuleContext) {
 		throw new ForbiddenResponse("Module context not found");
@@ -112,19 +126,19 @@ export default function UserModuleEditLayout({
 									variant="light"
 									color={getModuleColor(
 										module.type as
-											| "page"
-											| "whiteboard"
-											| "assignment"
-											| "quiz"
-											| "discussion",
+										| "page"
+										| "whiteboard"
+										| "assignment"
+										| "quiz"
+										| "discussion",
 									)}
 									leftSection={getModuleIcon(
 										module.type as
-											| "page"
-											| "whiteboard"
-											| "assignment"
-											| "quiz"
-											| "discussion",
+										| "page"
+										| "whiteboard"
+										| "assignment"
+										| "quiz"
+										| "discussion",
 										14,
 									)}
 								>

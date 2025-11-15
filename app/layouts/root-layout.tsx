@@ -4,7 +4,6 @@ import {
 	Badge,
 	Container,
 	Group,
-	Indicator,
 	Menu,
 	Tabs,
 	Text,
@@ -34,6 +33,7 @@ import {
 	type PageInfo,
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
+import { canSeeUserModules } from "server/utils/permissions";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
@@ -50,6 +50,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession,
 		theme,
 		isSandboxMode,
+		canSeeUserModules: canSeeUserModules(currentUser),
 	};
 };
 
@@ -58,7 +59,7 @@ export default function UserLayout({
 	matches,
 }: Route.ComponentProps) {
 	const { pageInfo } = matches[0].loaderData;
-	const { theme } = loaderData;
+	const { theme, canSeeUserModules } = loaderData;
 	const { setColorScheme } = useMantineColorScheme();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: theme is intentionally the only dependency
@@ -83,7 +84,7 @@ export default function UserLayout({
 					</Text>
 				</Alert>
 			)}
-			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} />
+			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} canSeeUserModules={canSeeUserModules} />
 			{/* Sandbox Mode Warning */}
 			<Outlet />
 		</>
@@ -99,9 +100,11 @@ enum Tab {
 export function HeaderTabs({
 	userSession,
 	pageInfo,
+	canSeeUserModules,
 }: {
 	userSession: UserSession | null;
 	pageInfo: PageInfo;
+	canSeeUserModules: boolean;
 }) {
 	const navigate = useNavigate();
 	const [userMenuOpened, setUserMenuOpened] = useState(false);
@@ -302,15 +305,17 @@ export function HeaderTabs({
 									>
 										Profile
 									</Menu.Item>
-									<Menu.Item
-										leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
-										component={Link}
-										to={href("/user/modules/:id?", {
-											id: currentUser?.id ? String(currentUser.id) : "",
-										})}
-									>
-										Modules
-									</Menu.Item>
+									{canSeeUserModules && (
+										<Menu.Item
+											leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
+											component={Link}
+											to={href("/user/modules/:id?", {
+												id: currentUser?.id ? String(currentUser.id) : "",
+											})}
+										>
+											Modules
+										</Menu.Item>
+									)}
 									<Menu.Item
 										leftSection={<IconSchool size={16} stroke={1.5} />}
 										component={Link}
