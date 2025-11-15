@@ -11,6 +11,10 @@ export const AssignmentActions = {
 export const DiscussionActions = {
 	CREATE_THREAD: "createthread",
 	REPLY: "reply",
+	UPVOTE_THREAD: "upvotethread",
+	REMOVE_UPVOTE_THREAD: "removeupvotethread",
+	UPVOTE_REPLY: "upvotereply",
+	REMOVE_UPVOTE_REPLY: "removeupvotereply",
 } as const;
 
 export const QuizActions = {

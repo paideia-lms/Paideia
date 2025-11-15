@@ -1,12 +1,22 @@
 import {
+	ActionIcon,
+	Avatar,
+	Badge,
+	Box,
 	Button,
+	Collapse,
 	Container,
+	Divider,
 	Group,
 	Paper,
+	Select,
 	Stack,
 	Text,
 	Title,
+	Tooltip,
+	Typography,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import type {
 	FileUpload,
@@ -17,17 +27,31 @@ import {
 	MaxFilesExceededError,
 } from "@remix-run/form-data-parser";
 import {
+	IconArrowBack,
+	IconArrowBigUp,
+	IconArrowBigUpFilled,
 	IconCalendar,
+	IconChevronDown,
 	IconChevronLeft,
 	IconChevronRight,
+	IconChevronUp,
 	IconClock,
 	IconInfoCircle,
+	IconMessage,
+	IconPin,
+	IconPlus,
 } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsString } from "nuqs/server";
 import prettyBytes from "pretty-bytes";
-import { href, Link, redirect, useFetcher } from "react-router";
+import { href, Link, redirect, useFetcher, useRevalidator } from "react-router";
+import { useEffect, useState } from "react";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
+
+dayjs.extend(relativeTime);
 import { courseContextKey } from "server/contexts/course-context";
 import type { CourseModuleContext } from "server/contexts/course-module-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
@@ -39,6 +63,13 @@ import {
 	trySubmitAssignment,
 	tryUpdateAssignmentSubmission,
 } from "server/internal/assignment-submission-management";
+import {
+	tryCreateDiscussionSubmission,
+	tryGetThreadWithReplies,
+	tryListDiscussionSubmissions,
+	tryRemoveUpvoteDiscussionSubmission,
+	tryUpvoteDiscussionSubmission,
+} from "server/internal/discussion-management";
 import { tryCreateMedia } from "server/internal/media-management";
 import {
 	tryCheckInProgressSubmission,
@@ -51,7 +82,14 @@ import { flattenCourseStructureWithModuleInfo } from "server/utils/course-struct
 import { canSubmitAssignment } from "server/utils/permissions";
 import z from "zod";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
-import { DiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
+import {
+	type DiscussionData,
+	type DiscussionReply,
+	type DiscussionThread,
+	ThreadCard,
+	ReplyCard,
+	CreateThreadForm,
+} from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizInstructionsView } from "~/components/activity-modules-preview/quiz-instructions-view";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
@@ -65,11 +103,16 @@ import { WhiteboardPreview } from "~/components/activity-modules-preview/whitebo
 import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
-import { AssignmentActions, QuizActions } from "~/utils/module-actions";
+import {
+	AssignmentActions,
+	DiscussionActions,
+	QuizActions,
+} from "~/utils/module-actions";
 import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	badRequest,
 	ForbiddenResponse,
+	ok,
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
@@ -78,6 +121,7 @@ import type { Route } from "./+types/module.$id";
 const courseModuleSearchParams = {
 	action: parseAsString.withDefault(""),
 	showQuiz: parseAsString.withDefault(""),
+	threadId: parseAsString.withDefault(""),
 };
 
 export const loadSearchParams = createLoader(courseModuleSearchParams);
@@ -177,7 +221,7 @@ export const loader = async ({
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
-	const { action } = loadSearchParams(request);
+	const { action, threadId } = loadSearchParams(request);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -254,7 +298,324 @@ export const loader = async ({
 			userSubmissions: [],
 			moduleLinkId: courseModuleContext.moduleLinkId,
 			canSubmit: false,
+			discussionThreads: [],
+			discussionThread: null,
+			discussionReplies: [],
 		};
+	}
+
+	// Fetch discussion data if this is a discussion module
+	let discussionThreads: Array<{
+		id: string;
+		title: string;
+		content: string;
+		author: string;
+		authorAvatar: string;
+		publishedAt: string;
+		upvotes: number;
+		replyCount: number;
+		isPinned: boolean;
+		isUpvoted: boolean;
+	}> = [];
+	let discussionThread: {
+		id: string;
+		title: string;
+		content: string;
+		author: string;
+		authorAvatar: string;
+		publishedAt: string;
+		upvotes: number;
+		replyCount: number;
+		isPinned: boolean;
+		isUpvoted: boolean;
+	} | null = null;
+	let discussionReplies: Array<{
+		id: string;
+		content: string;
+		author: string;
+		authorAvatar: string;
+		publishedAt: string;
+		upvotes: number;
+		parentId: string | null;
+		isUpvoted: boolean;
+		replies?: Array<{
+			id: string;
+			content: string;
+			author: string;
+			authorAvatar: string;
+			publishedAt: string;
+			upvotes: number;
+			parentId: string | null;
+			isUpvoted: boolean;
+		}>;
+	}> = [];
+
+	if (courseModuleContext.module.type === "discussion") {
+		const payload = context.get(globalContextKey)?.payload;
+		if (!payload) {
+			throw new ForbiddenResponse("Payload not available");
+		}
+
+		// Always fetch all threads for this discussion (general data: title, author, upvotes, etc.)
+		const threadsResult = await tryListDiscussionSubmissions({
+			payload,
+			courseModuleLinkId: Number(moduleLinkId),
+			postType: "thread",
+			status: "published",
+			limit: 100,
+			page: 1,
+			user: {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar?.id ?? undefined,
+			},
+			overrideAccess: false,
+		});
+
+		if (threadsResult.ok) {
+			// Get all replies for reply count calculation
+			const allRepliesResult = await tryListDiscussionSubmissions({
+				payload,
+				courseModuleLinkId: Number(moduleLinkId),
+				postType: "reply",
+				status: "published",
+				limit: 1000,
+				page: 1,
+				user: {
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar?.id ?? undefined,
+				},
+				overrideAccess: false,
+			});
+
+			const allCommentsResult = await tryListDiscussionSubmissions({
+				payload,
+				courseModuleLinkId: Number(moduleLinkId),
+				postType: "comment",
+				status: "published",
+				limit: 1000,
+				page: 1,
+				user: {
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar?.id ?? undefined,
+				},
+				overrideAccess: false,
+			});
+
+			const allReplies = allRepliesResult.ok ? allRepliesResult.value.docs : [];
+			const allComments = allCommentsResult.ok ? allCommentsResult.value.docs : [];
+
+			// Count replies per thread
+			const replyCountMap = new Map<string, number>();
+			for (const reply of allReplies) {
+				const parentThreadId = reply.parentThread;
+				if (parentThreadId) {
+					const threadIdStr = String(
+						typeof parentThreadId === "object" && parentThreadId !== null && "id" in parentThreadId
+							? parentThreadId.id
+							: parentThreadId,
+					);
+					replyCountMap.set(threadIdStr, (replyCountMap.get(threadIdStr) || 0) + 1);
+				}
+			}
+
+			// Count comments per thread (comments are also replies to threads)
+			for (const comment of allComments) {
+				const parentThreadId = comment.parentThread;
+				if (parentThreadId) {
+					const threadIdStr = String(
+						typeof parentThreadId === "object" && parentThreadId !== null && "id" in parentThreadId
+							? parentThreadId.id
+							: parentThreadId,
+					);
+					replyCountMap.set(threadIdStr, (replyCountMap.get(threadIdStr) || 0) + 1);
+				}
+			}
+
+			discussionThreads = threadsResult.value.docs.map((thread) => {
+				const student =
+					typeof thread.student === "object" && thread.student !== null
+						? thread.student
+						: null;
+				const authorName = student
+					? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
+					student.email ||
+					"Unknown"
+					: "Unknown";
+				const authorAvatar = student
+					? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
+					student.email?.[0]?.toUpperCase() ||
+					"U"
+					: "U";
+
+				const isUpvoted =
+					thread.upvotes?.some(
+						(upvote: { user: number | { id: number }; upvotedAt: string; id?: string | null }) => {
+							const upvoteUser =
+								typeof upvote.user === "object" && upvote.user !== null
+									? upvote.user
+									: null;
+							return upvoteUser?.id === currentUser.id;
+						},
+					) ?? false;
+
+				return {
+					id: String(thread.id),
+					title: thread.title || "",
+					content: thread.content,
+					author: authorName,
+					authorAvatar,
+					publishedAt: thread.createdAt,
+					upvotes: thread.upvotes?.length ?? 0,
+					replyCount: replyCountMap.get(String(thread.id)) || 0,
+					isPinned: thread.isPinned ?? false,
+					isUpvoted,
+				};
+			});
+		}
+
+		// If threadId is provided, fetch only the replies for that specific thread
+		if (threadId) {
+			const threadIdNum = Number.parseInt(threadId, 10);
+			if (!Number.isNaN(threadIdNum)) {
+				// Find the thread from the already-fetched threads list
+				const foundThread = discussionThreads.find((t) => t.id === threadId);
+				if (foundThread) {
+					// Use the thread data from the list (no need to fetch again)
+					discussionThread = foundThread;
+
+					// Only fetch the replies for this thread
+					const threadResult = await tryGetThreadWithReplies(payload, {
+						threadId: threadIdNum,
+						includeComments: true,
+					});
+
+					if (threadResult.ok) {
+						const replies = threadResult.value.replies;
+						const comments = threadResult.value.comments;
+
+						// Transform replies and comments into a flat structure
+						// Replies have parentThread pointing to the thread
+						// Comments have parentThread pointing to either the thread or a reply
+						const allRepliesData = [
+							...replies.map((reply) => ({
+								original: reply,
+								type: "reply" as const,
+							})),
+							...comments.map((comment) => ({
+								original: comment,
+								type: "comment" as const,
+							})),
+						];
+
+						// Build a map of all replies/comments by ID
+						const replyMap = new Map<
+							string,
+							{
+								id: string;
+								content: string;
+								author: string;
+								authorAvatar: string;
+								publishedAt: string;
+								upvotes: number;
+								parentId: string | null;
+								isUpvoted: boolean;
+								replies: Array<{
+									id: string;
+									content: string;
+									author: string;
+									authorAvatar: string;
+									publishedAt: string;
+									upvotes: number;
+									parentId: string | null;
+									isUpvoted: boolean;
+								}>;
+							}
+						>();
+
+						// First pass: create all reply/comment entries
+						for (const item of allRepliesData) {
+							const original = item.original;
+							const student =
+								typeof original.student === "object" && original.student !== null
+									? original.student
+									: null;
+							const authorName = student
+								? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
+								student.email ||
+								"Unknown"
+								: "Unknown";
+							const authorAvatar = student
+								? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
+								student.email?.[0]?.toUpperCase() ||
+								"U"
+								: "U";
+
+							const isUpvoted =
+								original.upvotes?.some(
+									(upvote: { user: number | { id: number }; upvotedAt: string; id?: string | null }) => {
+										const upvoteUser =
+											typeof upvote.user === "object" && upvote.user !== null
+												? upvote.user
+												: null;
+										return upvoteUser?.id === currentUser.id;
+									},
+								) ?? false;
+
+							// Get parentThread ID - for replies it's the thread, for comments it might be a reply
+							const parentThreadId = original.parentThread;
+							const parentId = parentThreadId
+								? String(
+									typeof parentThreadId === "object" &&
+										parentThreadId !== null &&
+										"id" in parentThreadId
+										? parentThreadId.id
+										: parentThreadId,
+								)
+								: null;
+
+							// If parentId is the thread ID, this is a top-level reply
+							// Otherwise, it's a nested comment
+							const isTopLevel = parentId === String(threadIdNum);
+
+							replyMap.set(String(original.id), {
+								id: String(original.id),
+								content: original.content,
+								author: authorName,
+								authorAvatar,
+								publishedAt: original.createdAt,
+								upvotes: original.upvotes?.length ?? 0,
+								parentId: isTopLevel ? null : parentId,
+								isUpvoted,
+								replies: [],
+							});
+						}
+
+						// Second pass: build nested structure
+						for (const item of allRepliesData) {
+							const replyId = String(item.original.id);
+							const replyEntry = replyMap.get(replyId);
+							if (!replyEntry) continue;
+
+							// If this has a parentId that's not the thread, it's nested
+							if (replyEntry.parentId && replyEntry.parentId !== String(threadIdNum)) {
+								const parent = replyMap.get(replyEntry.parentId);
+								if (parent) {
+									parent.replies.push(replyEntry);
+								}
+							}
+						}
+
+						// Get top-level replies (those with parentId === null or parentId === thread.id)
+						discussionReplies = Array.from(replyMap.values()).filter(
+							(reply) => reply.parentId === null || reply.parentId === String(threadIdNum),
+						);
+					}
+				}
+			}
+		}
 	}
 
 	// For quizzes, fetch student's submissions separately because students
@@ -335,6 +696,9 @@ export const loader = async ({
 		userSubmissions,
 		moduleLinkId: courseModuleContext.moduleLinkId,
 		canSubmit,
+		discussionThreads,
+		discussionThread,
+		discussionReplies,
 	};
 };
 
@@ -373,6 +737,241 @@ export const action = async ({
 	const isQuizSubmit =
 		courseModuleContext.module.type === "quiz" &&
 		actionParam === QuizActions.SUBMIT_QUIZ;
+	const isCreateThread =
+		courseModuleContext.module.type === "discussion" &&
+		actionParam === DiscussionActions.CREATE_THREAD;
+	const isUpvoteThread =
+		courseModuleContext.module.type === "discussion" &&
+		actionParam === DiscussionActions.UPVOTE_THREAD;
+	const isRemoveUpvoteThread =
+		courseModuleContext.module.type === "discussion" &&
+		actionParam === DiscussionActions.REMOVE_UPVOTE_THREAD;
+	const isUpvoteReply =
+		courseModuleContext.module.type === "discussion" &&
+		actionParam === DiscussionActions.UPVOTE_REPLY;
+	const isRemoveUpvoteReply =
+		courseModuleContext.module.type === "discussion" &&
+		actionParam === DiscussionActions.REMOVE_UPVOTE_REPLY;
+	const isReply =
+		courseModuleContext.module.type === "discussion" &&
+		actionParam === DiscussionActions.REPLY;
+
+	// Handle discussion thread creation
+	if (isCreateThread) {
+		const formData = await request.formData();
+		const title = formData.get("title");
+		const content = formData.get("content");
+
+		if (!title || typeof title !== "string" || title.trim() === "") {
+			return badRequest({ error: "Thread title is required" });
+		}
+
+		if (!content || typeof content !== "string" || content.trim() === "") {
+			return badRequest({ error: "Thread content is required" });
+		}
+
+		// Check if user can participate in discussions (same as canSubmitAssignment for students)
+		if (!canSubmitAssignment(enrolmentContext.enrolment)) {
+			throw new ForbiddenResponse("Only students can create discussion threads");
+		}
+
+		const createResult = await tryCreateDiscussionSubmission(payload, {
+			courseModuleLinkId: Number(moduleLinkId),
+			studentId: currentUser.id,
+			enrollmentId: enrolmentContext.enrolment.id,
+			postType: "thread",
+			title: title.trim(),
+			content: content.trim(),
+		});
+
+		if (!createResult.ok) {
+			return badRequest({ error: createResult.error.message });
+		}
+
+		// Redirect to remove action parameter and show the new thread
+		return redirect(
+			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }) +
+			`?threadId=${createResult.value.id}`,
+		);
+	}
+
+	// Handle upvote thread
+	if (isUpvoteThread) {
+		const formData = await request.formData();
+		const submissionIdParam = formData.get("submissionId");
+
+		if (!submissionIdParam) {
+			return badRequest({ error: "Submission ID is required" });
+		}
+
+		const submissionId = Number.parseInt(
+			typeof submissionIdParam === "string" ? submissionIdParam : "",
+			10,
+		);
+		if (Number.isNaN(submissionId)) {
+			return badRequest({ error: "Invalid submission ID" });
+		}
+
+		const upvoteResult = await tryUpvoteDiscussionSubmission(payload, {
+			submissionId,
+			userId: currentUser.id,
+		});
+
+		if (!upvoteResult.ok) {
+			return badRequest({ error: upvoteResult.error.message });
+		}
+
+		return ok({ success: true, message: "Thread upvote added successfully" });
+	}
+
+	// Handle remove upvote thread
+	if (isRemoveUpvoteThread) {
+		const formData = await request.formData();
+		const submissionIdParam = formData.get("submissionId");
+
+		if (!submissionIdParam) {
+			return badRequest({ error: "Submission ID is required" });
+		}
+
+		const submissionId = Number.parseInt(
+			typeof submissionIdParam === "string" ? submissionIdParam : "",
+			10,
+		);
+		if (Number.isNaN(submissionId)) {
+			return badRequest({ error: "Invalid submission ID" });
+		}
+
+		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(payload, {
+			submissionId,
+			userId: currentUser.id,
+		});
+
+		if (!removeUpvoteResult.ok) {
+			return badRequest({ error: removeUpvoteResult.error.message });
+		}
+
+
+		return ok({ success: true, message: "Thread upvote removed successfully" });
+	}
+
+	// Handle upvote reply
+	if (isUpvoteReply) {
+		const formData = await request.formData();
+		const submissionIdParam = formData.get("submissionId");
+
+		if (!submissionIdParam) {
+			return badRequest({ error: "Submission ID is required" });
+		}
+
+		const submissionId = Number.parseInt(
+			typeof submissionIdParam === "string" ? submissionIdParam : "",
+			10,
+		);
+		if (Number.isNaN(submissionId)) {
+			return badRequest({ error: "Invalid submission ID" });
+		}
+
+		const upvoteResult = await tryUpvoteDiscussionSubmission(payload, {
+			submissionId,
+			userId: currentUser.id,
+		});
+
+		if (!upvoteResult.ok) {
+			return badRequest({ error: upvoteResult.error.message });
+		}
+
+		// Redirect to refresh the page and show updated upvote count
+		const threadIdParam = formData.get("threadId");
+		if (!threadIdParam || typeof threadIdParam !== "string") {
+			return badRequest({ error: "Thread ID is required for reply upvote" });
+		}
+		return ok({ success: true, message: "Reply upvote added successfully" });
+	}
+
+	// Handle remove upvote reply
+	if (isRemoveUpvoteReply) {
+		const formData = await request.formData();
+		const submissionIdParam = formData.get("submissionId");
+
+		if (!submissionIdParam) {
+			return badRequest({ error: "Submission ID is required" });
+		}
+
+		const submissionId = Number.parseInt(
+			typeof submissionIdParam === "string" ? submissionIdParam : "",
+			10,
+		);
+		if (Number.isNaN(submissionId)) {
+			return badRequest({ error: "Invalid submission ID" });
+		}
+
+		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(payload, {
+			submissionId,
+			userId: currentUser.id,
+		});
+
+		if (!removeUpvoteResult.ok) {
+			return badRequest({ error: removeUpvoteResult.error.message });
+		}
+
+		// Redirect to refresh the page and show updated upvote count
+		const threadIdParam = formData.get("threadId");
+		if (!threadIdParam || typeof threadIdParam !== "string") {
+			return badRequest({ error: "Thread ID is required for reply upvote removal" });
+		}
+		return ok({ success: true, message: "Reply upvote removed successfully" });
+	}
+
+	// Handle reply creation
+	if (isReply) {
+		const formData = await request.formData();
+		const content = formData.get("content");
+		const parentThreadParam = formData.get("parentThread");
+		const replyToParam = formData.get("replyTo"); // Optional: ID of the reply being replied to
+
+		if (!content || typeof content !== "string" || content.trim() === "") {
+			return badRequest({ error: "Reply content is required" });
+		}
+
+		if (!parentThreadParam) {
+			return badRequest({ error: "Parent thread ID is required" });
+		}
+
+		const parentThreadId = Number.parseInt(
+			typeof parentThreadParam === "string" ? parentThreadParam : "",
+			10,
+		);
+		if (Number.isNaN(parentThreadId)) {
+			return badRequest({ error: "Invalid parent thread ID" });
+		}
+
+		// Check if user can participate in discussions
+		if (!canSubmitAssignment(enrolmentContext.enrolment)) {
+			throw new ForbiddenResponse("Only students can create replies");
+		}
+
+		// Determine post type: if replyTo is provided, it's a comment (reply to a reply), otherwise it's a reply
+		const postType = replyToParam && typeof replyToParam === "string" ? "comment" : "reply";
+
+		const createResult = await tryCreateDiscussionSubmission(payload, {
+			courseModuleLinkId: Number(moduleLinkId),
+			studentId: currentUser.id,
+			enrollmentId: enrolmentContext.enrolment.id,
+			postType,
+			content: content.trim(),
+			parentThread: parentThreadId,
+		});
+
+		if (!createResult.ok) {
+			return badRequest({ error: createResult.error.message });
+		}
+
+		// Redirect to the thread detail view
+		return redirect(
+			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }) +
+			`?threadId=${parentThreadId}`,
+		);
+	}
 
 	// Only students can submit assignments or start quizzes
 	if (!canSubmitAssignment(enrolmentContext.enrolment)) {
@@ -747,8 +1346,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 					: "Failed to complete operation",
 			color: "red",
 		});
+	} else if (actionData && "success" in actionData && actionData.success) {
+		notifications.show({
+			title: "Success",
+			message: actionData.message,
+			color: "green",
+		});
 	}
-	// Success case - redirect will happen automatically for quiz start and assignment submission
 
 	return actionData;
 }
@@ -839,6 +1443,194 @@ const useSubmitQuiz = (moduleLinkId: number) => {
 
 	return {
 		submitQuiz,
+		isSubmitting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
+export const useCreateThread = (moduleLinkId: number) => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createThread = (title: string, content: string) => {
+		const formData = new FormData();
+		formData.append("title", title);
+		formData.append("content", content);
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?action=${DiscussionActions.CREATE_THREAD}`,
+		});
+	};
+
+	return {
+		createThread,
+		isCreating: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+		fetcher,
+	};
+};
+
+export const useUpvoteThread = (moduleLinkId: number) => {
+	const fetcher = useFetcher<typeof clientAction>();
+	const revalidator = useRevalidator();
+
+	const upvoteThread = (submissionId: number, threadId?: string) => {
+		const formData = new FormData();
+		formData.append("submissionId", submissionId.toString());
+		if (threadId) {
+			formData.append("threadId", threadId);
+		}
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?action=${DiscussionActions.UPVOTE_THREAD}`,
+		});
+	};
+
+	// Revalidate when action completes successfully
+	useEffect(() => {
+		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
+			revalidator.revalidate();
+		}
+	}, [fetcher.data, revalidator]);
+
+	return {
+		upvoteThread,
+		isUpvoting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
+export const useRemoveUpvoteThread = (moduleLinkId: number) => {
+	const fetcher = useFetcher<typeof clientAction>();
+	const revalidator = useRevalidator();
+
+	const removeUpvoteThread = (submissionId: number, threadId?: string) => {
+		const formData = new FormData();
+		formData.append("submissionId", submissionId.toString());
+		if (threadId) {
+			formData.append("threadId", threadId);
+		}
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?action=${DiscussionActions.REMOVE_UPVOTE_THREAD}`,
+		});
+	};
+
+	// Revalidate when action completes successfully
+	useEffect(() => {
+		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
+			revalidator.revalidate();
+		}
+	}, [fetcher.data, revalidator]);
+
+	return {
+		removeUpvoteThread,
+		isRemovingUpvote: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
+export const useUpvoteReply = (moduleLinkId: number) => {
+	const fetcher = useFetcher<typeof clientAction>();
+	const revalidator = useRevalidator();
+
+	const upvoteReply = (submissionId: number, threadId: string) => {
+		const formData = new FormData();
+		formData.append("submissionId", submissionId.toString());
+		formData.append("threadId", threadId);
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?action=${DiscussionActions.UPVOTE_REPLY}`,
+		});
+	};
+
+	// Revalidate when action completes successfully
+	useEffect(() => {
+		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
+			revalidator.revalidate();
+		}
+	}, [fetcher.data, revalidator]);
+
+	return {
+		upvoteReply,
+		isUpvoting: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
+export const useRemoveUpvoteReply = (moduleLinkId: number) => {
+	const fetcher = useFetcher<typeof clientAction>();
+	const revalidator = useRevalidator();
+
+	const removeUpvoteReply = (submissionId: number, threadId: string) => {
+		const formData = new FormData();
+		formData.append("submissionId", submissionId.toString());
+		formData.append("threadId", threadId);
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?action=${DiscussionActions.REMOVE_UPVOTE_REPLY}`,
+		});
+	};
+
+	// Revalidate when action completes successfully
+	useEffect(() => {
+		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
+			revalidator.revalidate();
+		}
+	}, [fetcher.data, revalidator]);
+
+	return {
+		removeUpvoteReply,
+		isRemovingUpvote: fetcher.state !== "idle",
+		state: fetcher.state,
+		data: fetcher.data,
+	};
+};
+
+export const useCreateReply = (moduleLinkId: number) => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createReply = (
+		content: string,
+		parentThreadId: number,
+		replyToId?: string | null,
+	) => {
+		const formData = new FormData();
+		formData.append("content", content);
+		formData.append("parentThread", parentThreadId.toString());
+		if (replyToId) {
+			formData.append("replyTo", replyToId);
+		}
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?action=${DiscussionActions.REPLY}`,
+		});
+	};
+
+	return {
+		createReply,
 		isSubmitting: fetcher.state !== "idle",
 		state: fetcher.state,
 		data: fetcher.data,
@@ -990,6 +1782,645 @@ function transformQuizAnswersToSubmissionFormat(
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
+
+// Wrapper components that use hooks directly
+
+// CreateThreadForm wrapper that uses useCreateThread hook
+interface CreateThreadFormWrapperProps {
+	moduleLinkId: number;
+	onCancel: () => void;
+}
+
+function CreateThreadFormWrapper({
+	moduleLinkId,
+	onCancel,
+}: CreateThreadFormWrapperProps) {
+	const { createThread, isCreating, fetcher } = useCreateThread(moduleLinkId);
+
+	return (
+		<CreateThreadForm
+			onSubmit={(title, content) => {
+				console.log("Creating thread", title, content);
+				createThread(title, content);
+			}}
+			onCancel={onCancel}
+			isSubmitting={isCreating}
+			fetcher={fetcher}
+		/>
+	);
+}
+
+// ThreadUpvoteButton wrapper that uses upvote hooks
+interface ThreadUpvoteButtonProps {
+	thread: DiscussionThread;
+	moduleLinkId: number;
+	threadId?: string;
+}
+
+function ThreadUpvoteButton({
+	thread,
+	moduleLinkId,
+	threadId,
+}: ThreadUpvoteButtonProps) {
+	const { upvoteThread } = useUpvoteThread(moduleLinkId);
+	const { removeUpvoteThread } = useRemoveUpvoteThread(moduleLinkId);
+
+	const handleUpvote = (e?: React.MouseEvent) => {
+		if (e) {
+			e.stopPropagation();
+		}
+		const submissionId = Number.parseInt(thread.id, 10);
+		if (Number.isNaN(submissionId)) return;
+
+		if (thread.isUpvoted) {
+			removeUpvoteThread(submissionId, threadId);
+		} else {
+			upvoteThread(submissionId, threadId);
+		}
+	};
+
+	return (
+		<Stack gap="xs" align="center" style={{ minWidth: 50 }}>
+			<Tooltip label={thread.isUpvoted ? "Remove upvote" : "Upvote"}>
+				<ActionIcon
+					variant={thread.isUpvoted ? "filled" : "subtle"}
+					color={thread.isUpvoted ? "blue" : "gray"}
+					onClick={handleUpvote}
+				>
+					{thread.isUpvoted ? (
+						<IconArrowBigUpFilled size={20} />
+					) : (
+						<IconArrowBigUp size={20} />
+					)}
+				</ActionIcon>
+			</Tooltip>
+			<Text size="sm" fw={500}>
+				{thread.upvotes}
+			</Text>
+		</Stack>
+	);
+}
+
+// ReplyUpvoteButton wrapper that uses reply upvote hooks
+interface ReplyUpvoteButtonProps {
+	reply: DiscussionReply;
+	moduleLinkId: number;
+	threadId: string;
+}
+
+function ReplyUpvoteButton({
+	reply,
+	moduleLinkId,
+	threadId,
+}: ReplyUpvoteButtonProps) {
+	const { upvoteReply } = useUpvoteReply(moduleLinkId);
+	const { removeUpvoteReply } = useRemoveUpvoteReply(moduleLinkId);
+
+	const handleUpvote = () => {
+		const submissionId = Number.parseInt(reply.id, 10);
+		if (Number.isNaN(submissionId)) return;
+
+		if (reply.isUpvoted) {
+			removeUpvoteReply(submissionId, threadId);
+		} else {
+			upvoteReply(submissionId, threadId);
+		}
+	};
+
+	return (
+		<Group gap="xs">
+			<ActionIcon
+				variant={reply.isUpvoted ? "filled" : "subtle"}
+				color={reply.isUpvoted ? "blue" : "gray"}
+				size="sm"
+				onClick={handleUpvote}
+			>
+				{reply.isUpvoted ? (
+					<IconArrowBigUpFilled size={16} />
+				) : (
+					<IconArrowBigUp size={16} />
+				)}
+			</ActionIcon>
+			<Text size="sm">{reply.upvotes}</Text>
+		</Group>
+	);
+}
+
+// ReplyFormWrapper that uses useCreateReply hook
+interface ReplyFormWrapperProps {
+	moduleLinkId: number;
+	threadId: string;
+	replyTo?: string | null;
+	onCancel: () => void;
+}
+
+function ReplyFormWrapper({
+	moduleLinkId,
+	threadId,
+	replyTo,
+	onCancel,
+}: ReplyFormWrapperProps) {
+	const [replyContent, setReplyContent] = useState("");
+	const { createReply, isSubmitting } = useCreateReply(moduleLinkId);
+
+	const handleSubmit = () => {
+		if (replyContent.trim()) {
+			const threadIdNum = Number.parseInt(threadId, 10);
+			if (!Number.isNaN(threadIdNum)) {
+				createReply(replyContent.trim(), threadIdNum, replyTo || undefined);
+				setReplyContent("");
+			}
+		}
+	};
+
+	return (
+		<Paper withBorder p="md" radius="sm" bg="gray.0">
+			<Stack gap="md">
+				<Text size="sm" fw={500}>
+					{replyTo ? "Replying to comment..." : "Write a reply"}
+				</Text>
+				<SimpleRichTextEditor
+					content={replyContent}
+					onChange={setReplyContent}
+					placeholder="Write your reply..."
+				/>
+				<Group justify="flex-end">
+					<Button variant="default" onClick={onCancel} disabled={isSubmitting}>
+						Cancel
+					</Button>
+					<Button onClick={handleSubmit} loading={isSubmitting}>
+						Post Reply
+					</Button>
+				</Group>
+			</Stack>
+		</Paper>
+	);
+}
+
+// Discussion Thread List View Component
+interface DiscussionThreadListViewProps {
+	threads: DiscussionThread[];
+	discussion: DiscussionData;
+	moduleLinkId: number;
+	onThreadClick: (id: string) => void;
+}
+
+function DiscussionThreadListView({
+	threads,
+	discussion,
+	moduleLinkId,
+	onThreadClick,
+}: DiscussionThreadListViewProps) {
+	const [sortBy, setSortBy] = useState<string>("recent");
+	const [action, setAction] = useQueryState("action");
+
+	const sortedThreads = [...threads].sort((a, b) => {
+		switch (sortBy) {
+			case "upvoted":
+				return b.upvotes - a.upvotes;
+			case "active":
+				return b.replyCount - a.replyCount;
+			case "recent":
+			default:
+				return (
+					new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+				);
+		}
+	});
+
+	if (action === DiscussionActions.CREATE_THREAD) {
+		return (
+			<>test
+				<CreateThreadFormWrapper
+					moduleLinkId={moduleLinkId}
+					onCancel={() => setAction(null)}
+				/></>
+		);
+	}
+
+	return (
+		<Paper withBorder p="xl" radius="md">
+			<Stack gap="lg">
+				{/* Header */}
+				<Group justify="space-between" align="flex-start">
+					<div>
+						<Title order={3} mb="xs">
+							Discussion Board
+						</Title>
+						{discussion.instructions && (
+							<Typography
+								className="tiptap"
+								// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
+								dangerouslySetInnerHTML={{ __html: discussion.instructions }}
+								style={{
+									fontSize: "0.875rem",
+									color: "var(--mantine-color-dimmed)",
+								}}
+							/>
+						)}
+					</div>
+					<Button leftSection={<IconPlus size={16} />} onClick={() => setAction(DiscussionActions.CREATE_THREAD)}>
+						New Thread
+					</Button>
+				</Group>
+
+				{/* Sorting */}
+				<Group justify="space-between">
+					<Text size="sm" c="dimmed">
+						{threads.length} {threads.length === 1 ? "thread" : "threads"}
+					</Text>
+					<Select
+						size="sm"
+						value={sortBy}
+						onChange={(value) => setSortBy(value || "recent")}
+						data={[
+							{ value: "recent", label: "Most Recent" },
+							{ value: "upvoted", label: "Most Upvoted" },
+							{ value: "active", label: "Most Active" },
+						]}
+						style={{ width: 180 }}
+					/>
+				</Group>
+
+				<Divider />
+
+				{/* Thread List */}
+				<Stack gap="md">
+					{sortedThreads.map((thread) => (
+						<Paper
+							key={thread.id}
+							withBorder
+							p="md"
+							radius="sm"
+							style={{ cursor: "pointer" }}
+							onClick={() => onThreadClick(thread.id)}
+						>
+							<Group align="flex-start" gap="md" wrap="nowrap">
+								{/* Upvote Section */}
+								<ThreadUpvoteButton
+									thread={thread}
+									moduleLinkId={moduleLinkId}
+								/>
+
+								{/* Thread Content */}
+								<Stack gap="xs" style={{ flex: 1 }}>
+									<Group gap="sm">
+										{thread.isPinned && (
+											<Badge
+												size="sm"
+												color="yellow"
+												leftSection={<IconPin size={12} />}
+											>
+												Pinned
+											</Badge>
+										)}
+										<Title order={4}>{thread.title}</Title>
+									</Group>
+
+									<Typography
+										className="tiptap"
+										// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
+										dangerouslySetInnerHTML={{ __html: thread.content }}
+										style={{
+											fontSize: "0.875rem",
+											color: "var(--mantine-color-dimmed)",
+											display: "-webkit-box",
+											WebkitLineClamp: 2,
+											WebkitBoxOrient: "vertical",
+											overflow: "hidden",
+										}}
+									/>
+
+									<Group gap="md">
+										<Group gap="xs">
+											<Avatar size="sm" radius="xl">
+												{thread.authorAvatar}
+											</Avatar>
+											<Text size="sm">{thread.author}</Text>
+										</Group>
+										<Text size="sm" c="dimmed">
+											{dayjs(thread.publishedAt).fromNow()}
+										</Text>
+										<Group gap="xs">
+											<IconMessage size={16} />
+											<Text size="sm">{thread.replyCount} replies</Text>
+										</Group>
+									</Group>
+								</Stack>
+							</Group>
+						</Paper>
+					))}
+				</Stack>
+			</Stack>
+		</Paper>
+	);
+}
+
+// Discussion Thread Detail View Component
+interface DiscussionThreadDetailViewProps {
+	thread: DiscussionThread;
+	replies: DiscussionReply[];
+	discussion: DiscussionData;
+	moduleLinkId: number;
+	threadId: string;
+	onBack: () => void;
+}
+
+function DiscussionThreadDetailView({
+	thread,
+	replies,
+	discussion: _discussion,
+	moduleLinkId,
+	threadId,
+	onBack,
+}: DiscussionThreadDetailViewProps) {
+	const [action, setAction] = useQueryState("action");
+	const [replyTo, setReplyTo] = useQueryState("replyTo");
+
+	return (
+		<Paper withBorder p="xl" radius="md">
+			<Stack gap="lg">
+				{/* Header */}
+				<Group>
+					<ActionIcon variant="subtle" onClick={onBack}>
+						<IconArrowBack size={20} />
+					</ActionIcon>
+					<Text size="sm" c="dimmed">
+						Back to threads
+					</Text>
+				</Group>
+
+				{/* Thread Content */}
+				<Stack gap="md">
+					{thread.isPinned && (
+						<Badge size="lg" color="yellow" leftSection={<IconPin size={14} />}>
+							Pinned Thread
+						</Badge>
+					)}
+					<Title order={2}>{thread.title}</Title>
+
+					<Group gap="md" justify="space-between">
+						<Group gap="xs">
+							<Avatar size="md" radius="xl">
+								{thread.authorAvatar}
+							</Avatar>
+							<Stack gap={0}>
+								<Text size="sm" fw={500}>
+									{thread.author}
+								</Text>
+								<Text size="xs" c="dimmed">
+									{dayjs(thread.publishedAt).fromNow()}
+								</Text>
+							</Stack>
+						</Group>
+						<ThreadUpvoteButton
+							thread={thread}
+							moduleLinkId={moduleLinkId}
+							threadId={threadId}
+						/>
+					</Group>
+
+					<Typography
+						className="tiptap"
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
+						dangerouslySetInnerHTML={{ __html: thread.content }}
+						style={{ lineHeight: "1.6" }}
+					/>
+
+					<Group>
+						<Button
+							variant="light"
+							leftSection={<IconMessage size={16} />}
+							onClick={() => setAction(DiscussionActions.REPLY)}
+						>
+							Reply
+						</Button>
+					</Group>
+				</Stack>
+
+				<Divider />
+
+				{/* Reply Form */}
+				{action === DiscussionActions.REPLY && (
+					<ReplyFormWrapper
+						moduleLinkId={moduleLinkId}
+						threadId={threadId}
+						replyTo={replyTo}
+						onCancel={() => {
+							setAction(null);
+							setReplyTo(null);
+						}}
+					/>
+				)}
+
+				{/* Replies */}
+				<Stack gap="md">
+					<Title order={4}>
+						{replies.length} {replies.length === 1 ? "Reply" : "Replies"}
+					</Title>
+					{replies
+						.filter((r) => r.parentId === null)
+						.map((reply) => (
+							<ReplyCardWithUpvote
+								key={reply.id}
+								reply={reply}
+								allReplies={replies}
+								moduleLinkId={moduleLinkId}
+								threadId={threadId}
+								onReply={(id) => {
+									setReplyTo(id);
+									setAction(DiscussionActions.REPLY);
+								}}
+								level={0}
+							/>
+						))}
+				</Stack>
+			</Stack>
+		</Paper>
+	);
+}
+
+// ReplyCard wrapper that includes upvote button
+interface ReplyCardWithUpvoteProps {
+	reply: DiscussionReply;
+	allReplies: DiscussionReply[];
+	moduleLinkId: number;
+	threadId: string;
+	onReply: (id: string) => void;
+	level: number;
+}
+
+function ReplyCardWithUpvote({
+	reply,
+	allReplies,
+	moduleLinkId,
+	threadId,
+	onReply,
+	level,
+}: ReplyCardWithUpvoteProps) {
+	const [opened, { toggle }] = useDisclosure(false);
+	const nestedReplies = allReplies.filter((r) => r.parentId === reply.id);
+
+	// Count total nested replies recursively
+	const countNestedReplies = (replyId: string): number => {
+		const directReplies = allReplies.filter((r) => r.parentId === replyId);
+		return directReplies.reduce(
+			(count, r) => count + 1 + countNestedReplies(r.id),
+			0,
+		);
+	};
+
+	const totalNestedCount = countNestedReplies(reply.id);
+
+	return (
+		<Box
+			style={{
+				marginLeft: level > 0 ? 6 : 0,
+				borderLeft:
+					level > 0 ? "2px solid var(--mantine-color-gray-3)" : undefined,
+				paddingLeft: level > 0 ? 12 : 0,
+			}}
+		>
+			<Paper withBorder p="md" radius="sm">
+				<Stack gap="sm">
+					<Group justify="space-between" align="flex-start">
+						<Group gap="xs">
+							<Avatar size="sm" radius="xl">
+								{reply.authorAvatar}
+							</Avatar>
+							<Stack gap={0}>
+								<Text size="sm" fw={500}>
+									{reply.author}
+								</Text>
+								<Text size="xs" c="dimmed">
+									{dayjs(reply.publishedAt).fromNow()}
+								</Text>
+							</Stack>
+						</Group>
+
+						<ReplyUpvoteButton
+							reply={reply}
+							moduleLinkId={moduleLinkId}
+							threadId={threadId}
+						/>
+					</Group>
+
+					<Typography
+						className="tiptap"
+						// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
+						dangerouslySetInnerHTML={{ __html: reply.content }}
+						style={{ fontSize: "0.875rem", lineHeight: "1.6" }}
+					/>
+
+					<Group>
+						<Button variant="subtle" size="xs" onClick={() => onReply(reply.id)}>
+							Reply
+						</Button>
+						{totalNestedCount > 0 && (
+							<Button
+								variant="subtle"
+								size="xs"
+								onClick={toggle}
+								leftSection={
+									opened ? (
+										<IconChevronUp size={14} />
+									) : (
+										<IconChevronDown size={14} />
+									)
+								}
+							>
+								{opened
+									? "Hide replies"
+									: `Show ${totalNestedCount} ${totalNestedCount === 1 ? "reply" : "replies"}`}
+							</Button>
+						)}
+					</Group>
+				</Stack>
+			</Paper>
+
+			{/* Nested Replies */}
+			{nestedReplies.length > 0 && (
+				<Collapse in={opened}>
+					<Stack gap="sm" mt="sm">
+						{nestedReplies.map((nestedReply) => (
+							<ReplyCardWithUpvote
+								key={nestedReply.id}
+								reply={nestedReply}
+								allReplies={allReplies}
+								moduleLinkId={moduleLinkId}
+								threadId={threadId}
+								onReply={onReply}
+								level={level + 1}
+							/>
+						))}
+					</Stack>
+				</Collapse>
+			)}
+		</Box>
+	);
+}
+
+// Main Discussion Thread View Router
+interface DiscussionThreadViewProps {
+	discussion: DiscussionData | null;
+	threads: DiscussionThread[];
+	thread: DiscussionThread | null;
+	replies: DiscussionReply[];
+	moduleLinkId: number;
+}
+
+function DiscussionThreadView({
+	discussion,
+	threads,
+	thread,
+	replies,
+	moduleLinkId,
+}: DiscussionThreadViewProps) {
+	const [threadId, setThreadId] = useQueryState(
+		"threadId",
+		parseAsString.withOptions({ shallow: false }),
+	);
+
+	// Fallback: if threadId is set but thread is not provided, try to find it from threads list
+	const selectedThread =
+		thread ||
+		(threadId ? threads.find((t) => t.id === threadId) || null : null);
+
+	if (!discussion) {
+		return (
+			<Paper withBorder p="xl" radius="md">
+				<Stack gap="md">
+					<Title order={3}>Discussion Preview</Title>
+					<Text c="dimmed">No discussion data available.</Text>
+				</Stack>
+			</Paper>
+		);
+	}
+
+	// Show thread detail view
+	if (threadId && selectedThread) {
+		return (
+			<DiscussionThreadDetailView
+				thread={selectedThread}
+				replies={replies}
+				discussion={discussion}
+				moduleLinkId={moduleLinkId}
+				threadId={threadId}
+				onBack={() => setThreadId(null)}
+			/>
+		);
+	}
+
+	// Show thread list view
+	return (
+		<DiscussionThreadListView
+			threads={threads}
+			discussion={discussion}
+			moduleLinkId={moduleLinkId}
+			onThreadClick={(id) => setThreadId(id)}
+		/>
+	);
+}
 
 // Component to display module dates/times
 function ModuleDatesInfo({
@@ -1269,7 +2700,13 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				return (
 					<>
 						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<DiscussionPreview discussion={module.discussion || null} />
+						<DiscussionThreadView
+							discussion={module.discussion || null}
+							threads={loaderData.discussionThreads}
+							thread={loaderData.discussionThread}
+							replies={loaderData.discussionReplies}
+							moduleLinkId={loaderData.moduleLinkId}
+						/>
 					</>
 				);
 			case "whiteboard": {
