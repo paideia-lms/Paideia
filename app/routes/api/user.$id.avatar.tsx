@@ -102,7 +102,6 @@ export const loader = async ({
 		req: request,
 	});
 
-	console.log("userResult", userResult);
 
 	if (!userResult.ok) {
 		console.error("Failed to find user:", userResult.error.message);

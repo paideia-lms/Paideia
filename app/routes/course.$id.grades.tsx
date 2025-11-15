@@ -116,7 +116,6 @@ export const action = async ({
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
-	console.log(data)
 	const parsedData = inputSchema.safeParse(data);
 
 	if (!parsedData.success) {
