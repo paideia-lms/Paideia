@@ -79,15 +79,16 @@ import {
 	trySubmitQuiz,
 } from "server/internal/quiz-submission-management";
 import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
-import { canSubmitAssignment } from "server/utils/permissions";
+import {
+	canSubmitAssignment,
+	canParticipateInDiscussion,
+} from "server/utils/permissions";
 import z from "zod";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
 import {
 	type DiscussionData,
 	type DiscussionReply,
 	type DiscussionThread,
-	ThreadCard,
-	ReplyCard,
 	CreateThreadForm,
 } from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
@@ -122,6 +123,7 @@ const courseModuleSearchParams = {
 	action: parseAsString.withDefault(""),
 	showQuiz: parseAsString.withDefault(""),
 	threadId: parseAsString.withDefault(""),
+	replyTo: parseAsString.withDefault(""),
 };
 
 export const loadSearchParams = createLoader(courseModuleSearchParams);
@@ -467,6 +469,7 @@ export const loader = async ({
 					content: thread.content,
 					author: authorName,
 					authorAvatar,
+					authorId: student?.id ?? null,
 					publishedAt: thread.createdAt,
 					upvotes: thread.upvotes?.length ?? 0,
 					replyCount: replyCountMap.get(String(thread.id)) || 0,
@@ -518,6 +521,7 @@ export const loader = async ({
 								content: string;
 								author: string;
 								authorAvatar: string;
+								authorId: number | null;
 								publishedAt: string;
 								upvotes: number;
 								parentId: string | null;
@@ -527,6 +531,7 @@ export const loader = async ({
 									content: string;
 									author: string;
 									authorAvatar: string;
+									authorId: number | null;
 									publishedAt: string;
 									upvotes: number;
 									parentId: string | null;
@@ -585,6 +590,7 @@ export const loader = async ({
 								content: original.content,
 								author: authorName,
 								authorAvatar,
+								authorId: student?.id ?? null,
 								publishedAt: original.createdAt,
 								upvotes: original.upvotes?.length ?? 0,
 								parentId: isTopLevel ? null : parentId,
@@ -730,7 +736,7 @@ export const action = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if this is a quiz action
-	const { action: actionParam } = loadSearchParams(request);
+	const { action: actionParam, replyTo: replyToParam } = loadSearchParams(request);
 	const isQuizStart =
 		courseModuleContext.module.type === "quiz" &&
 		actionParam === QuizActions.START_ATTEMPT;
@@ -752,9 +758,10 @@ export const action = async ({
 	const isRemoveUpvoteReply =
 		courseModuleContext.module.type === "discussion" &&
 		actionParam === DiscussionActions.REMOVE_UPVOTE_REPLY;
+	// Reply action is now determined by replyTo parameter instead of action=REPLY
 	const isReply =
 		courseModuleContext.module.type === "discussion" &&
-		actionParam === DiscussionActions.REPLY;
+		replyToParam !== "";
 
 	// Handle discussion thread creation
 	if (isCreateThread) {
@@ -770,9 +777,10 @@ export const action = async ({
 			return badRequest({ error: "Thread content is required" });
 		}
 
-		// Check if user can participate in discussions (same as canSubmitAssignment for students)
-		if (!canSubmitAssignment(enrolmentContext.enrolment)) {
-			throw new ForbiddenResponse("Only students can create discussion threads");
+		// Check if user can participate in discussions
+		const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
+		if (!canParticipate.allowed) {
+			throw new ForbiddenResponse(canParticipate.reason);
 		}
 
 		const createResult = await tryCreateDiscussionSubmission(payload, {
@@ -927,7 +935,6 @@ export const action = async ({
 		const formData = await request.formData();
 		const content = formData.get("content");
 		const parentThreadParam = formData.get("parentThread");
-		const replyToParam = formData.get("replyTo"); // Optional: ID of the reply being replied to
 
 		if (!content || typeof content !== "string" || content.trim() === "") {
 			return badRequest({ error: "Reply content is required" });
@@ -946,12 +953,26 @@ export const action = async ({
 		}
 
 		// Check if user can participate in discussions
-		if (!canSubmitAssignment(enrolmentContext.enrolment)) {
-			throw new ForbiddenResponse("Only students can create replies");
+		const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
+		if (!canParticipate.allowed) {
+			throw new ForbiddenResponse(canParticipate.reason);
 		}
 
-		// Determine post type: if replyTo is provided, it's a comment (reply to a reply), otherwise it's a reply
-		const postType = replyToParam && typeof replyToParam === "string" ? "comment" : "reply";
+		// Determine post type and parent based on replyTo URL parameter
+		// replyToParam === "thread" means replying to the thread (top-level reply)
+		// replyToParam === <commentId> means replying to a comment (nested comment)
+		const isReplyingToThread = replyToParam === "thread";
+		const postType = isReplyingToThread ? "reply" : "comment";
+
+		// For nested comments, parentThread should point to the parent comment/reply
+		// For top-level replies, parentThread should point to the thread
+		const actualParentThread = isReplyingToThread
+			? parentThreadId
+			: Number.parseInt(replyToParam, 10);
+
+		if (Number.isNaN(actualParentThread)) {
+			return badRequest({ error: "Invalid parent thread ID" });
+		}
 
 		const createResult = await tryCreateDiscussionSubmission(payload, {
 			courseModuleLinkId: Number(moduleLinkId),
@@ -959,7 +980,7 @@ export const action = async ({
 			enrollmentId: enrolmentContext.enrolment.id,
 			postType,
 			content: content.trim(),
-			parentThread: parentThreadId,
+			parentThread: actualParentThread,
 		});
 
 		if (!createResult.ok) {
@@ -1617,15 +1638,16 @@ export const useCreateReply = (moduleLinkId: number) => {
 		const formData = new FormData();
 		formData.append("content", content);
 		formData.append("parentThread", parentThreadId.toString());
-		if (replyToId) {
-			formData.append("replyTo", replyToId);
-		}
+
+		// Use replyTo URL parameter instead of action=REPLY
+		// replyTo=thread for thread-level replies, replyTo=<commentId> for nested comments
+		const replyToParam = replyToId || "thread";
 
 		fetcher.submit(formData, {
 			method: "POST",
 			action: href("/course/module/:moduleLinkId", {
 				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${DiscussionActions.REPLY}`,
+			}) + `?replyTo=${replyToParam}`,
 		});
 	};
 
@@ -1917,7 +1939,7 @@ interface ReplyFormWrapperProps {
 function ReplyFormWrapper({
 	moduleLinkId,
 	threadId,
-	replyTo,
+	replyTo: _replyTo,
 	onCancel,
 }: ReplyFormWrapperProps) {
 	const [replyContent, setReplyContent] = useState("");
@@ -1927,7 +1949,9 @@ function ReplyFormWrapper({
 		if (replyContent.trim()) {
 			const threadIdNum = Number.parseInt(threadId, 10);
 			if (!Number.isNaN(threadIdNum)) {
-				createReply(replyContent.trim(), threadIdNum, replyTo || undefined);
+				// For thread-level replies, pass null/undefined to use "thread" as default
+				// For comment replies, pass the comment ID
+				createReply(replyContent.trim(), threadIdNum, _replyTo || undefined);
 				setReplyContent("");
 			}
 		}
@@ -1937,7 +1961,7 @@ function ReplyFormWrapper({
 		<Paper withBorder p="md" radius="sm" bg="gray.0">
 			<Stack gap="md">
 				<Text size="sm" fw={500}>
-					{replyTo ? "Replying to comment..." : "Write a reply"}
+					Write a reply
 				</Text>
 				<SimpleRichTextEditor
 					content={replyContent}
@@ -1962,6 +1986,7 @@ interface DiscussionThreadListViewProps {
 	threads: DiscussionThread[];
 	discussion: DiscussionData;
 	moduleLinkId: number;
+	courseId: number;
 	onThreadClick: (id: string) => void;
 }
 
@@ -1969,6 +1994,7 @@ function DiscussionThreadListView({
 	threads,
 	discussion,
 	moduleLinkId,
+	courseId,
 	onThreadClick,
 }: DiscussionThreadListViewProps) {
 	const [sortBy, setSortBy] = useState<string>("recent");
@@ -1990,11 +2016,10 @@ function DiscussionThreadListView({
 
 	if (action === DiscussionActions.CREATE_THREAD) {
 		return (
-			<>test
-				<CreateThreadFormWrapper
-					moduleLinkId={moduleLinkId}
-					onCancel={() => setAction(null)}
-				/></>
+			<CreateThreadFormWrapper
+				moduleLinkId={moduleLinkId}
+				onCancel={() => setAction(null)}
+			/>
 		);
 	}
 
@@ -2092,12 +2117,26 @@ function DiscussionThreadListView({
 									/>
 
 									<Group gap="md">
-										<Group gap="xs">
-											<Avatar size="sm" radius="xl">
-												{thread.authorAvatar}
-											</Avatar>
-											<Text size="sm">{thread.author}</Text>
-										</Group>
+										<Link
+											to={
+												courseId && thread.authorId
+													? href("/course/:courseId/participants/profile", {
+														courseId: String(courseId),
+													}) + `?userId=${thread.authorId}`
+													: "#"
+											}
+											style={{ textDecoration: "none", color: "inherit" }}
+											onClick={(e) => e.stopPropagation()}
+										>
+											<Group gap="xs">
+												<Avatar size="sm" radius="xl">
+													{thread.authorAvatar}
+												</Avatar>
+												<Text size="sm" style={{ cursor: "pointer" }}>
+													{thread.author}
+												</Text>
+											</Group>
+										</Link>
 										<Text size="sm" c="dimmed">
 											{dayjs(thread.publishedAt).fromNow()}
 										</Text>
@@ -2123,6 +2162,7 @@ interface DiscussionThreadDetailViewProps {
 	discussion: DiscussionData;
 	moduleLinkId: number;
 	threadId: string;
+	courseId: number;
 	onBack: () => void;
 }
 
@@ -2132,9 +2172,9 @@ function DiscussionThreadDetailView({
 	discussion: _discussion,
 	moduleLinkId,
 	threadId,
+	courseId,
 	onBack,
 }: DiscussionThreadDetailViewProps) {
-	const [action, setAction] = useQueryState("action");
 	const [replyTo, setReplyTo] = useQueryState("replyTo");
 
 	return (
@@ -2161,17 +2201,30 @@ function DiscussionThreadDetailView({
 
 					<Group gap="md" justify="space-between">
 						<Group gap="xs">
-							<Avatar size="md" radius="xl">
-								{thread.authorAvatar}
-							</Avatar>
-							<Stack gap={0}>
-								<Text size="sm" fw={500}>
-									{thread.author}
-								</Text>
-								<Text size="xs" c="dimmed">
-									{dayjs(thread.publishedAt).fromNow()}
-								</Text>
-							</Stack>
+							<Link
+								to={
+									courseId && thread.authorId
+										? href("/course/:courseId/participants/profile", {
+											courseId: String(courseId),
+										}) + `?userId=${thread.authorId}`
+										: "#"
+								}
+								style={{ textDecoration: "none", color: "inherit" }}
+							>
+								<Group gap="xs">
+									<Avatar size="md" radius="xl">
+										{thread.authorAvatar}
+									</Avatar>
+									<Stack gap={0}>
+										<Text size="sm" fw={500} style={{ cursor: "pointer" }}>
+											{thread.author}
+										</Text>
+									</Stack>
+								</Group>
+							</Link>
+							<Text size="xs" c="dimmed">
+								{dayjs(thread.publishedAt).fromNow()}
+							</Text>
 						</Group>
 						<ThreadUpvoteButton
 							thread={thread}
@@ -2191,7 +2244,7 @@ function DiscussionThreadDetailView({
 						<Button
 							variant="light"
 							leftSection={<IconMessage size={16} />}
-							onClick={() => setAction(DiscussionActions.REPLY)}
+							onClick={() => setReplyTo("thread")}
 						>
 							Reply
 						</Button>
@@ -2200,14 +2253,13 @@ function DiscussionThreadDetailView({
 
 				<Divider />
 
-				{/* Reply Form */}
-				{action === DiscussionActions.REPLY && (
+				{/* Reply Form - Only show when replying to thread (replyTo=thread) */}
+				{replyTo === "thread" && (
 					<ReplyFormWrapper
 						moduleLinkId={moduleLinkId}
 						threadId={threadId}
-						replyTo={replyTo}
+						replyTo={null}
 						onCancel={() => {
-							setAction(null);
 							setReplyTo(null);
 						}}
 					/>
@@ -2227,11 +2279,15 @@ function DiscussionThreadDetailView({
 								allReplies={replies}
 								moduleLinkId={moduleLinkId}
 								threadId={threadId}
+								courseId={courseId}
 								onReply={(id) => {
 									setReplyTo(id);
-									setAction(DiscussionActions.REPLY);
 								}}
 								level={0}
+								replyTo={replyTo}
+								onCancelReply={() => {
+									setReplyTo(null);
+								}}
 							/>
 						))}
 				</Stack>
@@ -2246,8 +2302,11 @@ interface ReplyCardWithUpvoteProps {
 	allReplies: DiscussionReply[];
 	moduleLinkId: number;
 	threadId: string;
+	courseId: number;
 	onReply: (id: string) => void;
 	level: number;
+	replyTo?: string | null;
+	onCancelReply?: () => void;
 }
 
 function ReplyCardWithUpvote({
@@ -2255,11 +2314,24 @@ function ReplyCardWithUpvote({
 	allReplies,
 	moduleLinkId,
 	threadId,
+	courseId,
 	onReply,
 	level,
+	replyTo,
+	onCancelReply,
 }: ReplyCardWithUpvoteProps) {
 	const [opened, { toggle }] = useDisclosure(false);
+	const [replyContent, setReplyContent] = useState("");
+	const { createReply, isSubmitting, data } = useCreateReply(moduleLinkId);
+	const revalidator = useRevalidator();
 	const nestedReplies = allReplies.filter((r) => r.parentId === reply.id);
+
+	// Revalidate when reply is successfully submitted
+	useEffect(() => {
+		if (data && "status" in data && data.status === StatusCode.Ok) {
+			revalidator.revalidate();
+		}
+	}, [data, revalidator]);
 
 	// Count total nested replies recursively
 	const countNestedReplies = (replyId: string): number => {
@@ -2271,6 +2343,20 @@ function ReplyCardWithUpvote({
 	};
 
 	const totalNestedCount = countNestedReplies(reply.id);
+	const isReplyingToThis = replyTo === reply.id;
+
+	const handleReplySubmit = () => {
+		if (replyContent.trim()) {
+			const threadIdNum = Number.parseInt(threadId, 10);
+			if (!Number.isNaN(threadIdNum)) {
+				createReply(replyContent.trim(), threadIdNum, reply.id);
+				setReplyContent("");
+				if (onCancelReply) {
+					onCancelReply();
+				}
+			}
+		}
+	};
 
 	return (
 		<Box
@@ -2285,17 +2371,30 @@ function ReplyCardWithUpvote({
 				<Stack gap="sm">
 					<Group justify="space-between" align="flex-start">
 						<Group gap="xs">
-							<Avatar size="sm" radius="xl">
-								{reply.authorAvatar}
-							</Avatar>
-							<Stack gap={0}>
-								<Text size="sm" fw={500}>
-									{reply.author}
-								</Text>
-								<Text size="xs" c="dimmed">
-									{dayjs(reply.publishedAt).fromNow()}
-								</Text>
-							</Stack>
+							<Link
+								to={
+									courseId && reply.authorId
+										? href("/course/:courseId/participants/profile", {
+											courseId: String(courseId),
+										}) + `?userId=${reply.authorId}`
+										: "#"
+								}
+								style={{ textDecoration: "none", color: "inherit" }}
+							>
+								<Group gap="xs">
+									<Avatar size="sm" radius="xl">
+										{reply.authorAvatar}
+									</Avatar>
+									<Stack gap={0}>
+										<Text size="sm" fw={500} style={{ cursor: "pointer" }}>
+											{reply.author}
+										</Text>
+									</Stack>
+								</Group>
+							</Link>
+							<Text size="xs" c="dimmed">
+								{dayjs(reply.publishedAt).fromNow()}
+							</Text>
 						</Group>
 
 						<ReplyUpvoteButton
@@ -2338,6 +2437,40 @@ function ReplyCardWithUpvote({
 				</Stack>
 			</Paper>
 
+			{/* Inline Reply Form */}
+			{isReplyingToThis && (
+				<Paper withBorder p="md" radius="sm" bg="gray.0" mt="sm">
+					<Stack gap="md">
+						<Text size="sm" fw={500}>
+							Replying to {reply.author}...
+						</Text>
+						<SimpleRichTextEditor
+							content={replyContent}
+							onChange={setReplyContent}
+							placeholder="Write your reply..."
+							readonly={isSubmitting}
+						/>
+						<Group justify="flex-end">
+							<Button
+								variant="default"
+								onClick={() => {
+									setReplyContent("");
+									if (onCancelReply) {
+										onCancelReply();
+									}
+								}}
+								disabled={isSubmitting}
+							>
+								Cancel
+							</Button>
+							<Button onClick={handleReplySubmit} loading={isSubmitting}>
+								Post Reply
+							</Button>
+						</Group>
+					</Stack>
+				</Paper>
+			)}
+
 			{/* Nested Replies */}
 			{nestedReplies.length > 0 && (
 				<Collapse in={opened}>
@@ -2349,8 +2482,11 @@ function ReplyCardWithUpvote({
 								allReplies={allReplies}
 								moduleLinkId={moduleLinkId}
 								threadId={threadId}
+								courseId={courseId}
 								onReply={onReply}
 								level={level + 1}
+								replyTo={replyTo}
+								onCancelReply={onCancelReply}
 							/>
 						))}
 					</Stack>
@@ -2367,6 +2503,7 @@ interface DiscussionThreadViewProps {
 	thread: DiscussionThread | null;
 	replies: DiscussionReply[];
 	moduleLinkId: number;
+	courseId: number;
 }
 
 function DiscussionThreadView({
@@ -2375,11 +2512,13 @@ function DiscussionThreadView({
 	thread,
 	replies,
 	moduleLinkId,
+	courseId,
 }: DiscussionThreadViewProps) {
 	const [threadId, setThreadId] = useQueryState(
 		"threadId",
 		parseAsString.withOptions({ shallow: false }),
 	);
+	const [, setReplyTo] = useQueryState("replyTo");
 
 	// Fallback: if threadId is set but thread is not provided, try to find it from threads list
 	const selectedThread =
@@ -2406,7 +2545,11 @@ function DiscussionThreadView({
 				discussion={discussion}
 				moduleLinkId={moduleLinkId}
 				threadId={threadId}
-				onBack={() => setThreadId(null)}
+				courseId={courseId}
+				onBack={() => {
+					setThreadId(null);
+					setReplyTo(null);
+				}}
 			/>
 		);
 	}
@@ -2417,6 +2560,7 @@ function DiscussionThreadView({
 			threads={threads}
 			discussion={discussion}
 			moduleLinkId={moduleLinkId}
+			courseId={courseId}
 			onThreadClick={(id) => setThreadId(id)}
 		/>
 	);
@@ -2706,6 +2850,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 							thread={loaderData.discussionThread}
 							replies={loaderData.discussionReplies}
 							moduleLinkId={loaderData.moduleLinkId}
+							courseId={loaderData.course.id}
 						/>
 					</>
 				);

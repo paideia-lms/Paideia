@@ -265,6 +265,36 @@ export function canSubmitAssignment(enrolment?: { role?: Enrollment["role"] }) {
 }
 
 /**
+ * Checks if a user can participate in discussions (create threads and replies).
+ * Any user with an active enrollment can participate, regardless of role.
+ *
+ * @param enrolment - The enrollment object with status field
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canParticipateInDiscussion(
+	enrolment?: { status?: Enrollment["status"] },
+): PermissionResult {
+	if (!enrolment) {
+		return {
+			allowed: false,
+			reason: "Enrollment not found",
+		};
+	}
+
+	if (enrolment.status !== "active") {
+		return {
+			allowed: false,
+			reason: "Only users with active enrollment can participate in discussions",
+		};
+	}
+
+	return {
+		allowed: true,
+		reason: "You can participate in discussions",
+	};
+}
+
+/**
  * Checks if a student can start a new quiz attempt.
  *
  * Permission Rules:

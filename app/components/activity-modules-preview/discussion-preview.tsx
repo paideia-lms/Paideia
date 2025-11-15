@@ -35,6 +35,7 @@ import { useQueryState } from "nuqs";
 import { parseAsString } from "nuqs";
 import { useState, useMemo } from "react";
 import type { useFetcher } from "react-router";
+import { href, Link } from "react-router";
 import { DiscussionActions } from "~/utils/module-actions";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 
@@ -45,6 +46,39 @@ dayjs.extend(relativeTime);
 // Constants
 const NESTED_REPLY_INDENT = 12; // pixels
 
+// Helper component for author info with link
+interface AuthorInfoProps {
+	author: string;
+	authorAvatar: string;
+	authorId?: number | null;
+	courseId?: number | null;
+	size?: "sm" | "md";
+}
+
+function AuthorInfo({ author, authorAvatar, authorId, courseId, size = "sm" }: AuthorInfoProps) {
+	const avatarSize = size === "md" ? "md" : "sm";
+
+	// For user module preview (fake data) or when courseId/authorId is missing, use #
+	const profileHref = typeof courseId === "number" && typeof authorId === "number"
+		? href("/course/:courseId/participants/profile", { courseId: String(courseId) }) + `?userId=${authorId}`
+		: "#";
+
+	return (
+		<Link to={profileHref} style={{ textDecoration: "none", color: "inherit" }}>
+			<Group gap="xs">
+				<Avatar size={avatarSize} radius="xl">
+					{authorAvatar}
+				</Avatar>
+				<Stack gap={0}>
+					<Text size="sm" fw={500} style={{ cursor: "pointer" }}>
+						{author}
+					</Text>
+				</Stack>
+			</Group>
+		</Link>
+	);
+}
+
 // Export types for composability
 export interface DiscussionThread {
 	id: string;
@@ -52,6 +86,7 @@ export interface DiscussionThread {
 	content: string;
 	author: string;
 	authorAvatar: string;
+	authorId?: number | null; // User ID for linking to profile
 	publishedAt: string;
 	upvotes: number;
 	replyCount: number;
@@ -64,6 +99,7 @@ export interface DiscussionReply {
 	content: string;
 	author: string;
 	authorAvatar: string;
+	authorId?: number | null; // User ID for linking to profile
 	publishedAt: string;
 	upvotes: number;
 	parentId: string | null;
@@ -404,6 +440,11 @@ export interface ReplyCardProps {
 	level: number;
 	onUpvote?: (submissionId: number) => void;
 	onRemoveUpvote?: (submissionId: number) => void;
+	replyTo?: string | null;
+	onReplySubmit?: (content: string, replyToId?: string | null) => void;
+	isSubmittingReply?: boolean;
+	onCancelReply?: () => void;
+	courseId?: number | null; // Course ID for linking to user profile
 }
 
 export function ReplyCard({
@@ -414,9 +455,15 @@ export function ReplyCard({
 	level,
 	onUpvote,
 	onRemoveUpvote,
+	replyTo,
+	onReplySubmit,
+	isSubmittingReply = false,
+	onCancelReply,
+	courseId,
 }: ReplyCardProps) {
 	const onReply = _onReply;
 	const [opened, { toggle }] = useDisclosure(false); // false = collapsed by default
+	const [replyContent, setReplyContent] = useState("");
 
 	const handleUpvote = () => {
 		const submissionId = Number.parseInt(reply.id, 10);
@@ -433,6 +480,16 @@ export function ReplyCard({
 		}
 	};
 
+	const handleReplySubmit = () => {
+		if (replyContent.trim() && onReplySubmit) {
+			onReplySubmit(replyContent.trim(), reply.id);
+			setReplyContent("");
+			if (onCancelReply) {
+				onCancelReply();
+			}
+		}
+	};
+
 	const nestedReplies = allReplies.filter((r) => r.parentId === reply.id);
 
 	// Count total nested replies recursively
@@ -445,6 +502,7 @@ export function ReplyCard({
 	};
 
 	const totalNestedCount = countNestedReplies(reply.id);
+	const isReplyingToThis = replyTo === reply.id;
 
 	return (
 		<Box
@@ -459,17 +517,16 @@ export function ReplyCard({
 				<Stack gap="sm">
 					<Group justify="space-between" align="flex-start">
 						<Group gap="xs">
-							<Avatar size="sm" radius="xl">
-								{reply.authorAvatar}
-							</Avatar>
-							<Stack gap={0}>
-								<Text size="sm" fw={500}>
-									{reply.author}
-								</Text>
-								<Text size="xs" c="dimmed">
-									{dayjs(reply.publishedAt).fromNow()}
-								</Text>
-							</Stack>
+							<AuthorInfo
+								author={reply.author}
+								authorAvatar={reply.authorAvatar}
+								authorId={reply.authorId}
+								courseId={courseId}
+								size="sm"
+							/>
+							<Text size="xs" c="dimmed">
+								{dayjs(reply.publishedAt).fromNow()}
+							</Text>
 						</Group>
 
 						{allowUpvotes && (
@@ -528,6 +585,40 @@ export function ReplyCard({
 				</Stack>
 			</Paper>
 
+			{/* Inline Reply Form */}
+			{isReplyingToThis && onReplySubmit && (
+				<Paper withBorder p="md" radius="sm" bg="gray.0" mt="sm">
+					<Stack gap="md">
+						<Text size="sm" fw={500}>
+							Replying to {reply.author}...
+						</Text>
+						<SimpleRichTextEditor
+							content={replyContent}
+							onChange={setReplyContent}
+							placeholder="Write your reply..."
+							readonly={isSubmittingReply}
+						/>
+						<Group justify="flex-end">
+							<Button
+								variant="default"
+								onClick={() => {
+									setReplyContent("");
+									if (onCancelReply) {
+										onCancelReply();
+									}
+								}}
+								disabled={isSubmittingReply}
+							>
+								Cancel
+							</Button>
+							<Button onClick={handleReplySubmit} loading={isSubmittingReply}>
+								Post Reply
+							</Button>
+						</Group>
+					</Stack>
+				</Paper>
+			)}
+
 			{/* Nested Replies */}
 			{nestedReplies.length > 0 && (
 				<Collapse in={opened}>
@@ -542,6 +633,11 @@ export function ReplyCard({
 								level={level + 1}
 								onUpvote={onUpvote}
 								onRemoveUpvote={onRemoveUpvote}
+								replyTo={replyTo}
+								onReplySubmit={onReplySubmit}
+								isSubmittingReply={isSubmittingReply}
+								onCancelReply={onCancelReply}
+								courseId={courseId}
 							/>
 						))}
 					</Stack>
@@ -568,6 +664,7 @@ export interface ThreadDetailViewProps {
 	onRemoveUpvoteThread?: (submissionId: number) => void;
 	onUpvoteReply?: (submissionId: number) => void;
 	onRemoveUpvoteReply?: (submissionId: number) => void;
+	courseId?: number | null; // Course ID for linking to user profile
 }
 
 export function ThreadDetailView({
@@ -575,8 +672,8 @@ export function ThreadDetailView({
 	replies,
 	discussion: _discussion,
 	onBack,
-	action,
-	setAction,
+	action: _action,
+	setAction: _setAction,
 	replyTo,
 	setReplyTo,
 	onReplySubmit,
@@ -585,6 +682,7 @@ export function ThreadDetailView({
 	onRemoveUpvoteThread: _onRemoveUpvoteThread,
 	onUpvoteReply: _onUpvoteReply,
 	onRemoveUpvoteReply: _onRemoveUpvoteReply,
+	courseId,
 }: ThreadDetailViewProps) {
 	const onUpvoteThread = _onUpvoteThread;
 	const onRemoveUpvoteThread = _onRemoveUpvoteThread;
@@ -595,13 +693,14 @@ export function ThreadDetailView({
 	const handleReply = () => {
 		if (replyContent.trim()) {
 			if (onReplySubmit) {
-				onReplySubmit(replyContent.trim(), replyTo);
+				// If replyTo is "thread", we're replying to the thread
+				// Otherwise, we're replying to a comment (handled inline in ReplyCard)
+				onReplySubmit(replyContent.trim(), replyTo === "thread" ? null : replyTo);
 			} else {
 				// Fallback for preview mode
 				console.log("Replying:", { replyTo, content: replyContent });
 			}
 			setReplyContent("");
-			setAction(null);
 			setReplyTo(null);
 		}
 	};
@@ -630,17 +729,16 @@ export function ThreadDetailView({
 
 					<Group gap="md" justify="space-between">
 						<Group gap="xs">
-							<Avatar size="md" radius="xl">
-								{thread.authorAvatar}
-							</Avatar>
-							<Stack gap={0}>
-								<Text size="sm" fw={500}>
-									{thread.author}
-								</Text>
-								<Text size="xs" c="dimmed">
-									{dayjs(thread.publishedAt).fromNow()}
-								</Text>
-							</Stack>
+							<AuthorInfo
+								author={thread.author}
+								authorAvatar={thread.authorAvatar}
+								authorId={thread.authorId}
+								courseId={courseId}
+								size="md"
+							/>
+							<Text size="xs" c="dimmed">
+								{dayjs(thread.publishedAt).fromNow()}
+							</Text>
 						</Group>
 						{onUpvoteThread && onRemoveUpvoteThread && (
 							<Group gap="xs">
@@ -682,7 +780,7 @@ export function ThreadDetailView({
 						<Button
 							variant="light"
 							leftSection={<IconMessage size={16} />}
-							onClick={() => setAction(DiscussionActions.REPLY)}
+							onClick={() => setReplyTo("thread")}
 						>
 							Reply
 						</Button>
@@ -691,12 +789,12 @@ export function ThreadDetailView({
 
 				<Divider />
 
-				{/* Reply Form */}
-				{action === DiscussionActions.REPLY && (
+				{/* Reply Form - Only show when replying to thread (replyTo=thread) */}
+				{replyTo === "thread" && (
 					<Paper withBorder p="md" radius="sm" bg="gray.0">
 						<Stack gap="md">
 							<Text size="sm" fw={500}>
-								{replyTo ? "Replying to comment..." : "Write a reply"}
+								Write a reply
 							</Text>
 							<SimpleRichTextEditor
 								content={replyContent}
@@ -707,7 +805,6 @@ export function ThreadDetailView({
 								<Button
 									variant="default"
 									onClick={() => {
-										setAction(null);
 										setReplyTo(null);
 									}}
 									disabled={isSubmittingReply}
@@ -736,12 +833,18 @@ export function ThreadDetailView({
 								allReplies={replies}
 								onReply={(id) => {
 									setReplyTo(id);
-									setAction(DiscussionActions.REPLY);
 								}}
 								allowUpvotes={true}
 								level={0}
 								onUpvote={onUpvoteReply}
 								onRemoveUpvote={onRemoveUpvoteReply}
+								replyTo={replyTo}
+								onReplySubmit={onReplySubmit}
+								isSubmittingReply={isSubmittingReply}
+								onCancelReply={() => {
+									setReplyTo(null);
+								}}
+								courseId={courseId}
 							/>
 						))}
 				</Stack>
@@ -757,6 +860,7 @@ interface DiscussionPreviewProps {
 	thread?: DiscussionThread | null;
 	replies?: DiscussionReply[];
 	moduleLinkId?: number;
+	courseId?: number | null; // Course ID for linking to user profile
 	onCreateThread?: (title: string, content: string) => void;
 	isCreatingThread?: boolean;
 	onReplySubmit?: (content: string, replyToId?: string | null) => void;
@@ -774,6 +878,7 @@ export function DiscussionPreview({
 	thread = null,
 	replies = [],
 	moduleLinkId: _moduleLinkId,
+	courseId,
 	onCreateThread,
 	isCreatingThread = false,
 	onReplySubmit,
@@ -816,7 +921,10 @@ export function DiscussionPreview({
 				thread={selectedThread}
 				replies={replies}
 				discussion={discussion}
-				onBack={() => setThreadId(null)}
+				onBack={() => {
+					setThreadId(null);
+					setReplyTo(null);
+				}}
 				action={action}
 				setAction={setAction}
 				replyTo={replyTo}
@@ -827,6 +935,7 @@ export function DiscussionPreview({
 				onRemoveUpvoteThread={onRemoveUpvoteThread}
 				onUpvoteReply={onUpvoteReply}
 				onRemoveUpvoteReply={onRemoveUpvoteReply}
+				courseId={courseId}
 			/>
 		);
 	}

@@ -109,7 +109,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 export default function EditModulePage() {
 	const { module } = useLoaderData<typeof loader>();
-	const [threadId] = useQueryState("threadId");
+	const [threadId] = useQueryState("threadId", { shallow: false });
 
 	// Find the selected thread from mock data when threadId is set
 	const selectedThread =
@@ -158,6 +158,7 @@ export default function EditModulePage() {
 					threads={mockThreads}
 					thread={selectedThread}
 					replies={mockReplies}
+					courseId={null}
 				/>
 			)}
 		</Container>
