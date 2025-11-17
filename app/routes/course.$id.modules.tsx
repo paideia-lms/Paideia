@@ -346,7 +346,7 @@ export default function CourseModulesPage({
 					createdAt: link.createdAt,
 				}))}
 				availableModules={availableModules}
-				canEdit={canEdit}
+				canEdit={canEdit.allowed}
 				fetcherState={fetcherState}
 				onAddModule={(activityModuleId) =>
 					createModuleLink(activityModuleId, course.id)

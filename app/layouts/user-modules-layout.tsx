@@ -55,7 +55,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("You can only view your own data");
 	}
 
-	if (!canSeeUserModules(currentUser)) {
+	if (!canSeeUserModules(currentUser).allowed) {
 		throw new ForbiddenResponse("You don't have permission to access this page");
 	}
 

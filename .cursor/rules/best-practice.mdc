@@ -65,7 +65,7 @@ when throwing error using typescript result, we should first create the error in
 
 ## permissions and access control
 
-all permissions should be check in the server loader rather than in the component. we should use `PermissionResult` from `server/utils/permissions.ts` to check the permission.
+all permissions should be calculated and checked in the server loader rather than in the component. the value is then passed to component through loader data. we should use `PermissionResult` from `server/utils/permissions.ts` to check the permission.
 
 ## Database 
 

@@ -115,8 +115,8 @@ export default function CourseModuleLayout({
 		}
 	};
 
-	const canSeeSetting = canSeeCourseModuleSettings(currentUser, enrolment);
-	const canSeeSubmissions = canSeeModuleSubmissions(currentUser, enrolment);
+	const canSeeSetting = canSeeCourseModuleSettings(currentUser, enrolment).allowed;
+	const canSeeSubmissions = canSeeModuleSubmissions(currentUser, enrolment).allowed;
 
 	// Check if module type supports submissions
 	const hasSubmissions = ["assignment", "quiz", "discussion"].includes(

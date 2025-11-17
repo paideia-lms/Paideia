@@ -71,7 +71,7 @@ export const loader = async ({
 				role: "student", // Enrolled users are not admins
 			},
 			userSession.isImpersonating,
-		)
+		).allowed
 		: false;
 
 	return {

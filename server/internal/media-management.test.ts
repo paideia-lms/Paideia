@@ -112,7 +112,7 @@ describe("Media Management", () => {
 			// createdBy could be an object or ID, so check if it's a number or has an id property
 			const createdBy =
 				typeof result.value.media.createdBy === "object" &&
-				result.value.media.createdBy !== null
+					result.value.media.createdBy !== null
 					? result.value.media.createdBy.id
 					: result.value.media.createdBy;
 			expect(createdBy).toBe(testUserId);
@@ -1246,8 +1246,8 @@ describe("Media Management", () => {
 
 		// 7. Create assignment submission with media attachment
 		const assignmentSubmissionResult = await tryCreateAssignmentSubmission(
-			payload,
 			{
+				payload,
 				courseModuleLinkId,
 				studentId: testUserId,
 				enrollmentId,

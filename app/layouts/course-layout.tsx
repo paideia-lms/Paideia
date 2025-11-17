@@ -48,12 +48,12 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	const enrolment = enrolmentContext?.enrolment;
 
-	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment);
-	const canSeeParticipants = canSeeCourseParticipants(currentUser, enrolment);
-	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment);
-	const canSeeModules = canSeeCourseModules(currentUser, enrolment);
-	const canSeeBin = canSeeCourseBin(currentUser, enrolment);
-	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment);
+	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment).allowed;
+	const canSeeParticipants = canSeeCourseParticipants(currentUser, enrolment).allowed;
+	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment).allowed;
+	const canSeeModules = canSeeCourseModules(currentUser, enrolment).allowed;
+	const canSeeBin = canSeeCourseBin(currentUser, enrolment).allowed;
+	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment).allowed;
 
 	return {
 		course: courseContext.course,

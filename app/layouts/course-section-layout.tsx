@@ -81,7 +81,7 @@ export default function CourseSectionLayout({
 		}
 	};
 
-	const canSeeSetting = canSeeCourseSectionSettings(currentUser, enrolment);
+	const canSeeSetting = canSeeCourseSectionSettings(currentUser, enrolment).allowed;
 
 	return (
 		<div>

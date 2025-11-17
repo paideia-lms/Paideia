@@ -223,7 +223,7 @@ export const tryGetCourseContext = async (
 			userId: enrollment.user.id,
 			role: enrollment.role,
 		})),
-	);
+	).allowed;
 
 	if (!hasAccess) {
 		return Result.error(

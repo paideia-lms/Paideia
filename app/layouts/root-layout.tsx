@@ -50,7 +50,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession,
 		theme,
 		isSandboxMode,
-		canSeeUserModules: canSeeUserModules(currentUser),
+		canSeeUserModules: canSeeUserModules(currentUser).allowed,
 	};
 };
 

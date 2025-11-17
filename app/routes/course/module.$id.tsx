@@ -276,7 +276,7 @@ export const loader = async ({
 
 	// Check if user can submit assignments
 	const enrolmentContext = context.get(enrolmentContextKey);
-	const canSubmit = canSubmitAssignment(enrolmentContext?.enrolment);
+	const canSubmit = canSubmitAssignment(enrolmentContext?.enrolment).allowed;
 
 	if (!canSubmit && action === AssignmentActions.EDIT_SUBMISSION) {
 		throw new ForbiddenResponse("You cannot edit submissions");
@@ -995,7 +995,7 @@ export const action = async ({
 	}
 
 	// Only students can submit assignments or start quizzes
-	if (!canSubmitAssignment(enrolmentContext.enrolment)) {
+	if (!canSubmitAssignment(enrolmentContext.enrolment).allowed) {
 		throw new ForbiddenResponse("Only students can submit assignments");
 	}
 

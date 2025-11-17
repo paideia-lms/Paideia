@@ -95,7 +95,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const canSee = canSeeModuleSubmissions(
 		currentUser,
 		enrolmentContext?.enrolment,
-	);
+	).allowed;
 
 	if (!canSee) {
 		throw new ForbiddenResponse(
@@ -107,7 +107,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const canDelete = canDeleteSubmissions(
 		currentUser,
 		enrolmentContext?.enrolment,
-	);
+	).allowed;
 
 	// Get all enrollments for this course to show all students, filter out students
 	const enrollments = courseContext.course.enrollments.filter(
@@ -259,7 +259,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const canDelete = canDeleteSubmissions(
 			currentUser,
 			enrolmentContext?.enrolment,
-		);
+		).allowed;
 
 		if (!canDelete) {
 			return unauthorized({
@@ -306,7 +306,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const canGrade = canSeeModuleSubmissions(
 			currentUser,
 			enrolmentContext?.enrolment,
-		);
+		).allowed;
 
 		if (!canGrade) {
 			return unauthorized({
@@ -370,7 +370,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const canGrade = canSeeModuleSubmissions(
 			currentUser,
 			enrolmentContext?.enrolment,
-		);
+		).allowed;
 
 		if (!canGrade) {
 			return unauthorized({
