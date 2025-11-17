@@ -132,6 +132,28 @@ export const enum_payload_jobs_task_slug = pgEnum(
   "enum_payload_jobs_task_slug",
   ["inline", "sandboxReset"],
 );
+export const enum_appearance_settings_color = pgEnum(
+  "enum_appearance_settings_color",
+  [
+    "blue",
+    "pink",
+    "indigo",
+    "green",
+    "orange",
+    "gray",
+    "grape",
+    "cyan",
+    "lime",
+    "red",
+    "violet",
+    "teal",
+    "yellow",
+  ],
+);
+export const enum_appearance_settings_radius = pgEnum(
+  "enum_appearance_settings_radius",
+  ["xs", "sm", "md", "lg", "xl"],
+);
 
 export const users_sessions = pgTable(
   "users_sessions",
@@ -2547,6 +2569,8 @@ export const appearance_settings_additional_css_stylesheets = pgTable(
 
 export const appearance_settings = pgTable("appearance_settings", {
   id: serial("id").primaryKey(),
+  color: enum_appearance_settings_color("color").default("blue"),
+  radius: enum_appearance_settings_radius("radius").default("sm"),
   updatedAt: timestamp("updated_at", {
     mode: "string",
     withTimezone: true,
@@ -3602,6 +3626,8 @@ type DatabaseSchema = {
   enum_payload_jobs_log_task_slug: typeof enum_payload_jobs_log_task_slug;
   enum_payload_jobs_log_state: typeof enum_payload_jobs_log_state;
   enum_payload_jobs_task_slug: typeof enum_payload_jobs_task_slug;
+  enum_appearance_settings_color: typeof enum_appearance_settings_color;
+  enum_appearance_settings_radius: typeof enum_appearance_settings_radius;
   users_sessions: typeof users_sessions;
   users: typeof users;
   courses_tags: typeof courses_tags;

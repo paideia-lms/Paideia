@@ -484,6 +484,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Manage tags" },
 					{ title: "Additional HTML" },
 					{ title: "Additional CSS", href: href("/admin/appearance") },
+					{ title: "Theme settings", href: href("/admin/appearance/theme") },
 					{ title: "Templates" },
 					{ title: "Advanced theme settings" },
 					{ title: "Themes" },

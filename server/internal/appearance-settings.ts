@@ -16,13 +16,35 @@ export interface UpdateAppearanceSettingsArgs {
 	user: User;
 	data: {
 		additionalCssStylesheets?: Array<{ url: string }>;
+		color?: string;
+		radius?: "xs" | "sm" | "md" | "lg" | "xl";
 	};
 	overrideAccess?: boolean;
 }
 
 export type AppearanceSettings = {
 	additionalCssStylesheets: string[];
+	color: string;
+	radius: "xs" | "sm" | "md" | "lg" | "xl";
 };
+
+const validColors = [
+	"blue",
+	"pink",
+	"indigo",
+	"green",
+	"orange",
+	"gray",
+	"grape",
+	"cyan",
+	"lime",
+	"red",
+	"violet",
+	"teal",
+	"yellow",
+] as const;
+
+const validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
 
 const appearanceSettingsSchema = z.object({
 	additionalCssStylesheets: z
@@ -32,6 +54,8 @@ const appearanceSettingsSchema = z.object({
 			}),
 		)
 		.optional(),
+	color: z.enum([...validColors] as [string, ...string[]]).optional(),
+	radius: z.enum([...validRadius] as [string, ...string[]]).optional(),
 });
 
 /**
@@ -55,13 +79,37 @@ export const tryGetAppearanceSettings = Result.wrap(
 		if (!parsed.success) {
 			return {
 				additionalCssStylesheets: [],
+				color: "blue",
+				radius: "sm",
 			};
 		}
 
 		const stylesheets = parsed.data.additionalCssStylesheets ?? [];
+		const color = parsed.data.color ?? "blue";
+		const radius = parsed.data.radius ?? "sm";
+
+		// Validate color is in allowed list
+		if (!validColors.includes(color as (typeof validColors)[number])) {
+			return {
+				additionalCssStylesheets: stylesheets.map((item) => item.url),
+				color: "blue",
+				radius: radius as "xs" | "sm" | "md" | "lg" | "xl",
+			};
+		}
+
+		// Validate radius is in allowed list
+		if (!validRadius.includes(radius as (typeof validRadius)[number])) {
+			return {
+				additionalCssStylesheets: stylesheets.map((item) => item.url),
+				color: color as string,
+				radius: "sm",
+			};
+		}
 
 		return {
 			additionalCssStylesheets: stylesheets.map((item) => item.url),
+			color: color as string,
+			radius: radius as "xs" | "sm" | "md" | "lg" | "xl",
 		};
 	},
 	(error) =>
@@ -94,11 +142,43 @@ export const tryUpdateAppearanceSettings = Result.wrap(
 			}
 		}
 
+		// Validate color if provided
+		if (data.color !== undefined) {
+			if (!validColors.includes(data.color as (typeof validColors)[number])) {
+				throw new Error(
+					`Invalid color: ${data.color}. Must be one of: ${validColors.join(", ")}`,
+				);
+			}
+		}
+
+		// Validate radius if provided
+		if (data.radius !== undefined) {
+			if (!validRadius.includes(data.radius)) {
+				throw new Error(
+					`Invalid radius: ${data.radius}. Must be one of: ${validRadius.join(", ")}`,
+				);
+			}
+		}
+
+		const updateData: {
+			additionalCssStylesheets?: Array<{ url: string }>;
+			color?: (typeof validColors)[number];
+			radius?: (typeof validRadius)[number];
+		} = {};
+
+		if (data.additionalCssStylesheets !== undefined) {
+			updateData.additionalCssStylesheets = stylesheets;
+		}
+		if (data.color !== undefined) {
+			updateData.color = data.color as (typeof validColors)[number];
+		}
+		if (data.radius !== undefined) {
+			updateData.radius = data.radius;
+		}
+
 		const updated = await payload.updateGlobal({
 			slug: "appearance-settings",
-			data: {
-				additionalCssStylesheets: stylesheets,
-			},
+			data: updateData,
 			user,
 			overrideAccess,
 		});
@@ -108,13 +188,33 @@ export const tryUpdateAppearanceSettings = Result.wrap(
 		if (!parsed.success) {
 			return {
 				additionalCssStylesheets: [],
+				color: "blue",
+				radius: "sm",
 			};
 		}
 
 		const updatedStylesheets = parsed.data.additionalCssStylesheets ?? [];
+		const color = parsed.data.color ?? "blue";
+		const radius = parsed.data.radius ?? "sm";
+
+		// Validate color is in allowed list
+		const validColor = validColors.includes(
+			color as (typeof validColors)[number],
+		)
+			? (color as string)
+			: "blue";
+
+		// Validate radius is in allowed list
+		const validRadiusValue = validRadius.includes(
+			radius as (typeof validRadius)[number],
+		)
+			? (radius as "xs" | "sm" | "md" | "lg" | "xl")
+			: "sm";
 
 		return {
 			additionalCssStylesheets: updatedStylesheets.map((item) => item.url),
+			color: validColor,
+			radius: validRadiusValue,
 		};
 	},
 	(error) =>

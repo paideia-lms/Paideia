@@ -69,7 +69,7 @@ const inputSchema = z.object({
 	additionalCssStylesheets: z
 		.array(
 			z.object({
-				url: z.url("Must be a valid URL"),
+				url: z.string().url("Must be a valid URL"),
 			}),
 		)
 		.optional(),
@@ -195,7 +195,10 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 				name="description"
 				content="Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence. Only HTTP and HTTPS URLs are supported."
 			/>
-			<meta property="og:title" content="Additional CSS Stylesheets | Admin | Paideia LMS" />
+			<meta
+				property="og:title"
+				content="Additional CSS Stylesheets | Admin | Paideia LMS"
+			/>
 			<meta
 				property="og:description"
 				content="Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence. Only HTTP and HTTPS URLs are supported."
@@ -222,7 +225,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 					{stylesheets.map(({ url }, index) => (
 						<Group
 							key={`${url}-${
-								// biome-ignore lint/suspicious/noArrayIndexKey: <explanation>
+								// biome-ignore lint/suspicious/noArrayIndexKey: url may not be unique, index is needed
 								index
 								}`}
 							align="flex-start"

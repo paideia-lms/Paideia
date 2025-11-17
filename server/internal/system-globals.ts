@@ -72,6 +72,12 @@ export const tryGetSystemGlobals = Result.wrap(
 			additionalCssStylesheets: appearanceResult.ok
 				? appearanceResult.value.additionalCssStylesheets ?? []
 				: [],
+			color: appearanceResult.ok
+				? appearanceResult.value.color ?? "blue"
+				: "blue",
+			radius: appearanceResult.ok
+				? appearanceResult.value.radius ?? "sm"
+				: "sm",
 		}
 
 		const analyticsSettings = {

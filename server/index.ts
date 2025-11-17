@@ -129,6 +129,8 @@ async function startServer() {
 								},
 								appearanceSettings: {
 									additionalCssStylesheets: [],
+									color: "blue",
+									radius: "sm",
 								},
 								analyticsSettings: {
 									additionalJsScripts: [],
@@ -195,6 +197,7 @@ async function startServer() {
 								isAdminSitePolicies: false,
 								isAdminMedia: false,
 								isAdminAppearance: false,
+								isAdminTheme: false,
 								isAdminAnalytics: false,
 								params: {},
 							},

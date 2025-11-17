@@ -93,7 +93,7 @@ export default function CourseLayout({
 	const getCurrentTab = () => {
 		if (pageInfo.isCourseSettings) return CourseTab.Settings;
 		if (pageInfo.isCourseParticipantsLayout) return CourseTab.Participants;
-		if (pageInfo.isCourseGrades) return CourseTab.Grades;
+		if (pageInfo.isCourseGrades || pageInfo.isCourseGradesSingleView) return CourseTab.Grades;
 		if (pageInfo.isCourseModules) return CourseTab.Modules;
 		if (pageInfo.isCourseBin) return CourseTab.Bin;
 		if (pageInfo.isCourseBackup) return CourseTab.Backup;

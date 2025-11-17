@@ -110,6 +110,7 @@ export const routes = [
 			route("admin/sitepolicies", "routes/admin/sitepolicies.tsx"),
 			route("admin/media", "routes/admin/media.tsx"),
 			route("admin/appearance", "routes/admin/appearance.tsx"),
+			route("admin/appearance/theme", "routes/admin/appearance/theme.tsx"),
 			route("admin/analytics", "routes/admin/analytics.tsx"),
 		]),
 	]),

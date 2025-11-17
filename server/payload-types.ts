@@ -2027,6 +2027,30 @@ export interface SitePolicy {
 export interface AppearanceSetting {
   id: number;
   /**
+   * Select the primary color theme for the application. This affects buttons, links, and other interactive elements.
+   */
+  color?:
+    | (
+        | 'blue'
+        | 'pink'
+        | 'indigo'
+        | 'green'
+        | 'orange'
+        | 'gray'
+        | 'grape'
+        | 'cyan'
+        | 'lime'
+        | 'red'
+        | 'violet'
+        | 'teal'
+        | 'yellow'
+      )
+    | null;
+  /**
+   * Select the default border radius for components. This affects buttons, cards, inputs, and other elements.
+   */
+  radius?: ('xs' | 'sm' | 'md' | 'lg' | 'xl') | null;
+  /**
    * Add external CSS stylesheet URLs that will be loaded on all pages. Stylesheets are loaded in the order listed, allowing you to control CSS cascade precedence.
    */
   additionalCssStylesheets?:
@@ -2158,6 +2182,8 @@ export interface SitePoliciesSelect<T extends boolean = true> {
  * via the `definition` "appearance-settings_select".
  */
 export interface AppearanceSettingsSelect<T extends boolean = true> {
+  color?: T;
+  radius?: T;
   additionalCssStylesheets?:
     | T
     | {

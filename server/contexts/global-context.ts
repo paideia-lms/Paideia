@@ -75,6 +75,7 @@ export type PageInfo = {
 	isAdminSitePolicies: boolean;
 	isAdminMedia: boolean;
 	isAdminAppearance: boolean;
+	isAdminTheme: boolean;
 	isAdminAnalytics: boolean;
 	/**
 	 * the params of the current route
@@ -96,6 +97,8 @@ export type SystemGlobals = {
 	};
 	appearanceSettings: {
 		additionalCssStylesheets: string[];
+		color: string;
+		radius: "xs" | "sm" | "md" | "lg" | "xl";
 	};
 	analyticsSettings: {
 		additionalJsScripts: Array<{

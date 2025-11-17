@@ -42,7 +42,6 @@ import {
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
-import * as React from "react";
 import { useEffect } from "react";
 import { useRevalidator } from "react-router";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -71,7 +70,6 @@ import { RootErrorBoundary } from "./components/root-mode-error-boundary";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
-	ForbiddenResponse,
 	InternalServerErrorResponse,
 	MaintenanceModeResponse,
 } from "./utils/responses";
@@ -143,6 +141,7 @@ export const middleware = [
 		let isAdminSitePolicies = false;
 		let isAdminMedia = false;
 		let isAdminAppearance = false;
+		let isAdminTheme = false;
 		let isAdminAnalytics = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
@@ -227,6 +226,8 @@ export const middleware = [
 			else if (route.id === "routes/admin/media") isAdminMedia = true;
 			else if (route.id === ("routes/admin/appearance" as typeof route.id))
 				isAdminAppearance = true;
+			else if (route.id === ("routes/admin/appearance/theme" as typeof route.id))
+				isAdminTheme = true;
 			else if (route.id === ("routes/admin/analytics" as typeof route.id))
 				isAdminAnalytics = true;
 		}
@@ -296,6 +297,7 @@ export const middleware = [
 				isAdminSitePolicies,
 				isAdminMedia,
 				isAdminAppearance,
+				isAdminTheme,
 				isAdminAnalytics,
 				params: params as Record<string, string>,
 			},
@@ -315,7 +317,7 @@ export const middleware = [
 	/**
 	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
-	async ({ request, context }) => {
+	async ({ context }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -337,6 +339,8 @@ export const middleware = [
 				},
 				appearanceSettings: {
 					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
 				},
 				analyticsSettings: {
 					additionalJsScripts: [],
@@ -632,7 +636,7 @@ export const middleware = [
 	},
 ] satisfies Route.MiddlewareFunction[];
 
-export async function loader({ request, context }: Route.LoaderArgs) {
+export async function loader({ context }: Route.LoaderArgs) {
 	const { payload, requestInfo, pageInfo, systemGlobals } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
@@ -653,6 +657,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
 
+	// Get theme settings from appearance settings
+	const primaryColor =
+		systemGlobals.appearanceSettings.color ?? "blue";
+	const defaultRadius =
+		systemGlobals.appearanceSettings.radius ?? "sm";
+
 	// Check if we need to redirect to first-user creation
 	// Skip redirect check for essential routes
 	if (pageInfo.isRegistration || pageInfo.isLogin || pageInfo.isApi) {
@@ -662,6 +672,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			timestamp: timestamp,
 			pageInfo: pageInfo,
 			theme: theme,
+			primaryColor,
+			defaultRadius,
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
 			additionalJsScripts:
@@ -681,6 +693,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		pageInfo: pageInfo,
 		theme: theme,
 		isDevelopment: process.env.NODE_ENV === "development",
+		primaryColor,
+		defaultRadius,
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
 		additionalJsScripts:
@@ -688,21 +702,12 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 	};
 }
 
-const mantineTheme = createTheme({
-	components: {
-		Textarea: Textarea.extend({
-			defaultProps: {
-				minRows: 3,
-				autosize: true,
-			},
-		}),
-	},
-});
+// Theme will be created dynamically in the App component
 
 function ClientHintCheck() {
 	const { revalidate } = useRevalidator();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	// biome-ignore lint/correctness/useExhaustiveDependencies: revalidate is stable
 	useEffect(() => {
 		// Revalidate when timezone changes are detected
 		// This will be handled by the client hint script automatically
@@ -710,7 +715,7 @@ function ClientHintCheck() {
 
 	return (
 		<script
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: client hint script is safe
 			dangerouslySetInnerHTML={{
 				__html: hintsUtils.getClientHintCheckScript(),
 			}}
@@ -794,8 +799,41 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme, isDevelopment, additionalCssStylesheets, additionalJsScripts } =
-		loaderData;
+	const {
+		theme,
+		isDevelopment,
+		additionalCssStylesheets,
+		additionalJsScripts,
+		primaryColor,
+		defaultRadius,
+	} = loaderData;
+
+	// Create theme dynamically with color and radius from appearance settings
+	const mantineTheme = createTheme({
+		primaryColor: primaryColor as
+			| "blue"
+			| "pink"
+			| "indigo"
+			| "green"
+			| "orange"
+			| "gray"
+			| "grape"
+			| "cyan"
+			| "lime"
+			| "red"
+			| "violet"
+			| "teal"
+			| "yellow",
+		defaultRadius: defaultRadius as "xs" | "sm" | "md" | "lg" | "xl",
+		components: {
+			Textarea: Textarea.extend({
+				defaultProps: {
+					minRows: 3,
+					autosize: true,
+				},
+			}),
+		},
+	});
 
 	return (
 		<html

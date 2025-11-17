@@ -34,7 +34,9 @@
 		"migrate:reset": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:reset",
 		"migrate:fresh": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:fresh --force-accept-warning && bun scripts/clean-s3.ts",
 		"docker:build": "docker build -t paideia:$(node -p \"require('./package.json').version\") .",
+		"docker:update": "docker compose -f docker-compose.yml -f docker-compose.paideia.yml pull",
 		"docker:run": "docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d",
+		"docker:prune": "docker image prune -f",
 		"typegen": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:db-schema && react-router typegen",
 		"typecheck": "tsgo --noEmit",
 		"lefthook:install": "lefthook install"
@@ -137,7 +139,6 @@
 		"search-query-parser": "^1.6.0",
 		"string-ts": "^2.2.1",
 		"tippy.js": "^6.3.7",
-		"tldraw": "^4.1.2",
 		"typescript-result": "^3.5.2",
 		"ua-parser-js": "^2.0.6",
 		"unified": "^11.0.5",

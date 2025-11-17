@@ -103,7 +103,8 @@ export default function ServerAdminLayout({
 			return AdminTab.Server;
 		if (pageInfo.isAdminSitePolicies) return AdminTab.General;
 		if (pageInfo.isAdminMigrations) return AdminTab.Development;
-		if (pageInfo.isAdminAppearance) return AdminTab.Appearance;
+		if (pageInfo.isAdminAppearance || pageInfo.isAdminTheme)
+			return AdminTab.Appearance;
 		if (pageInfo.isAdminAnalytics) return AdminTab.General;
 		// Default to query param or 'general'
 		return activeTab ?? AdminTab.General;
