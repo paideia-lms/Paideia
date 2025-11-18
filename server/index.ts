@@ -194,6 +194,7 @@ async function startServer() {
 								isAdminMigrations: false,
 								isAdminDependencies: false,
 								isAdminCronJobs: false,
+								isAdminScheduledTasks: false,
 								isAdminMaintenance: false,
 								isAdminSitePolicies: false,
 								isAdminMedia: false,

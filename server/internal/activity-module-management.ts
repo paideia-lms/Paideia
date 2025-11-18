@@ -70,13 +70,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -177,13 +177,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -309,7 +309,6 @@ export const tryCreateActivityModule = Result.wrap(
 						allowLateSubmissions: args.quizData.allowLateSubmissions,
 						points: args.quizData.points,
 						gradingType: args.quizData.gradingType,
-						timeLimit: args.quizData.timeLimit,
 						showCorrectAnswers: args.quizData.showCorrectAnswers,
 						allowMultipleAttempts: args.quizData.allowMultipleAttempts,
 						shuffleQuestions: args.quizData.shuffleQuestions,
@@ -701,7 +700,6 @@ export const tryUpdateActivityModule = Result.wrap(
 							allowLateSubmissions: args.quizData.allowLateSubmissions,
 							points: args.quizData.points,
 							gradingType: args.quizData.gradingType,
-							timeLimit: args.quizData.timeLimit,
 							showCorrectAnswers: args.quizData.showCorrectAnswers,
 							allowMultipleAttempts: args.quizData.allowMultipleAttempts,
 							shuffleQuestions: args.quizData.shuffleQuestions,

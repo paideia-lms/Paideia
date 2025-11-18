@@ -23,7 +23,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 	// Get redirect URL from form data, default to "/"
 	const formData = await request.formData();
-	const redirectTo = (formData.get("redirectTo") as string) || "/";
+	const redirectTo = (formData.get("redirectTo") as string) ?? "/";
 
 	// Remove impersonation cookie and redirect
 	throw redirect(redirectTo, {

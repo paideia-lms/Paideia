@@ -37,6 +37,7 @@ interface QuizInstructionsViewProps {
 	allSubmissions: QuizSubmissionData[];
 	onStartQuiz: () => void;
 	canSubmit?: boolean;
+	quizRemainingTime?: number; // Remaining time in seconds for in-progress attempts
 }
 
 // ============================================================================
@@ -48,6 +49,7 @@ export function QuizInstructionsView({
 	allSubmissions,
 	onStartQuiz,
 	canSubmit = true,
+	quizRemainingTime,
 }: QuizInstructionsViewProps) {
 	if (!quiz) {
 		return (
@@ -73,6 +75,10 @@ export function QuizInstructionsView({
 	const hasInProgressAttempt = allSubmissions.some(
 		(s) => s.status === "in_progress",
 	);
+	// Check if timer has expired for in-progress attempt
+	const isTimerExpired =
+		hasInProgressAttempt &&
+		(quizRemainingTime === undefined || quizRemainingTime <= 0);
 	const maxAttempts = quiz.maxAttempts || null;
 	// Use permission check to determine if student can start/continue quiz
 	const startPermission = canStartQuizAttempt(
@@ -80,7 +86,8 @@ export function QuizInstructionsView({
 		attemptCount,
 		hasInProgressAttempt,
 	);
-	const canStartMore = startPermission.allowed;
+	// Can start more if permission allows AND timer hasn't expired
+	const canStartMore = startPermission.allowed && !isTimerExpired;
 
 	const formatTimeLimit = (minutes: number | null) => {
 		if (!minutes) return null;
@@ -88,6 +95,10 @@ export function QuizInstructionsView({
 		const milliseconds = minutes * 60 * 1000;
 		return prettyMs(milliseconds, { verbose: true });
 	};
+
+	// timeLimit is now derived from globalTimer in course-module-context.ts
+	// It's already in minutes, so we can use it directly
+	const effectiveTimeLimit = quiz.timeLimit;
 
 	return (
 		<Paper withBorder p="xl" radius="md">
@@ -119,10 +130,10 @@ export function QuizInstructionsView({
 					</Alert>
 				)}
 
-				{quiz.timeLimit && (
+				{effectiveTimeLimit && (
 					<Alert color="blue" icon={<IconClock size={16} />}>
 						<Text size="sm" fw={500}>
-							Time Limit: {formatTimeLimit(quiz.timeLimit)}
+							Time Limit: {formatTimeLimit(effectiveTimeLimit)}
 						</Text>
 						<Text size="xs" c="dimmed" mt={4}>
 							The timer will start when you begin the quiz and cannot be paused.

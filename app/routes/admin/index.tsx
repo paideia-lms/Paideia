@@ -530,7 +530,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 					{ title: "Task processing" },
 					{ title: "Task log configuration" },
 					{ title: "Task logs" },
-					{ title: "Scheduled tasks" },
+					{ title: "Scheduled tasks", href: href("/admin/scheduled-tasks") },
 					{ title: "Ad hoc tasks" },
 					{ title: "Tasks running now" },
 				],

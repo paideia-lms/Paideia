@@ -118,6 +118,7 @@ export const routes = [
 			route("admin/migrations", "routes/admin/migrations.tsx"),
 			route("admin/dependencies", "routes/admin/dependencies.tsx"),
 			route("admin/cron-jobs", "routes/admin/cron-jobs.tsx"),
+			route("admin/scheduled-tasks", "routes/admin/scheduled-tasks.tsx"),
 			route("admin/maintenance", "routes/admin/maintenance.tsx"),
 			route("admin/sitepolicies", "routes/admin/sitepolicies.tsx"),
 			route("admin/media", "routes/admin/media.tsx"),

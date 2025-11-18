@@ -202,6 +202,7 @@ export interface Config {
   jobs: {
     tasks: {
       sandboxReset: TaskSandboxReset;
+      autoSubmitQuiz: TaskAutoSubmitQuiz;
       inline: {
         input: unknown;
         output: unknown;
@@ -583,7 +584,6 @@ export interface Quiz {
   allowLateSubmissions?: boolean | null;
   points?: number | null;
   gradingType?: ('automatic' | 'manual') | null;
-  timeLimit?: number | null;
   showCorrectAnswers?: boolean | null;
   allowMultipleAttempts?: boolean | null;
   shuffleQuestions?: boolean | null;
@@ -795,7 +795,6 @@ export interface QuizSubmission {
   status: 'in_progress' | 'completed' | 'graded' | 'returned';
   startedAt?: string | null;
   submittedAt?: string | null;
-  timeLimit?: number | null;
   timeSpent?: number | null;
   answers?:
     | {
@@ -1077,7 +1076,7 @@ export interface PayloadJob {
     | {
         executedAt: string;
         completedAt: string;
-        taskSlug: 'inline' | 'sandboxReset';
+        taskSlug: 'inline' | 'sandboxReset' | 'autoSubmitQuiz';
         taskID: string;
         input?:
           | {
@@ -1110,7 +1109,7 @@ export interface PayloadJob {
         id?: string | null;
       }[]
     | null;
-  taskSlug?: ('inline' | 'sandboxReset') | null;
+  taskSlug?: ('inline' | 'sandboxReset' | 'autoSubmitQuiz') | null;
   queue?: string | null;
   waitUntil?: string | null;
   processing?: boolean | null;
@@ -1490,7 +1489,6 @@ export interface QuizzesSelect<T extends boolean = true> {
   allowLateSubmissions?: T;
   points?: T;
   gradingType?: T;
-  timeLimit?: T;
   showCorrectAnswers?: T;
   allowMultipleAttempts?: T;
   shuffleQuestions?: T;
@@ -1722,7 +1720,6 @@ export interface QuizSubmissionsSelect<T extends boolean = true> {
   status?: T;
   startedAt?: T;
   submittedAt?: T;
-  timeLimit?: T;
   timeSpent?: T;
   answers?:
     | T
@@ -2233,6 +2230,19 @@ export interface TaskSandboxReset {
   input?: unknown;
   output: {
     message: string;
+  };
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TaskAutoSubmitQuiz".
+ */
+export interface TaskAutoSubmitQuiz {
+  input: {
+    submissionId: number;
+  };
+  output: {
+    message: string;
+    submissionId: number;
   };
 }
 /**

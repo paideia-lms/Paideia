@@ -133,12 +133,6 @@ export const Quizzes = {
 			label: "Grading Type",
 		},
 		{
-			name: "timeLimit",
-			type: "number",
-			label: "Time Limit (minutes)",
-			min: 0,
-		},
-		{
 			name: "showCorrectAnswers",
 			type: "checkbox",
 			defaultValue: false,

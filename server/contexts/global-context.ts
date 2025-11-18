@@ -71,6 +71,7 @@ export type PageInfo = {
 	isAdminMigrations: boolean;
 	isAdminDependencies: boolean;
 	isAdminCronJobs: boolean;
+	isAdminScheduledTasks: boolean;
 	isAdminMaintenance: boolean;
 	isAdminSitePolicies: boolean;
 	isAdminMedia: boolean;

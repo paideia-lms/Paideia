@@ -97,6 +97,7 @@ export default function ServerAdminLayout({
 			pageInfo.isAdminTestEmail ||
 			pageInfo.isAdminDependencies ||
 			pageInfo.isAdminCronJobs ||
+			pageInfo.isAdminScheduledTasks ||
 			pageInfo.isAdminMaintenance ||
 			pageInfo.isAdminMedia
 		)

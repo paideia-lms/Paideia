@@ -48,9 +48,33 @@ import {
 	SitePolicies,
 } from "./collections/globals";
 import { envVars } from "./env";
+import { autoSubmitQuiz } from "./tasks/auto-submit-quiz";
 import { sandboxReset } from "./tasks/sandbox-reset";
 
 export * from "./collections";
+
+/**
+ * Queue names used for Payload job scheduling
+ * These queues are configured in the jobs.autoRun section
+ */
+export enum JobQueue {
+	/** Queue that runs every second - used for processing waitUntil jobs */
+	SECONDLY = "secondly",
+	/** Queue that runs every minute */
+	MINUTE = "minute",
+	/** Queue that runs every hour */
+	HOURLY = "hourly",
+	/** Queue that runs every 3 hours */
+	THREE_HOURLY = "3-hourly",
+	/** Queue that runs every 6 hours */
+	SIX_HOURLY = "6-hourly",
+	/** Queue that runs every 12 hours */
+	TWELVE_HOURLY = "12-hourly",
+	/** Queue that runs daily at midnight */
+	NIGHTLY = "nightly",
+	/** Default queue (not in autoRun, requires manual processing) */
+	DEFAULT = "default",
+}
 
 const pg = postgresAdapter({
 	pool: {
@@ -60,8 +84,8 @@ const pg = postgresAdapter({
 	// disable logger in different environments
 	logger:
 		process.env.NODE_ENV !== "test" &&
-		process.env.NODE_ENV !== "production" &&
-		process.env.NODE_ENV !== "development"
+			process.env.NODE_ENV !== "production" &&
+			process.env.NODE_ENV !== "development"
 			? new EnhancedQueryLogger()
 			: undefined,
 	// ! we never want to push directly, always respect the the migrations files
@@ -100,7 +124,7 @@ const pg = postgresAdapter({
 						// Change foreign key to CASCADE on delete for both activity_modules and courses
 						if (
 							foreignKey.reference().foreignTable[
-								Symbol.for("drizzle:Name")
+							Symbol.for("drizzle:Name")
 							] === relation.foreignTable
 						) {
 							// console.log(foreignKey)
@@ -312,35 +336,35 @@ const sanitizedConfig = buildConfig({
 				//  - '* 0/5 * * * *' every 5 minutes
 				//  - '* * * * * *' every second
 				cron: `0 0 * * *`, // Every day at midnight
-				queue: "nightly",
+				queue: JobQueue.NIGHTLY,
 			},
 			{
 				cron: `* * * * * *`, // every second
-				queue: "secondly",
+				queue: JobQueue.SECONDLY,
 			},
 			{
 				cron: `* * * * *`, // every minute
-				queue: "minute",
+				queue: JobQueue.MINUTE,
 			},
 			{
 				cron: `0 * * * *`, // every hour
-				queue: "hourly",
+				queue: JobQueue.HOURLY,
 			},
 			{
 				cron: "0 */3 * * *", // every 3 hours
-				queue: "3-hourly",
+				queue: JobQueue.THREE_HOURLY,
 			},
 			{
 				cron: "0 */6 * * *", // every 6 hours
-				queue: "6-hourly",
+				queue: JobQueue.SIX_HOURLY,
 			},
 			{
 				cron: "0 */12 * * *", // every 12 hours
-				queue: "12-hourly",
+				queue: JobQueue.TWELVE_HOURLY,
 			},
 		],
 		// ! this will change the database structure so you cannot be conditional here
-		tasks: [sandboxReset] as TaskConfig[],
+		tasks: [sandboxReset, autoSubmitQuiz] as TaskConfig[],
 	},
 	defaultDepth: 1,
 	typescript: {

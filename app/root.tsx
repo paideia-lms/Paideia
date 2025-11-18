@@ -139,6 +139,7 @@ export const middleware = [
 		let isAdminMigrations = false;
 		let isAdminDependencies = false;
 		let isAdminCronJobs = false;
+		let isAdminScheduledTasks = false;
 		let isAdminMaintenance = false;
 		let isAdminSitePolicies = false;
 		let isAdminMedia = false;
@@ -222,6 +223,8 @@ export const middleware = [
 			else if (route.id === "routes/admin/dependencies")
 				isAdminDependencies = true;
 			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
+			else if (route.id === "routes/admin/scheduled-tasks")
+				isAdminScheduledTasks = true;
 			else if (route.id === "routes/admin/maintenance")
 				isAdminMaintenance = true;
 			else if (route.id === ("routes/admin/sitepolicies" as typeof route.id))
@@ -298,6 +301,7 @@ export const middleware = [
 				isAdminMigrations,
 				isAdminDependencies,
 				isAdminCronJobs,
+				isAdminScheduledTasks,
 				isAdminMaintenance,
 				isAdminSitePolicies,
 				isAdminMedia,
