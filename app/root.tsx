@@ -169,7 +169,7 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
-			else if (route.id === "routes/course/module.$id") isCourseModule = true;
+			else if (route.id === "routes/course/module.$id/route") isCourseModule = true;
 			else if (route.id === "routes/course/module.$id.edit")
 				isCourseModuleEdit = true;
 			else if (route.id === "routes/course/module.$id.submissions")

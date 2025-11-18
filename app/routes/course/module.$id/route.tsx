@@ -1,22 +1,4 @@
-import {
-	ActionIcon,
-	Avatar,
-	Badge,
-	Box,
-	Button,
-	Collapse,
-	Container,
-	Divider,
-	Group,
-	Paper,
-	Select,
-	Stack,
-	Text,
-	Title,
-	Tooltip,
-	Typography,
-} from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
+import { Button, Container, Group, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import type {
 	FileUpload,
@@ -26,34 +8,13 @@ import {
 	MaxFileSizeExceededError,
 	MaxFilesExceededError,
 } from "@remix-run/form-data-parser";
-import {
-	IconArrowBack,
-	IconArrowBigUp,
-	IconArrowBigUpFilled,
-	IconCalendar,
-	IconChevronDown,
-	IconChevronLeft,
-	IconChevronRight,
-	IconChevronUp,
-	IconClock,
-	IconInfoCircle,
-	IconMessage,
-	IconPin,
-	IconPlus,
-} from "@tabler/icons-react";
+import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { useQueryState } from "nuqs";
-import { createLoader, parseAsString } from "nuqs/server";
+import { useQueryState, parseAsString } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import { href, Link, redirect, useFetcher, useRevalidator } from "react-router";
-import { useEffect, useState } from "react";
-import dayjs from "dayjs";
-import relativeTime from "dayjs/plugin/relativeTime";
-import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
-
-dayjs.extend(relativeTime);
+import { href, redirect, useFetcher, Link, useRevalidator } from "react-router";
+import { useEffect } from "react";
 import { courseContextKey } from "server/contexts/course-context";
-import type { CourseModuleContext } from "server/contexts/course-module-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -85,21 +46,10 @@ import {
 } from "server/utils/permissions";
 import z from "zod";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
-import {
-	type DiscussionData,
-	type DiscussionReply,
-	type DiscussionThread,
-	CreateThreadForm,
-} from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizInstructionsView } from "~/components/activity-modules-preview/quiz-instructions-view";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
-import type {
-	Question,
-	QuizAnswers,
-	QuizConfig,
-} from "server/json/raw-quiz-config.types.v2";
-import { isRegularQuiz } from "server/json/raw-quiz-config.types.v2";
+import type { QuizAnswers } from "server/json/raw-quiz-config.types.v2";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
 import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
@@ -117,103 +67,14 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import type { Route } from "./+types/module.$id";
-
-const courseModuleSearchParams = {
-	action: parseAsString.withDefault(""),
-	showQuiz: parseAsString.withDefault(""),
-	threadId: parseAsString.withDefault(""),
-	replyTo: parseAsString.withDefault(""),
-};
-
-export const loadSearchParams = createLoader(courseModuleSearchParams);
-
-// Helper to format dates consistently on the server
-const formatDateForDisplay = (dateString: string) => {
-	const date = new Date(dateString);
-	return date.toLocaleString("en-US", {
-		weekday: "short",
-		year: "numeric",
-		month: "short",
-		day: "numeric",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
-};
-
-// Helper to format module settings with date strings
-const formatModuleSettingsForDisplay = (
-	moduleSettings: CourseModuleContext["moduleLinkSettings"],
-) => {
-	if (!moduleSettings?.settings) return null;
-
-	const settings = moduleSettings.settings;
-	const now = new Date();
-
-	if (settings.type === "assignment") {
-		return {
-			type: "assignment" as const,
-			name: settings.name,
-			dates: [
-				settings.allowSubmissionsFrom && {
-					label: "Available from",
-					value: formatDateForDisplay(settings.allowSubmissionsFrom),
-					isOverdue: false,
-				},
-				settings.dueDate && {
-					label: "Due",
-					value: formatDateForDisplay(settings.dueDate),
-					isOverdue: new Date(settings.dueDate) < now,
-				},
-				settings.cutoffDate && {
-					label: "Final deadline",
-					value: formatDateForDisplay(settings.cutoffDate),
-					isOverdue: new Date(settings.cutoffDate) < now,
-				},
-			].filter(Boolean),
-		};
-	}
-
-	if (settings.type === "quiz") {
-		return {
-			type: "quiz" as const,
-			name: settings.name,
-			dates: [
-				settings.openingTime && {
-					label: "Opens",
-					value: formatDateForDisplay(settings.openingTime),
-					isOverdue: false,
-				},
-				settings.closingTime && {
-					label: "Closes",
-					value: formatDateForDisplay(settings.closingTime),
-					isOverdue: new Date(settings.closingTime) < now,
-				},
-			].filter(Boolean),
-		};
-	}
-
-	if (settings.type === "discussion") {
-		return {
-			type: "discussion" as const,
-			name: settings.name,
-			dates: [
-				settings.dueDate && {
-					label: "Due",
-					value: formatDateForDisplay(settings.dueDate),
-					isOverdue: new Date(settings.dueDate) < now,
-				},
-				settings.cutoffDate && {
-					label: "Final deadline",
-					value: formatDateForDisplay(settings.cutoffDate),
-					isOverdue: new Date(settings.cutoffDate) < now,
-				},
-			].filter(Boolean),
-		};
-	}
-
-	return null;
-};
+import {
+	loadSearchParams,
+	formatModuleSettingsForDisplay,
+	transformQuizAnswersToSubmissionFormat,
+} from "./utils";
+import { ModuleDatesInfo } from "./components/module-dates-info";
+import { DiscussionThreadView } from "./components/discussion-thread-view";
+import type { Route } from "./+types/route";
 
 export const loader = async ({
 	context,
@@ -936,6 +797,7 @@ export const action = async ({
 		const content = formData.get("content");
 		const parentThreadParam = formData.get("parentThread");
 
+
 		if (!content || typeof content !== "string" || content.trim() === "") {
 			return badRequest({ error: "Reply content is required" });
 		}
@@ -957,6 +819,10 @@ export const action = async ({
 		if (!canParticipate.allowed) {
 			throw new ForbiddenResponse(canParticipate.reason);
 		}
+
+		console.log("replyToParam", replyToParam);
+		console.log("parentThreadParam", parentThreadParam);
+		console.log("content", content);
 
 		// Determine post type and parent based on replyTo URL parameter
 		// replyToParam === "thread" means replying to the thread (top-level reply)
@@ -1378,7 +1244,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-const useSubmitAssignment = () => {
+export const useSubmitAssignment = () => {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const submitAssignment = (textContent: string, files: File[]) => {
@@ -1404,7 +1270,7 @@ const useSubmitAssignment = () => {
 	};
 };
 
-const useStartQuizAttempt = (moduleLinkId: number) => {
+export const useStartQuizAttempt = (moduleLinkId: number) => {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const startQuizAttempt = () => {
@@ -1425,7 +1291,7 @@ const useStartQuizAttempt = (moduleLinkId: number) => {
 	};
 };
 
-const useSubmitQuiz = (moduleLinkId: number) => {
+export const useSubmitQuiz = (moduleLinkId: number) => {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const submitQuiz = (
@@ -1597,27 +1463,21 @@ export const useUpvoteReply = (moduleLinkId: number) => {
 
 export const useRemoveUpvoteReply = (moduleLinkId: number) => {
 	const fetcher = useFetcher<typeof clientAction>();
-	const revalidator = useRevalidator();
 
 	const removeUpvoteReply = (submissionId: number, threadId: string) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-		formData.append("threadId", threadId);
-
-		fetcher.submit(formData, {
+		fetcher.submit({
+			submissionId,
+			threadId,
+			intent: DiscussionActions.REMOVE_UPVOTE_REPLY,
+			moduleLinkId: moduleLinkId,
+		}, {
 			method: "POST",
 			action: href("/course/module/:moduleLinkId", {
 				moduleLinkId: String(moduleLinkId),
 			}) + `?action=${DiscussionActions.REMOVE_UPVOTE_REPLY}`,
+			encType: ContentType.JSON,
 		});
 	};
-
-	// Revalidate when action completes successfully
-	useEffect(() => {
-		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
-			revalidator.revalidate();
-		}
-	}, [fetcher.data, revalidator]);
 
 	return {
 		removeUpvoteReply,
@@ -1633,15 +1493,18 @@ export const useCreateReply = (moduleLinkId: number) => {
 	const createReply = (
 		content: string,
 		parentThreadId: number,
-		replyToId?: string | null,
+		commentId?: string | null,
 	) => {
 		const formData = new FormData();
 		formData.append("content", content);
 		formData.append("parentThread", parentThreadId.toString());
 
+		console.log("parentThreadId", parentThreadId);
+		console.log("replyToId", commentId);
+
 		// Use replyTo URL parameter instead of action=REPLY
 		// replyTo=thread for thread-level replies, replyTo=<commentId> for nested comments
-		const replyToParam = replyToId || "thread";
+		const replyToParam = commentId || "thread";
 
 		fetcher.submit(formData, {
 			method: "POST",
@@ -1659,960 +1522,10 @@ export const useCreateReply = (moduleLinkId: number) => {
 	};
 };
 
-/**
- * Transform QuizAnswers from quiz preview format to submission format
- */
-function transformQuizAnswersToSubmissionFormat(
-	quizConfig: QuizConfig,
-	answers: QuizAnswers,
-): Array<{
-	questionId: string;
-	questionText: string;
-	questionType:
-	| "multiple_choice"
-	| "true_false"
-	| "short_answer"
-	| "essay"
-	| "fill_blank";
-	selectedAnswer?: string;
-	multipleChoiceAnswers?: Array<{
-		option: string;
-		isSelected: boolean;
-	}>;
-}> {
-	const result: Array<{
-		questionId: string;
-		questionText: string;
-		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
-		selectedAnswer?: string;
-		multipleChoiceAnswers?: Array<{
-			option: string;
-			isSelected: boolean;
-		}>;
-	}> = [];
-
-	// Helper to map question type from quiz config to submission format
-	const mapQuestionType = (
-		type: Question["type"],
-	): "multiple_choice" | "true_false" | "short_answer" | "essay" | "fill_blank" => {
-		switch (type) {
-			case "multiple-choice":
-				return "multiple_choice";
-			case "short-answer":
-				return "short_answer";
-			case "long-answer":
-			case "article":
-				return "essay";
-			case "fill-in-the-blank":
-				return "fill_blank";
-			case "choice":
-				return "multiple_choice";
-			case "ranking":
-			case "single-selection-matrix":
-			case "multiple-selection-matrix":
-			case "whiteboard":
-				// These types don't have direct mapping, use essay as fallback
-				return "essay";
-			default:
-				return "essay";
-		}
-	};
-
-	// Get all questions from quiz config
-	const questions: Question[] = [];
-	if (isRegularQuiz(quizConfig)) {
-		for (const page of quizConfig.pages || []) {
-			questions.push(...page.questions);
-		}
-	} else {
-		// For container quizzes, we'd need to handle nested quizzes
-		// For now, we'll only handle regular quizzes
-	}
-
-	// Transform each answer
-	for (const [questionId, answerValue] of Object.entries(answers)) {
-		const question = questions.find((q) => q.id === questionId);
-		if (!question) continue;
-
-		const questionType = mapQuestionType(question.type);
-		const submissionAnswer: {
-			questionId: string;
-			questionText: string;
-			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		} = {
-			questionId,
-			questionText: question.prompt,
-			questionType,
-		};
-
-		// Handle different answer value types
-		if (typeof answerValue === "string") {
-			// Single string answer (multiple-choice, short-answer, long-answer, article)
-			if (question.type === "multiple-choice" || question.type === "short-answer") {
-				submissionAnswer.selectedAnswer = answerValue;
-			} else {
-				// For long-answer and article, store as selectedAnswer
-				submissionAnswer.selectedAnswer = answerValue;
-			}
-		} else if (Array.isArray(answerValue)) {
-			// Array answer (fill-in-the-blank, choice, ranking)
-			if (question.type === "choice" && "options" in question) {
-				// For choice questions, create multipleChoiceAnswers
-				const options = question.options;
-				submissionAnswer.multipleChoiceAnswers = Object.keys(options).map(
-					(optionKey) => ({
-						option: optionKey,
-						isSelected: answerValue.includes(optionKey),
-					}),
-				);
-			} else {
-				// For other array types, join as comma-separated string
-				submissionAnswer.selectedAnswer = answerValue.join(", ");
-			}
-		} else if (typeof answerValue === "object" && answerValue !== null) {
-			// Object answer (fill-in-the-blank with blanks, matrix questions)
-			if (question.type === "fill-in-the-blank") {
-				// Join object values as comma-separated string
-				submissionAnswer.selectedAnswer = Object.values(answerValue).join(", ");
-			} else {
-				// For matrix questions, stringify the object
-				submissionAnswer.selectedAnswer = JSON.stringify(answerValue);
-			}
-		}
-
-		result.push(submissionAnswer);
-	}
-
-	return result;
-}
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
-
-// Wrapper components that use hooks directly
-
-// CreateThreadForm wrapper that uses useCreateThread hook
-interface CreateThreadFormWrapperProps {
-	moduleLinkId: number;
-	onCancel: () => void;
-}
-
-function CreateThreadFormWrapper({
-	moduleLinkId,
-	onCancel,
-}: CreateThreadFormWrapperProps) {
-	const { createThread, isCreating, fetcher } = useCreateThread(moduleLinkId);
-
-	return (
-		<CreateThreadForm
-			onSubmit={(title, content) => {
-				console.log("Creating thread", title, content);
-				createThread(title, content);
-			}}
-			onCancel={onCancel}
-			isSubmitting={isCreating}
-			fetcher={fetcher}
-		/>
-	);
-}
-
-// ThreadUpvoteButton wrapper that uses upvote hooks
-interface ThreadUpvoteButtonProps {
-	thread: DiscussionThread;
-	moduleLinkId: number;
-	threadId?: string;
-}
-
-function ThreadUpvoteButton({
-	thread,
-	moduleLinkId,
-	threadId,
-}: ThreadUpvoteButtonProps) {
-	const { upvoteThread } = useUpvoteThread(moduleLinkId);
-	const { removeUpvoteThread } = useRemoveUpvoteThread(moduleLinkId);
-
-	const handleUpvote = (e?: React.MouseEvent) => {
-		if (e) {
-			e.stopPropagation();
-		}
-		const submissionId = Number.parseInt(thread.id, 10);
-		if (Number.isNaN(submissionId)) return;
-
-		if (thread.isUpvoted) {
-			removeUpvoteThread(submissionId, threadId);
-		} else {
-			upvoteThread(submissionId, threadId);
-		}
-	};
-
-	return (
-		<Stack gap="xs" align="center" style={{ minWidth: 50 }}>
-			<Tooltip label={thread.isUpvoted ? "Remove upvote" : "Upvote"}>
-				<ActionIcon
-					variant={thread.isUpvoted ? "filled" : "subtle"}
-					color={thread.isUpvoted ? "blue" : "gray"}
-					onClick={handleUpvote}
-				>
-					{thread.isUpvoted ? (
-						<IconArrowBigUpFilled size={20} />
-					) : (
-						<IconArrowBigUp size={20} />
-					)}
-				</ActionIcon>
-			</Tooltip>
-			<Text size="sm" fw={500}>
-				{thread.upvotes}
-			</Text>
-		</Stack>
-	);
-}
-
-// ReplyUpvoteButton wrapper that uses reply upvote hooks
-interface ReplyUpvoteButtonProps {
-	reply: DiscussionReply;
-	moduleLinkId: number;
-	threadId: string;
-}
-
-function ReplyUpvoteButton({
-	reply,
-	moduleLinkId,
-	threadId,
-}: ReplyUpvoteButtonProps) {
-	const { upvoteReply } = useUpvoteReply(moduleLinkId);
-	const { removeUpvoteReply } = useRemoveUpvoteReply(moduleLinkId);
-
-	const handleUpvote = () => {
-		const submissionId = Number.parseInt(reply.id, 10);
-		if (Number.isNaN(submissionId)) return;
-
-		if (reply.isUpvoted) {
-			removeUpvoteReply(submissionId, threadId);
-		} else {
-			upvoteReply(submissionId, threadId);
-		}
-	};
-
-	return (
-		<Group gap="xs">
-			<ActionIcon
-				variant={reply.isUpvoted ? "filled" : "subtle"}
-				color={reply.isUpvoted ? "blue" : "gray"}
-				size="sm"
-				onClick={handleUpvote}
-			>
-				{reply.isUpvoted ? (
-					<IconArrowBigUpFilled size={16} />
-				) : (
-					<IconArrowBigUp size={16} />
-				)}
-			</ActionIcon>
-			<Text size="sm">{reply.upvotes}</Text>
-		</Group>
-	);
-}
-
-// ReplyFormWrapper that uses useCreateReply hook
-interface ReplyFormWrapperProps {
-	moduleLinkId: number;
-	threadId: string;
-	replyTo?: string | null;
-	onCancel: () => void;
-}
-
-function ReplyFormWrapper({
-	moduleLinkId,
-	threadId,
-	replyTo: _replyTo,
-	onCancel,
-}: ReplyFormWrapperProps) {
-	const [replyContent, setReplyContent] = useState("");
-	const { createReply, isSubmitting } = useCreateReply(moduleLinkId);
-
-	const handleSubmit = () => {
-		if (replyContent.trim()) {
-			const threadIdNum = Number.parseInt(threadId, 10);
-			if (!Number.isNaN(threadIdNum)) {
-				// For thread-level replies, pass null/undefined to use "thread" as default
-				// For comment replies, pass the comment ID
-				createReply(replyContent.trim(), threadIdNum, _replyTo || undefined);
-				setReplyContent("");
-			}
-		}
-	};
-
-	return (
-		<Paper withBorder p="md" radius="sm" bg="gray.0">
-			<Stack gap="md">
-				<Text size="sm" fw={500}>
-					Write a reply
-				</Text>
-				<SimpleRichTextEditor
-					content={replyContent}
-					onChange={setReplyContent}
-					placeholder="Write your reply..."
-				/>
-				<Group justify="flex-end">
-					<Button variant="default" onClick={onCancel} disabled={isSubmitting}>
-						Cancel
-					</Button>
-					<Button onClick={handleSubmit} loading={isSubmitting}>
-						Post Reply
-					</Button>
-				</Group>
-			</Stack>
-		</Paper>
-	);
-}
-
-// Discussion Thread List View Component
-interface DiscussionThreadListViewProps {
-	threads: DiscussionThread[];
-	discussion: DiscussionData;
-	moduleLinkId: number;
-	courseId: number;
-	onThreadClick: (id: string) => void;
-}
-
-function DiscussionThreadListView({
-	threads,
-	discussion,
-	moduleLinkId,
-	courseId,
-	onThreadClick,
-}: DiscussionThreadListViewProps) {
-	const [sortBy, setSortBy] = useState<string>("recent");
-	const [action, setAction] = useQueryState("action");
-
-	const sortedThreads = [...threads].sort((a, b) => {
-		switch (sortBy) {
-			case "upvoted":
-				return b.upvotes - a.upvotes;
-			case "active":
-				return b.replyCount - a.replyCount;
-			case "recent":
-			default:
-				return (
-					new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-				);
-		}
-	});
-
-	if (action === DiscussionActions.CREATE_THREAD) {
-		return (
-			<CreateThreadFormWrapper
-				moduleLinkId={moduleLinkId}
-				onCancel={() => setAction(null)}
-			/>
-		);
-	}
-
-	return (
-		<Paper withBorder p="xl" radius="md">
-			<Stack gap="lg">
-				{/* Header */}
-				<Group justify="space-between" align="flex-start">
-					<div>
-						<Title order={3} mb="xs">
-							Discussion Board
-						</Title>
-						{discussion.instructions && (
-							<Typography
-								className="tiptap"
-								// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
-								dangerouslySetInnerHTML={{ __html: discussion.instructions }}
-								style={{
-									fontSize: "0.875rem",
-									color: "var(--mantine-color-dimmed)",
-								}}
-							/>
-						)}
-					</div>
-					<Button leftSection={<IconPlus size={16} />} onClick={() => setAction(DiscussionActions.CREATE_THREAD)}>
-						New Thread
-					</Button>
-				</Group>
-
-				{/* Sorting */}
-				<Group justify="space-between">
-					<Text size="sm" c="dimmed">
-						{threads.length} {threads.length === 1 ? "thread" : "threads"}
-					</Text>
-					<Select
-						size="sm"
-						value={sortBy}
-						onChange={(value) => setSortBy(value || "recent")}
-						data={[
-							{ value: "recent", label: "Most Recent" },
-							{ value: "upvoted", label: "Most Upvoted" },
-							{ value: "active", label: "Most Active" },
-						]}
-						style={{ width: 180 }}
-					/>
-				</Group>
-
-				<Divider />
-
-				{/* Thread List */}
-				<Stack gap="md">
-					{sortedThreads.map((thread) => (
-						<Paper
-							key={thread.id}
-							withBorder
-							p="md"
-							radius="sm"
-							style={{ cursor: "pointer" }}
-							onClick={() => onThreadClick(thread.id)}
-						>
-							<Group align="flex-start" gap="md" wrap="nowrap">
-								{/* Upvote Section */}
-								<ThreadUpvoteButton
-									thread={thread}
-									moduleLinkId={moduleLinkId}
-								/>
-
-								{/* Thread Content */}
-								<Stack gap="xs" style={{ flex: 1 }}>
-									<Group gap="sm">
-										{thread.isPinned && (
-											<Badge
-												size="sm"
-												color="yellow"
-												leftSection={<IconPin size={12} />}
-											>
-												Pinned
-											</Badge>
-										)}
-										<Title order={4}>{thread.title}</Title>
-									</Group>
-
-									<Typography
-										className="tiptap"
-										// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
-										dangerouslySetInnerHTML={{ __html: thread.content }}
-										style={{
-											fontSize: "0.875rem",
-											color: "var(--mantine-color-dimmed)",
-											display: "-webkit-box",
-											WebkitLineClamp: 2,
-											WebkitBoxOrient: "vertical",
-											overflow: "hidden",
-										}}
-									/>
-
-									<Group gap="md">
-										<Link
-											to={
-												courseId && thread.authorId
-													? href("/course/:courseId/participants/profile", {
-														courseId: String(courseId),
-													}) + `?userId=${thread.authorId}`
-													: "#"
-											}
-											style={{ textDecoration: "none", color: "inherit" }}
-											onClick={(e) => e.stopPropagation()}
-										>
-											<Group gap="xs">
-												<Avatar size="sm" radius="xl">
-													{thread.authorAvatar}
-												</Avatar>
-												<Text size="sm" style={{ cursor: "pointer" }}>
-													{thread.author}
-												</Text>
-											</Group>
-										</Link>
-										<Text size="sm" c="dimmed">
-											{dayjs(thread.publishedAt).fromNow()}
-										</Text>
-										<Group gap="xs">
-											<IconMessage size={16} />
-											<Text size="sm">{thread.replyCount} replies</Text>
-										</Group>
-									</Group>
-								</Stack>
-							</Group>
-						</Paper>
-					))}
-				</Stack>
-			</Stack>
-		</Paper>
-	);
-}
-
-// Discussion Thread Detail View Component
-interface DiscussionThreadDetailViewProps {
-	thread: DiscussionThread;
-	replies: DiscussionReply[];
-	discussion: DiscussionData;
-	moduleLinkId: number;
-	threadId: string;
-	courseId: number;
-	onBack: () => void;
-}
-
-function DiscussionThreadDetailView({
-	thread,
-	replies,
-	discussion: _discussion,
-	moduleLinkId,
-	threadId,
-	courseId,
-	onBack,
-}: DiscussionThreadDetailViewProps) {
-	const [replyTo, setReplyTo] = useQueryState("replyTo");
-
-	return (
-		<Paper withBorder p="xl" radius="md">
-			<Stack gap="lg">
-				{/* Header */}
-				<Group>
-					<ActionIcon variant="subtle" onClick={onBack}>
-						<IconArrowBack size={20} />
-					</ActionIcon>
-					<Text size="sm" c="dimmed">
-						Back to threads
-					</Text>
-				</Group>
-
-				{/* Thread Content */}
-				<Stack gap="md">
-					{thread.isPinned && (
-						<Badge size="lg" color="yellow" leftSection={<IconPin size={14} />}>
-							Pinned Thread
-						</Badge>
-					)}
-					<Title order={2}>{thread.title}</Title>
-
-					<Group gap="md" justify="space-between">
-						<Group gap="xs">
-							<Link
-								to={
-									courseId && thread.authorId
-										? href("/course/:courseId/participants/profile", {
-											courseId: String(courseId),
-										}) + `?userId=${thread.authorId}`
-										: "#"
-								}
-								style={{ textDecoration: "none", color: "inherit" }}
-							>
-								<Group gap="xs">
-									<Avatar size="md" radius="xl">
-										{thread.authorAvatar}
-									</Avatar>
-									<Stack gap={0}>
-										<Text size="sm" fw={500} style={{ cursor: "pointer" }}>
-											{thread.author}
-										</Text>
-									</Stack>
-								</Group>
-							</Link>
-							<Text size="xs" c="dimmed">
-								{dayjs(thread.publishedAt).fromNow()}
-							</Text>
-						</Group>
-						<ThreadUpvoteButton
-							thread={thread}
-							moduleLinkId={moduleLinkId}
-							threadId={threadId}
-						/>
-					</Group>
-
-					<Typography
-						className="tiptap"
-						// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
-						dangerouslySetInnerHTML={{ __html: thread.content }}
-						style={{ lineHeight: "1.6" }}
-					/>
-
-					<Group>
-						<Button
-							variant="light"
-							leftSection={<IconMessage size={16} />}
-							onClick={() => setReplyTo("thread")}
-						>
-							Reply
-						</Button>
-					</Group>
-				</Stack>
-
-				<Divider />
-
-				{/* Reply Form - Only show when replying to thread (replyTo=thread) */}
-				{replyTo === "thread" && (
-					<ReplyFormWrapper
-						moduleLinkId={moduleLinkId}
-						threadId={threadId}
-						replyTo={null}
-						onCancel={() => {
-							setReplyTo(null);
-						}}
-					/>
-				)}
-
-				{/* Replies */}
-				<Stack gap="md">
-					<Title order={4}>
-						{replies.length} {replies.length === 1 ? "Reply" : "Replies"}
-					</Title>
-					{replies
-						.filter((r) => r.parentId === null)
-						.map((reply) => (
-							<ReplyCardWithUpvote
-								key={reply.id}
-								reply={reply}
-								allReplies={replies}
-								moduleLinkId={moduleLinkId}
-								threadId={threadId}
-								courseId={courseId}
-								onReply={(id) => {
-									setReplyTo(id);
-								}}
-								level={0}
-								replyTo={replyTo}
-								onCancelReply={() => {
-									setReplyTo(null);
-								}}
-							/>
-						))}
-				</Stack>
-			</Stack>
-		</Paper>
-	);
-}
-
-// ReplyCard wrapper that includes upvote button
-interface ReplyCardWithUpvoteProps {
-	reply: DiscussionReply;
-	allReplies: DiscussionReply[];
-	moduleLinkId: number;
-	threadId: string;
-	courseId: number;
-	onReply: (id: string) => void;
-	level: number;
-	replyTo?: string | null;
-	onCancelReply?: () => void;
-}
-
-function ReplyCardWithUpvote({
-	reply,
-	allReplies,
-	moduleLinkId,
-	threadId,
-	courseId,
-	onReply,
-	level,
-	replyTo,
-	onCancelReply,
-}: ReplyCardWithUpvoteProps) {
-	const [opened, { toggle }] = useDisclosure(false);
-	const [replyContent, setReplyContent] = useState("");
-	const { createReply, isSubmitting, data } = useCreateReply(moduleLinkId);
-	const revalidator = useRevalidator();
-	const nestedReplies = allReplies.filter((r) => r.parentId === reply.id);
-
-	// Revalidate when reply is successfully submitted
-	useEffect(() => {
-		if (data && "status" in data && data.status === StatusCode.Ok) {
-			revalidator.revalidate();
-		}
-	}, [data, revalidator]);
-
-	// Count total nested replies recursively
-	const countNestedReplies = (replyId: string): number => {
-		const directReplies = allReplies.filter((r) => r.parentId === replyId);
-		return directReplies.reduce(
-			(count, r) => count + 1 + countNestedReplies(r.id),
-			0,
-		);
-	};
-
-	const totalNestedCount = countNestedReplies(reply.id);
-	const isReplyingToThis = replyTo === reply.id;
-
-	const handleReplySubmit = () => {
-		if (replyContent.trim()) {
-			const threadIdNum = Number.parseInt(threadId, 10);
-			if (!Number.isNaN(threadIdNum)) {
-				createReply(replyContent.trim(), threadIdNum, reply.id);
-				setReplyContent("");
-				if (onCancelReply) {
-					onCancelReply();
-				}
-			}
-		}
-	};
-
-	return (
-		<Box
-			style={{
-				marginLeft: level > 0 ? 6 : 0,
-				borderLeft:
-					level > 0 ? "2px solid var(--mantine-color-gray-3)" : undefined,
-				paddingLeft: level > 0 ? 12 : 0,
-			}}
-		>
-			<Paper withBorder p="md" radius="sm">
-				<Stack gap="sm">
-					<Group justify="space-between" align="flex-start">
-						<Group gap="xs">
-							<Link
-								to={
-									courseId && reply.authorId
-										? href("/course/:courseId/participants/profile", {
-											courseId: String(courseId),
-										}) + `?userId=${reply.authorId}`
-										: "#"
-								}
-								style={{ textDecoration: "none", color: "inherit" }}
-							>
-								<Group gap="xs">
-									<Avatar size="sm" radius="xl">
-										{reply.authorAvatar}
-									</Avatar>
-									<Stack gap={0}>
-										<Text size="sm" fw={500} style={{ cursor: "pointer" }}>
-											{reply.author}
-										</Text>
-									</Stack>
-								</Group>
-							</Link>
-							<Text size="xs" c="dimmed">
-								{dayjs(reply.publishedAt).fromNow()}
-							</Text>
-						</Group>
-
-						<ReplyUpvoteButton
-							reply={reply}
-							moduleLinkId={moduleLinkId}
-							threadId={threadId}
-						/>
-					</Group>
-
-					<Typography
-						className="tiptap"
-						// biome-ignore lint/security/noDangerouslySetInnerHtml: Content is from trusted CMS source
-						dangerouslySetInnerHTML={{ __html: reply.content }}
-						style={{ fontSize: "0.875rem", lineHeight: "1.6" }}
-					/>
-
-					<Group>
-						<Button variant="subtle" size="xs" onClick={() => onReply(reply.id)}>
-							Reply
-						</Button>
-						{totalNestedCount > 0 && (
-							<Button
-								variant="subtle"
-								size="xs"
-								onClick={toggle}
-								leftSection={
-									opened ? (
-										<IconChevronUp size={14} />
-									) : (
-										<IconChevronDown size={14} />
-									)
-								}
-							>
-								{opened
-									? "Hide replies"
-									: `Show ${totalNestedCount} ${totalNestedCount === 1 ? "reply" : "replies"}`}
-							</Button>
-						)}
-					</Group>
-				</Stack>
-			</Paper>
-
-			{/* Inline Reply Form */}
-			{isReplyingToThis && (
-				<Paper withBorder p="md" radius="sm" bg="gray.0" mt="sm">
-					<Stack gap="md">
-						<Text size="sm" fw={500}>
-							Replying to {reply.author}...
-						</Text>
-						<SimpleRichTextEditor
-							content={replyContent}
-							onChange={setReplyContent}
-							placeholder="Write your reply..."
-							readonly={isSubmitting}
-						/>
-						<Group justify="flex-end">
-							<Button
-								variant="default"
-								onClick={() => {
-									setReplyContent("");
-									if (onCancelReply) {
-										onCancelReply();
-									}
-								}}
-								disabled={isSubmitting}
-							>
-								Cancel
-							</Button>
-							<Button onClick={handleReplySubmit} loading={isSubmitting}>
-								Post Reply
-							</Button>
-						</Group>
-					</Stack>
-				</Paper>
-			)}
-
-			{/* Nested Replies */}
-			{nestedReplies.length > 0 && (
-				<Collapse in={opened}>
-					<Stack gap="sm" mt="sm">
-						{nestedReplies.map((nestedReply) => (
-							<ReplyCardWithUpvote
-								key={nestedReply.id}
-								reply={nestedReply}
-								allReplies={allReplies}
-								moduleLinkId={moduleLinkId}
-								threadId={threadId}
-								courseId={courseId}
-								onReply={onReply}
-								level={level + 1}
-								replyTo={replyTo}
-								onCancelReply={onCancelReply}
-							/>
-						))}
-					</Stack>
-				</Collapse>
-			)}
-		</Box>
-	);
-}
-
-// Main Discussion Thread View Router
-interface DiscussionThreadViewProps {
-	discussion: DiscussionData | null;
-	threads: DiscussionThread[];
-	thread: DiscussionThread | null;
-	replies: DiscussionReply[];
-	moduleLinkId: number;
-	courseId: number;
-}
-
-function DiscussionThreadView({
-	discussion,
-	threads,
-	thread,
-	replies,
-	moduleLinkId,
-	courseId,
-}: DiscussionThreadViewProps) {
-	const [threadId, setThreadId] = useQueryState(
-		"threadId",
-		parseAsString.withOptions({ shallow: false }),
-	);
-	const [, setReplyTo] = useQueryState("replyTo");
-
-	// Fallback: if threadId is set but thread is not provided, try to find it from threads list
-	const selectedThread =
-		thread ||
-		(threadId ? threads.find((t) => t.id === threadId) || null : null);
-
-	if (!discussion) {
-		return (
-			<Paper withBorder p="xl" radius="md">
-				<Stack gap="md">
-					<Title order={3}>Discussion Preview</Title>
-					<Text c="dimmed">No discussion data available.</Text>
-				</Stack>
-			</Paper>
-		);
-	}
-
-	// Show thread detail view
-	if (threadId && selectedThread) {
-		return (
-			<DiscussionThreadDetailView
-				thread={selectedThread}
-				replies={replies}
-				discussion={discussion}
-				moduleLinkId={moduleLinkId}
-				threadId={threadId}
-				courseId={courseId}
-				onBack={() => {
-					setThreadId(null);
-					setReplyTo(null);
-				}}
-			/>
-		);
-	}
-
-	// Show thread list view
-	return (
-		<DiscussionThreadListView
-			threads={threads}
-			discussion={discussion}
-			moduleLinkId={moduleLinkId}
-			courseId={courseId}
-			onThreadClick={(id) => setThreadId(id)}
-		/>
-	);
-}
-
-// Component to display module dates/times
-function ModuleDatesInfo({
-	moduleSettings,
-}: {
-	moduleSettings: Route.ComponentProps["loaderData"]["formattedModuleSettings"];
-}) {
-	if (!moduleSettings || moduleSettings.dates.length === 0) return null;
-
-	return (
-		<Paper withBorder p="md" radius="md">
-			<Stack gap="sm">
-				<Group gap="xs">
-					<IconInfoCircle size={20} />
-					<Title order={5}>Important Dates</Title>
-				</Group>
-
-				<Stack gap="xs">
-					{moduleSettings.dates.map((dateInfo) => (
-						<Group gap="xs" key={dateInfo.label}>
-							{dateInfo.label.includes("Opens") ||
-								dateInfo.label.includes("Available") ? (
-								<IconCalendar size={16} />
-							) : (
-								<IconClock size={16} />
-							)}
-							<Text
-								size="sm"
-								fw={500}
-								c={dateInfo.isOverdue ? "red" : undefined}
-							>
-								{dateInfo.label}:
-							</Text>
-							<Text size="sm" c={dateInfo.isOverdue ? "red" : undefined}>
-								{dateInfo.value}
-								{dateInfo.isOverdue &&
-									(dateInfo.label.includes("Closes") ||
-										dateInfo.label.includes("deadline")
-										? " (Closed)"
-										: " (Overdue)")}
-							</Text>
-						</Group>
-					))}
-				</Stack>
-			</Stack>
-		</Paper>
-	);
-}
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	const {

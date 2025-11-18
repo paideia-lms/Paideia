@@ -59,7 +59,7 @@ export const routes = [
 			layout("layouts/course-content-layout.tsx", [
 				route("course/:courseId", "routes/course.$id.tsx"),
 				layout("layouts/course-module-layout.tsx", [
-					route("course/module/:moduleLinkId", "routes/course/module.$id.tsx"),
+					route("course/module/:moduleLinkId", "routes/course/module.$id/route.tsx"),
 					route("course/module/:moduleLinkId/edit", "routes/course/module.$id.edit.tsx"),
 					route(
 						"course/module/:moduleLinkId/submissions",
