@@ -10,13 +10,14 @@ import {
 } from "@remix-run/form-data-parser";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { useQueryState, parseAsString } from "nuqs";
+import { parseAsString, useQueryState } from "nuqs";
 import prettyBytes from "pretty-bytes";
-import { href, redirect, useFetcher, Link, useRevalidator } from "react-router";
 import { useEffect } from "react";
+import { href, Link, redirect, useFetcher, useRevalidator } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import {
 	courseModuleContextKey,
+	type DiscussionThread,
 	tryGetDiscussionThreadWithReplies,
 } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -41,17 +42,18 @@ import {
 	tryStartQuizAttempt,
 	trySubmitQuiz,
 } from "server/internal/quiz-submission-management";
+import type { QuizAnswers } from "server/json/raw-quiz-config.types.v2";
 import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
 import {
-	canSubmitAssignment,
 	canParticipateInDiscussion,
+	canSubmitAssignment,
 } from "server/utils/permissions";
 import z from "zod";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
+import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizInstructionsView } from "~/components/activity-modules-preview/quiz-instructions-view";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
-import type { QuizAnswers } from "server/json/raw-quiz-config.types.v2";
 import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
 import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
@@ -69,14 +71,13 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import type { Route } from "./+types/route";
+import { DiscussionThreadView } from "./components/discussion-thread-view";
+import { ModuleDatesInfo } from "./components/module-dates-info";
 import {
 	loadSearchParams,
 	transformQuizAnswersToSubmissionFormat,
 } from "./utils";
-import { ModuleDatesInfo } from "./components/module-dates-info";
-import { DiscussionThreadView } from "./components/discussion-thread-view";
-import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
-import type { Route } from "./+types/route";
 
 export const loader = async ({
 	context,
@@ -109,12 +110,21 @@ export const loader = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check permissions
-	if (!courseModuleContext.canSubmit && action === AssignmentActions.EDIT_SUBMISSION) {
+	if (
+		!courseModuleContext.canSubmit &&
+		action === AssignmentActions.EDIT_SUBMISSION
+	) {
 		throw new ForbiddenResponse("You cannot edit submissions");
 	}
 
+	// Extract submissions data from discriminated union
+	const { submissions: moduleSubmissions } = courseModuleContext;
+
 	// If this is an assignment module and user cannot submit, they can't see submissions
-	if (courseModuleContext.module.type === "assignment" && !courseModuleContext.canSubmit) {
+	if (
+		courseModuleContext.module.type === "assignment" &&
+		!courseModuleContext.canSubmit
+	) {
 		return {
 			module: courseModuleContext.module,
 			moduleSettings: courseModuleContext.moduleLinkSettings,
@@ -126,17 +136,20 @@ export const loader = async ({
 			userSubmissions: [],
 			moduleLinkId: courseModuleContext.moduleLinkId,
 			canSubmit: false,
-			discussionThreads: courseModuleContext.discussionThreads,
+			discussionThreads:
+				moduleSubmissions.type === "discussion"
+					? moduleSubmissions.threads
+					: [],
 			discussionThread: null,
 			discussionReplies: [],
 		};
 	}
 
 	// Fetch discussion replies if threadId is provided (threadId-dependent, so stays in loader)
-	let discussionThread: typeof courseModuleContext.discussionThreads[0] | null = null;
+	let discussionThread: DiscussionThread | null = null;
 	let discussionReplies: DiscussionReply[] = [];
 
-	if (courseModuleContext.module.type === "discussion" && threadId) {
+	if (moduleSubmissions.type === "discussion" && threadId) {
 		const payload = context.get(globalContextKey)?.payload;
 		if (!payload) {
 			throw new ForbiddenResponse("Payload not available");
@@ -145,7 +158,9 @@ export const loader = async ({
 		const threadIdNum = Number.parseInt(threadId, 10);
 		if (!Number.isNaN(threadIdNum)) {
 			// Find the thread from context
-			const foundThread = courseModuleContext.discussionThreads.find((t) => t.id === threadId);
+			const foundThread = moduleSubmissions.threads.find(
+				(t) => t.id === threadId,
+			);
 			if (foundThread) {
 				discussionThread = foundThread;
 
@@ -156,12 +171,12 @@ export const loader = async ({
 					Number(moduleLinkId),
 					currentUser
 						? {
-							...currentUser,
-							avatar:
-								currentUser.avatar && typeof currentUser.avatar === "object"
-									? currentUser.avatar.id
-									: currentUser.avatar,
-						}
+								...currentUser,
+								avatar:
+									currentUser.avatar && typeof currentUser.avatar === "object"
+										? currentUser.avatar.id
+										: currentUser.avatar,
+							}
 						: null,
 				);
 
@@ -172,6 +187,20 @@ export const loader = async ({
 		}
 	}
 
+	// Extract values from discriminated union based on module type
+	const userSubmission =
+		moduleSubmissions.type === "assignment" || moduleSubmissions.type === "quiz"
+			? moduleSubmissions.userSubmission
+			: null;
+	const userSubmissions =
+		moduleSubmissions.type === "assignment" ||
+		moduleSubmissions.type === "quiz" ||
+		moduleSubmissions.type === "discussion"
+			? moduleSubmissions.userSubmissions
+			: [];
+	const discussionThreads =
+		moduleSubmissions.type === "discussion" ? moduleSubmissions.threads : [];
+
 	return {
 		module: courseModuleContext.module,
 		moduleSettings: courseModuleContext.moduleLinkSettings,
@@ -179,11 +208,11 @@ export const loader = async ({
 		course: courseContext.course,
 		previousModule: courseModuleContext.previousModule,
 		nextModule: courseModuleContext.nextModule,
-		userSubmission: courseModuleContext.userSubmission,
-		userSubmissions: courseModuleContext.userSubmissions,
+		userSubmission,
+		userSubmissions,
 		moduleLinkId: courseModuleContext.moduleLinkId,
 		canSubmit: courseModuleContext.canSubmit,
-		discussionThreads: courseModuleContext.discussionThreads,
+		discussionThreads,
 		discussionThread,
 		discussionReplies,
 	};
@@ -217,7 +246,8 @@ export const action = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if this is a quiz action
-	const { action: actionParam, replyTo: replyToParam } = loadSearchParams(request);
+	const { action: actionParam, replyTo: replyToParam } =
+		loadSearchParams(request);
 	const isQuizStart =
 		courseModuleContext.module.type === "quiz" &&
 		actionParam === QuizActions.START_ATTEMPT;
@@ -241,8 +271,7 @@ export const action = async ({
 		actionParam === DiscussionActions.REMOVE_UPVOTE_REPLY;
 	// Reply action is now determined by replyTo parameter instead of action=REPLY
 	const isReply =
-		courseModuleContext.module.type === "discussion" &&
-		replyToParam !== "";
+		courseModuleContext.module.type === "discussion" && replyToParam !== "";
 
 	// Handle discussion thread creation
 	if (isCreateThread) {
@@ -259,7 +288,9 @@ export const action = async ({
 		}
 
 		// Check if user can participate in discussions
-		const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
+		const canParticipate = canParticipateInDiscussion(
+			enrolmentContext.enrolment,
+		);
 		if (!canParticipate.allowed) {
 			throw new ForbiddenResponse(canParticipate.reason);
 		}
@@ -279,8 +310,9 @@ export const action = async ({
 
 		// Redirect to remove action parameter and show the new thread
 		return redirect(
-			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }) +
-			`?threadId=${createResult.value.id}`,
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}) + `?threadId=${createResult.value.id}`,
 		);
 	}
 
@@ -330,15 +362,17 @@ export const action = async ({
 			return badRequest({ error: "Invalid submission ID" });
 		}
 
-		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(payload, {
-			submissionId,
-			userId: currentUser.id,
-		});
+		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(
+			payload,
+			{
+				submissionId,
+				userId: currentUser.id,
+			},
+		);
 
 		if (!removeUpvoteResult.ok) {
 			return badRequest({ error: removeUpvoteResult.error.message });
 		}
-
 
 		return ok({ success: true, message: "Thread upvote removed successfully" });
 	}
@@ -394,10 +428,13 @@ export const action = async ({
 			return badRequest({ error: "Invalid submission ID" });
 		}
 
-		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(payload, {
-			submissionId,
-			userId: currentUser.id,
-		});
+		const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(
+			payload,
+			{
+				submissionId,
+				userId: currentUser.id,
+			},
+		);
 
 		if (!removeUpvoteResult.ok) {
 			return badRequest({ error: removeUpvoteResult.error.message });
@@ -406,7 +443,9 @@ export const action = async ({
 		// Redirect to refresh the page and show updated upvote count
 		const threadIdParam = formData.get("threadId");
 		if (!threadIdParam || typeof threadIdParam !== "string") {
-			return badRequest({ error: "Thread ID is required for reply upvote removal" });
+			return badRequest({
+				error: "Thread ID is required for reply upvote removal",
+			});
 		}
 		return ok({ success: true, message: "Reply upvote removed successfully" });
 	}
@@ -416,7 +455,6 @@ export const action = async ({
 		const formData = await request.formData();
 		const content = formData.get("content");
 		const parentThreadParam = formData.get("parentThread");
-
 
 		if (!content || typeof content !== "string" || content.trim() === "") {
 			return badRequest({ error: "Reply content is required" });
@@ -435,7 +473,9 @@ export const action = async ({
 		}
 
 		// Check if user can participate in discussions
-		const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
+		const canParticipate = canParticipateInDiscussion(
+			enrolmentContext.enrolment,
+		);
 		if (!canParticipate.allowed) {
 			throw new ForbiddenResponse(canParticipate.reason);
 		}
@@ -469,7 +509,14 @@ export const action = async ({
 		}
 
 		// Redirect to the thread detail view
-		return ok({ success: true, message: "Reply created successfully", redirectTo: href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }) + `?threadId=${parentThreadId}` });
+		return ok({
+			success: true,
+			message: "Reply created successfully",
+			redirectTo:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?threadId=${parentThreadId}`,
+		});
 	}
 
 	// Only students can submit assignments or start quizzes
@@ -497,21 +544,23 @@ export const action = async ({
 		}
 
 		// Parse answers if provided
-		let answers: Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}> | undefined;
+		let answers:
+			| Array<{
+					questionId: string;
+					questionText: string;
+					questionType:
+						| "multiple_choice"
+						| "true_false"
+						| "short_answer"
+						| "essay"
+						| "fill_blank";
+					selectedAnswer?: string;
+					multipleChoiceAnswers?: Array<{
+						option: string;
+						isSelected: boolean;
+					}>;
+			  }>
+			| undefined;
 
 		if (answersJson && typeof answersJson === "string") {
 			try {
@@ -551,7 +600,9 @@ export const action = async ({
 
 		// Redirect to remove showQuiz parameter and show instructions view
 		return redirect(
-			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }),
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
 		);
 	}
 
@@ -706,19 +757,23 @@ export const action = async ({
 		}));
 
 		// Find existing draft submission
-		const existingDraftSubmission = courseModuleContext.submissions.find(
-			(sub) =>
-				"student" in sub &&
-				sub.student.id === currentUser.id &&
-				sub.status === "draft",
-		);
+		// Type guard: ensure we're working with assignment submissions
+		if (courseModuleContext.submissions.type !== "assignment") {
+			await payload.db.rollbackTransaction(transactionID);
+			return badRequest({
+				error: "This action is only available for assignment modules",
+			});
+		}
+
+		const existingDraftSubmission =
+			courseModuleContext.submissions.submissions.find(
+				(sub) => sub.student.id === currentUser.id && sub.status === "draft",
+			);
 
 		// Calculate next attempt number
-		const userSubmissions = courseModuleContext.submissions.filter(
+		const userSubmissions = courseModuleContext.submissions.submissions.filter(
 			(sub): sub is typeof sub & { attemptNumber: unknown } =>
-				"student" in sub &&
-				sub.student.id === currentUser.id &&
-				"attemptNumber" in sub,
+				sub.student.id === currentUser.id && "attemptNumber" in sub,
 		);
 		const maxAttemptNumber =
 			userSubmissions.length > 0
@@ -802,7 +857,9 @@ export const action = async ({
 		await payload.db.commitTransaction(transactionID);
 
 		return redirect(
-			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }),
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(moduleLinkId),
+			}),
 		);
 	} catch (error) {
 		await payload.db.rollbackTransaction(transactionID);
@@ -851,7 +908,11 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: actionData.message,
 			color: "green",
 		});
-		if ("redirectTo" in actionData && typeof actionData.redirectTo === "string" && actionData.redirectTo) {
+		if (
+			"redirectTo" in actionData &&
+			typeof actionData.redirectTo === "string" &&
+			actionData.redirectTo
+		) {
 			return redirect(actionData.redirectTo);
 		}
 	}
@@ -892,9 +953,10 @@ export const useStartQuizAttempt = (moduleLinkId: number) => {
 		const formData = new FormData();
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${QuizActions.START_ATTEMPT}`,
+			action:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?action=${QuizActions.START_ATTEMPT}`,
 		});
 	};
 
@@ -915,11 +977,11 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -937,9 +999,10 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${QuizActions.SUBMIT_QUIZ}`,
+			action:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?action=${QuizActions.SUBMIT_QUIZ}`,
 		});
 	};
 
@@ -961,9 +1024,10 @@ export const useCreateThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${DiscussionActions.CREATE_THREAD}`,
+			action:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?action=${DiscussionActions.CREATE_THREAD}`,
 		});
 	};
 
@@ -989,9 +1053,10 @@ export const useUpvoteThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${DiscussionActions.UPVOTE_THREAD}`,
+			action:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?action=${DiscussionActions.UPVOTE_THREAD}`,
 		});
 	};
 
@@ -1023,9 +1088,10 @@ export const useRemoveUpvoteThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${DiscussionActions.REMOVE_UPVOTE_THREAD}`,
+			action:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?action=${DiscussionActions.REMOVE_UPVOTE_THREAD}`,
 		});
 	};
 
@@ -1055,9 +1121,10 @@ export const useUpvoteReply = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${DiscussionActions.UPVOTE_REPLY}`,
+			action:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?action=${DiscussionActions.UPVOTE_REPLY}`,
 		});
 	};
 
@@ -1080,18 +1147,22 @@ export const useRemoveUpvoteReply = (moduleLinkId: number) => {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const removeUpvoteReply = (submissionId: number, threadId: string) => {
-		fetcher.submit({
-			submissionId,
-			threadId,
-			intent: DiscussionActions.REMOVE_UPVOTE_REPLY,
-			moduleLinkId: moduleLinkId,
-		}, {
-			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?action=${DiscussionActions.REMOVE_UPVOTE_REPLY}`,
-			encType: ContentType.JSON,
-		});
+		fetcher.submit(
+			{
+				submissionId,
+				threadId,
+				intent: DiscussionActions.REMOVE_UPVOTE_REPLY,
+				moduleLinkId: moduleLinkId,
+			},
+			{
+				method: "POST",
+				action:
+					href("/course/module/:moduleLinkId", {
+						moduleLinkId: String(moduleLinkId),
+					}) + `?action=${DiscussionActions.REMOVE_UPVOTE_REPLY}`,
+				encType: ContentType.JSON,
+			},
+		);
 	};
 
 	return {
@@ -1123,9 +1194,10 @@ export const useCreateReply = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}) + `?replyTo=${replyToParam}`,
+			action:
+				href("/course/module/:moduleLinkId", {
+					moduleLinkId: String(moduleLinkId),
+				}) + `?replyTo=${replyToParam}`,
 		});
 	};
 
@@ -1136,7 +1208,6 @@ export const useCreateReply = (moduleLinkId: number) => {
 		data: fetcher.data,
 	};
 };
-
 
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
@@ -1157,10 +1228,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	const { submitAssignment, isSubmitting } = useSubmitAssignment();
 	const { startQuizAttempt } = useStartQuizAttempt(loaderData.moduleLinkId);
 	const { submitQuiz } = useSubmitQuiz(loaderData.moduleLinkId);
-	const [showQuiz] = useQueryState(
-		"showQuiz",
-		parseAsString.withDefault(""),
-	);
+	const [showQuiz] = useQueryState("showQuiz", parseAsString.withDefault(""));
 
 	// Handle different module types
 	const renderModuleContent = () => {
@@ -1180,34 +1248,34 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				// Type guard to ensure we have an assignment submission
 				const assignmentSubmission =
 					userSubmission &&
-						"content" in userSubmission &&
-						"attachments" in userSubmission
+					"content" in userSubmission &&
+					"attachments" in userSubmission
 						? {
-							id: userSubmission.id,
-							status: userSubmission.status as
-								| "draft"
-								| "submitted"
-								| "graded"
-								| "returned",
-							content: (userSubmission.content as string) || null,
-							attachments: userSubmission.attachments
-								? userSubmission.attachments.map((att) => ({
-									file:
-										typeof att.file === "object" &&
-											att.file !== null &&
-											"id" in att.file
-											? att.file.id
-											: Number(att.file),
-									description: att.description as string | undefined,
-								}))
-								: null,
-							submittedAt: ("submittedAt" in userSubmission
-								? userSubmission.submittedAt
-								: null) as string | null,
-							attemptNumber: ("attemptNumber" in userSubmission
-								? userSubmission.attemptNumber
-								: 1) as number,
-						}
+								id: userSubmission.id,
+								status: userSubmission.status as
+									| "draft"
+									| "submitted"
+									| "graded"
+									| "returned",
+								content: (userSubmission.content as string) || null,
+								attachments: userSubmission.attachments
+									? userSubmission.attachments.map((att) => ({
+											file:
+												typeof att.file === "object" &&
+												att.file !== null &&
+												"id" in att.file
+													? att.file.id
+													: Number(att.file),
+											description: att.description as string | undefined,
+										}))
+									: null,
+								submittedAt: ("submittedAt" in userSubmission
+									? userSubmission.submittedAt
+									: null) as string | null,
+								attemptNumber: ("attemptNumber" in userSubmission
+									? userSubmission.attemptNumber
+									: 1) as number,
+							}
 						: null;
 
 				// Map all submissions for display - filter assignment submissions only
@@ -1231,9 +1299,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						attachments:
 							"attachments" in sub && sub.attachments
 								? (sub.attachments as Array<{
-									file: number | { id: number; filename: string };
-									description?: string;
-								}>)
+										file: number | { id: number; filename: string };
+										description?: string;
+									}>)
 								: null,
 					}));
 
@@ -1267,7 +1335,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 
 				// Filter quiz submissions
 				const quizSubmissions = userSubmissions.filter(
-					(sub): sub is typeof sub & { attemptNumber: unknown; status: unknown } =>
+					(
+						sub,
+					): sub is typeof sub & { attemptNumber: unknown; status: unknown } =>
 						"attemptNumber" in sub && "status" in sub,
 				);
 

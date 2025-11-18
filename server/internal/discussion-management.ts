@@ -450,8 +450,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Handle courseModuleLink - can be object or number
 				const courseModuleLinkId =
 					typeof item.courseModuleLink === "object" &&
-						item.courseModuleLink !== null &&
-						"id" in item.courseModuleLink
+					item.courseModuleLink !== null &&
+					"id" in item.courseModuleLink
 						? item.courseModuleLink.id
 						: typeof item.courseModuleLink === "number"
 							? item.courseModuleLink
@@ -484,8 +484,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Get parentThread ID
 				const parentThreadId =
 					typeof item.parentThread === "object" &&
-						item.parentThread !== null &&
-						"id" in item.parentThread
+					item.parentThread !== null &&
+					"id" in item.parentThread
 						? item.parentThread.id
 						: typeof item.parentThread === "number"
 							? item.parentThread
@@ -508,8 +508,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				id: number;
 				postType: "reply" | "comment";
 				content: string;
-				student: typeof allRepliesAndComments[number]["student"];
-				enrollment: typeof allRepliesAndComments[number]["enrollment"];
+				student: (typeof allRepliesAndComments)[number]["student"];
+				enrollment: (typeof allRepliesAndComments)[number]["enrollment"];
 				createdAt: string;
 				upvotes?: Array<{ user: number | { id: number }; upvotedAt: string }>;
 				parentThreadId: number | null;
@@ -543,8 +543,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				id: number;
 				postType: "reply" | "comment";
 				content: string;
-				student: typeof allRepliesAndComments[number]["student"];
-				enrollment: typeof allRepliesAndComments[number]["enrollment"];
+				student: (typeof allRepliesAndComments)[number]["student"];
+				enrollment: (typeof allRepliesAndComments)[number]["enrollment"];
 				createdAt: string;
 				upvotes?: Array<{ user: number | { id: number }; upvotedAt: string }>;
 				parentThreadId: number | null;
@@ -619,8 +619,12 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				.filter((item): item is NonNullable<typeof item> => item !== undefined);
 
 			// Count all replies and comments (including nested ones)
-			const allReplies = Array.from(itemMap.values()).filter((item) => item.postType === "reply");
-			const allComments = Array.from(itemMap.values()).filter((item) => item.postType === "comment");
+			const allReplies = Array.from(itemMap.values()).filter(
+				(item) => item.postType === "reply",
+			);
+			const allComments = Array.from(itemMap.values()).filter(
+				(item) => item.postType === "comment",
+			);
 
 			return {
 				thread,
@@ -896,87 +900,92 @@ export const tryListDiscussionSubmissions = Result.wrap(
 				break;
 		}
 
-		const result = await payload.find({
-			collection: "discussion-submissions",
-			where,
-			limit,
-			page,
-			sort,
-			depth: 1, // Fetch related data
-			pagination: false,
-			joins: {
-				replies: {
-					limit: MOCK_INFINITY,
-				}
-			},
-			user,
-			req,
-			overrideAccess,
-		}).then((result) => {
-			return result.docs.map(doc => {
-				assertZodInternal(
-					"tryListDiscussionSubmissions: Course module link is required",
-					doc.courseModuleLink,
-					z.object({
-						id: z.number(),
-					}),
-				);
-				assertZodInternal(
-					"tryListDiscussionSubmissions: Student is required",
-					doc.student,
-					z.object({
-						id: z.number(),
-					}),
-				);
-				assertZodInternal(
-					"tryListDiscussionSubmissions: Enrollment is required",
-					doc.enrollment,
-					z.object({
-						id: z.number(),
-					}),
-				);
-				assertZodInternal(
-					"tryListDiscussionSubmissions: Parent thread should be object or null",
-					doc.parentThread,
-					z.object({
-						id: z.number(),
-					}).nullish(),
-				);
-
-				const replies = doc.replies?.docs?.map(r => {
+		const result = await payload
+			.find({
+				collection: "discussion-submissions",
+				where,
+				limit,
+				page,
+				sort,
+				depth: 1, // Fetch related data
+				pagination: false,
+				joins: {
+					replies: {
+						limit: MOCK_INFINITY,
+					},
+				},
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((result) => {
+				return result.docs.map((doc) => {
 					assertZodInternal(
-						"tryListDiscussionSubmissions: Reply should be object",
-						r,
+						"tryListDiscussionSubmissions: Course module link is required",
+						doc.courseModuleLink,
 						z.object({
 							id: z.number(),
 						}),
 					);
-					return r;
-				}) ?? [];
-				const attachments = doc.attachments?.map(a => {
 					assertZodInternal(
-						"tryListDiscussionSubmissions: Attachment should be object",
-						a.file,
-						z.number(),
+						"tryListDiscussionSubmissions: Student is required",
+						doc.student,
+						z.object({
+							id: z.number(),
+						}),
 					);
+					assertZodInternal(
+						"tryListDiscussionSubmissions: Enrollment is required",
+						doc.enrollment,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					assertZodInternal(
+						"tryListDiscussionSubmissions: Parent thread should be object or null",
+						doc.parentThread,
+						z
+							.object({
+								id: z.number(),
+							})
+							.nullish(),
+					);
+
+					const replies =
+						doc.replies?.docs?.map((r) => {
+							assertZodInternal(
+								"tryListDiscussionSubmissions: Reply should be object",
+								r,
+								z.object({
+									id: z.number(),
+								}),
+							);
+							return r;
+						}) ?? [];
+					const attachments =
+						doc.attachments?.map((a) => {
+							assertZodInternal(
+								"tryListDiscussionSubmissions: Attachment should be object",
+								a.file,
+								z.number(),
+							);
+							return {
+								...a,
+								file: a.file,
+							};
+						}) ?? [];
+
 					return {
-						...a,
-						file: a.file,
+						...doc,
+						courseModuleLink: doc.courseModuleLink,
+						student: doc.student,
+						enrollment: doc.enrollment,
+						parentThread: doc.parentThread,
+						replies,
+						attachments,
 					};
-				}) ?? []
-
-				return {
-					...doc,
-					courseModuleLink: doc.courseModuleLink,
-					student: doc.student,
-					enrollment: doc.enrollment,
-					parentThread: doc.parentThread,
-					replies,
-					attachments
-				}
-			})
-
-		})
+				});
+			});
 
 		return result;
 	},

@@ -110,8 +110,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-			filenameOrId: thumbnailFileNameOrId,
-		})
+				filenameOrId: thumbnailFileNameOrId,
+			})
 		: null;
 
 	return {
@@ -161,9 +161,6 @@ export const action = async ({
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-
-
-
 
 	// Get user's enrollment for this course
 	const enrollments = await payload.find({
@@ -422,7 +419,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			if (actionData.redirectTo) {
 				throw redirect(actionData.redirectTo);
 			}
-			throw redirect(href("/course/:courseId", { courseId: String(actionData.id) }));
+			throw redirect(
+				href("/course/:courseId", { courseId: String(actionData.id) }),
+			);
 		}
 	} else if ("error" in actionData) {
 		notifications.show({
@@ -439,7 +438,9 @@ export function useEditCourse() {
 	const editCourse = async (courseId: number, formData: FormData) => {
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/:courseId/settings", { courseId: String(courseId) }),
+			action: href("/course/:courseId/settings", {
+				courseId: String(courseId),
+			}),
 			encType: "multipart/form-data",
 		});
 	};

@@ -73,15 +73,24 @@ export default function CourseSectionLayout({
 
 		switch (value) {
 			case SectionTab.Section:
-				navigate(href("/course/section/:sectionId", { sectionId: String(sectionId) }));
+				navigate(
+					href("/course/section/:sectionId", { sectionId: String(sectionId) }),
+				);
 				break;
 			case SectionTab.Setting:
-				navigate(href("/course/section/:sectionId/edit", { sectionId: String(sectionId) }));
+				navigate(
+					href("/course/section/:sectionId/edit", {
+						sectionId: String(sectionId),
+					}),
+				);
 				break;
 		}
 	};
 
-	const canSeeSetting = canSeeCourseSectionSettings(currentUser, enrolment).allowed;
+	const canSeeSetting = canSeeCourseSectionSettings(
+		currentUser,
+		enrolment,
+	).allowed;
 
 	return (
 		<div>

@@ -39,7 +39,9 @@ export function useCreateModuleLink() {
 			{ intent: "create", activityModuleId, ...(sectionId && { sectionId }) },
 			{
 				method: "post",
-				action: href("/course/:courseId/modules", { courseId: courseId.toString() }),
+				action: href("/course/:courseId/modules", {
+					courseId: courseId.toString(),
+				}),
 				encType: ContentType.JSON,
 			},
 		);
@@ -63,7 +65,9 @@ export function useDeleteModuleLink() {
 			{ intent: "delete", linkId, ...(redirectTo && { redirectTo }) },
 			{
 				method: "post",
-				action: href("/course/:courseId/modules", { courseId: courseId.toString() }),
+				action: href("/course/:courseId/modules", {
+					courseId: courseId.toString(),
+				}),
 				encType: ContentType.JSON,
 			},
 		);
@@ -102,10 +106,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				userId: enrolmentContext.enrolment.userId,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					userId: enrolmentContext.enrolment.userId,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -187,10 +191,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				userId: enrollment.user as number,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					userId: enrollment.user as number,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 

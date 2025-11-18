@@ -549,7 +549,9 @@ describe("Discussion Management - Full Workflow", () => {
 		const threadsData = result.value;
 
 		// Find the thread we created
-		const threadData = threadsData.threads.find((t) => t.thread.id === threadId);
+		const threadData = threadsData.threads.find(
+			(t) => t.thread.id === threadId,
+		);
 		expect(threadData).toBeDefined();
 		if (!threadData) return;
 
@@ -666,7 +668,9 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(threadsData.threads.length).toBeGreaterThan(0);
 
 		// Find the thread we created
-		const threadData = threadsData.threads.find((t) => t.thread.id === threadId);
+		const threadData = threadsData.threads.find(
+			(t) => t.thread.id === threadId,
+		);
 		expect(threadData).toBeDefined();
 		if (!threadData) return;
 
@@ -684,7 +688,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Verify comments exist (they should be nested in replies or as top-level items)
 		// Comments are now part of the replies structure, so we need to check all replies recursively
-		type NestedReply = typeof threadData.replies[number];
+		type NestedReply = (typeof threadData.replies)[number];
 		const getAllContents = (replies: NestedReply[]): string[] => {
 			const contents: string[] = [];
 			for (const reply of replies) {
@@ -1004,7 +1008,8 @@ describe("Discussion Management - Full Workflow", () => {
 			overrideAccess: true,
 		};
 
-		const threadGradeResult = await tryGradeDiscussionSubmission(threadGradeArgs);
+		const threadGradeResult =
+			await tryGradeDiscussionSubmission(threadGradeArgs);
 		expect(threadGradeResult.ok).toBe(true);
 
 		// Create and grade a reply
@@ -1071,7 +1076,8 @@ describe("Discussion Management - Full Workflow", () => {
 			overrideAccess: true,
 		};
 
-		const commentGradeResult = await tryGradeDiscussionSubmission(commentGradeArgs);
+		const commentGradeResult =
+			await tryGradeDiscussionSubmission(commentGradeArgs);
 		expect(commentGradeResult.ok).toBe(true);
 
 		// Calculate the overall discussion grade

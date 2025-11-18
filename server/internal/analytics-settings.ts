@@ -28,8 +28,6 @@ export interface UpdateAnalyticsSettingsArgs {
 	overrideAccess?: boolean;
 }
 
-
-
 /**
  * Read analytics settings from the AnalyticsSettings global.
  * Falls back to sensible defaults when unset/partial.
@@ -81,4 +79,3 @@ export const tryUpdateAnalyticsSettings = Result.wrap(
 			cause: error,
 		}),
 );
-

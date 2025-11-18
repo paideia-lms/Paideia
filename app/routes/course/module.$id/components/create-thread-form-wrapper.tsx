@@ -2,26 +2,25 @@ import { CreateThreadForm } from "~/components/activity-modules-preview/discussi
 import { useCreateThread } from "../route";
 
 interface CreateThreadFormWrapperProps {
-    moduleLinkId: number;
-    onCancel: () => void;
+	moduleLinkId: number;
+	onCancel: () => void;
 }
 
 export function CreateThreadFormWrapper({
-    moduleLinkId,
-    onCancel,
+	moduleLinkId,
+	onCancel,
 }: CreateThreadFormWrapperProps) {
-    const { createThread, isCreating, fetcher } = useCreateThread(moduleLinkId);
+	const { createThread, isCreating, fetcher } = useCreateThread(moduleLinkId);
 
-    return (
-        <CreateThreadForm
-            onSubmit={(title, content) => {
-                console.log("Creating thread", title, content);
-                createThread(title, content);
-            }}
-            onCancel={onCancel}
-            isSubmitting={isCreating}
-            fetcher={fetcher}
-        />
-    );
+	return (
+		<CreateThreadForm
+			onSubmit={(title, content) => {
+				console.log("Creating thread", title, content);
+				createThread(title, content);
+			}}
+			onCancel={onCancel}
+			isSubmitting={isCreating}
+			fetcher={fetcher}
+		/>
+	);
 }
-

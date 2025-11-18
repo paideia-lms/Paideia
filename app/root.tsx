@@ -67,8 +67,8 @@ import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
-import { RootErrorBoundary } from "./components/root-mode-error-boundary";
 import { DevTool } from "./components/dev-tool";
+import { RootErrorBoundary } from "./components/root-mode-error-boundary";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
@@ -171,7 +171,8 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
-			else if (route.id === "routes/course/module.$id/route") isCourseModule = true;
+			else if (route.id === "routes/course/module.$id/route")
+				isCourseModule = true;
 			else if (route.id === "routes/course/module.$id.edit")
 				isCourseModuleEdit = true;
 			else if (route.id === "routes/course/module.$id.submissions")
@@ -228,7 +229,9 @@ export const middleware = [
 			else if (route.id === "routes/admin/media") isAdminMedia = true;
 			else if (route.id === ("routes/admin/appearance" as typeof route.id))
 				isAdminAppearance = true;
-			else if (route.id === ("routes/admin/appearance/theme" as typeof route.id))
+			else if (
+				route.id === ("routes/admin/appearance/theme" as typeof route.id)
+			)
 				isAdminTheme = true;
 			else if (route.id === ("routes/admin/analytics" as typeof route.id))
 				isAdminAnalytics = true;
@@ -334,20 +337,20 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-					color: "blue",
-					radius: "sm" as const,
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
+					maintenanceSettings: { maintenanceMode: false },
+					sitePolicies: {
+						userMediaStorageTotal: null,
+						siteUploadLimit: null,
+					},
+					appearanceSettings: {
+						additionalCssStylesheets: [],
+						color: "blue",
+						radius: "sm" as const,
+					},
+					analyticsSettings: {
+						additionalJsScripts: [],
+					},
+				};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -395,7 +398,8 @@ export const middleware = [
 			let { courseId } = params as RouteParams<"layouts/course-layout">;
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
-				const { moduleLinkId } = params as RouteParams<"layouts/course-module-layout">;
+				const { moduleLinkId } =
+					params as RouteParams<"layouts/course-module-layout">;
 				if (Number.isNaN(moduleLinkId)) return;
 
 				const moduleContext = await tryFindCourseActivityModuleLinkById(
@@ -413,7 +417,8 @@ export const middleware = [
 
 			// in course/section/id , we need to get the section first and then get the course id
 			if (pageInfo.isCourseSection || pageInfo.isCourseSectionEdit) {
-				const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
+				const { sectionId } =
+					params as RouteParams<"layouts/course-section-layout">;
 
 				if (Number.isNaN(sectionId)) return;
 
@@ -422,9 +427,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -460,11 +465,10 @@ export const middleware = [
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		// Check if we're in a course section layout
-		if (
-			pageInfo.isInCourseSectionLayout
-		) {
+		if (pageInfo.isInCourseSectionLayout) {
 			// Get section ID from params
-			const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
+			const { sectionId } =
+				params as RouteParams<"layouts/course-section-layout">;
 
 			if (Number.isNaN(sectionId)) return;
 
@@ -474,9 +478,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -536,9 +540,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -592,9 +596,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 					enrolmentContext?.enrolment ?? null,
 				);
@@ -663,10 +667,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const theme = currentUser?.theme ?? "light";
 
 	// Get theme settings from appearance settings
-	const primaryColor =
-		systemGlobals.appearanceSettings.color ?? "blue";
-	const defaultRadius =
-		systemGlobals.appearanceSettings.radius ?? "sm";
+	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
+	const defaultRadius = systemGlobals.appearanceSettings.radius ?? "sm";
 
 	// Check if we need to redirect to first-user creation
 	// Skip redirect check for essential routes
@@ -681,8 +683,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 			defaultRadius,
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
-			additionalJsScripts:
-				systemGlobals.analyticsSettings.additionalJsScripts,
+			additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		};
 	}
 
@@ -691,18 +692,21 @@ export async function loader({ context }: Route.LoaderArgs) {
 		throw redirect(href("/registration"));
 	}
 
-	const debugData = environment !== "development" ? null : {
-		userSession: userSession,
-		courseContext: context.get(courseContextKey),
-		courseModuleContext: context.get(courseModuleContextKey),
-		courseSectionContext: context.get(courseSectionContextKey),
-		enrolmentContext: context.get(enrolmentContextKey),
-		userModuleContext: context.get(userModuleContextKey),
-		userProfileContext: context.get(userProfileContextKey),
-		userAccessContext: context.get(userAccessContextKey),
-		userContext: context.get(userContextKey),
-		systemGlobals: systemGlobals,
-	}
+	const debugData =
+		environment !== "development"
+			? null
+			: {
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				};
 
 	return {
 		users: users,
@@ -715,8 +719,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 		defaultRadius,
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
-		additionalJsScripts:
-			systemGlobals.analyticsSettings.additionalJsScripts,
+		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		debugData: debugData,
 	};
 }
@@ -742,8 +745,11 @@ function ClientHintCheck() {
 	);
 }
 
-
-function AnalyticsScripts({ scripts }: { scripts: Route.ComponentProps["loaderData"]["additionalJsScripts"] }) {
+function AnalyticsScripts({
+	scripts,
+}: {
+	scripts: Route.ComponentProps["loaderData"]["additionalJsScripts"];
+}) {
 	return (
 		<>
 			{scripts.map((script, index) => {

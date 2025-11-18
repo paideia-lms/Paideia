@@ -174,7 +174,8 @@ export const useImpersonate = () => {
 };
 
 export default function ProfilePage({ loaderData }: Route.ComponentProps) {
-	const { user, enrollments, isOwnProfile, canEdit, canImpersonate } = loaderData;
+	const { user, enrollments, isOwnProfile, canEdit, canImpersonate } =
+		loaderData;
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const { impersonate, isLoading } = useImpersonate();
 

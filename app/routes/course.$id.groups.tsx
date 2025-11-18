@@ -148,8 +148,8 @@ export const action = async ({
 			currentUser,
 			enrollment
 				? {
-					role: enrollment.role,
-				}
+						role: enrollment.role,
+					}
 				: undefined,
 		).allowed
 	) {
@@ -235,7 +235,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export const useCreateGroup = () => {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createGroup = (name: string, description: string, parent: string, color: string, maxMembers: number) => {
+	const createGroup = (
+		name: string,
+		description: string,
+		parent: string,
+		color: string,
+		maxMembers: number,
+	) => {
 		fetcher.submit(
 			{
 				intent: "create-group",
@@ -312,14 +318,20 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 	const handleCreateGroup = () => {
 		if (!groupName) return;
 
-		createGroup(groupName, groupDescription, groupParent || "", groupColor, Number(groupMaxMembers));
+		createGroup(
+			groupName,
+			groupDescription,
+			groupParent || "",
+			groupColor,
+			Number(groupMaxMembers),
+		);
 		closeCreateModal();
 		setGroupName("");
 		setGroupDescription("");
 		setGroupParent(null);
 		setGroupColor("");
 		setGroupMaxMembers("");
-	}
+	};
 
 	const handleDeleteGroup = (groupId: number) => {
 		setDeletingGroupId(groupId);

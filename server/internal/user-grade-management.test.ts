@@ -1090,8 +1090,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-					userGrade.submission !== null &&
-					"value" in userGrade.submission
+						userGrade.submission !== null &&
+						"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id

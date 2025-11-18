@@ -293,7 +293,11 @@ export default function SectionNewPage({ loaderData }: Route.ComponentProps) {
 								<Button
 									variant="subtle"
 									onClick={() =>
-										navigate(href("/course/:courseId", { courseId: course.id.toString() }))
+										navigate(
+											href("/course/:courseId", {
+												courseId: course.id.toString(),
+											}),
+										)
 									}
 									disabled={isLoading}
 								>

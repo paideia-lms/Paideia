@@ -16,13 +16,12 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
-import { useEffect, useEffectEvent } from "react";
-import { useState } from "react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { href, Link, useNavigate } from "react-router";
-import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
 import { AttachmentViewer } from "~/components/attachment-viewer";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
+import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
 
 // ============================================================================
 // Types
@@ -41,23 +40,23 @@ export interface GradingViewProps {
 		content?: string | null;
 		submittedAt?: string | null;
 		student:
-		| {
-			id: number;
-			firstName?: string | null;
-			lastName?: string | null;
-			email?: string | null;
-		}
-		| number;
+			| {
+					id: number;
+					firstName?: string | null;
+					lastName?: string | null;
+					email?: string | null;
+			  }
+			| number;
 		attachments?: Array<{
 			file:
-			| number
-			| {
-				id: number;
-				filename?: string | null;
-				mimeType?: string | null;
-				filesize?: number | null;
-				url?: string | null;
-			};
+				| number
+				| {
+						id: number;
+						filename?: string | null;
+						mimeType?: string | null;
+						filesize?: number | null;
+						url?: string | null;
+				  };
 			description?: string | null;
 		}> | null;
 	};
@@ -83,12 +82,18 @@ export interface GradingViewProps {
 	} | null;
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
-	enrollment?: {
-		id: number;
-	} | number | null;
-	courseModuleLink?: {
-		id: number;
-	} | number | null;
+	enrollment?:
+		| {
+				id: number;
+		  }
+		| number
+		| null;
+	courseModuleLink?:
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 }
 
 // ============================================================================
@@ -138,7 +143,9 @@ export function GradingView({
 
 	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
 		const scoreValue =
-			typeof values.score === "number" ? values.score : Number.parseFloat(String(values.score));
+			typeof values.score === "number"
+				? values.score
+				: Number.parseFloat(String(values.score));
 		if (Number.isNaN(scoreValue)) {
 			notifications.show({
 				title: "Error",
@@ -184,7 +191,7 @@ export function GradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-			student.email
+				student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -276,12 +283,12 @@ export function GradingView({
 														typeof file === "object"
 															? file
 															: {
-																id: file,
-																filename: null,
-																mimeType: null,
-																filesize: null,
-																url: null,
-															};
+																	id: file,
+																	filename: null,
+																	mimeType: null,
+																	filesize: null,
+																	url: null,
+																};
 													const filename =
 														fileData.filename || `File ${fileData.id}`;
 													const isExpanded =

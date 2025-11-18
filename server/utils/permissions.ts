@@ -47,9 +47,7 @@ function isTeacherOrManager(enrolment?: {
 /**
  * Checks if an enrollment has teaching staff role (teacher, manager, or ta)
  */
-function isTeachingStaff(enrolment?: {
-	role?: Enrollment["role"];
-}): boolean {
+function isTeachingStaff(enrolment?: { role?: Enrollment["role"] }): boolean {
 	return (
 		enrolment?.role === "teacher" ||
 		enrolment?.role === "manager" ||
@@ -224,8 +222,7 @@ export function canManageCourseGroups(
 	},
 ): PermissionResult {
 	const allowed =
-		isAdminOrContentManager(user) ||
-		isTeacherOrManager(enrolment);
+		isAdminOrContentManager(user) || isTeacherOrManager(enrolment);
 
 	return {
 		allowed,
@@ -327,7 +324,8 @@ export function canEditCourse(
 		(enrolments?.some(
 			(enrollment) =>
 				enrollment.userId === user.id && isTeachingStaff(enrollment),
-		) ?? false);
+		) ??
+			false);
 
 	return {
 		allowed,
@@ -341,12 +339,10 @@ export function canEditCourse(
 // User/Profile Permissions
 // ============================================================================
 
-export function canSeeUserModules(
-	user?: {
-		id: number;
-		role?: User["role"];
-	},
-): PermissionResult {
+export function canSeeUserModules(user?: {
+	id: number;
+	role?: User["role"];
+}): PermissionResult {
 	if (!user) {
 		return {
 			allowed: false,
@@ -731,8 +727,7 @@ export function canSeeModuleSubmissions(
 		role?: Enrollment["role"];
 	},
 ): PermissionResult {
-	const allowed =
-		isTeachingStaff(enrolment) || isAdminOrContentManager(user);
+	const allowed = isTeachingStaff(enrolment) || isAdminOrContentManager(user);
 
 	return {
 		allowed,
@@ -742,9 +737,9 @@ export function canSeeModuleSubmissions(
 	};
 }
 
-export function canSubmitAssignment(
-	enrolment?: { role?: Enrollment["role"] },
-): PermissionResult {
+export function canSubmitAssignment(enrolment?: {
+	role?: Enrollment["role"];
+}): PermissionResult {
 	const allowed = enrolment?.role === "student";
 
 	return {
@@ -907,9 +902,9 @@ export function canDeleteSubmissions(
  * @param enrolment - The enrollment object with status field
  * @returns Permission result with allowed boolean and reason string
  */
-export function canParticipateInDiscussion(
-	enrolment?: { status?: Enrollment["status"] },
-): PermissionResult {
+export function canParticipateInDiscussion(enrolment?: {
+	status?: Enrollment["status"];
+}): PermissionResult {
 	if (!enrolment) {
 		return {
 			allowed: false,
@@ -920,7 +915,8 @@ export function canParticipateInDiscussion(
 	if (enrolment.status !== "active") {
 		return {
 			allowed: false,
-			reason: "Only users with active enrollment can participate in discussions",
+			reason:
+				"Only users with active enrollment can participate in discussions",
 		};
 	}
 

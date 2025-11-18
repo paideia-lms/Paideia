@@ -192,7 +192,9 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 							<Grid.Col key={course.id} span={{ base: 12, sm: 6, md: 4 }}>
 								<Card
 									component={Link}
-									to={href("/course/:courseId", { courseId: String(course.id) })}
+									to={href("/course/:courseId", {
+										courseId: String(course.id),
+									})}
 									shadow="sm"
 									padding="lg"
 									radius="md"

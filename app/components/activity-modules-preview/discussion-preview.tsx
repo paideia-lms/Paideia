@@ -31,9 +31,8 @@ import {
 } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useQueryState } from "nuqs";
-import { parseAsString } from "nuqs";
-import { useState, useMemo } from "react";
+import { parseAsString, useQueryState } from "nuqs";
+import { useMemo, useState } from "react";
 import type { useFetcher } from "react-router";
 import { href, Link } from "react-router";
 import { DiscussionActions } from "~/utils/module-actions";
@@ -55,13 +54,22 @@ interface AuthorInfoProps {
 	size?: "sm" | "md";
 }
 
-function AuthorInfo({ author, authorAvatar, authorId, courseId, size = "sm" }: AuthorInfoProps) {
+function AuthorInfo({
+	author,
+	authorAvatar,
+	authorId,
+	courseId,
+	size = "sm",
+}: AuthorInfoProps) {
 	const avatarSize = size === "md" ? "md" : "sm";
 
 	// For user module preview (fake data) or when courseId/authorId is missing, use #
-	const profileHref = typeof courseId === "number" && typeof authorId === "number"
-		? href("/course/:courseId/participants/profile", { courseId: String(courseId) }) + `?userId=${authorId}`
-		: "#";
+	const profileHref =
+		typeof courseId === "number" && typeof authorId === "number"
+			? href("/course/:courseId/participants/profile", {
+					courseId: String(courseId),
+				}) + `?userId=${authorId}`
+			: "#";
 
 	return (
 		<Link to={profileHref} style={{ textDecoration: "none", color: "inherit" }}>
@@ -255,7 +263,6 @@ export function CreateThreadForm({
 		onSubmit(title, content);
 	};
 
-
 	return (
 		<Paper withBorder p="xl" radius="md">
 			<Stack gap="lg">
@@ -266,10 +273,7 @@ export function CreateThreadForm({
 					</Button>
 				</Group>
 
-				<form
-					method="POST"
-					onSubmit={form.onSubmit(handleSubmit)}
-				>
+				<form method="POST" onSubmit={form.onSubmit(handleSubmit)}>
 					<Stack gap="lg">
 						<Textarea
 							{...form.getInputProps("title")}
@@ -289,7 +293,6 @@ export function CreateThreadForm({
 							/>
 						</Input.Wrapper>
 
-
 						<Group justify="flex-end">
 							<Button type="submit" loading={isSubmitting}>
 								Post Thread
@@ -301,7 +304,6 @@ export function CreateThreadForm({
 		</Paper>
 	);
 }
-
 
 // Keep old ThreadListView for backward compatibility (used by StatefulDiscussionPreview)
 export interface ThreadListViewProps {
@@ -647,7 +649,6 @@ export function ReplyCard({
 	);
 }
 
-
 // Keep old ThreadDetailView for backward compatibility (used by StatefulDiscussionPreview)
 export interface ThreadDetailViewProps {
 	thread: DiscussionThread;
@@ -695,7 +696,10 @@ export function ThreadDetailView({
 			if (onReplySubmit) {
 				// If replyTo is "thread", we're replying to the thread
 				// Otherwise, we're replying to a comment (handled inline in ReplyCard)
-				onReplySubmit(replyContent.trim(), replyTo === "thread" ? null : replyTo);
+				onReplySubmit(
+					replyContent.trim(),
+					replyTo === "thread" ? null : replyTo,
+				);
 			} else {
 				// Fallback for preview mode
 				console.log("Replying:", { replyTo, content: replyContent });
@@ -1226,7 +1230,9 @@ export function StatefulDiscussionPreview(props: DiscussionPreviewProps) {
 			thread={threadState}
 			onCreateThread={props.onCreateThread || handleCreateThread}
 			onUpvoteThread={props.onUpvoteThread || handleUpvoteThread}
-			onRemoveUpvoteThread={props.onRemoveUpvoteThread || handleRemoveUpvoteThread}
+			onRemoveUpvoteThread={
+				props.onRemoveUpvoteThread || handleRemoveUpvoteThread
+			}
 			onUpvoteReply={props.onUpvoteReply || handleUpvoteReply}
 			onRemoveUpvoteReply={props.onRemoveUpvoteReply || handleRemoveUpvoteReply}
 			onReplySubmit={props.onReplySubmit || handleReplySubmit}

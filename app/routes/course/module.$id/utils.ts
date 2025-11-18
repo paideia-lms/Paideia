@@ -143,7 +143,12 @@ export function transformQuizAnswersToSubmissionFormat(
 	// Helper to map question type from quiz config to submission format
 	const mapQuestionType = (
 		type: Question["type"],
-	): "multiple_choice" | "true_false" | "short_answer" | "essay" | "fill_blank" => {
+	):
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank" => {
 		switch (type) {
 			case "multiple-choice":
 				return "multiple_choice";
@@ -207,7 +212,10 @@ export function transformQuizAnswersToSubmissionFormat(
 		// Handle different answer value types
 		if (typeof answerValue === "string") {
 			// Single string answer (multiple-choice, short-answer, long-answer, article)
-			if (question.type === "multiple-choice" || question.type === "short-answer") {
+			if (
+				question.type === "multiple-choice" ||
+				question.type === "short-answer"
+			) {
 				submissionAnswer.selectedAnswer = answerValue;
 			} else {
 				// For long-answer and article, store as selectedAnswer
@@ -244,4 +252,3 @@ export function transformQuizAnswersToSubmissionFormat(
 
 	return result;
 }
-

@@ -62,10 +62,16 @@ export default function CourseParticipantsLayout({
 
 		switch (value) {
 			case ParticipantsTab.Participants:
-				navigate(href("/course/:courseId/participants", { courseId: courseId }));
+				navigate(
+					href("/course/:courseId/participants", { courseId: courseId }),
+				);
 				break;
 			case ParticipantsTab.Profile:
-				navigate(href("/course/:courseId/participants/profile", { courseId: courseId }));
+				navigate(
+					href("/course/:courseId/participants/profile", {
+						courseId: courseId,
+					}),
+				);
 				break;
 			case ParticipantsTab.Groups:
 				navigate(href("/course/:courseId/groups", { courseId: courseId }));

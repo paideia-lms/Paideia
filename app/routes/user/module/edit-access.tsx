@@ -297,7 +297,9 @@ function LinkedCoursesSection({
 									<Table.Td>
 										<Text
 											component="a"
-											href={href("/course/:courseId", { courseId: String(course.id) })}
+											href={href("/course/:courseId", {
+												courseId: String(course.id),
+											})}
 											fw={500}
 											style={{ textDecoration: "none" }}
 										>

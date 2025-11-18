@@ -23,8 +23,8 @@ import {
 import {
 	type CreateQuizArgs,
 	type CreateQuizSubmissionArgs,
-	type StartQuizAttemptArgs,
 	calculateQuizGrade,
+	type StartQuizAttemptArgs,
 	tryCreateQuiz,
 	tryCreateQuizSubmission,
 	tryDeleteQuizSubmission,
@@ -1572,13 +1572,15 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 			linkArgs,
 		);
 		if (!linkResult.ok) {
-			throw new Error("Test Error: Failed to create course-activity-module-link");
+			throw new Error(
+				"Test Error: Failed to create course-activity-module-link",
+			);
 		}
 		courseActivityModuleLinkId = linkResult.value.id;
 	});
 
 	afterAll(async () => {
-		// reset the database 
+		// reset the database
 		await $`bun run migrate:fresh --force-accept-warning`;
 		await $`bun scripts/clean-s3.ts`;
 	});
@@ -1784,13 +1786,15 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 			linkArgs,
 		);
 		if (!linkResult.ok) {
-			throw new Error("Test Error: Failed to create course-activity-module-link");
+			throw new Error(
+				"Test Error: Failed to create course-activity-module-link",
+			);
 		}
 		courseActivityModuleLinkId = linkResult.value.id;
 	});
 
 	afterAll(async () => {
-		// reset the database 
+		// reset the database
 		await $`bun run migrate:fresh --force-accept-warning`;
 		await $`bun scripts/clean-s3.ts`;
 	});

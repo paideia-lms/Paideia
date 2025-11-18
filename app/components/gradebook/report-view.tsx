@@ -432,8 +432,9 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 							</Table.Tr>
 						) : (
 							enrollments.map((enrollment: (typeof enrollments)[number]) => {
-								const enrollmentGrades =
-									gradesByEnrollmentAndItem.get(enrollment.id);
+								const enrollmentGrades = gradesByEnrollmentAndItem.get(
+									enrollment.id,
+								);
 								const finalGrade = finalGradesByEnrollment.get(enrollment.id);
 
 								return (
@@ -454,8 +455,7 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 											</Group>
 										</Table.Td>
 										{allItems.map((item) => {
-											const grade =
-												enrollmentGrades?.get(item.id);
+											const grade = enrollmentGrades?.get(item.id);
 											// Check if grade exists in map (could be null, which means no grade was set)
 											const hasGrade = enrollmentGrades?.has(item.id) ?? false;
 											return (

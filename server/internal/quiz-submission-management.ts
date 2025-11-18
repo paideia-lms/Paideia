@@ -1,5 +1,6 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { QuizSubmissions } from "server/collections";
+import type { QuizSubmission } from "server/payload-types";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -12,7 +13,6 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { tryCreateUserGrade } from "./user-grade-management";
-import type { QuizSubmission } from "server/payload-types";
 
 export interface CreateQuizArgs {
 	title: string;
@@ -33,13 +33,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -75,13 +75,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -106,11 +106,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -142,11 +142,11 @@ export interface UpdateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -224,11 +224,11 @@ export interface SubmitQuizArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -478,13 +478,7 @@ export const tryCreateQuiz = Result.wrap(
  */
 export const tryGetQuizById = Result.wrap(
 	async (args: GetQuizByIdArgs) => {
-		const {
-			payload,
-			id,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, id, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -698,7 +692,11 @@ export const tryStartQuizAttempt = Result.wrap(
 				and: [
 					{ courseModuleLink: { equals: courseModuleLinkId } },
 					{ student: { equals: studentId } },
-					{ status: { equals: "in_progress" satisfies QuizSubmission['status'] } },
+					{
+						status: {
+							equals: "in_progress" satisfies QuizSubmission["status"],
+						},
+					},
 				],
 			},
 			user,
@@ -754,8 +752,7 @@ export const tryStartQuizAttempt = Result.wrap(
 				? activityModule.quiz
 				: null;
 
-		const isLate =
-			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+		const isLate = quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
 
 		const submission = await payload.create({
 			collection: "quiz-submissions",
@@ -895,8 +892,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 				? activityModule.quiz
 				: null;
 
-		const isLate =
-			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+		const isLate = quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
 
 		const submission = await payload.create({
 			collection: "quiz-submissions",
@@ -1058,13 +1054,7 @@ export const tryUpdateQuizSubmission = Result.wrap(
  */
 export const tryGetQuizSubmissionById = Result.wrap(
 	async (args: GetQuizSubmissionByIdArgs) => {
-		const {
-			payload,
-			id,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, id, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -1186,7 +1176,7 @@ export const trySubmitQuiz = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1302,11 +1292,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1563,7 +1553,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1774,7 +1764,6 @@ export const tryListQuizSubmissions = Result.wrap(
 		const where =
 			whereConditions.length > 0 ? { and: whereConditions } : undefined;
 
-
 		const result = await payload.find({
 			collection: "quiz-submissions",
 			where,
@@ -1922,9 +1911,7 @@ export const tryGetNextAttemptNumber = Result.wrap(
 
 		const maxAttemptNumber =
 			result.value.docs.length > 0
-				? Math.max(
-					...result.value.docs.map((sub) => sub.attemptNumber || 1),
-				)
+				? Math.max(...result.value.docs.map((sub) => sub.attemptNumber || 1))
 				: 0;
 
 		return maxAttemptNumber + 1;
@@ -2202,8 +2189,7 @@ export const tryGetQuizGradesReport = Result.wrap(
 
 		// Calculate max score from quiz points or sum of question points
 		const maxScore =
-			quiz.points ??
-			questions.reduce((sum, q) => sum + q.points, 0);
+			quiz.points ?? questions.reduce((sum, q) => sum + q.points, 0);
 
 		return {
 			courseModuleLinkId,
@@ -2310,7 +2296,9 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 		if (completedAttempts.length > 0) {
 			const scores = completedAttempts
 				.map((s) => s.totalScore)
-				.filter((score): score is number => score !== null && score !== undefined);
+				.filter(
+					(score): score is number => score !== null && score !== undefined,
+				);
 			const percentages = completedAttempts
 				.map((s) => s.percentage)
 				.filter((p): p is number => p !== null && p !== undefined);
@@ -2354,7 +2342,10 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 					}
 
 					// For multiple choice questions, track response distribution
-					if (question.questionType === "multiple_choice" && answer.multipleChoiceAnswers) {
+					if (
+						question.questionType === "multiple_choice" &&
+						answer.multipleChoiceAnswers
+					) {
 						for (const choice of answer.multipleChoiceAnswers) {
 							if (choice.isSelected) {
 								const currentCount = responseCounts.get(choice.option) || 0;
@@ -2380,13 +2371,18 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 					: 0;
 
 			// Build response distribution for multiple choice
-			let responseDistribution: Array<{
-				option: string;
-				count: number;
-				percentage: number;
-			}> | undefined;
+			let responseDistribution:
+				| Array<{
+						option: string;
+						count: number;
+						percentage: number;
+				  }>
+				| undefined;
 
-			if (question.questionType === "multiple_choice" && responseCounts.size > 0) {
+			if (
+				question.questionType === "multiple_choice" &&
+				responseCounts.size > 0
+			) {
 				responseDistribution = Array.from(responseCounts.entries()).map(
 					([option, count]) => ({
 						option,
@@ -2413,8 +2409,7 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 
 		// Calculate max score from quiz points or sum of question points
 		const maxScore =
-			quiz.points ??
-			questions.reduce((sum, q) => sum + q.points, 0);
+			quiz.points ?? questions.reduce((sum, q) => sum + q.points, 0);
 
 		return {
 			courseModuleLinkId,

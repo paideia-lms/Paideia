@@ -85,13 +85,13 @@ export const loader = async ({
 	// Normalize avatar to ID if it's an object
 	const requestUser = currentUser
 		? {
-			...currentUser,
-			avatar:
-				typeof currentUser.avatar === "object" && currentUser.avatar !== null
-					? currentUser.avatar.id
-					: currentUser.avatar,
-			collection: "users" as const,
-		}
+				...currentUser,
+				avatar:
+					typeof currentUser.avatar === "object" && currentUser.avatar !== null
+						? currentUser.avatar.id
+						: currentUser.avatar,
+				collection: "users" as const,
+			}
 		: null;
 
 	// Fetch user with avatar populated (depth 1 to get avatar object)
@@ -101,7 +101,6 @@ export const loader = async ({
 		user: requestUser,
 		req: request,
 	});
-
 
 	if (!userResult.ok) {
 		console.error("Failed to find user:", userResult.error.message);

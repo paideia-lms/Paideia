@@ -213,15 +213,15 @@ function GradebookItemRow({
 							weightExplanation={item.weight_explanation}
 						/>
 					) : // For categories, show sum of children's overall weights when collapsed
-						!isExpanded &&
-							categoryOverallWeight !== null &&
-							categoryOverallWeight > 0 ? (
-							<Text size="sm" fw={500} c="dimmed">
-								{categoryOverallWeight.toFixed(2)}%
-							</Text>
-						) : (
-							<Text size="sm">-</Text>
-						)}
+					!isExpanded &&
+						categoryOverallWeight !== null &&
+						categoryOverallWeight > 0 ? (
+						<Text size="sm" fw={500} c="dimmed">
+							{categoryOverallWeight.toFixed(2)}%
+						</Text>
+					) : (
+						<Text size="sm">-</Text>
+					)}
 				</Table.Td>
 				<Table.Td>
 					{isLeafItem ? (
@@ -229,13 +229,13 @@ function GradebookItemRow({
 							{item.max_grade !== null ? item.max_grade : "-"}
 						</Text>
 					) : // calculate the max grade of all leaf items
-						!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
-							<Text size="sm" c="dimmed">
-								{categoryMaxGrade ?? "-"}
-							</Text>
-						) : (
-							<Text size="sm">-</Text>
-						)}
+					!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
+						<Text size="sm" c="dimmed">
+							{categoryMaxGrade ?? "-"}
+						</Text>
+					) : (
+						<Text size="sm">-</Text>
+					)}
 				</Table.Td>
 				<Table.Td>
 					<Button

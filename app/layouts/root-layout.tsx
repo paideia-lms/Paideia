@@ -84,7 +84,11 @@ export default function UserLayout({
 					</Text>
 				</Alert>
 			)}
-			<HeaderTabs userSession={loaderData.userSession} pageInfo={pageInfo} canSeeUserModules={canSeeUserModules} />
+			<HeaderTabs
+				userSession={loaderData.userSession}
+				pageInfo={pageInfo}
+				canSeeUserModules={canSeeUserModules}
+			/>
 			{/* Sandbox Mode Warning */}
 			<Outlet />
 		</>
@@ -124,9 +128,9 @@ export function HeaderTabs({
 	// If in a course, redirect back to that course after stopping impersonation
 	const getStopImpersonationRedirect = () => {
 		if (pageInfo.isInCourse) {
-			const { courseId, moduleLinkId, sectionId } = pageInfo.params as RouteParams<"layouts/course-layout">;
-			if (courseId)
-				return href("/course/:courseId", { courseId });
+			const { courseId, moduleLinkId, sectionId } =
+				pageInfo.params as RouteParams<"layouts/course-layout">;
+			if (courseId) return href("/course/:courseId", { courseId });
 			else if (moduleLinkId)
 				return href("/course/module/:moduleLinkId", { moduleLinkId });
 			else if (sectionId)
@@ -218,9 +222,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId:
-																			authenticatedUser.avatar.filename,
-																	})
+																			filenameOrId:
+																				authenticatedUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -242,8 +246,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId: currentUser.avatar.filename,
-																	})
+																			filenameOrId: currentUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -261,8 +265,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filenameOrId`, {
-															filenameOrId: currentUser.avatar.filename,
-														})
+																filenameOrId: currentUser.avatar.filename,
+															})
 														: null
 												}
 												alt={
@@ -281,7 +285,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-											"Anonymous"
+												"Anonymous"
 											: "Not signed in"}
 									</Text>
 									{isAdmin && (
@@ -327,8 +331,8 @@ export function HeaderTabs({
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
-									// component={Link}
-									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>

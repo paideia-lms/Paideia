@@ -184,7 +184,11 @@ export const action = async ({
 	}
 
 	// Redirect to the module page
-	return redirect(href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }));
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -287,7 +291,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 			// Assignment fields
 			allowSubmissionsFrom:
 				existingSettings?.type === "assignment" &&
-					existingSettings.allowSubmissionsFrom
+				existingSettings.allowSubmissionsFrom
 					? new Date(existingSettings.allowSubmissionsFrom)
 					: null,
 			assignmentDueDate:

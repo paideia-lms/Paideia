@@ -1,36 +1,9 @@
-import {
-	ActionIcon,
-	Anchor,
-	Badge,
-	Box,
-	Button,
-	Checkbox,
-	Collapse,
-	Container,
-	Group,
-	Menu,
-	Paper,
-	ScrollArea,
-	Stack,
-	Table,
-	Text,
-	Title,
-} from "@mantine/core";
-import { useClipboard, useDisclosure } from "@mantine/hooks";
+import { Container, Stack } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import {
-	IconChevronDown,
-	IconChevronRight,
-	IconDots,
-	IconMail,
-	IconPencil,
-	IconSend,
-	IconTrash,
-} from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
 import { useEffect, useState } from "react";
-import { href, Link, useFetcher } from "react-router";
+import { href, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -49,9 +22,11 @@ import {
 } from "server/utils/permissions";
 import { GradingView } from "~/components/grading-view";
 import {
-	type SubmissionData,
-	SubmissionHistoryItem,
-} from "~/components/submission-history";
+	AssignmentBatchActions,
+	AssignmentSubmissionTable,
+	DiscussionSubmissionTable,
+	QuizSubmissionTable,
+} from "~/components/submission-tables";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { AssignmentActions } from "~/utils/module-actions";
 import {
@@ -199,29 +174,35 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		maxGrade = gradebookItemResult.value.maxGrade ?? null;
 	}
 
+	// Extract submissions from discriminated union based on module type
+	const allSubmissions =
+		courseModuleContext.submissions.type === "assignment" ||
+		courseModuleContext.submissions.type === "quiz" ||
+		courseModuleContext.submissions.type === "discussion"
+			? courseModuleContext.submissions.submissions
+			: [];
+
 	// Map submissions with grades from submission.grade field
-	const submissionsWithGrades = courseModuleContext.submissions.map(
-		(submission) => {
-			const submissionWithGrade = submission as typeof submission & {
-				grade?: number | null;
-				feedback?: string | null;
-				gradedAt?: string | null;
-			};
-			return {
-				...submission,
-				grade:
-					submissionWithGrade.grade !== null &&
-						submissionWithGrade.grade !== undefined
-						? {
+	const submissionsWithGrades = allSubmissions.map((submission) => {
+		const submissionWithGrade = submission as typeof submission & {
+			grade?: number | null;
+			feedback?: string | null;
+			gradedAt?: string | null;
+		};
+		return {
+			...submission,
+			grade:
+				submissionWithGrade.grade !== null &&
+				submissionWithGrade.grade !== undefined
+					? {
 							baseGrade: submissionWithGrade.grade,
 							maxGrade,
 							gradedAt: submissionWithGrade.gradedAt || null,
 							feedback: submissionWithGrade.feedback || null,
 						}
-						: null,
-			};
-		},
-	);
+					: null,
+		};
+	});
 
 	return {
 		module: courseModuleContext.module,
@@ -459,7 +440,30 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 // Types
 // ============================================================================
 
-type SubmissionType = SubmissionData & {
+type SubmissionType = {
+	id: number;
+	status: "draft" | "submitted" | "graded" | "returned";
+	content?: string | null;
+	submittedAt?: string | null;
+	startedAt?: string | null;
+	attemptNumber: number;
+	attachments?: Array<{
+		file:
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
+		description?: string;
+	}> | null;
+	grade?: {
+		baseGrade: number | null;
+		maxGrade: number | null;
+		gradedAt?: string | null;
+		feedback?: string | null;
+	} | null;
 	student: {
 		id: number;
 		firstName?: string | null;
@@ -485,523 +489,6 @@ type QuizSubmissionType = {
 		email?: string | null;
 	};
 };
-
-// ============================================================================
-// Sub-components
-// ============================================================================
-
-function QuizSubmissionHistoryItem({
-	attemptNumber,
-	submission,
-}: {
-	attemptNumber: number;
-	submission: QuizSubmissionType;
-}) {
-	return (
-		<Paper withBorder p="md" radius="sm">
-			<Stack gap="md">
-				<Group justify="space-between">
-					<Group gap="sm">
-						<Badge size="sm" variant="light">
-							Attempt {attemptNumber}
-						</Badge>
-						<Badge
-							color={
-								submission.status === "graded"
-									? "green"
-									: submission.status === "returned"
-										? "blue"
-										: submission.status === "completed"
-											? "yellow"
-											: "gray"
-							}
-							variant="light"
-						>
-							{submission.status === "in_progress"
-								? "In Progress"
-								: submission.status === "completed"
-									? "Completed"
-									: submission.status === "graded"
-										? "Graded"
-										: "Returned"}
-						</Badge>
-						{submission.status === "graded" || submission.status === "returned" ? (
-							<Badge color="green" variant="filled">
-								{submission.totalScore !== null &&
-									submission.totalScore !== undefined &&
-									submission.maxScore !== null &&
-									submission.maxScore !== undefined
-									? `${submission.totalScore}/${submission.maxScore}`
-									: submission.totalScore !== null &&
-										submission.totalScore !== undefined
-										? String(submission.totalScore)
-										: "-"}
-								{submission.percentage !== null &&
-									submission.percentage !== undefined
-									? ` (${submission.percentage.toFixed(1)}%)`
-									: ""}
-							</Badge>
-						) : null}
-						<Text size="xs" c="dimmed">
-							ID: {submission.id}
-						</Text>
-					</Group>
-				</Group>
-				<Group gap="sm">
-					{submission.startedAt && (
-						<Text size="sm" c="dimmed">
-							Started: {new Date(submission.startedAt).toLocaleString()}
-						</Text>
-					)}
-					{submission.submittedAt && (
-						<Text size="sm" c="dimmed">
-							{submission.startedAt ? "• " : ""}
-							Submitted: {new Date(submission.submittedAt).toLocaleString()}
-						</Text>
-					)}
-					{submission.timeSpent && (
-						<Text size="sm" c="dimmed">
-							{(submission.startedAt || submission.submittedAt) ? "• " : ""}
-							Time Spent: {Math.round(submission.timeSpent)} min
-						</Text>
-					)}
-				</Group>
-			</Stack>
-		</Paper>
-	);
-}
-
-function QuizStudentSubmissionRow({
-	courseId,
-	enrollment,
-	studentSubmissions,
-}: {
-	courseId: number;
-	enrollment: Route.ComponentProps["loaderData"]["enrollments"][number];
-	studentSubmissions: QuizSubmissionType[] | undefined;
-}) {
-	const [opened, { toggle }] = useDisclosure(false);
-
-	const latestSubmission = studentSubmissions?.[0];
-	const email = enrollment.email || "-";
-
-	// Sort submissions by attempt number (newest first)
-	const sortedSubmissions = studentSubmissions
-		? [...studentSubmissions].sort((a, b) => {
-			const attemptA = a.attemptNumber || 0;
-			const attemptB = b.attemptNumber || 0;
-			return attemptB - attemptA;
-		})
-		: [];
-
-	// Filter to show all submissions that have been submitted (have submittedAt)
-	// or are completed/graded/returned
-	const submittedSubmissions = sortedSubmissions.filter(
-		(sub) =>
-			sub.submittedAt !== null ||
-			sub.status === "completed" ||
-			sub.status === "graded" ||
-			sub.status === "returned",
-	);
-
-	const hasSubmissions = submittedSubmissions.length > 0;
-
-	// Calculate total score if graded
-	const gradedSubmissions = sortedSubmissions.filter(
-		(s) => s.status === "graded" || s.status === "returned",
-	);
-	const totalScore = gradedSubmissions.reduce(
-		(sum, s) => sum + (s.totalScore || 0),
-		0,
-	);
-	const maxScore = gradedSubmissions.reduce(
-		(sum, s) => sum + (s.maxScore || 0),
-		0,
-	);
-	const averagePercentage =
-		gradedSubmissions.length > 0
-			? gradedSubmissions.reduce(
-				(sum, s) => sum + (s.percentage || 0),
-				0,
-			) / gradedSubmissions.length
-			: null;
-
-	return (
-		<>
-			<Table.Tr>
-				<Table.Td>
-					<Group gap="xs" wrap="nowrap">
-						{hasSubmissions && (
-							<ActionIcon
-								variant="subtle"
-								size="sm"
-								onClick={toggle}
-								aria-label={opened ? "Collapse" : "Expand"}
-							>
-								{opened ? (
-									<IconChevronDown size={16} />
-								) : (
-									<IconChevronRight size={16} />
-								)}
-							</ActionIcon>
-						)}
-						{!hasSubmissions && <Box style={{ width: 28 }} />}
-						<div>
-							<Anchor
-								component={Link}
-								to={
-									href("/course/:courseId/participants/profile", {
-										courseId: String(courseId),
-									}) + `?userId=${enrollment.userId}`
-								}
-								size="sm"
-							>
-								{enrollment.name}
-							</Anchor>
-						</div>
-					</Group>
-				</Table.Td>
-				<Table.Td>{email}</Table.Td>
-				<Table.Td>
-					{latestSubmission ? (
-						<Badge
-							color={
-								latestSubmission.status === "graded"
-									? "green"
-									: latestSubmission.status === "returned"
-										? "blue"
-										: latestSubmission.status === "completed"
-											? "yellow"
-											: "gray"
-							}
-							variant="light"
-						>
-							{latestSubmission.status === "in_progress"
-								? "In Progress"
-								: latestSubmission.status === "completed"
-									? "Completed"
-									: latestSubmission.status === "graded"
-										? "Graded"
-										: "Returned"}
-						</Badge>
-					) : (
-						<Badge color="gray" variant="light">
-							No submission
-						</Badge>
-					)}
-				</Table.Td>
-				<Table.Td>
-					{hasSubmissions ? (
-						<Text size="sm">{submittedSubmissions.length}</Text>
-					) : (
-						<Text size="sm" c="dimmed">
-							0
-						</Text>
-					)}
-				</Table.Td>
-				<Table.Td>
-					{averagePercentage !== null ? (
-						<Text size="sm" fw={500}>
-							{totalScore > 0 && maxScore > 0
-								? `${totalScore}/${maxScore}`
-								: ""}{" "}
-							({averagePercentage.toFixed(1)}%)
-						</Text>
-					) : latestSubmission?.status === "completed" ? (
-						<Text size="sm" c="dimmed">
-							Pending
-						</Text>
-					) : (
-						<Text size="sm" c="dimmed">
-							-
-						</Text>
-					)}
-				</Table.Td>
-				<Table.Td>
-					{latestSubmission?.timeSpent ? (
-						<Text size="sm">
-							{Math.round(latestSubmission.timeSpent)} min
-						</Text>
-					) : (
-						<Text size="sm" c="dimmed">
-							-
-						</Text>
-					)}
-				</Table.Td>
-				<Table.Td>
-					{latestSubmission?.submittedAt
-						? new Date(latestSubmission.submittedAt).toLocaleString()
-						: latestSubmission?.startedAt
-							? `Started: ${new Date(latestSubmission.startedAt).toLocaleString()}`
-							: "-"}
-				</Table.Td>
-			</Table.Tr>
-			{hasSubmissions && (
-				<Table.Tr>
-					<Table.Td colSpan={7} p={0}>
-						<Collapse in={opened}>
-							<Box p="md">
-								<Stack gap="md">
-									<Text size="sm" fw={600}>
-										Submission History ({submittedSubmissions.length}{" "}
-										{submittedSubmissions.length === 1 ? "attempt" : "attempts"}
-										)
-									</Text>
-									{/* sort by submittedAt descending */}
-									{submittedSubmissions
-										.sort((a, b) => {
-											const dateA = a.submittedAt
-												? new Date(a.submittedAt)
-												: a.startedAt
-													? new Date(a.startedAt)
-													: new Date(0);
-											const dateB = b.submittedAt
-												? new Date(b.submittedAt)
-												: b.startedAt
-													? new Date(b.startedAt)
-													: new Date(0);
-											return dateB.getTime() - dateA.getTime();
-										})
-										.map((submission, index) => (
-											<QuizSubmissionHistoryItem
-												key={submission.id}
-												attemptNumber={
-													submission.attemptNumber ??
-													submittedSubmissions.length - index
-												}
-												submission={submission}
-											/>
-										))}
-								</Stack>
-							</Box>
-						</Collapse>
-					</Table.Td>
-				</Table.Tr>
-			)}
-		</>
-	);
-}
-
-function StudentSubmissionRow({
-	courseId,
-	enrollment,
-	studentSubmissions,
-	isSelected,
-	onSelectRow,
-	canDelete,
-	onDeleteSubmission,
-	moduleLinkId,
-	onReleaseGrade,
-	isReleasing,
-}: {
-	courseId: number;
-	enrollment: Route.ComponentProps["loaderData"]["enrollments"][number];
-	studentSubmissions: SubmissionType[] | undefined;
-	isSelected: boolean;
-	onSelectRow: (enrollmentId: number, checked: boolean) => void;
-	canDelete: boolean;
-	onDeleteSubmission: (submissionId: number) => void;
-	moduleLinkId: number;
-	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-	isReleasing?: boolean;
-}) {
-	const [opened, { toggle }] = useDisclosure(false);
-
-	const latestSubmission = studentSubmissions?.[0];
-	const email = enrollment.email || "-";
-
-	// Sort submissions by attempt number (newest first)
-	const sortedSubmissions = studentSubmissions
-		? [...studentSubmissions].sort((a, b) => {
-			const attemptA = a.attemptNumber || 0;
-			const attemptB = b.attemptNumber || 0;
-			return attemptB - attemptA;
-		})
-		: [];
-
-	// Filter out draft submissions for display
-	const submittedSubmissions = sortedSubmissions.filter(
-		(sub) => sub.status !== "draft",
-	);
-
-	const hasSubmissions = submittedSubmissions.length > 0;
-
-	return (
-		<>
-			<Table.Tr>
-				<Table.Td>
-					<Checkbox
-						aria-label="Select row"
-						checked={isSelected}
-						onChange={(event) =>
-							onSelectRow(enrollment.id, event.currentTarget.checked)
-						}
-					/>
-				</Table.Td>
-				<Table.Td>
-					<Group gap="xs" wrap="nowrap">
-						{hasSubmissions && (
-							<ActionIcon
-								variant="subtle"
-								size="sm"
-								onClick={toggle}
-								aria-label={opened ? "Collapse" : "Expand"}
-							>
-								{opened ? (
-									<IconChevronDown size={16} />
-								) : (
-									<IconChevronRight size={16} />
-								)}
-							</ActionIcon>
-						)}
-						{!hasSubmissions && <Box style={{ width: 28 }} />}
-						<div>
-							<Anchor
-								component={Link}
-								to={
-									href("/course/:courseId/participants/profile", {
-										courseId: String(courseId),
-									}) + `?userId=${enrollment.userId}`
-								}
-								size="sm"
-							>
-								{enrollment.name}
-							</Anchor>
-						</div>
-					</Group>
-				</Table.Td>
-				<Table.Td>{email}</Table.Td>
-				<Table.Td>
-					{latestSubmission && "status" in latestSubmission ? (
-						<Badge
-							color={
-								latestSubmission.status === "graded"
-									? "green"
-									: latestSubmission.status === "submitted"
-										? "blue"
-										: "gray"
-							}
-							variant="light"
-						>
-							{latestSubmission.status === "draft"
-								? "No submission"
-								: latestSubmission.status}
-						</Badge>
-					) : (
-						<Badge color="gray" variant="light">
-							No submission
-						</Badge>
-					)}
-				</Table.Td>
-				<Table.Td>
-					{hasSubmissions ? (
-						<Text size="sm">{submittedSubmissions.length}</Text>
-					) : (
-						<Text size="sm" c="dimmed">
-							0
-						</Text>
-					)}
-				</Table.Td>
-				<Table.Td>
-					{latestSubmission &&
-						"submittedAt" in latestSubmission &&
-						latestSubmission.submittedAt
-						? new Date(latestSubmission.submittedAt).toLocaleString()
-						: "-"}
-				</Table.Td>
-				<Table.Td>
-					<Group gap="xs">
-						{hasSubmissions && latestSubmission ? (
-							<Menu position="bottom-end">
-								<Menu.Target>
-									<ActionIcon variant="light" size="lg">
-										<IconDots size={18} />
-									</ActionIcon>
-								</Menu.Target>
-								<Menu.Dropdown>
-									<Menu.Item
-										component={Link}
-										to={
-											href("/course/module/:moduleLinkId/submissions", {
-												moduleLinkId: String(moduleLinkId),
-											}) +
-											`?action=${AssignmentActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
-										}
-										leftSection={<IconPencil size={14} />}
-									>
-										Grade
-									</Menu.Item>
-									{latestSubmission.grade &&
-										latestSubmission.grade.baseGrade !== null &&
-										latestSubmission.grade.baseGrade !== undefined &&
-										onReleaseGrade && (
-											<Menu.Item
-												leftSection={<IconSend size={14} />}
-												onClick={() => {
-													onReleaseGrade(moduleLinkId, enrollment.id);
-												}}
-												disabled={isReleasing}
-											>
-												{isReleasing ? "Releasing..." : "Release Grade"}
-											</Menu.Item>
-										)}
-								</Menu.Dropdown>
-							</Menu>
-						) : (
-							<Button size="xs" variant="light" disabled>
-								Actions
-							</Button>
-						)}
-					</Group>
-				</Table.Td>
-			</Table.Tr>
-			{hasSubmissions && (
-				<Table.Tr>
-					<Table.Td colSpan={8} p={0}>
-						<Collapse in={opened}>
-							<Box p="md">
-								<Stack gap="md">
-									<Text size="sm" fw={600}>
-										Submission History ({submittedSubmissions.length}{" "}
-										{submittedSubmissions.length === 1 ? "attempt" : "attempts"}
-										)
-									</Text>
-									{/* sort by submittedAt ascending */}
-									{submittedSubmissions
-										.sort((a, b) => {
-											const dateA = a.submittedAt
-												? new Date(a.submittedAt)
-												: new Date(0);
-											const dateB = b.submittedAt
-												? new Date(b.submittedAt)
-												: new Date(0);
-											return dateB.getTime() - dateA.getTime();
-										})
-										.map((submission, index) => (
-											<SubmissionHistoryItem
-												key={submission.id}
-												attemptNumber={
-													submission.attemptNumber ??
-													submittedSubmissions.length - index
-												}
-												submission={submission}
-												showDelete={canDelete}
-												onDelete={(submissionId) => {
-													onDeleteSubmission(submissionId);
-												}}
-												showGrade={true}
-												moduleLinkId={moduleLinkId}
-											/>
-										))}
-								</Stack>
-							</Box>
-						</Collapse>
-					</Table.Td>
-				</Table.Tr>
-			)}
-		</>
-	);
-}
 
 // ============================================================================
 // Hooks
@@ -1100,7 +587,6 @@ export default function ModuleSubmissionsPage({
 	// Call hooks unconditionally at the top
 	const [selectedRows, setSelectedRows] = useState<number[]>([]);
 	const { deleteSubmission } = useDeleteSubmission();
-	const clipboard = useClipboard({ timeout: 2000 });
 	const { releaseGrade, isReleasing, data: releaseData } = useReleaseGrade();
 
 	// Show notification when grade is successfully released
@@ -1122,10 +608,11 @@ export default function ModuleSubmissionsPage({
 
 	// If we're in grading mode, show the grading view
 	if (action === AssignmentActions.GRADE_SUBMISSION && gradingSubmission) {
-		const submissionWithRelations = gradingSubmission as typeof gradingSubmission & {
-			enrollment?: { id: number } | number | null;
-			courseModuleLink?: { id: number } | number | null;
-		};
+		const submissionWithRelations =
+			gradingSubmission as typeof gradingSubmission & {
+				enrollment?: { id: number } | number | null;
+				courseModuleLink?: { id: number } | number | null;
+			};
 		return (
 			<GradingView
 				submission={gradingSubmission}
@@ -1144,25 +631,6 @@ export default function ModuleSubmissionsPage({
 
 	const title = `${moduleSettings?.settings.name ?? module.title} - ${module.type === "quiz" ? "Results" : "Submissions"} | ${course.title} | Paideia LMS`;
 
-	// Create a map of submissions by student ID
-	const submissionsByStudent = new Map<number, SubmissionType[]>();
-	for (const submission of submissions) {
-		const studentId = submission.student.id;
-		if (!submissionsByStudent.has(studentId)) {
-			submissionsByStudent.set(studentId, []);
-		}
-		submissionsByStudent.get(studentId)?.push(submission as SubmissionType);
-	}
-
-	const allRowIds = enrollments.map((e) => e.id);
-	const allSelected =
-		allRowIds.length > 0 && selectedRows.length === allRowIds.length;
-	const someSelected = selectedRows.length > 0 && !allSelected;
-
-	const handleSelectAll = () => {
-		setSelectedRows(allSelected ? [] : allRowIds);
-	};
-
 	const handleSelectRow = (enrollmentId: number, checked: boolean) => {
 		setSelectedRows(
 			checked
@@ -1171,202 +639,54 @@ export default function ModuleSubmissionsPage({
 		);
 	};
 
-	// Batch actions
-	const handleBatchEmailCopy = () => {
-		const selectedEnrollments = enrollments.filter((e) =>
-			selectedRows.includes(e.id),
-		);
-		const emailAddresses = selectedEnrollments
-			.map((e) => e.email)
-			.filter((email): email is string => email !== null && email !== undefined)
-			.join(", ");
-
-		if (emailAddresses) {
-			clipboard.copy(emailAddresses);
-			notifications.show({
-				title: "Copied",
-				message: `Copied ${selectedEnrollments.length} email address${selectedEnrollments.length !== 1 ? "es" : ""} to clipboard`,
-				color: "green",
-			});
-		}
+	const handleClearSelection = () => {
+		setSelectedRows([]);
 	};
-
 
 	// Render content based on module type
 	const renderSubmissions = () => {
 		if (module.type === "assignment") {
+			const selectedEnrollments = enrollments.filter((e) =>
+				selectedRows.includes(e.id),
+			);
+
 			return (
 				<Stack gap="md">
-					{selectedRows.length > 0 && (
-						<Paper withBorder p="md">
-							<Group justify="space-between">
-								<Group gap="md">
-									<Badge size="lg" variant="filled">
-										{selectedRows.length} selected
-									</Badge>
-									<Text size="sm" c="dimmed">
-										Batch actions available
-									</Text>
-								</Group>
-								<Group gap="xs">
-									<Button
-										variant="light"
-										color={clipboard.copied ? "teal" : "blue"}
-										leftSection={<IconMail size={16} />}
-										onClick={handleBatchEmailCopy}
-										size="sm"
-									>
-										{clipboard.copied ? "Copied!" : "Copy Emails"}
-									</Button>
-									<Menu position="bottom-end">
-										<Menu.Target>
-											<ActionIcon variant="light" size="lg">
-												<IconDots size={18} />
-											</ActionIcon>
-										</Menu.Target>
-										<Menu.Dropdown>
-											<Menu.Item
-												color="red"
-												leftSection={<IconTrash size={16} />}
-												onClick={() => console.log("Clear selection")}
-											>
-												Clear Selection
-											</Menu.Item>
-										</Menu.Dropdown>
-									</Menu>
-								</Group>
-							</Group>
-						</Paper>
-					)}
-					<Paper withBorder shadow="sm" p="md" radius="md">
-						<ScrollArea>
-							<Table highlightOnHover style={{ minWidth: 900 }}>
-								<Table.Thead>
-									<Table.Tr>
-										<Table.Th style={{ width: 40 }}>
-											<Checkbox
-												aria-label="Select all rows"
-												checked={allSelected}
-												indeterminate={someSelected}
-												onChange={handleSelectAll}
-											/>
-										</Table.Th>
-										<Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
-										<Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
-										<Table.Th style={{ minWidth: 120 }}>Status</Table.Th>
-										<Table.Th style={{ minWidth: 80 }}>Attempts</Table.Th>
-										<Table.Th style={{ minWidth: 180 }}>
-											Latest Submission
-										</Table.Th>
-										<Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
-									</Table.Tr>
-								</Table.Thead>
-								<Table.Tbody>
-									{enrollments.map((enrollment) => {
-										const studentSubmissions = submissionsByStudent.get(
-											enrollment.userId,
-										);
-
-										return (
-											<StudentSubmissionRow
-												key={enrollment.id}
-												courseId={course.id}
-												enrollment={enrollment}
-												studentSubmissions={studentSubmissions}
-												isSelected={selectedRows.includes(enrollment.id)}
-												onSelectRow={handleSelectRow}
-												canDelete={canDelete}
-												onDeleteSubmission={(submissionId) => deleteSubmission(submissionId, moduleLinkId)}
-												moduleLinkId={loaderData.moduleLinkId}
-												onReleaseGrade={releaseGrade}
-												isReleasing={isReleasing}
-											/>
-										);
-									})}
-								</Table.Tbody>
-							</Table>
-						</ScrollArea>
-					</Paper>
+					<AssignmentBatchActions
+						selectedCount={selectedRows.length}
+						selectedEnrollments={selectedEnrollments}
+						onClearSelection={handleClearSelection}
+					/>
+					<AssignmentSubmissionTable
+						courseId={course.id}
+						enrollments={enrollments}
+						submissions={submissions as SubmissionType[]}
+						selectedRows={selectedRows}
+						onSelectRow={handleSelectRow}
+						canDelete={canDelete}
+						onDeleteSubmission={(submissionId) =>
+							deleteSubmission(submissionId, moduleLinkId)
+						}
+						moduleLinkId={moduleLinkId}
+						onReleaseGrade={releaseGrade}
+						isReleasing={isReleasing}
+					/>
 				</Stack>
 			);
 		}
 
 		if (module.type === "quiz") {
-			// Create a map of quiz submissions by student ID
-			const quizSubmissionsByStudent = new Map<number, QuizSubmissionType[]>();
-			for (const submission of submissions) {
-				if (
-					"attemptNumber" in submission &&
-					"status" in submission &&
-					submission.status !== undefined
-				) {
-					const studentId = submission.student.id;
-					if (!quizSubmissionsByStudent.has(studentId)) {
-						quizSubmissionsByStudent.set(studentId, []);
-					}
-					quizSubmissionsByStudent
-						.get(studentId)
-						?.push(submission as QuizSubmissionType);
-				}
-			}
-
-			// Sort submissions by attempt number (newest first) for each student
-			for (const [studentId, studentSubmissions] of quizSubmissionsByStudent) {
-				quizSubmissionsByStudent.set(
-					studentId,
-					studentSubmissions.sort((a, b) => b.attemptNumber - a.attemptNumber),
-				);
-			}
-
 			return (
-				<Paper withBorder shadow="sm" p="md" radius="md">
-					<ScrollArea>
-						<Table highlightOnHover style={{ minWidth: 900 }}>
-							<Table.Thead>
-								<Table.Tr>
-									<Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
-									<Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
-									<Table.Th style={{ minWidth: 100 }}>Status</Table.Th>
-									<Table.Th style={{ minWidth: 80 }}>Attempts</Table.Th>
-									<Table.Th style={{ minWidth: 100 }}>Score</Table.Th>
-									<Table.Th style={{ minWidth: 120 }}>Time Spent</Table.Th>
-									<Table.Th style={{ minWidth: 180 }}>Latest Submission</Table.Th>
-								</Table.Tr>
-							</Table.Thead>
-							<Table.Tbody>
-								{enrollments.map((enrollment) => {
-									const studentSubmissions =
-										quizSubmissionsByStudent.get(enrollment.userId);
-
-									return (
-										<QuizStudentSubmissionRow
-											key={enrollment.id}
-											courseId={course.id}
-											enrollment={enrollment}
-											studentSubmissions={studentSubmissions}
-										/>
-									);
-								})}
-							</Table.Tbody>
-						</Table>
-					</ScrollArea>
-				</Paper>
+				<QuizSubmissionTable
+					courseId={course.id}
+					enrollments={enrollments}
+					submissions={submissions as QuizSubmissionType[]}
+				/>
 			);
 		}
 
 		if (module.type === "discussion") {
-			return (
-				<Paper withBorder shadow="sm" p="xl" radius="md">
-					<Group justify="center" align="center" style={{ minHeight: 200 }}>
-						<div style={{ textAlign: "center" }}>
-							<Title order={3} c="dimmed" mb="md">
-								Discussion Submissions
-							</Title>
-							<Text c="dimmed">Discussion submissions view coming soon...</Text>
-						</div>
-					</Group>
-				</Paper>
-			);
+			return <DiscussionSubmissionTable />;
 		}
 
 		return null;

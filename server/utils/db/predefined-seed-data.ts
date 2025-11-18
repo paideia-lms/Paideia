@@ -1,7 +1,6 @@
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { devConstants } from "../constants";
 
-
 // Sample Nested Quiz Config for testing and seeding
 export const sampleNestedQuizConfig: QuizConfig = {
 	version: "v2",
@@ -480,7 +479,6 @@ export const sampleNestedQuizConfig: QuizConfig = {
 
 // Alias for backward compatibility
 export const sampleQuizConfig: QuizConfig = sampleNestedQuizConfig;
-
 
 export const testData = {
 	admin: {

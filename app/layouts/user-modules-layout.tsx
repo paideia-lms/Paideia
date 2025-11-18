@@ -25,11 +25,11 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
+import { canSeeUserModules } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/user-modules-layout";
-import { canSeeUserModules } from "server/utils/permissions";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
@@ -56,7 +56,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	if (!canSeeUserModules(currentUser).allowed) {
-		throw new ForbiddenResponse("You don't have permission to access this page");
+		throw new ForbiddenResponse(
+			"You don't have permission to access this page",
+		);
 	}
 
 	// Fetch the target user
@@ -252,19 +254,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 																12,
 															)}
 														>

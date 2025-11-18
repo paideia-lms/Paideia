@@ -628,10 +628,7 @@ interface QuizPreviewProps {
 	onSubmit?: (answers: QuizAnswers) => void;
 }
 
-export function QuizPreview({
-	quizConfig,
-	onSubmit,
-}: QuizPreviewProps) {
+export function QuizPreview({ quizConfig, onSubmit }: QuizPreviewProps) {
 	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
 
 	// For container quizzes, use nested quiz state
@@ -647,12 +644,7 @@ export function QuizPreview({
 
 	// Regular quiz - just render SingleQuizPreview directly
 	if (isRegularQuiz(quizConfig)) {
-		return (
-			<SingleQuizPreview
-				quizConfig={quizConfig}
-				onSubmit={onSubmit}
-			/>
-		);
+		return <SingleQuizPreview quizConfig={quizConfig} onSubmit={onSubmit} />;
 	}
 
 	// Container quiz logic
@@ -731,8 +723,8 @@ export function QuizPreview({
 					initialAnswers={
 						isViewingCompletedQuiz
 							? nestedQuizState.submittedAnswers[
-							nestedQuizState.currentNestedQuizId
-							]
+									nestedQuizState.currentNestedQuizId
+								]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {

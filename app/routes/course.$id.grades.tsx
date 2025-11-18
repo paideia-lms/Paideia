@@ -21,14 +21,14 @@ import { GraderReportView } from "~/components/gradebook/report-view";
 import { inputSchema } from "~/components/gradebook/schemas";
 import { GradebookSetupView } from "~/components/gradebook/setup-view";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import {
-	badRequest,
-	ForbiddenResponse,
-	ok,
-} from "~/utils/responses";
+import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades";
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
 	const { courseId } = params;
 	const payload = context.get(globalContextKey).payload;
@@ -42,11 +42,9 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 	const gradebookSetupForUI = courseContext.gradebookSetupForUI;
 
 	// Prepare user object for internal functions
-	const currentUser =
-		userSession?.isAuthenticated
-			? userSession.effectiveUser || userSession.authenticatedUser
-			: null;
-
+	const currentUser = userSession?.isAuthenticated
+		? userSession.effectiveUser || userSession.authenticatedUser
+		: null;
 
 	// Fetch user grades for the course
 	let userGrades = null;
@@ -54,12 +52,13 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 		payload,
 		user: currentUser
 			? {
-				...currentUser,
-				avatar:
-					typeof currentUser.avatar === "object" && currentUser.avatar !== null
-						? currentUser.avatar.id
-						: currentUser.avatar,
-			}
+					...currentUser,
+					avatar:
+						typeof currentUser.avatar === "object" &&
+						currentUser.avatar !== null
+							? currentUser.avatar.id
+							: currentUser.avatar,
+				}
 			: null,
 		req: request,
 		overrideAccess: false,
@@ -83,7 +82,7 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-			gradebookSetupForUI.extraCreditItems.length > 0
+				gradebookSetupForUI.extraCreditItems.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -106,7 +105,10 @@ export const action = async ({
 	}
 
 	// Get gradebook for this course
-	const gradebookResult = await tryFindGradebookByCourseId(payload, Number(courseId));
+	const gradebookResult = await tryFindGradebookByCourseId(
+		payload,
+		Number(courseId),
+	);
 	if (!gradebookResult.ok) {
 		return badRequest({ error: "Gradebook not found for this course" });
 	}
