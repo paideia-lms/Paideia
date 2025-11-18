@@ -107,6 +107,7 @@ async function startServer() {
 						const requestInfo = getRequestInfo(request);
 						const hints = getHints(request);
 						c.set(globalContextKey, {
+							environment: process.env.NODE_ENV,
 							payload: payload,
 							elysia: backend,
 							api,

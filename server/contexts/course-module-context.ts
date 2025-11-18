@@ -11,8 +11,12 @@ import {
 import { tryListAssignmentSubmissions } from "../internal/assignment-submission-management";
 import { tryFindCourseActivityModuleLinkById } from "../internal/course-activity-module-link-management";
 import { tryGetCourseStructure } from "../internal/course-section-management";
-import { tryListDiscussionSubmissions } from "../internal/discussion-management";
+import {
+	tryGetDiscussionThreadsWithAllReplies,
+	tryListDiscussionSubmissions,
+} from "../internal/discussion-management";
 import { tryListQuizSubmissions } from "../internal/quiz-submission-management";
+import { canSubmitAssignment } from "../utils/permissions";
 import type {
 	ActivityModule,
 	AssignmentSubmission,
@@ -21,7 +25,8 @@ import type {
 	QuizSubmission,
 	User,
 } from "../payload-types";
-import { flattenCourseStructure } from "../utils/course-structure-utils";
+import { flattenCourseStructure, flattenCourseStructureWithModuleInfo } from "../utils/course-structure-utils";
+import { formatModuleSettingsForDisplay } from "app/routes/course/module.$id/utils";
 
 // Submission types with resolved relationships
 export type AssignmentSubmissionResolved = Omit<
@@ -125,19 +130,79 @@ export type CourseModule = {
 	updatedAt: string;
 };
 
+export type ModuleDateInfo = {
+	label: string;
+	value: string;
+	isOverdue: boolean;
+};
+
+export type FormattedModuleSettings = {
+	type: "assignment" | "quiz" | "discussion";
+	name: string | undefined;
+	dates: ModuleDateInfo[];
+} | null;
+
+export type DiscussionThread = {
+	id: string;
+	title: string;
+	content: string;
+	author: string;
+	authorAvatar: string;
+	authorId: number | null;
+	publishedAt: string;
+	upvotes: number;
+	replyCount: number;
+	isPinned: boolean;
+	isUpvoted: boolean;
+};
+
+export type DiscussionReply = {
+	id: string;
+	content: string;
+	author: string;
+	authorAvatar: string;
+	authorId: number | null;
+	publishedAt: string;
+	upvotes: number;
+	parentId: string | null;
+	isUpvoted: boolean;
+	replies?: DiscussionReply[];
+};
+
+export type PreviousNextModule = {
+	id: number;
+	title: string;
+	type: "page" | "assignment" | "quiz" | "discussion" | "whiteboard";
+} | null;
+
 export type CourseModuleContext = {
 	module: CourseModule;
 	moduleLinkId: number;
 	moduleLinkCreatedAt: string;
 	moduleLinkUpdatedAt: string;
 	moduleLinkSettings: CourseModuleSettingsV1 | null;
+	formattedModuleSettings: FormattedModuleSettings;
 	previousModuleLinkId: number | null;
 	nextModuleLinkId: number | null;
+	previousModule: PreviousNextModule;
+	nextModule: PreviousNextModule;
 	submissions: Array<
 		| AssignmentSubmissionResolved
 		| QuizSubmissionResolved
 		| DiscussionSubmissionResolved
 	>;
+	// User-specific submissions (filtered for current user)
+	userSubmissions: Array<
+		| AssignmentSubmissionResolved
+		| QuizSubmissionResolved
+		| DiscussionSubmissionResolved
+	>;
+	// Current user's active submission (draft for assignments, in_progress for quizzes)
+	userSubmission: AssignmentSubmissionResolved | QuizSubmissionResolved | null;
+	// Discussion threads (only for discussion modules)
+	discussionThreads: DiscussionThread[];
+	// Whether user can submit assignments
+	canSubmit: boolean;
 };
 
 export const courseModuleContext = createContext<CourseModuleContext | null>(
@@ -146,6 +211,145 @@ export const courseModuleContext = createContext<CourseModuleContext | null>(
 
 export const courseModuleContextKey =
 	"courseModuleContext" as unknown as typeof courseModuleContext;
+
+/**
+ * Get a single discussion thread with all nested replies
+ * This transforms the thread data from tryGetDiscussionThreadsWithAllReplies
+ * into the DiscussionReply format used in the route
+ */
+export const tryGetDiscussionThreadWithReplies = Result.wrap(
+	async (
+		payload: BasePayload,
+		threadId: number,
+		courseModuleLinkId: number,
+		currentUser: User | null,
+		req?: Partial<PayloadRequest>,
+	) => {
+		const formattedUser: TypedUser | null = currentUser
+			? {
+				...currentUser,
+				collection: "users",
+				avatar: currentUser.avatar
+					? typeof currentUser.avatar === "number"
+						? currentUser.avatar
+						: currentUser.avatar.id
+					: undefined,
+			}
+			: null;
+
+		const threadsResult = await tryGetDiscussionThreadsWithAllReplies(payload, {
+			courseModuleLinkId,
+			user: formattedUser,
+			req,
+			overrideAccess: false,
+		});
+
+		if (!threadsResult.ok) {
+			throw threadsResult.error;
+		}
+
+		// Find the specific thread
+		const threadData = threadsResult.value.threads.find(
+			(t) => t.thread.id === threadId,
+		);
+
+		if (!threadData) {
+			throw new NonExistingActivityModuleError(
+				`Thread with id '${threadId}' not found`,
+			);
+		}
+
+		const thread = threadData.thread;
+		const student = thread.student;
+		const authorName = student
+			? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
+			student.email ||
+			"Unknown"
+			: "Unknown";
+		const authorAvatar = student
+			? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
+			student.email?.[0]?.toUpperCase() ||
+			"U"
+			: "U";
+
+		const isUpvoted =
+			thread.upvotes?.some(
+				(upvote: { user: number | { id: number }; upvotedAt: string }) => {
+					const upvoteUser =
+						typeof upvote.user === "object" && upvote.user !== null
+							? upvote.user
+							: null;
+					return upvoteUser?.id === currentUser?.id;
+				},
+			) ?? false;
+
+		// Transform nested replies into DiscussionReply format
+		const transformReply = (
+			reply: typeof threadData.replies[number],
+		): DiscussionReply => {
+			const replyStudent = reply.student;
+			const replyAuthorName = replyStudent
+				? `${replyStudent.firstName || ""} ${replyStudent.lastName || ""}`.trim() ||
+				replyStudent.email ||
+				"Unknown"
+				: "Unknown";
+			const replyAuthorAvatar = replyStudent
+				? `${replyStudent.firstName?.[0] || ""}${replyStudent.lastName?.[0] || ""}`.trim() ||
+				replyStudent.email?.[0]?.toUpperCase() ||
+				"U"
+				: "U";
+
+			const replyIsUpvoted =
+				reply.upvotes?.some(
+					(upvote: { user: number | { id: number }; upvotedAt: string }) => {
+						const upvoteUser =
+							typeof upvote.user === "object" && upvote.user !== null
+								? upvote.user
+								: null;
+						return upvoteUser?.id === currentUser?.id;
+					},
+				) ?? false;
+
+			return {
+				id: String(reply.id),
+				content: reply.content,
+				author: replyAuthorName,
+				authorAvatar: replyAuthorAvatar,
+				authorId: replyStudent?.id ?? null,
+				publishedAt: reply.createdAt,
+				upvotes: reply.upvotes?.length ?? 0,
+				parentId: reply.parentThreadId === threadId ? null : String(reply.parentThreadId),
+				isUpvoted: replyIsUpvoted,
+				replies: reply.replies.map(transformReply),
+			};
+		};
+
+		// Transform all top-level replies (nested structure is preserved)
+		const transformedReplies = threadData.replies.map(transformReply);
+
+		return {
+			thread: {
+				id: String(thread.id),
+				title: thread.title || "",
+				content: thread.content,
+				author: authorName,
+				authorAvatar,
+				authorId: student?.id ?? null,
+				publishedAt: thread.createdAt,
+				upvotes: thread.upvotes?.length ?? 0,
+				replyCount: threadData.repliesTotal + threadData.commentsTotal,
+				isPinned: thread.isPinned ?? false,
+				isUpvoted,
+			},
+			replies: transformedReplies,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get discussion thread with replies", {
+			cause: error,
+		}),
+);
 
 /**
  * Get course module context for a given module link ID
@@ -157,6 +361,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 		moduleLinkId: number,
 		courseId: number,
 		currentUser: User | null,
+		enrolment: { role?: "student" | "teacher" | "ta" | "manager" } | null,
 		req?: Partial<PayloadRequest>,
 	) => {
 		// Fetch the module link
@@ -347,6 +552,45 @@ export const tryGetCourseModuleContext = Result.wrap(
 				? flatModuleLinkIds[currentIndex + 1]
 				: null;
 
+		// Get module link settings
+		const moduleLinkSettings =
+			(moduleLink.settings as unknown as CourseModuleSettingsV1) ?? null;
+
+		// Format module settings for display (using function from utils.ts)
+		const formattedModuleSettings = formatModuleSettingsForDisplay(
+			moduleLinkSettings,
+		) as FormattedModuleSettings;
+
+		// Get flattened modules with info for previous/next calculation
+		const flattenedModules = flattenCourseStructureWithModuleInfo(
+			courseStructureResult.value,
+		);
+		const currentModuleIndex = flattenedModules.findIndex(
+			(m) => m.moduleLinkId === moduleLinkId,
+		);
+
+		const previousModule: PreviousNextModule =
+			currentModuleIndex > 0
+				? {
+					id: flattenedModules[currentModuleIndex - 1].moduleLinkId,
+					title: flattenedModules[currentModuleIndex - 1].title,
+					type: flattenedModules[currentModuleIndex - 1].type,
+				}
+				: null;
+
+		const nextModule: PreviousNextModule =
+			currentModuleIndex < flattenedModules.length - 1 &&
+				currentModuleIndex !== -1
+				? {
+					id: flattenedModules[currentModuleIndex + 1].moduleLinkId,
+					title: flattenedModules[currentModuleIndex + 1].title,
+					type: flattenedModules[currentModuleIndex + 1].type,
+				}
+				: null;
+
+		// Check if user can submit assignments
+		const canSubmit = enrolment ? canSubmitAssignment(enrolment).allowed : false;
+
 		// Fetch submissions based on module type
 		let submissions: Array<
 			| AssignmentSubmissionResolved
@@ -368,9 +612,12 @@ export const tryGetCourseModuleContext = Result.wrap(
 					.docs as AssignmentSubmissionResolved[];
 			}
 		} else if (transformedModule.type === "quiz") {
+			// For quizzes, if user is a student, fetch only their submissions
+			// Otherwise, fetch all submissions (for admins/instructors)
 			const submissionsResult = await tryListQuizSubmissions({
 				payload,
 				courseModuleLinkId: moduleLinkId,
+				studentId: currentUser?.id,
 				limit: 1000,
 				user: formattedUser,
 				req,
@@ -389,8 +636,118 @@ export const tryGetCourseModuleContext = Result.wrap(
 				overrideAccess: false,
 			});
 			if (submissionsResult.ok) {
-				submissions = submissionsResult.value
-					.docs as DiscussionSubmissionResolved[];
+				// Transform the submissions to match DiscussionSubmissionResolved type
+				// courseModuleLink is already type-narrowed to an object with id property
+				submissions = submissionsResult.value.map((sub) => ({
+					...sub,
+					courseModuleLink: sub.courseModuleLink.id,
+				})) as DiscussionSubmissionResolved[];
+			}
+		}
+
+		// Filter user-specific submissions
+		let userSubmissions: typeof submissions = [];
+		if (currentUser) {
+			if (transformedModule.type === "assignment") {
+				// For assignments, filter from all submissions
+				userSubmissions = submissions.filter(
+					(sub) => "student" in sub && sub.student.id === currentUser.id,
+				);
+			} else if (transformedModule.type === "quiz") {
+				// For quizzes, submissions are already filtered by studentId
+				userSubmissions = submissions;
+			} else {
+				userSubmissions = [];
+			}
+		}
+
+		// Get the latest submission (draft or most recent for assignments, in_progress or most recent for quizzes)
+		let userSubmission: AssignmentSubmissionResolved | QuizSubmissionResolved | null = null;
+		if (userSubmissions.length > 0) {
+			if (transformedModule.type === "assignment") {
+				const assignmentSubmissions = userSubmissions.filter(
+					(sub): sub is AssignmentSubmissionResolved => "status" in sub,
+				);
+				userSubmission =
+					assignmentSubmissions.find((sub) => sub.status === "draft") ||
+					assignmentSubmissions[0] ||
+					null;
+			} else if (transformedModule.type === "quiz") {
+				const quizSubmissions = userSubmissions.filter(
+					(sub): sub is QuizSubmissionResolved => "status" in sub,
+				);
+				// For quizzes, prioritize in_progress, then most recent
+				userSubmission =
+					quizSubmissions.find((sub) => sub.status === "in_progress") ||
+					// Sort by createdAt descending and get the most recent
+					([...quizSubmissions].sort((a, b) => {
+						const aDate =
+							"createdAt" in a && typeof a.createdAt === "string"
+								? new Date(a.createdAt).getTime()
+								: 0;
+						const bDate =
+							"createdAt" in b && typeof b.createdAt === "string"
+								? new Date(b.createdAt).getTime()
+								: 0;
+						return bDate - aDate;
+					})[0] || null);
+			}
+		}
+
+		// Fetch discussion threads if this is a discussion module
+		let discussionThreads: DiscussionThread[] = [];
+		if (transformedModule.type === "discussion" && currentUser) {
+			const threadsResult = await tryGetDiscussionThreadsWithAllReplies(payload, {
+				courseModuleLinkId: moduleLinkId,
+				user: formattedUser,
+				req,
+				overrideAccess: false,
+			});
+
+			if (threadsResult.ok) {
+				discussionThreads = threadsResult.value.threads.map((threadData) => {
+					const thread = threadData.thread;
+					const student = thread.student;
+					const authorName = student
+						? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
+						student.email ||
+						"Unknown"
+						: "Unknown";
+					const authorAvatar = student
+						? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
+						student.email?.[0]?.toUpperCase() ||
+						"U"
+						: "U";
+
+					const isUpvoted =
+						thread.upvotes?.some(
+							(upvote: { user: number | { id: number }; upvotedAt: string }) => {
+								const upvoteUser =
+									typeof upvote.user === "object" && upvote.user !== null
+										? upvote.user
+										: null;
+								return upvoteUser?.id === currentUser.id;
+							},
+						) ?? false;
+
+					// Calculate total reply count (replies + comments)
+					const replyCount = threadData.repliesTotal + threadData.commentsTotal;
+
+					return {
+						...threadData,
+						id: String(thread.id),
+						title: thread.title || "",
+						content: thread.content,
+						author: authorName,
+						authorAvatar,
+						authorId: student?.id ?? null,
+						publishedAt: thread.createdAt,
+						upvotes: thread.upvotes?.length ?? 0,
+						replyCount,
+						isPinned: thread.isPinned ?? false,
+						isUpvoted,
+					};
+				});
 			}
 		}
 
@@ -399,11 +756,17 @@ export const tryGetCourseModuleContext = Result.wrap(
 			moduleLinkId: moduleLink.id,
 			moduleLinkCreatedAt: moduleLink.createdAt,
 			moduleLinkUpdatedAt: moduleLink.updatedAt,
-			moduleLinkSettings:
-				(moduleLink.settings as unknown as CourseModuleSettingsV1) ?? null,
+			moduleLinkSettings,
+			formattedModuleSettings,
 			previousModuleLinkId,
 			nextModuleLinkId,
+			previousModule,
+			nextModule,
 			submissions,
+			userSubmissions,
+			userSubmission,
+			discussionThreads,
+			canSubmit,
 		} satisfies CourseModuleContext;
 	},
 	(error) =>

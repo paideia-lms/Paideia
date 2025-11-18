@@ -37,7 +37,7 @@ interface ReplyCardWithUpvoteProps {
 
 export function ReplyCardWithUpvote({
     reply,
-    allReplies,
+    allReplies: _allReplies,
     moduleLinkId,
     threadId,
     courseId,
@@ -46,29 +46,22 @@ export function ReplyCardWithUpvote({
     replyTo,
     onCancelReply,
 }: ReplyCardWithUpvoteProps) {
-    const [opened, { toggle }] = useDisclosure(false);
+    const [opened, { toggle }] = useDisclosure(true); // Open by default to show nested replies
     const [replyContent, setReplyContent] = useState("");
     const { createReply, isSubmitting, data } = useCreateReply(moduleLinkId);
-    const revalidator = useRevalidator();
-    const nestedReplies = allReplies.filter((r) => r.parentId === reply.id);
 
-    // Revalidate when reply is successfully submitted
-    useEffect(() => {
-        if (data && "status" in data && data.status === StatusCode.Ok) {
-            revalidator.revalidate();
-        }
-    }, [data, revalidator]);
+    // Use nested replies from the reply object itself (nested structure)
+    const nestedReplies = reply.replies || [];
 
     // Count total nested replies recursively
-    const countNestedReplies = (replyId: string): number => {
-        const directReplies = allReplies.filter((r) => r.parentId === replyId);
-        return directReplies.reduce(
-            (count, r) => count + 1 + countNestedReplies(r.id),
+    const countNestedReplies = (replies: DiscussionReply[]): number => {
+        return replies.reduce(
+            (count, r) => count + 1 + countNestedReplies(r.replies || []),
             0,
         );
     };
 
-    const totalNestedCount = countNestedReplies(reply.id);
+    const totalNestedCount = countNestedReplies(nestedReplies);
     const isReplyingToThis = replyTo === reply.id;
 
     const handleReplySubmit = () => {
@@ -85,16 +78,10 @@ export function ReplyCardWithUpvote({
     };
 
     return (
-        <Box
-            style={{
-                marginLeft: level > 0 ? 6 : 0,
-                borderLeft:
-                    level > 0 ? "2px solid var(--mantine-color-gray-3)" : undefined,
-                paddingLeft: level > 0 ? 12 : 0,
-            }}
-        >
+
+        <Box>
             <Paper withBorder p="md" radius="sm">
-                <Stack gap="sm">
+                <Stack  >
                     <Group justify="space-between" align="flex-start">
                         <Group gap="xs">
                             <Link
@@ -111,11 +98,9 @@ export function ReplyCardWithUpvote({
                                     <Avatar size="sm" radius="xl">
                                         {reply.authorAvatar}
                                     </Avatar>
-                                    <Stack gap={0}>
-                                        <Text size="sm" fw={500} style={{ cursor: "pointer" }}>
-                                            {reply.author}
-                                        </Text>
-                                    </Stack>
+                                    <Text size="sm" fw={500} style={{ cursor: "pointer" }}>
+                                        {reply.author}
+                                    </Text>
                                 </Group>
                             </Link>
                             <Text size="xs" c="dimmed">
@@ -166,7 +151,7 @@ export function ReplyCardWithUpvote({
             {/* Inline Reply Form */}
             {isReplyingToThis && (
                 <Paper withBorder p="md" radius="sm" bg="gray.0" mt="sm">
-                    <Stack gap="md">
+                    <Stack gap="md" >
                         <Text size="sm" fw={500}>
                             Replying to {reply.author}...
                         </Text>
@@ -199,24 +184,38 @@ export function ReplyCardWithUpvote({
 
             {/* Nested Replies */}
             {nestedReplies.length > 0 && (
-                <Collapse in={opened}>
-                    <Stack gap="sm" mt="sm">
-                        {nestedReplies.map((nestedReply) => (
-                            <ReplyCardWithUpvote
-                                key={nestedReply.id}
-                                reply={nestedReply}
-                                allReplies={allReplies}
-                                moduleLinkId={moduleLinkId}
-                                threadId={threadId}
-                                courseId={courseId}
-                                onReply={onReply}
-                                level={level + 1}
-                                replyTo={replyTo}
-                                onCancelReply={onCancelReply}
-                            />
-                        ))}
-                    </Stack>
-                </Collapse>
+                <Box mt="sm">
+                    <Collapse in={opened}>
+
+                        <Box style={{
+
+                            marginLeft: 6,
+                            paddingLeft: 12,
+                            borderLeft:
+                                "2px solid var(--mantine-color-gray-3)",
+
+                        }}>
+                            <Stack gap={0} >
+                                <Stack>
+                                    {nestedReplies.map((nestedReply) => (
+                                        <ReplyCardWithUpvote
+                                            key={nestedReply.id}
+                                            reply={nestedReply}
+                                            allReplies={_allReplies}
+                                            moduleLinkId={moduleLinkId}
+                                            threadId={threadId}
+                                            courseId={courseId}
+                                            onReply={onReply}
+                                            level={level + 1}
+                                            replyTo={replyTo}
+                                            onCancelReply={onCancelReply}
+                                        />
+                                    ))}
+                                </Stack>
+                            </Stack>
+                        </Box>
+                    </Collapse>
+                </Box>
             )}
         </Box>
     );

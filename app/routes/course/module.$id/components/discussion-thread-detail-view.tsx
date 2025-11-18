@@ -137,30 +137,28 @@ export function DiscussionThreadDetailView({
                 )}
 
                 {/* Replies */}
-                <Stack gap="md">
+                <Stack >
                     <Title order={4}>
-                        {replies.length} {replies.length === 1 ? "Reply" : "Replies"}
+                        {thread.replyCount} {thread.replyCount === 1 ? "Reply" : "Replies"}
                     </Title>
-                    {replies
-                        .filter((r) => r.parentId === null)
-                        .map((reply) => (
-                            <ReplyCardWithUpvote
-                                key={reply.id}
-                                reply={reply}
-                                allReplies={replies}
-                                moduleLinkId={moduleLinkId}
-                                threadId={threadId}
-                                courseId={courseId}
-                                onReply={(id) => {
-                                    setReplyTo(id);
-                                }}
-                                level={0}
-                                replyTo={replyTo}
-                                onCancelReply={() => {
-                                    setReplyTo(null);
-                                }}
-                            />
-                        ))}
+                    {replies.map((reply) => (
+                        <ReplyCardWithUpvote
+                            key={reply.id}
+                            reply={reply}
+                            allReplies={replies}
+                            moduleLinkId={moduleLinkId}
+                            threadId={threadId}
+                            courseId={courseId}
+                            onReply={(id) => {
+                                setReplyTo(id);
+                            }}
+                            level={0}
+                            replyTo={replyTo}
+                            onCancelReply={() => {
+                                setReplyTo(null);
+                            }}
+                        />
+                    ))}
                 </Stack>
             </Stack>
         </Paper>

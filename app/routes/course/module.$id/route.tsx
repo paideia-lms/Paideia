@@ -15,7 +15,10 @@ import prettyBytes from "pretty-bytes";
 import { href, redirect, useFetcher, Link, useRevalidator } from "react-router";
 import { useEffect } from "react";
 import { courseContextKey } from "server/contexts/course-context";
-import { courseModuleContextKey } from "server/contexts/course-module-context";
+import {
+	courseModuleContextKey,
+	tryGetDiscussionThreadWithReplies,
+} from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -26,7 +29,6 @@ import {
 } from "server/internal/assignment-submission-management";
 import {
 	tryCreateDiscussionSubmission,
-	tryGetThreadWithReplies,
 	tryListDiscussionSubmissions,
 	tryRemoveUpvoteDiscussionSubmission,
 	tryUpvoteDiscussionSubmission,
@@ -69,11 +71,11 @@ import {
 } from "~/utils/responses";
 import {
 	loadSearchParams,
-	formatModuleSettingsForDisplay,
 	transformQuizAnswersToSubmissionFormat,
 } from "./utils";
 import { ModuleDatesInfo } from "./components/module-dates-info";
 import { DiscussionThreadView } from "./components/discussion-thread-view";
+import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
 import type { Route } from "./+types/route";
 
 export const loader = async ({
@@ -102,468 +104,86 @@ export const loader = async ({
 		throw new ForbiddenResponse("Module not found or access denied");
 	}
 
-	// Get flattened list of modules from course structure
-	const flattenedModules = flattenCourseStructureWithModuleInfo(
-		courseContext.courseStructure,
-	);
-
-	// Find current module index
-	const currentIndex = flattenedModules.findIndex(
-		(m) => m.moduleLinkId === Number(moduleLinkId),
-	);
-
-	// Get previous and next modules
-	const previousModule =
-		currentIndex > 0
-			? {
-				id: flattenedModules[currentIndex - 1].moduleLinkId,
-				title: flattenedModules[currentIndex - 1].title,
-				type: flattenedModules[currentIndex - 1].type,
-			}
-			: null;
-
-	const nextModule =
-		currentIndex < flattenedModules.length - 1 && currentIndex !== -1
-			? {
-				id: flattenedModules[currentIndex + 1].moduleLinkId,
-				title: flattenedModules[currentIndex + 1].title,
-				type: flattenedModules[currentIndex + 1].type,
-			}
-			: null;
-
-	// Get current user's submissions for assignments
+	// Get current user
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Check if user can submit assignments
-	const enrolmentContext = context.get(enrolmentContextKey);
-	const canSubmit = canSubmitAssignment(enrolmentContext?.enrolment).allowed;
-
-	if (!canSubmit && action === AssignmentActions.EDIT_SUBMISSION) {
+	// Check permissions
+	if (!courseModuleContext.canSubmit && action === AssignmentActions.EDIT_SUBMISSION) {
 		throw new ForbiddenResponse("You cannot edit submissions");
 	}
 
-	// Format module settings with dates for display
-	const formattedModuleSettings = formatModuleSettingsForDisplay(
-		courseModuleContext.moduleLinkSettings,
-	);
-
 	// If this is an assignment module and user cannot submit, they can't see submissions
-	if (courseModuleContext.module.type === "assignment" && !canSubmit) {
+	if (courseModuleContext.module.type === "assignment" && !courseModuleContext.canSubmit) {
 		return {
 			module: courseModuleContext.module,
 			moduleSettings: courseModuleContext.moduleLinkSettings,
-			formattedModuleSettings,
+			formattedModuleSettings: courseModuleContext.formattedModuleSettings,
 			course: courseContext.course,
-			previousModule,
-			nextModule,
+			previousModule: courseModuleContext.previousModule,
+			nextModule: courseModuleContext.nextModule,
 			userSubmission: null,
 			userSubmissions: [],
 			moduleLinkId: courseModuleContext.moduleLinkId,
 			canSubmit: false,
-			discussionThreads: [],
+			discussionThreads: courseModuleContext.discussionThreads,
 			discussionThread: null,
 			discussionReplies: [],
 		};
 	}
 
-	// Fetch discussion data if this is a discussion module
-	let discussionThreads: Array<{
-		id: string;
-		title: string;
-		content: string;
-		author: string;
-		authorAvatar: string;
-		publishedAt: string;
-		upvotes: number;
-		replyCount: number;
-		isPinned: boolean;
-		isUpvoted: boolean;
-	}> = [];
-	let discussionThread: {
-		id: string;
-		title: string;
-		content: string;
-		author: string;
-		authorAvatar: string;
-		publishedAt: string;
-		upvotes: number;
-		replyCount: number;
-		isPinned: boolean;
-		isUpvoted: boolean;
-	} | null = null;
-	let discussionReplies: Array<{
-		id: string;
-		content: string;
-		author: string;
-		authorAvatar: string;
-		publishedAt: string;
-		upvotes: number;
-		parentId: string | null;
-		isUpvoted: boolean;
-		replies?: Array<{
-			id: string;
-			content: string;
-			author: string;
-			authorAvatar: string;
-			publishedAt: string;
-			upvotes: number;
-			parentId: string | null;
-			isUpvoted: boolean;
-		}>;
-	}> = [];
+	// Fetch discussion replies if threadId is provided (threadId-dependent, so stays in loader)
+	let discussionThread: typeof courseModuleContext.discussionThreads[0] | null = null;
+	let discussionReplies: DiscussionReply[] = [];
 
-	if (courseModuleContext.module.type === "discussion") {
+	if (courseModuleContext.module.type === "discussion" && threadId) {
 		const payload = context.get(globalContextKey)?.payload;
 		if (!payload) {
 			throw new ForbiddenResponse("Payload not available");
 		}
 
-		// Always fetch all threads for this discussion (general data: title, author, upvotes, etc.)
-		const threadsResult = await tryListDiscussionSubmissions({
-			payload,
-			courseModuleLinkId: Number(moduleLinkId),
-			postType: "thread",
-			status: "published",
-			limit: 100,
-			page: 1,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id ?? undefined,
-			},
-			overrideAccess: false,
-		});
+		const threadIdNum = Number.parseInt(threadId, 10);
+		if (!Number.isNaN(threadIdNum)) {
+			// Find the thread from context
+			const foundThread = courseModuleContext.discussionThreads.find((t) => t.id === threadId);
+			if (foundThread) {
+				discussionThread = foundThread;
 
-		if (threadsResult.ok) {
-			// Get all replies for reply count calculation
-			const allRepliesResult = await tryListDiscussionSubmissions({
-				payload,
-				courseModuleLinkId: Number(moduleLinkId),
-				postType: "reply",
-				status: "published",
-				limit: 1000,
-				page: 1,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
-				overrideAccess: false,
-			});
-
-			const allCommentsResult = await tryListDiscussionSubmissions({
-				payload,
-				courseModuleLinkId: Number(moduleLinkId),
-				postType: "comment",
-				status: "published",
-				limit: 1000,
-				page: 1,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
-				overrideAccess: false,
-			});
-
-			const allReplies = allRepliesResult.ok ? allRepliesResult.value.docs : [];
-			const allComments = allCommentsResult.ok ? allCommentsResult.value.docs : [];
-
-			// Count replies per thread
-			const replyCountMap = new Map<string, number>();
-			for (const reply of allReplies) {
-				const parentThreadId = reply.parentThread;
-				if (parentThreadId) {
-					const threadIdStr = String(
-						typeof parentThreadId === "object" && parentThreadId !== null && "id" in parentThreadId
-							? parentThreadId.id
-							: parentThreadId,
-					);
-					replyCountMap.set(threadIdStr, (replyCountMap.get(threadIdStr) || 0) + 1);
-				}
-			}
-
-			// Count comments per thread (comments are also replies to threads)
-			for (const comment of allComments) {
-				const parentThreadId = comment.parentThread;
-				if (parentThreadId) {
-					const threadIdStr = String(
-						typeof parentThreadId === "object" && parentThreadId !== null && "id" in parentThreadId
-							? parentThreadId.id
-							: parentThreadId,
-					);
-					replyCountMap.set(threadIdStr, (replyCountMap.get(threadIdStr) || 0) + 1);
-				}
-			}
-
-			discussionThreads = threadsResult.value.docs.map((thread) => {
-				const student =
-					typeof thread.student === "object" && thread.student !== null
-						? thread.student
-						: null;
-				const authorName = student
-					? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
-					student.email ||
-					"Unknown"
-					: "Unknown";
-				const authorAvatar = student
-					? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
-					student.email?.[0]?.toUpperCase() ||
-					"U"
-					: "U";
-
-				const isUpvoted =
-					thread.upvotes?.some(
-						(upvote: { user: number | { id: number }; upvotedAt: string; id?: string | null }) => {
-							const upvoteUser =
-								typeof upvote.user === "object" && upvote.user !== null
-									? upvote.user
-									: null;
-							return upvoteUser?.id === currentUser.id;
-						},
-					) ?? false;
-
-				return {
-					id: String(thread.id),
-					title: thread.title || "",
-					content: thread.content,
-					author: authorName,
-					authorAvatar,
-					authorId: student?.id ?? null,
-					publishedAt: thread.createdAt,
-					upvotes: thread.upvotes?.length ?? 0,
-					replyCount: replyCountMap.get(String(thread.id)) || 0,
-					isPinned: thread.isPinned ?? false,
-					isUpvoted,
-				};
-			});
-		}
-
-		// If threadId is provided, fetch only the replies for that specific thread
-		if (threadId) {
-			const threadIdNum = Number.parseInt(threadId, 10);
-			if (!Number.isNaN(threadIdNum)) {
-				// Find the thread from the already-fetched threads list
-				const foundThread = discussionThreads.find((t) => t.id === threadId);
-				if (foundThread) {
-					// Use the thread data from the list (no need to fetch again)
-					discussionThread = foundThread;
-
-					// Only fetch the replies for this thread
-					const threadResult = await tryGetThreadWithReplies(payload, {
-						threadId: threadIdNum,
-						includeComments: true,
-					});
-
-					if (threadResult.ok) {
-						const replies = threadResult.value.replies;
-						const comments = threadResult.value.comments;
-
-						// Transform replies and comments into a flat structure
-						// Replies have parentThread pointing to the thread
-						// Comments have parentThread pointing to either the thread or a reply
-						const allRepliesData = [
-							...replies.map((reply) => ({
-								original: reply,
-								type: "reply" as const,
-							})),
-							...comments.map((comment) => ({
-								original: comment,
-								type: "comment" as const,
-							})),
-						];
-
-						// Build a map of all replies/comments by ID
-						const replyMap = new Map<
-							string,
-							{
-								id: string;
-								content: string;
-								author: string;
-								authorAvatar: string;
-								authorId: number | null;
-								publishedAt: string;
-								upvotes: number;
-								parentId: string | null;
-								isUpvoted: boolean;
-								replies: Array<{
-									id: string;
-									content: string;
-									author: string;
-									authorAvatar: string;
-									authorId: number | null;
-									publishedAt: string;
-									upvotes: number;
-									parentId: string | null;
-									isUpvoted: boolean;
-								}>;
-							}
-						>();
-
-						// First pass: create all reply/comment entries
-						for (const item of allRepliesData) {
-							const original = item.original;
-							const student =
-								typeof original.student === "object" && original.student !== null
-									? original.student
-									: null;
-							const authorName = student
-								? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
-								student.email ||
-								"Unknown"
-								: "Unknown";
-							const authorAvatar = student
-								? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
-								student.email?.[0]?.toUpperCase() ||
-								"U"
-								: "U";
-
-							const isUpvoted =
-								original.upvotes?.some(
-									(upvote: { user: number | { id: number }; upvotedAt: string; id?: string | null }) => {
-										const upvoteUser =
-											typeof upvote.user === "object" && upvote.user !== null
-												? upvote.user
-												: null;
-										return upvoteUser?.id === currentUser.id;
-									},
-								) ?? false;
-
-							// Get parentThread ID - for replies it's the thread, for comments it might be a reply
-							const parentThreadId = original.parentThread;
-							const parentId = parentThreadId
-								? String(
-									typeof parentThreadId === "object" &&
-										parentThreadId !== null &&
-										"id" in parentThreadId
-										? parentThreadId.id
-										: parentThreadId,
-								)
-								: null;
-
-							// If parentId is the thread ID, this is a top-level reply
-							// Otherwise, it's a nested comment
-							const isTopLevel = parentId === String(threadIdNum);
-
-							replyMap.set(String(original.id), {
-								id: String(original.id),
-								content: original.content,
-								author: authorName,
-								authorAvatar,
-								authorId: student?.id ?? null,
-								publishedAt: original.createdAt,
-								upvotes: original.upvotes?.length ?? 0,
-								parentId: isTopLevel ? null : parentId,
-								isUpvoted,
-								replies: [],
-							});
+				// Get the thread with all nested replies using the course module context function
+				const threadResult = await tryGetDiscussionThreadWithReplies(
+					payload,
+					threadIdNum,
+					Number(moduleLinkId),
+					currentUser
+						? {
+							...currentUser,
+							avatar:
+								currentUser.avatar && typeof currentUser.avatar === "object"
+									? currentUser.avatar.id
+									: currentUser.avatar,
 						}
+						: null,
+				);
 
-						// Second pass: build nested structure
-						for (const item of allRepliesData) {
-							const replyId = String(item.original.id);
-							const replyEntry = replyMap.get(replyId);
-							if (!replyEntry) continue;
-
-							// If this has a parentId that's not the thread, it's nested
-							if (replyEntry.parentId && replyEntry.parentId !== String(threadIdNum)) {
-								const parent = replyMap.get(replyEntry.parentId);
-								if (parent) {
-									parent.replies.push(replyEntry);
-								}
-							}
-						}
-
-						// Get top-level replies (those with parentId === null or parentId === thread.id)
-						discussionReplies = Array.from(replyMap.values()).filter(
-							(reply) => reply.parentId === null || reply.parentId === String(threadIdNum),
-						);
-					}
+				if (threadResult.ok) {
+					discussionReplies = threadResult.value.replies;
 				}
 			}
 		}
 	}
-
-	// For quizzes, fetch student's submissions separately because students
-	// don't have permission to see all submissions from course module context
-	let userSubmissions: typeof courseModuleContext.submissions = [];
-
-	if (courseModuleContext.module.type === "quiz") {
-		const payload = context.get(globalContextKey)?.payload;
-		if (!payload) {
-			throw new ForbiddenResponse("Payload not available");
-		}
-
-
-		// Fetch only the current student's quiz submissions
-		const quizSubmissionsResult = await tryListQuizSubmissions({
-			payload,
-			courseModuleLinkId: Number(moduleLinkId),
-			studentId: currentUser.id,
-			limit: 1000,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id ?? undefined,
-			},
-			overrideAccess: false,
-		});
-
-		if (quizSubmissionsResult.ok) {
-			// Map quiz submissions to match the expected type structure
-			// The submissions from tryListQuizSubmissions already have the correct structure
-			userSubmissions = quizSubmissionsResult.value.docs as typeof courseModuleContext.submissions;
-		}
-	} else if (courseModuleContext.module.type === "assignment") {
-		// For assignments, filter from course module context (admins can see all)
-		userSubmissions = courseModuleContext.submissions.filter(
-			(sub) => "student" in sub && sub.student.id === currentUser.id,
-		);
-	}
-
-	// Get the latest submission (draft or most recent for assignments, in_progress or most recent for quizzes)
-	const userSubmission =
-		userSubmissions.length > 0
-			? courseModuleContext.module.type === "assignment"
-				? userSubmissions.find(
-					(sub) =>
-						"status" in sub && sub.status === "draft",
-				) || userSubmissions[0]
-				: courseModuleContext.module.type === "quiz"
-					? // For quizzes, prioritize in_progress, then most recent
-					userSubmissions.find(
-						(sub) =>
-							"status" in sub &&
-							sub.status === "in_progress",
-					) ||
-					// Sort by createdAt descending and get the most recent
-					[...userSubmissions].sort((a, b) => {
-						const aDate =
-							"createdAt" in a && typeof a.createdAt === "string"
-								? new Date(a.createdAt).getTime()
-								: 0;
-						const bDate =
-							"createdAt" in b && typeof b.createdAt === "string"
-								? new Date(b.createdAt).getTime()
-								: 0;
-						return bDate - aDate;
-					})[0]
-					: null
-			: null;
 
 	return {
 		module: courseModuleContext.module,
 		moduleSettings: courseModuleContext.moduleLinkSettings,
-		formattedModuleSettings,
+		formattedModuleSettings: courseModuleContext.formattedModuleSettings,
 		course: courseContext.course,
-		previousModule,
-		nextModule,
-		userSubmission,
-		userSubmissions,
+		previousModule: courseModuleContext.previousModule,
+		nextModule: courseModuleContext.nextModule,
+		userSubmission: courseModuleContext.userSubmission,
+		userSubmissions: courseModuleContext.userSubmissions,
 		moduleLinkId: courseModuleContext.moduleLinkId,
-		canSubmit,
-		discussionThreads,
+		canSubmit: courseModuleContext.canSubmit,
+		discussionThreads: courseModuleContext.discussionThreads,
 		discussionThread,
 		discussionReplies,
 	};
@@ -819,11 +439,6 @@ export const action = async ({
 		if (!canParticipate.allowed) {
 			throw new ForbiddenResponse(canParticipate.reason);
 		}
-
-		console.log("replyToParam", replyToParam);
-		console.log("parentThreadParam", parentThreadParam);
-		console.log("content", content);
-
 		// Determine post type and parent based on replyTo URL parameter
 		// replyToParam === "thread" means replying to the thread (top-level reply)
 		// replyToParam === <commentId> means replying to a comment (nested comment)
@@ -854,10 +469,7 @@ export const action = async ({
 		}
 
 		// Redirect to the thread detail view
-		return redirect(
-			href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }) +
-			`?threadId=${parentThreadId}`,
-		);
+		return ok({ success: true, message: "Reply created successfully", redirectTo: href("/course/module/:moduleLinkId", { moduleLinkId: String(moduleLinkId) }) + `?threadId=${parentThreadId}` });
 	}
 
 	// Only students can submit assignments or start quizzes
@@ -1239,6 +851,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: actionData.message,
 			color: "green",
 		});
+		if ("redirectTo" in actionData && typeof actionData.redirectTo === "string" && actionData.redirectTo) {
+			return redirect(actionData.redirectTo);
+		}
 	}
 
 	return actionData;

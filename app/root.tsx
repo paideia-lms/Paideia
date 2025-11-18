@@ -31,6 +31,7 @@ import "@mantine/code-highlight/styles.css";
 import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
+import "@gfazioli/mantine-json-tree/styles.css";
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -67,6 +68,7 @@ import { tryFindCourseActivityModuleLinkById } from "server/internal/course-acti
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
 import { RootErrorBoundary } from "./components/root-mode-error-boundary";
+import { DevTool } from "./components/dev-tool";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
@@ -564,6 +566,8 @@ export const middleware = [
 	},
 	// set the course module context
 	async ({ context, params }) => {
+		// get the enrolment context
+		const enrolmentContext = context.get(enrolmentContextKey);
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
@@ -592,6 +596,7 @@ export const middleware = [
 							avatar: currentUser?.avatar?.id,
 						}
 						: null,
+					enrolmentContext?.enrolment ?? null,
 				);
 
 				if (courseModuleContextResult.ok) {
@@ -637,7 +642,7 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { payload, requestInfo, pageInfo, systemGlobals } =
+	const { environment, payload, requestInfo, pageInfo, systemGlobals } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
@@ -686,19 +691,33 @@ export async function loader({ context }: Route.LoaderArgs) {
 		throw redirect(href("/registration"));
 	}
 
+	const debugData = environment !== "development" ? null : {
+		userSession: userSession,
+		courseContext: context.get(courseContextKey),
+		courseModuleContext: context.get(courseModuleContextKey),
+		courseSectionContext: context.get(courseSectionContextKey),
+		enrolmentContext: context.get(enrolmentContextKey),
+		userModuleContext: context.get(userModuleContextKey),
+		userProfileContext: context.get(userProfileContextKey),
+		userAccessContext: context.get(userAccessContextKey),
+		userContext: context.get(userContextKey),
+		systemGlobals: systemGlobals,
+	}
+
 	return {
 		users: users,
 		domainUrl: requestInfo.domainUrl,
 		timestamp: timestamp,
 		pageInfo: pageInfo,
 		theme: theme,
-		isDevelopment: process.env.NODE_ENV === "development",
+		isDevelopment: environment === "development",
 		primaryColor,
 		defaultRadius,
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
 		additionalJsScripts:
 			systemGlobals.analyticsSettings.additionalJsScripts,
+		debugData: debugData,
 	};
 }
 
@@ -806,6 +825,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 		additionalJsScripts,
 		primaryColor,
 		defaultRadius,
+		debugData,
 	} = loaderData;
 
 	// Create theme dynamically with color and radius from appearance settings
@@ -886,6 +906,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 							<NuqsAdapter>
 								<Outlet />
 								<Notifications />
+								{isDevelopment && <DevTool data={debugData} />}
 							</NuqsAdapter>
 						</ModalsProvider>
 					</CodeHighlightAdapterProvider>

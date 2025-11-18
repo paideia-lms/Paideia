@@ -115,6 +115,7 @@ export type SystemGlobals = {
 };
 
 export const globalContext = createContext<{
+	environment: "development" | "production" | "test";
 	payload: BasePayload;
 	elysia: Backend;
 	api: Api;
