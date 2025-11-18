@@ -77,11 +77,16 @@ export const loader = async ({
     // Get selected user from search params
     const { userId } = loadSearchParams(request);
 
+    // Filter to only student enrollments
+    const studentEnrollments = courseContext.course.enrollments.filter(
+        (e) => e.role === "student",
+    );
+
     // Fetch single user grades if userId is provided
     let singleUserGrades = null;
     if (userId) {
-        // Find enrollment for the selected user
-        const enrollment = courseContext.course.enrollments.find(
+        // Find enrollment for the selected user (only from students)
+        const enrollment = studentEnrollments.find(
             (e) => e.userId === userId,
         );
 
@@ -104,7 +109,7 @@ export const loader = async ({
 
     return {
         course: courseContext.course,
-        enrollments: courseContext.course.enrollments,
+        enrollments: studentEnrollments,
         singleUserGrades,
         selectedUserId: userId,
         timeZone,

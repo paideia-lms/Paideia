@@ -79,7 +79,7 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 		gradebookSetupForUI,
 		flattenedCategories: courseContext.flattenedCategories,
 		enrollments: courseContext.course.enrollments.filter(
-			(e) => e.status === "active",
+			(e) => e.status === "active" && e.role === "student",
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
