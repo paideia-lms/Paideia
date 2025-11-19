@@ -59,8 +59,14 @@ export const routes = [
 			layout("layouts/course-content-layout.tsx", [
 				route("course/:courseId", "routes/course.$id.tsx"),
 				layout("layouts/course-module-layout.tsx", [
-					route("course/module/:moduleLinkId", "routes/course/module.$id.tsx"),
-					route("course/module/:moduleLinkId/edit", "routes/course/module.$id.edit.tsx"),
+					route(
+						"course/module/:moduleLinkId",
+						"routes/course/module.$id/route.tsx",
+					),
+					route(
+						"course/module/:moduleLinkId/edit",
+						"routes/course/module.$id.edit.tsx",
+					),
 					route(
 						"course/module/:moduleLinkId/submissions",
 						"routes/course/module.$id.submissions.tsx",
@@ -68,13 +74,19 @@ export const routes = [
 				]),
 				layout("layouts/course-section-layout.tsx", [
 					route("course/section/:sectionId", "routes/course/section.$id.tsx"),
-					route("course/section/:sectionId/edit", "routes/course/section-edit.tsx"),
+					route(
+						"course/section/:sectionId/edit",
+						"routes/course/section-edit.tsx",
+					),
 				]),
 			]),
 			route("course/:courseId/section/new", "routes/course/section-new.tsx"),
 			route("course/:courseId/settings", "routes/course.$id.settings.tsx"),
 			layout("layouts/course-participants-layout.tsx", [
-				route("course/:courseId/participants", "routes/course.$id.participants.tsx"),
+				route(
+					"course/:courseId/participants",
+					"routes/course.$id.participants.tsx",
+				),
 				route(
 					"course/:courseId/participants/profile",
 					"routes/course.$id.participants.profile.tsx",
@@ -106,10 +118,12 @@ export const routes = [
 			route("admin/migrations", "routes/admin/migrations.tsx"),
 			route("admin/dependencies", "routes/admin/dependencies.tsx"),
 			route("admin/cron-jobs", "routes/admin/cron-jobs.tsx"),
+			route("admin/scheduled-tasks", "routes/admin/scheduled-tasks.tsx"),
 			route("admin/maintenance", "routes/admin/maintenance.tsx"),
 			route("admin/sitepolicies", "routes/admin/sitepolicies.tsx"),
 			route("admin/media", "routes/admin/media.tsx"),
 			route("admin/appearance", "routes/admin/appearance.tsx"),
+			route("admin/appearance/theme", "routes/admin/appearance/theme.tsx"),
 			route("admin/analytics", "routes/admin/analytics.tsx"),
 		]),
 	]),

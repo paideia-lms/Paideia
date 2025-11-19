@@ -73,7 +73,7 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 
 export default function CourseModuleLayout({
 	loaderData,
-	params
+	params,
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const {
@@ -100,8 +100,6 @@ export default function CourseModuleLayout({
 	const handleTabChange = (value: string | null) => {
 		if (!value) return;
 
-
-
 		switch (value) {
 			case ModuleTab.Preview:
 				navigate(href("/course/module/:moduleLinkId", { moduleLinkId }));
@@ -110,13 +108,21 @@ export default function CourseModuleLayout({
 				navigate(href("/course/module/:moduleLinkId/edit", { moduleLinkId }));
 				break;
 			case ModuleTab.Submissions:
-				navigate(href("/course/module/:moduleLinkId/submissions", { moduleLinkId }));
+				navigate(
+					href("/course/module/:moduleLinkId/submissions", { moduleLinkId }),
+				);
 				break;
 		}
 	};
 
-	const canSeeSetting = canSeeCourseModuleSettings(currentUser, enrolment);
-	const canSeeSubmissions = canSeeModuleSubmissions(currentUser, enrolment);
+	const canSeeSetting = canSeeCourseModuleSettings(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeSubmissions = canSeeModuleSubmissions(
+		currentUser,
+		enrolment,
+	).allowed;
 
 	// Check if module type supports submissions
 	const hasSubmissions = ["assignment", "quiz", "discussion"].includes(

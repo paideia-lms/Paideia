@@ -48,12 +48,15 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	const enrolment = enrolmentContext?.enrolment;
 
-	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment);
-	const canSeeParticipants = canSeeCourseParticipants(currentUser, enrolment);
-	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment);
-	const canSeeModules = canSeeCourseModules(currentUser, enrolment);
-	const canSeeBin = canSeeCourseBin(currentUser, enrolment);
-	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment);
+	const canSeeSettings = canSeeCourseSettings(currentUser, enrolment).allowed;
+	const canSeeParticipants = canSeeCourseParticipants(
+		currentUser,
+		enrolment,
+	).allowed;
+	const canSeeGrades = canSeeCourseGrades(currentUser, enrolment).allowed;
+	const canSeeModules = canSeeCourseModules(currentUser, enrolment).allowed;
+	const canSeeBin = canSeeCourseBin(currentUser, enrolment).allowed;
+	const canSeeBackup = canSeeCourseBackup(currentUser, enrolment).allowed;
 
 	return {
 		course: courseContext.course,
@@ -93,7 +96,8 @@ export default function CourseLayout({
 	const getCurrentTab = () => {
 		if (pageInfo.isCourseSettings) return CourseTab.Settings;
 		if (pageInfo.isCourseParticipantsLayout) return CourseTab.Participants;
-		if (pageInfo.isCourseGrades) return CourseTab.Grades;
+		if (pageInfo.isCourseGrades || pageInfo.isCourseGradesSingleView)
+			return CourseTab.Grades;
 		if (pageInfo.isCourseModules) return CourseTab.Modules;
 		if (pageInfo.isCourseBin) return CourseTab.Bin;
 		if (pageInfo.isCourseBackup) return CourseTab.Backup;
@@ -115,7 +119,9 @@ export default function CourseLayout({
 				navigate(href("/course/:courseId/settings", { courseId: courseId }));
 				break;
 			case CourseTab.Participants:
-				navigate(href("/course/:courseId/participants", { courseId: courseId }));
+				navigate(
+					href("/course/:courseId/participants", { courseId: courseId }),
+				);
 				break;
 			case CourseTab.Grades:
 				navigate(href("/course/:courseId/grades", { courseId: courseId }));

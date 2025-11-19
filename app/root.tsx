@@ -31,6 +31,7 @@ import "@mantine/code-highlight/styles.css";
 import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
+import "@gfazioli/mantine-json-tree/styles.css";
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -42,7 +43,6 @@ import {
 import { ModalsProvider } from "@mantine/modals";
 import { Notifications } from "@mantine/notifications";
 import { NuqsAdapter } from "nuqs/adapters/react-router/v7";
-import * as React from "react";
 import { useEffect } from "react";
 import { useRevalidator } from "react-router";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -67,11 +67,11 @@ import { tryGetUserCount } from "server/internal/check-first-user";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
+import { DevTool } from "./components/dev-tool";
 import { RootErrorBoundary } from "./components/root-mode-error-boundary";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
-	ForbiddenResponse,
 	InternalServerErrorResponse,
 	MaintenanceModeResponse,
 } from "./utils/responses";
@@ -139,10 +139,12 @@ export const middleware = [
 		let isAdminMigrations = false;
 		let isAdminDependencies = false;
 		let isAdminCronJobs = false;
+		let isAdminScheduledTasks = false;
 		let isAdminMaintenance = false;
 		let isAdminSitePolicies = false;
 		let isAdminMedia = false;
 		let isAdminAppearance = false;
+		let isAdminTheme = false;
 		let isAdminAnalytics = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
@@ -170,7 +172,8 @@ export const middleware = [
 			else if (route.id === "routes/course.$id.modules") isCourseModules = true;
 			else if (route.id === "routes/course.$id.bin") isCourseBin = true;
 			else if (route.id === "routes/course.$id.backup") isCourseBackup = true;
-			else if (route.id === "routes/course/module.$id") isCourseModule = true;
+			else if (route.id === "routes/course/module.$id/route")
+				isCourseModule = true;
 			else if (route.id === "routes/course/module.$id.edit")
 				isCourseModuleEdit = true;
 			else if (route.id === "routes/course/module.$id.submissions")
@@ -220,6 +223,8 @@ export const middleware = [
 			else if (route.id === "routes/admin/dependencies")
 				isAdminDependencies = true;
 			else if (route.id === "routes/admin/cron-jobs") isAdminCronJobs = true;
+			else if (route.id === "routes/admin/scheduled-tasks")
+				isAdminScheduledTasks = true;
 			else if (route.id === "routes/admin/maintenance")
 				isAdminMaintenance = true;
 			else if (route.id === ("routes/admin/sitepolicies" as typeof route.id))
@@ -227,6 +232,10 @@ export const middleware = [
 			else if (route.id === "routes/admin/media") isAdminMedia = true;
 			else if (route.id === ("routes/admin/appearance" as typeof route.id))
 				isAdminAppearance = true;
+			else if (
+				route.id === ("routes/admin/appearance/theme" as typeof route.id)
+			)
+				isAdminTheme = true;
 			else if (route.id === ("routes/admin/analytics" as typeof route.id))
 				isAdminAnalytics = true;
 		}
@@ -292,10 +301,12 @@ export const middleware = [
 				isAdminMigrations,
 				isAdminDependencies,
 				isAdminCronJobs,
+				isAdminScheduledTasks,
 				isAdminMaintenance,
 				isAdminSitePolicies,
 				isAdminMedia,
 				isAdminAppearance,
+				isAdminTheme,
 				isAdminAnalytics,
 				params: params as Record<string, string>,
 			},
@@ -315,7 +326,7 @@ export const middleware = [
 	/**
 	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
-	async ({ request, context }) => {
+	async ({ context }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -330,18 +341,20 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
+					maintenanceSettings: { maintenanceMode: false },
+					sitePolicies: {
+						userMediaStorageTotal: null,
+						siteUploadLimit: null,
+					},
+					appearanceSettings: {
+						additionalCssStylesheets: [],
+						color: "blue",
+						radius: "sm" as const,
+					},
+					analyticsSettings: {
+						additionalJsScripts: [],
+					},
+				};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -389,7 +402,8 @@ export const middleware = [
 			let { courseId } = params as RouteParams<"layouts/course-layout">;
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
-				const { moduleLinkId } = params as RouteParams<"layouts/course-module-layout">;
+				const { moduleLinkId } =
+					params as RouteParams<"layouts/course-module-layout">;
 				if (Number.isNaN(moduleLinkId)) return;
 
 				const moduleContext = await tryFindCourseActivityModuleLinkById(
@@ -407,7 +421,8 @@ export const middleware = [
 
 			// in course/section/id , we need to get the section first and then get the course id
 			if (pageInfo.isCourseSection || pageInfo.isCourseSectionEdit) {
-				const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
+				const { sectionId } =
+					params as RouteParams<"layouts/course-section-layout">;
 
 				if (Number.isNaN(sectionId)) return;
 
@@ -416,9 +431,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -454,11 +469,10 @@ export const middleware = [
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		// Check if we're in a course section layout
-		if (
-			pageInfo.isInCourseSectionLayout
-		) {
+		if (pageInfo.isInCourseSectionLayout) {
 			// Get section ID from params
-			const { sectionId } = params as RouteParams<"layouts/course-section-layout">;
+			const { sectionId } =
+				params as RouteParams<"layouts/course-section-layout">;
 
 			if (Number.isNaN(sectionId)) return;
 
@@ -468,9 +482,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
 				});
 
@@ -530,9 +544,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -560,6 +574,8 @@ export const middleware = [
 	},
 	// set the course module context
 	async ({ context, params }) => {
+		// get the enrolment context
+		const enrolmentContext = context.get(enrolmentContextKey);
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
@@ -584,10 +600,11 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
+								...currentUser,
+								avatar: currentUser?.avatar?.id,
+							}
 						: null,
+					enrolmentContext?.enrolment ?? null,
 				);
 
 				if (courseModuleContextResult.ok) {
@@ -632,8 +649,8 @@ export const middleware = [
 	},
 ] satisfies Route.MiddlewareFunction[];
 
-export async function loader({ request, context }: Route.LoaderArgs) {
-	const { payload, requestInfo, pageInfo, systemGlobals } =
+export async function loader({ context }: Route.LoaderArgs) {
+	const { environment, payload, requestInfo, pageInfo, systemGlobals } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
@@ -653,6 +670,10 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
 
+	// Get theme settings from appearance settings
+	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
+	const defaultRadius = systemGlobals.appearanceSettings.radius ?? "sm";
+
 	// Check if we need to redirect to first-user creation
 	// Skip redirect check for essential routes
 	if (pageInfo.isRegistration || pageInfo.isLogin || pageInfo.isApi) {
@@ -662,10 +683,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 			timestamp: timestamp,
 			pageInfo: pageInfo,
 			theme: theme,
+			primaryColor,
+			defaultRadius,
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
-			additionalJsScripts:
-				systemGlobals.analyticsSettings.additionalJsScripts,
+			additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		};
 	}
 
@@ -674,35 +696,44 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 		throw redirect(href("/registration"));
 	}
 
+	const debugData =
+		environment !== "development"
+			? null
+			: {
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				};
+
 	return {
 		users: users,
 		domainUrl: requestInfo.domainUrl,
 		timestamp: timestamp,
 		pageInfo: pageInfo,
 		theme: theme,
-		isDevelopment: process.env.NODE_ENV === "development",
+		isDevelopment: environment === "development",
+		primaryColor,
+		defaultRadius,
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
-		additionalJsScripts:
-			systemGlobals.analyticsSettings.additionalJsScripts,
+		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
+		debugData: debugData,
 	};
 }
 
-const mantineTheme = createTheme({
-	components: {
-		Textarea: Textarea.extend({
-			defaultProps: {
-				minRows: 3,
-				autosize: true,
-			},
-		}),
-	},
-});
+// Theme will be created dynamically in the App component
 
 function ClientHintCheck() {
 	const { revalidate } = useRevalidator();
 
-	// biome-ignore lint/correctness/useExhaustiveDependencies: <explanation>
+	// biome-ignore lint/correctness/useExhaustiveDependencies: revalidate is stable
 	useEffect(() => {
 		// Revalidate when timezone changes are detected
 		// This will be handled by the client hint script automatically
@@ -710,7 +741,7 @@ function ClientHintCheck() {
 
 	return (
 		<script
-			// biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
+			// biome-ignore lint/security/noDangerouslySetInnerHtml: client hint script is safe
 			dangerouslySetInnerHTML={{
 				__html: hintsUtils.getClientHintCheckScript(),
 			}}
@@ -718,8 +749,11 @@ function ClientHintCheck() {
 	);
 }
 
-
-function AnalyticsScripts({ scripts }: { scripts: Route.ComponentProps["loaderData"]["additionalJsScripts"] }) {
+function AnalyticsScripts({
+	scripts,
+}: {
+	scripts: Route.ComponentProps["loaderData"]["additionalJsScripts"];
+}) {
 	return (
 		<>
 			{scripts.map((script, index) => {
@@ -794,8 +828,42 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 }
 
 export default function App({ loaderData }: Route.ComponentProps) {
-	const { theme, isDevelopment, additionalCssStylesheets, additionalJsScripts } =
-		loaderData;
+	const {
+		theme,
+		isDevelopment,
+		additionalCssStylesheets,
+		additionalJsScripts,
+		primaryColor,
+		defaultRadius,
+		debugData,
+	} = loaderData;
+
+	// Create theme dynamically with color and radius from appearance settings
+	const mantineTheme = createTheme({
+		primaryColor: primaryColor as
+			| "blue"
+			| "pink"
+			| "indigo"
+			| "green"
+			| "orange"
+			| "gray"
+			| "grape"
+			| "cyan"
+			| "lime"
+			| "red"
+			| "violet"
+			| "teal"
+			| "yellow",
+		defaultRadius: defaultRadius as "xs" | "sm" | "md" | "lg" | "xl",
+		components: {
+			Textarea: Textarea.extend({
+				defaultProps: {
+					minRows: 3,
+					autosize: true,
+				},
+			}),
+		},
+	});
 
 	return (
 		<html
@@ -848,6 +916,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 							<NuqsAdapter>
 								<Outlet />
 								<Notifications />
+								{isDevelopment && <DevTool data={debugData} />}
 							</NuqsAdapter>
 						</ModalsProvider>
 					</CodeHighlightAdapterProvider>

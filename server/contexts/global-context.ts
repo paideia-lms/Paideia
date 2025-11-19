@@ -71,10 +71,12 @@ export type PageInfo = {
 	isAdminMigrations: boolean;
 	isAdminDependencies: boolean;
 	isAdminCronJobs: boolean;
+	isAdminScheduledTasks: boolean;
 	isAdminMaintenance: boolean;
 	isAdminSitePolicies: boolean;
 	isAdminMedia: boolean;
 	isAdminAppearance: boolean;
+	isAdminTheme: boolean;
 	isAdminAnalytics: boolean;
 	/**
 	 * the params of the current route
@@ -96,6 +98,8 @@ export type SystemGlobals = {
 	};
 	appearanceSettings: {
 		additionalCssStylesheets: string[];
+		color: string;
+		radius: "xs" | "sm" | "md" | "lg" | "xl";
 	};
 	analyticsSettings: {
 		additionalJsScripts: Array<{
@@ -112,6 +116,7 @@ export type SystemGlobals = {
 };
 
 export const globalContext = createContext<{
+	environment: "development" | "production" | "test";
 	payload: BasePayload;
 	elysia: Backend;
 	api: Api;

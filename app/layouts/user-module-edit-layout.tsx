@@ -10,13 +10,13 @@ import {
 import { IconInfoCircle } from "@tabler/icons-react";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
+import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
+import { canSeeUserModules } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-module-edit-layout";
 import classes from "./header-tabs.module.css";
-import { userContextKey } from "server/contexts/user-context";
-import { canSeeUserModules } from "server/utils/permissions";
 
 enum ModuleEditTab {
 	Preview = "preview",
@@ -37,7 +37,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (!canSeeUserModules(currentUser)) {
-		throw new ForbiddenResponse("You don't have permission to access this module");
+		throw new ForbiddenResponse(
+			"You don't have permission to access this module",
+		);
 	}
 
 	if (!userModuleContext) {
@@ -126,19 +128,19 @@ export default function UserModuleEditLayout({
 									variant="light"
 									color={getModuleColor(
 										module.type as
-										| "page"
-										| "whiteboard"
-										| "assignment"
-										| "quiz"
-										| "discussion",
+											| "page"
+											| "whiteboard"
+											| "assignment"
+											| "quiz"
+											| "discussion",
 									)}
 									leftSection={getModuleIcon(
 										module.type as
-										| "page"
-										| "whiteboard"
-										| "assignment"
-										| "quiz"
-										| "discussion",
+											| "page"
+											| "whiteboard"
+											| "assignment"
+											| "quiz"
+											| "discussion",
 										14,
 									)}
 								>

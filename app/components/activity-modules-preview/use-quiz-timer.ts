@@ -3,6 +3,7 @@ import { useState } from "react";
 
 interface UseQuizTimerOptions {
 	initialTime?: number; // Time in seconds
+	remainingTime?: number; // Remaining time in seconds (for resumed quizzes)
 	onExpire?: () => void;
 }
 
@@ -17,9 +18,14 @@ interface UseQuizTimerReturn {
 
 export function useQuizTimer({
 	initialTime,
+	remainingTime,
 	onExpire,
 }: UseQuizTimerOptions): UseQuizTimerReturn {
-	const [timeLeft, setTimeLeft] = useState<number | null>(initialTime ?? null);
+	// Use remainingTime if provided (for resumed quizzes), otherwise use initialTime
+	// Note: This hook should be remounted (via key prop) when remainingTime changes
+	const [timeLeft, setTimeLeft] = useState<number | null>(
+		remainingTime !== undefined ? remainingTime : (initialTime ?? null),
+	);
 	const [isExpired, setIsExpired] = useState(false);
 	const [isPaused, setIsPaused] = useState(false);
 
@@ -37,14 +43,16 @@ export function useQuizTimer({
 			}
 		},
 		1000,
-		{ autoInvoke: initialTime !== undefined },
+		{ autoInvoke: initialTime !== undefined || remainingTime !== undefined },
 	);
 
 	const resetTimer = () => {
-		setTimeLeft(initialTime ?? null);
+		const resetValue =
+			remainingTime !== undefined ? remainingTime : (initialTime ?? null);
+		setTimeLeft(resetValue);
 		setIsExpired(false);
 		setIsPaused(false);
-		if (initialTime) {
+		if (resetValue !== null) {
 			interval.start();
 		}
 	};

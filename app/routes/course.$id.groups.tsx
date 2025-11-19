@@ -146,13 +146,12 @@ export const action = async ({
 	if (
 		!canManageCourseGroups(
 			currentUser,
-			undefined,
 			enrollment
 				? {
-					role: enrollment.role,
-				}
+						role: enrollment.role,
+					}
 				: undefined,
-		)
+		).allowed
 	) {
 		return unauthorized({
 			error: "You don't have permission to manage this course",
@@ -233,13 +232,64 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+export const useCreateGroup = () => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createGroup = (
+		name: string,
+		description: string,
+		parent: string,
+		color: string,
+		maxMembers: number,
+	) => {
+		fetcher.submit(
+			{
+				intent: "create-group",
+				name,
+				description,
+				parent,
+				color,
+				maxMembers: maxMembers.toString(),
+			},
+			{ method: "post" },
+		);
+	};
+
+	return {
+		createGroup,
+		isLoading: fetcher.state === "submitting",
+		data: fetcher.data,
+	};
+};
+
+export const useDeleteGroup = () => {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const deleteGroup = (groupId: number) => {
+		fetcher.submit(
+			{
+				intent: "delete-group",
+				groupId: groupId.toString(),
+			},
+			{ method: "post" },
+		);
+	};
+
+	return {
+		deleteGroup,
+		isLoading: fetcher.state === "submitting",
+		data: fetcher.data,
+	};
+};
+
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
 export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
-	const fetcher = useFetcher<typeof clientAction>();
-	const { groups, currentUser, course } = loaderData;
+	const { createGroup, isLoading: isCreatingGroup } = useCreateGroup();
+	const { deleteGroup, isLoading: isDeletingGroup } = useDeleteGroup();
+	const { groups, currentUser, course, enrolment } = loaderData;
 	// Modal states
 	const [
 		createModalOpened,
@@ -268,18 +318,13 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 	const handleCreateGroup = () => {
 		if (!groupName) return;
 
-		fetcher.submit(
-			{
-				intent: "create-group",
-				name: groupName,
-				description: groupDescription,
-				parent: groupParent || "",
-				color: groupColor,
-				maxMembers: groupMaxMembers.toString(),
-			},
-			{ method: "post" },
+		createGroup(
+			groupName,
+			groupDescription,
+			groupParent || "",
+			groupColor,
+			Number(groupMaxMembers),
 		);
-
 		closeCreateModal();
 		setGroupName("");
 		setGroupDescription("");
@@ -295,20 +340,14 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 
 	const handleConfirmDeleteGroup = () => {
 		if (deletingGroupId) {
-			fetcher.submit(
-				{
-					intent: "delete-group",
-					groupId: deletingGroupId.toString(),
-				},
-				{ method: "post" },
-			);
+			deleteGroup(deletingGroupId);
 			closeDeleteModal();
 			setDeletingGroupId(null);
 		}
 	};
 
 	// Check if user can manage groups
-	const canManage = canManageCourseGroups(currentUser, course.createdBy.id);
+	const canManage = canManageCourseGroups(currentUser, enrolment).allowed;
 
 	// Prepare parent group options
 	const parentGroupOptions = groups.map((group) => ({
@@ -455,7 +494,7 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 						<Button
 							onClick={handleCreateGroup}
 							disabled={!groupName}
-							loading={fetcher.state === "submitting"}
+							loading={isCreatingGroup}
 						>
 							Create Group
 						</Button>
@@ -482,7 +521,7 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 						<Button
 							color="red"
 							onClick={handleConfirmDeleteGroup}
-							loading={fetcher.state === "submitting"}
+							loading={isDeletingGroup}
 						>
 							Delete Group
 						</Button>

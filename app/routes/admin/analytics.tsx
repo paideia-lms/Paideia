@@ -8,6 +8,7 @@ import {
 	TextInput,
 	Title,
 } from "@mantine/core";
+import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import {
@@ -26,8 +27,8 @@ import {
 } from "server/internal/analytics-settings";
 import { tryValidateScriptTag } from "server/internal/utils/validate-script-tag";
 import { z } from "zod";
-import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
+import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -35,7 +36,6 @@ import {
 	ok,
 	unauthorized,
 } from "~/utils/responses";
-import type { UseFormReturnType } from "@mantine/form";
 import type { Route } from "./+types/analytics";
 
 type AnalyticsGlobal = {
@@ -74,15 +74,16 @@ export async function loader({ context }: Route.LoaderArgs) {
 		throw new ForbiddenResponse("Failed to get analytics settings");
 	}
 
-	const scripts = settings?.value?.additionalJsScripts?.map((script) => ({
-		src: script.src,
-		defer: script.defer ?? false,
-		async: script.async ?? false,
-		dataWebsiteId: script.dataWebsiteId ?? "",
-		dataDomain: script.dataDomain ?? "",
-		dataSite: script.dataSite ?? "",
-		dataMeasurementId: script.dataMeasurementId ?? "",
-	})) ?? [];
+	const scripts =
+		settings?.value?.additionalJsScripts?.map((script) => ({
+			src: script.src,
+			defer: script.defer ?? false,
+			async: script.async ?? false,
+			dataWebsiteId: script.dataWebsiteId ?? "",
+			dataDomain: script.dataDomain ?? "",
+			dataSite: script.dataSite ?? "",
+			dataMeasurementId: script.dataMeasurementId ?? "",
+		})) ?? [];
 
 	return { settings: { additionalJsScripts: scripts } };
 }
@@ -264,7 +265,7 @@ function AnalyticsScriptCard({
 				required
 				error={
 					form.getValues().scripts[index]?.src &&
-						!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
+					!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
 						? "Must be a valid HTTP or HTTPS URL"
 						: undefined
 				}
@@ -334,47 +335,49 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
-	const scripts = useFormWatchForceUpdate(form, "scripts", ({
-		previousValue,
-		value,
-	}) => {
-		// Force update when scripts array changes (length or content)
-		const oldScripts = (previousValue || []).map((s: {
-			src: string;
-			defer: boolean;
-			async: boolean;
-			dataWebsiteId: string;
-			dataDomain: string;
-			dataSite: string;
-			dataMeasurementId: string;
-		}) => ({
-			src: s.src,
-			defer: s.defer,
-			async: s.async,
-			dataWebsiteId: s.dataWebsiteId,
-			dataDomain: s.dataDomain,
-			dataSite: s.dataSite,
-			dataMeasurementId: s.dataMeasurementId,
-		}));
-		const newScripts = (value || []).map((s: {
-			src: string;
-			defer: boolean;
-			async: boolean;
-			dataWebsiteId: string;
-			dataDomain: string;
-			dataSite: string;
-			dataMeasurementId: string;
-		}) => ({
-			src: s.src,
-			defer: s.defer,
-			async: s.async,
-			dataWebsiteId: s.dataWebsiteId,
-			dataDomain: s.dataDomain,
-			dataSite: s.dataSite,
-			dataMeasurementId: s.dataMeasurementId,
-		}));
-		return JSON.stringify(oldScripts) !== JSON.stringify(newScripts);
-	}) || [];
+	const scripts =
+		useFormWatchForceUpdate(form, "scripts", ({ previousValue, value }) => {
+			// Force update when scripts array changes (length or content)
+			const oldScripts = (previousValue || []).map(
+				(s: {
+					src: string;
+					defer: boolean;
+					async: boolean;
+					dataWebsiteId: string;
+					dataDomain: string;
+					dataSite: string;
+					dataMeasurementId: string;
+				}) => ({
+					src: s.src,
+					defer: s.defer,
+					async: s.async,
+					dataWebsiteId: s.dataWebsiteId,
+					dataDomain: s.dataDomain,
+					dataSite: s.dataSite,
+					dataMeasurementId: s.dataMeasurementId,
+				}),
+			);
+			const newScripts = (value || []).map(
+				(s: {
+					src: string;
+					defer: boolean;
+					async: boolean;
+					dataWebsiteId: string;
+					dataDomain: string;
+					dataSite: string;
+					dataMeasurementId: string;
+				}) => ({
+					src: s.src,
+					defer: s.defer,
+					async: s.async,
+					dataWebsiteId: s.dataWebsiteId,
+					dataDomain: s.dataDomain,
+					dataSite: s.dataSite,
+					dataMeasurementId: s.dataMeasurementId,
+				}),
+			);
+			return JSON.stringify(oldScripts) !== JSON.stringify(newScripts);
+		}) || [];
 
 	const addScript = () => {
 		form.insertListItem("scripts", {
@@ -411,7 +414,10 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 				name="description"
 				content="Add external JavaScript script tags that will be loaded on all pages. Scripts are loaded in the order listed. Only external scripts with src attribute are allowed for security. Common analytics providers include Plausible, Umami, Google Analytics, and Fathom."
 			/>
-			<meta property="og:title" content="Analytics Scripts | Admin | Paideia LMS" />
+			<meta
+				property="og:title"
+				content="Analytics Scripts | Admin | Paideia LMS"
+			/>
 			<meta
 				property="og:description"
 				content="Add external JavaScript script tags that will be loaded on all pages. Scripts are loaded in the order listed. Only external scripts with src attribute are allowed for security. Common analytics providers include Plausible, Umami, Google Analytics, and Fathom."
@@ -428,45 +434,49 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 				onSubmit={form.onSubmit((values) => {
 					// Filter out empty scripts and clean up empty data attributes
 					const validScripts = values.scripts
-						.filter((script: {
-							src: string;
-							defer: boolean;
-							async: boolean;
-							dataWebsiteId: string;
-							dataDomain: string;
-							dataSite: string;
-							dataMeasurementId: string;
-						}) => script.src && script.src.trim() !== "")
-						.map((script: {
-							src: string;
-							defer: boolean;
-							async: boolean;
-							dataWebsiteId: string;
-							dataDomain: string;
-							dataSite: string;
-							dataMeasurementId: string;
-						}) => ({
-							src: script.src,
-							defer: script.defer || undefined,
-							async: script.async || undefined,
-							dataWebsiteId:
-								script.dataWebsiteId && script.dataWebsiteId.trim() !== ""
-									? script.dataWebsiteId
-									: undefined,
-							dataDomain:
-								script.dataDomain && script.dataDomain.trim() !== ""
-									? script.dataDomain
-									: undefined,
-							dataSite:
-								script.dataSite && script.dataSite.trim() !== ""
-									? script.dataSite
-									: undefined,
-							dataMeasurementId:
-								script.dataMeasurementId &&
+						.filter(
+							(script: {
+								src: string;
+								defer: boolean;
+								async: boolean;
+								dataWebsiteId: string;
+								dataDomain: string;
+								dataSite: string;
+								dataMeasurementId: string;
+							}) => script.src && script.src.trim() !== "",
+						)
+						.map(
+							(script: {
+								src: string;
+								defer: boolean;
+								async: boolean;
+								dataWebsiteId: string;
+								dataDomain: string;
+								dataSite: string;
+								dataMeasurementId: string;
+							}) => ({
+								src: script.src,
+								defer: script.defer || undefined,
+								async: script.async || undefined,
+								dataWebsiteId:
+									script.dataWebsiteId && script.dataWebsiteId.trim() !== ""
+										? script.dataWebsiteId
+										: undefined,
+								dataDomain:
+									script.dataDomain && script.dataDomain.trim() !== ""
+										? script.dataDomain
+										: undefined,
+								dataSite:
+									script.dataSite && script.dataSite.trim() !== ""
+										? script.dataSite
+										: undefined,
+								dataMeasurementId:
+									script.dataMeasurementId &&
 									script.dataMeasurementId.trim() !== ""
-									? script.dataMeasurementId
-									: undefined,
-						}));
+										? script.dataMeasurementId
+										: undefined,
+							}),
+						);
 					update({
 						additionalJsScripts: validScripts,
 					});
@@ -507,4 +517,3 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 		</Stack>
 	);
 }
-

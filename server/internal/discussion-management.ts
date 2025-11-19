@@ -1,10 +1,11 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { DiscussionSubmissions } from "server/collections";
 import type { DiscussionSubmission } from "server/payload-types";
-import { assertZodInternal } from "server/utils/type-narrowing";
+import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
+	FailedToCreateUserGradeError,
 	InvalidArgumentError,
 	NonExistingDiscussionSubmissionError,
 	TransactionIdNotFoundError,
@@ -32,6 +33,7 @@ export interface UpdateDiscussionSubmissionArgs {
 }
 
 export interface GradeDiscussionSubmissionArgs {
+	payload: Payload;
 	id: number;
 	enrollmentId: number;
 	gradebookItemId: number;
@@ -40,6 +42,9 @@ export interface GradeDiscussionSubmissionArgs {
 	maxGrade: number;
 	feedback?: string;
 	submittedAt?: string | number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface GetDiscussionSubmissionByIdArgs {
@@ -62,11 +67,11 @@ export interface ListDiscussionSubmissionsArgs {
 	overrideAccess?: boolean;
 }
 
-export interface GetThreadWithRepliesArgs {
-	threadId: number | string;
-	includeComments?: boolean;
-	limit?: number;
-	page?: number;
+export interface GetDiscussionThreadsWithAllRepliesArgs {
+	courseModuleLinkId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpvoteDiscussionSubmissionArgs {
@@ -381,149 +386,262 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
 );
 
 /**
- * Gets a thread with all its replies and comments
+ * Gets all threads with all their replies and comments for a course module link
+ * This is more efficient than fetching thread-by-thread
  */
-export const tryGetThreadWithReplies = Result.wrap(
-	async (payload: Payload, args: GetThreadWithRepliesArgs) => {
-		const { threadId, includeComments = true, limit = 50, page = 1 } = args;
+export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
+	async (payload: Payload, args: GetDiscussionThreadsWithAllRepliesArgs) => {
+		const {
+			courseModuleLinkId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
-		// Validate ID
-		if (!threadId) {
-			throw new InvalidArgumentError("Thread ID is required");
+		// Validate course module link ID
+		if (!courseModuleLinkId) {
+			throw new InvalidArgumentError("Course module link ID is required");
 		}
 
-		// Get the main thread
-		const threadResult = await tryGetDiscussionSubmissionById(payload, {
-			id: threadId,
+		// Get all threads for this course module link
+		const threadsResult = await tryListDiscussionSubmissions({
+			payload,
+			courseModuleLinkId,
+			postType: "thread",
+			status: "published",
+			limit: MOCK_INFINITY,
+			page: 1,
+			user,
+			req,
+			overrideAccess,
 		});
 
-		if (!threadResult.ok) {
-			throw new InvalidArgumentError("Thread not found");
+		if (!threadsResult.ok) {
+			throw threadsResult.error;
 		}
 
-		const thread = threadResult.value;
+		const threads = threadsResult.value;
 
-		// Verify it's actually a thread
-		if (thread.postType !== "thread") {
-			throw new InvalidArgumentError("Submission is not a thread");
-		}
-
-		// Get replies to the thread
-		const repliesResult = await payload.find({
+		// Get all replies and comments for this course module link
+		const allRepliesAndCommentsResult = await payload.find({
 			collection: "discussion-submissions",
 			where: {
 				and: [
-					{ parentThread: { equals: threadId } },
-					{ postType: { equals: "reply" } },
+					{ courseModuleLink: { equals: courseModuleLinkId } },
+					{
+						or: [
+							{ postType: { equals: "reply" } },
+							{ postType: { equals: "comment" } },
+						],
+					},
 					{ status: { equals: "published" } },
 				],
 			},
 			depth: 1,
-			limit,
-			page,
-			sort: "createdAt",
+			pagination: false,
+			user,
+			req,
+			overrideAccess,
 		});
 
-		let comments: any[] = [];
+		// Process all replies and comments with type narrowing
+		const allRepliesAndComments = allRepliesAndCommentsResult.docs.map(
+			(item) => {
+				// Handle courseModuleLink - can be object or number
+				const courseModuleLinkId =
+					typeof item.courseModuleLink === "object" &&
+					item.courseModuleLink !== null &&
+					"id" in item.courseModuleLink
+						? item.courseModuleLink.id
+						: typeof item.courseModuleLink === "number"
+							? item.courseModuleLink
+							: null;
 
-		// Get comments if requested
-		if (includeComments) {
-			const commentsResult = await payload.find({
-				collection: "discussion-submissions",
-				where: {
-					and: [
-						{ parentThread: { equals: threadId } },
-						{ postType: { equals: "comment" } },
-						{ status: { equals: "published" } },
-					],
-				},
-				depth: 1,
-				limit: 100, // Comments are usually more numerous
-				page: 1,
-				sort: "createdAt",
-			});
+				if (!courseModuleLinkId) {
+					throw new InvalidArgumentError("Course module link is required");
+				}
 
-			comments = commentsResult.docs;
+				// Handle student - preserve full object if available
+				const student =
+					typeof item.student === "object" && item.student !== null
+						? item.student
+						: null;
+
+				if (!student || !("id" in student)) {
+					throw new InvalidArgumentError("Student is required");
+				}
+
+				// Handle enrollment - preserve full object if available
+				const enrollment =
+					typeof item.enrollment === "object" && item.enrollment !== null
+						? item.enrollment
+						: null;
+
+				if (!enrollment || !("id" in enrollment)) {
+					throw new InvalidArgumentError("Enrollment is required");
+				}
+
+				// Get parentThread ID
+				const parentThreadId =
+					typeof item.parentThread === "object" &&
+					item.parentThread !== null &&
+					"id" in item.parentThread
+						? item.parentThread.id
+						: typeof item.parentThread === "number"
+							? item.parentThread
+							: null;
+
+				return {
+					...item,
+					courseModuleLink: courseModuleLinkId,
+					student,
+					enrollment,
+					parentThreadId,
+				};
+			},
+		);
+
+		// Build a map of thread ID to its replies/comments
+		const threadRepliesMap = new Map<
+			number,
+			Array<{
+				id: number;
+				postType: "reply" | "comment";
+				content: string;
+				student: (typeof allRepliesAndComments)[number]["student"];
+				enrollment: (typeof allRepliesAndComments)[number]["enrollment"];
+				createdAt: string;
+				upvotes?: Array<{ user: number | { id: number }; upvotedAt: string }>;
+				parentThreadId: number | null;
+			}>
+		>();
+
+		// Group replies/comments by their parent thread
+		for (const item of allRepliesAndComments) {
+			const parentThreadId = item.parentThreadId;
+			if (parentThreadId) {
+				if (!threadRepliesMap.has(parentThreadId)) {
+					threadRepliesMap.set(parentThreadId, []);
+				}
+				threadRepliesMap.get(parentThreadId)?.push({
+					id: item.id,
+					postType: item.postType as "reply" | "comment",
+					content: item.content,
+					student: item.student,
+					enrollment: item.enrollment,
+					createdAt: item.createdAt,
+					upvotes: item.upvotes ?? undefined,
+					parentThreadId,
+				});
+			}
 		}
 
-		// Process replies and comments with type narrowing
-		const replies = repliesResult.docs.map((reply) => {
-			assertZodInternal(
-				"tryGetThreadWithReplies: Course module link is required",
-				reply.courseModuleLink,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryGetThreadWithReplies: Student is required",
-				reply.student,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryGetThreadWithReplies: Enrollment is required",
-				reply.enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			return {
-				...reply,
-				courseModuleLink: reply.courseModuleLink.id,
-				student: reply.student,
-				enrollment: reply.enrollment,
+		// Build nested structure for each thread
+		const threadsWithReplies = threads.map((thread) => {
+			// Type for nested reply structure
+			type NestedReply = {
+				id: number;
+				postType: "reply" | "comment";
+				content: string;
+				student: (typeof allRepliesAndComments)[number]["student"];
+				enrollment: (typeof allRepliesAndComments)[number]["enrollment"];
+				createdAt: string;
+				upvotes?: Array<{ user: number | { id: number }; upvotedAt: string }>;
+				parentThreadId: number | null;
+				replies: NestedReply[];
 			};
-		});
 
-		const processedComments = comments.map((comment) => {
-			assertZodInternal(
-				"tryGetThreadWithReplies: Course module link is required",
-				comment.courseModuleLink,
-				z.object({
-					id: z.number(),
-				}),
+			// Get all items that belong to this thread (directly or indirectly)
+			// Start with items that have parentThreadId === thread.id
+			const directReplies = threadRepliesMap.get(thread.id) || [];
+
+			// Recursively find all nested items
+			const allThreadItems = new Set<number>();
+			const itemsToProcess = [...directReplies.map((item) => item.id)];
+
+			while (itemsToProcess.length > 0) {
+				const currentId = itemsToProcess.pop();
+				if (!currentId || allThreadItems.has(currentId)) continue;
+
+				allThreadItems.add(currentId);
+
+				// Find all items that have this item as their parent
+				const nestedItems = threadRepliesMap.get(currentId) || [];
+				for (const nestedItem of nestedItems) {
+					itemsToProcess.push(nestedItem.id);
+				}
+			}
+
+			// Create a map of all items by ID for efficient lookup
+			const itemMap = new Map<number, NestedReply>();
+
+			// Initialize all items that belong to this thread
+			for (const item of allRepliesAndComments) {
+				if (allThreadItems.has(item.id)) {
+					itemMap.set(item.id, {
+						id: item.id,
+						postType: item.postType as "reply" | "comment",
+						content: item.content,
+						student: item.student,
+						enrollment: item.enrollment,
+						createdAt: item.createdAt,
+						upvotes: item.upvotes ?? undefined,
+						parentThreadId: item.parentThreadId,
+						replies: [],
+					});
+				}
+			}
+
+			// Build nested structure: items can be nested under replies (both replies and comments)
+			// An item is nested if its parentThreadId points to another reply (not the thread)
+			for (const item of allRepliesAndComments) {
+				if (!allThreadItems.has(item.id)) continue;
+
+				const itemEntry = itemMap.get(item.id);
+				if (!itemEntry) continue;
+
+				// Check if this item's parent is a reply (not the thread)
+				// If parentThreadId is the thread ID, it's a top-level item
+				// If parentThreadId is another reply's ID, it should be nested under that reply
+				if (item.parentThreadId && item.parentThreadId !== thread.id) {
+					const parentItem = itemMap.get(item.parentThreadId);
+					if (parentItem) {
+						// This item is nested under a reply (could be a reply to reply or a comment to reply)
+						parentItem.replies.push(itemEntry);
+					}
+				}
+			}
+
+			// Get top-level items (replies and comments whose parentThreadId is the thread ID)
+			// Both replies and comments can be top-level, and both can have nested items
+			const topLevelItems = directReplies
+				.map((item) => itemMap.get(item.id))
+				.filter((item): item is NonNullable<typeof item> => item !== undefined);
+
+			// Count all replies and comments (including nested ones)
+			const allReplies = Array.from(itemMap.values()).filter(
+				(item) => item.postType === "reply",
 			);
-			assertZodInternal(
-				"tryGetThreadWithReplies: Student is required",
-				comment.student,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryGetThreadWithReplies: Enrollment is required",
-				comment.enrollment,
-				z.object({
-					id: z.number(),
-				}),
+			const allComments = Array.from(itemMap.values()).filter(
+				(item) => item.postType === "comment",
 			);
 
 			return {
-				...comment,
-				courseModuleLink: comment.courseModuleLink.id,
-				student: comment.student,
-				enrollment: comment.enrollment,
+				thread,
+				replies: topLevelItems,
+				repliesTotal: allReplies.length,
+				commentsTotal: allComments.length,
 			};
 		});
 
 		return {
-			thread,
-			replies,
-			comments: processedComments,
-			repliesTotal: repliesResult.totalDocs,
-			commentsTotal: comments.length,
-			repliesPage: repliesResult.page,
-			repliesLimit: repliesResult.limit,
-			hasNextRepliesPage: repliesResult.hasNextPage,
-			hasPrevRepliesPage: repliesResult.hasPrevPage,
+			threads: threadsWithReplies,
+			totalThreads: threads.length,
 		};
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to get thread with replies", {
+		new UnknownError("Failed to get discussion threads with replies", {
 			cause: error,
 		}),
 );
@@ -782,59 +900,94 @@ export const tryListDiscussionSubmissions = Result.wrap(
 				break;
 		}
 
-		const result = await payload.find({
-			collection: "discussion-submissions",
-			where,
-			limit,
-			page,
-			sort,
-			depth: 1, // Fetch related data
-			pagination: false,
-			user,
-			req,
-			overrideAccess,
-		});
+		const result = await payload
+			.find({
+				collection: "discussion-submissions",
+				where,
+				limit,
+				page,
+				sort,
+				depth: 1, // Fetch related data
+				pagination: false,
+				joins: {
+					replies: {
+						limit: MOCK_INFINITY,
+					},
+				},
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((result) => {
+				return result.docs.map((doc) => {
+					assertZodInternal(
+						"tryListDiscussionSubmissions: Course module link is required",
+						doc.courseModuleLink,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					assertZodInternal(
+						"tryListDiscussionSubmissions: Student is required",
+						doc.student,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					assertZodInternal(
+						"tryListDiscussionSubmissions: Enrollment is required",
+						doc.enrollment,
+						z.object({
+							id: z.number(),
+						}),
+					);
+					assertZodInternal(
+						"tryListDiscussionSubmissions: Parent thread should be object or null",
+						doc.parentThread,
+						z
+							.object({
+								id: z.number(),
+							})
+							.nullish(),
+					);
 
-		// type narrowing
-		const docs = result.docs.map((doc) => {
-			assertZodInternal(
-				"tryListDiscussionSubmissions: Course module link is required",
-				doc.courseModuleLink,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListDiscussionSubmissions: Student is required",
-				doc.student,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListDiscussionSubmissions: Enrollment is required",
-				doc.enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			return {
-				...doc,
-				courseModuleLink: doc.courseModuleLink.id,
-				student: doc.student,
-				enrollment: doc.enrollment,
-			};
-		});
+					const replies =
+						doc.replies?.docs?.map((r) => {
+							assertZodInternal(
+								"tryListDiscussionSubmissions: Reply should be object",
+								r,
+								z.object({
+									id: z.number(),
+								}),
+							);
+							return r;
+						}) ?? [];
+					const attachments =
+						doc.attachments?.map((a) => {
+							assertZodInternal(
+								"tryListDiscussionSubmissions: Attachment should be object",
+								a.file,
+								z.number(),
+							);
+							return {
+								...a,
+								file: a.file,
+							};
+						}) ?? [];
 
-		return {
-			docs,
-			totalDocs: result.totalDocs,
-			totalPages: result.totalPages,
-			page: result.page,
-			limit: result.limit,
-			hasNextPage: result.hasNextPage,
-			hasPrevPage: result.hasPrevPage,
-		};
+					return {
+						...doc,
+						courseModuleLink: doc.courseModuleLink,
+						student: doc.student,
+						enrollment: doc.enrollment,
+						parentThread: doc.parentThread,
+						replies,
+						attachments,
+					};
+				});
+			});
+
+		return result;
 	},
 	(error) =>
 		transformError(error) ??
@@ -847,12 +1000,9 @@ export const tryListDiscussionSubmissions = Result.wrap(
  * Manually grades a discussion submission
  */
 export const tryGradeDiscussionSubmission = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		args: GradeDiscussionSubmissionArgs,
-	) => {
+	async (args: GradeDiscussionSubmissionArgs) => {
 		const {
+			payload,
 			id,
 			enrollmentId,
 			gradebookItemId,
@@ -861,6 +1011,9 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			maxGrade,
 			feedback,
 			submittedAt,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -896,7 +1049,9 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			const currentSubmission = await payload.findByID({
 				collection: DiscussionSubmissions.slug,
 				id,
-				req: { transactionID },
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			if (!currentSubmission) {
@@ -918,9 +1073,9 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 
 			const userGradeResult = await tryCreateUserGrade({
 				payload,
-				user: null,
-				req: { ...request, transactionID },
-				overrideAccess: false,
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 				enrollmentId,
 				gradebookItemId,
 				baseGrade: grade,
@@ -933,7 +1088,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			});
 
 			if (!userGradeResult.ok) {
-				throw new Error(
+				throw new FailedToCreateUserGradeError(
 					`Failed to create gradebook entry: ${userGradeResult.error}`,
 				);
 			}

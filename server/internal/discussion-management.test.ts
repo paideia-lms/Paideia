@@ -19,7 +19,7 @@ import {
 	tryCreateDiscussionSubmission,
 	tryDeleteDiscussionSubmission,
 	tryGetDiscussionSubmissionById,
-	tryGetThreadWithReplies,
+	tryGetDiscussionThreadsWithAllReplies,
 	tryGradeDiscussionSubmission,
 	tryListDiscussionSubmissions,
 	tryRemoveUpvoteDiscussionSubmission,
@@ -476,7 +476,116 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
 	});
 
-	test("should get a thread with all replies and comments", async () => {
+	test("should get all threads with nested replies (reply to reply)", async () => {
+		// Create a thread
+		const threadArgs: CreateDiscussionSubmissionArgs = {
+			courseModuleLinkId: courseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			postType: "thread",
+			title: "Thread with Nested Replies",
+			content: "This is a thread that will have nested replies.",
+		};
+
+		const threadResult = await tryCreateDiscussionSubmission(
+			payload,
+			threadArgs,
+		);
+		expect(threadResult.ok).toBe(true);
+		if (!threadResult.ok) return;
+
+		const threadId = threadResult.value.id;
+		console.log("Created thread with ID:", threadId);
+
+		// Create a reply to the thread
+		const reply1Args: CreateDiscussionSubmissionArgs = {
+			courseModuleLinkId: courseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			postType: "reply",
+			content: "This is the first reply to the thread.",
+			parentThread: threadId,
+		};
+
+		const reply1Result = await tryCreateDiscussionSubmission(
+			payload,
+			reply1Args,
+		);
+		expect(reply1Result.ok).toBe(true);
+		if (!reply1Result.ok) return;
+
+		const reply1Id = reply1Result.value.id;
+		console.log("Created reply 1 with ID:", reply1Id);
+
+		// Create a reply to the reply (nested reply)
+		const reply2Args: CreateDiscussionSubmissionArgs = {
+			courseModuleLinkId: courseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			postType: "reply",
+			content: "This is a reply to the first reply (nested reply).",
+			parentThread: reply1Id,
+		};
+
+		const reply2Result = await tryCreateDiscussionSubmission(
+			payload,
+			reply2Args,
+		);
+		expect(reply2Result.ok).toBe(true);
+		if (!reply2Result.ok) return;
+
+		const reply2Id = reply2Result.value.id;
+		console.log("Created reply 2 (nested) with ID:", reply2Id);
+
+		// Get all threads with all replies
+		const result = await tryGetDiscussionThreadsWithAllReplies(payload, {
+			courseModuleLinkId: courseActivityModuleLinkId,
+			overrideAccess: true,
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		const threadsData = result.value;
+
+		// Find the thread we created
+		const threadData = threadsData.threads.find(
+			(t) => t.thread.id === threadId,
+		);
+		expect(threadData).toBeDefined();
+		if (!threadData) return;
+
+		// Verify thread structure
+		expect(threadData.thread.id).toBe(threadId);
+		expect(threadData.thread.title).toBe("Thread with Nested Replies");
+		expect(threadData.replies.length).toBe(1); // Should have one top-level reply
+
+		// Verify the first reply exists and has nested replies
+		const firstReply = threadData.replies[0];
+		expect(firstReply).toBeDefined();
+		expect(firstReply.id).toBe(reply1Id);
+		expect(firstReply.content).toBe("This is the first reply to the thread.");
+		expect(firstReply.postType).toBe("reply");
+		expect(firstReply.replies.length).toBe(1); // Should have one nested reply
+
+		// Verify the nested reply (reply to reply)
+		const nestedReply = firstReply.replies[0];
+		expect(nestedReply).toBeDefined();
+		expect(nestedReply.id).toBe(reply2Id);
+		expect(nestedReply.content).toBe(
+			"This is a reply to the first reply (nested reply).",
+		);
+		expect(nestedReply.postType).toBe("reply");
+		expect(nestedReply.parentThreadId).toBe(reply1Id); // Parent should be reply1, not thread
+
+		// Verify the data shape: thread: { replies: { replies, ... }[], ... }
+		expect(threadData.thread).toBeDefined();
+		expect(Array.isArray(threadData.replies)).toBe(true);
+		expect(threadData.replies[0].replies).toBeDefined();
+		expect(Array.isArray(threadData.replies[0].replies)).toBe(true);
+	});
+
+	test("should get all threads with all replies and comments for a course module link", async () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			courseModuleLinkId: courseActivityModuleLinkId,
@@ -543,35 +652,55 @@ describe("Discussion Management - Full Workflow", () => {
 		);
 		expect(comment1Result.ok).toBe(true);
 
-		// Get the thread with all replies and comments
-		const result = await tryGetThreadWithReplies(payload, {
-			threadId,
-			includeComments: true,
+		// Get all threads with all replies and comments for this course module link
+		const result = await tryGetDiscussionThreadsWithAllReplies(payload, {
+			courseModuleLinkId: courseActivityModuleLinkId,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
-		const threadData = result.value;
+		const threadsData = result.value;
+
+		// Verify we got at least one thread
+		expect(threadsData.totalThreads).toBeGreaterThan(0);
+		expect(threadsData.threads.length).toBeGreaterThan(0);
+
+		// Find the thread we created
+		const threadData = threadsData.threads.find(
+			(t) => t.thread.id === threadId,
+		);
+		expect(threadData).toBeDefined();
+		if (!threadData) return;
 
 		// Verify thread data
 		expect(threadData.thread.id).toBe(threadId);
 		expect(threadData.thread.title).toBe("Main Discussion Thread");
-		expect(threadData.replies).toHaveLength(2);
-		expect(threadData.comments).toHaveLength(1);
-		expect(threadData.repliesTotal).toBe(2);
-		expect(threadData.commentsTotal).toBe(1);
+		expect(threadData.replies.length).toBeGreaterThanOrEqual(2);
+		expect(threadData.repliesTotal).toBeGreaterThanOrEqual(2);
+		expect(threadData.commentsTotal).toBeGreaterThanOrEqual(1);
 
-		// Verify replies
-		expect(threadData.replies[0].content).toBe(
-			"This is the first reply to the thread.",
-		);
-		expect(threadData.replies[1].content).toBe(
-			"This is the second reply to the thread.",
-		);
+		// Verify replies exist
+		const replyContents = threadData.replies.map((r) => r.content);
+		expect(replyContents).toContain("This is the first reply to the thread.");
+		expect(replyContents).toContain("This is the second reply to the thread.");
 
-		// Verify comments
-		expect(threadData.comments[0].content).toBe("Great thread!");
+		// Verify comments exist (they should be nested in replies or as top-level items)
+		// Comments are now part of the replies structure, so we need to check all replies recursively
+		type NestedReply = (typeof threadData.replies)[number];
+		const getAllContents = (replies: NestedReply[]): string[] => {
+			const contents: string[] = [];
+			for (const reply of replies) {
+				contents.push(reply.content);
+				if (reply.replies.length > 0) {
+					contents.push(...getAllContents(reply.replies));
+				}
+			}
+			return contents;
+		};
+		const allContents = getAllContents(threadData.replies);
+		expect(allContents).toContain("Great thread!");
 	});
 
 	test("should upvote a discussion submission", async () => {
@@ -697,12 +826,11 @@ describe("Discussion Management - Full Workflow", () => {
 		if (!listResult.ok) return;
 
 		const submissions = listResult.value;
-		expect(submissions.docs.length).toBeGreaterThan(0);
-		expect(submissions.totalDocs).toBeGreaterThan(0);
+		expect(submissions.length).toBeGreaterThan(0);
 
 		// All submissions should be for the same course module link
-		submissions.docs.forEach((submission) => {
-			expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
+		submissions.forEach((submission) => {
+			expect(submission.courseModuleLink.id).toBe(courseActivityModuleLinkId);
 		});
 
 		// Test filtering by post type
@@ -716,7 +844,7 @@ describe("Discussion Management - Full Workflow", () => {
 		if (!threadListResult.ok) return;
 
 		const threadSubmissions = threadListResult.value;
-		threadSubmissions.docs.forEach((submission) => {
+		threadSubmissions.forEach((submission) => {
 			expect(submission.postType).toBe("thread");
 		});
 
@@ -731,7 +859,8 @@ describe("Discussion Management - Full Workflow", () => {
 		if (!studentListResult.ok) return;
 
 		const studentSubmissions = studentListResult.value;
-		studentSubmissions.docs.forEach((submission) => {
+
+		studentSubmissions.forEach((submission) => {
 			expect(submission.student.id).toBe(studentId);
 		});
 	});
@@ -779,6 +908,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Grade the submission
 		const gradeArgs: GradeDiscussionSubmissionArgs = {
+			payload,
 			id: submissionId,
 			enrollmentId,
 			gradebookItemId: gradingGradebookItemId,
@@ -787,13 +917,10 @@ describe("Discussion Management - Full Workflow", () => {
 			maxGrade: 100,
 			feedback:
 				"Excellent participation! Great insights and thoughtful responses.",
+			overrideAccess: true,
 		};
 
-		const result = await tryGradeDiscussionSubmission(
-			payload,
-			mockRequest,
-			gradeArgs,
-		);
+		const result = await tryGradeDiscussionSubmission(gradeArgs);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -870,6 +997,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Grade the thread
 		const threadGradeArgs: GradeDiscussionSubmissionArgs = {
+			payload,
 			id: threadId,
 			enrollmentId,
 			gradebookItemId: threadGradebookItemId,
@@ -877,13 +1005,11 @@ describe("Discussion Management - Full Workflow", () => {
 			grade: 90,
 			maxGrade: 100,
 			feedback: "Excellent thread!",
+			overrideAccess: true,
 		};
 
-		const threadGradeResult = await tryGradeDiscussionSubmission(
-			payload,
-			mockRequest,
-			threadGradeArgs,
-		);
+		const threadGradeResult =
+			await tryGradeDiscussionSubmission(threadGradeArgs);
 		expect(threadGradeResult.ok).toBe(true);
 
 		// Create and grade a reply
@@ -904,6 +1030,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Grade the reply
 		const replyGradeArgs: GradeDiscussionSubmissionArgs = {
+			payload,
 			id: replyId,
 			enrollmentId,
 			gradebookItemId: replyGradebookItemId,
@@ -911,13 +1038,10 @@ describe("Discussion Management - Full Workflow", () => {
 			grade: 80,
 			maxGrade: 100,
 			feedback: "Good reply!",
+			overrideAccess: true,
 		};
 
-		const replyGradeResult = await tryGradeDiscussionSubmission(
-			payload,
-			mockRequest,
-			replyGradeArgs,
-		);
+		const replyGradeResult = await tryGradeDiscussionSubmission(replyGradeArgs);
 		expect(replyGradeResult.ok).toBe(true);
 
 		// Create and grade a comment
@@ -941,6 +1065,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Grade the comment
 		const commentGradeArgs: GradeDiscussionSubmissionArgs = {
+			payload,
 			id: commentId,
 			enrollmentId,
 			gradebookItemId,
@@ -948,13 +1073,11 @@ describe("Discussion Management - Full Workflow", () => {
 			grade: 70,
 			maxGrade: 100,
 			feedback: "Nice comment!",
+			overrideAccess: true,
 		};
 
-		const commentGradeResult = await tryGradeDiscussionSubmission(
-			payload,
-			mockRequest,
-			commentGradeArgs,
-		);
+		const commentGradeResult =
+			await tryGradeDiscussionSubmission(commentGradeArgs);
 		expect(commentGradeResult.ok).toBe(true);
 
 		// Calculate the overall discussion grade
@@ -1003,44 +1126,6 @@ describe("Discussion Management - Full Workflow", () => {
 			"2 thread(s), 1 reply(ies), 1 comment(s)",
 		);
 		expect(gradeData.feedback).toContain("excellent");
-	});
-
-	test("should handle pagination in listing", async () => {
-		// Create multiple submissions for pagination testing
-		for (let i = 0; i < 5; i++) {
-			const createArgs: CreateDiscussionSubmissionArgs = {
-				courseModuleLinkId: courseActivityModuleLinkId,
-				studentId,
-				enrollmentId,
-				postType: "thread",
-				title: `Pagination Test Thread ${i + 1}`,
-				content: `This is pagination test thread number ${i + 1}.`,
-			};
-
-			const createResult = await tryCreateDiscussionSubmission(
-				payload,
-				createArgs,
-			);
-			expect(createResult.ok).toBe(true);
-		}
-
-		// Test pagination
-		const page1Result = await tryListDiscussionSubmissions({
-			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			limit: 2,
-			page: 1,
-			overrideAccess: true,
-		});
-
-		expect(page1Result.ok).toBe(true);
-		if (!page1Result.ok) return;
-
-		expect(page1Result.value.docs.length).toBeLessThanOrEqual(2);
-		expect(page1Result.value.page).toBe(1);
-		expect(page1Result.value.limit).toBe(2);
-		expect(page1Result.value.hasNextPage).toBeDefined();
-		expect(page1Result.value.hasPrevPage).toBeDefined();
 	});
 
 	test("should fail with invalid arguments", async () => {

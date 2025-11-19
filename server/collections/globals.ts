@@ -119,10 +119,52 @@ export const SitePolicies = {
 	],
 } as const satisfies GlobalConfig;
 
-// Appearance settings - controls site-level CSS stylesheets
+// Appearance settings - controls site-level CSS stylesheets and theme
 export const AppearanceSettings = {
 	slug: "appearance-settings",
 	fields: [
+		{
+			name: "color",
+			type: "select",
+			label: "Primary Color",
+			admin: {
+				description:
+					"Select the primary color theme for the application. This affects buttons, links, and other interactive elements.",
+			},
+			options: [
+				{ label: "Blue", value: "blue" },
+				{ label: "Pink", value: "pink" },
+				{ label: "Indigo", value: "indigo" },
+				{ label: "Green", value: "green" },
+				{ label: "Orange", value: "orange" },
+				{ label: "Gray", value: "gray" },
+				{ label: "Grape", value: "grape" },
+				{ label: "Cyan", value: "cyan" },
+				{ label: "Lime", value: "lime" },
+				{ label: "Red", value: "red" },
+				{ label: "Violet", value: "violet" },
+				{ label: "Teal", value: "teal" },
+				{ label: "Yellow", value: "yellow" },
+			],
+			defaultValue: "blue",
+		},
+		{
+			name: "radius",
+			type: "select",
+			label: "Border Radius",
+			admin: {
+				description:
+					"Select the default border radius for components. This affects buttons, cards, inputs, and other elements.",
+			},
+			options: [
+				{ label: "Extra Small", value: "xs" },
+				{ label: "Small", value: "sm" },
+				{ label: "Medium", value: "md" },
+				{ label: "Large", value: "lg" },
+				{ label: "Extra Large", value: "xl" },
+			],
+			defaultValue: "sm",
+		},
 		{
 			name: "additionalCssStylesheets",
 			type: "array",

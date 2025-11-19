@@ -1245,22 +1245,20 @@ describe("Media Management", () => {
 		const courseModuleLinkId = linkResult.value.id;
 
 		// 7. Create assignment submission with media attachment
-		const assignmentSubmissionResult = await tryCreateAssignmentSubmission(
+		const assignmentSubmissionResult = await tryCreateAssignmentSubmission({
 			payload,
-			{
-				courseModuleLinkId,
-				studentId: testUserId,
-				enrollmentId,
-				attemptNumber: 1,
-				content: "Test submission content",
-				attachments: [
-					{
-						file: testMediaId,
-						description: "Test attachment",
-					},
-				],
-			},
-		);
+			courseModuleLinkId,
+			studentId: testUserId,
+			enrollmentId,
+			attemptNumber: 1,
+			content: "Test submission content",
+			attachments: [
+				{
+					file: testMediaId,
+					description: "Test attachment",
+				},
+			],
+		});
 
 		expect(assignmentSubmissionResult.ok).toBe(true);
 		if (!assignmentSubmissionResult.ok) {

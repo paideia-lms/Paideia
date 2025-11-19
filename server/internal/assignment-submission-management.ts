@@ -1,6 +1,5 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { AssignmentSubmissions } from "server/collections";
-import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -12,6 +11,7 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { DEFAULT_ALLOWED_FILE_TYPES } from "~/utils/file-types";
+import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 
 export interface CreateAssignmentSubmissionArgs {
 	payload: Payload;
@@ -38,9 +38,9 @@ export interface UpdateAssignmentSubmissionArgs {
 	attachments?: Array<
 		| number
 		| {
-			file: number;
-			description?: string;
-		}
+				file: number;
+				description?: string;
+		  }
 	>;
 	timeSpent?: number;
 	user?: TypedUser | null;
@@ -340,13 +340,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
  */
 export const tryGetAssignmentSubmissionById = Result.wrap(
 	async (args: GetAssignmentSubmissionByIdArgs) => {
-		const {
-			payload,
-			id,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, id, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -818,10 +812,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 			if (gradebookItemResult.ok) {
 				const gradebookItem = gradebookItemResult.value;
-				if (
-					grade < gradebookItem.minGrade ||
-					grade > gradebookItem.maxGrade
-				) {
+				if (grade < gradebookItem.minGrade || grade > gradebookItem.maxGrade) {
 					throw new InvalidArgumentError(
 						`Grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
 					);
@@ -1025,13 +1016,7 @@ export const tryListAssignmentSubmissions = Result.wrap(
  */
 export const tryDeleteAssignmentSubmission = Result.wrap(
 	async (args: DeleteAssignmentSubmissionArgs) => {
-		const {
-			payload,
-			id,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, id, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {

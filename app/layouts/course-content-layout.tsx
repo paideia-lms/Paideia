@@ -63,7 +63,7 @@ export default function CourseContentLayout({
 	} = loaderData;
 	const { courseId, sectionId, moduleLinkId } = params;
 
-	const canEdit = canUpdateCourseStructure(currentUser, enrolment);
+	const canEdit = canUpdateCourseStructure(currentUser, enrolment).allowed;
 	const [navbarOpened, { toggle: toggleNavbar }] = useDisclosure(true);
 
 	return (

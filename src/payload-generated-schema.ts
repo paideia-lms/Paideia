@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type {} from "@payloadcms/db-postgres";
+import type { } from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -122,7 +122,7 @@ export const enum_user_grades_status = pgEnum("enum_user_grades_status", [
 ]);
 export const enum_payload_jobs_log_task_slug = pgEnum(
   "enum_payload_jobs_log_task_slug",
-  ["inline", "sandboxReset"],
+  ["inline", "sandboxReset", "autoSubmitQuiz"],
 );
 export const enum_payload_jobs_log_state = pgEnum(
   "enum_payload_jobs_log_state",
@@ -130,7 +130,29 @@ export const enum_payload_jobs_log_state = pgEnum(
 );
 export const enum_payload_jobs_task_slug = pgEnum(
   "enum_payload_jobs_task_slug",
-  ["inline", "sandboxReset"],
+  ["inline", "sandboxReset", "autoSubmitQuiz"],
+);
+export const enum_appearance_settings_color = pgEnum(
+  "enum_appearance_settings_color",
+  [
+    "blue",
+    "pink",
+    "indigo",
+    "green",
+    "orange",
+    "gray",
+    "grape",
+    "cyan",
+    "lime",
+    "red",
+    "violet",
+    "teal",
+    "yellow",
+  ],
+);
+export const enum_appearance_settings_radius = pgEnum(
+  "enum_appearance_settings_radius",
+  ["xs", "sm", "md", "lg", "xl"],
 );
 
 export const users_sessions = pgTable(
@@ -875,7 +897,6 @@ export const quizzes = pgTable(
     allowLateSubmissions: boolean("allow_late_submissions").default(false),
     points: numeric("points", { mode: "number" }).default(100),
     gradingType: enum_quizzes_grading_type("grading_type").default("automatic"),
-    timeLimit: numeric("time_limit", { mode: "number" }),
     showCorrectAnswers: boolean("show_correct_answers").default(false),
     allowMultipleAttempts: boolean("allow_multiple_attempts").default(false),
     shuffleQuestions: boolean("shuffle_questions").default(false),
@@ -1063,7 +1084,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references(() => users.id, {
+      .references((): AnyPgColumn => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {
@@ -2547,6 +2568,8 @@ export const appearance_settings_additional_css_stylesheets = pgTable(
 
 export const appearance_settings = pgTable("appearance_settings", {
   id: serial("id").primaryKey(),
+  color: enum_appearance_settings_color("color").default("blue"),
+  radius: enum_appearance_settings_radius("radius").default("sm"),
   updatedAt: timestamp("updated_at", {
     mode: "string",
     withTimezone: true,
@@ -3602,6 +3625,8 @@ type DatabaseSchema = {
   enum_payload_jobs_log_task_slug: typeof enum_payload_jobs_log_task_slug;
   enum_payload_jobs_log_state: typeof enum_payload_jobs_log_state;
   enum_payload_jobs_task_slug: typeof enum_payload_jobs_task_slug;
+  enum_appearance_settings_color: typeof enum_appearance_settings_color;
+  enum_appearance_settings_radius: typeof enum_appearance_settings_radius;
   users_sessions: typeof users_sessions;
   users: typeof users;
   courses_tags: typeof courses_tags;

@@ -12,7 +12,12 @@ import {
 	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import type { Enrollment, GradebookItem, User, UserGrade } from "../payload-types";
+import type {
+	Enrollment,
+	GradebookItem,
+	User,
+	UserGrade,
+} from "../payload-types";
 
 export interface CreateGradebookItemArgs {
 	gradebookId: number;
@@ -161,12 +166,9 @@ export const tryCreateGradebookItem = Result.wrap(
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError(
-			"Failed to create gradebook item",
-			{
-				cause: error,
-			},
-		),
+		new UnknownError("Failed to create gradebook item", {
+			cause: error,
+		}),
 );
 
 /**
@@ -253,12 +255,9 @@ export const tryUpdateGradebookItem = Result.wrap(
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError(
-			`Failed to update gradebook item`,
-			{
-				cause: error,
-			},
-		),
+		new UnknownError(`Failed to update gradebook item`, {
+			cause: error,
+		}),
 );
 
 /**
@@ -306,12 +305,9 @@ export const tryDeleteGradebookItem = Result.wrap(
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError(
-			"Failed to delete gradebook item",
-			{
-				cause: error,
-			},
-		),
+		new UnknownError("Failed to delete gradebook item", {
+			cause: error,
+		}),
 );
 
 /**
@@ -538,8 +534,13 @@ export interface FindGradebookItemByCourseModuleLinkArgs {
  */
 export const tryFindGradebookItemByCourseModuleLink = Result.wrap(
 	async (args: FindGradebookItemByCourseModuleLinkArgs) => {
-		const { payload, user, req, overrideAccess = false, courseModuleLinkId } = args;
-
+		const {
+			payload,
+			user,
+			req,
+			overrideAccess = false,
+			courseModuleLinkId,
+		} = args;
 
 		const items = await payload.find({
 			collection: GradebookItems.slug,
@@ -551,9 +552,8 @@ export const tryFindGradebookItemByCourseModuleLink = Result.wrap(
 			limit: 1,
 			user,
 			req,
-			overrideAccess
+			overrideAccess,
 		});
-
 
 		if (items.docs.length === 0) {
 			throw new GradebookItemNotFoundError(
@@ -566,8 +566,9 @@ export const tryFindGradebookItemByCourseModuleLink = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError(
-			`Failed to find gradebook item by course module link: ${error instanceof Error ? error.message : String(error)}`, {
-			cause: error,
-		},
+			`Failed to find gradebook item by course module link: ${error instanceof Error ? error.message : String(error)}`,
+			{
+				cause: error,
+			},
 		),
 );

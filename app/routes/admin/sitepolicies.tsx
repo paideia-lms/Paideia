@@ -264,10 +264,7 @@ export default function AdminSitePolicies({
 				name="description"
 				content="Configure media storage limits and upload restrictions"
 			/>
-			<meta
-				property="og:title"
-				content="Site Policies | Admin | Paideia LMS"
-			/>
+			<meta property="og:title" content="Site Policies | Admin | Paideia LMS" />
 			<meta
 				property="og:description"
 				content="Configure media storage limits and upload restrictions"
@@ -282,12 +279,12 @@ export default function AdminSitePolicies({
 					update({
 						userMediaStorageTotal:
 							values.userMediaStorageTotal !== undefined &&
-								values.userMediaStorageTotal !== null
+							values.userMediaStorageTotal !== null
 								? values.userMediaStorageTotal
 								: null,
 						siteUploadLimit:
 							values.siteUploadLimit !== undefined &&
-								values.siteUploadLimit !== null
+							values.siteUploadLimit !== null
 								? values.siteUploadLimit
 								: null,
 					});

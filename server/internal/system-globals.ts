@@ -14,7 +14,6 @@ export interface GetSystemGlobalsArgs {
 	overrideAccess?: boolean;
 }
 
-
 /**
  * Fetch all system globals in a single call.
  * This is more efficient than fetching them individually.
@@ -64,21 +63,27 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-				userMediaStorageTotal: null,
-				siteUploadLimit: null,
-			};
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				};
 
 		const appearanceSettings = {
 			additionalCssStylesheets: appearanceResult.ok
-				? appearanceResult.value.additionalCssStylesheets ?? []
+				? (appearanceResult.value.additionalCssStylesheets ?? [])
 				: [],
-		}
+			color: appearanceResult.ok
+				? (appearanceResult.value.color ?? "blue")
+				: "blue",
+			radius: appearanceResult.ok
+				? (appearanceResult.value.radius ?? "sm")
+				: "sm",
+		};
 
 		const analyticsSettings = {
 			additionalJsScripts: analyticsResult.ok
-				? analyticsResult.value.additionalJsScripts ?? []
+				? (analyticsResult.value.additionalJsScripts ?? [])
 				: [],
-		}
+		};
 
 		return {
 			maintenanceSettings,

@@ -1,18 +1,18 @@
 import { Container, Paper, Stack, Text } from "@mantine/core";
-import { useLoaderData } from "react-router";
 import { useQueryState } from "nuqs";
+import { useLoaderData } from "react-router";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import type {
 	DiscussionReply,
 	DiscussionThread,
 } from "~/components/activity-modules-preview/discussion-preview";
+import { StatefulDiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import {
 	AssignmentPreview,
 	PagePreview,
 	QuizPreview,
 	WhiteboardPreview,
 } from "~/components/activity-modules-preview/index";
-import { StatefulDiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import { NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/edit";
 

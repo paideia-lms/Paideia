@@ -95,17 +95,23 @@ function isQuestionAnswered(
 }
 
 // Memoized timer display component to prevent unnecessary re-renders
+// Key prop should be used to remount when remainingTime changes
 const TimerDisplay = memo(
 	({
 		initialTime,
+		remainingTime,
 		onExpire,
 	}: {
 		initialTime?: number;
+		remainingTime?: number;
 		onExpire: () => void;
 	}) => {
-		const timer = useQuizTimer({ initialTime, onExpire });
+		const timer = useQuizTimer({ initialTime, remainingTime, onExpire });
 
-		if (!initialTime) return null;
+		// Use remainingTime if provided, otherwise use initialTime
+		const effectiveInitialTime =
+			remainingTime !== undefined ? remainingTime : initialTime;
+		if (!effectiveInitialTime) return null;
 
 		const getTimerColor = (timeLeft: number | null, initial?: number) => {
 			if (timeLeft === null || !initial) return "blue";
@@ -118,7 +124,7 @@ const TimerDisplay = memo(
 		return (
 			<Badge
 				size="lg"
-				color={getTimerColor(timer.timeLeft, initialTime)}
+				color={getTimerColor(timer.timeLeft, effectiveInitialTime)}
 				leftSection={<IconClock size={16} />}
 			>
 				{timer.formattedTime}
@@ -136,6 +142,7 @@ interface SingleQuizPreviewProps {
 	onSubmit?: (answers: QuizAnswers) => void;
 	onExit?: () => void;
 	disableInteraction?: boolean;
+	remainingTime?: number; // Remaining time in seconds for resumed quizzes
 }
 
 export function SingleQuizPreview({
@@ -145,6 +152,7 @@ export function SingleQuizPreview({
 	onSubmit,
 	onExit,
 	disableInteraction = false,
+	remainingTime,
 }: SingleQuizPreviewProps) {
 	const [showResults, setShowResults] = useState(false);
 	const [submittedAnswers, setSubmittedAnswers] = useState<Record<
@@ -300,7 +308,9 @@ export function SingleQuizPreview({
 						</div>
 						{quizConfig.globalTimer && !readonly && (
 							<TimerDisplay
+								key={`timer-${remainingTime ?? quizConfig.globalTimer}`}
 								initialTime={quizConfig.globalTimer}
+								remainingTime={remainingTime}
 								onExpire={handleGlobalTimerExpire}
 							/>
 						)}
@@ -626,11 +636,13 @@ interface QuizPreviewProps {
 	quizConfig: QuizConfig;
 	submissionId?: number;
 	onSubmit?: (answers: QuizAnswers) => void;
+	remainingTime?: number; // Remaining time in seconds for resumed quizzes
 }
 
 export function QuizPreview({
 	quizConfig,
 	onSubmit,
+	remainingTime,
 }: QuizPreviewProps) {
 	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
 
@@ -651,6 +663,7 @@ export function QuizPreview({
 			<SingleQuizPreview
 				quizConfig={quizConfig}
 				onSubmit={onSubmit}
+				remainingTime={remainingTime}
 			/>
 		);
 	}
@@ -681,7 +694,9 @@ export function QuizPreview({
 							Overall Time Limit
 						</Text>
 						<TimerDisplay
+							key={`parent-timer-${remainingTime ?? quizConfig.globalTimer}`}
 							initialTime={quizConfig.globalTimer}
+							remainingTime={remainingTime}
 							onExpire={handleParentTimerExpire}
 						/>
 					</Group>
@@ -704,7 +719,9 @@ export function QuizPreview({
 								Current Quiz Time
 							</Text>
 							<TimerDisplay
+								key={`nested-timer-${remainingTime ?? nestedQuizState.activeNestedQuiz.globalTimer}`}
 								initialTime={nestedQuizState.activeNestedQuiz.globalTimer}
+								remainingTime={remainingTime}
 								onExpire={() => {
 									// Nested timer expired - this will be handled by SingleQuizPreview
 								}}
@@ -731,8 +748,8 @@ export function QuizPreview({
 					initialAnswers={
 						isViewingCompletedQuiz
 							? nestedQuizState.submittedAnswers[
-							nestedQuizState.currentNestedQuizId
-							]
+									nestedQuizState.currentNestedQuizId
+								]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {
@@ -745,6 +762,7 @@ export function QuizPreview({
 					}}
 					onExit={nestedQuizState.exitToContainer}
 					disableInteraction={isParentTimerExpired}
+					remainingTime={remainingTime}
 				/>
 			) : null}
 		</Stack>

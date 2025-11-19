@@ -65,13 +65,13 @@ export const loader = async ({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? canImpersonateUser(
-			userSession.authenticatedUser,
-			{
-				id: userId,
-				role: "student", // Enrolled users are not admins
-			},
-			userSession.isImpersonating,
-		)
+				userSession.authenticatedUser,
+				{
+					id: userId,
+					role: "student", // Enrolled users are not admins
+				},
+				userSession.isImpersonating,
+			).allowed
 		: false;
 
 	return {
@@ -97,9 +97,10 @@ export default function CourseParticipantsProfilePage({
 	} = loaderData;
 	const { impersonate, isLoading } = useImpersonate();
 
-
 	// Redirect back to the course page after impersonation
-	const redirectPath = href("/course/:courseId", { courseId: String(course.id) });
+	const redirectPath = href("/course/:courseId", {
+		courseId: String(course.id),
+	});
 	const [selectedUserId, setSelectedUserId] = useQueryState(
 		"userId",
 		parseAsInteger.withOptions({

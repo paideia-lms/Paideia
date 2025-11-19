@@ -17,8 +17,8 @@ import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import {
 	tryCreateGradebookItem,
 	tryDeleteGradebookItem,
-	tryFindGradebookItemById,
 	tryFindGradebookItemByCourseModuleLink,
+	tryFindGradebookItemById,
 	tryGetCategoryItems,
 	tryGetGradebookItemsInOrder,
 	tryGetItemsWithUserGrades,

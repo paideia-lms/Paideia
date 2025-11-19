@@ -48,10 +48,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				userId: enrolmentContext.enrolment.userId,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					userId: enrolmentContext.enrolment.userId,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -98,14 +98,10 @@ export default function CourseGradesLayout({
 				navigate(href("/course/:courseId/grades", { courseId }));
 				break;
 			case GradesTab.Setup:
-				navigate(
-					href("/course/:courseId/grades", { courseId }) + "?tab=setup",
-				);
+				navigate(href("/course/:courseId/grades", { courseId }) + "?tab=setup");
 				break;
 			case GradesTab.SingleView:
-				navigate(
-					href("/course/:courseId/grades/singleview", { courseId }),
-				);
+				navigate(href("/course/:courseId/grades/singleview", { courseId }));
 				break;
 		}
 	};

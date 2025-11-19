@@ -20,6 +20,7 @@ type Enrollment = {
 	id: number;
 	name: string;
 	email: string;
+	role: "student" | "teacher" | "ta" | "manager";
 };
 
 type GradebookJson = {
@@ -297,18 +298,18 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 		}
 
 		// Debug logging (remove after debugging)
-		if (
-			userGradesEnrollmentIds.length > 0 ||
-			courseEnrollmentIds.length > 0
-		) {
-			console.log("UserGrades enrollment IDs:", userGradesEnrollmentIds);
-			console.log("Course enrollment IDs:", courseEnrollmentIds);
-			console.log("Gradebook item IDs:", allItems.map((i) => i.id));
-			console.log(
-				"UserGrades item IDs:",
-				userGrades.enrollments.flatMap((e) => e.items.map((i) => i.item_id)),
-			);
-		}
+		// if (
+		// 	userGradesEnrollmentIds.length > 0 ||
+		// 	courseEnrollmentIds.length > 0
+		// ) {
+		// 	console.log("UserGrades enrollment IDs:", userGradesEnrollmentIds);
+		// 	console.log("Course enrollment IDs:", courseEnrollmentIds);
+		// 	console.log("Gradebook item IDs:", allItems.map((i) => i.id));
+		// 	console.log(
+		// 		"UserGrades item IDs:",
+		// 		userGrades.enrollments.flatMap((e) => e.items.map((i) => i.item_id)),
+		// 	);
+		// }
 	}
 
 	// Helper to render cells for a row, handling gaps with empty cells
@@ -431,8 +432,9 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 							</Table.Tr>
 						) : (
 							enrollments.map((enrollment: (typeof enrollments)[number]) => {
-								const enrollmentGrades =
-									gradesByEnrollmentAndItem.get(enrollment.id);
+								const enrollmentGrades = gradesByEnrollmentAndItem.get(
+									enrollment.id,
+								);
 								const finalGrade = finalGradesByEnrollment.get(enrollment.id);
 
 								return (
@@ -453,8 +455,7 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 											</Group>
 										</Table.Td>
 										{allItems.map((item) => {
-											const grade =
-												enrollmentGrades?.get(item.id);
+											const grade = enrollmentGrades?.get(item.id);
 											// Check if grade exists in map (could be null, which means no grade was set)
 											const hasGrade = enrollmentGrades?.has(item.id) ?? false;
 											return (

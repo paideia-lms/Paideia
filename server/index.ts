@@ -107,6 +107,7 @@ async function startServer() {
 						const requestInfo = getRequestInfo(request);
 						const hints = getHints(request);
 						c.set(globalContextKey, {
+							environment: process.env.NODE_ENV,
 							payload: payload,
 							elysia: backend,
 							api,
@@ -129,6 +130,8 @@ async function startServer() {
 								},
 								appearanceSettings: {
 									additionalCssStylesheets: [],
+									color: "blue",
+									radius: "sm",
 								},
 								analyticsSettings: {
 									additionalJsScripts: [],
@@ -191,10 +194,12 @@ async function startServer() {
 								isAdminMigrations: false,
 								isAdminDependencies: false,
 								isAdminCronJobs: false,
+								isAdminScheduledTasks: false,
 								isAdminMaintenance: false,
 								isAdminSitePolicies: false,
 								isAdminMedia: false,
 								isAdminAppearance: false,
+								isAdminTheme: false,
 								isAdminAnalytics: false,
 								params: {},
 							},

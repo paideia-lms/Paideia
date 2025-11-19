@@ -1,5 +1,8 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { QuizSubmissions } from "server/collections";
+import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import { JobQueue } from "server/payload.config";
+import type { QuizSubmission } from "server/payload-types";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -12,7 +15,6 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { tryCreateUserGrade } from "./user-grade-management";
-import type { QuizSubmission } from "server/payload-types";
 
 export interface CreateQuizArgs {
 	title: string;
@@ -33,13 +35,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -75,13 +77,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -106,11 +108,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -142,11 +144,11 @@ export interface UpdateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -224,11 +226,11 @@ export interface SubmitQuizArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -239,6 +241,10 @@ export interface SubmitQuizArgs {
 	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
+	/**
+	 * If true, bypasses the time limit check (useful for auto-submit)
+	 */
+	bypassTimeLimit?: boolean;
 }
 
 export interface QuizGradingResult {
@@ -369,7 +375,7 @@ export const tryCreateQuiz = Result.wrap(
 			allowLateSubmissions = false,
 			points = 100,
 			gradingType = "automatic",
-			timeLimit,
+			// timeLimit is no longer used - it's derived from rawQuizConfig.globalTimer
 			showCorrectAnswers = false,
 			allowMultipleAttempts = false,
 			shuffleQuestions = false,
@@ -436,7 +442,6 @@ export const tryCreateQuiz = Result.wrap(
 				allowLateSubmissions,
 				points,
 				gradingType,
-				timeLimit,
 				showCorrectAnswers,
 				allowMultipleAttempts,
 				shuffleQuestions,
@@ -478,13 +483,7 @@ export const tryCreateQuiz = Result.wrap(
  */
 export const tryGetQuizById = Result.wrap(
 	async (args: GetQuizByIdArgs) => {
-		const {
-			payload,
-			id,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, id, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -553,7 +552,7 @@ export const tryUpdateQuiz = Result.wrap(
 			allowLateSubmissions,
 			points,
 			gradingType,
-			timeLimit,
+			// timeLimit is no longer used - it's derived from rawQuizConfig.globalTimer
 			showCorrectAnswers,
 			allowMultipleAttempts,
 			shuffleQuestions,
@@ -579,7 +578,7 @@ export const tryUpdateQuiz = Result.wrap(
 			updateData.allowLateSubmissions = allowLateSubmissions;
 		if (points !== undefined) updateData.points = points;
 		if (gradingType !== undefined) updateData.gradingType = gradingType;
-		if (timeLimit !== undefined) updateData.timeLimit = timeLimit;
+		// timeLimit is no longer stored in the collection - it's derived from rawQuizConfig.globalTimer
 		if (showCorrectAnswers !== undefined)
 			updateData.showCorrectAnswers = showCorrectAnswers;
 		if (allowMultipleAttempts !== undefined)
@@ -698,7 +697,11 @@ export const tryStartQuizAttempt = Result.wrap(
 				and: [
 					{ courseModuleLink: { equals: courseModuleLinkId } },
 					{ student: { equals: studentId } },
-					{ status: { equals: "in_progress" satisfies QuizSubmission['status'] } },
+					{
+						status: {
+							equals: "in_progress" satisfies QuizSubmission["status"],
+						},
+					},
 				],
 			},
 			user,
@@ -754,8 +757,9 @@ export const tryStartQuizAttempt = Result.wrap(
 				? activityModule.quiz
 				: null;
 
-		const isLate =
-			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+		const isLate = quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+
+		const startedAt = new Date().toISOString();
 
 		const submission = await payload.create({
 			collection: "quiz-submissions",
@@ -765,7 +769,7 @@ export const tryStartQuizAttempt = Result.wrap(
 				enrollment: enrollmentId,
 				attemptNumber,
 				status: "in_progress",
-				startedAt: new Date().toISOString(),
+				startedAt,
 				answers: [],
 				isLate,
 			},
@@ -773,6 +777,39 @@ export const tryStartQuizAttempt = Result.wrap(
 			req,
 			overrideAccess,
 		});
+
+		// Schedule auto-submit job if quiz has a time limit
+		if (quiz) {
+			const rawConfig = quiz.rawQuizConfig as unknown as QuizConfig | null;
+			const globalTimer = rawConfig?.globalTimer;
+
+			if (globalTimer && globalTimer > 0) {
+				// Calculate when the timer will expire (startedAt + globalTimer seconds)
+				const expirationTime = new Date(
+					new Date(startedAt).getTime() + globalTimer * 1000,
+				);
+
+				// Schedule the auto-submit job
+				// Only schedule if req is available (for job scheduling)
+				if (req) {
+					try {
+						await payload.jobs.queue({
+							task: "autoSubmitQuiz",
+							input: {
+								submissionId: submission.id,
+							},
+							waitUntil: expirationTime,
+							queue: JobQueue.SECONDLY, // Use "secondly" queue which runs every second to process waitUntil jobs
+						});
+					} catch (error) {
+						// Log error but don't fail the quiz start
+						payload.logger.warn(
+							`Failed to schedule auto-submit job for submission ${submission.id}: ${error instanceof Error ? error.message : "Unknown error"}`,
+						);
+					}
+				}
+			}
+		}
 
 		////////////////////////////////////////////////////
 		// type narrowing
@@ -895,8 +932,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 				? activityModule.quiz
 				: null;
 
-		const isLate =
-			quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+		const isLate = quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
 
 		const submission = await payload.create({
 			collection: "quiz-submissions",
@@ -1058,13 +1094,7 @@ export const tryUpdateQuizSubmission = Result.wrap(
  */
 export const tryGetQuizSubmissionById = Result.wrap(
 	async (args: GetQuizSubmissionByIdArgs) => {
-		const {
-			payload,
-			id,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, id, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -1151,6 +1181,7 @@ export const trySubmitQuiz = Result.wrap(
 			user = null,
 			req,
 			overrideAccess = false,
+			bypassTimeLimit = false,
 		} = args;
 
 		// Validate ID
@@ -1179,14 +1210,14 @@ export const trySubmitQuiz = Result.wrap(
 			);
 		}
 
-		// Check time limit if quiz has one
-		if (currentSubmission.startedAt) {
+		// Check time limit if quiz has one (unless bypassed for auto-submit)
+		if (currentSubmission.startedAt && !bypassTimeLimit) {
 			// Get course module link to access quiz time limit
 			const courseModuleLink = await payload.findByID({
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1205,15 +1236,21 @@ export const trySubmitQuiz = Result.wrap(
 						? activityModule.quiz
 						: null;
 
-				if (quiz?.timeLimit) {
+				// Get globalTimer from rawQuizConfig (in seconds) and convert to minutes
+				const rawConfig = quiz?.rawQuizConfig as unknown as QuizConfig | null;
+				const timeLimitMinutes = rawConfig?.globalTimer
+					? rawConfig.globalTimer / 60
+					: null;
+
+				if (timeLimitMinutes) {
 					const startedAt = new Date(currentSubmission.startedAt);
 					const now = new Date();
 					const timeElapsedMinutes =
 						(now.getTime() - startedAt.getTime()) / (1000 * 60);
 
-					if (timeElapsedMinutes > quiz.timeLimit) {
+					if (timeElapsedMinutes > timeLimitMinutes) {
 						throw new QuizTimeLimitExceededError(
-							`Quiz time limit of ${quiz.timeLimit} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
+							`Quiz time limit of ${timeLimitMinutes} minutes has been exceeded. Time elapsed: ${Math.ceil(timeElapsedMinutes)} minutes.`,
 						);
 					}
 				}
@@ -1302,11 +1339,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1563,7 +1600,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1774,7 +1811,6 @@ export const tryListQuizSubmissions = Result.wrap(
 		const where =
 			whereConditions.length > 0 ? { and: whereConditions } : undefined;
 
-
 		const result = await payload.find({
 			collection: "quiz-submissions",
 			where,
@@ -1922,9 +1958,7 @@ export const tryGetNextAttemptNumber = Result.wrap(
 
 		const maxAttemptNumber =
 			result.value.docs.length > 0
-				? Math.max(
-					...result.value.docs.map((sub) => sub.attemptNumber || 1),
-				)
+				? Math.max(...result.value.docs.map((sub) => sub.attemptNumber || 1))
 				: 0;
 
 		return maxAttemptNumber + 1;
@@ -2202,8 +2236,7 @@ export const tryGetQuizGradesReport = Result.wrap(
 
 		// Calculate max score from quiz points or sum of question points
 		const maxScore =
-			quiz.points ??
-			questions.reduce((sum, q) => sum + q.points, 0);
+			quiz.points ?? questions.reduce((sum, q) => sum + q.points, 0);
 
 		return {
 			courseModuleLinkId,
@@ -2310,7 +2343,9 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 		if (completedAttempts.length > 0) {
 			const scores = completedAttempts
 				.map((s) => s.totalScore)
-				.filter((score): score is number => score !== null && score !== undefined);
+				.filter(
+					(score): score is number => score !== null && score !== undefined,
+				);
 			const percentages = completedAttempts
 				.map((s) => s.percentage)
 				.filter((p): p is number => p !== null && p !== undefined);
@@ -2354,7 +2389,10 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 					}
 
 					// For multiple choice questions, track response distribution
-					if (question.questionType === "multiple_choice" && answer.multipleChoiceAnswers) {
+					if (
+						question.questionType === "multiple_choice" &&
+						answer.multipleChoiceAnswers
+					) {
 						for (const choice of answer.multipleChoiceAnswers) {
 							if (choice.isSelected) {
 								const currentCount = responseCounts.get(choice.option) || 0;
@@ -2380,13 +2418,18 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 					: 0;
 
 			// Build response distribution for multiple choice
-			let responseDistribution: Array<{
-				option: string;
-				count: number;
-				percentage: number;
-			}> | undefined;
+			let responseDistribution:
+				| Array<{
+						option: string;
+						count: number;
+						percentage: number;
+				  }>
+				| undefined;
 
-			if (question.questionType === "multiple_choice" && responseCounts.size > 0) {
+			if (
+				question.questionType === "multiple_choice" &&
+				responseCounts.size > 0
+			) {
 				responseDistribution = Array.from(responseCounts.entries()).map(
 					([option, count]) => ({
 						option,
@@ -2413,8 +2456,7 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 
 		// Calculate max score from quiz points or sum of question points
 		const maxScore =
-			quiz.points ??
-			questions.reduce((sum, q) => sum + q.points, 0);
+			quiz.points ?? questions.reduce((sum, q) => sum + q.points, 0);
 
 		return {
 			courseModuleLinkId,

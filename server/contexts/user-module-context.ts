@@ -215,16 +215,27 @@ export const tryGetUserModuleContext = Result.wrap(
 				module.type === "quiz" &&
 				typeof module.quiz === "object" &&
 				module.quiz !== null
-					? {
-							id: module.quiz.id,
-							instructions: module.quiz.instructions || null,
-							dueDate: module.quiz.dueDate || null,
-							maxAttempts: module.quiz.maxAttempts || null,
-							points: module.quiz.points || null,
-							timeLimit: module.quiz.timeLimit || null,
-							gradingType: module.quiz.gradingType || null,
-							rawQuizConfig: module.quiz.rawQuizConfig as unknown as QuizConfig,
-						}
+					? (() => {
+							// Get rawQuizConfig to check for globalTimer
+							const rawConfig = module.quiz
+								.rawQuizConfig as unknown as QuizConfig | null;
+
+							// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
+							const timeLimit = rawConfig?.globalTimer
+								? rawConfig.globalTimer / 60
+								: null;
+
+							return {
+								id: module.quiz.id,
+								instructions: module.quiz.instructions || null,
+								dueDate: module.quiz.dueDate || null,
+								maxAttempts: module.quiz.maxAttempts || null,
+								points: module.quiz.points || null,
+								timeLimit,
+								gradingType: module.quiz.gradingType || null,
+								rawQuizConfig: rawConfig,
+							};
+						})()
 					: null,
 			discussion:
 				module.type === "discussion" &&

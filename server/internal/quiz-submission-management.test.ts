@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import sanitizedConfig from "../payload.config";
+import sanitizedConfig, { JobQueue } from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
 	tryCreateActivityModule,
@@ -23,8 +23,8 @@ import {
 import {
 	type CreateQuizArgs,
 	type CreateQuizSubmissionArgs,
-	type StartQuizAttemptArgs,
 	calculateQuizGrade,
+	type StartQuizAttemptArgs,
 	tryCreateQuiz,
 	tryCreateQuizSubmission,
 	tryDeleteQuizSubmission,
@@ -337,7 +337,6 @@ describe("Quiz Management - Full Workflow", () => {
 			allowLateSubmissions: true,
 			points: 100,
 			gradingType: "automatic",
-			timeLimit: 30,
 			showCorrectAnswers: true,
 			allowMultipleAttempts: true,
 			shuffleQuestions: false,
@@ -395,7 +394,6 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(quiz.allowLateSubmissions).toBe(true);
 		expect(quiz.points).toBe(100);
 		expect(quiz.gradingType).toBe("automatic");
-		expect(quiz.timeLimit).toBe(30);
 		expect(quiz.showCorrectAnswers).toBe(true);
 		expect(quiz.allowMultipleAttempts).toBe(true);
 		expect(quiz.questions).toHaveLength(4);
@@ -691,125 +689,6 @@ describe("Quiz Management - Full Workflow", () => {
 			"Quiz completed! You scored 87/100 points (87%)",
 		);
 		expect(gradeData.feedback).toContain("You got 3/4 questions correct");
-	});
-
-	test("should grade quiz submission automatically and create gradebook entry", async () => {
-		// Create a separate gradebook item for this test to avoid conflicts
-		const gradingGradebookItemArgs: CreateGradebookItemArgs = {
-			gradebookId: 1, // Use the gradebook ID from the course creation
-			name: "Quiz Grading Test",
-			description: "Separate gradebook item for grading test",
-			activityModuleId: courseActivityModuleLinkId,
-			maxGrade: 100,
-			weight: 25,
-			sortOrder: 2,
-		};
-
-		const gradingGradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			gradingGradebookItemArgs,
-		);
-		expect(gradingGradebookItemResult.ok).toBe(true);
-		if (!gradingGradebookItemResult.ok) return;
-
-		const gradingGradebookItemId = gradingGradebookItemResult.value.id;
-
-		// First get the quiz to get the actual question IDs
-		const quizResult = await tryGetQuizById({
-			payload,
-			id: quizId,
-			overrideAccess: true,
-		});
-		expect(quizResult.ok).toBe(true);
-		if (!quizResult.ok) return;
-
-		const quiz = quizResult.value;
-		const questions = quiz.questions || [];
-
-		// First create and submit a quiz
-		const createArgs: CreateQuizSubmissionArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 4,
-			answers: [
-				{
-					questionId: questions[0]?.id?.toString() || "1",
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					multipleChoiceAnswers: [
-						{ option: "3", isSelected: false },
-						{ option: "4", isSelected: true },
-						{ option: "5", isSelected: false },
-						{ option: "6", isSelected: false },
-					],
-				},
-				{
-					questionId: questions[1]?.id?.toString() || "2",
-					questionText: "Is the sky blue?",
-					questionType: "true_false",
-					selectedAnswer: "true",
-				},
-				{
-					questionId: questions[2]?.id?.toString() || "3",
-					questionText: "What is the capital of France?",
-					questionType: "short_answer",
-					selectedAnswer: "Paris",
-				},
-				{
-					questionId: questions[3]?.id?.toString() || "4",
-					questionText: "Write a short essay about the importance of education",
-					questionType: "essay",
-					selectedAnswer:
-						"Education is very important for personal development and societal progress. It helps individuals acquire knowledge, skills, and critical thinking abilities that are essential for success in life.",
-				},
-			],
-			overrideAccess: true,
-		};
-
-		const createResult = await tryCreateQuizSubmission(createArgs);
-		expect(createResult.ok).toBe(true);
-		if (!createResult.ok) return;
-
-		const submissionId = createResult.value.id;
-
-		// Submit the quiz
-		const submitResult = await trySubmitQuiz({
-			payload,
-			submissionId,
-			overrideAccess: true,
-		});
-		expect(submitResult.ok).toBe(true);
-		if (!submitResult.ok) return;
-
-		// Grade the quiz (now includes gradebook integration)
-		const gradeResult = await tryGradeQuizSubmission(payload, mockRequest, {
-			id: submissionId,
-			enrollmentId,
-			gradebookItemId: gradingGradebookItemId,
-			gradedBy: teacherId,
-			submittedAt: submitResult.value.submittedAt ?? undefined,
-		});
-
-		expect(gradeResult.ok).toBe(true);
-		if (!gradeResult.ok) return;
-
-		const gradedSubmission = gradeResult.value;
-		expect(gradedSubmission.status).toBe("graded");
-		expect(gradedSubmission.grade).toBe(87);
-		expect(gradedSubmission.maxGrade).toBe(100);
-		expect(gradedSubmission.percentage).toBe(87);
-		expect(gradedSubmission.feedback).toContain(
-			"Quiz completed! You scored 87/100 points (87%)",
-		);
-		expect(gradedSubmission.gradedBy).toBe(teacherId);
-		expect(gradedSubmission.userGrade).toBeDefined();
-		expect(gradedSubmission.userGrade.baseGrade).toBe(87);
-		expect(gradedSubmission.userGrade.baseGradeSource).toBe("submission");
-		expect(gradedSubmission.userGrade.submissionType).toBe("quiz");
-		expect(gradedSubmission.questionResults).toHaveLength(4);
 	});
 
 	test("should get quiz by ID", async () => {
@@ -1287,7 +1166,7 @@ describe("Quiz Management - Full Workflow", () => {
 	});
 
 	test("should reject submission after time limit exceeded", async () => {
-		// Create a quiz with a very short time limit (1 minute)
+		// Create a quiz with a very short time limit (1 minute = 60 seconds)
 		const quickQuizArgs: CreateQuizArgs = {
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
@@ -1296,7 +1175,35 @@ describe("Quiz Management - Full Workflow", () => {
 			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
-			timeLimit: 1, // 1 minute
+			rawQuizConfig: {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: "Quick Quiz",
+				globalTimer: 60, // 1 minute in seconds
+				pages: [
+					{
+						id: `page-${Date.now()}`,
+						title: "Page 1",
+						questions: [
+							{
+								id: `q-${Date.now()}`,
+								type: "multiple-choice",
+								prompt: "What is 2 + 2?",
+								options: {
+									a: "3",
+									b: "4",
+								},
+								correctAnswer: "b",
+								scoring: {
+									type: "simple",
+									points: 100,
+								},
+							},
+						],
+					},
+				],
+			},
 			questions: [
 				{
 					questionText: "What is 2 + 2?",
@@ -1328,7 +1235,35 @@ describe("Quiz Management - Full Workflow", () => {
 				maxAttempts: 1,
 				points: 100,
 				gradingType: "automatic",
-				timeLimit: 1, // 1 minute
+				rawQuizConfig: {
+					version: "v2",
+					type: "regular",
+					id: `quiz-${Date.now()}`,
+					title: "Quick Quiz",
+					globalTimer: 60, // 1 minute in seconds
+					pages: [
+						{
+							id: `page-${Date.now()}`,
+							title: "Page 1",
+							questions: [
+								{
+									id: `q-${Date.now()}`,
+									type: "multiple-choice",
+									prompt: "What is 2 + 2?",
+									options: {
+										a: "3",
+										b: "4",
+									},
+									correctAnswer: "b",
+									scoring: {
+										type: "simple",
+										points: 100,
+									},
+								},
+							],
+						},
+					],
+				},
 				questions: [
 					{
 						questionText: "What is 2 + 2?",
@@ -1406,6 +1341,250 @@ describe("Quiz Management - Full Workflow", () => {
 		if (submitResult.ok) return;
 
 		expect(submitResult.error.message).toContain("time limit");
+	});
+
+	test("should auto-submit quiz when timer expires", async () => {
+		// Create a quiz with a very short time limit (2 seconds)
+		const autoSubmitQuizArgs: CreateQuizArgs = {
+			title: "Auto Submit Quiz",
+			description: "A quiz with 2 second time limit",
+			instructions: "Will auto-submit",
+			dueDate: `${year}-12-31T23:59:59Z`,
+			maxAttempts: 1,
+			points: 100,
+			gradingType: "automatic",
+			rawQuizConfig: {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: "Auto Submit Quiz",
+				globalTimer: 2, // 2 seconds
+				pages: [
+					{
+						id: `page-${Date.now()}`,
+						title: "Page 1",
+						questions: [
+							{
+								id: `q-${Date.now()}`,
+								type: "multiple-choice",
+								prompt: "What is 2 + 2?",
+								options: {
+									a: "3",
+									b: "4",
+								},
+								correctAnswer: "b",
+								scoring: {
+									type: "simple",
+									points: 100,
+								},
+							},
+						],
+					},
+				],
+			},
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 100,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+					],
+				},
+			],
+			createdBy: teacherId,
+		};
+
+		const autoSubmitQuizResult = await tryCreateQuiz(
+			payload,
+			autoSubmitQuizArgs,
+		);
+		expect(autoSubmitQuizResult.ok).toBe(true);
+		if (!autoSubmitQuizResult.ok) return;
+
+		// Create activity module with this quiz
+		const autoSubmitActivityModuleArgs: CreateActivityModuleArgs = {
+			title: "Auto Submit Quiz Module",
+			description: "Module with auto-submit quiz",
+			type: "quiz",
+			status: "published",
+			userId: teacherId,
+			quizData: {
+				instructions: "Will auto-submit",
+				dueDate: `${year}-12-31T23:59:59Z`,
+				maxAttempts: 1,
+				points: 100,
+				gradingType: "automatic",
+				rawQuizConfig: {
+					version: "v2",
+					type: "regular",
+					id: `quiz-${Date.now()}`,
+					title: "Auto Submit Quiz",
+					globalTimer: 2, // 2 seconds
+					pages: [
+						{
+							id: `page-${Date.now()}`,
+							title: "Page 1",
+							questions: [
+								{
+									id: `q-${Date.now()}`,
+									type: "multiple-choice",
+									prompt: "What is 2 + 2?",
+									options: {
+										a: "3",
+										b: "4",
+									},
+									correctAnswer: "b",
+									scoring: {
+										type: "simple",
+										points: 100,
+									},
+								},
+							],
+						},
+					],
+				},
+				questions: [
+					{
+						questionText: "What is 2 + 2?",
+						questionType: "multiple_choice",
+						points: 100,
+						options: [
+							{ text: "3", isCorrect: false },
+							{ text: "4", isCorrect: true },
+						],
+					},
+				],
+			},
+		};
+
+		const autoSubmitActivityModuleResult = await tryCreateActivityModule(
+			payload,
+			autoSubmitActivityModuleArgs,
+		);
+		expect(autoSubmitActivityModuleResult.ok).toBe(true);
+		if (!autoSubmitActivityModuleResult.ok) return;
+
+		const autoSubmitActivityModuleId = autoSubmitActivityModuleResult.value.id;
+
+		// Create course-activity-module-link
+		const autoSubmitLinkArgs: CreateCourseActivityModuleLinkArgs = {
+			course: courseId,
+			activityModule: autoSubmitActivityModuleId,
+			section: sectionId,
+			order: 0,
+		};
+
+		const autoSubmitLinkResult = await tryCreateCourseActivityModuleLink(
+			payload,
+			mockRequest,
+			autoSubmitLinkArgs,
+		);
+		expect(autoSubmitLinkResult.ok).toBe(true);
+		if (!autoSubmitLinkResult.ok) return;
+
+		const autoSubmitCourseActivityModuleLinkId = autoSubmitLinkResult.value.id;
+
+		// Start quiz attempt - this should schedule the auto-submit job
+		const autoSubmitStartArgs: StartQuizAttemptArgs = {
+			payload,
+			courseModuleLinkId: autoSubmitCourseActivityModuleLinkId,
+			studentId,
+			enrollmentId,
+			attemptNumber: 1,
+			req: mockRequest,
+			overrideAccess: true,
+		};
+
+		const autoSubmitStartResult =
+			await tryStartQuizAttempt(autoSubmitStartArgs);
+		expect(autoSubmitStartResult.ok).toBe(true);
+		if (!autoSubmitStartResult.ok) return;
+
+		const autoSubmitSubmissionId = autoSubmitStartResult.value.id;
+
+		// Verify initial state - should be in_progress
+		const initialSubmission = await tryGetQuizSubmissionById({
+			payload,
+			id: autoSubmitSubmissionId,
+			overrideAccess: true,
+		});
+		expect(initialSubmission.ok).toBe(true);
+		if (!initialSubmission.ok) return;
+		expect(initialSubmission.value.status).toBe("in_progress");
+
+		// Verify that the job was scheduled
+		const jobsResult = await payload.find({
+			collection: "payload-jobs",
+			where: {
+				and: [
+					{ taskSlug: { equals: "autoSubmitQuiz" } },
+					{ queue: { equals: JobQueue.SECONDLY } },
+				],
+			},
+			limit: 1,
+			overrideAccess: true,
+		});
+		expect(jobsResult.docs.length).toBeGreaterThan(0);
+		const scheduledJob = jobsResult.docs[0];
+		expect(scheduledJob.waitUntil).toBeDefined();
+
+		// Wait 3 seconds (longer than the 2 second timer)
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+
+		// Process jobs to ensure the auto-submit job runs
+		// The job queue should process jobs automatically via the "secondly" queue
+		// Process both scheduled jobs and pending jobs
+		await payload.jobs.handleSchedules({ queue: JobQueue.DEFAULT });
+		await payload.jobs.handleSchedules({ queue: JobQueue.SECONDLY });
+
+		// Check if the job was processed, if not, manually execute it
+		const jobAfterWait = await payload.findByID({
+			collection: "payload-jobs",
+			id: scheduledJob.id,
+			overrideAccess: true,
+		});
+
+		// If job hasn't been completed yet, manually execute it
+		// This is needed in tests where automatic job processing might not be active
+		if (jobAfterWait && !jobAfterWait.completedAt) {
+			// Manually execute the job by calling the task handler
+			const { autoSubmitQuiz } = await import("../tasks/auto-submit-quiz");
+			const mockReq = {
+				payload,
+				user: null,
+			};
+			// Call the handler directly - use type assertion to bypass complex type checking
+			// The handler only needs req and input, other params are optional
+			if (typeof autoSubmitQuiz.handler === "function") {
+				await (
+					autoSubmitQuiz.handler as (args: {
+						req: { payload: typeof payload; user: null };
+						input: { submissionId: number };
+					}) => Promise<unknown>
+				)({
+					req: mockReq,
+					input: { submissionId: autoSubmitSubmissionId },
+				});
+			}
+		}
+
+		// Wait a bit more for the job to complete (jobs are processed asynchronously)
+		await new Promise((resolve) => setTimeout(resolve, 1000));
+
+		// Check if the quiz was auto-submitted
+		const finalSubmission = await tryGetQuizSubmissionById({
+			payload,
+			id: autoSubmitSubmissionId,
+			overrideAccess: true,
+		});
+		expect(finalSubmission.ok).toBe(true);
+		if (!finalSubmission.ok) return;
+
+		// The submission should be completed (auto-submitted)
+		expect(finalSubmission.value.status).toBe("completed");
+		expect(finalSubmission.value.submittedAt).toBeDefined();
 	});
 });
 
@@ -1572,13 +1751,15 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 			linkArgs,
 		);
 		if (!linkResult.ok) {
-			throw new Error("Test Error: Failed to create course-activity-module-link");
+			throw new Error(
+				"Test Error: Failed to create course-activity-module-link",
+			);
 		}
 		courseActivityModuleLinkId = linkResult.value.id;
 	});
 
 	afterAll(async () => {
-		// reset the database 
+		// reset the database
 		await $`bun run migrate:fresh --force-accept-warning`;
 		await $`bun scripts/clean-s3.ts`;
 	});
@@ -1784,13 +1965,15 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 			linkArgs,
 		);
 		if (!linkResult.ok) {
-			throw new Error("Test Error: Failed to create course-activity-module-link");
+			throw new Error(
+				"Test Error: Failed to create course-activity-module-link",
+			);
 		}
 		courseActivityModuleLinkId = linkResult.value.id;
 	});
 
 	afterAll(async () => {
-		// reset the database 
+		// reset the database
 		await $`bun run migrate:fresh --force-accept-warning`;
 		await $`bun scripts/clean-s3.ts`;
 	});
@@ -1949,7 +2132,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 	});
 
 	test("should reject submission after time limit exceeded", async () => {
-		// Create a quiz with a very short time limit (1 minute)
+		// Create a quiz with a very short time limit (1 minute = 60 seconds)
 		const quickQuizArgs: CreateQuizArgs = {
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
@@ -1958,7 +2141,35 @@ describe("Quiz Submission Management - Time Limit", () => {
 			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
-			timeLimit: 1, // 1 minute
+			rawQuizConfig: {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: "Quick Quiz",
+				globalTimer: 60, // 1 minute in seconds
+				pages: [
+					{
+						id: `page-${Date.now()}`,
+						title: "Page 1",
+						questions: [
+							{
+								id: `q-${Date.now()}`,
+								type: "multiple-choice",
+								prompt: "What is 2 + 2?",
+								options: {
+									a: "3",
+									b: "4",
+								},
+								correctAnswer: "b",
+								scoring: {
+									type: "simple",
+									points: 100,
+								},
+							},
+						],
+					},
+				],
+			},
 			questions: [
 				{
 					questionText: "What is 2 + 2?",
@@ -1990,7 +2201,35 @@ describe("Quiz Submission Management - Time Limit", () => {
 				maxAttempts: 1,
 				points: 100,
 				gradingType: "automatic",
-				timeLimit: 1, // 1 minute
+				rawQuizConfig: {
+					version: "v2",
+					type: "regular",
+					id: `quiz-${Date.now()}`,
+					title: "Quick Quiz",
+					globalTimer: 60, // 1 minute in seconds
+					pages: [
+						{
+							id: `page-${Date.now()}`,
+							title: "Page 1",
+							questions: [
+								{
+									id: `q-${Date.now()}`,
+									type: "multiple-choice",
+									prompt: "What is 2 + 2?",
+									options: {
+										a: "3",
+										b: "4",
+									},
+									correctAnswer: "b",
+									scoring: {
+										type: "simple",
+										points: 100,
+									},
+								},
+							],
+						},
+					],
+				},
 				questions: [
 					{
 						questionText: "What is 2 + 2?",

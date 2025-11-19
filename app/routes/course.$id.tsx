@@ -62,7 +62,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 			userId: e.userId,
 			role: e.role,
 		})),
-	);
+	).allowed;
 
 	return {
 		...courseContext,

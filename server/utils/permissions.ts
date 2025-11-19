@@ -8,6 +8,10 @@
 import type { Enrollment } from "server/contexts/course-context";
 import type { User } from "server/payload-types";
 
+// ============================================================================
+// Types and Interfaces
+// ============================================================================
+
 /**
  * Result type for permission checks
  * Contains both the permission result and a human-readable reason
@@ -16,6 +20,44 @@ export interface PermissionResult {
 	allowed: boolean;
 	reason: string;
 }
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Checks if a user has admin or content-manager role
+ */
+function isAdminOrContentManager(user?: {
+	id: number;
+	role?: User["role"];
+}): boolean {
+	return user?.role === "admin" || user?.role === "content-manager";
+}
+
+/**
+ * Checks if an enrollment has teacher or manager role
+ */
+function isTeacherOrManager(enrolment?: {
+	role?: Enrollment["role"];
+}): boolean {
+	return enrolment?.role === "teacher" || enrolment?.role === "manager";
+}
+
+/**
+ * Checks if an enrollment has teaching staff role (teacher, manager, or ta)
+ */
+function isTeachingStaff(enrolment?: { role?: Enrollment["role"] }): boolean {
+	return (
+		enrolment?.role === "teacher" ||
+		enrolment?.role === "manager" ||
+		enrolment?.role === "ta"
+	);
+}
+
+// ============================================================================
+// Course Permissions
+// ============================================================================
 
 export function canSeeCourseSettings(
 	user?: {
@@ -26,13 +68,16 @@ export function canSeeCourseSettings(
 		id: number;
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
+): PermissionResult {
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can view course settings"
+			: "Only teachers, managers, admins, and content managers can view course settings",
+	};
 }
 
 export function canSeeCourseParticipants(
@@ -43,13 +88,16 @@ export function canSeeCourseParticipants(
 	enrolment?: {
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
+): PermissionResult {
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can view course participants"
+			: "Only teachers, managers, admins, and content managers can view course participants",
+	};
 }
 
 export function canSeeCourseGrades(
@@ -62,14 +110,24 @@ export function canSeeCourseGrades(
 		userId: number;
 		role?: Enrollment["role"];
 	},
-) {
-	if (enrolment)
-		return (
-			enrolment.role === "teacher" ||
-			enrolment.role === "manager" ||
-			enrolment.role === "ta"
-		);
-	return user?.role === "admin" || user?.role === "content-manager";
+): PermissionResult {
+	if (enrolment) {
+		const allowed = isTeachingStaff(enrolment);
+		return {
+			allowed,
+			reason: allowed
+				? "You can view course grades"
+				: "Only teachers, managers, and TAs can view course grades",
+		};
+	}
+
+	const allowed = isAdminOrContentManager(user);
+	return {
+		allowed,
+		reason: allowed
+			? "You can view course grades"
+			: "Only admins and content managers can view course grades",
+	};
 }
 
 export function canSeeCourseModules(
@@ -82,13 +140,16 @@ export function canSeeCourseModules(
 		userId: number;
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
+): PermissionResult {
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can view course modules"
+			: "Only teachers, managers, admins, and content managers can view course modules",
+	};
 }
 
 export function canSeeCourseBin(
@@ -99,13 +160,16 @@ export function canSeeCourseBin(
 	enrolment?: {
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
+): PermissionResult {
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can view course recycle bin"
+			: "Only teachers, managers, admins, and content managers can view course recycle bin",
+	};
 }
 
 export function canSeeCourseBackup(
@@ -116,13 +180,16 @@ export function canSeeCourseBackup(
 	enrolment?: {
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
+): PermissionResult {
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can view course backups"
+			: "Only teachers, managers, admins, and content managers can view course backups",
+	};
 }
 
 export function canUpdateCourseStructure(
@@ -133,13 +200,16 @@ export function canUpdateCourseStructure(
 	enrolment?: {
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
+): PermissionResult {
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can update course structure"
+			: "Only teachers, managers, admins, and content managers can update course structure",
+	};
 }
 
 export function canManageCourseGroups(
@@ -147,18 +217,19 @@ export function canManageCourseGroups(
 		id: number;
 		role?: User["role"];
 	},
-	courseCreatorId?: number,
 	enrolment?: {
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		user?.role === "admin" ||
-		user?.role === "content-manager" ||
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		(courseCreatorId !== undefined && user?.id === courseCreatorId)
-	);
+): PermissionResult {
+	const allowed =
+		isAdminOrContentManager(user) || isTeacherOrManager(enrolment);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can manage course groups"
+			: "Only course creators, teachers, managers, admins, and content managers can manage course groups",
+	};
 }
 
 export function canAccessCourse(
@@ -171,12 +242,24 @@ export function canAccessCourse(
 		userId: number;
 		role?: Enrollment["role"];
 	}[],
-) {
-	return (
-		user?.role === "admin" ||
-		user?.role === "content-manager" ||
-		enrolments?.some((enrolment) => enrolment.userId === user?.id)
-	);
+): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	const allowed =
+		isAdminOrContentManager(user) ||
+		(enrolments?.some((enrolment) => enrolment.userId === user.id) ?? false);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can access this course"
+			: "You must be enrolled in the course or be an admin/content manager to access it",
+	};
 }
 
 export function canSeeCourseSectionSettings(
@@ -187,13 +270,16 @@ export function canSeeCourseSectionSettings(
 	enrolment?: {
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
+): PermissionResult {
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can view course section settings"
+			: "Only teachers, managers, admins, and content managers can view course section settings",
+	};
 }
 
 export function canSeeCourseModuleSettings(
@@ -204,180 +290,16 @@ export function canSeeCourseModuleSettings(
 	enrolment?: {
 		role?: Enrollment["role"];
 	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
-}
-
-export function canSeeUserModules(
-	user?: {
-		id: number;
-		role?: User["role"];
-	},
-) {
-	// Students cannot see user modules tab
-	if (user?.role === "student") {
-		return false;
-	}
-
-	// All other roles (admin, content-manager, teacher, manager, ta) can see modules
-	return true;
-}
-
-export function canEditUserModule(
-	user?: {
-		id: number;
-		role?: User["role"];
-	},
-	moduleAccessType?: "owned" | "granted" | "readonly",
-) {
-	// Admin can always edit
-	if (user?.role === "admin") return true;
-
-	// Only owned or granted modules can be edited (not readonly)
-	return moduleAccessType === "owned" || moduleAccessType === "granted";
-}
-
-export function canSeeModuleSubmissions(
-	user?: {
-		id: number;
-		role?: User["role"];
-	},
-	enrolment?: {
-		role?: Enrollment["role"];
-	},
-) {
-	return (
-		enrolment?.role === "teacher" ||
-		enrolment?.role === "manager" ||
-		enrolment?.role === "ta" ||
-		user?.role === "admin" ||
-		user?.role === "content-manager"
-	);
-}
-
-export function canSubmitAssignment(enrolment?: { role?: Enrollment["role"] }) {
-	return enrolment?.role === "student";
-}
-
-/**
- * Checks if a user can participate in discussions (create threads and replies).
- * Any user with an active enrollment can participate, regardless of role.
- *
- * @param enrolment - The enrollment object with status field
- * @returns Permission result with allowed boolean and reason string
- */
-export function canParticipateInDiscussion(
-	enrolment?: { status?: Enrollment["status"] },
 ): PermissionResult {
-	if (!enrolment) {
-		return {
-			allowed: false,
-			reason: "Enrollment not found",
-		};
-	}
-
-	if (enrolment.status !== "active") {
-		return {
-			allowed: false,
-			reason: "Only users with active enrollment can participate in discussions",
-		};
-	}
+	const allowed =
+		isTeacherOrManager(enrolment) || isAdminOrContentManager(user);
 
 	return {
-		allowed: true,
-		reason: "You can participate in discussions",
+		allowed,
+		reason: allowed
+			? "You can view course module settings"
+			: "Only teachers, managers, admins, and content managers can view course module settings",
 	};
-}
-
-/**
- * Checks if a student can start a new quiz attempt.
- *
- * Permission Rules:
- * - Can start if no max attempts are set, OR
- * - Can start if attempt count (including in_progress) is less than max attempts, OR
- * - Can start if there's an in_progress attempt (so student can continue/resume it)
- *
- * @param maxAttempts - Maximum number of attempts allowed (null means unlimited)
- * @param attemptCount - Total number of attempts started (including in_progress)
- * @param hasInProgressAttempt - Whether there's currently an in_progress attempt
- * @returns Permission result with allowed boolean and reason string
- */
-export function canStartQuizAttempt(
-	maxAttempts: number | null,
-	attemptCount: number,
-	hasInProgressAttempt: boolean,
-): PermissionResult {
-	// No max attempts set - always allowed
-	if (maxAttempts === null) {
-		return {
-			allowed: true,
-			reason: "No attempt limit set",
-		};
-	}
-
-	// Can start if attempt count is less than max
-	if (attemptCount < maxAttempts) {
-		return {
-			allowed: true,
-			reason: `You have ${maxAttempts - attemptCount} attempt${maxAttempts - attemptCount !== 1 ? "s" : ""} remaining`,
-		};
-	}
-
-	// Can start if there's an in_progress attempt (to continue/resume it)
-	if (hasInProgressAttempt) {
-		return {
-			allowed: true,
-			reason: "You can continue your in-progress attempt",
-		};
-	}
-
-	// Maximum attempts reached
-	return {
-		allowed: false,
-		reason: `Maximum attempts (${maxAttempts}) reached`,
-	};
-}
-
-export function canDeleteSubmissions(
-	user?: {
-		id: number;
-		role?: User["role"];
-	},
-	enrolment?: {
-		role?: Enrollment["role"];
-	},
-) {
-	return (
-		user?.role === "admin" ||
-		enrolment?.role === "manager" ||
-		enrolment?.role === "teacher"
-	);
-}
-
-export function canImpersonateUser(
-	authenticatedUser?: {
-		id: number;
-		role?: User["role"];
-	},
-	targetUser?: {
-		id: number;
-		role?: User["role"];
-	},
-	isImpersonating?: boolean,
-) {
-	if (!authenticatedUser || !targetUser) return false;
-
-	return (
-		authenticatedUser.role === "admin" &&
-		targetUser.id !== authenticatedUser.id &&
-		targetUser.role !== "admin" &&
-		!isImpersonating
-	);
 }
 
 export function canEditCourse(
@@ -389,20 +311,94 @@ export function canEditCourse(
 		userId: number;
 		role?: Enrollment["role"];
 	}[],
-) {
-	if (!user) return false;
+): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
 
-	return (
-		user.role === "admin" ||
-		user.role === "content-manager" ||
-		enrolments?.some(
+	const allowed =
+		isAdminOrContentManager(user) ||
+		(enrolments?.some(
 			(enrollment) =>
-				enrollment.userId === user.id &&
-				(enrollment.role === "teacher" ||
-					enrollment.role === "manager" ||
-					enrollment.role === "ta"),
-		)
-	);
+				enrollment.userId === user.id && isTeachingStaff(enrollment),
+		) ??
+			false);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can edit this course"
+			: "Only teachers, managers, TAs, admins, and content managers can edit courses",
+	};
+}
+
+// ============================================================================
+// User/Profile Permissions
+// ============================================================================
+
+export function canSeeUserModules(user?: {
+	id: number;
+	role?: User["role"];
+}): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	// Students cannot see user modules tab
+	if (user.role === "student") {
+		return {
+			allowed: false,
+			reason: "Students cannot view user modules",
+		};
+	}
+
+	// All other roles (admin, content-manager, teacher, manager, ta) can see modules
+	return {
+		allowed: true,
+		reason: "You can view user modules",
+	};
+}
+
+export function canEditUserModule(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	moduleAccessType?: "owned" | "granted" | "readonly",
+): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	// Admin can always edit
+	if (user.role === "admin") {
+		return {
+			allowed: true,
+			reason: "Admins can edit any module",
+		};
+	}
+
+	// Only owned or granted modules can be edited (not readonly)
+	if (moduleAccessType === "owned" || moduleAccessType === "granted") {
+		return {
+			allowed: true,
+			reason: "You can edit this module",
+		};
+	}
+
+	return {
+		allowed: false,
+		reason: "You can only edit modules you own or have been granted access to",
+	};
 }
 
 /**
@@ -496,9 +492,7 @@ export function canEditUserProfile(
 	if (isSandboxMode) {
 		return {
 			allowed: isOwnData,
-			reason: isOwnData
-				? "In sandbox mode, you can only edit your own profile"
-				: "In sandbox mode, you can only edit your own profile",
+			reason: "In sandbox mode, you can only edit your own profile",
 		};
 	}
 
@@ -720,6 +714,46 @@ export function canEditProfileRole(
 	};
 }
 
+// ============================================================================
+// Module Permissions
+// ============================================================================
+
+export function canSeeModuleSubmissions(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+): PermissionResult {
+	const allowed = isTeachingStaff(enrolment) || isAdminOrContentManager(user);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can view module submissions"
+			: "Only teachers, managers, TAs, admins, and content managers can view module submissions",
+	};
+}
+
+export function canSubmitAssignment(enrolment?: {
+	role?: Enrollment["role"];
+}): PermissionResult {
+	const allowed = enrolment?.role === "student";
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can submit assignments"
+			: "Only students can submit assignments",
+	};
+}
+
+// ============================================================================
+// Media Permissions
+// ============================================================================
+
 /**
  * Checks if the current user can delete a media file.
  *
@@ -774,3 +808,225 @@ export function canDeleteMedia(
 		reason: "You can only delete your own media files",
 	};
 }
+
+// ============================================================================
+// Quiz/Assignment Permissions
+// ============================================================================
+
+/**
+ * Checks if a student can start a new quiz attempt.
+ *
+ * Permission Rules:
+ * - Can start if no max attempts are set, OR
+ * - Can start if attempt count (including in_progress) is less than max attempts, OR
+ * - Can start if there's an in_progress attempt (so student can continue/resume it)
+ *
+ * @param maxAttempts - Maximum number of attempts allowed (null means unlimited)
+ * @param attemptCount - Total number of attempts started (including in_progress)
+ * @param hasInProgressAttempt - Whether there's currently an in_progress attempt
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canStartQuizAttempt(
+	maxAttempts: number | null,
+	attemptCount: number,
+	hasInProgressAttempt: boolean,
+): PermissionResult {
+	// No max attempts set - always allowed
+	if (maxAttempts === null) {
+		return {
+			allowed: true,
+			reason: "No attempt limit set",
+		};
+	}
+
+	// Can start if attempt count is less than max
+	if (attemptCount < maxAttempts) {
+		return {
+			allowed: true,
+			reason: `You have ${maxAttempts - attemptCount} attempt${maxAttempts - attemptCount !== 1 ? "s" : ""} remaining`,
+		};
+	}
+
+	// Can start if there's an in_progress attempt (to continue/resume it)
+	if (hasInProgressAttempt) {
+		return {
+			allowed: true,
+			reason: "You can continue your in-progress attempt",
+		};
+	}
+
+	// Maximum attempts reached
+	return {
+		allowed: false,
+		reason: `Maximum attempts (${maxAttempts}) reached`,
+	};
+}
+
+export function canDeleteSubmissions(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolment?: {
+		role?: Enrollment["role"];
+	},
+): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	const allowed =
+		user.role === "admin" ||
+		enrolment?.role === "manager" ||
+		enrolment?.role === "teacher";
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can delete submissions"
+			: "Only admins, managers, and teachers can delete submissions",
+	};
+}
+
+// ============================================================================
+// Discussion Permissions
+// ============================================================================
+
+/**
+ * Checks if a user can participate in discussions (create threads and replies).
+ * Any user with an active enrollment can participate, regardless of role.
+ *
+ * @param enrolment - The enrollment object with status field
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canParticipateInDiscussion(enrolment?: {
+	status?: Enrollment["status"];
+}): PermissionResult {
+	if (!enrolment) {
+		return {
+			allowed: false,
+			reason: "Enrollment not found",
+		};
+	}
+
+	if (enrolment.status !== "active") {
+		return {
+			allowed: false,
+			reason:
+				"Only users with active enrollment can participate in discussions",
+		};
+	}
+
+	return {
+		allowed: true,
+		reason: "You can participate in discussions",
+	};
+}
+
+// ============================================================================
+// Admin Permissions
+// ============================================================================
+
+export function canImpersonateUser(
+	authenticatedUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	targetUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	isImpersonating?: boolean,
+): PermissionResult {
+	if (!authenticatedUser || !targetUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	const allowed =
+		authenticatedUser.role === "admin" &&
+		targetUser.id !== authenticatedUser.id &&
+		targetUser.role !== "admin" &&
+		!isImpersonating;
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can impersonate this user"
+			: "Only admins can impersonate non-admin users, and you cannot impersonate yourself or while already impersonating",
+	};
+}
+
+// ============================================================================
+// Permissions Object (Organized by Domain)
+// ============================================================================
+
+/**
+ * Organized permissions object grouped by domain.
+ * Provides a structured way to access permissions while maintaining backward compatibility
+ * with individual function exports.
+ *
+ * Usage examples:
+ * - permissions.course.canSeeSettings(user, enrolment)
+ * - permissions.user.profile.canEdit(currentUser, targetUser, isSandboxMode)
+ * - permissions.module.canSeeSubmissions(user, enrolment)
+ */
+export const permissions = {
+	course: {
+		canSeeSettings: canSeeCourseSettings,
+		canSeeParticipants: canSeeCourseParticipants,
+		canSeeGrades: canSeeCourseGrades,
+		canSeeModules: canSeeCourseModules,
+		canSeeBin: canSeeCourseBin,
+		canSeeBackup: canSeeCourseBackup,
+		canUpdateStructure: canUpdateCourseStructure,
+		canManageGroups: canManageCourseGroups,
+		canAccess: canAccessCourse,
+		section: {
+			canSeeSettings: canSeeCourseSectionSettings,
+		},
+		module: {
+			canSeeSettings: canSeeCourseModuleSettings,
+		},
+		canEdit: canEditCourse,
+	},
+	user: {
+		canSeeModules: canSeeUserModules,
+		canEditModule: canEditUserModule,
+		profile: {
+			canEdit: canEditUserProfile,
+			canEditOtherAdmin: canEditOtherAdmin,
+			fields: {
+				canEdit: canEditProfileFields,
+				canEditFirstName: canEditProfileFirstName,
+				canEditLastName: canEditProfileLastName,
+				canEditBio: canEditProfileBio,
+				canEditAvatar: canEditProfileAvatar,
+			},
+			canEditEmail: canEditProfileEmail,
+			canEditRole: canEditProfileRole,
+		},
+	},
+	module: {
+		canSeeSubmissions: canSeeModuleSubmissions,
+		canSubmitAssignment: canSubmitAssignment,
+	},
+	media: {
+		canDelete: canDeleteMedia,
+	},
+	quiz: {
+		canStartAttempt: canStartQuizAttempt,
+		canDeleteSubmissions: canDeleteSubmissions,
+	},
+	discussion: {
+		canParticipate: canParticipateInDiscussion,
+	},
+	admin: {
+		canImpersonateUser: canImpersonateUser,
+	},
+} as const;

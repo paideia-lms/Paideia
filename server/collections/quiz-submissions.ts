@@ -118,12 +118,6 @@ export const QuizSubmissions = {
 			label: "Submitted At",
 		},
 		{
-			name: "timeLimit",
-			type: "number",
-			virtual: `courseModuleLink.activityModule.quiz.timeLimit`,
-			label: "Time Limit (minutes)",
-		},
-		{
 			name: "timeSpent",
 			type: "number",
 			label: "Time Spent (minutes)",

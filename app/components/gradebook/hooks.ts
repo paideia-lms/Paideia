@@ -24,7 +24,9 @@ export function useCreateGradeItem() {
 		fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: href("/course/:courseId/grades", { courseId: courseId.toString() }),
+			action: href("/course/:courseId/grades", {
+				courseId: courseId.toString(),
+			}),
 		});
 	};
 
@@ -85,7 +87,9 @@ export function useUpdateGradeItem() {
 		fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: href("/course/:courseId/grades", { courseId: courseId.toString() }),
+			action: href("/course/:courseId/grades", {
+				courseId: courseId.toString(),
+			}),
 		});
 	};
 
