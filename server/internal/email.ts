@@ -8,7 +8,7 @@ export type TrySendEmailArgs = {
 	to: string;
 	subject: string;
 	html: string;
-	user: Omit<User, "avatar"> & { avatar?: string | null };
+	user: Omit<User, "avatar" | "direction" | "theme"> & { avatar?: string | null };
 	overrideAccess: boolean;
 };
 

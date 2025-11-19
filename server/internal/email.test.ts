@@ -33,7 +33,6 @@ describe("Email Management", () => {
 				email: "test@example.com",
 				role: "admin",
 				avatar: null,
-				theme: "light",
 				updatedAt: new Date().toISOString(),
 				createdAt: new Date().toISOString(),
 			},
@@ -57,7 +56,6 @@ describe("Email Management", () => {
 				email: "test@example.com",
 				role: "admin",
 				avatar: null,
-				theme: "light",
 				updatedAt: new Date().toISOString(),
 				createdAt: new Date().toISOString(),
 			},
@@ -79,7 +77,6 @@ describe("Email Management", () => {
 			html: "<p>Test Body</p>",
 			user: {
 				id: 1,
-				theme: "light",
 				updatedAt: new Date().toISOString(),
 				createdAt: new Date().toISOString(),
 				email: "admin@example.com",

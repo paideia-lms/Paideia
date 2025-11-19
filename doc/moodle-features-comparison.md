@@ -19,6 +19,7 @@ This document provides a comprehensive list of Moodle LMS features for students,
 | Feature                | Moodle LMS (web) | Paideia LMS |
 | ---------------------- | ---------------- | ----------- |
 | View custom content    | ✔               | X           |
+| Customize site home    | ✔               | X           |
 | View blocks            | ✔               | X           |
 | View default dashboard | ✔               | ✔          |
 
@@ -160,7 +161,7 @@ Paideia has no plan to support messaging for now.
 | Custom themes  | ✔\*             | X           |
 | Responsive     | ✔               | ✔          |
 | Dark mode      | X                | ✔          |
-| RTL            | ✔               | X           |
+| RTL            | ✔               |  ✔          |
 | Multi language | ✔               | X           |
 
 ### Search

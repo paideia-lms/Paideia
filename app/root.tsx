@@ -37,6 +37,7 @@ import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
 	ColorSchemeScript,
 	createTheme,
+	DirectionProvider,
 	MantineProvider,
 	Textarea,
 } from "@mantine/core";
@@ -342,20 +343,20 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-						color: "blue",
-						radius: "sm" as const,
-					},
-					analyticsSettings: {
-						additionalJsScripts: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -432,9 +433,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -483,9 +484,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -545,9 +546,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -601,9 +602,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 					enrolmentContext?.enrolment ?? null,
 				);
@@ -666,10 +667,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 	const users = result.value;
 
-	// Get current user's theme preference
+	// Get current user's theme and direction preference
 	const currentUser =
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
+	const direction = currentUser?.direction ?? "ltr";
 
 	// Get theme settings from appearance settings
 	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
@@ -695,6 +697,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 			timestamp: timestamp,
 			pageInfo: pageInfo,
 			theme: theme,
+			direction: direction,
 			primaryColor,
 			defaultRadius,
 			additionalCssStylesheets:
@@ -714,17 +717,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				};
+				userSession: userSession,
+				courseContext: context.get(courseContextKey),
+				courseModuleContext: context.get(courseModuleContextKey),
+				courseSectionContext: context.get(courseSectionContextKey),
+				enrolmentContext: context.get(enrolmentContextKey),
+				userModuleContext: context.get(userModuleContextKey),
+				userProfileContext: context.get(userProfileContextKey),
+				userAccessContext: context.get(userAccessContextKey),
+				userContext: context.get(userContextKey),
+				systemGlobals: systemGlobals,
+			};
 
 	return {
 		users: users,
@@ -732,6 +735,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 		timestamp: timestamp,
 		pageInfo: pageInfo,
 		theme: theme,
+		direction: direction,
 		isDevelopment: environment === "development",
 		primaryColor,
 		defaultRadius,
@@ -818,7 +822,7 @@ function AnalyticsScripts({
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return (
-		<html lang="en">
+		<html lang="en" dir="ltr">
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -835,9 +839,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 				<ColorSchemeScript />
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
-				<MantineProvider>
-					<RootErrorBoundary error={error} />
-				</MantineProvider>
+				<DirectionProvider initialDirection="ltr" detectDirection={false}>
+					<MantineProvider>
+						<RootErrorBoundary error={error} />
+					</MantineProvider>
+				</DirectionProvider>
 			</body>
 		</html>
 	);
@@ -846,6 +852,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 export default function App({ loaderData }: Route.ComponentProps) {
 	const {
 		theme,
+		direction,
 		isDevelopment,
 		additionalCssStylesheets,
 		additionalJsScripts,
@@ -886,6 +893,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 	return (
 		<html
 			lang="en"
+			dir={direction}
 			data-mantine-color-scheme={theme}
 			style={{ overscrollBehaviorX: "none" }}
 		>
@@ -928,20 +936,22 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<ColorSchemeScript defaultColorScheme={theme} />
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
-				<MantineProvider defaultColorScheme={theme} theme={mantineTheme}>
-					<CodeHighlightAdapterProvider adapter={customLowlightAdapter}>
-						<ModalsProvider>
-							<NuqsAdapter>
-								<Outlet />
-								<Notifications />
-								{isDevelopment && <DevTool data={debugData} />}
-								{isSandboxMode && nextResetTime && (
-									<SandboxCountdown nextResetTime={nextResetTime} />
-								)}
-							</NuqsAdapter>
-						</ModalsProvider>
-					</CodeHighlightAdapterProvider>
-				</MantineProvider>
+				<DirectionProvider initialDirection={direction} detectDirection={false}>
+					<MantineProvider defaultColorScheme={theme} theme={mantineTheme}>
+						<CodeHighlightAdapterProvider adapter={customLowlightAdapter}>
+							<ModalsProvider>
+								<NuqsAdapter>
+									<Outlet />
+									<Notifications />
+									{isDevelopment && <DevTool data={debugData} />}
+									{isSandboxMode && nextResetTime && (
+										<SandboxCountdown nextResetTime={nextResetTime} />
+									)}
+								</NuqsAdapter>
+							</ModalsProvider>
+						</CodeHighlightAdapterProvider>
+					</MantineProvider>
+				</DirectionProvider>
 				<ScrollRestoration />
 				<Scripts />
 			</body>
