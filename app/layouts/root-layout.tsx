@@ -130,11 +130,17 @@ export function HeaderTabs({
 		if (pageInfo.isInCourse) {
 			const { courseId, moduleLinkId, sectionId } =
 				pageInfo.params as RouteParams<"layouts/course-layout">;
-			if (courseId) return href("/course/:courseId", { courseId }) + '?reload=true';
+			if (courseId)
+				return href("/course/:courseId", { courseId }) + "?reload=true";
 			else if (moduleLinkId)
-				return href("/course/module/:moduleLinkId", { moduleLinkId }) + '?reload=true';
+				return (
+					href("/course/module/:moduleLinkId", { moduleLinkId }) +
+					"?reload=true"
+				);
 			else if (sectionId)
-				return href("/course/section/:sectionId", { sectionId }) + '?reload=true';
+				return (
+					href("/course/section/:sectionId", { sectionId }) + "?reload=true"
+				);
 		}
 		return href("/"); // Default to dashboard
 	};
@@ -222,9 +228,9 @@ export function HeaderTabs({
 															src={
 																authenticatedUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId:
-																			authenticatedUser.avatar.filename,
-																	})
+																			filenameOrId:
+																				authenticatedUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -246,8 +252,8 @@ export function HeaderTabs({
 															src={
 																currentUser.avatar?.filename
 																	? href(`/api/media/file/:filenameOrId`, {
-																		filenameOrId: currentUser.avatar.filename,
-																	})
+																			filenameOrId: currentUser.avatar.filename,
+																		})
 																	: null
 															}
 															alt={
@@ -265,8 +271,8 @@ export function HeaderTabs({
 												src={
 													currentUser.avatar?.filename
 														? href(`/api/media/file/:filenameOrId`, {
-															filenameOrId: currentUser.avatar.filename,
-														})
+																filenameOrId: currentUser.avatar.filename,
+															})
 														: null
 												}
 												alt={
@@ -285,7 +291,7 @@ export function HeaderTabs({
 									<Text fw={500} size="sm" lh={1} mr={3}>
 										{isAuthenticated && currentUser
 											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-											"Anonymous"
+												"Anonymous"
 											: "Not signed in"}
 									</Text>
 									{isAdmin && (
@@ -331,8 +337,8 @@ export function HeaderTabs({
 									</Menu.Item>
 									<Menu.Item
 										leftSection={<IconCalendar size={16} stroke={1.5} />}
-									// component={Link}
-									// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 									>
 										Calendar
 									</Menu.Item>

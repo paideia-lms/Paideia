@@ -24,7 +24,7 @@ export function useQuizTimer({
 	// Use remainingTime if provided (for resumed quizzes), otherwise use initialTime
 	// Note: This hook should be remounted (via key prop) when remainingTime changes
 	const [timeLeft, setTimeLeft] = useState<number | null>(
-		remainingTime !== undefined ? remainingTime : initialTime ?? null,
+		remainingTime !== undefined ? remainingTime : (initialTime ?? null),
 	);
 	const [isExpired, setIsExpired] = useState(false);
 	const [isPaused, setIsPaused] = useState(false);
@@ -48,7 +48,7 @@ export function useQuizTimer({
 
 	const resetTimer = () => {
 		const resetValue =
-			remainingTime !== undefined ? remainingTime : initialTime ?? null;
+			remainingTime !== undefined ? remainingTime : (initialTime ?? null);
 		setTimeLeft(resetValue);
 		setIsExpired(false);
 		setIsPaused(false);

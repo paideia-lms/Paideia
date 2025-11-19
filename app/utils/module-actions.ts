@@ -20,6 +20,7 @@ export const DiscussionActions = {
 export const QuizActions = {
 	START_ATTEMPT: "startattempt",
 	SUBMIT_QUIZ: "submitquiz",
+	GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
 export type AssignmentAction =

@@ -109,7 +109,8 @@ const TimerDisplay = memo(
 		const timer = useQuizTimer({ initialTime, remainingTime, onExpire });
 
 		// Use remainingTime if provided, otherwise use initialTime
-		const effectiveInitialTime = remainingTime !== undefined ? remainingTime : initialTime;
+		const effectiveInitialTime =
+			remainingTime !== undefined ? remainingTime : initialTime;
 		if (!effectiveInitialTime) return null;
 
 		const getTimerColor = (timeLeft: number | null, initial?: number) => {
@@ -638,7 +639,11 @@ interface QuizPreviewProps {
 	remainingTime?: number; // Remaining time in seconds for resumed quizzes
 }
 
-export function QuizPreview({ quizConfig, onSubmit, remainingTime }: QuizPreviewProps) {
+export function QuizPreview({
+	quizConfig,
+	onSubmit,
+	remainingTime,
+}: QuizPreviewProps) {
 	const [isParentTimerExpired, setIsParentTimerExpired] = useState(false);
 
 	// For container quizzes, use nested quiz state
@@ -743,8 +748,8 @@ export function QuizPreview({ quizConfig, onSubmit, remainingTime }: QuizPreview
 					initialAnswers={
 						isViewingCompletedQuiz
 							? nestedQuizState.submittedAnswers[
-							nestedQuizState.currentNestedQuizId
-							]
+									nestedQuizState.currentNestedQuizId
+								]
 							: undefined
 					}
 					onSubmit={(answers: QuizAnswers) => {

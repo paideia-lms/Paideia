@@ -1396,7 +1396,10 @@ describe("Quiz Management - Full Workflow", () => {
 			createdBy: teacherId,
 		};
 
-		const autoSubmitQuizResult = await tryCreateQuiz(payload, autoSubmitQuizArgs);
+		const autoSubmitQuizResult = await tryCreateQuiz(
+			payload,
+			autoSubmitQuizArgs,
+		);
 		expect(autoSubmitQuizResult.ok).toBe(true);
 		if (!autoSubmitQuizResult.ok) return;
 
@@ -1494,7 +1497,8 @@ describe("Quiz Management - Full Workflow", () => {
 			overrideAccess: true,
 		};
 
-		const autoSubmitStartResult = await tryStartQuizAttempt(autoSubmitStartArgs);
+		const autoSubmitStartResult =
+			await tryStartQuizAttempt(autoSubmitStartArgs);
 		expect(autoSubmitStartResult.ok).toBe(true);
 		if (!autoSubmitStartResult.ok) return;
 
@@ -1554,10 +1558,12 @@ describe("Quiz Management - Full Workflow", () => {
 			// Call the handler directly - use type assertion to bypass complex type checking
 			// The handler only needs req and input, other params are optional
 			if (typeof autoSubmitQuiz.handler === "function") {
-				await (autoSubmitQuiz.handler as (args: {
-					req: { payload: typeof payload; user: null };
-					input: { submissionId: number };
-				}) => Promise<unknown>)({
+				await (
+					autoSubmitQuiz.handler as (args: {
+						req: { payload: typeof payload; user: null };
+						input: { submissionId: number };
+					}) => Promise<unknown>
+				)({
 					req: mockReq,
 					input: { submissionId: autoSubmitSubmissionId },
 				});

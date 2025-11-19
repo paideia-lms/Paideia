@@ -65,12 +65,12 @@ export type CourseModuleUser = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-	| number
-	| {
-		id: number;
-		filename?: string | null;
-	}
-	| null;
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+		  }
+		| null;
 };
 
 export type CourseModulePageData = {
@@ -178,36 +178,43 @@ export type PreviousNextModule = {
 	type: "page" | "assignment" | "quiz" | "discussion" | "whiteboard";
 } | null;
 
-/**
- * Discriminated union for module submissions based on module type.
- * This consolidates submissions, userSubmissions, userSubmission, and discussionThreads
- * into a single type-safe structure.
- */
-export type ModuleSubmissions =
+export type QuizSubmissionDisplayData = {
+	id: number;
+	status: "in_progress" | "completed" | "graded" | "returned";
+	submittedAt: string | null;
+	startedAt: string | null;
+	attemptNumber: number;
+};
+
+export type ModuleSpecificData =
 	| {
-		type: "assignment";
-		submissions: AssignmentSubmissionResolved[];
-		userSubmissions: AssignmentSubmissionResolved[];
-		userSubmission: AssignmentSubmissionResolved | null;
-		threads: never;
-	}
+			type: "quiz";
+			quizSubmissionsForDisplay: QuizSubmissionDisplayData[];
+			hasActiveQuizAttempt: boolean;
+			quizRemainingTime: number | undefined;
+			submissions: QuizSubmissionResolved[];
+			userSubmissions: QuizSubmissionResolved[];
+			userSubmission: QuizSubmissionResolved | null;
+	  }
 	| {
-		type: "quiz";
-		submissions: QuizSubmissionResolved[];
-		userSubmissions: QuizSubmissionResolved[];
-		userSubmission: QuizSubmissionResolved | null;
-		threads: never;
-	}
+			type: "assignment";
+			// Assignment-specific data can be added here in the future
+			submissions: AssignmentSubmissionResolved[];
+			userSubmissions: AssignmentSubmissionResolved[];
+			userSubmission: AssignmentSubmissionResolved | null;
+	  }
 	| {
-		type: "discussion";
-		submissions: DiscussionSubmissionResolved[];
-		userSubmissions: DiscussionSubmissionResolved[];
-		userSubmission: null;
-		threads: DiscussionThread[];
-	}
+			type: "discussion";
+			// Discussion-specific data can be added here in the future
+			submissions: DiscussionSubmissionResolved[];
+			userSubmissions: DiscussionSubmissionResolved[];
+			userSubmission: null;
+			threads: DiscussionThread[];
+	  }
 	| {
-		type: "page" | "whiteboard";
-	};
+			type: "page" | "whiteboard";
+			// Page/whiteboard modules don't have module-specific data
+	  };
 
 export type CourseModuleContext = {
 	module: CourseModule;
@@ -220,11 +227,10 @@ export type CourseModuleContext = {
 	nextModuleLinkId: number | null;
 	previousModule: PreviousNextModule;
 	nextModule: PreviousNextModule;
-	submissions: ModuleSubmissions;
 	// Whether user can submit assignments
 	canSubmit: boolean;
-	// Remaining time in seconds for in-progress quiz submissions
-	quizRemainingTime?: number;
+	// Module-specific data based on module type (discriminated union)
+	moduleSpecificData: ModuleSpecificData;
 };
 
 export const courseModuleContext = createContext<CourseModuleContext | null>(
@@ -249,14 +255,14 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 	) => {
 		const formattedUser: TypedUser | null = currentUser
 			? {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar
-					? typeof currentUser.avatar === "number"
-						? currentUser.avatar
-						: currentUser.avatar.id
-					: undefined,
-			}
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar
+						? typeof currentUser.avatar === "number"
+							? currentUser.avatar
+							: currentUser.avatar.id
+						: undefined,
+				}
 			: null;
 
 		const threadsResult = await tryGetDiscussionThreadsWithAllReplies(payload, {
@@ -285,13 +291,13 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 		const student = thread.student;
 		const authorName = student
 			? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
-			student.email ||
-			"Unknown"
+				student.email ||
+				"Unknown"
 			: "Unknown";
 		const authorAvatar = student
 			? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
-			student.email?.[0]?.toUpperCase() ||
-			"U"
+				student.email?.[0]?.toUpperCase() ||
+				"U"
 			: "U";
 
 		const isUpvoted =
@@ -312,13 +318,13 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 			const replyStudent = reply.student;
 			const replyAuthorName = replyStudent
 				? `${replyStudent.firstName || ""} ${replyStudent.lastName || ""}`.trim() ||
-				replyStudent.email ||
-				"Unknown"
+					replyStudent.email ||
+					"Unknown"
 				: "Unknown";
 			const replyAuthorAvatar = replyStudent
 				? `${replyStudent.firstName?.[0] || ""}${replyStudent.lastName?.[0] || ""}`.trim() ||
-				replyStudent.email?.[0]?.toUpperCase() ||
-				"U"
+					replyStudent.email?.[0]?.toUpperCase() ||
+					"U"
 				: "U";
 
 			const replyIsUpvoted =
@@ -468,81 +474,81 @@ export const tryGetCourseModuleContext = Result.wrap(
 			},
 			page:
 				activityModule.type === "page" &&
-					typeof activityModule.page === "object" &&
-					activityModule.page !== null
+				typeof activityModule.page === "object" &&
+				activityModule.page !== null
 					? {
-						id: activityModule.page.id,
-						content: activityModule.page.content || null,
-					}
+							id: activityModule.page.id,
+							content: activityModule.page.content || null,
+						}
 					: null,
 			whiteboard:
 				activityModule.type === "whiteboard" &&
-					typeof activityModule.whiteboard === "object" &&
-					activityModule.whiteboard !== null
+				typeof activityModule.whiteboard === "object" &&
+				activityModule.whiteboard !== null
 					? {
-						id: activityModule.whiteboard.id,
-						content: activityModule.whiteboard.content || null,
-					}
+							id: activityModule.whiteboard.id,
+							content: activityModule.whiteboard.content || null,
+						}
 					: null,
 			assignment:
 				activityModule.type === "assignment" &&
-					typeof activityModule.assignment === "object" &&
-					activityModule.assignment !== null
+				typeof activityModule.assignment === "object" &&
+				activityModule.assignment !== null
 					? {
-						id: activityModule.assignment.id,
-						instructions: activityModule.assignment.instructions || null,
-						dueDate: activityModule.assignment.dueDate || null,
-						maxAttempts: activityModule.assignment.maxAttempts || null,
-						allowLateSubmissions:
-							activityModule.assignment.allowLateSubmissions || null,
-						requireTextSubmission:
-							activityModule.assignment.requireTextSubmission || null,
-						requireFileSubmission:
-							activityModule.assignment.requireFileSubmission || null,
-						allowedFileTypes:
-							activityModule.assignment.allowedFileTypes || null,
-						maxFileSize: activityModule.assignment.maxFileSize || null,
-						maxFiles: activityModule.assignment.maxFiles || null,
-					}
+							id: activityModule.assignment.id,
+							instructions: activityModule.assignment.instructions || null,
+							dueDate: activityModule.assignment.dueDate || null,
+							maxAttempts: activityModule.assignment.maxAttempts || null,
+							allowLateSubmissions:
+								activityModule.assignment.allowLateSubmissions || null,
+							requireTextSubmission:
+								activityModule.assignment.requireTextSubmission || null,
+							requireFileSubmission:
+								activityModule.assignment.requireFileSubmission || null,
+							allowedFileTypes:
+								activityModule.assignment.allowedFileTypes || null,
+							maxFileSize: activityModule.assignment.maxFileSize || null,
+							maxFiles: activityModule.assignment.maxFiles || null,
+						}
 					: null,
 			quiz:
 				activityModule.type === "quiz" &&
-					typeof activityModule.quiz === "object" &&
-					activityModule.quiz !== null
+				typeof activityModule.quiz === "object" &&
+				activityModule.quiz !== null
 					? (() => {
-						// Get rawQuizConfig to check for globalTimer
-						const rawConfig = activityModule.quiz
-							.rawQuizConfig as unknown as QuizConfig | null;
+							// Get rawQuizConfig to check for globalTimer
+							const rawConfig = activityModule.quiz
+								.rawQuizConfig as unknown as QuizConfig | null;
 
-						// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
-						const timeLimit = rawConfig?.globalTimer
-							? rawConfig.globalTimer / 60
-							: null;
+							// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
+							const timeLimit = rawConfig?.globalTimer
+								? rawConfig.globalTimer / 60
+								: null;
 
-						return {
-							id: activityModule.quiz.id,
-							instructions: activityModule.quiz.instructions || null,
-							dueDate: activityModule.quiz.dueDate || null,
-							maxAttempts: activityModule.quiz.maxAttempts || null,
-							points: activityModule.quiz.points || null,
-							timeLimit,
-							gradingType: activityModule.quiz.gradingType || null,
-							rawQuizConfig: rawConfig,
-						};
-					})()
+							return {
+								id: activityModule.quiz.id,
+								instructions: activityModule.quiz.instructions || null,
+								dueDate: activityModule.quiz.dueDate || null,
+								maxAttempts: activityModule.quiz.maxAttempts || null,
+								points: activityModule.quiz.points || null,
+								timeLimit,
+								gradingType: activityModule.quiz.gradingType || null,
+								rawQuizConfig: rawConfig,
+							};
+						})()
 					: null,
 			discussion:
 				activityModule.type === "discussion" &&
-					typeof activityModule.discussion === "object" &&
-					activityModule.discussion !== null
+				typeof activityModule.discussion === "object" &&
+				activityModule.discussion !== null
 					? {
-						id: activityModule.discussion.id,
-						instructions: activityModule.discussion.instructions || null,
-						dueDate: activityModule.discussion.dueDate || null,
-						requireThread: activityModule.discussion.requireThread || null,
-						requireReplies: activityModule.discussion.requireReplies || null,
-						minReplies: activityModule.discussion.minReplies || null,
-					}
+							id: activityModule.discussion.id,
+							instructions: activityModule.discussion.instructions || null,
+							dueDate: activityModule.discussion.dueDate || null,
+							requireThread: activityModule.discussion.requireThread || null,
+							requireReplies: activityModule.discussion.requireReplies || null,
+							minReplies: activityModule.discussion.minReplies || null,
+						}
 					: null,
 			createdAt: activityModule.createdAt,
 			updatedAt: activityModule.updatedAt,
@@ -551,14 +557,14 @@ export const tryGetCourseModuleContext = Result.wrap(
 		// Format user for internal functions
 		const formattedUser: TypedUser | null = currentUser
 			? {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar
-					? typeof currentUser.avatar === "number"
-						? currentUser.avatar
-						: currentUser.avatar.id
-					: undefined,
-			}
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar
+						? typeof currentUser.avatar === "number"
+							? currentUser.avatar
+							: currentUser.avatar.id
+						: undefined,
+				}
 			: null;
 
 		// Get course structure to determine next/previous modules
@@ -607,20 +613,20 @@ export const tryGetCourseModuleContext = Result.wrap(
 		const previousModule: PreviousNextModule =
 			currentModuleIndex > 0
 				? {
-					id: flattenedModules[currentModuleIndex - 1].moduleLinkId,
-					title: flattenedModules[currentModuleIndex - 1].title,
-					type: flattenedModules[currentModuleIndex - 1].type,
-				}
+						id: flattenedModules[currentModuleIndex - 1].moduleLinkId,
+						title: flattenedModules[currentModuleIndex - 1].title,
+						type: flattenedModules[currentModuleIndex - 1].type,
+					}
 				: null;
 
 		const nextModule: PreviousNextModule =
 			currentModuleIndex < flattenedModules.length - 1 &&
-				currentModuleIndex !== -1
+			currentModuleIndex !== -1
 				? {
-					id: flattenedModules[currentModuleIndex + 1].moduleLinkId,
-					title: flattenedModules[currentModuleIndex + 1].title,
-					type: flattenedModules[currentModuleIndex + 1].type,
-				}
+						id: flattenedModules[currentModuleIndex + 1].moduleLinkId,
+						title: flattenedModules[currentModuleIndex + 1].title,
+						type: flattenedModules[currentModuleIndex + 1].type,
+					}
 				: null;
 
 		// Check if user can submit assignments
@@ -628,8 +634,8 @@ export const tryGetCourseModuleContext = Result.wrap(
 			? canSubmitAssignment(enrolment).allowed
 			: false;
 
-		// Build submissions based on module type using discriminated union
-		let moduleSubmissions: ModuleSubmissions;
+		// Build module-specific data based on module type using discriminated union
+		let moduleSpecificData: ModuleSpecificData;
 
 		if (transformedModule.type === "assignment") {
 			// Fetch assignment submissions
@@ -658,20 +664,22 @@ export const tryGetCourseModuleContext = Result.wrap(
 				userSubmissions[0] ||
 				null;
 
-			moduleSubmissions = {
+			moduleSpecificData = {
 				type: "assignment",
 				submissions: allSubmissions,
 				userSubmissions,
 				userSubmission,
-				threads: undefined as never,
 			};
 		} else if (transformedModule.type === "quiz") {
 			// Fetch quiz submissions
+			// Only filter by studentId if user is a student
+			// Teachers/admins should see all submissions in the submissions table
+			const isStudent = enrolment?.role === "student";
 			let allSubmissions: QuizSubmissionResolved[] = [];
 			const submissionsResult = await tryListQuizSubmissions({
 				payload,
 				courseModuleLinkId: moduleLinkId,
-				studentId: currentUser?.id,
+				studentId: isStudent ? currentUser?.id : undefined,
 				limit: 1000,
 				user: formattedUser,
 				req,
@@ -682,8 +690,12 @@ export const tryGetCourseModuleContext = Result.wrap(
 					.docs as QuizSubmissionResolved[];
 			}
 
-			// For quizzes, submissions are already filtered by studentId
-			const userSubmissions = allSubmissions;
+			// userSubmissions should always be filtered to current user's submissions
+			// regardless of role (for display in module page)
+			// submissions field contains all submissions (for admin/teacher view in submissions table)
+			const userSubmissions = allSubmissions.filter(
+				(sub) => sub.student.id === currentUser?.id,
+			);
 
 			// Get the latest submission (in_progress or most recent)
 			const userSubmission =
@@ -701,12 +713,49 @@ export const tryGetCourseModuleContext = Result.wrap(
 				})[0] ||
 				null;
 
-			moduleSubmissions = {
+			// Calculate quiz-specific display data
+			const quizSubmissionsForDisplay = userSubmissions.map((sub) => ({
+				id: sub.id,
+				status: sub.status as
+					| "in_progress"
+					| "completed"
+					| "graded"
+					| "returned",
+				submittedAt: sub.submittedAt ?? null,
+				startedAt: sub.startedAt ?? null,
+				attemptNumber: sub.attemptNumber ?? 1,
+			}));
+
+			const hasActiveQuizAttempt = userSubmissions.some(
+				(sub) => sub.status === "in_progress",
+			);
+
+			// Calculate quiz remaining time if applicable
+			let quizRemainingTime: number | undefined;
+			if (
+				userSubmission &&
+				userSubmission.status === "in_progress" &&
+				userSubmission.startedAt &&
+				transformedModule.quiz?.rawQuizConfig?.globalTimer
+			) {
+				const startedAt = new Date(userSubmission.startedAt);
+				const now = new Date();
+				const elapsedSeconds = Math.floor(
+					(now.getTime() - startedAt.getTime()) / 1000,
+				);
+				const globalTimer = transformedModule.quiz.rawQuizConfig.globalTimer;
+				const remaining = Math.max(0, globalTimer - elapsedSeconds);
+				quizRemainingTime = remaining;
+			}
+
+			moduleSpecificData = {
 				type: "quiz",
 				submissions: allSubmissions,
 				userSubmissions,
 				userSubmission,
-				threads: undefined as never,
+				quizSubmissionsForDisplay,
+				hasActiveQuizAttempt,
+				quizRemainingTime,
 			};
 		} else if (transformedModule.type === "discussion") {
 			// Fetch discussion submissions
@@ -748,13 +797,13 @@ export const tryGetCourseModuleContext = Result.wrap(
 						const student = thread.student;
 						const authorName = student
 							? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
-							student.email ||
-							"Unknown"
+								student.email ||
+								"Unknown"
 							: "Unknown";
 						const authorAvatar = student
 							? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
-							student.email?.[0]?.toUpperCase() ||
-							"U"
+								student.email?.[0]?.toUpperCase() ||
+								"U"
 							: "U";
 
 						const isUpvoted =
@@ -793,7 +842,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 				}
 			}
 
-			moduleSubmissions = {
+			moduleSpecificData = {
 				type: "discussion",
 				submissions: allSubmissions,
 				userSubmissions,
@@ -802,28 +851,9 @@ export const tryGetCourseModuleContext = Result.wrap(
 			};
 		} else {
 			// For page and whiteboard modules, no submissions
-			moduleSubmissions = {
+			moduleSpecificData = {
 				type: transformedModule.type,
 			};
-		}
-
-		// Calculate quiz remaining time if applicable
-		let quizRemainingTime: number | undefined;
-		if (
-			moduleSubmissions.type === "quiz" &&
-			moduleSubmissions.userSubmission &&
-			moduleSubmissions.userSubmission.status === "in_progress" &&
-			moduleSubmissions.userSubmission.startedAt &&
-			transformedModule.quiz?.rawQuizConfig?.globalTimer
-		) {
-			const startedAt = new Date(moduleSubmissions.userSubmission.startedAt);
-			const now = new Date();
-			const elapsedSeconds = Math.floor(
-				(now.getTime() - startedAt.getTime()) / 1000,
-			);
-			const globalTimer = transformedModule.quiz.rawQuizConfig.globalTimer;
-			const remaining = Math.max(0, globalTimer - elapsedSeconds);
-			quizRemainingTime = remaining;
 		}
 
 		return {
@@ -837,9 +867,8 @@ export const tryGetCourseModuleContext = Result.wrap(
 			nextModuleLinkId,
 			previousModule,
 			nextModule,
-			submissions: moduleSubmissions,
 			canSubmit,
-			quizRemainingTime,
+			moduleSpecificData,
 		} satisfies CourseModuleContext;
 	},
 	(error) =>

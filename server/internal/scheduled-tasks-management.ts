@@ -103,18 +103,21 @@ export const tryGetScheduledTasks = Result.wrap(
 		});
 
 		// Calculate statistics
-		const totalPending = scheduledTasks.filter((t) => t.status === "pending")
-			.length;
+		const totalPending = scheduledTasks.filter(
+			(t) => t.status === "pending",
+		).length;
 		const totalProcessing = scheduledTasks.filter(
 			(t) => t.status === "processing",
 		).length;
 		const totalCompleted = scheduledTasks.filter(
 			(t) => t.status === "completed",
 		).length;
-		const totalFailed = scheduledTasks.filter((t) => t.status === "failed")
-			.length;
-		const totalExpired = scheduledTasks.filter((t) => t.status === "expired")
-			.length;
+		const totalFailed = scheduledTasks.filter(
+			(t) => t.status === "failed",
+		).length;
+		const totalExpired = scheduledTasks.filter(
+			(t) => t.status === "expired",
+		).length;
 
 		return {
 			scheduledTasks,
@@ -205,4 +208,3 @@ export const tryGetPendingScheduledTasks = Result.wrap(
 			cause: error,
 		}),
 );
-

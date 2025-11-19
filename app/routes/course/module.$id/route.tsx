@@ -117,8 +117,8 @@ export const loader = async ({
 		throw new ForbiddenResponse("You cannot edit submissions");
 	}
 
-	// Extract submissions data from discriminated union
-	const { submissions: moduleSubmissions } = courseModuleContext;
+	// Extract module-specific data from discriminated union
+	const { moduleSpecificData } = courseModuleContext;
 
 	// If this is an assignment module and user cannot submit, they can't see submissions
 	if (
@@ -137,12 +137,15 @@ export const loader = async ({
 			moduleLinkId: courseModuleContext.moduleLinkId,
 			canSubmit: false,
 			discussionThreads:
-				moduleSubmissions.type === "discussion"
-					? moduleSubmissions.threads
+				moduleSpecificData.type === "discussion"
+					? moduleSpecificData.threads
 					: [],
 			discussionThread: null,
 			discussionReplies: [],
-			quizRemainingTime: courseModuleContext.quizRemainingTime,
+			quizRemainingTime:
+				moduleSpecificData.type === "quiz"
+					? moduleSpecificData.quizRemainingTime
+					: undefined,
 		};
 	}
 
@@ -150,7 +153,7 @@ export const loader = async ({
 	let discussionThread: DiscussionThread | null = null;
 	let discussionReplies: DiscussionReply[] = [];
 
-	if (moduleSubmissions.type === "discussion" && threadId) {
+	if (moduleSpecificData.type === "discussion" && threadId) {
 		const payload = context.get(globalContextKey)?.payload;
 		if (!payload) {
 			throw new ForbiddenResponse("Payload not available");
@@ -159,7 +162,7 @@ export const loader = async ({
 		const threadIdNum = Number.parseInt(threadId, 10);
 		if (!Number.isNaN(threadIdNum)) {
 			// Find the thread from context
-			const foundThread = moduleSubmissions.threads.find(
+			const foundThread = moduleSpecificData.threads.find(
 				(t) => t.id === threadId,
 			);
 			if (foundThread) {
@@ -172,12 +175,12 @@ export const loader = async ({
 					Number(moduleLinkId),
 					currentUser
 						? {
-							...currentUser,
-							avatar:
-								currentUser.avatar && typeof currentUser.avatar === "object"
-									? currentUser.avatar.id
-									: currentUser.avatar,
-						}
+								...currentUser,
+								avatar:
+									currentUser.avatar && typeof currentUser.avatar === "object"
+										? currentUser.avatar.id
+										: currentUser.avatar,
+							}
 						: null,
 				);
 
@@ -190,17 +193,32 @@ export const loader = async ({
 
 	// Extract values from discriminated union based on module type
 	const userSubmission =
-		moduleSubmissions.type === "assignment" || moduleSubmissions.type === "quiz"
-			? moduleSubmissions.userSubmission
+		moduleSpecificData.type === "assignment" ||
+		moduleSpecificData.type === "quiz"
+			? moduleSpecificData.userSubmission
 			: null;
 	const userSubmissions =
-		moduleSubmissions.type === "assignment" ||
-			moduleSubmissions.type === "quiz" ||
-			moduleSubmissions.type === "discussion"
-			? moduleSubmissions.userSubmissions
+		moduleSpecificData.type === "assignment" ||
+		moduleSpecificData.type === "quiz" ||
+		moduleSpecificData.type === "discussion"
+			? moduleSpecificData.userSubmissions
 			: [];
 	const discussionThreads =
-		moduleSubmissions.type === "discussion" ? moduleSubmissions.threads : [];
+		moduleSpecificData.type === "discussion" ? moduleSpecificData.threads : [];
+
+	// Extract module-specific data based on module type
+	const quizRemainingTime =
+		courseModuleContext.moduleSpecificData.type === "quiz"
+			? courseModuleContext.moduleSpecificData.quizRemainingTime
+			: undefined;
+	const quizSubmissionsForDisplay =
+		courseModuleContext.moduleSpecificData.type === "quiz"
+			? courseModuleContext.moduleSpecificData.quizSubmissionsForDisplay
+			: undefined;
+	const hasActiveQuizAttempt =
+		courseModuleContext.moduleSpecificData.type === "quiz"
+			? courseModuleContext.moduleSpecificData.hasActiveQuizAttempt
+			: undefined;
 
 	return {
 		module: courseModuleContext.module,
@@ -216,7 +234,9 @@ export const loader = async ({
 		discussionThreads,
 		discussionThread,
 		discussionReplies,
-		quizRemainingTime: courseModuleContext.quizRemainingTime,
+		quizRemainingTime,
+		quizSubmissionsForDisplay,
+		hasActiveQuizAttempt,
 	};
 };
 
@@ -548,20 +568,20 @@ export const action = async ({
 		// Parse answers if provided
 		let answers:
 			| Array<{
-				questionId: string;
-				questionText: string;
-				questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
-				selectedAnswer?: string;
-				multipleChoiceAnswers?: Array<{
-					option: string;
-					isSelected: boolean;
-				}>;
-			}>
+					questionId: string;
+					questionText: string;
+					questionType:
+						| "multiple_choice"
+						| "true_false"
+						| "short_answer"
+						| "essay"
+						| "fill_blank";
+					selectedAnswer?: string;
+					multipleChoiceAnswers?: Array<{
+						option: string;
+						isSelected: boolean;
+					}>;
+			  }>
 			| undefined;
 
 		if (answersJson && typeof answersJson === "string") {
@@ -761,7 +781,7 @@ export const action = async ({
 
 		// Find existing draft submission
 		// Type guard: ensure we're working with assignment submissions
-		if (courseModuleContext.submissions.type !== "assignment") {
+		if (courseModuleContext.moduleSpecificData.type !== "assignment") {
 			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				error: "This action is only available for assignment modules",
@@ -769,15 +789,16 @@ export const action = async ({
 		}
 
 		const existingDraftSubmission =
-			courseModuleContext.submissions.submissions.find(
+			courseModuleContext.moduleSpecificData.submissions.find(
 				(sub) => sub.student.id === currentUser.id && sub.status === "draft",
 			);
 
 		// Calculate next attempt number
-		const userSubmissions = courseModuleContext.submissions.submissions.filter(
-			(sub): sub is typeof sub & { attemptNumber: unknown } =>
-				sub.student.id === currentUser.id && "attemptNumber" in sub,
-		);
+		const userSubmissions =
+			courseModuleContext.moduleSpecificData.submissions.filter(
+				(sub): sub is typeof sub & { attemptNumber: unknown } =>
+					sub.student.id === currentUser.id && "attemptNumber" in sub,
+			);
 		const maxAttemptNumber =
 			userSubmissions.length > 0
 				? Math.max(...userSubmissions.map((sub) => sub.attemptNumber as number))
@@ -980,11 +1001,11 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1228,6 +1249,8 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 		userSubmissions,
 		canSubmit,
 		quizRemainingTime,
+		quizSubmissionsForDisplay,
+		hasActiveQuizAttempt,
 	} = loaderData;
 	const { submitAssignment, isSubmitting } = useSubmitAssignment();
 	const { startQuizAttempt } = useStartQuizAttempt(loaderData.moduleLinkId);
@@ -1252,34 +1275,34 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				// Type guard to ensure we have an assignment submission
 				const assignmentSubmission =
 					userSubmission &&
-						"content" in userSubmission &&
-						"attachments" in userSubmission
+					"content" in userSubmission &&
+					"attachments" in userSubmission
 						? {
-							id: userSubmission.id,
-							status: userSubmission.status as
-								| "draft"
-								| "submitted"
-								| "graded"
-								| "returned",
-							content: (userSubmission.content as string) || null,
-							attachments: userSubmission.attachments
-								? userSubmission.attachments.map((att) => ({
-									file:
-										typeof att.file === "object" &&
-											att.file !== null &&
-											"id" in att.file
-											? att.file.id
-											: Number(att.file),
-									description: att.description as string | undefined,
-								}))
-								: null,
-							submittedAt: ("submittedAt" in userSubmission
-								? userSubmission.submittedAt
-								: null) as string | null,
-							attemptNumber: ("attemptNumber" in userSubmission
-								? userSubmission.attemptNumber
-								: 1) as number,
-						}
+								id: userSubmission.id,
+								status: userSubmission.status as
+									| "draft"
+									| "submitted"
+									| "graded"
+									| "returned",
+								content: (userSubmission.content as string) || null,
+								attachments: userSubmission.attachments
+									? userSubmission.attachments.map((att) => ({
+											file:
+												typeof att.file === "object" &&
+												att.file !== null &&
+												"id" in att.file
+													? att.file.id
+													: Number(att.file),
+											description: att.description as string | undefined,
+										}))
+									: null,
+								submittedAt: ("submittedAt" in userSubmission
+									? userSubmission.submittedAt
+									: null) as string | null,
+								attemptNumber: ("attemptNumber" in userSubmission
+									? userSubmission.attemptNumber
+									: 1) as number,
+							}
 						: null;
 
 				// Map all submissions for display - filter assignment submissions only
@@ -1303,9 +1326,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						attachments:
 							"attachments" in sub && sub.attachments
 								? (sub.attachments as Array<{
-									file: number | { id: number; filename: string };
-									description?: string;
-								}>)
+										file: number | { id: number; filename: string };
+										description?: string;
+									}>)
 								: null,
 					}));
 
@@ -1337,42 +1360,18 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					return <Text c="red">No quiz configuration available</Text>;
 				}
 
-				// Filter quiz submissions
-				const quizSubmissions = userSubmissions.filter(
-					(
-						sub,
-					): sub is typeof sub & { attemptNumber: unknown; status: unknown } =>
-						"attemptNumber" in sub && "status" in sub,
-				);
-
-				// Check if there's an active in_progress attempt
-				const hasActiveAttempt = quizSubmissions.some(
-					(sub) => sub.status === "in_progress",
-				);
-
-				// Map all quiz submissions for display
-				const allQuizSubmissionsForDisplay = quizSubmissions.map((sub) => ({
-					id: sub.id,
-					status: sub.status as
-						| "in_progress"
-						| "completed"
-						| "graded"
-						| "returned",
-					submittedAt: ("submittedAt" in sub ? sub.submittedAt : null) as
-						| string
-						| null,
-					startedAt: ("startedAt" in sub ? sub.startedAt : null) as
-						| string
-						| null,
-					attemptNumber: (sub.attemptNumber as number) || 1,
-				}));
+				// Use server-calculated values
+				const allQuizSubmissionsForDisplay = quizSubmissionsForDisplay ?? [];
 
 				// Show QuizPreview only if showQuiz parameter is true AND there's an active attempt
-				if (showQuiz === "true" && hasActiveAttempt) {
-					// Find the in_progress submission
-					const activeSubmission = quizSubmissions.find(
-						(sub) => sub.status === "in_progress",
-					);
+				if (showQuiz === "true" && hasActiveQuizAttempt) {
+					// Use userSubmission which is already the active in_progress submission
+					const activeSubmission =
+						userSubmission &&
+						"status" in userSubmission &&
+						userSubmission.status === "in_progress"
+							? userSubmission
+							: null;
 
 					const handleQuizSubmit = (answers: QuizAnswers) => {
 						if (!activeSubmission) return;
@@ -1426,6 +1425,7 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 							<SubmissionHistory
 								submissions={allQuizSubmissionsForDisplay.map((sub) => ({
 									id: sub.id,
+									// Map quiz statuses to SubmissionHistory statuses
 									status:
 										sub.status === "in_progress"
 											? "draft"

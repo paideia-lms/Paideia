@@ -3,8 +3,8 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig, { JobQueue } from "../payload.config";
 import {
-	tryGetScheduledTasks,
 	type ScheduledTaskInfo,
+	tryGetScheduledTasks,
 } from "./scheduled-tasks-management";
 
 describe("Scheduled Tasks Management", () => {
@@ -347,4 +347,3 @@ describe("Scheduled Tasks Management", () => {
 		expect(stats.totalProcessing).toBeGreaterThanOrEqual(0);
 	});
 });
-

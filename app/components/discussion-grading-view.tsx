@@ -1,9 +1,7 @@
 import {
-	ActionIcon,
 	Badge,
 	Box,
 	Button,
-	Collapse,
 	Container,
 	Grid,
 	Group,
@@ -15,12 +13,8 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
-import { useEffect, useEffectEvent, useState } from "react";
-import { href, Link, useNavigate } from "react-router";
-import { AttachmentViewer } from "~/components/attachment-viewer";
-import { RichTextRenderer } from "~/components/rich-text-renderer";
-import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
+import { useEffectEvent } from "react";
+import { href, Link } from "react-router";
 import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
 
 // ============================================================================
@@ -32,12 +26,10 @@ interface GradingFormValues {
 	feedback: string;
 }
 
-export interface GradingViewProps {
+export interface DiscussionGradingViewProps {
 	submission: {
 		id: number;
-		attemptNumber: number;
 		status: "draft" | "submitted" | "graded" | "returned";
-		content?: string | null;
 		submittedAt?: string | null;
 		student:
 			| {
@@ -47,18 +39,6 @@ export interface GradingViewProps {
 					email?: string | null;
 			  }
 			| number;
-		attachments?: Array<{
-			file:
-				| number
-				| {
-						id: number;
-						filename?: string | null;
-						mimeType?: string | null;
-						filesize?: number | null;
-						url?: string | null;
-				  };
-			description?: string | null;
-		}> | null;
 	};
 	module: {
 		id: number;
@@ -100,7 +80,7 @@ export interface GradingViewProps {
 // Component
 // ============================================================================
 
-export function AssignmentGradingView({
+export function DiscussionGradingView({
 	submission,
 	module,
 	moduleSettings,
@@ -111,25 +91,7 @@ export function AssignmentGradingView({
 	isReleasing = false,
 	enrollment,
 	courseModuleLink,
-}: GradingViewProps) {
-	// Track individual attachment expansion state (all expanded by default)
-	const [expandedAttachments, setExpandedAttachments] = useState<
-		Record<string, boolean>
-	>(() => {
-		const initial: Record<string, boolean> = {};
-		submission.attachments?.forEach((_, index) => {
-			initial[index.toString()] = true;
-		});
-		return initial;
-	});
-
-	const toggleAttachment = (index: number) => {
-		setExpandedAttachments((prev) => ({
-			...prev,
-			[index.toString()]: !prev[index.toString()],
-		}));
-	};
-
+}: DiscussionGradingViewProps) {
 	const form = useForm<GradingFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
@@ -138,8 +100,7 @@ export function AssignmentGradingView({
 		},
 	});
 
-	const { gradeSubmission, isGrading, data } = useGradeSubmission();
-	const navigate = useNavigate();
+	const { gradeSubmission, isGrading } = useGradeSubmission();
 
 	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
 		const scoreValue =
@@ -167,12 +128,15 @@ export function AssignmentGradingView({
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
-	const title = `Grade Submission - ${moduleSettings?.settings.name ?? module.title} | ${course.title} | Paideia LMS`;
+	const title = `Grade Discussion - ${moduleSettings?.settings.name ?? module.title} | ${course.title} | Paideia LMS`;
 
 	return (
 		<Box>
 			<title>{title}</title>
-			<meta name="description" content="Grade student submission" />
+			<meta
+				name="description"
+				content="Grade student discussion participation"
+			/>
 			<meta property="og:title" content={title} />
 
 			{/* Back Button */}
@@ -197,15 +161,12 @@ export function AssignmentGradingView({
 							<Stack gap="xs">
 								<Group justify="space-between">
 									<div>
-										<Title order={3}>Student Submission</Title>
+										<Title order={3}>Student Discussion Participation</Title>
 										<Text size="sm" c="dimmed">
 											{studentName} {studentEmail && `(${studentEmail})`}
 										</Text>
 									</div>
 									<Group gap="xs">
-										<Badge color="blue" variant="light">
-											Attempt {submission.attemptNumber}
-										</Badge>
 										<Badge
 											color={
 												submission.status === "graded"
@@ -229,88 +190,14 @@ export function AssignmentGradingView({
 							</Stack>
 						</Paper>
 
-						{/* Submission Content Section */}
+						{/* Discussion Content Section - Mock UI for now */}
 						<Paper withBorder shadow="sm" p="md" radius="md">
 							<Stack gap="md">
-								<Title order={4}>Submission Content</Title>
-								{submission.content ? (
-									<RichTextRenderer content={submission.content} />
-								) : (
-									<Text c="dimmed">No text content submitted</Text>
-								)}
-
-								{/* Attachments */}
-								{submission.attachments &&
-									submission.attachments.length > 0 && (
-										<div>
-											<Group justify="space-between" mb="xs">
-												<Text size="sm" fw={600}>
-													Attachments ({submission.attachments.length}):
-												</Text>
-											</Group>
-											<Stack gap="md">
-												{submission.attachments.map((attachment, index) => {
-													const file = attachment.file;
-													const fileData =
-														typeof file === "object"
-															? file
-															: {
-																	id: file,
-																	filename: null,
-																	mimeType: null,
-																	filesize: null,
-																	url: null,
-																};
-													const filename =
-														fileData.filename || `File ${fileData.id}`;
-													const isExpanded =
-														expandedAttachments[index.toString()] ?? true;
-
-													return (
-														<Paper
-															key={`${fileData.id}-${index.toString()}`}
-															withBorder
-															p="md"
-														>
-															<Stack gap="xs">
-																<Group justify="space-between" wrap="nowrap">
-																	<Text
-																		size="sm"
-																		fw={600}
-																		style={{ flex: 1, minWidth: 0 }}
-																	>
-																		{filename}
-																	</Text>
-																	<ActionIcon
-																		variant="subtle"
-																		size="sm"
-																		onClick={() => toggleAttachment(index)}
-																		aria-label={
-																			isExpanded
-																				? "Collapse attachment"
-																				: "Expand attachment"
-																		}
-																	>
-																		{isExpanded ? (
-																			<IconChevronUp size={16} />
-																		) : (
-																			<IconChevronDown size={16} />
-																		)}
-																	</ActionIcon>
-																</Group>
-																<Collapse in={isExpanded}>
-																	<AttachmentViewer
-																		file={fileData}
-																		description={attachment.description}
-																	/>
-																</Collapse>
-															</Stack>
-														</Paper>
-													);
-												})}
-											</Stack>
-										</div>
-									)}
+								<Title order={4}>Discussion Participation</Title>
+								<Text c="dimmed">
+									Discussion participation content will be displayed here. This
+									is a mock UI for now.
+								</Text>
 							</Stack>
 						</Paper>
 					</Stack>
@@ -321,7 +208,7 @@ export function AssignmentGradingView({
 					<Paper withBorder shadow="sm" p="md" radius="md">
 						<form onSubmit={form.onSubmit(handleSubmit)}>
 							<Stack gap="md">
-								<Title order={4}>Grade Submission</Title>
+								<Title order={4}>Grade Participation</Title>
 
 								<NumberInput
 									label="Score"
@@ -336,11 +223,18 @@ export function AssignmentGradingView({
 									<Text size="sm" fw={500} mb="xs">
 										Feedback
 									</Text>
-									<SimpleRichTextEditor
-										content={grade?.feedback ?? ""}
+									<textarea
+										style={{
+											width: "100%",
+											minHeight: "200px",
+											padding: "8px",
+											border: "1px solid #ced4da",
+											borderRadius: "4px",
+										}}
 										placeholder="Provide feedback for the student..."
-										onChange={(value) => {
-											form.setFieldValue("feedback", value);
+										value={form.values.feedback}
+										onChange={(e) => {
+											form.setFieldValue("feedback", e.target.value);
 										}}
 									/>
 								</div>

@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type {} from "@payloadcms/db-postgres";
+import type { } from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -1084,7 +1084,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references(() => users.id, {
+      .references((): AnyPgColumn => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {

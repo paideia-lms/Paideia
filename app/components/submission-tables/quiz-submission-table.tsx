@@ -3,8 +3,10 @@ import {
 	Anchor,
 	Badge,
 	Box,
+	Button,
 	Collapse,
 	Group,
+	Menu,
 	Paper,
 	ScrollArea,
 	Stack,
@@ -12,8 +14,15 @@ import {
 	Text,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
+import {
+	IconChevronDown,
+	IconChevronRight,
+	IconDots,
+	IconPencil,
+	IconSend,
+} from "@tabler/icons-react";
 import { href, Link } from "react-router";
+import { QuizActions } from "~/utils/module-actions";
 
 // ============================================================================
 // Types
@@ -134,10 +143,16 @@ function QuizStudentSubmissionRow({
 	courseId,
 	enrollment,
 	studentSubmissions,
+	moduleLinkId,
+	onReleaseGrade,
+	isReleasing,
 }: {
 	courseId: number;
 	enrollment: Enrollment;
 	studentSubmissions: QuizSubmissionType[] | undefined;
+	moduleLinkId: number;
+	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
+	isReleasing?: boolean;
 }) {
 	const [opened, { toggle }] = useDisclosure(false);
 
@@ -290,10 +305,55 @@ function QuizStudentSubmissionRow({
 							? `Started: ${new Date(latestSubmission.startedAt).toLocaleString()}`
 							: "-"}
 				</Table.Td>
+				<Table.Td>
+					<Group gap="xs">
+						{hasSubmissions && latestSubmission ? (
+							<Menu position="bottom-end">
+								<Menu.Target>
+									<ActionIcon variant="light" size="lg">
+										<IconDots size={18} />
+									</ActionIcon>
+								</Menu.Target>
+								<Menu.Dropdown>
+									<Menu.Item
+										component={Link}
+										to={
+											href("/course/module/:moduleLinkId/submissions", {
+												moduleLinkId: String(moduleLinkId),
+											}) +
+											`?action=${QuizActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
+										}
+										leftSection={<IconPencil size={14} />}
+									>
+										Grade
+									</Menu.Item>
+									{latestSubmission.status === "graded" &&
+										latestSubmission.totalScore !== null &&
+										latestSubmission.totalScore !== undefined &&
+										onReleaseGrade && (
+											<Menu.Item
+												leftSection={<IconSend size={14} />}
+												onClick={() => {
+													onReleaseGrade(moduleLinkId, enrollment.id);
+												}}
+												disabled={isReleasing}
+											>
+												{isReleasing ? "Releasing..." : "Release Grade"}
+											</Menu.Item>
+										)}
+								</Menu.Dropdown>
+							</Menu>
+						) : (
+							<Button size="xs" variant="light" disabled>
+								Actions
+							</Button>
+						)}
+					</Group>
+				</Table.Td>
 			</Table.Tr>
 			{hasSubmissions && (
 				<Table.Tr>
-					<Table.Td colSpan={7} p={0}>
+					<Table.Td colSpan={8} p={0}>
 						<Collapse in={opened}>
 							<Box p="md">
 								<Stack gap="md">
@@ -341,10 +401,16 @@ export function QuizSubmissionTable({
 	courseId,
 	enrollments,
 	submissions,
+	moduleLinkId,
+	onReleaseGrade,
+	isReleasing,
 }: {
 	courseId: number;
 	enrollments: Enrollment[];
 	submissions: QuizSubmissionType[];
+	moduleLinkId: number;
+	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
+	isReleasing?: boolean;
 }) {
 	// Create a map of quiz submissions by student ID
 	const quizSubmissionsByStudent = new Map<number, QuizSubmissionType[]>();
@@ -385,6 +451,7 @@ export function QuizSubmissionTable({
 							<Table.Th style={{ minWidth: 100 }}>Score</Table.Th>
 							<Table.Th style={{ minWidth: 120 }}>Time Spent</Table.Th>
 							<Table.Th style={{ minWidth: 180 }}>Latest Submission</Table.Th>
+							<Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
 						</Table.Tr>
 					</Table.Thead>
 					<Table.Tbody>
@@ -399,6 +466,9 @@ export function QuizSubmissionTable({
 									courseId={courseId}
 									enrollment={enrollment}
 									studentSubmissions={studentSubmissions}
+									moduleLinkId={moduleLinkId}
+									onReleaseGrade={onReleaseGrade}
+									isReleasing={isReleasing}
 								/>
 							);
 						})}

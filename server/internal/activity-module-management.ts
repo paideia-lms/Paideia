@@ -70,13 +70,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -177,13 +177,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;

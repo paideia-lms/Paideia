@@ -1,9 +1,8 @@
 import {
-	ActionIcon,
 	Badge,
 	Box,
 	Button,
-	Collapse,
+	Code,
 	Container,
 	Grid,
 	Group,
@@ -15,12 +14,8 @@ import {
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffectEvent } from "react";
 import { href, Link, useNavigate } from "react-router";
-import { AttachmentViewer } from "~/components/attachment-viewer";
-import { RichTextRenderer } from "~/components/rich-text-renderer";
-import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
 import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
 
 // ============================================================================
@@ -32,13 +27,36 @@ interface GradingFormValues {
 	feedback: string;
 }
 
-export interface GradingViewProps {
+export interface QuizGradingViewProps {
 	submission: {
 		id: number;
 		attemptNumber: number;
-		status: "draft" | "submitted" | "graded" | "returned";
-		content?: string | null;
+		status: "in_progress" | "completed" | "graded" | "returned";
 		submittedAt?: string | null;
+		startedAt?: string | null;
+		timeSpent?: number | null;
+		totalScore?: number | null;
+		maxScore?: number | null;
+		percentage?: number | null;
+		answers?: Array<{
+			questionId: string;
+			questionText?: string | null;
+			questionType:
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
+			selectedAnswer?: string | null;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected?: boolean | null;
+			}> | null;
+			isCorrect?: boolean | null;
+			pointsEarned?: number | null;
+			maxPoints?: number | null;
+			feedback?: string | null;
+		}> | null;
 		student:
 			| {
 					id: number;
@@ -47,18 +65,6 @@ export interface GradingViewProps {
 					email?: string | null;
 			  }
 			| number;
-		attachments?: Array<{
-			file:
-				| number
-				| {
-						id: number;
-						filename?: string | null;
-						mimeType?: string | null;
-						filesize?: number | null;
-						url?: string | null;
-				  };
-			description?: string | null;
-		}> | null;
 	};
 	module: {
 		id: number;
@@ -100,7 +106,7 @@ export interface GradingViewProps {
 // Component
 // ============================================================================
 
-export function AssignmentGradingView({
+export function QuizGradingView({
 	submission,
 	module,
 	moduleSettings,
@@ -111,29 +117,11 @@ export function AssignmentGradingView({
 	isReleasing = false,
 	enrollment,
 	courseModuleLink,
-}: GradingViewProps) {
-	// Track individual attachment expansion state (all expanded by default)
-	const [expandedAttachments, setExpandedAttachments] = useState<
-		Record<string, boolean>
-	>(() => {
-		const initial: Record<string, boolean> = {};
-		submission.attachments?.forEach((_, index) => {
-			initial[index.toString()] = true;
-		});
-		return initial;
-	});
-
-	const toggleAttachment = (index: number) => {
-		setExpandedAttachments((prev) => ({
-			...prev,
-			[index.toString()]: !prev[index.toString()],
-		}));
-	};
-
+}: QuizGradingViewProps) {
 	const form = useForm<GradingFormValues>({
 		mode: "uncontrolled",
 		initialValues: {
-			score: grade?.baseGrade ?? "",
+			score: grade?.baseGrade ?? submission.totalScore ?? "",
 			feedback: grade?.feedback ?? "",
 		},
 	});
@@ -167,12 +155,12 @@ export function AssignmentGradingView({
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
-	const title = `Grade Submission - ${moduleSettings?.settings.name ?? module.title} | ${course.title} | Paideia LMS`;
+	const title = `Grade Quiz Submission - ${moduleSettings?.settings.name ?? module.title} | ${course.title} | Paideia LMS`;
 
 	return (
 		<Box>
 			<title>{title}</title>
-			<meta name="description" content="Grade student submission" />
+			<meta name="description" content="Grade student quiz submission" />
 			<meta property="og:title" content={title} />
 
 			{/* Back Button */}
@@ -197,7 +185,7 @@ export function AssignmentGradingView({
 							<Stack gap="xs">
 								<Group justify="space-between">
 									<div>
-										<Title order={3}>Student Submission</Title>
+										<Title order={3}>Student Quiz Submission</Title>
 										<Text size="sm" c="dimmed">
 											{studentName} {studentEmail && `(${studentEmail})`}
 										</Text>
@@ -210,7 +198,7 @@ export function AssignmentGradingView({
 											color={
 												submission.status === "graded"
 													? "green"
-													: submission.status === "submitted"
+													: submission.status === "completed"
 														? "blue"
 														: "gray"
 											}
@@ -226,91 +214,34 @@ export function AssignmentGradingView({
 										? new Date(submission.submittedAt).toLocaleString()
 										: "N/A"}
 								</Text>
+								{submission.timeSpent && (
+									<Text size="sm" c="dimmed">
+										Time Spent: {Math.round(submission.timeSpent)} minutes
+									</Text>
+								)}
+								{submission.totalScore !== null &&
+									submission.totalScore !== undefined &&
+									submission.maxScore !== null &&
+									submission.maxScore !== undefined && (
+										<Text size="sm" c="dimmed">
+											Auto Score: {submission.totalScore} /{" "}
+											{submission.maxScore}
+											{submission.percentage !== null &&
+												submission.percentage !== undefined &&
+												` (${submission.percentage}%)`}
+										</Text>
+									)}
 							</Stack>
 						</Paper>
 
-						{/* Submission Content Section */}
+						{/* Quiz Content Section */}
 						<Paper withBorder shadow="sm" p="md" radius="md">
 							<Stack gap="md">
-								<Title order={4}>Submission Content</Title>
-								{submission.content ? (
-									<RichTextRenderer content={submission.content} />
-								) : (
-									<Text c="dimmed">No text content submitted</Text>
-								)}
+								<Title order={4}>Quiz Answers</Title>
 
-								{/* Attachments */}
-								{submission.attachments &&
-									submission.attachments.length > 0 && (
-										<div>
-											<Group justify="space-between" mb="xs">
-												<Text size="sm" fw={600}>
-													Attachments ({submission.attachments.length}):
-												</Text>
-											</Group>
-											<Stack gap="md">
-												{submission.attachments.map((attachment, index) => {
-													const file = attachment.file;
-													const fileData =
-														typeof file === "object"
-															? file
-															: {
-																	id: file,
-																	filename: null,
-																	mimeType: null,
-																	filesize: null,
-																	url: null,
-																};
-													const filename =
-														fileData.filename || `File ${fileData.id}`;
-													const isExpanded =
-														expandedAttachments[index.toString()] ?? true;
-
-													return (
-														<Paper
-															key={`${fileData.id}-${index.toString()}`}
-															withBorder
-															p="md"
-														>
-															<Stack gap="xs">
-																<Group justify="space-between" wrap="nowrap">
-																	<Text
-																		size="sm"
-																		fw={600}
-																		style={{ flex: 1, minWidth: 0 }}
-																	>
-																		{filename}
-																	</Text>
-																	<ActionIcon
-																		variant="subtle"
-																		size="sm"
-																		onClick={() => toggleAttachment(index)}
-																		aria-label={
-																			isExpanded
-																				? "Collapse attachment"
-																				: "Expand attachment"
-																		}
-																	>
-																		{isExpanded ? (
-																			<IconChevronUp size={16} />
-																		) : (
-																			<IconChevronDown size={16} />
-																		)}
-																	</ActionIcon>
-																</Group>
-																<Collapse in={isExpanded}>
-																	<AttachmentViewer
-																		file={fileData}
-																		description={attachment.description}
-																	/>
-																</Collapse>
-															</Stack>
-														</Paper>
-													);
-												})}
-											</Stack>
-										</div>
-									)}
+								<Code block style={{ whiteSpace: "pre-wrap" }}>
+									{JSON.stringify(submission.answers, null, 2)}
+								</Code>
 							</Stack>
 						</Paper>
 					</Stack>
@@ -327,7 +258,7 @@ export function AssignmentGradingView({
 									label="Score"
 									placeholder="Enter score"
 									min={0}
-									max={grade?.maxGrade ?? 100}
+									max={grade?.maxGrade ?? submission.maxScore ?? 100}
 									key={form.key("score")}
 									{...form.getInputProps("score")}
 								/>
@@ -336,11 +267,18 @@ export function AssignmentGradingView({
 									<Text size="sm" fw={500} mb="xs">
 										Feedback
 									</Text>
-									<SimpleRichTextEditor
-										content={grade?.feedback ?? ""}
+									<textarea
+										style={{
+											width: "100%",
+											minHeight: "200px",
+											padding: "8px",
+											border: "1px solid #ced4da",
+											borderRadius: "4px",
+										}}
 										placeholder="Provide feedback for the student..."
-										onChange={(value) => {
-											form.setFieldValue("feedback", value);
+										value={form.values.feedback}
+										onChange={(e) => {
+											form.setFieldValue("feedback", e.target.value);
 										}}
 									/>
 								</div>

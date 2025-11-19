@@ -1,8 +1,8 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { QuizSubmissions } from "server/collections";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
-import type { QuizSubmission } from "server/payload-types";
 import { JobQueue } from "server/payload.config";
+import type { QuizSubmission } from "server/payload-types";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -35,13 +35,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -77,13 +77,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -108,11 +108,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -144,11 +144,11 @@ export interface UpdateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -226,11 +226,11 @@ export interface SubmitQuizArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -1217,7 +1217,7 @@ export const trySubmitQuiz = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1339,11 +1339,11 @@ export const calculateQuizGrade = Result.wrap(
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string | null;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1600,7 +1600,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -2420,10 +2420,10 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 			// Build response distribution for multiple choice
 			let responseDistribution:
 				| Array<{
-					option: string;
-					count: number;
-					percentage: number;
-				}>
+						option: string;
+						count: number;
+						percentage: number;
+				  }>
 				| undefined;
 
 			if (
