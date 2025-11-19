@@ -314,8 +314,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Extract submissions from discriminated union based on module type
 	const allSubmissions =
 		courseModuleContext.moduleSpecificData.type === "assignment" ||
-		courseModuleContext.moduleSpecificData.type === "quiz" ||
-		courseModuleContext.moduleSpecificData.type === "discussion"
+			courseModuleContext.moduleSpecificData.type === "quiz" ||
+			courseModuleContext.moduleSpecificData.type === "discussion"
 			? courseModuleContext.moduleSpecificData.submissions
 			: [];
 
@@ -330,13 +330,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+					submissionWithGrade.grade !== undefined
 					? {
-							baseGrade: submissionWithGrade.grade,
-							maxGrade,
-							gradedAt: submissionWithGrade.gradedAt || null,
-							feedback: submissionWithGrade.feedback || null,
-						}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						gradedAt: submissionWithGrade.gradedAt || null,
+						feedback: submissionWithGrade.feedback || null,
+					}
 					: null,
 		};
 	});
@@ -675,13 +675,13 @@ type SubmissionType = {
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}> | null;
 	grade?: {
@@ -714,6 +714,28 @@ type QuizSubmissionType = {
 		lastName?: string | null;
 		email?: string | null;
 	};
+};
+
+type DiscussionSubmissionType = {
+	id: number;
+	status: "draft" | "published" | "hidden" | "deleted";
+	postType: "thread" | "reply" | "comment";
+	title?: string | null;
+	content: string;
+	publishedAt?: string | null;
+	createdAt: string;
+	student: {
+		id: number;
+		firstName?: string | null;
+		lastName?: string | null;
+		email?: string | null;
+	};
+	grade?: {
+		baseGrade: number | null;
+		maxGrade: number | null;
+		gradedAt?: string | null;
+		feedback?: string | null;
+	} | null;
 };
 
 // ============================================================================
@@ -948,7 +970,16 @@ export default function ModuleSubmissionsPage({
 		}
 
 		if (module.type === "discussion") {
-			return <DiscussionSubmissionTable />;
+			return (
+				<DiscussionSubmissionTable
+					courseId={course.id}
+					enrollments={enrollments}
+					submissions={submissions as DiscussionSubmissionType[]}
+					moduleLinkId={moduleLinkId}
+					onReleaseGrade={releaseGrade}
+					isReleasing={isReleasing}
+				/>
+			);
 		}
 
 		return null;

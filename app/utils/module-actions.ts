@@ -15,6 +15,7 @@ export const DiscussionActions = {
 	REMOVE_UPVOTE_THREAD: "removeupvotethread",
 	UPVOTE_REPLY: "upvotereply",
 	REMOVE_UPVOTE_REPLY: "removeupvotereply",
+	GRADE_SUBMISSION: "gradesubmission",
 } as const;
 
 export const QuizActions = {

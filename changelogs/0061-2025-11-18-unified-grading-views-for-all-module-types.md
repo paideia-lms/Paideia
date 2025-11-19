@@ -6,7 +6,7 @@
 
 ## Overview
 
-This changelog documents the extension of the grading system to support quiz and discussion submissions in addition to assignments. Previously, the grading view was limited to assignments only. The implementation includes component refactoring, new grading view components, and updates to the submissions route to handle multiple module types. However, some features remain incomplete and are noted as future work.
+This changelog documents the extension of the grading system to support quiz and discussion submissions in addition to assignments. Previously, the grading view was limited to assignments only. The implementation includes component refactoring, new grading view components, a comprehensive discussion submission table, and updates to the submissions route to handle multiple module types. However, some features remain incomplete and are noted as future work.
 
 ## Key Changes
 
@@ -50,7 +50,59 @@ This changelog documents the extension of the grading system to support quiz and
   - ⚠️ Discussion content display not implemented
   - ⚠️ Server-side grading not implemented
 
-### 3. Submissions Route Updates
+### 3. Discussion Submission Table Implementation
+
+#### New Component
+- **Location**: `app/components/submission-tables/discussion-submission-table.tsx`
+- **Purpose**: Comprehensive table for viewing and grading discussion submissions
+- **Features**:
+  - Displays all students enrolled in the course
+  - Shows all discussion posts (threads, replies, and comments) for each student
+  - Expandable submission history showing all posts with details
+  - Post type badges (Thread, Reply, Comment)
+  - Status badges (published, draft, hidden, deleted)
+  - Post count breakdown (threads, replies, comments)
+  - Score calculation and percentage display
+  - Grade and release grade actions for each student's latest post
+  - Student profile links
+
+**Table Columns**:
+- Student Name (with profile link)
+- Email
+- Status (Active/No posts)
+- Posts (thread count, reply count, comment count)
+- Score (total score/max score with percentage)
+- Latest Post (timestamp)
+- Actions (Grade and Release Grade menu)
+
+**Submission History Display**:
+- Expandable rows showing all posts for each student
+- Each post shows:
+  - Post type badge
+  - Status badge
+  - Grade badge (if graded)
+  - Post ID
+  - Title (for threads)
+  - Content preview (truncated to 3 lines)
+  - Published/Created timestamp
+  - Graded timestamp (if applicable)
+
+**Implementation Details**:
+- Groups submissions by student ID
+- Filters to only show published posts
+- Sorts posts by publishedAt or createdAt (newest first)
+- Calculates aggregate scores from all graded posts
+- Provides grade and release grade actions via menu
+
+### 4. Module Actions Update
+
+#### Discussion Actions Enhancement
+- **Location**: `app/utils/module-actions.ts`
+- **Change**: Added `GRADE_SUBMISSION: "gradesubmission"` to `DiscussionActions`
+- **Reason**: Enables discussion submission grading via URL parameters
+- **Impact**: Consistent with `AssignmentActions` and `QuizActions`, all module types now support grading action
+
+### 5. Submissions Route Updates
 
 #### Loader Enhancements
 - **Location**: `app/routes/course/module.$id.submissions.tsx`
@@ -95,9 +147,13 @@ if (moduleType === "assignment") {
     - `AssignmentGradingView` for assignments
     - `QuizGradingView` for quizzes
     - `DiscussionGradingView` for discussions
-  - Supports both `AssignmentActions.GRADE_SUBMISSION` and `QuizActions.GRADE_SUBMISSION` action types
+  - Supports `AssignmentActions.GRADE_SUBMISSION`, `QuizActions.GRADE_SUBMISSION`, and `DiscussionActions.GRADE_SUBMISSION` action types
+  - **Discussion Table Integration**: Updated to pass proper props to `DiscussionSubmissionTable`:
+    - `courseId`, `enrollments`, `submissions`
+    - `moduleLinkId`, `onReleaseGrade`, `isReleasing`
+    - Submissions are typed as `DiscussionSubmissionType[]`
 
-### 4. Quiz Answers Display
+### 6. Quiz Answers Display
 
 #### Current Implementation
 - **Location**: `app/components/quiz-grading-view.tsx`
@@ -167,8 +223,10 @@ export interface QuizGradingViewProps {
 
 #### Updated Action Constants
 - **Location**: `app/utils/module-actions.ts`
-- **Change**: `QuizActions.GRADE_SUBMISSION` already existed, now properly utilized
-- **Usage**: Both assignment and quiz grading use the same action parameter format
+- **Changes**: 
+  - `QuizActions.GRADE_SUBMISSION` already existed, now properly utilized
+  - Added `DiscussionActions.GRADE_SUBMISSION` for consistency
+- **Usage**: All module types (assignment, quiz, discussion) now use the same action parameter format (`action=gradesubmission&submissionId=X`)
 
 ### Server-Side Integration
 
@@ -191,11 +249,12 @@ export interface QuizGradingViewProps {
 ### New Files
 - `app/components/quiz-grading-view.tsx` - Quiz grading interface
 - `app/components/discussion-grading-view.tsx` - Discussion grading interface (mock)
+- `app/components/submission-tables/discussion-submission-table.tsx` - Discussion submission table with grading actions
 
 ### Modified Files
 - `app/components/grading-view.tsx` - Renamed component to `AssignmentGradingView`
-- `app/routes/course/module.$id.submissions.tsx` - Extended loader, action, and component to support quiz and discussion grading
-- `app/utils/module-actions.ts` - Already had `QuizActions.GRADE_SUBMISSION`, now properly utilized
+- `app/routes/course/module.$id.submissions.tsx` - Extended loader, action, and component to support quiz and discussion grading; integrated discussion submission table
+- `app/utils/module-actions.ts` - Added `DiscussionActions.GRADE_SUBMISSION` for consistency with other module types
 
 ## User Impact
 
@@ -204,6 +263,9 @@ export interface QuizGradingViewProps {
 2. **Consistent UI**: Similar layout and functionality across all grading views
 3. **Better Organization**: Module-specific components improve code maintainability
 4. **Quiz Grading Access**: Teachers can now access quiz submissions for grading (via auto-grading)
+5. **Discussion Submission Management**: Complete table view showing all student posts (threads, replies, comments) with grading capabilities
+6. **Comprehensive Post History**: Expandable rows show all discussion posts for each student, making it easy to review participation
+7. **Post Type Visibility**: Clear indication of thread vs reply vs comment for each post
 
 ### Limitations & Known Issues
 1. **Quiz Manual Grading**: 
@@ -216,9 +278,10 @@ export interface QuizGradingViewProps {
    - Needs proper UI implementation showing questions and answers in a user-friendly format
 
 3. **Discussion Grading**:
-   - UI structure exists but is mock implementation
-   - Server-side grading not implemented
-   - Discussion content display not implemented
+   - ✅ Submission table fully implemented with grade/release grade actions
+   - ✅ All posts (threads, replies, comments) displayed in table
+   - ⚠️ Server-side grading action handler not yet implemented (returns error)
+   - ⚠️ Discussion grading view content display is mock (shows placeholder)
 
 ## Migration Notes
 
@@ -230,7 +293,8 @@ export interface QuizGradingViewProps {
 ### For Users
 - Quiz submissions can now be accessed for grading via the submissions table
 - Quiz grading currently uses automatic scoring (manual override coming soon)
-- Discussion grading is not yet available
+- Discussion submissions table shows all student posts (threads, replies, comments) with grading actions
+- Discussion grading UI is available but server-side implementation is pending
 
 ## Future Enhancements
 
@@ -248,9 +312,12 @@ export interface QuizGradingViewProps {
    - Visual feedback for grading decisions
 
 3. **Discussion Grading Implementation**:
-   - Implement server-side grading function
-   - Add discussion content display
-   - Complete the grading workflow
+   - ✅ Discussion submission table fully implemented
+   - ✅ Grade and release grade actions available in table
+   - ✅ All posts (threads, replies, comments) displayed with expandable history
+   - ⚠️ Implement server-side grading function in action handler (`tryGradeDiscussionSubmission` exists but not integrated)
+   - ⚠️ Add discussion content display in grading view (currently mock)
+   - ⚠️ Complete the grading workflow end-to-end
 
 ### Medium Priority
 1. **Enhanced Quiz Grading**:
@@ -274,9 +341,11 @@ export interface QuizGradingViewProps {
    - Check gradebook entry creation
 
 2. **Discussion Grading Flow**:
-   - Access discussion submission (when implemented)
-   - Verify mock UI displays correctly
-   - Test error handling for unimplemented grading
+   - Access discussion submissions via submissions table
+   - Verify all posts (threads, replies, comments) display correctly
+   - Test expandable submission history
+   - Verify grade and release grade actions are accessible
+   - Test error handling for unimplemented server-side grading
 
 3. **Assignment Grading**:
    - Verify existing functionality still works after refactoring
