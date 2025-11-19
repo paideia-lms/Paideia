@@ -69,6 +69,7 @@ import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
 import { DevTool } from "./components/dev-tool";
 import { RootErrorBoundary } from "./components/root-mode-error-boundary";
+import { SandboxCountdown } from "./components/sandbox-countdown";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
@@ -650,7 +651,7 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { environment, payload, requestInfo, pageInfo, systemGlobals } =
+	const { environment, payload, requestInfo, pageInfo, systemGlobals, envVars } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
@@ -674,6 +675,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
 	const defaultRadius = systemGlobals.appearanceSettings.radius ?? "sm";
 
+	// Check if sandbox mode is enabled and calculate next reset time
+	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
+	let nextResetTime: string | null = null;
+	if (isSandboxMode) {
+		// Calculate next midnight (00:00:00)
+		const now = new Date();
+		const nextMidnight = new Date(now);
+		nextMidnight.setHours(24, 0, 0, 0); // Set to next midnight
+		nextResetTime = nextMidnight.toISOString();
+	}
+
 	// Check if we need to redirect to first-user creation
 	// Skip redirect check for essential routes
 	if (pageInfo.isRegistration || pageInfo.isLogin || pageInfo.isApi) {
@@ -688,6 +700,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
 			additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
+			isSandboxMode,
+			nextResetTime,
 		};
 	}
 
@@ -725,6 +739,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
 		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		debugData: debugData,
+		isSandboxMode,
+		nextResetTime,
 	};
 }
 
@@ -836,6 +852,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
 		primaryColor,
 		defaultRadius,
 		debugData,
+		isSandboxMode,
+		nextResetTime,
 	} = loaderData;
 
 	// Create theme dynamically with color and radius from appearance settings
@@ -917,6 +935,9 @@ export default function App({ loaderData }: Route.ComponentProps) {
 								<Outlet />
 								<Notifications />
 								{isDevelopment && <DevTool data={debugData} />}
+								{isSandboxMode && nextResetTime && (
+									<SandboxCountdown nextResetTime={nextResetTime} />
+								)}
 							</NuqsAdapter>
 						</ModalsProvider>
 					</CodeHighlightAdapterProvider>

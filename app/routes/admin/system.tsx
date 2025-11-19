@@ -17,6 +17,12 @@ import { detectSystemResources } from "server/utils/bun-system-resources";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/system";
 
+function getServerTimezone() {
+	return Intl.DateTimeFormat().resolvedOptions().timeZone ||
+		process.env.TZ ||
+		"Unknown";
+}
+
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 
@@ -38,12 +44,16 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Detect system resources (dynamic, needs to be refreshed)
 	const systemResources = await detectSystemResources();
 
+	// Get server timezone
+	const serverTimezone = getServerTimezone();
+
 	return {
 		platformInfo,
 		systemResources,
 		bunVersion,
 		bunRevision,
 		packageVersion,
+		serverTimezone,
 	};
 };
 
@@ -215,8 +225,10 @@ function PlatformInfoSection({
 
 function SystemResourcesSection({
 	systemResources,
+	serverTimezone,
 }: {
 	systemResources: SystemResources;
+	serverTimezone: string;
 }) {
 	const memoryStatus = getResourceStatus(systemResources.memory.percentage);
 	const diskStatus = systemResources.disk
@@ -428,6 +440,16 @@ function SystemResourcesSection({
 					</Group>
 				</Box>
 
+				{/* Server Timezone */}
+				<Box>
+					<Text size="sm" fw={500} c="dimmed">
+						Server Timezone
+					</Text>
+					<Text size="lg" fw={600}>
+						{serverTimezone}
+					</Text>
+				</Box>
+
 				{/* Uptime */}
 				<Box>
 					<Text size="sm" fw={500} c="dimmed">
@@ -484,6 +506,7 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 		bunVersion,
 		bunRevision,
 		packageVersion,
+		serverTimezone,
 	} = loaderData;
 	const revalidator = useRevalidator();
 
@@ -529,7 +552,7 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<PlatformInfoSection platformInfo={platformInfo} />
-				<SystemResourcesSection systemResources={systemResources} />
+				<SystemResourcesSection systemResources={systemResources} serverTimezone={serverTimezone} />
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
 					<Stack gap="md">
