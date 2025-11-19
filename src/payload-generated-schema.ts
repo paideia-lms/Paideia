@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type { } from "@payloadcms/db-postgres";
+import type {} from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -1089,7 +1089,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references((): AnyPgColumn => users.id, {
+      .references(() => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {
@@ -1656,6 +1656,16 @@ export const discussion_submissions = pgTable(
     }),
     isPinned: boolean("is_pinned").default(false),
     isLocked: boolean("is_locked").default(false),
+    grade: numeric("grade", { mode: "number" }),
+    feedback: varchar("feedback"),
+    gradedBy: integer("graded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gradedAt: timestamp("graded_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1678,6 +1688,7 @@ export const discussion_submissions = pgTable(
     index("discussion_submissions_student_idx").on(columns.student),
     index("discussion_submissions_enrollment_idx").on(columns.enrollment),
     index("discussion_submissions_parent_thread_idx").on(columns.parentThread),
+    index("discussion_submissions_graded_by_idx").on(columns.gradedBy),
     index("discussion_submissions_updated_at_idx").on(columns.updatedAt),
     index("discussion_submissions_created_at_idx").on(columns.createdAt),
     index("courseModuleLink_2_idx").on(columns.courseModuleLink),
@@ -3215,6 +3226,11 @@ export const relations_discussion_submissions = relations(
     }),
     upvotes: many(discussion_submissions_upvotes, {
       relationName: "upvotes",
+    }),
+    gradedBy: one(users, {
+      fields: [discussion_submissions.gradedBy],
+      references: [users.id],
+      relationName: "gradedBy",
     }),
   }),
 );

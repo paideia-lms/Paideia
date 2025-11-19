@@ -718,6 +718,10 @@ export interface DiscussionSubmission {
   lastActivityAt?: string | null;
   isPinned?: boolean | null;
   isLocked?: boolean | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1795,6 +1799,10 @@ export interface DiscussionSubmissionsSelect<T extends boolean = true> {
   lastActivityAt?: T;
   isPinned?: T;
   isLocked?: T;
+  grade?: T;
+  feedback?: T;
+  gradedBy?: T;
+  gradedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

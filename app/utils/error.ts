@@ -306,6 +306,13 @@ export class FailedToCreateUserGradeError extends Error {
 	}
 }
 
+export class NotImplementedError extends Error {
+	static readonly type = "NotImplementedError";
+	get type() {
+		return NotImplementedError.type;
+	}
+}
+
 export function transformError(error: unknown) {
 	if (
 		process.env.NODE_ENV === "test" ||
@@ -354,6 +361,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof UserNotFoundError) return error;
 	else if (error instanceof EnrollmentCourseMismatchError) return error;
 	else if (error instanceof FailedToCreateUserGradeError) return error;
+	else if (error instanceof NotImplementedError) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }
