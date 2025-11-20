@@ -272,6 +272,7 @@ function GradebookItemRow({
 									maxGrade: item.max_grade,
 									minGrade: item.min_grade,
 									weight: item.weight,
+									adjustedWeight: item.adjusted_weight,
 									extraCredit: item.extra_credit ?? false,
 								}}
 								categoryOptions={categoryOptions}

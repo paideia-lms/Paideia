@@ -107,7 +107,6 @@ describe("Gradebook Category Management", () => {
 			gradebookId: testGradebook.id,
 			name: "Test Category",
 			description: "Test Category Description",
-			weight: 50,
 			sortOrder: 0,
 		});
 
@@ -118,17 +117,6 @@ describe("Gradebook Category Management", () => {
 			expect(result.value.sortOrder).toBe(0);
 			testCategory = result.value;
 		}
-	});
-
-	it("should not create category with invalid weight", async () => {
-		const result = await tryCreateGradebookCategory(payload, {} as Request, {
-			gradebookId: testGradebook.id,
-			name: "Invalid Weight Category",
-			weight: 150, // Invalid: > 100
-			sortOrder: 1,
-		});
-
-		expect(result.ok).toBe(false);
 	});
 
 	it("should not create category with invalid sort order", async () => {
@@ -147,7 +135,6 @@ describe("Gradebook Category Management", () => {
 			parentId: testCategory.id,
 			name: "Test Subcategory",
 			description: "Test Subcategory Description",
-			weight: 25,
 			sortOrder: 0,
 		});
 

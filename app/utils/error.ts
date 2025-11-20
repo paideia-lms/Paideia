@@ -159,6 +159,13 @@ export class WeightExceedsLimitError extends Error {
 	}
 }
 
+export class WeightZeroRequiredError extends Error {
+	static readonly type = "WeightZeroRequiredError";
+	get type() {
+		return WeightZeroRequiredError.type;
+	}
+}
+
 export class NonExistingAssignmentSubmissionError extends Error {
 	static readonly type = "NonExistingAssignmentSubmissionError";
 	get type() {
@@ -340,6 +347,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof InvalidGradeValueError) return error;
 	else if (error instanceof InvalidSortOrderError) return error;
 	else if (error instanceof WeightExceedsLimitError) return error;
+	else if (error instanceof WeightZeroRequiredError) return error;
 	else if (error instanceof NonExistingAssignmentSubmissionError) return error;
 	else if (error instanceof NonExistingQuizSubmissionError) return error;
 	else if (error instanceof NonExistingDiscussionSubmissionError) return error;

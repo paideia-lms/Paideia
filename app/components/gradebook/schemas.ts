@@ -7,7 +7,7 @@ export const createItemSchema = z.object({
 	categoryId: z.coerce.number().optional().nullable(),
 	maxGrade: z.coerce.number().optional(),
 	minGrade: z.coerce.number().optional(),
-	weight: z.coerce.number().nullish(),
+	weight: z.coerce.number().nullable(),
 	extraCredit: z.boolean().optional(),
 });
 
@@ -16,7 +16,6 @@ export const createCategorySchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
 	parentId: z.coerce.number().optional().nullable(),
-	weight: z.coerce.number().nullish(),
 });
 
 export const updateItemSchema = z.object({
@@ -27,7 +26,7 @@ export const updateItemSchema = z.object({
 	categoryId: z.coerce.number().optional().nullable(),
 	maxGrade: z.coerce.number().optional(),
 	minGrade: z.coerce.number().optional(),
-	weight: z.coerce.number().nullish(),
+	weight: z.coerce.number().nullable(),
 	extraCredit: z.boolean().optional(),
 });
 
@@ -36,7 +35,7 @@ export const updateCategorySchema = z.object({
 	categoryId: z.coerce.number(),
 	name: z.string().min(1, "Name is required").optional(),
 	description: z.string().optional(),
-	weight: z.coerce.number().nullish(),
+	weight: z.coerce.number().nullable(),
 });
 
 export const getItemSchema = z.object({

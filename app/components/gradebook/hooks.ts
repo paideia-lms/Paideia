@@ -13,7 +13,7 @@ export function useCreateGradeItem() {
 			categoryId?: number | null;
 			maxGrade?: number;
 			minGrade?: number;
-			weight?: number;
+			weight?: number | null;
 			extraCredit?: boolean;
 		},
 	) => {
@@ -75,7 +75,7 @@ export function useUpdateGradeItem() {
 			categoryId?: number | null;
 			maxGrade?: number;
 			minGrade?: number;
-			weight?: number;
+			weight?: number | null;
 			extraCredit?: boolean;
 		},
 	) => {

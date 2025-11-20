@@ -103,6 +103,13 @@ export const tryCreateGradebookItem = Result.wrap(
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
+		// Validate that extra credit items must have a weight (cannot be null)
+		if (extraCredit && (weight === null || weight === undefined)) {
+			throw new WeightExceedsLimitError(
+				"Extra credit items must have a specified weight (cannot be null or undefined)",
+			);
+		}
+
 		// Validate sort order
 		if (sortOrder < 0) {
 			throw new InvalidSortOrderError("Sort order must be non-negative");
@@ -138,21 +145,18 @@ export const tryCreateGradebookItem = Result.wrap(
 				req: reqWithTransaction,
 			});
 
-			// Validate overall weight total after creation (only if weight > 0 and not extra credit)
-			// Extra credit items can exceed 100%, so we only validate non-extra-credit items
-			if (weight !== undefined && weight !== null && weight > 0 && !extraCredit) {
-				const validateResult = await tryValidateOverallWeightTotal({
-					payload,
-					courseId,
-					user: null,
-					req: reqWithTransaction,
-					overrideAccess: true,
-					errorMessagePrefix: "Item creation",
-				});
+			// Validate overall weight total after creation
+			const validateResult = await tryValidateOverallWeightTotal({
+				payload,
+				courseId,
+				user: null,
+				req: reqWithTransaction,
+				overrideAccess: true,
+				errorMessagePrefix: "Item creation",
+			});
 
-				if (!validateResult.ok) {
-					throw validateResult.error;
-				}
+			if (!validateResult.ok) {
+				throw validateResult.error;
 			}
 
 			// Only commit transaction if we started it (not if it was provided)
@@ -253,6 +257,7 @@ export const tryValidateOverallWeightTotal = Result.wrap(
 		validateGradebookWeights(
 			setup.gradebook_setup.items,
 			"course level",
+			null,
 			errorMessagePrefix,
 		);
 
@@ -320,6 +325,19 @@ export const tryUpdateGradebookItem = Result.wrap(
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
+		// Determine final extra credit value (use provided value or existing value)
+		const finalExtraCredit = extraCredit ?? existingItem.extraCredit ?? false;
+
+		// Determine final weight value (use provided value or existing value)
+		const finalWeight = weight !== undefined ? weight : existingItem.weight;
+
+		// Validate that extra credit items must have a weight (cannot be null)
+		if (finalExtraCredit && (finalWeight === null || finalWeight === undefined)) {
+			throw new WeightExceedsLimitError(
+				"Extra credit items must have a specified weight (cannot be null or undefined)",
+			);
+		}
+
 		// Validate sort order if provided
 		if (sortOrder !== undefined && sortOrder < 0) {
 			throw new InvalidSortOrderError("Sort order must be non-negative");
@@ -377,9 +395,6 @@ export const tryUpdateGradebookItem = Result.wrap(
 			updateData.sortOrder = sortOrder;
 		}
 
-		// Check if weight is being updated - if so, we need to validate overall weights
-		const isWeightUpdate = weight !== undefined;
-
 		// Use existing transaction if provided, otherwise create a new one
 		const transactionWasProvided = !!req?.transactionID;
 		const transactionID =
@@ -404,20 +419,17 @@ export const tryUpdateGradebookItem = Result.wrap(
 				overrideAccess,
 			});
 
-			// If weight was updated, validate that overall weights sum to exactly 100%
-			if (isWeightUpdate) {
-				const validateResult = await tryValidateOverallWeightTotal({
-					payload,
-					courseId: gradebookId,
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-					errorMessagePrefix: "Weight update",
-				});
+			const validateResult = await tryValidateOverallWeightTotal({
+				payload,
+				courseId: gradebookId,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+				errorMessagePrefix: "Weight update",
+			});
 
-				if (!validateResult.ok) {
-					throw validateResult.error;
-				}
+			if (!validateResult.ok) {
+				throw validateResult.error;
 			}
 
 			// Commit transaction only if we created it

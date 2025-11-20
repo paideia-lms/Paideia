@@ -1,13 +1,15 @@
-import { WeightExceedsLimitError } from "~/utils/error";
+import { WeightExceedsLimitError, WeightZeroRequiredError } from "~/utils/error";
 import type { GradebookSetupItem } from "../gradebook-management";
+import { sum } from "es-toolkit"
 
 /**
  * Validates weight distribution at a level (course level or category level)
  * Rules:
  * 1. Filter away extra credit items from the level
- * 2. If auto-weighted items (weight === null) exist in the level, then total of weight items must be <= 100%
- * 3. If auto-weighted items don't exist in the level, then total weight must equal exactly 100%
- * 4. Recursively validates nested categories
+ * 2. If no items left at this level, this level must have weight 0. 
+ * 3. If auto-weighted items (weight === null) exist in the level, then total of weight items must be <= 100%
+ * 4. If auto-weighted items don't exist in the level, then total weight must equal exactly 100%
+ * 5. Recursively validates nested categories
  *
  * @param items - Array of gradebook setup items to validate
  * @param levelName - Name of the level being validated (e.g., "course level", "course level > Category 1")
@@ -17,6 +19,10 @@ import type { GradebookSetupItem } from "../gradebook-management";
 export function validateGradebookWeights(
 	items: GradebookSetupItem[],
 	levelName: string,
+	/** 
+	 * for top level, you can pass null
+	 */
+	levelWeight: number | null,
 	errorMessagePrefix: string = "Operation",
 ): void {
 	// Filter away extra credit items
@@ -24,16 +30,14 @@ export function validateGradebookWeights(
 		(item) => !(item.extra_credit ?? false),
 	);
 
-	// If no non-extra-credit items at this level, skip validation
+	// If no non-extra-credit items at this level, this level must have weight 0
 	if (nonExtraCreditItems.length === 0) {
-		// Still need to recursively validate categories
-		for (const item of items) {
-			if (item.type === "category" && item.grade_items) {
-				const categoryName = `${levelName} > ${item.name}`;
-				validateGradebookWeights(item.grade_items, categoryName, errorMessagePrefix);
-			}
+		if (levelWeight !== 0) {
+			throw new WeightZeroRequiredError(
+				`Level ${levelName} must have weight 0 when no non-extra-credit items exist`,
+			);
 		}
-		return;
+		return
 	}
 
 	// Separate items with specified weights and auto-weighted items
@@ -45,10 +49,13 @@ export function validateGradebookWeights(
 	);
 
 	// Calculate total of specified weights
-	const totalSpecifiedWeight = itemsWithWeight.reduce(
-		(sum, item) => sum + (item.weight ?? 0),
-		0,
-	);
+	// biome-ignore lint/style/noNonNullAssertion: we know that itemsWithWeight are not null
+	const totalSpecifiedWeight = sum(itemsWithWeight.map(item => item.weight!));
+	// console.log("totalSpecifiedWeight", totalSpecifiedWeight);
+	// console.log("autoWeightedItems", autoWeightedItems);
+	// console.log("itemsWithWeight", itemsWithWeight);
+	// console.log("nonExtraCreditItems", nonExtraCreditItems);
+	// console.log("items", items);
 
 	const tolerance = 0.01;
 
@@ -70,9 +77,9 @@ export function validateGradebookWeights(
 
 	// Recursively validate categories
 	for (const item of items) {
-		if (item.type === "category" && item.grade_items) {
+		if (item.type === "category") {
 			const categoryName = `${levelName} > ${item.name}`;
-			validateGradebookWeights(item.grade_items, categoryName, errorMessagePrefix);
+			validateGradebookWeights(item.grade_items ?? [], categoryName, item.weight, errorMessagePrefix);
 		}
 	}
 }

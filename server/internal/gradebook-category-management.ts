@@ -22,7 +22,6 @@ export interface CreateGradebookCategoryArgs {
 	parentId?: number | null;
 	name: string;
 	description?: string;
-	weight?: number | null;
 	sortOrder: number;
 }
 
@@ -68,14 +67,8 @@ export const tryCreateGradebookCategory = Result.wrap(
 			parentId,
 			name,
 			description,
-			weight = 0,
 			sortOrder,
 		} = args;
-
-		// Validate weight
-		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
-			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
-		}
 
 		// Validate sort order
 		if (sortOrder < 0) {
@@ -136,12 +129,12 @@ export const tryCreateGradebookCategory = Result.wrap(
 				parent?: number | null;
 				name: string;
 				description?: string | null;
-				weight: number | null;
+				weight: number;
 				sortOrder: number;
 			} = {
 				gradebook: gradebookId,
 				name,
-				weight,
+				weight: 0, // Categories always start with weight 0
 				sortOrder,
 			};
 
@@ -249,6 +242,21 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			user,
 			req,
 			overrideAccess,
+		}).then((c) => {
+			const items = c.items?.docs?.map(i => {
+				assertZodInternal(
+					"tryUpdateGradebookCategory: Item is required",
+					i,
+					z.object({
+						id: z.number(),
+					}),
+				);
+				return i;
+			});
+			return {
+				...c,
+				items
+			}
 		});
 
 		if (!existingCategory) {
@@ -268,11 +276,22 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
-		console.log("weight", weight);
-
 		// Validate sort order if provided
 		if (sortOrder !== undefined && sortOrder < 0) {
 			throw new InvalidSortOrderError("Sort order must be non-negative");
+		}
+
+		// Check if category has items by checking existing category weight
+		// If weight is 0, the category has no items (categories start with weight 0 and only get weight when they have items)
+		const hasItems = existingCategory.items && existingCategory.items.length > 0;
+
+		// If category has no items and weight is being updated to something other than 0, throw error
+		if (weight !== undefined && !hasItems) {
+			if (weight !== null && weight !== 0) {
+				throw new InvalidArgumentError(
+					"Cannot update category weight when category has no items. Weight must be 0 for empty categories.",
+				);
+			}
 		}
 
 		// Build update data
@@ -317,20 +336,17 @@ export const tryUpdateGradebookCategory = Result.wrap(
 				overrideAccess,
 			});
 
-			// If weight was updated, validate that overall weights sum to exactly 100%
-			if (isWeightUpdate) {
-				const validateResult = await tryValidateOverallWeightTotal({
-					payload,
-					courseId: gradebookId,
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-					errorMessagePrefix: "Category weight update",
-				});
+			const validateResult = await tryValidateOverallWeightTotal({
+				payload,
+				courseId: gradebookId,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+				errorMessagePrefix: "Category weight update",
+			});
 
-				if (!validateResult.ok) {
-					throw validateResult.error;
-				}
+			if (!validateResult.ok) {
+				throw validateResult.error;
 			}
 
 			// Commit transaction only if we created it

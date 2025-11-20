@@ -194,7 +194,6 @@ export const action = async ({
 			parentId: parsedData.data.parentId ?? null,
 			name: parsedData.data.name,
 			description: parsedData.data.description,
-			weight: parsedData.data.weight,
 			sortOrder,
 		});
 
@@ -208,6 +207,7 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-item") {
+		console.log(parsedData.data.weight)
 		const updateResult = await tryUpdateGradebookItem({
 			payload,
 			itemId: parsedData.data.itemId,

@@ -167,7 +167,6 @@ describe("User Grade Management", () => {
 				parentId: null,
 				name: "Test Category",
 				description: "Test Category Description",
-				weight: 60,
 				sortOrder: 0,
 			},
 		);

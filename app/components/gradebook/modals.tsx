@@ -86,8 +86,8 @@ export const CreateGradeItemModal = forwardRef<
 				: undefined,
 			weight: values.overrideWeight && values.weight
 				? Number.parseFloat(values.weight)
-				: undefined,
-			extraCredit: values.extraCredit,
+				: null,
+			extraCredit: values.overrideWeight ? values.extraCredit : false,
 		});
 		form.reset();
 		setOpened(false);
@@ -191,6 +191,7 @@ type UpdateGradeItemButtonProps = {
 		maxGrade: number | null;
 		minGrade: number | null;
 		weight: number | null;
+		adjustedWeight: number | null;
 		extraCredit: boolean;
 	};
 	categoryOptions: Array<{ value: string; label: string }>;
@@ -216,7 +217,7 @@ export function UpdateGradeItemButton({
 			maxGrade: item.maxGrade ? String(item.maxGrade) : "",
 			minGrade: item.minGrade ? String(item.minGrade) : "",
 			overrideWeight: item.weight !== null,
-			weight: item.weight ? String(item.weight) : "",
+			weight: item.weight ? String(item.weight) : String(item.adjustedWeight),
 			extraCredit: item.extraCredit ?? false,
 		},
 		validate: {
@@ -241,8 +242,9 @@ export function UpdateGradeItemButton({
 				: undefined,
 			weight: values.overrideWeight && values.weight
 				? Number.parseFloat(values.weight)
-				: undefined,
-			extraCredit: values.extraCredit,
+				: null,
+
+			extraCredit: values.overrideWeight ? values.extraCredit : false,
 		});
 		setOpened(false);
 	});
@@ -257,7 +259,7 @@ export function UpdateGradeItemButton({
 					maxGrade: item.maxGrade ? String(item.maxGrade) : "",
 					minGrade: item.minGrade ? String(item.minGrade) : "",
 					overrideWeight: item.weight !== null,
-					weight: item.weight ? String(item.weight) : "",
+					weight: item.weight ? String(item.weight) : String(item.adjustedWeight),
 					extraCredit: item.extraCredit ?? false,
 				});
 				form.reset();
@@ -366,21 +368,22 @@ export function UpdateGradeItemModal({
 					/>
 
 					{overrideWeight && (
-						<NumberInput
-							{...form.getInputProps("weight")}
-							key={form.key("weight")}
-							label="Weight (%)"
-							placeholder="Enter weight (optional)"
-							min={0}
-							max={100}
-						/>
+						<>
+							<NumberInput
+								{...form.getInputProps("weight")}
+								key={form.key("weight")}
+								label="Weight (%)"
+								placeholder="Enter weight (optional)"
+								min={0}
+								max={100}
+							/>
+							<Checkbox
+								{...form.getInputProps("extraCredit", { type: "checkbox" })}
+								key={form.key("extraCredit")}
+								label="Extra Credit"
+							/>
+						</>
 					)}
-
-					<Checkbox
-						{...form.getInputProps("extraCredit", { type: "checkbox" })}
-						key={form.key("extraCredit")}
-						label="Extra Credit"
-					/>
 
 					<Group justify="flex-end" gap="xs">
 						<Button variant="default" onClick={onClose} type="button">
@@ -418,16 +421,12 @@ export const CreateCategoryModal = forwardRef<
 			name: "",
 			description: "",
 			parent: "",
-			overrideWeight: false,
-			weight: "",
 		},
 		validate: {
 			name: (value) =>
 				!value || value.trim().length === 0 ? "Name is required" : null,
 		},
 	});
-
-	const overrideWeight = useFormWatchForceUpdate(form, "overrideWeight");
 
 	useImperativeHandle(ref, () => ({
 		open: () => {
@@ -445,9 +444,6 @@ export const CreateCategoryModal = forwardRef<
 			name: values.name,
 			description: values.description || undefined,
 			parentId: parentId && !Number.isNaN(parentId) ? parentId : null,
-			weight: values.overrideWeight && values.weight
-				? Number.parseFloat(values.weight)
-				: null,
 		});
 		form.reset();
 		setOpened(false);
@@ -486,23 +482,6 @@ export const CreateCategoryModal = forwardRef<
 						data={parentOptions}
 						clearable
 					/>
-
-					<Checkbox
-						{...form.getInputProps("overrideWeight", { type: "checkbox" })}
-						key={form.key("overrideWeight")}
-						label="Override Weight"
-					/>
-
-					{overrideWeight && (
-						<NumberInput
-							{...form.getInputProps("weight")}
-							key={form.key("weight")}
-							label="Weight (%)"
-							placeholder="Enter weight (optional)"
-							min={0}
-							max={100}
-						/>
-					)}
 
 					<Group justify="flex-end" gap="xs">
 						<Button variant="default" onClick={() => setOpened(false)} type="button">

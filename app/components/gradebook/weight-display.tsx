@@ -55,7 +55,7 @@ export function WeightDisplay({
 			);
 		}
 	} else if (!hasWeight && hasAdjustedWeight) {
-		displayText = `- (${adjustedWeight.toFixed(2)}%)`;
+		displayText = `auto (${adjustedWeight.toFixed(2)}%)`;
 		tooltipContent = (
 			<Stack gap="xs">
 				<div>
@@ -75,7 +75,7 @@ export function WeightDisplay({
 			</Stack>
 		);
 	} else {
-		displayText = "-";
+		displayText = "auto (0%)";
 		tooltipContent = (
 			<Stack gap="xs">
 				<div>
@@ -138,7 +138,7 @@ export function OverallWeightDisplay({
 	extraCredit?: boolean;
 }) {
 	if (overallWeight === null) {
-		return <Text size="sm">-</Text>;
+		return <Text size="sm">0%</Text>;
 	}
 
 	return (
