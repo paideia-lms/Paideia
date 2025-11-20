@@ -26,7 +26,7 @@ import {
 	tryReorderItems,
 	tryUpdateGradebookItem,
 } from "./gradebook-item-management";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import type { CreateUserArgs } from "./user-management";
 import { tryCreateUser } from "./user-management";
 
@@ -35,7 +35,7 @@ describe("Gradebook Item Management", () => {
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let student: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
-	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
+	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testItem: TryResultValue<typeof tryCreateGradebookItem>;
 	let testItem2: TryResultValue<typeof tryCreateGradebookItem>;
@@ -109,7 +109,7 @@ describe("Gradebook Item Management", () => {
 		testCourse = courseResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId({
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
 			user: null,
@@ -127,8 +127,9 @@ describe("Gradebook Item Management", () => {
 			payload,
 			{} as Request,
 			{
-				gradebookId: testGradebook.id,
+
 				name: "Test Category",
+				gradebookId: testGradebook.id,
 				description: "Test Category Description",
 				weight: 50,
 				sortOrder: 0,
@@ -153,7 +154,7 @@ describe("Gradebook Item Management", () => {
 
 	it("should create a gradebook item", async () => {
 		const result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Item",
 			description: "Test Item Description",
@@ -175,7 +176,8 @@ describe("Gradebook Item Management", () => {
 
 	it("should not create item with invalid grade values", async () => {
 		const result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: testCategory.id,
 			name: "Invalid Item",
 			maxGrade: 50,
@@ -189,7 +191,8 @@ describe("Gradebook Item Management", () => {
 
 	it("should not create item with invalid weight", async () => {
 		const result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: testCategory.id,
 			name: "Invalid Weight Item",
 			weight: 150, // Invalid: > 100
@@ -201,7 +204,8 @@ describe("Gradebook Item Management", () => {
 
 	it("should not create item with invalid sort order", async () => {
 		const result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: testCategory.id,
 			name: "Invalid Sort Item",
 			sortOrder: -1, // Invalid: negative
@@ -241,7 +245,8 @@ describe("Gradebook Item Management", () => {
 	it("should fail to update weight when total would exceed 100%", async () => {
 		// Create first item with 25% weight
 		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: null,
 			name: "First Test Item",
 			weight: 25,
@@ -257,7 +262,8 @@ describe("Gradebook Item Management", () => {
 
 		// Create second item with 25% weight (so total is 25% + 25% = 50%)
 		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: null,
 			name: "Second Test Item",
 			weight: 25,
@@ -312,7 +318,8 @@ describe("Gradebook Item Management", () => {
 	it("should get gradebook items in order", async () => {
 		// Create another item
 		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: testCategory.id,
 			name: "Test Item 2",
 			sortOrder: 1,
@@ -405,7 +412,8 @@ describe("Gradebook Item Management", () => {
 
 	it("should create extra credit gradebook item", async () => {
 		const result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: null, // Extra credit items are typically not in categories
 			name: "Extra Credit Assignment",
 			description: "Optional extra credit work",
@@ -427,7 +435,8 @@ describe("Gradebook Item Management", () => {
 
 	it("should create extra credit item with zero weight", async () => {
 		const result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: null,
 			name: "Participation Extra Credit",
 			description: "Class participation bonus",
@@ -448,7 +457,8 @@ describe("Gradebook Item Management", () => {
 	it("should allow total weight to exceed 100% with extra credit", async () => {
 		// Create multiple extra credit items
 		const extraCredit1 = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: null,
 			name: "Bonus Project",
 			maxGrade: 50,
@@ -459,7 +469,8 @@ describe("Gradebook Item Management", () => {
 		});
 
 		const extraCredit2 = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
+
 			categoryId: null,
 			name: "Research Paper",
 			maxGrade: 30,
@@ -584,7 +595,8 @@ describe("Gradebook Item Management", () => {
 			payload,
 			{} as Request,
 			{
-				gradebookId: testGradebook.id,
+				courseId: testCourse.id,
+
 				categoryId: null,
 				name: "Test Assignment Gradebook Item",
 				description: "Gradebook item for test assignment",

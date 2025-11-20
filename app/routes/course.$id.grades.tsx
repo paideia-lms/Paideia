@@ -17,7 +17,7 @@ import {
 	tryGetNextItemSortOrder,
 	tryUpdateGradebookItem,
 } from "server/internal/gradebook-item-management";
-import { tryFindGradebookByCourseId } from "server/internal/gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "server/internal/gradebook-management";
 import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { GraderReportView } from "~/components/gradebook/report-view";
 import { inputSchema } from "~/components/gradebook/schemas";
@@ -109,7 +109,7 @@ export const action = async ({
 	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get gradebook for this course
-	const gradebookResult = await tryFindGradebookByCourseId(
+	const gradebookResult = await tryGetGradebookByCourseWithDetails(
 		{
 			payload,
 			courseId: Number(courseId),
@@ -153,7 +153,7 @@ export const action = async ({
 
 		// Create gradebook item
 		const createResult = await tryCreateGradebookItem(payload, request, {
-			gradebookId,
+			courseId: Number(courseId),
 			categoryId: parsedData.data.categoryId ?? null,
 			name: parsedData.data.name,
 			description: parsedData.data.description,

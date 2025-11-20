@@ -21,7 +21,7 @@ import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import {
 	tryAddAdjustment,
 	tryBulkUpdateUserGrades,
@@ -51,7 +51,7 @@ describe("User Grade Management", () => {
 	let student: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
 	let testEnrollment: TryResultValue<typeof tryCreateEnrollment>;
-	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
+	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testItem: TryResultValue<typeof tryCreateGradebookItem>;
 	let testItem2: TryResultValue<typeof tryCreateGradebookItem>;
@@ -145,7 +145,7 @@ describe("User Grade Management", () => {
 		testEnrollment = enrollmentResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId({
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
 			user: null,
@@ -180,7 +180,7 @@ describe("User Grade Management", () => {
 
 		// Create test items
 		const itemResult = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Assignment",
 			description: "Test Assignment Description",
@@ -198,7 +198,7 @@ describe("User Grade Management", () => {
 		testItem = itemResult.value;
 
 		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: null,
 			name: "Test Quiz",
 			description: "Test Quiz Description",
@@ -784,7 +784,7 @@ describe("User Grade Management", () => {
 			payload,
 			{} as Request,
 			{
-				gradebookId: testGradebook.id,
+				courseId: testCourse.id,
 				categoryId: null,
 				name: "Extra Credit Project",
 				description: "Optional bonus project",
@@ -849,7 +849,7 @@ describe("User Grade Management", () => {
 			payload,
 			{} as Request,
 			{
-				gradebookId: testGradebook.id,
+				courseId: testCourse.id,
 				categoryId: null,
 				name: "Participation Bonus",
 				description: "Class participation extra credit",

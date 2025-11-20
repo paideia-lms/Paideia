@@ -13,7 +13,7 @@ import {
 	tryReorderCategories,
 	tryUpdateGradebookCategory,
 } from "./gradebook-category-management";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import type { CreateUserArgs } from "./user-management";
 import { tryCreateUser } from "./user-management";
 
@@ -21,7 +21,7 @@ describe("Gradebook Category Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
-	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
+	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testSubCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 
@@ -79,7 +79,7 @@ describe("Gradebook Category Management", () => {
 		testCourse = courseResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId({
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
 			user: null,

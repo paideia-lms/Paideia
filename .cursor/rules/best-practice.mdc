@@ -96,6 +96,9 @@ internal functions must handle transactions if the function is doing multiple mu
 for other function, we don't need to check for transaction, we simply pass the req into payload function call (payload.find) as it is. (if req has transaction ID, good, if not, we let it be). 
 
 
+course and the linked gradebook should always have the same id. so we can use them interchangeably.
+
+
 ## Changelog
 
 changelog should be written in the `changelogs` folder. each changelog should be named like `0001-2025-01-01-feature-or-change-name.md`. the number should be the order of the changelog. the date should be the date of the changelog. the feature name should be the name of the feature. a standard changelog should look like this `changelogs/0016-2025-10-29-assignment-grading-page.md`.

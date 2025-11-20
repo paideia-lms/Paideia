@@ -14,7 +14,7 @@ import {
 	tryDeleteGradebookItem,
 	tryGetNextItemSortOrder,
 } from "./gradebook-item-management";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -106,7 +106,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 
 		if (gradeableTypes.includes(moduleType)) {
 			// Try to get the gradebook for this course
-			const gradebookResult = await tryFindGradebookByCourseId({
+			const gradebookResult = await tryGetGradebookByCourseWithDetails({
 				payload,
 				courseId: course,
 				user: null,
@@ -133,7 +133,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 					payload,
 					request,
 					{
-						gradebookId: gradebook.id,
+						courseId: course,
 						categoryId: null,
 						name: activityModuleDoc.title || "Untitled Activity",
 						description: activityModuleDoc.description || undefined,

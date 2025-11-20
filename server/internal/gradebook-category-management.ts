@@ -168,7 +168,7 @@ export const tryCreateGradebookCategory = Result.wrap(
 			if (weight > 0) {
 				const validateResult = await tryValidateOverallWeightTotal({
 					payload,
-					gradebookId,
+					courseId: gradebookId,
 					user: null,
 					req: reqWithTransaction,
 					overrideAccess: true,
@@ -332,7 +332,7 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			if (isWeightUpdate) {
 				const validateResult = await tryValidateOverallWeightTotal({
 					payload,
-					gradebookId,
+					courseId: gradebookId,
 					user,
 					req: reqWithTransaction,
 					overrideAccess,
@@ -527,7 +527,7 @@ export const tryDeleteGradebookCategory = Result.wrap(
 			// After deletion, validate that overall weights sum to exactly 100%
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
-				gradebookId,
+				courseId: gradebookId,
 				user,
 				req: reqWithTransaction,
 				overrideAccess,

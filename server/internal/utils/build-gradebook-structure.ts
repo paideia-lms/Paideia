@@ -52,7 +52,7 @@ export function buildCategoryStructure(
 	const childCategories = categories.filter((cat) => cat.parent === categoryId);
 
 	// Only process items if we're not at the root level (categoryId !== null)
-	// Root-level items are handled separately in tryGetGradebookJsonRepresentation
+	// Root-level items are handled separately in tryGetGradebookAllRepresentations
 	if (categoryId !== null) {
 		// Get items with this category
 		const categoryItems = items.filter((item) => item.category === categoryId);

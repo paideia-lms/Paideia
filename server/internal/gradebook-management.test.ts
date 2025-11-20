@@ -8,14 +8,9 @@ import { tryCreateCourse } from "./course-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {
-	type GradebookSetupItem,
-	type GradebookSetupItemWithCalculations,
 	tryCreateGradebook,
-	tryFindGradebookByCourseId,
-	tryFindGradebookById,
 	tryGetGradebookByCourseWithDetails,
-	tryGetGradebookJsonRepresentation,
-	tryGetGradebookWithDetails,
+	tryGetGradebookAllRepresentations,
 	tryUpdateGradebook,
 } from "./gradebook-management";
 import type { CreateUserArgs } from "./user-management";
@@ -25,7 +20,7 @@ describe("Gradebook Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
-	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
+	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testItem: TryResultValue<typeof tryCreateGradebookItem>;
 	let testItem2: TryResultValue<typeof tryCreateGradebookItem>;
@@ -84,7 +79,7 @@ describe("Gradebook Management", () => {
 		testCourse = courseResult.value;
 
 		// The course creation already creates a gradebook, so let's get it
-		const gradebookResult = await tryFindGradebookByCourseId({
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
 			user: null,
@@ -118,7 +113,7 @@ describe("Gradebook Management", () => {
 
 		// Create test items
 		const itemResult = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Assignment",
 			description: "Test Assignment Description",
@@ -136,7 +131,7 @@ describe("Gradebook Management", () => {
 		testItem = itemResult.value;
 
 		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: null,
 			name: "Test Manual Item",
 			description: "Test Manual Item Description",
@@ -164,7 +159,7 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should find existing gradebook for a course", async () => {
-		const result = await tryFindGradebookByCourseId({
+		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
 			user: null,
@@ -196,24 +191,9 @@ describe("Gradebook Management", () => {
 		}
 	});
 
-	it("should find gradebook by ID", async () => {
-		const result = await tryFindGradebookById({
-			payload,
-			gradebookId: testGradebook.id,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.id).toBe(testGradebook.id);
-			expect(result.value.course).toBeDefined();
-		}
-	});
 
 	it("should find gradebook by course ID", async () => {
-		const result = await tryFindGradebookByCourseId({
+		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
 			user: null,
@@ -243,22 +223,6 @@ describe("Gradebook Management", () => {
 		}
 	});
 
-	it("should get gradebook with details", async () => {
-		const result = await tryGetGradebookWithDetails({
-			payload,
-			gradebookId: testGradebook.id,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.id).toBe(testGradebook.id);
-			expect(result.value.categories).toBeDefined();
-			expect(result.value.items).toBeDefined();
-		}
-	});
 
 	it("should get gradebook by course with details", async () => {
 		const result = await tryGetGradebookByCourseWithDetails({
@@ -278,9 +242,9 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should get gradebook JSON representation", async () => {
-		const result = await tryGetGradebookJsonRepresentation({
+		const result = await tryGetGradebookAllRepresentations({
 			payload,
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			user: null,
 			req: undefined,
 			overrideAccess: true,
@@ -288,9 +252,9 @@ describe("Gradebook Management", () => {
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) {
-			throw new Error("Failed to get gradebook JSON representation");
+			throw new Error("Failed to get gradebook all representations");
 		}
-		const json = result.value;
+		const json = result.value.json;
 
 		console.log(JSON.stringify(json, null, 2));
 

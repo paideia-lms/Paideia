@@ -12,7 +12,7 @@ import {
 	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import { tryGetGradebookSetupForUI } from "./gradebook-management";
+import { tryGetGradebookAllRepresentations } from "./gradebook-management";
 import type {
 	Enrollment,
 	GradebookItem,
@@ -22,7 +22,7 @@ import type {
 
 export interface ValidateOverallWeightTotalArgs {
 	payload: Payload;
-	gradebookId: number;
+	courseId: number;
 	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
@@ -30,7 +30,7 @@ export interface ValidateOverallWeightTotalArgs {
 }
 
 export interface CreateGradebookItemArgs {
-	gradebookId: number;
+	courseId: number;
 	categoryId?: number | null;
 	name: string;
 	description?: string;
@@ -74,7 +74,7 @@ export interface DeleteGradebookItemArgs {
 export const tryCreateGradebookItem = Result.wrap(
 	async (payload: Payload, request: Request, args: CreateGradebookItemArgs) => {
 		const {
-			gradebookId,
+			courseId,
 			categoryId,
 			name,
 			description,
@@ -123,7 +123,7 @@ export const tryCreateGradebookItem = Result.wrap(
 			const newItem = await payload.create({
 				collection: GradebookItems.slug,
 				data: {
-					gradebook: gradebookId,
+					gradebook: courseId,
 					category: categoryId,
 					name,
 					description,
@@ -142,7 +142,7 @@ export const tryCreateGradebookItem = Result.wrap(
 			if (weight > 0 && !extraCredit) {
 				const validateResult = await tryValidateOverallWeightTotal({
 					payload,
-					gradebookId,
+					courseId,
 					user: null,
 					req: reqWithTransaction,
 					overrideAccess: true,
@@ -226,26 +226,26 @@ export const tryValidateOverallWeightTotal = Result.wrap(
 	async (args: ValidateOverallWeightTotalArgs) => {
 		const {
 			payload,
-			gradebookId,
+			courseId,
 			user = null,
 			req,
 			overrideAccess = false,
 			errorMessagePrefix = "Operation",
 		} = args;
 
-		const setupResult = await tryGetGradebookSetupForUI({
+		const allRepsResult = await tryGetGradebookAllRepresentations({
 			payload,
-			gradebookId,
+			courseId,
 			user,
 			req,
 			overrideAccess,
 		});
 
-		if (!setupResult.ok) {
-			throw setupResult.error;
+		if (!allRepsResult.ok) {
+			throw allRepsResult.error;
 		}
 
-		const setup = setupResult.value;
+		const setup = allRepsResult.value.ui;
 		// baseTotal excludes extra credit items - only sums non-extra-credit items
 		const baseTotal = setup.totals.baseTotal;
 
@@ -410,7 +410,7 @@ export const tryUpdateGradebookItem = Result.wrap(
 			if (isWeightUpdate) {
 				const validateResult = await tryValidateOverallWeightTotal({
 					payload,
-					gradebookId,
+					courseId: gradebookId,
 					user,
 					req: reqWithTransaction,
 					overrideAccess,
@@ -524,7 +524,7 @@ export const tryDeleteGradebookItem = Result.wrap(
 			// After deletion, validate that overall weights sum to exactly 100%
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
-				gradebookId,
+				courseId: gradebookId,
 				user,
 				req: reqWithTransaction,
 				overrideAccess,

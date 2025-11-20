@@ -25,7 +25,7 @@ import type { User, UserGrade } from "../payload-types";
 import { tryListDiscussionSubmissions } from "./discussion-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
-import { tryGetGradebookSetupForUI } from "./gradebook-management";
+import { tryGetGradebookAllRepresentations } from "./gradebook-management";
 
 export interface CreateUserGradeArgs {
 	payload: Payload;
@@ -1852,9 +1852,9 @@ export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
 
 		const baseData = baseResult.value;
 
-		const setupResult = await tryGetGradebookSetupForUI({
+		const allRepsResult = await tryGetGradebookAllRepresentations({
 			payload,
-			gradebookId: baseData.gradebook_id,
+			courseId: baseData.course_id,
 			user: user
 				? ({
 					...user,
@@ -1869,12 +1869,11 @@ export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
 			overrideAccess,
 		});
 
-
-		if (!setupResult.ok) {
-			throw setupResult.error;
+		if (!allRepsResult.ok) {
+			throw allRepsResult.error;
 		}
 
-		const gradebookSetup = setupResult.value;
+		const gradebookSetup = allRepsResult.value.ui;
 
 		// Adjust weights for each item using overall_weight from GradebookSetupForUI
 		const adjustedItems = baseData.enrollment.items.map((item) => {

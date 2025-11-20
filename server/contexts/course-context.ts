@@ -14,11 +14,8 @@ import {
 	type GradebookJsonRepresentation,
 	type GradebookSetupForUI,
 	type GradebookSetupItemWithCalculations,
+	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
-	tryGetGradebookJsonRepresentation,
-	tryGetGradebookMarkdownRepresentation,
-	tryGetGradebookSetupForUI,
-	tryGetGradebookYAMLRepresentation,
 } from "server/internal/gradebook-management";
 import { canAccessCourse } from "server/utils/permissions";
 import { Result } from "typescript-result";
@@ -57,12 +54,12 @@ export type Enrollment = {
 	role: "student" | "teacher" | "ta" | "manager";
 	status: "active" | "inactive" | "completed" | "dropped";
 	avatar:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+	}
+	| null;
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	groups: Group[];
@@ -89,12 +86,12 @@ type ActivityModule = {
 		firstName?: string | null;
 		lastName?: string | null;
 		avatar:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-			  }
-			| null;
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+		}
+		| null;
 	};
 	updatedAt: string;
 	createdAt: string;
@@ -138,12 +135,12 @@ export interface Course {
 	};
 	category?: Category | null;
 	thumbnail?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+	}
+	| null;
 	updatedAt: string;
 	createdAt: string;
 	enrollments: Enrollment[];
@@ -189,10 +186,10 @@ export const tryGetCourseContext = async (
 		courseId: courseId,
 		user: user
 			? {
-					...user,
-					collection: "users",
-					avatar: user.avatar?.id,
-				}
+				...user,
+				collection: "users",
+				avatar: user.avatar?.id,
+			}
 			: null,
 		// ! we cannot use overrideAccess true here
 	});
@@ -247,29 +244,29 @@ export const tryGetCourseContext = async (
 			lastName: course.createdBy.lastName,
 			avatar: course.createdBy.avatar
 				? {
-						id: course.createdBy.avatar.id,
-						filename: course.createdBy.avatar.filename,
-					}
+					id: course.createdBy.avatar.id,
+					filename: course.createdBy.avatar.filename,
+				}
 				: null,
 		},
 		category: course.category
 			? {
-					id: course.category.id,
-					name: course.category.name,
-					parent: course.category.parent
-						? {
-								id: course.category.parent.id,
-								name: course.category.parent.name,
-							}
-						: null,
-				}
+				id: course.category.id,
+				name: course.category.name,
+				parent: course.category.parent
+					? {
+						id: course.category.parent.id,
+						name: course.category.parent.name,
+					}
+					: null,
+			}
 			: null,
 		thumbnail: course.thumbnail
 			? typeof course.thumbnail === "object"
 				? {
-						id: course.thumbnail.id,
-						filename: course.thumbnail.filename,
-					}
+					id: course.thumbnail.id,
+					filename: course.thumbnail.filename,
+				}
 				: course.thumbnail
 			: null,
 		updatedAt: course.updatedAt,
@@ -313,35 +310,35 @@ export const tryGetCourseContext = async (
 	const linksResult = await tryFindLinksByCourse(payload, courseId);
 	const moduleLinks = linksResult.ok
 		? linksResult.value.map((link) => ({
-				id: link.id,
-				activityModule: {
-					id: link.activityModule.id,
-					title: link.activityModule.title || "",
-					description: link.activityModule.description || "",
-					type: link.activityModule.type as
-						| "page"
-						| "whiteboard"
-						| "assignment"
-						| "quiz"
-						| "discussion",
-					status: link.activityModule.status as
-						| "draft"
-						| "published"
-						| "archived",
-					createdBy: {
-						id: link.activityModule.createdBy.id,
-						email: link.activityModule.createdBy.email,
-						firstName: link.activityModule.createdBy.firstName,
-						lastName: link.activityModule.createdBy.lastName,
-						avatar: link.activityModule.createdBy.avatar ?? null,
-					},
-					updatedAt: link.activityModule.updatedAt,
-					createdAt: link.activityModule.createdAt,
+			id: link.id,
+			activityModule: {
+				id: link.activityModule.id,
+				title: link.activityModule.title || "",
+				description: link.activityModule.description || "",
+				type: link.activityModule.type as
+					| "page"
+					| "whiteboard"
+					| "assignment"
+					| "quiz"
+					| "discussion",
+				status: link.activityModule.status as
+					| "draft"
+					| "published"
+					| "archived",
+				createdBy: {
+					id: link.activityModule.createdBy.id,
+					email: link.activityModule.createdBy.email,
+					firstName: link.activityModule.createdBy.firstName,
+					lastName: link.activityModule.createdBy.lastName,
+					avatar: link.activityModule.createdBy.avatar ?? null,
 				},
-				settings: link.settings as CourseActivityModuleLink["settings"],
-				createdAt: link.createdAt,
-				updatedAt: link.updatedAt,
-			}))
+				updatedAt: link.activityModule.updatedAt,
+				createdAt: link.activityModule.createdAt,
+			},
+			settings: link.settings as CourseActivityModuleLink["settings"],
+			createdAt: link.createdAt,
+			updatedAt: link.updatedAt,
+		}))
 		: [];
 
 	// Update course with moduleLinks
@@ -388,10 +385,10 @@ export const tryGetCourseContext = async (
 		courseId,
 		user: user
 			? {
-					...user,
-					collection: "users",
-					avatar: user.avatar?.id,
-				}
+				...user,
+				collection: "users",
+				avatar: user.avatar?.id,
+			}
 			: null,
 		req: undefined,
 		overrideAccess: false,
@@ -408,85 +405,32 @@ export const tryGetCourseContext = async (
 		const gradebook = gradebookResult.value;
 		gradebookData = gradebook as GradebookData;
 
-		// Fetch gradebook JSON representation (raw database data, no calculations)
-		const gradebookJsonResult = await tryGetGradebookJsonRepresentation({
+		// Fetch all gradebook representations in a single call (more efficient)
+		const allRepresentationsResult = await tryGetGradebookAllRepresentations({
 			payload,
-			gradebookId: gradebook.id,
+			courseId,
 			user: user
 				? {
-						...user,
-						collection: "users",
-						avatar: user.avatar?.id,
-					}
+					...user,
+					collection: "users",
+					avatar: user.avatar?.id,
+				}
 				: null,
 			req: undefined,
 			overrideAccess: false,
 		});
 
-		if (gradebookJsonResult.ok) {
-			gradebookJsonData = gradebookJsonResult.value;
+		if (allRepresentationsResult.ok) {
+			const allReps = allRepresentationsResult.value;
+			gradebookJsonData = allReps.json;
+			gradebookYamlData = allReps.yaml;
+			gradebookMarkdownData = allReps.markdown;
+			gradebookSetupForUIData = allReps.ui;
 
-			// Fetch gradebook setup for UI (includes calculations)
-			const gradebookSetupForUIResult = await tryGetGradebookSetupForUI({
-				payload,
-				gradebookId: gradebook.id,
-				user: user
-					? {
-							...user,
-							collection: "users",
-							avatar: user.avatar?.id,
-						}
-					: null,
-				req: undefined,
-				overrideAccess: false,
-			});
-
-			if (gradebookSetupForUIResult.ok) {
-				gradebookSetupForUIData = gradebookSetupForUIResult.value;
-
-				// Flatten categories from gradebook setup
-				flattenedCategoriesData = flattenGradebookCategories(
-					gradebookSetupForUIData.gradebook_setup.items,
-				);
-			}
-
-			// Fetch gradebook YAML representation (built on top of JSON, no calculations)
-			const gradebookYamlResult = await tryGetGradebookYAMLRepresentation({
-				payload,
-				gradebookId: gradebook.id,
-				user: user
-					? {
-							...user,
-							collection: "users",
-							avatar: user.avatar?.id,
-						}
-					: null,
-				req: undefined,
-				overrideAccess: false,
-			});
-
-			if (gradebookYamlResult.ok) {
-				gradebookYamlData = gradebookYamlResult.value;
-			}
-
-			// Fetch gradebook Markdown representation (built on top of UI setup, includes calculations)
-			const gradebookMarkdownResult = await tryGetGradebookMarkdownRepresentation({
-				payload,
-				gradebookId: gradebook.id,
-				user: user
-					? {
-							...user,
-							collection: "users",
-							avatar: user.avatar?.id,
-						}
-					: null,
-				req: undefined,
-				overrideAccess: false,
-			});
-
-			if (gradebookMarkdownResult.ok) {
-				gradebookMarkdownData = gradebookMarkdownResult.value;
-			}
+			// Flatten categories from gradebook setup
+			flattenedCategoriesData = flattenGradebookCategories(
+				gradebookSetupForUIData.gradebook_setup.items,
+			);
 		}
 	}
 
