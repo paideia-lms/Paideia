@@ -1095,13 +1095,13 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 
 				if (category?.weight) {
 					// Item weight is a percentage of the category weight
-					effectiveWeight = (gradebookItem.weight / 100) * category.weight;
+					effectiveWeight = (gradebookItem.weight ?? 0 / 100) * category.weight;
 				}
 			}
 
 			hasGradedItems = true;
-			totalWeight += effectiveWeight;
-			weightedSum += finalGrade * effectiveWeight;
+			totalWeight += effectiveWeight ?? 0;
+			weightedSum += finalGrade * (effectiveWeight ?? 0);
 		}
 
 		if (!hasGradedItems || totalWeight === 0) {
@@ -1320,7 +1320,7 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 		gradebookItems: Array<{
 			id: number;
 			name: string;
-			weight: number;
+			weight: number | null;
 			maxGrade: number;
 			minGrade: number;
 			category?:
@@ -1400,10 +1400,10 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 					})
 					: item.category;
 
-			// Calculate effective weight
-			let effectiveWeight = item.weight;
+			// Calculate effective weight, effective weight cannot be null
+			let effectiveWeight = item.weight ?? 0;
 			if (category?.weight) {
-				effectiveWeight = (item.weight / 100) * category.weight;
+				effectiveWeight = (item.weight ?? 0 / 100) * category.weight;
 			}
 
 			const itemType = Array.isArray(item.activityModuleType)
@@ -1545,17 +1545,41 @@ export const tryGetUserGradesJsonRepresentation = Result.wrap(
 			depth: 1, // Get category details
 			limit: 999999,
 			sort: "sortOrder",
+			pagination: false,
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(({ docs }) => {
+			// type narrowing
+			return docs.map((item) => {
+				const category = item.category;
+				assertZodInternal(
+					"tryGetUserGradesJsonRepresentation: Category is required",
+					category,
+					z.object({
+						id: z.number(),
+					}).nullable(),
+				);
 
+				assertZodInternal(
+					"tryGetUserGradesJsonRepresentation: Weight is required",
+					item.weight,
+					z.number().nullable(),
+				);
+
+				return {
+					...item,
+					category: category,
+					weight: item.weight,
+				};
+			});
+		});
 		// Get all user grades for this gradebook
 		const userGrades = await payload.find({
 			collection: UserGrades.slug,
 			where: {
 				gradebookItem: {
-					in: gradebookItems.docs.map((item) => item.id),
+					in: gradebookItems.map((item) => item.id),
 				},
 			},
 			depth: 2, // Get enrollment and gradebook item details
@@ -1590,7 +1614,7 @@ export const tryGetUserGradesJsonRepresentation = Result.wrap(
 				payload,
 				enrollment,
 				gradebookId,
-				gradebookItems: gradebookItems.docs,
+				gradebookItems: gradebookItems,
 				gradesByEnrollment,
 				user,
 				req,
@@ -1704,6 +1728,25 @@ export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
 			user,
 			req,
 			overrideAccess,
+		}).then(({ docs }) => {
+			return docs.map((item) => {
+				const category = item.category;
+				assertZodInternal(
+					"tryGetSingleUserGradesJsonRepresentation: Category is required",
+					category,
+					z.number().nullable(),
+				);
+				assertZodInternal(
+					"tryGetSingleUserGradesJsonRepresentation: Weight is required",
+					item.weight,
+					z.number().nullable(),
+				);
+				return {
+					...item,
+					category: category,
+					weight: item.weight,
+				};
+			});
 		});
 
 		// Get all user grades for this enrollment
@@ -1718,7 +1761,7 @@ export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
 					},
 					{
 						gradebookItem: {
-							in: gradebookItems.docs.map((item) => item.id),
+							in: gradebookItems.map((item) => item.id),
 						},
 					},
 				],
@@ -1752,7 +1795,7 @@ export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
 			payload,
 			enrollment,
 			gradebookId,
-			gradebookItems: gradebookItems.docs,
+			gradebookItems: gradebookItems,
 			gradesByEnrollment,
 			user,
 			req,

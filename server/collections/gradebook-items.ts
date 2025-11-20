@@ -73,10 +73,9 @@ export const GradebookItems = {
 			min: 0,
 		},
 		{
+			// weight can null 
 			name: "weight",
 			type: "number",
-			required: true,
-			defaultValue: 0,
 			label: "Weight (%)",
 			min: 0,
 			max: 100,

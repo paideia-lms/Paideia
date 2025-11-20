@@ -528,7 +528,7 @@ function SingleUserGradeTableView({
     timeZone?: string;
     gradebookSetupForUI: {
         gradebook_setup: { items: GradebookSetupItem[] };
-    } | null;
+    };
 }) {
     const { enrollment, course_id } = data;
     const [expandedCategoryIds, setExpandedCategoryIds] = useState<number[]>([]);
@@ -547,32 +547,11 @@ function SingleUserGradeTableView({
     );
 
     // Match items to nested structure if gradebook setup is available
-    const nestedItems: GradeItemWithData[] = gradebookSetupForUI
-        ? matchItemsToStructure(
+    const nestedItems: GradeItemWithData[] =
+        matchItemsToStructure(
             gradebookSetupForUI.gradebook_setup.items,
             gradeItemsMap,
-        )
-        : // Fallback to flat structure if no gradebook setup
-        enrollment.items.map((item) => ({
-            id: item.item_id,
-            type: item.item_type,
-            name: item.item_name,
-            weight: item.weight,
-            adjusted_weight: null,
-            overall_weight: null,
-            weight_explanation: null,
-            max_grade: item.max_grade,
-            gradeData: {
-                base_grade: item.base_grade ?? null,
-                override_grade: item.override_grade ?? null,
-                is_overridden: item.is_overridden,
-                feedback: item.feedback ?? null,
-                graded_at: item.graded_at ?? null,
-                submitted_at: item.submitted_at ?? null,
-                status: item.status,
-                adjustments: item.adjustments ?? [],
-            },
-        }));
+        );
 
     // Helper function to recursively collect all leaf items (non-category items)
     const collectLeafItems = (items: GradeItemWithData[]): GradeItemWithData[] => {

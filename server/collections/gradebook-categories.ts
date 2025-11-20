@@ -33,7 +33,6 @@ export const GradebookCategories = {
 			name: "weight",
 			type: "number",
 			label: "Weight (%)",
-			defaultValue: 0,
 			min: 0,
 			max: 100,
 		},

@@ -926,7 +926,7 @@ export interface GradebookItem {
   activityModuleType?: string | null;
   maxGrade: number;
   minGrade: number;
-  weight: number;
+  weight?: number | null;
   extraCredit?: boolean | null;
   userGrades?: {
     docs?: (number | UserGrade)[];

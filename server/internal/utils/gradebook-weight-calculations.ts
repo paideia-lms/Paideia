@@ -34,10 +34,11 @@ export function calculateAdjustedWeights(
 		);
 
 		// Only calculate weight distribution for non-extra-credit items
+		// Separate items with specified weights and auto-weighted items (weight === null)
 		const itemsWithWeight = nonExtraCreditItems.filter(
 			(item) => item.weight !== null,
 		);
-		const itemsWithoutWeight = nonExtraCreditItems.filter(
+		const autoWeightedItems = nonExtraCreditItems.filter(
 			(item) => item.weight === null,
 		);
 
@@ -48,8 +49,8 @@ export function calculateAdjustedWeights(
 
 		const remainingWeight = Math.max(0, 100 - totalSpecifiedWeight);
 		const distributedWeightPerItem =
-			itemsWithoutWeight.length > 0
-				? remainingWeight / itemsWithoutWeight.length
+			autoWeightedItems.length > 0
+				? remainingWeight / autoWeightedItems.length
 				: 0;
 
 		// Check if this item is extra credit
@@ -63,9 +64,11 @@ export function calculateAdjustedWeights(
 			// Non-extra-credit item with specified weight, use it as adjusted weight
 			processedItem.adjusted_weight = item.weight;
 		} else {
-			// Non-extra-credit item without specified weight, use distributed weight
+			// Non-extra-credit item without specified weight (auto-weighted), use distributed weight
+			// If there are auto-weighted items and remaining weight > 0, distribute it
+			// Otherwise, set to null (no weight available for distribution)
 			processedItem.adjusted_weight =
-				itemsWithoutWeight.length > 0 && distributedWeightPerItem > 0
+				autoWeightedItems.length > 0 && distributedWeightPerItem > 0
 					? distributedWeightPerItem
 					: null;
 		}
@@ -78,7 +81,7 @@ export function calculateAdjustedWeights(
 
 /**
  * Calculates overall weight for all items in a gradebook structure
- * Overall weight = item_adjusted_weight * parent_category_adjusted_weight * ... * root_category_adjusted_weight
+ * Effective weight = item_adjusted_weight * parent_category_adjusted_weight * ... * root_category_adjusted_weight
  * Only calculated for leaf items (not categories)
  * Example: If category is 35% and item is 10%, overall = 35% * 10% = 3.5%
  *

@@ -126,7 +126,7 @@ function buildLeafItemsList(items: GradebookJsonItem[]): LeafItem[] {
 /**
  * Gets the color for a grade item type (matches setup-view.tsx)
  */
-function getTypeColor(type: string): string {
+export function getTypeColor(type: string): string {
 	switch (type) {
 		case "assignment":
 			return "blue";

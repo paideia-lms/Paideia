@@ -1235,7 +1235,7 @@ export const gradebook_categories = pgTable(
     ),
     name: varchar("name").notNull(),
     description: varchar("description"),
-    weight: numeric("weight", { mode: "number" }).default(0),
+    weight: numeric("weight", { mode: "number" }),
     sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1285,7 +1285,7 @@ export const gradebook_items = pgTable(
     ),
     maxGrade: numeric("max_grade", { mode: "number" }).notNull().default(100),
     minGrade: numeric("min_grade", { mode: "number" }).notNull().default(0),
-    weight: numeric("weight", { mode: "number" }).notNull().default(0),
+    weight: numeric("weight", { mode: "number" }),
     extraCredit: boolean("extra_credit").default(false),
     updatedAt: timestamp("updated_at", {
       mode: "string",

@@ -22,7 +22,7 @@ export interface CreateGradebookCategoryArgs {
 	parentId?: number | null;
 	name: string;
 	description?: string;
-	weight?: number;
+	weight?: number | null;
 	sortOrder: number;
 }
 
@@ -31,7 +31,7 @@ export interface UpdateGradebookCategoryArgs {
 	categoryId: number;
 	name?: string;
 	description?: string;
-	weight?: number;
+	weight?: number | null;
 	sortOrder?: number;
 	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
@@ -73,7 +73,7 @@ export const tryCreateGradebookCategory = Result.wrap(
 		} = args;
 
 		// Validate weight
-		if (weight < 0 || weight > 100) {
+		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
@@ -136,7 +136,7 @@ export const tryCreateGradebookCategory = Result.wrap(
 				parent?: number | null;
 				name: string;
 				description?: string | null;
-				weight: number;
+				weight: number | null;
 				sortOrder: number;
 			} = {
 				gradebook: gradebookId,
@@ -164,21 +164,10 @@ export const tryCreateGradebookCategory = Result.wrap(
 				req: reqWithTransaction,
 			});
 
-			// Validate overall weight total after creation (only if weight > 0)
-			if (weight > 0) {
-				const validateResult = await tryValidateOverallWeightTotal({
-					payload,
-					courseId: gradebookId,
-					user: null,
-					req: reqWithTransaction,
-					overrideAccess: true,
-					errorMessagePrefix: "Category creation",
-				});
-
-				if (!validateResult.ok) {
-					throw validateResult.error;
-				}
-			}
+			// Note: We don't validate overall weight total for categories because:
+			// 1. Categories don't directly contribute to overall weight - only their child items do
+			// 2. It's valid to have a category with no items (0% total) as an intermediate state
+			// 3. Validation will happen when items are created/updated, which is when overall weight matters
 
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
@@ -275,7 +264,7 @@ export const tryUpdateGradebookCategory = Result.wrap(
 				: existingCategory.gradebook.id;
 
 		// Validate weight if provided
-		if (weight !== undefined && (weight < 0 || weight > 100)) {
+		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 

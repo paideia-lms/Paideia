@@ -60,6 +60,9 @@ export interface GradebookSetupItem {
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
+	min_grade: number | null;
+	description: string | null;
+	category_id: number | null;
 	extra_credit?: boolean; // Extra credit items don't affect weight distribution
 	grade_items?: GradebookSetupItem[];
 	activityModuleLinkId?: number | null; // Link ID to course-activity-module-links if this item is linked to an activity module
@@ -744,11 +747,13 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 			gradebook: item.gradebook,
 			category: item.category ?? null,
 			name: item.name,
+			description: item.description ?? null,
 			activityModuleType: item.activityModuleType,
 			activityModuleName: item.activityModuleName,
 			activityModuleLinkId: item.activityModule ?? null,
-			weight: item.weight,
+			weight: item.weight ?? null,
 			maxGrade: item.maxGrade,
+			minGrade: item.minGrade ?? null,
 			extraCredit: item.extraCredit ?? false,
 		})) satisfies ItemData[];
 
@@ -771,6 +776,9 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 				name: item.activityModuleName ?? item.name,
 				weight: item.weight ?? null,
 				max_grade: item.maxGrade ?? null,
+				min_grade: item.minGrade ?? null,
+				description: item.description ?? null,
+				category_id: null, // Root items don't have a category
 				extra_credit: item.extraCredit ?? false,
 				activityModuleLinkId: item.activityModuleLinkId ?? null,
 			});
@@ -824,9 +832,17 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 		};
 
 		// Convert JSON to YAML using Bun.YAML.stringify
+		// Create a modified version without gradebook_id since it's the same as course_id
+		const yamlData = {
+			...jsonData,
+			gradebook_id: undefined,
+		};
+		// Remove undefined property
+		delete (yamlData as { gradebook_id?: number }).gradebook_id;
+
 		let yamlString: string;
 		try {
-			yamlString = Bun.YAML?.stringify(jsonData, null, 2);
+			yamlString = Bun.YAML?.stringify(yamlData, null, 2);
 			if (!yamlString) {
 				throw new UnknownError("Bun.YAML is not available");
 			}
@@ -839,9 +855,7 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 		// Build Markdown representation
 		const header = `# Grade Report
 
-**Course:** Course ID ${uiData.course_id}
-
-**Gradebook ID:** ${uiData.gradebook_id}
+**Course ID:** ${uiData.course_id}
 
 ## Grade Summary
 

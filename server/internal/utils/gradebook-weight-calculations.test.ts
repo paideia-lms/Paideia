@@ -18,6 +18,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 1",
 					weight: 40,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 2,
@@ -25,6 +28,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 2",
 					weight: 60,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 			];
 
@@ -47,6 +53,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 1",
 					weight: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 2,
@@ -54,6 +63,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 2",
 					weight: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 			];
 
@@ -77,6 +89,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 1",
 					weight: 40,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 2,
@@ -84,6 +99,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 2",
 					weight: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 3,
@@ -91,6 +109,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 3",
 					weight: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 			];
 
@@ -117,6 +138,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Category 1",
 					weight: 50,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -124,6 +148,9 @@ describe("Gradebook Weight Calculations", () => {
 							name: "Item 1",
 							weight: 60,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 3,
@@ -131,6 +158,9 @@ describe("Gradebook Weight Calculations", () => {
 							name: "Item 2",
 							weight: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					],
 				},
@@ -164,6 +194,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 1",
 					weight: 40,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 2,
@@ -171,6 +204,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 2",
 					weight: 60,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 3,
@@ -178,6 +214,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Extra Credit Item",
 					weight: 5,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					extra_credit: true,
 				},
 			];
@@ -209,6 +248,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 1",
 					weight: 40,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 2,
@@ -216,6 +258,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Item 2",
 					weight: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 3,
@@ -223,6 +268,9 @@ describe("Gradebook Weight Calculations", () => {
 					name: "Extra Credit Item",
 					weight: 10,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					extra_credit: true,
 				},
 			];
@@ -257,6 +305,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 			];
 
@@ -286,6 +337,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -296,6 +350,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 3,
@@ -306,6 +363,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -355,6 +415,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -412,6 +475,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -422,6 +488,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					],
 				},
@@ -456,6 +525,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 			];
 
@@ -482,6 +554,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -492,6 +567,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 3,
@@ -502,6 +580,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -514,6 +595,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 			];
 
@@ -539,6 +623,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -549,6 +636,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 3,
@@ -559,6 +649,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -571,6 +664,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 5,
@@ -581,6 +677,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					extra_credit: true,
 				},
 			];
@@ -616,6 +715,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -626,6 +728,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 3,
@@ -636,6 +741,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -648,6 +756,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 5,
@@ -658,6 +769,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 6,
@@ -668,6 +782,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -680,6 +797,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 8,
@@ -690,6 +810,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -724,6 +847,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 2,
@@ -734,6 +860,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 				},
 				{
 					id: 3,
@@ -744,6 +873,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: 100,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					extra_credit: true,
 				},
 			];
@@ -784,6 +916,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 2,
@@ -794,6 +929,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 3,
@@ -804,6 +942,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -816,6 +957,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 5,
@@ -826,6 +970,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 						{
 							id: 6,
@@ -836,6 +983,9 @@ describe("Gradebook Weight Calculations", () => {
 							overall_weight: null,
 							weight_explanation: null,
 							max_grade: 100,
+							min_grade: null,
+							description: null,
+							category_id: null,
 						},
 					] as GradebookSetupItemWithCalculations[],
 				},
@@ -848,6 +998,9 @@ describe("Gradebook Weight Calculations", () => {
 					overall_weight: null,
 					weight_explanation: null,
 					max_grade: null,
+					min_grade: null,
+					description: null,
+					category_id: null,
 					grade_items: [
 						{
 							id: 8,

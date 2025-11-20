@@ -147,7 +147,7 @@ export function OverallWeightDisplay({
 				<Stack gap="xs">
 					<div>
 						<Text size="xs" fw={700}>
-							Overall weight: {overallWeight.toFixed(2)}% of course
+							Effective weight: {overallWeight.toFixed(2)}% of course
 						</Text>
 					</div>
 					{weightExplanation ? (

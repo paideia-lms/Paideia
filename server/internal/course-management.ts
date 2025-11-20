@@ -226,7 +226,6 @@ export const tryCreateCourse = Result.wrap(
 				}
 			});
 
-			console.log("gradebookResult.course", gradebookResult.course, "newCourse.id", newCourse.id);
 			if (gradebookResult.course !== newCourse.id) {
 				throw new DevelopmentError("tryCreateCourse: Gradebook course ID does not match course ID");
 			}

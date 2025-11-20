@@ -22,6 +22,7 @@ import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
 	CourseStructureNotFoundError,
+	UnknownError,
 } from "~/utils/error";
 import type {
 	Gradebook,
@@ -166,7 +167,7 @@ export interface CourseContext {
 	gradebookJson: GradebookJsonRepresentation | null;
 	gradebookYaml: string | null;
 	gradebookMarkdown: string | null;
-	gradebookSetupForUI: GradebookSetupForUI | null;
+	gradebookSetupForUI: GradebookSetupForUI;
 	flattenedCategories: FlattenedCategory[];
 }
 
@@ -432,6 +433,12 @@ export const tryGetCourseContext = async (
 				gradebookSetupForUIData.gradebook_setup.items,
 			);
 		}
+	}
+
+	if (!gradebookSetupForUIData) {
+		return Result.error(
+			new UnknownError("Failed to get gradebook setup for UI"),
+		);
 	}
 
 	return Result.ok({

@@ -103,7 +103,7 @@ export function useUpdateGradeItem() {
 export function useUpdateGradeCategory() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateGradeCategory = (
+	const updateGradeCategory = async (
 		categoryId: number,
 		values: {
 			name?: string;
@@ -116,7 +116,7 @@ export function useUpdateGradeCategory() {
 			categoryId,
 			...values,
 		};
-		fetcher.submit(submissionData, {
+		await fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
 		});

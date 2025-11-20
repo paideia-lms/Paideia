@@ -13,6 +13,7 @@ import {
 	WeightExceedsLimitError,
 } from "~/utils/error";
 import { tryGetGradebookAllRepresentations } from "./gradebook-management";
+import { validateGradebookWeights } from "./utils/validate-gradebook-weights";
 import type {
 	Enrollment,
 	GradebookItem,
@@ -37,7 +38,7 @@ export interface CreateGradebookItemArgs {
 	activityModuleId?: number | null;
 	maxGrade?: number;
 	minGrade?: number;
-	weight?: number;
+	weight?: number | null;
 	extraCredit?: boolean;
 	sortOrder: number;
 	transactionID?: string | number; // Optional transaction ID for nested transactions
@@ -52,7 +53,7 @@ export interface UpdateGradebookItemArgs {
 	activityModuleId?: number | null;
 	maxGrade?: number;
 	minGrade?: number;
-	weight?: number;
+	weight?: number | null;
 	extraCredit?: boolean;
 	sortOrder?: number;
 	user?: TypedUser | null;
@@ -81,7 +82,7 @@ export const tryCreateGradebookItem = Result.wrap(
 			activityModuleId,
 			maxGrade = 100,
 			minGrade = 0,
-			weight = 0,
+			weight,
 			extraCredit = false,
 			sortOrder,
 		} = args;
@@ -98,7 +99,7 @@ export const tryCreateGradebookItem = Result.wrap(
 		}
 
 		// Validate weight
-		if (weight < 0 || weight > 100) {
+		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
@@ -139,7 +140,7 @@ export const tryCreateGradebookItem = Result.wrap(
 
 			// Validate overall weight total after creation (only if weight > 0 and not extra credit)
 			// Extra credit items can exceed 100%, so we only validate non-extra-credit items
-			if (weight > 0 && !extraCredit) {
+			if (weight !== undefined && weight !== null && weight > 0 && !extraCredit) {
 				const validateResult = await tryValidateOverallWeightTotal({
 					payload,
 					courseId,
@@ -217,10 +218,11 @@ export const tryCreateGradebookItem = Result.wrap(
 );
 
 /**
- * Validates that the overall weight total equals exactly 100%
- * Note: This validates baseTotal, which excludes extra credit items.
- * Extra credit items are allowed to push the total above 100%, but
- * non-extra-credit items must always sum to exactly 100%.
+ * Validates weight distribution at course level and all category levels recursively
+ * Rules:
+ * 1. Filter away extra credit items from each level
+ * 2. If auto-weighted items (weight === null) exist in the level, then total of weight items must be <= 100%
+ * 3. If auto-weighted items don't exist in the level, then total weight must equal exactly 100%
  */
 export const tryValidateOverallWeightTotal = Result.wrap(
 	async (args: ValidateOverallWeightTotalArgs) => {
@@ -246,19 +248,15 @@ export const tryValidateOverallWeightTotal = Result.wrap(
 		}
 
 		const setup = allRepsResult.value.ui;
-		// baseTotal excludes extra credit items - only sums non-extra-credit items
-		const baseTotal = setup.totals.baseTotal;
 
-		// Check if baseTotal equals exactly 100 (with small tolerance for floating point)
-		// This ensures non-extra-credit items always sum to 100%
-		const tolerance = 0.01;
-		if (Math.abs(baseTotal - 100) > tolerance) {
-			throw new WeightExceedsLimitError(
-				`${errorMessagePrefix} would result in total overall weight of ${baseTotal.toFixed(2)}%. Total must equal exactly 100%.`,
-			);
-		}
+		// Validate weights at course level and all category levels recursively
+		validateGradebookWeights(
+			setup.gradebook_setup.items,
+			"course level",
+			errorMessagePrefix,
+		);
 
-		return { baseTotal };
+		return { baseTotal: setup.totals.baseTotal };
 	},
 	(error) =>
 		transformError(error) ??
@@ -318,7 +316,7 @@ export const tryUpdateGradebookItem = Result.wrap(
 		}
 
 		// Validate weight if provided
-		if (weight !== undefined && (weight < 0 || weight > 100)) {
+		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 

@@ -21,11 +21,13 @@ export interface ItemData {
 	gradebook: number;
 	category: number | null;
 	name: string;
+	description: string | null;
 	activityModuleType: string | null;
 	activityModuleName: string | null;
 	activityModuleLinkId: number | null;
-	weight: number;
+	weight: number | null;
 	maxGrade: number;
+	minGrade: number | null;
 	extraCredit?: boolean;
 }
 
@@ -70,8 +72,11 @@ export function buildCategoryStructure(
 					| "quiz"
 					| "discussion",
 				name: item.activityModuleName ?? item.name,
-				weight: item.weight || null,
-				max_grade: item.maxGrade || null,
+				weight: item.weight ?? null,
+				max_grade: item.maxGrade ?? null,
+				min_grade: item.minGrade ?? null,
+				description: item.description ?? null,
+				category_id: item.category ?? null,
 				extra_credit: item.extraCredit ?? false,
 				activityModuleLinkId: item.activityModuleLinkId ?? null,
 			});
@@ -91,8 +96,11 @@ export function buildCategoryStructure(
 			id: category.id,
 			type: "category",
 			name: category.name,
-			weight: category.weight || null,
+			weight: category.weight ?? null,
 			max_grade: null, // Categories don't have max_grade
+			min_grade: null, // Categories don't have min_grade
+			description: null, // Categories don't have description
+			category_id: category.parent ?? null, // Parent category ID
 			grade_items: nestedStructure.length > 0 ? nestedStructure : undefined,
 		});
 	}

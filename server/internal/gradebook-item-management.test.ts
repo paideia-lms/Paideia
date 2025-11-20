@@ -242,7 +242,7 @@ describe("Gradebook Item Management", () => {
 		}
 	});
 
-	it("should fail to update weight when total would exceed 100%", async () => {
+	it("should fail to update weight when total would exceed 100% (no auto-weighted items)", async () => {
 		// Create first item with 25% weight
 		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
 			courseId: testCourse.id,
@@ -291,7 +291,7 @@ describe("Gradebook Item Management", () => {
 		expect(update1Result.ok).toBe(true);
 
 		// Now try to update the second item to 75% (would make total 75% + 75% = 150%)
-		// This should fail
+		// This should fail because no auto-weighted items exist, so total must equal exactly 100%
 		const update2Result = await tryUpdateGradebookItem({
 			payload,
 			itemId: secondItem.id,
@@ -303,7 +303,7 @@ describe("Gradebook Item Management", () => {
 
 		expect(update2Result.ok).toBe(false);
 		if (!update2Result.ok) {
-			expect(update2Result.error.message).toContain("total overall weight");
+			expect(update2Result.error.message).toContain("total weight");
 			expect(update2Result.error.message).toContain("must equal exactly 100%");
 		}
 
@@ -312,6 +312,130 @@ describe("Gradebook Item Management", () => {
 		expect(verifyResult.ok).toBe(true);
 		if (verifyResult.ok) {
 			expect(verifyResult.value.weight).toBe(25); // Should still be 25, not 75
+		}
+	});
+
+	it("should allow specified weights <= 100% when auto-weighted items exist", async () => {
+		// Create first item with 50% weight
+		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
+			courseId: testCourse.id,
+			categoryId: null,
+			name: "Specified Weight Item",
+			weight: 50,
+			sortOrder: 30,
+		});
+
+		expect(item1Result.ok).toBe(true);
+		if (!item1Result.ok) {
+			throw new Error("Failed to create first test item");
+		}
+
+		// Create second item with null weight (auto-weighted)
+		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+			courseId: testCourse.id,
+			categoryId: null,
+			name: "Auto-Weighted Item",
+			weight: null, // Auto-weighted
+			sortOrder: 31,
+		});
+
+		expect(item2Result.ok).toBe(true);
+		if (!item2Result.ok) {
+			throw new Error("Failed to create auto-weighted item");
+		}
+
+		// Update first item to 80% - should succeed because auto-weighted items exist
+		// and 80% <= 100%
+		const updateResult = await tryUpdateGradebookItem({
+			payload,
+			itemId: item1Result.value.id,
+			weight: 80,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(updateResult.ok).toBe(true);
+
+		// Try to update first item to 101% - should fail because it exceeds 100%
+		const updateFailResult = await tryUpdateGradebookItem({
+			payload,
+			itemId: item1Result.value.id,
+			weight: 101,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(updateFailResult.ok).toBe(false);
+		if (!updateFailResult.ok) {
+			expect(updateFailResult.error.message).toContain("must not exceed 100%");
+		}
+	});
+
+	it("should validate weights at category level recursively", async () => {
+		// Create a category
+		const categoryResult = await tryCreateGradebookCategory(
+			payload,
+			{} as Request,
+			{
+				gradebookId: testGradebook.id,
+				name: "Test Validation Category",
+				weight: null,
+				sortOrder: 40,
+			},
+		);
+
+		expect(categoryResult.ok).toBe(true);
+		if (!categoryResult.ok) {
+			throw new Error("Failed to create category");
+		}
+
+		const validationCategory = categoryResult.value;
+
+		// Create first item in category with 40% weight
+		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
+			courseId: testCourse.id,
+			categoryId: validationCategory.id,
+			name: "Category Item 1",
+			weight: 40,
+			sortOrder: 0,
+		});
+
+		expect(item1Result.ok).toBe(true);
+		if (!item1Result.ok) {
+			throw new Error("Failed to create category item 1");
+		}
+
+		// Create second item in category with 40% weight (total 80%)
+		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+			courseId: testCourse.id,
+			categoryId: validationCategory.id,
+			name: "Category Item 2",
+			weight: 40,
+			sortOrder: 1,
+		});
+
+		expect(item2Result.ok).toBe(true);
+		if (!item2Result.ok) {
+			throw new Error("Failed to create category item 2");
+		}
+
+		// Try to update second item to 70% (would make total 40% + 70% = 110%)
+		// This should fail because no auto-weighted items in category, so total must equal 100%
+		const updateResult = await tryUpdateGradebookItem({
+			payload,
+			itemId: item2Result.value.id,
+			weight: 70,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(updateResult.ok).toBe(false);
+		if (!updateResult.ok) {
+			expect(updateResult.error.message).toContain("category level");
+			expect(updateResult.error.message).toContain("must equal exactly 100%");
 		}
 	});
 
@@ -492,7 +616,7 @@ describe("Gradebook Item Management", () => {
 
 		if (allItems.ok) {
 			const totalWeight = allItems.value.reduce(
-				(sum, item) => sum + item.weight,
+				(sum, item) => sum + (item.weight ?? 0),
 				0,
 			);
 			// Original items: 30 (50% of 60) + 40 = 70
