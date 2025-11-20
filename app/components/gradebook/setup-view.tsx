@@ -22,6 +22,7 @@ import {
 	IconChevronUp,
 	IconFolder,
 	IconPlus,
+	IconTrash,
 } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
 import { parseAsInteger } from "nuqs/server";
@@ -29,6 +30,7 @@ import { useState } from "react";
 import { href, Link } from "react-router";
 import { getModuleIcon } from "../../utils/module-helper";
 import { CreateCategoryModal, CreateGradeItemModal } from "./modals";
+import { useDeleteCategory, useDeleteManualItem } from "./hooks";
 import { OverallWeightDisplay, WeightDisplay } from "./weight-display";
 
 // ============================================================================
@@ -107,6 +109,8 @@ function GradebookItemRow({
 	onToggleCategory,
 	onEditItem,
 	onEditCategory,
+	onDeleteItem,
+	onDeleteCategory,
 }: {
 	item: GradebookSetupItem;
 	depth?: number;
@@ -115,6 +119,8 @@ function GradebookItemRow({
 	onToggleCategory: (categoryId: number) => void;
 	onEditItem?: (itemId: number) => void;
 	onEditCategory?: (categoryId: number) => void;
+	onDeleteItem?: (itemId: number) => void;
+	onDeleteCategory?: (categoryId: number) => void;
 }) {
 	const isCategory = item.type === "category";
 	const isLeafItem = !isCategory;
@@ -211,17 +217,18 @@ function GradebookItemRow({
 						<OverallWeightDisplay
 							overallWeight={item.overall_weight}
 							weightExplanation={item.weight_explanation}
+							extraCredit={item.extra_credit}
 						/>
 					) : // For categories, show sum of children's overall weights when collapsed
-					!isExpanded &&
-						categoryOverallWeight !== null &&
-						categoryOverallWeight > 0 ? (
-						<Text size="sm" fw={500} c="dimmed">
-							{categoryOverallWeight.toFixed(2)}%
-						</Text>
-					) : (
-						<Text size="sm">-</Text>
-					)}
+						!isExpanded &&
+							categoryOverallWeight !== null &&
+							categoryOverallWeight > 0 ? (
+							<Text size="sm" fw={500} c="dimmed">
+								{categoryOverallWeight.toFixed(2)}%
+							</Text>
+						) : (
+							<Text size="sm">-</Text>
+						)}
 				</Table.Td>
 				<Table.Td>
 					{isLeafItem ? (
@@ -229,28 +236,54 @@ function GradebookItemRow({
 							{item.max_grade !== null ? item.max_grade : "-"}
 						</Text>
 					) : // calculate the max grade of all leaf items
-					!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
-						<Text size="sm" c="dimmed">
-							{categoryMaxGrade ?? "-"}
-						</Text>
-					) : (
-						<Text size="sm">-</Text>
-					)}
+						!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
+							<Text size="sm" c="dimmed">
+								{categoryMaxGrade ?? "-"}
+							</Text>
+						) : (
+							<Text size="sm">-</Text>
+						)}
 				</Table.Td>
 				<Table.Td>
-					<Button
-						size="xs"
-						variant="subtle"
-						onClick={() => {
-							if (isCategory && onEditCategory) {
-								onEditCategory(item.id);
-							} else if (!isCategory && onEditItem) {
-								onEditItem(item.id);
-							}
-						}}
-					>
-						Edit
-					</Button>
+					<Group gap="xs" wrap="nowrap">
+						<Button
+							size="xs"
+							variant="subtle"
+							onClick={() => {
+								if (isCategory && onEditCategory) {
+									onEditCategory(item.id);
+								} else if (!isCategory && onEditItem) {
+									onEditItem(item.id);
+								}
+							}}
+						>
+							Edit
+						</Button>
+						{/* Show delete button for categories */}
+						{isCategory && onDeleteCategory && (
+							<ActionIcon
+								size="sm"
+								variant="subtle"
+								color="red"
+								onClick={() => onDeleteCategory(item.id)}
+							>
+								<IconTrash size={16} />
+							</ActionIcon>
+						)}
+						{/* Show delete button only for manual items (items without activityModuleLinkId) */}
+						{isLeafItem &&
+							!item.activityModuleLinkId &&
+							onDeleteItem && (
+								<ActionIcon
+									size="sm"
+									variant="subtle"
+									color="red"
+									onClick={() => onDeleteItem(item.id)}
+								>
+									<IconTrash size={16} />
+								</ActionIcon>
+							)}
+					</Group>
 				</Table.Td>
 			</Table.Tr>
 			{/* Recursively render nested items */}
@@ -266,6 +299,8 @@ function GradebookItemRow({
 							onToggleCategory={onToggleCategory}
 							onEditItem={onEditItem}
 							onEditCategory={onEditCategory}
+							onDeleteItem={onDeleteItem}
+							onDeleteCategory={onDeleteCategory}
 						/>
 					))}
 				</>
@@ -366,6 +401,8 @@ export function GradebookSetupView({
 	);
 
 	const [expandedCategoryIds, setExpandedCategoryIds] = useState<number[]>([]);
+	const { deleteManualItem } = useDeleteManualItem();
+	const { deleteCategory } = useDeleteCategory();
 
 	const toggleCategory = (categoryId: number) => {
 		setExpandedCategoryIds((prev) =>
@@ -373,6 +410,22 @@ export function GradebookSetupView({
 				? prev.filter((id) => id !== categoryId)
 				: [...prev, categoryId],
 		);
+	};
+
+	const handleDeleteItem = (itemId: number) => {
+		if (confirm("Are you sure you want to delete this gradebook item?")) {
+			deleteManualItem(data.course.id, itemId);
+		}
+	};
+
+	const handleDeleteCategory = (categoryId: number) => {
+		if (
+			confirm(
+				"Are you sure you want to delete this category? The category must be empty (no items or subcategories) to be deleted.",
+			)
+		) {
+			deleteCategory(data.course.id, categoryId);
+		}
 	};
 
 	if (!gradebookSetupForUI) {
@@ -508,6 +561,8 @@ export function GradebookSetupView({
 									onEditCategory={(categoryId) =>
 										setEditingCategoryId(categoryId)
 									}
+									onDeleteItem={handleDeleteItem}
+									onDeleteCategory={handleDeleteCategory}
 								/>
 							))
 						)}

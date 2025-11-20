@@ -49,6 +49,16 @@ export const getCategorySchema = z.object({
 	categoryId: z.coerce.number(),
 });
 
+export const deleteItemSchema = z.object({
+	intent: z.literal("delete-item"),
+	itemId: z.coerce.number(),
+});
+
+export const deleteCategorySchema = z.object({
+	intent: z.literal("delete-category"),
+	categoryId: z.coerce.number(),
+});
+
 export const inputSchema = z.discriminatedUnion("intent", [
 	createItemSchema,
 	createCategorySchema,
@@ -56,4 +66,6 @@ export const inputSchema = z.discriminatedUnion("intent", [
 	updateCategorySchema,
 	getItemSchema,
 	getCategorySchema,
+	deleteItemSchema,
+	deleteCategorySchema,
 ]);

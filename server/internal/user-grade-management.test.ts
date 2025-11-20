@@ -31,6 +31,7 @@ import {
 	tryFindUserGradeByEnrollmentAndItem,
 	tryFindUserGradeById,
 	tryGetGradesForItem,
+	tryGetAdjustedSingleUserGrades,
 	tryGetSingleUserGradesJsonRepresentation,
 	tryGetUserGradesForGradebook,
 	tryGetUserGradesJsonRepresentation,
@@ -144,10 +145,13 @@ describe("User Grade Management", () => {
 		testEnrollment = enrollmentResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId(
+		const gradebookResult = await tryFindGradebookByCourseId({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(gradebookResult.ok).toBe(true);
 		if (!gradebookResult.ok) {
 			throw new Error("Failed to find gradebook for course");
@@ -511,6 +515,70 @@ describe("User Grade Management", () => {
 
 			expect(result.ok).toBe(false);
 		}
+	});
+
+	it("should get adjusted single user grades with JSON, YAML, and Markdown", async () => {
+		const result = await tryGetAdjustedSingleUserGrades({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) {
+			throw new Error("Failed to get adjusted single user grades");
+		}
+
+		const { json, yaml, markdown } = result.value;
+
+		// Verify JSON structure
+		expect(json.course_id).toBe(testCourse.id);
+		expect(json.gradebook_id).toBe(testGradebook.id);
+		expect(json.enrollment.enrollment_id).toBe(testEnrollment.id);
+		expect(json.enrollment.user_id).toBe(student.id);
+		expect(json.enrollment.items).toHaveLength(2);
+		expect(json.enrollment.graded_items).toBe(1);
+
+		// Verify YAML is valid and contains expected data
+		expect(yaml).toBeTruthy();
+		expect(typeof yaml).toBe("string");
+		expect(yaml.length).toBeGreaterThan(0);
+		// Verify YAML can be parsed back to JSON
+		const parsedYaml = Bun.YAML?.parse(yaml) as {
+			course_id?: number;
+			gradebook_id?: number;
+			enrollment?: { enrollment_id?: number };
+		} | null;
+		expect(parsedYaml).toBeTruthy();
+		if (parsedYaml) {
+			expect(parsedYaml.course_id).toBe(testCourse.id);
+			expect(parsedYaml.gradebook_id).toBe(testGradebook.id);
+			expect(parsedYaml.enrollment?.enrollment_id).toBe(testEnrollment.id);
+		}
+
+		// Verify Markdown contains expected content
+		expect(markdown).toBeTruthy();
+		expect(typeof markdown).toBe("string");
+		expect(markdown.length).toBeGreaterThan(0);
+		expect(markdown).toContain("# Single User Grade Report");
+		expect(markdown).toContain(`**Course:** ${testCourse.title}`);
+		expect(markdown).toContain(`**Student:** ${student.firstName} ${student.lastName}`);
+		expect(markdown).toContain(`**Enrollment ID:** ${testEnrollment.id}`);
+		expect(markdown).toContain("## Grade Summary");
+		expect(markdown).toContain("## Totals");
+		// Verify grade items are in the markdown
+		expect(markdown).toContain(testItem.name);
+		expect(markdown).toContain(testItem2.name);
+		// Verify totals section
+		expect(markdown).toContain("Total Grade");
+		expect(markdown).toContain("Total Max Grade");
+		expect(markdown).toContain("Final Grade");
+		expect(markdown).toContain("Total Weight");
+		expect(markdown).toContain("Graded Items");
 	});
 
 	it("should add bonus adjustment to user grade", async () => {

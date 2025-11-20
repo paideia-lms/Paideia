@@ -170,8 +170,22 @@ export function calculateOverallWeights(
 			// Multiply by all parent category adjusted weights
 			let currentCategory: GradebookSetupItemWithCalculations | undefined =
 				containingCategory;
+			const visitedCategoryIds = new Set<number>();
+			const maxDepth = 100; // Safety limit to prevent infinite loops
+			let depth = 0;
 
-			while (currentCategory) {
+			while (currentCategory && depth < maxDepth) {
+				// Detect circular references
+				if (visitedCategoryIds.has(currentCategory.id)) {
+					console.error(
+						`Circular reference detected in category hierarchy: category ${currentCategory.id} "${currentCategory.name}" was already visited`,
+					);
+					break;
+				}
+
+				visitedCategoryIds.add(currentCategory.id);
+				depth++;
+
 				categoryChain.unshift({
 					name: currentCategory.name,
 					adjusted_weight: currentCategory.adjusted_weight,
@@ -191,6 +205,12 @@ export function calculateOverallWeights(
 				currentCategory = findContainingCategory(
 					currentCategory.id,
 					searchScope,
+				);
+			}
+
+			if (depth >= maxDepth) {
+				console.error(
+					`Maximum depth (${maxDepth}) reached while traversing category hierarchy. Possible circular reference or extremely deep nesting.`,
 				);
 			}
 

@@ -383,10 +383,19 @@ export const tryGetCourseContext = async (
 	);
 
 	// Fetch gradebook data
-	const gradebookResult = await tryGetGradebookByCourseWithDetails(
+	const gradebookResult = await tryGetGradebookByCourseWithDetails({
 		payload,
 		courseId,
-	);
+		user: user
+			? {
+					...user,
+					collection: "users",
+					avatar: user.avatar?.id,
+				}
+			: null,
+		req: undefined,
+		overrideAccess: false,
+	});
 
 	let gradebookData: GradebookData | null = null;
 	let gradebookJsonData: GradebookJsonRepresentation | null = null;
@@ -400,19 +409,37 @@ export const tryGetCourseContext = async (
 		gradebookData = gradebook as GradebookData;
 
 		// Fetch gradebook JSON representation (raw database data, no calculations)
-		const gradebookJsonResult = await tryGetGradebookJsonRepresentation(
+		const gradebookJsonResult = await tryGetGradebookJsonRepresentation({
 			payload,
-			gradebook.id,
-		);
+			gradebookId: gradebook.id,
+			user: user
+				? {
+						...user,
+						collection: "users",
+						avatar: user.avatar?.id,
+					}
+				: null,
+			req: undefined,
+			overrideAccess: false,
+		});
 
 		if (gradebookJsonResult.ok) {
 			gradebookJsonData = gradebookJsonResult.value;
 
 			// Fetch gradebook setup for UI (includes calculations)
-			const gradebookSetupForUIResult = await tryGetGradebookSetupForUI(
+			const gradebookSetupForUIResult = await tryGetGradebookSetupForUI({
 				payload,
-				gradebook.id,
-			);
+				gradebookId: gradebook.id,
+				user: user
+					? {
+							...user,
+							collection: "users",
+							avatar: user.avatar?.id,
+						}
+					: null,
+				req: undefined,
+				overrideAccess: false,
+			});
 
 			if (gradebookSetupForUIResult.ok) {
 				gradebookSetupForUIData = gradebookSetupForUIResult.value;
@@ -424,18 +451,38 @@ export const tryGetCourseContext = async (
 			}
 
 			// Fetch gradebook YAML representation (built on top of JSON, no calculations)
-			const gradebookYamlResult = await tryGetGradebookYAMLRepresentation(
+			const gradebookYamlResult = await tryGetGradebookYAMLRepresentation({
 				payload,
-				gradebook.id,
-			);
+				gradebookId: gradebook.id,
+				user: user
+					? {
+							...user,
+							collection: "users",
+							avatar: user.avatar?.id,
+						}
+					: null,
+				req: undefined,
+				overrideAccess: false,
+			});
 
 			if (gradebookYamlResult.ok) {
 				gradebookYamlData = gradebookYamlResult.value;
 			}
 
 			// Fetch gradebook Markdown representation (built on top of UI setup, includes calculations)
-			const gradebookMarkdownResult =
-				await tryGetGradebookMarkdownRepresentation(payload, gradebook.id);
+			const gradebookMarkdownResult = await tryGetGradebookMarkdownRepresentation({
+				payload,
+				gradebookId: gradebook.id,
+				user: user
+					? {
+							...user,
+							collection: "users",
+							avatar: user.avatar?.id,
+						}
+					: null,
+				req: undefined,
+				overrideAccess: false,
+			});
 
 			if (gradebookMarkdownResult.ok) {
 				gradebookMarkdownData = gradebookMarkdownResult.value;

@@ -20,12 +20,12 @@ export function WeightDisplay({
 
 	if (hasWeight && hasAdjustedWeight) {
 		if (weightsMatch) {
-			displayText = `${weight}%`;
+			displayText = `${weight.toFixed(2)}%`;
 			tooltipContent = (
 				<Stack gap="xs">
 					<div>
 						<Text size="xs" fw={700}>
-							Specified weight: {weight}%
+							Specified weight: {weight.toFixed(2)}%
 						</Text>
 					</div>
 					<div>
@@ -34,12 +34,12 @@ export function WeightDisplay({
 				</Stack>
 			);
 		} else {
-			displayText = `${weight}% (${Math.round(adjustedWeight)}%)`;
+			displayText = `${weight.toFixed(2)}% (${adjustedWeight.toFixed(2)}%)`;
 			tooltipContent = (
 				<Stack gap="xs">
 					<div>
 						<Text size="xs" fw={700}>
-							Specified weight: {weight}%
+							Specified weight: {weight.toFixed(2)}%
 						</Text>
 					</div>
 					<div>
@@ -55,7 +55,7 @@ export function WeightDisplay({
 			);
 		}
 	} else if (!hasWeight && hasAdjustedWeight) {
-		displayText = `- (${Math.round(adjustedWeight)}%)`;
+		displayText = `- (${adjustedWeight.toFixed(2)}%)`;
 		tooltipContent = (
 			<Stack gap="xs">
 				<div>
@@ -131,9 +131,11 @@ export function WeightDisplay({
 export function OverallWeightDisplay({
 	overallWeight,
 	weightExplanation,
+	extraCredit,
 }: {
 	overallWeight: number | null;
 	weightExplanation: string | null;
+	extraCredit?: boolean;
 }) {
 	if (overallWeight === null) {
 		return <Text size="sm">-</Text>;
@@ -167,9 +169,15 @@ export function OverallWeightDisplay({
 			multiline
 			w={400}
 		>
-			<Text size="sm" style={{ cursor: "help" }}>
-				{overallWeight.toFixed(2)}%
-			</Text>
+			<Group>
+				<Text size="sm" style={{ cursor: "help" }}>
+					{overallWeight.toFixed(2)}%
+				</Text>
+
+				{extraCredit && (
+					<IconPlusMinus size={16} style={{ cursor: "help" }} />
+				)}
+			</Group>
 		</Tooltip>
 	);
 }

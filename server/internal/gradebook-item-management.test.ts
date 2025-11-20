@@ -109,10 +109,13 @@ describe("Gradebook Item Management", () => {
 		testCourse = courseResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId(
+		const gradebookResult = await tryFindGradebookByCourseId({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(gradebookResult.ok).toBe(true);
 		if (!gradebookResult.ok) {
 			throw new Error("Failed to find gradebook for course");
@@ -218,20 +221,91 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should update gradebook item", async () => {
-		const result = await tryUpdateGradebookItem(
+		const result = await tryUpdateGradebookItem({
 			payload,
-			{} as Request,
-			testItem.id,
-			{
-				name: "Updated Test Item",
-				weight: 30,
-			},
-		);
+			itemId: testItem.id,
+			name: "Updated Test Item",
+			weight: 30,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.name).toBe("Updated Test Item");
 			expect(result.value.weight).toBe(30);
+		}
+	});
+
+	it("should fail to update weight when total would exceed 100%", async () => {
+		// Create first item with 25% weight
+		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
+			gradebookId: testGradebook.id,
+			categoryId: null,
+			name: "First Test Item",
+			weight: 25,
+			sortOrder: 20,
+		});
+
+		expect(item1Result.ok).toBe(true);
+		if (!item1Result.ok) {
+			throw new Error("Failed to create first test item");
+		}
+
+		const firstItem = item1Result.value;
+
+		// Create second item with 25% weight (so total is 25% + 25% = 50%)
+		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+			gradebookId: testGradebook.id,
+			categoryId: null,
+			name: "Second Test Item",
+			weight: 25,
+			sortOrder: 21,
+		});
+
+		expect(item2Result.ok).toBe(true);
+		if (!item2Result.ok) {
+			throw new Error("Failed to create second test item");
+		}
+
+		const secondItem = item2Result.value;
+
+		// Try to update the first item to 75% (would make total 75% + 25% = 100%)
+		// This should succeed
+		const update1Result = await tryUpdateGradebookItem({
+			payload,
+			itemId: firstItem.id,
+			weight: 75,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(update1Result.ok).toBe(true);
+
+		// Now try to update the second item to 75% (would make total 75% + 75% = 150%)
+		// This should fail
+		const update2Result = await tryUpdateGradebookItem({
+			payload,
+			itemId: secondItem.id,
+			weight: 75,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(update2Result.ok).toBe(false);
+		if (!update2Result.ok) {
+			expect(update2Result.error.message).toContain("total overall weight");
+			expect(update2Result.error.message).toContain("must equal exactly 100%");
+		}
+
+		// Verify the second item's weight was not updated (transaction rollback)
+		const verifyResult = await tryFindGradebookItemById(payload, secondItem.id);
+		expect(verifyResult.ok).toBe(true);
+		if (verifyResult.ok) {
+			expect(verifyResult.value.weight).toBe(25); // Should still be 25, not 75
 		}
 	});
 
@@ -309,11 +383,13 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should delete gradebook item", async () => {
-		const result = await tryDeleteGradebookItem(
+		const result = await tryDeleteGradebookItem({
 			payload,
-			{} as Request,
-			testItem2.id,
-		);
+			itemId: testItem2.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {

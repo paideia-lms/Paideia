@@ -29,6 +29,8 @@ we don't check for access in loader and actions. we only check for access in int
 
 we only use mantine form uncontrolled mode for all forms. never use `cascadeUpdates` for mantine form.
 
+after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
+
 ## Routing
 
 we should use `href` from `react-router` to create hrefs for the routes.

@@ -33,6 +33,7 @@ export type GraderReportData = {
 	enrollments: Enrollment[];
 	gradebookJson: GradebookJson | null;
 	userGrades: UserGradesJsonRepresentation | null;
+	totalMaxGrade?: number;
 };
 
 // ============================================================================
@@ -248,7 +249,7 @@ function buildHeadersRecursive(
 }
 
 export function GraderReportView({ data }: { data: GraderReportData }) {
-	const { enrollments, gradebookJson, userGrades } = data;
+	const { enrollments, gradebookJson, userGrades, totalMaxGrade } = data;
 
 	if (!gradebookJson) {
 		return (
@@ -277,23 +278,30 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 	const finalGradesByEnrollment = new Map<number, number | null>();
 
 	if (userGrades) {
-		// Debug: Log enrollment IDs from userGrades
-		const userGradesEnrollmentIds = userGrades.enrollments.map(
-			(e) => e.enrollment_id,
-		);
-		// Debug: Log enrollment IDs from course context
-		const courseEnrollmentIds = enrollments.map((e) => e.id);
-
 		for (const enrollment of userGrades.enrollments) {
 			const itemGradesMap = new Map<number, number | null>();
+			let totalGrade = 0;
+			let hasAnyGrade = false;
+
 			for (const item of enrollment.items) {
 				// Store all grades, including null, so we can distinguish between "no grade" and "grade is 0"
-				itemGradesMap.set(item.item_id, item.base_grade ?? null);
+				const grade = item.base_grade ?? null;
+				itemGradesMap.set(item.item_id, grade);
+
+				// Calculate total as sum of all grades
+				if (grade !== null && grade !== undefined) {
+					totalGrade += grade;
+					hasAnyGrade = true;
+				}
 			}
+
 			gradesByEnrollmentAndItem.set(enrollment.enrollment_id, itemGradesMap);
+
+			// Final grade is the sum of all item grades
+			const finalGradeValue = hasAnyGrade ? totalGrade : null;
 			finalGradesByEnrollment.set(
 				enrollment.enrollment_id,
-				enrollment.final_grade ?? null,
+				finalGradeValue,
 			);
 		}
 
@@ -416,7 +424,20 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 								)}
 								{renderRowCells(row)}
 								<Table.Th rowSpan={1} style={{ minWidth: 100 }}>
-									{row.depth === 0 ? "Total" : ""}
+									{row.depth === 0 ? (
+										<Stack gap={4}>
+											<Text size="sm" fw={500}>
+												Total
+											</Text>
+											{totalMaxGrade !== undefined && totalMaxGrade !== null && (
+												<Text size="xs" c="dimmed">
+													/ {totalMaxGrade}
+												</Text>
+											)}
+										</Stack>
+									) : (
+										""
+									)}
 								</Table.Th>
 							</Table.Tr>
 						))}
@@ -471,7 +492,7 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 											);
 										})}
 										<Table.Td>
-											{finalGrade !== null && finalGrade !== undefined ? (
+											{finalGrade !== null && finalGrade !== undefined && typeof finalGrade === "number" ? (
 												<Text size="sm" fw={500}>
 													{finalGrade.toFixed(2)}
 												</Text>

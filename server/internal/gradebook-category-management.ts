@@ -1,11 +1,13 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { GradebookCategories } from "server/payload.config";
+import { GradebookItems } from "server/collections/gradebook-items";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import {
 	GradebookCategoryNotFoundError,
 	GradebookNotFoundError,
+	InvalidArgumentError,
 	InvalidSortOrderError,
 	TransactionIdNotFoundError,
 	transformError,
@@ -13,7 +15,7 @@ import {
 	WeightExceedsLimitError,
 } from "~/utils/error";
 import type { GradebookCategory } from "../payload-types";
-import { tryGetGradebookJsonRepresentation } from "./gradebook-management";
+import { tryValidateOverallWeightTotal } from "./gradebook-item-management";
 
 export interface CreateGradebookCategoryArgs {
 	gradebookId: number;
@@ -25,10 +27,31 @@ export interface CreateGradebookCategoryArgs {
 }
 
 export interface UpdateGradebookCategoryArgs {
+	payload: Payload;
+	categoryId: number;
 	name?: string;
 	description?: string;
 	weight?: number;
 	sortOrder?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface DeleteGradebookCategoryArgs {
+	payload: Payload;
+	categoryId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface ValidateNoSubItemAndCategoryArgs {
+	payload: Payload;
+	categoryId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
@@ -130,27 +153,46 @@ export const tryCreateGradebookCategory = Result.wrap(
 				categoryData.description = description;
 			}
 
+			const reqWithTransaction: Partial<PayloadRequest> = {
+				...request,
+				transactionID,
+			};
+
 			const newCategory = await payload.create({
 				collection: GradebookCategories.slug,
 				data: categoryData,
-				req: { ...request, transactionID },
+				req: reqWithTransaction,
 			});
 
-			console.log("newCategory", newCategory);
+			// Validate overall weight total after creation (only if weight > 0)
+			if (weight > 0) {
+				const validateResult = await tryValidateOverallWeightTotal({
+					payload,
+					gradebookId,
+					user: null,
+					req: reqWithTransaction,
+					overrideAccess: true,
+					errorMessagePrefix: "Category creation",
+				});
+
+				if (!validateResult.ok) {
+					throw validateResult.error;
+				}
+			}
 
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
 
 			// get JSON representation
-			const jsonRepresentation = await tryGetGradebookJsonRepresentation(
-				payload,
-				gradebookId,
-			);
+			// const jsonRepresentation = await tryGetGradebookJsonRepresentation(
+			// 	payload,
+			// 	gradebookId,
+			// );
 
-			console.log(
-				"jsonRepresentation",
-				JSON.stringify(jsonRepresentation.value, null, 2),
-			);
+			// console.log(
+			// 	"jsonRepresentation",
+			// 	JSON.stringify(jsonRepresentation.value, null, 2),
+			// );
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -195,19 +237,29 @@ export const tryCreateGradebookCategory = Result.wrap(
 
 /**
  * Updates an existing gradebook category using Payload local API
+ * After updating weight, validates that the sum of overall weights equals exactly 100%
  */
 export const tryUpdateGradebookCategory = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		categoryId: number,
-		args: UpdateGradebookCategoryArgs,
-	) => {
+	async (args: UpdateGradebookCategoryArgs) => {
+		const {
+			payload,
+			categoryId,
+			name,
+			description,
+			weight,
+			sortOrder,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Check if category exists
 		const existingCategory = await payload.findByID({
 			collection: GradebookCategories.slug,
 			id: categoryId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!existingCategory) {
@@ -216,29 +268,101 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			);
 		}
 
+		// Get gradebook ID from existing category
+		const gradebookId =
+			typeof existingCategory.gradebook === "number"
+				? existingCategory.gradebook
+				: existingCategory.gradebook.id;
+
 		// Validate weight if provided
-		if (args.weight !== undefined && (args.weight < 0 || args.weight > 100)) {
+		if (weight !== undefined && (weight < 0 || weight > 100)) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
+		console.log("weight", weight);
+
 		// Validate sort order if provided
-		if (args.sortOrder !== undefined && args.sortOrder < 0) {
+		if (sortOrder !== undefined && sortOrder < 0) {
 			throw new InvalidSortOrderError("Sort order must be non-negative");
 		}
 
-		const updatedCategory = await payload.update({
-			collection: GradebookCategories.slug,
-			id: categoryId,
-			data: args,
-			req: request,
-		});
+		// Build update data
+		const updateData: Record<string, unknown> = {};
+		if (name !== undefined) {
+			updateData.name = name;
+		}
+		if (description !== undefined) {
+			updateData.description = description;
+		}
+		if (weight !== undefined) {
+			updateData.weight = weight;
+		}
+		if (sortOrder !== undefined) {
+			updateData.sortOrder = sortOrder;
+		}
 
-		return updatedCategory as GradebookCategory;
+		// Check if weight is being updated - if so, we need to validate overall weights
+		const isWeightUpdate = weight !== undefined;
+
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
+		try {
+			// Update the category
+			const updatedCategory = await payload.update({
+				collection: GradebookCategories.slug,
+				id: categoryId,
+				data: updateData,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			// If weight was updated, validate that overall weights sum to exactly 100%
+			if (isWeightUpdate) {
+				const validateResult = await tryValidateOverallWeightTotal({
+					payload,
+					gradebookId,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					errorMessagePrefix: "Category weight update",
+				});
+
+				if (!validateResult.ok) {
+					throw validateResult.error;
+				}
+			}
+
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return updatedCategory as GradebookCategory;
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
+		}
 	},
 	(error) =>
-		new Error(
-			`Failed to update gradebook category: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to update gradebook category", {
+			cause: error,
+		}),
 );
 
 /**
@@ -267,21 +391,172 @@ export const tryFindGradebookCategoryById = Result.wrap(
 );
 
 /**
- * Deletes a gradebook category by ID
+ * Validates that a category has no subcategories and no items
  */
-export const tryDeleteGradebookCategory = Result.wrap(
-	async (payload: Payload, request: Request, categoryId: number) => {
-		const deletedCategory = await payload.delete({
+export const tryValidateNoSubItemAndCategory = Result.wrap(
+	async (args: ValidateNoSubItemAndCategoryArgs) => {
+		const {
+			payload,
+			categoryId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Check if category has subcategories
+		const subcategories = await payload.find({
 			collection: GradebookCategories.slug,
-			id: categoryId,
-			req: request,
+			where: {
+				parent: {
+					equals: categoryId,
+				},
+			},
+			limit: 1,
+			user,
+			req,
+			overrideAccess,
 		});
 
-		return deletedCategory as GradebookCategory;
+		if (subcategories.docs.length > 0) {
+			throw new InvalidArgumentError(
+				"Cannot delete category that has subcategories. Please delete or move subcategories first.",
+			);
+		}
+
+		// Check if category has items
+		const items = await payload.find({
+			collection: GradebookItems.slug,
+			where: {
+				category: {
+					equals: categoryId,
+				},
+			},
+			limit: 1,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (items.docs.length > 0) {
+			throw new InvalidArgumentError(
+				"Cannot delete category that has gradebook items. Please delete or move items first.",
+			);
+		}
+
+		return { categoryId };
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to delete gradebook category", { cause: error }),
+		new UnknownError("Failed to validate category has no subcategories or items", {
+			cause: error,
+		}),
+);
+
+/**
+ * Deletes a gradebook category by ID
+ * Validates that the category has no items or subcategories before deletion
+ * After deletion, validates that the sum of overall weights equals exactly 100%
+ */
+export const tryDeleteGradebookCategory = Result.wrap(
+	async (args: DeleteGradebookCategoryArgs) => {
+		const {
+			payload,
+			categoryId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Check if category exists and get gradebook ID
+		const existingCategory = await payload.findByID({
+			collection: GradebookCategories.slug,
+			id: categoryId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!existingCategory) {
+			throw new GradebookCategoryNotFoundError(
+				`Category with ID ${categoryId} not found`,
+			);
+		}
+
+		// Get gradebook ID from existing category
+		const gradebookId =
+			typeof existingCategory.gradebook === "number"
+				? existingCategory.gradebook
+				: existingCategory.gradebook.id;
+
+		// Validate that category has no subcategories and no items
+		const validateResult = await tryValidateNoSubItemAndCategory({
+			payload,
+			categoryId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!validateResult.ok) {
+			throw validateResult.error;
+		}
+
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
+		try {
+			// Delete the category
+			const deletedCategory = await payload.delete({
+				collection: GradebookCategories.slug,
+				id: categoryId,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			// After deletion, validate that overall weights sum to exactly 100%
+			const validateResult = await tryValidateOverallWeightTotal({
+				payload,
+				gradebookId,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+				errorMessagePrefix: "Category deletion",
+			});
+
+			if (!validateResult.ok) {
+				throw validateResult.error;
+			}
+
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return deletedCategory as GradebookCategory;
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
+		}
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to delete gradebook category", {
+			cause: error,
+		}),
 );
 
 /**
@@ -348,7 +623,10 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
  */
 export const tryGetNextSortOrder = Result.wrap(
 	async (payload: Payload, gradebookId: number, parentId?: number | null) => {
-		const where: any = {
+		const where: {
+			gradebook: { equals: number };
+			parent?: { equals: number | null };
+		} = {
 			gradebook: {
 				equals: gradebookId,
 			},

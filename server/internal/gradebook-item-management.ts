@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -12,12 +12,22 @@ import {
 	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
+import { tryGetGradebookSetupForUI } from "./gradebook-management";
 import type {
 	Enrollment,
 	GradebookItem,
 	User,
 	UserGrade,
 } from "../payload-types";
+
+export interface ValidateOverallWeightTotalArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+	errorMessagePrefix?: string;
+}
 
 export interface CreateGradebookItemArgs {
 	gradebookId: number;
@@ -34,6 +44,8 @@ export interface CreateGradebookItemArgs {
 }
 
 export interface UpdateGradebookItemArgs {
+	payload: Payload;
+	itemId: number;
 	name?: string;
 	description?: string;
 	categoryId?: number | null;
@@ -43,6 +55,17 @@ export interface UpdateGradebookItemArgs {
 	weight?: number;
 	extraCredit?: boolean;
 	sortOrder?: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface DeleteGradebookItemArgs {
+	payload: Payload;
+	itemId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 /**
@@ -91,6 +114,11 @@ export const tryCreateGradebookItem = Result.wrap(
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
+		const reqWithTransaction: Partial<PayloadRequest> = {
+			...request,
+			transactionID,
+		};
+
 		try {
 			const newItem = await payload.create({
 				collection: GradebookItems.slug,
@@ -106,8 +134,25 @@ export const tryCreateGradebookItem = Result.wrap(
 					extraCredit,
 					sortOrder,
 				},
-				req: { ...request, transactionID },
+				req: reqWithTransaction,
 			});
+
+			// Validate overall weight total after creation (only if weight > 0 and not extra credit)
+			// Extra credit items can exceed 100%, so we only validate non-extra-credit items
+			if (weight > 0 && !extraCredit) {
+				const validateResult = await tryValidateOverallWeightTotal({
+					payload,
+					gradebookId,
+					user: null,
+					req: reqWithTransaction,
+					overrideAccess: true,
+					errorMessagePrefix: "Item creation",
+				});
+
+				if (!validateResult.ok) {
+					throw validateResult.error;
+				}
+			}
 
 			// Only commit transaction if we started it (not if it was provided)
 			if (!args.transactionID) {
@@ -172,20 +217,86 @@ export const tryCreateGradebookItem = Result.wrap(
 );
 
 /**
+ * Validates that the overall weight total equals exactly 100%
+ * Note: This validates baseTotal, which excludes extra credit items.
+ * Extra credit items are allowed to push the total above 100%, but
+ * non-extra-credit items must always sum to exactly 100%.
+ */
+export const tryValidateOverallWeightTotal = Result.wrap(
+	async (args: ValidateOverallWeightTotalArgs) => {
+		const {
+			payload,
+			gradebookId,
+			user = null,
+			req,
+			overrideAccess = false,
+			errorMessagePrefix = "Operation",
+		} = args;
+
+		const setupResult = await tryGetGradebookSetupForUI({
+			payload,
+			gradebookId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!setupResult.ok) {
+			throw setupResult.error;
+		}
+
+		const setup = setupResult.value;
+		// baseTotal excludes extra credit items - only sums non-extra-credit items
+		const baseTotal = setup.totals.baseTotal;
+
+		// Check if baseTotal equals exactly 100 (with small tolerance for floating point)
+		// This ensures non-extra-credit items always sum to 100%
+		const tolerance = 0.01;
+		if (Math.abs(baseTotal - 100) > tolerance) {
+			throw new WeightExceedsLimitError(
+				`${errorMessagePrefix} would result in total overall weight of ${baseTotal.toFixed(2)}%. Total must equal exactly 100%.`,
+			);
+		}
+
+		return { baseTotal };
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to validate overall weight total", {
+			cause: error,
+		}),
+);
+
+/**
  * Updates an existing gradebook item using Payload local API
+ * After updating weight, validates that the sum of overall weights equals exactly 100%
  */
 export const tryUpdateGradebookItem = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		itemId: number,
-		args: UpdateGradebookItemArgs,
-	) => {
+	async (args: UpdateGradebookItemArgs) => {
+		const {
+			payload,
+			itemId,
+			name,
+			description,
+			categoryId,
+			activityModuleId,
+			maxGrade,
+			minGrade,
+			weight,
+			extraCredit,
+			sortOrder,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Check if item exists
 		const existingItem = await payload.findByID({
 			collection: GradebookItems.slug,
 			id: itemId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!existingItem) {
@@ -193,26 +304,26 @@ export const tryUpdateGradebookItem = Result.wrap(
 		}
 
 		// Validate grade values if provided
-		const maxGrade = args.maxGrade ?? existingItem.maxGrade;
-		const minGrade = args.minGrade ?? existingItem.minGrade;
+		const finalMaxGrade = maxGrade ?? existingItem.maxGrade;
+		const finalMinGrade = minGrade ?? existingItem.minGrade;
 
-		if (maxGrade < minGrade) {
+		if (finalMaxGrade < finalMinGrade) {
 			throw new InvalidGradeValueError(
 				"Maximum grade must be greater than or equal to minimum grade",
 			);
 		}
 
-		if (minGrade < 0) {
+		if (finalMinGrade < 0) {
 			throw new InvalidGradeValueError("Minimum grade must be non-negative");
 		}
 
 		// Validate weight if provided
-		if (args.weight !== undefined && (args.weight < 0 || args.weight > 100)) {
+		if (weight !== undefined && (weight < 0 || weight > 100)) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
 		// Validate sort order if provided
-		if (args.sortOrder !== undefined && args.sortOrder < 0) {
+		if (sortOrder !== undefined && sortOrder < 0) {
 			throw new InvalidSortOrderError("Sort order must be non-negative");
 		}
 
@@ -231,27 +342,99 @@ export const tryUpdateGradebookItem = Result.wrap(
 		// 	}
 		// }
 
-		// Build update data, mapping categoryId to category and excluding categoryId
-		const { categoryId, activityModuleId, ...restArgs } = args;
-		const updateData: Record<string, unknown> = {
-			...restArgs,
-		};
+		// Get gradebook ID from existing item
+		const gradebookId =
+			typeof existingItem.gradebook === "number"
+				? existingItem.gradebook
+				: existingItem.gradebook.id;
 
+		// Build update data, mapping categoryId to category and excluding categoryId
+		const updateData: Record<string, unknown> = {};
+
+		if (name !== undefined) {
+			updateData.name = name;
+		}
+		if (description !== undefined) {
+			updateData.description = description;
+		}
 		if (categoryId !== undefined) {
 			updateData.category = categoryId;
 		}
 		if (activityModuleId !== undefined) {
 			updateData.activityModule = activityModuleId;
 		}
+		if (maxGrade !== undefined) {
+			updateData.maxGrade = maxGrade;
+		}
+		if (minGrade !== undefined) {
+			updateData.minGrade = minGrade;
+		}
+		if (weight !== undefined) {
+			updateData.weight = weight;
+		}
+		if (extraCredit !== undefined) {
+			updateData.extraCredit = extraCredit;
+		}
+		if (sortOrder !== undefined) {
+			updateData.sortOrder = sortOrder;
+		}
 
-		const updatedItem = await payload.update({
-			collection: GradebookItems.slug,
-			id: itemId,
-			data: updateData,
-			req: request,
-		});
+		// Check if weight is being updated - if so, we need to validate overall weights
+		const isWeightUpdate = weight !== undefined;
 
-		return updatedItem as GradebookItem;
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
+		try {
+			// Update the item
+			const updatedItem = await payload.update({
+				collection: GradebookItems.slug,
+				id: itemId,
+				data: updateData,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			// If weight was updated, validate that overall weights sum to exactly 100%
+			if (isWeightUpdate) {
+				const validateResult = await tryValidateOverallWeightTotal({
+					payload,
+					gradebookId,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					errorMessagePrefix: "Weight update",
+				});
+
+				if (!validateResult.ok) {
+					throw validateResult.error;
+				}
+			}
+
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return updatedItem as GradebookItem;
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
+		}
 	},
 	(error) =>
 		transformError(error) ??
@@ -284,24 +467,87 @@ export const tryFindGradebookItemById = Result.wrap(
 
 /**
  * Deletes a gradebook item by ID
+ * After deletion, validates that the sum of overall weights equals exactly 100%
  */
 export const tryDeleteGradebookItem = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		itemId: number,
-		transactionID?: string | number,
-	) => {
-		const deletedItem = await payload.delete({
+	async (args: DeleteGradebookItemArgs) => {
+		const {
+			payload,
+			itemId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Check if item exists and get gradebook ID
+		const existingItem = await payload.findByID({
 			collection: GradebookItems.slug,
 			id: itemId,
-			req: {
-				...request,
-				transactionID,
-			},
+			user,
+			req,
+			overrideAccess,
 		});
 
-		return deletedItem as GradebookItem;
+		if (!existingItem) {
+			throw new GradebookItemNotFoundError(`Item with ID ${itemId} not found`);
+		}
+
+		// Get gradebook ID from existing item
+		const gradebookId =
+			typeof existingItem.gradebook === "number"
+				? existingItem.gradebook
+				: existingItem.gradebook.id;
+
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
+
+		if (!transactionID) {
+			throw new TransactionIdNotFoundError("Failed to begin transaction");
+		}
+
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
+
+		try {
+			// Delete the item
+			const deletedItem = await payload.delete({
+				collection: GradebookItems.slug,
+				id: itemId,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			// After deletion, validate that overall weights sum to exactly 100%
+			const validateResult = await tryValidateOverallWeightTotal({
+				payload,
+				gradebookId,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+				errorMessagePrefix: "Deletion",
+			});
+
+			if (!validateResult.ok) {
+				throw validateResult.error;
+			}
+
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
+
+			return deletedItem as GradebookItem;
+		} catch (error) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
+			throw error;
+		}
 	},
 	(error) =>
 		transformError(error) ??

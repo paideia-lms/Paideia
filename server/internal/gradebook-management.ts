@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Gradebooks } from "server/payload.config";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -20,12 +20,21 @@ import {
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 
 export interface CreateGradebookArgs {
+	payload: Payload;
 	courseId: number;
 	enabled?: boolean;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateGradebookArgs {
+	payload: Payload;
+	gradebookId: number;
 	enabled?: boolean;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface SearchGradebooksArgs {
@@ -41,13 +50,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-		| "manual_item"
-		| "category"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "category"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
@@ -94,18 +103,27 @@ export interface GradebookJsonRepresentation {
  * Creates a new gradebook for a course using Payload local API
  */
 export const tryCreateGradebook = Result.wrap(
-	async (payload: Payload, request: Request, args: CreateGradebookArgs) => {
-		const { courseId, enabled = true } = args;
+	async (args: CreateGradebookArgs) => {
+		const {
+			payload,
+			courseId,
+			enabled = true,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Check if course exists
 		const course = await payload.findByID({
 			collection: "courses",
 			id: courseId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!course) {
-			throw new Error(`Course with ID ${courseId} not found`);
+			throw new UnknownError(`Course with ID ${courseId} not found`);
 		}
 
 		// Check if gradebook already exists for this course
@@ -117,7 +135,9 @@ export const tryCreateGradebook = Result.wrap(
 				},
 			},
 			limit: 1,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (existingGradebook.docs.length > 0) {
@@ -139,7 +159,9 @@ export const tryCreateGradebook = Result.wrap(
 					course: courseId,
 					enabled,
 				},
-				req: { ...request, transactionID },
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			// Commit transaction
@@ -169,31 +191,34 @@ export const tryCreateGradebook = Result.wrap(
 			throw error;
 		}
 	},
-	(error) => {
-		if (error instanceof DuplicateGradebookError) {
-			return error;
-		}
-		return new Error(
-			`Failed to create gradebook: ${error instanceof Error ? error.message : String(error)}`,
-		);
-	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create gradebook", {
+			cause: error,
+		}),
 );
 
 /**
  * Updates an existing gradebook using Payload local API
  */
 export const tryUpdateGradebook = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		gradebookId: number,
-		args: UpdateGradebookArgs,
-	) => {
+	async (args: UpdateGradebookArgs) => {
+		const {
+			payload,
+			gradebookId,
+			enabled,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Check if gradebook exists
 		const existingGradebook = await payload.findByID({
 			collection: Gradebooks.slug,
 			id: gradebookId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!existingGradebook) {
@@ -205,26 +230,48 @@ export const tryUpdateGradebook = Result.wrap(
 		const updatedGradebook = await payload.update({
 			collection: Gradebooks.slug,
 			id: gradebookId,
-			data: args,
-			req: request,
+			data: { enabled },
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return updatedGradebook as Gradebook;
 	},
 	(error) =>
-		new Error(
-			`Failed to update gradebook: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to update gradebook", {
+			cause: error,
+		}),
 );
+
+export interface FindGradebookByIdArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
 
 /**
  * Finds a gradebook by ID
  */
 export const tryFindGradebookById = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
+	async (args: FindGradebookByIdArgs) => {
+		const {
+			payload,
+			gradebookId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const gradebook = await payload.findByID({
 			collection: Gradebooks.slug,
 			id: gradebookId,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!gradebook) {
@@ -236,16 +283,33 @@ export const tryFindGradebookById = Result.wrap(
 		return gradebook as Gradebook;
 	},
 	(error) =>
-		new Error(
-			`Failed to find gradebook by ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find gradebook by ID", {
+			cause: error,
+		}),
 );
+
+export interface FindGradebookByCourseIdArgs {
+	payload: Payload;
+	courseId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
 
 /**
  * Finds a gradebook by course ID
  */
 export const tryFindGradebookByCourseId = Result.wrap(
-	async (payload: Payload, courseId: number) => {
+	async (args: FindGradebookByCourseIdArgs) => {
+		const {
+			payload,
+			courseId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const gradebook = await payload.find({
 			collection: Gradebooks.slug,
 			where: {
@@ -254,6 +318,9 @@ export const tryFindGradebookByCourseId = Result.wrap(
 				},
 			},
 			limit: 1,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (gradebook.docs.length === 0) {
@@ -265,22 +332,42 @@ export const tryFindGradebookByCourseId = Result.wrap(
 		return gradebook.docs[0] as Gradebook;
 	},
 	(error) =>
-		new Error(
-			`Failed to find gradebook by course ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find gradebook by course ID", {
+			cause: error,
+		}),
 );
 
 // ! we should not delete gradebooks so we don't have the delete function here
+
+export interface GetGradebookWithDetailsArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
 
 /**
  * Gets gradebook with all categories and items
  */
 export const tryGetGradebookWithDetails = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
+	async (args: GetGradebookWithDetailsArgs) => {
+		const {
+			payload,
+			gradebookId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const gradebook = await payload.findByID({
 			collection: Gradebooks.slug,
 			id: gradebookId,
 			depth: 2, // Get categories and items with their details
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!gradebook) {
@@ -292,16 +379,33 @@ export const tryGetGradebookWithDetails = Result.wrap(
 		return gradebook as Gradebook;
 	},
 	(error) =>
-		new Error(
-			`Failed to get gradebook with details: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to get gradebook with details", {
+			cause: error,
+		}),
 );
+
+export interface GetGradebookByCourseWithDetailsArgs {
+	payload: Payload;
+	courseId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
 
 /**
  * Gets gradebook by course ID with all details
  */
 export const tryGetGradebookByCourseWithDetails = Result.wrap(
-	async (payload: Payload, courseId: number) => {
+	async (args: GetGradebookByCourseWithDetailsArgs) => {
+		const {
+			payload,
+			courseId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const gradebook = await payload.find({
 			collection: Gradebooks.slug,
 			where: {
@@ -311,6 +415,9 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 			},
 			depth: 2, // Get categories and items with their details
 			limit: 1,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (gradebook.docs.length === 0) {
@@ -322,22 +429,43 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 		return gradebook.docs[0] as Gradebook;
 	},
 	(error) =>
-		new Error(
-			`Failed to get gradebook by course with details: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to get gradebook by course with details", {
+			cause: error,
+		}),
 );
+
+export interface GetGradebookJsonRepresentationArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
 
 /**
  * Constructs a JSON representation of the gradebook structure
  */
 export const tryGetGradebookJsonRepresentation = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
+	async (args: GetGradebookJsonRepresentationArgs) => {
+		const {
+			payload,
+			gradebookId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Get the gradebook to verify it exists and get course ID
 		const gradebook = await payload.findByID({
 			collection: Gradebooks.slug,
 			id: gradebookId,
 			depth: 0,
+			user,
+			req,
+			overrideAccess,
 		});
+
 
 		if (!gradebook) {
 			throw new GradebookNotFoundError(
@@ -373,6 +501,9 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 				},
 				pagination: false,
 				sort: "sortOrder",
+				user,
+				req,
+				overrideAccess,
 			})
 			.then((c) => {
 				const categories = c.docs;
@@ -424,6 +555,9 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 				depth: 0,
 				pagination: false,
 				sort: "sortOrder",
+				user,
+				req,
+				overrideAccess,
 			})
 			.then((i) => {
 				const items = i.docs;
@@ -487,6 +621,7 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 			itemsPromise,
 		]);
 
+
 		// Map categories to CategoryData type
 		const categories: CategoryData[] = categoriesData.map((category) => ({
 			id: category.id,
@@ -531,8 +666,8 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 					| "quiz"
 					| "discussion",
 				name: item.activityModuleName ?? item.name,
-				weight: item.weight || null,
-				max_grade: item.maxGrade || null,
+				weight: item.weight ?? null,
+				max_grade: item.maxGrade ?? null,
 				extra_credit: item.extraCredit ?? false,
 				activityModuleLinkId: item.activityModuleLinkId ?? null,
 			});
@@ -569,21 +704,48 @@ export const tryGetGradebookJsonRepresentation = Result.wrap(
 		}),
 );
 
+export interface GetGradebookSetupForUIArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 /**
  * Gets gradebook setup with calculations for UI display
  * This includes adjusted weights and overall weights, which are not in JSON/YAML
  */
 export const tryGetGradebookSetupForUI = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		// Get raw JSON representation (without calculations)
-		const jsonResult = await tryGetGradebookJsonRepresentation(
+	async (args: GetGradebookSetupForUIArgs) => {
+		const {
 			payload,
 			gradebookId,
-		);
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+
+
+		// Get raw JSON representation (without calculations)
+		const jsonResult = await tryGetGradebookJsonRepresentation({
+			payload,
+			gradebookId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+
+		console.log("jsonResult", JSON.stringify(jsonResult.value, null, 2));
+
+
 
 		if (!jsonResult.ok) {
 			throw jsonResult.error;
 		}
+
 
 		const jsonData = jsonResult.value;
 
@@ -592,10 +754,12 @@ export const tryGetGradebookSetupForUI = Result.wrap(
 			jsonData.gradebook_setup.items,
 		);
 
+
 		// Calculate overall weights and get totals
 		const totals = calculateOverallWeights(
 			itemsWithAdjusted as GradebookSetupItemWithCalculations[],
 		);
+
 
 		return {
 			gradebook_id: jsonData.gradebook_id,
@@ -620,17 +784,36 @@ export const tryGetGradebookSetupForUI = Result.wrap(
 		}),
 );
 
+export interface GetGradebookYAMLRepresentationArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 /**
  * Constructs a YAML representation of the gradebook structure
  * Built on top of the JSON representation
  */
 export const tryGetGradebookYAMLRepresentation = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		// Get JSON representation first
-		const jsonResult = await tryGetGradebookJsonRepresentation(
+	async (args: GetGradebookYAMLRepresentationArgs) => {
+		const {
 			payload,
 			gradebookId,
-		);
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Get JSON representation first
+		const jsonResult = await tryGetGradebookJsonRepresentation({
+			payload,
+			gradebookId,
+			user,
+			req,
+			overrideAccess,
+		});
 
 		if (!jsonResult.ok) {
 			throw jsonResult.error;
@@ -643,12 +826,12 @@ export const tryGetGradebookYAMLRepresentation = Result.wrap(
 		try {
 			yamlString = Bun.YAML?.stringify(jsonRepresentation, null, 2);
 			if (!yamlString) {
-				throw new Error("Bun.YAML is not available");
+				throw new UnknownError("Bun.YAML is not available");
 			}
 		} catch (error) {
-			throw new Error(
-				`Failed to convert JSON to YAML: ${error instanceof Error ? error.message : String(error)}`,
-			);
+			throw new UnknownError("Failed to convert JSON to YAML", {
+				cause: error,
+			});
 		}
 
 		return yamlString;
@@ -875,14 +1058,36 @@ function buildFullBreakdownRows(
 	return rows;
 }
 
+export interface GetGradebookMarkdownRepresentationArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 /**
  * Constructs a Markdown representation of the gradebook structure
  * Built on top of the JSON representation and UI setup
  */
 export const tryGetGradebookMarkdownRepresentation = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
+	async (args: GetGradebookMarkdownRepresentationArgs) => {
+		const {
+			payload,
+			gradebookId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Get gradebook setup for UI (includes calculations)
-		const setupResult = await tryGetGradebookSetupForUI(payload, gradebookId);
+		const setupResult = await tryGetGradebookSetupForUI({
+			payload,
+			gradebookId,
+			user,
+			req,
+			overrideAccess,
+		});
 
 		if (!setupResult.ok) {
 			throw setupResult.error;
@@ -895,10 +1100,13 @@ export const tryGetGradebookMarkdownRepresentation = Result.wrap(
 			collection: "courses",
 			id: setup.course_id,
 			depth: 0,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!course) {
-			throw new Error(`Course with ID ${setup.course_id} not found`);
+			throw new UnknownError(`Course with ID ${setup.course_id} not found`);
 		}
 
 		// Build header

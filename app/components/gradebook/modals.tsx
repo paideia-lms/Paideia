@@ -127,7 +127,7 @@ export function CreateGradeItemModal({
 				minGrade: values.minGrade
 					? Number.parseFloat(values.minGrade)
 					: undefined,
-				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+				weight: Number.parseFloat(values.weight),
 				extraCredit: values.extraCredit,
 			});
 		} else {
@@ -144,7 +144,7 @@ export function CreateGradeItemModal({
 				minGrade: values.minGrade
 					? Number.parseFloat(values.minGrade)
 					: undefined,
-				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+				weight: Number.parseFloat(values.weight),
 				extraCredit: values.extraCredit,
 			});
 		}
@@ -318,20 +318,23 @@ export function CreateCategoryModal({
 
 	const handleSubmit = form.onSubmit((values) => {
 		if (isEditMode && categoryId) {
+			console.log("values.weight", values.weight);
 			updateGradeCategory(categoryId, {
 				name: values.name,
 				description: values.description || undefined,
-				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+				weight: values.weight === "" ? null : Number.parseFloat(values.weight),
 			});
 		} else {
 			const parentId = values.parent
 				? Number.parseInt(values.parent, 10)
 				: null;
+
+			console.log("values.weight", values.weight);
 			createCategory({
 				name: values.name,
 				description: values.description || undefined,
 				parentId: parentId && !Number.isNaN(parentId) ? parentId : null,
-				weight: values.weight ? Number.parseFloat(values.weight) : undefined,
+				weight: values.weight === "" ? null : Number.parseFloat(values.weight),
 			});
 		}
 		form.reset();

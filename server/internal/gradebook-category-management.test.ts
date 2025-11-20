@@ -79,10 +79,13 @@ describe("Gradebook Category Management", () => {
 		testCourse = courseResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId(
+		const gradebookResult = await tryFindGradebookByCourseId({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(gradebookResult.ok).toBe(true);
 		if (!gradebookResult.ok) {
 			throw new Error("Failed to find gradebook for course");
@@ -285,15 +288,15 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should update gradebook category", async () => {
-		const result = await tryUpdateGradebookCategory(
+		const result = await tryUpdateGradebookCategory({
 			payload,
-			{} as Request,
-			testCategory.id,
-			{
-				name: "Updated Test Category",
-				weight: 60,
-			},
-		);
+			categoryId: testCategory.id,
+			name: "Updated Test Category",
+			weight: 60,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -343,11 +346,13 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should delete gradebook category", async () => {
-		const result = await tryDeleteGradebookCategory(
+		const result = await tryDeleteGradebookCategory({
 			payload,
-			{} as Request,
-			testSubCategory.id,
-		);
+			categoryId: testSubCategory.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {

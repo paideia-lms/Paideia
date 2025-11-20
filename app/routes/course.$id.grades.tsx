@@ -5,12 +5,14 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateGradebookCategory,
+	tryDeleteGradebookCategory,
 	tryFindGradebookCategoryById,
 	tryGetNextSortOrder,
 	tryUpdateGradebookCategory,
 } from "server/internal/gradebook-category-management";
 import {
 	tryCreateGradebookItem,
+	tryDeleteGradebookItem,
 	tryFindGradebookItemById,
 	tryGetNextItemSortOrder,
 	tryUpdateGradebookItem,
@@ -52,13 +54,13 @@ export const loader = async ({
 		payload,
 		user: currentUser
 			? {
-					...currentUser,
-					avatar:
-						typeof currentUser.avatar === "object" &&
+				...currentUser,
+				avatar:
+					typeof currentUser.avatar === "object" &&
 						currentUser.avatar !== null
-							? currentUser.avatar.id
-							: currentUser.avatar,
-				}
+						? currentUser.avatar.id
+						: currentUser.avatar,
+			}
 			: null,
 		req: request,
 		overrideAccess: false,
@@ -82,7 +84,7 @@ export const loader = async ({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -100,14 +102,25 @@ export const action = async ({
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
+
 	if (!userSession?.isAuthenticated) {
 		return badRequest({ error: "Unauthorized" });
 	}
+	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get gradebook for this course
 	const gradebookResult = await tryFindGradebookByCourseId(
-		payload,
-		Number(courseId),
+		{
+			payload,
+			courseId: Number(courseId),
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
+			},
+			req: request,
+			overrideAccess: true,
+		}
 	);
 	if (!gradebookResult.ok) {
 		return badRequest({ error: "Gradebook not found for this course" });
@@ -195,20 +208,24 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-item") {
-		const updateResult = await tryUpdateGradebookItem(
+		const updateResult = await tryUpdateGradebookItem({
 			payload,
-			request,
-			parsedData.data.itemId,
-			{
-				name: parsedData.data.name,
-				description: parsedData.data.description,
-				categoryId: parsedData.data.categoryId ?? null,
-				maxGrade: parsedData.data.maxGrade,
-				minGrade: parsedData.data.minGrade,
-				weight: parsedData.data.weight,
-				extraCredit: parsedData.data.extraCredit,
+			itemId: parsedData.data.itemId,
+			name: parsedData.data.name,
+			description: parsedData.data.description,
+			categoryId: parsedData.data.categoryId ?? null,
+			maxGrade: parsedData.data.maxGrade,
+			minGrade: parsedData.data.minGrade,
+			weight: parsedData.data.weight,
+			extraCredit: parsedData.data.extraCredit,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
 			},
-		);
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!updateResult.ok) {
 			return badRequest({ error: updateResult.error.message });
@@ -221,16 +238,22 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-category") {
-		const updateResult = await tryUpdateGradebookCategory(
+		console.log(data);
+		console.log("parsedData.data", JSON.stringify(parsedData.data, null, 2));
+		const updateResult = await tryUpdateGradebookCategory({
 			payload,
-			request,
-			parsedData.data.categoryId,
-			{
-				name: parsedData.data.name,
-				description: parsedData.data.description,
-				weight: parsedData.data.weight,
+			categoryId: parsedData.data.categoryId,
+			name: parsedData.data.name,
+			description: parsedData.data.description,
+			weight: parsedData.data.weight,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
 			},
-		);
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!updateResult.ok) {
 			return badRequest({ error: updateResult.error.message });
@@ -302,6 +325,52 @@ export const action = async ({
 				parentId,
 				weight: category.weight,
 			},
+		});
+	}
+
+	if (parsedData.data.intent === "delete-item") {
+		const deleteResult = await tryDeleteGradebookItem({
+			payload,
+			itemId: parsedData.data.itemId,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
+			},
+			req: request,
+			overrideAccess: false,
+		});
+
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
+
+		return ok({
+			success: true,
+			message: "Gradebook item deleted successfully",
+		});
+	}
+
+	if (parsedData.data.intent === "delete-category") {
+		const deleteResult = await tryDeleteGradebookCategory({
+			payload,
+			categoryId: parsedData.data.categoryId,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
+			},
+			req: request,
+			overrideAccess: false,
+		});
+
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
+
+		return ok({
+			success: true,
+			message: "Gradebook category deleted successfully",
 		});
 	}
 

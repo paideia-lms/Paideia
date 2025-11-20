@@ -84,10 +84,13 @@ describe("Gradebook Management", () => {
 		testCourse = courseResult.value;
 
 		// The course creation already creates a gradebook, so let's get it
-		const gradebookResult = await tryFindGradebookByCourseId(
+		const gradebookResult = await tryFindGradebookByCourseId({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(gradebookResult.ok).toBe(true);
 		if (!gradebookResult.ok) {
 			throw new Error("Failed to find gradebook for course");
@@ -161,7 +164,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should find existing gradebook for a course", async () => {
-		const result = await tryFindGradebookByCourseId(payload, testCourse.id);
+		const result = await tryFindGradebookByCourseId({
+			payload,
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -172,9 +181,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should not create duplicate gradebook for the same course", async () => {
-		const result = await tryCreateGradebook(payload, {} as Request, {
+		const result = await tryCreateGradebook({
+			payload,
 			courseId: testCourse.id,
 			enabled: true,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -184,7 +197,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should find gradebook by ID", async () => {
-		const result = await tryFindGradebookById(payload, testGradebook.id);
+		const result = await tryFindGradebookById({
+			payload,
+			gradebookId: testGradebook.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -194,7 +213,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should find gradebook by course ID", async () => {
-		const result = await tryFindGradebookByCourseId(payload, testCourse.id);
+		const result = await tryFindGradebookByCourseId({
+			payload,
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -203,14 +228,14 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should update gradebook", async () => {
-		const result = await tryUpdateGradebook(
+		const result = await tryUpdateGradebook({
 			payload,
-			{} as Request,
-			testGradebook.id,
-			{
-				enabled: false,
-			},
-		);
+			gradebookId: testGradebook.id,
+			enabled: false,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -219,7 +244,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should get gradebook with details", async () => {
-		const result = await tryGetGradebookWithDetails(payload, testGradebook.id);
+		const result = await tryGetGradebookWithDetails({
+			payload,
+			gradebookId: testGradebook.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -230,10 +261,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should get gradebook by course with details", async () => {
-		const result = await tryGetGradebookByCourseWithDetails(
+		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -244,10 +278,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should get gradebook JSON representation", async () => {
-		const result = await tryGetGradebookJsonRepresentation(
+		const result = await tryGetGradebookJsonRepresentation({
 			payload,
-			testGradebook.id,
-		);
+			gradebookId: testGradebook.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) {

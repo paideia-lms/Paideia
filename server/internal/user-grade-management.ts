@@ -24,6 +24,8 @@ import {
 import type { User, UserGrade } from "../payload-types";
 import { tryListDiscussionSubmissions } from "./discussion-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
+import { prettifyMarkdown } from "./utils/markdown-prettify";
+import { tryGetGradebookSetupForUI } from "./gradebook-management";
 
 export interface CreateUserGradeArgs {
 	payload: Payload;
@@ -1850,14 +1852,23 @@ export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
 
 		const baseData = baseResult.value;
 
-		// Get gradebook setup for UI to get accurate weights
-		const { tryGetGradebookSetupForUI } = await import(
-			"./gradebook-management"
-		);
-		const setupResult = await tryGetGradebookSetupForUI(
+		const setupResult = await tryGetGradebookSetupForUI({
 			payload,
-			baseData.gradebook_id,
-		);
+			gradebookId: baseData.gradebook_id,
+			user: user
+				? ({
+					...user,
+					collection: "users",
+					avatar:
+						typeof user.avatar === "object" && user.avatar !== null
+							? user.avatar.id
+							: user.avatar,
+				} as TypedUser)
+				: null,
+			req,
+			overrideAccess,
+		});
+
 
 		if (!setupResult.ok) {
 			throw setupResult.error;
@@ -1911,6 +1922,206 @@ export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
 				cause: error,
 			},
 		),
+);
+
+export interface GetAdjustedSingleUserGradesArgs {
+	payload: Payload;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+	courseId: number;
+	enrollmentId: number;
+}
+
+export interface AdjustedSingleUserGradesResult {
+	json: SingleUserGradesJsonRepresentation;
+	yaml: string;
+	markdown: string;
+}
+
+/**
+ * Formats a number or null as a percentage string (for markdown)
+ */
+function formatPercentageForMarkdown(value: number | null): string {
+	if (value === null) {
+		return "-";
+	}
+	return `${value.toFixed(2)}%`;
+}
+
+/**
+ * Formats a number or null as a decimal string (for markdown)
+ */
+function formatNumberForMarkdown(value: number | null): string {
+	if (value === null) {
+		return "-";
+	}
+	return value.toFixed(2);
+}
+
+/**
+ * Gets the type display name for an item (for markdown)
+ */
+function getTypeDisplayNameForMarkdown(type: string): string {
+	switch (type) {
+		case "manual_item":
+			return "Manual";
+		case "page":
+			return "Page";
+		case "whiteboard":
+			return "Whiteboard";
+		case "assignment":
+			return "Assignment";
+		case "quiz":
+			return "Quiz";
+		case "discussion":
+			return "Discussion";
+		case "category":
+			return "Category";
+		default:
+			return type;
+	}
+}
+
+/**
+ * Constructs JSON, YAML, and Markdown representations of a single user's grades in a course
+ * This is more efficient than calling separate functions as it only queries the database once
+ */
+export const tryGetAdjustedSingleUserGrades = Result.wrap(
+	async (args: GetAdjustedSingleUserGradesArgs): Promise<AdjustedSingleUserGradesResult> => {
+		// Get JSON representation first (this does the database queries)
+		const jsonResult = await tryGetAdjustedSingleUserGradesJsonRepresentation({
+			payload: args.payload,
+			user: args.user,
+			req: args.req,
+			overrideAccess: args.overrideAccess,
+			courseId: args.courseId,
+			enrollmentId: args.enrollmentId,
+		});
+
+
+		if (!jsonResult.ok) {
+			throw jsonResult.error;
+		}
+
+		const jsonData = jsonResult.value;
+		const { enrollment, course_id, gradebook_id } = jsonData;
+
+		// Convert JSON to YAML using Bun.YAML.stringify
+		let yamlString: string;
+		try {
+			yamlString = Bun.YAML?.stringify(jsonData, null, 2);
+			if (!yamlString) {
+				throw new Error("Bun.YAML is not available");
+			}
+		} catch (error) {
+			throw new Error(
+				`Failed to convert JSON to YAML: ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
+
+		// Get course information for markdown
+		const course = await args.payload.findByID({
+			collection: "courses",
+			id: course_id,
+			depth: 0,
+			user: args.user,
+			req: args.req,
+			overrideAccess: args.overrideAccess,
+		});
+
+		if (!course) {
+			throw new Error(`Course with ID ${course_id} not found`);
+		}
+
+		// Calculate total grade (sum of all base_grade values)
+		const totalGrade = enrollment.items.reduce((sum, item) => {
+			return (
+				sum +
+				(item.base_grade !== null && item.base_grade !== undefined
+					? item.base_grade
+					: 0)
+			);
+		}, 0);
+
+		// Calculate total max grade
+		const totalMaxGrade = enrollment.items.reduce((sum, item) => {
+			return sum + (item.max_grade ?? 0);
+		}, 0);
+
+		// Build header
+		const header = `# Single User Grade Report
+
+**Course:** ${course.title || `Course ID ${course_id}`}
+
+**Gradebook ID:** ${gradebook_id}
+
+**Student:** ${enrollment.user_name} (${enrollment.user_email})
+
+**Enrollment ID:** ${enrollment.enrollment_id}
+
+## Grade Summary
+
+| Item Name | Type | Weight | Max Grade | Base Grade | Override Grade | Status |
+|-----------|------|--------|-----------|------------|----------------|--------|`;
+
+		// Build grade items rows
+		const itemRows = enrollment.items.map((item) => {
+			const itemName = item.item_name;
+			const typeStr = getTypeDisplayNameForMarkdown(item.item_type);
+			const weightStr = formatPercentageForMarkdown(item.weight);
+			const maxGradeStr = formatNumberForMarkdown(item.max_grade);
+			const baseGradeStr =
+				item.base_grade !== null && item.base_grade !== undefined
+					? formatNumberForMarkdown(item.base_grade)
+					: "-";
+			const overrideGradeStr =
+				item.is_overridden && item.override_grade !== null && item.override_grade !== undefined
+					? formatNumberForMarkdown(item.override_grade)
+					: "-";
+			const statusStr =
+				item.status === "graded"
+					? "Graded"
+					: item.status === "draft"
+						? "Draft"
+						: item.status;
+
+			return `| ${itemName} | ${typeStr} | ${weightStr} | ${maxGradeStr} | ${baseGradeStr} | ${overrideGradeStr} | ${statusStr} |`;
+		});
+
+		const itemsSection = [header, ...itemRows].join("\n");
+
+		// Build totals section
+		const totalsSection = `
+## Totals
+
+| Metric | Value |
+|--------|-------|
+| Total Grade | ${totalGrade > 0 ? formatNumberForMarkdown(totalGrade) : "-"} |
+| Total Max Grade | ${formatNumberForMarkdown(totalMaxGrade)} |
+| Final Grade | ${enrollment.final_grade !== null && enrollment.final_grade !== undefined
+				? formatNumberForMarkdown(enrollment.final_grade)
+				: "-"
+			} |
+| Total Weight | ${formatPercentageForMarkdown(enrollment.total_weight)} |
+| Graded Items | ${enrollment.graded_items} / ${enrollment.items.length} |`;
+
+		// Combine all sections
+		const rawMarkdown = [itemsSection, totalsSection].join("\n");
+
+		const markdown = prettifyMarkdown(rawMarkdown);
+
+		return {
+			json: jsonData,
+			yaml: yamlString,
+			markdown,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get adjusted single user grades", {
+			cause: error,
+		}),
 );
 
 export interface ReleaseAssignmentGradeArgs {

@@ -106,7 +106,13 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 
 		if (gradeableTypes.includes(moduleType)) {
 			// Try to get the gradebook for this course
-			const gradebookResult = await tryFindGradebookByCourseId(payload, course);
+			const gradebookResult = await tryFindGradebookByCourseId({
+				payload,
+				courseId: course,
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			if (gradebookResult.ok) {
 				const gradebook = gradebookResult.value;
@@ -370,7 +376,20 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 		});
 
 		for (const item of gradebookItems.docs) {
-			await tryDeleteGradebookItem(payload, request, item.id, transactionID);
+			const deleteResult = await tryDeleteGradebookItem({
+				payload,
+				itemId: item.id,
+				user: null,
+				req: {
+					...request,
+					transactionID,
+				},
+				overrideAccess: true,
+			});
+
+			if (!deleteResult.ok) {
+				throw deleteResult.error;
+			}
 		}
 
 		////////////////////////////////////////////////////
