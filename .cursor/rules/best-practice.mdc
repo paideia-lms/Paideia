@@ -29,6 +29,8 @@ we don't check for access in loader and actions. we only check for access in int
 
 we only use mantine form uncontrolled mode for all forms. never use `cascadeUpdates` for mantine form.
 
+after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
+
 ## Routing
 
 we should use `href` from `react-router` to create hrefs for the routes.
@@ -92,6 +94,9 @@ we should standardize internal function arg. internal function should always hav
 internal functions must handle transactions if the function is doing multiple mutations to the database. for internal functions that handle transactions, we should check if `req` has `transactionID` and if it does, we should use it, otherwise we should create a new transaction. When we handle transaction, we should use `TransactionIdNotFoundError` to throw error when transaction ID is not found. We also need to determine if we need to commit/rollback the transaction or not. if transaction is created outside the function, the commit and rollback should be done outside the function. transaction commit and rollback should always be handled at the same level as the transaction creation. We don't do nested transactions in this project. 
 
 for other function, we don't need to check for transaction, we simply pass the req into payload function call (payload.find) as it is. (if req has transaction ID, good, if not, we let it be). 
+
+
+course and the linked gradebook should always have the same id. so we can use them interchangeably.
 
 
 ## Changelog

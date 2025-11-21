@@ -5,17 +5,19 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateGradebookCategory,
+	tryDeleteGradebookCategory,
 	tryFindGradebookCategoryById,
 	tryGetNextSortOrder,
 	tryUpdateGradebookCategory,
 } from "server/internal/gradebook-category-management";
 import {
 	tryCreateGradebookItem,
+	tryDeleteGradebookItem,
 	tryFindGradebookItemById,
 	tryGetNextItemSortOrder,
 	tryUpdateGradebookItem,
 } from "server/internal/gradebook-item-management";
-import { tryFindGradebookByCourseId } from "server/internal/gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "server/internal/gradebook-management";
 import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { GraderReportView } from "~/components/gradebook/report-view";
 import { inputSchema } from "~/components/gradebook/schemas";
@@ -52,13 +54,13 @@ export const loader = async ({
 		payload,
 		user: currentUser
 			? {
-					...currentUser,
-					avatar:
-						typeof currentUser.avatar === "object" &&
+				...currentUser,
+				avatar:
+					typeof currentUser.avatar === "object" &&
 						currentUser.avatar !== null
-							? currentUser.avatar.id
-							: currentUser.avatar,
-				}
+						? currentUser.avatar.id
+						: currentUser.avatar,
+			}
 			: null,
 		req: request,
 		overrideAccess: false,
@@ -82,10 +84,12 @@ export const loader = async ({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0 ||
+			gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
+		extraCreditCategories: gradebookSetupForUI?.extraCreditCategories ?? [],
 		totalMaxGrade: gradebookSetupForUI?.totals.totalMaxGrade ?? 0,
 		userGrades,
 	};
@@ -100,14 +104,25 @@ export const action = async ({
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
+
 	if (!userSession?.isAuthenticated) {
 		return badRequest({ error: "Unauthorized" });
 	}
+	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get gradebook for this course
-	const gradebookResult = await tryFindGradebookByCourseId(
-		payload,
-		Number(courseId),
+	const gradebookResult = await tryGetGradebookByCourseWithDetails(
+		{
+			payload,
+			courseId: Number(courseId),
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
+			},
+			req: request,
+			overrideAccess: true,
+		}
 	);
 	if (!gradebookResult.ok) {
 		return badRequest({ error: "Gradebook not found for this course" });
@@ -140,7 +155,7 @@ export const action = async ({
 
 		// Create gradebook item
 		const createResult = await tryCreateGradebookItem(payload, request, {
-			gradebookId,
+			courseId: Number(courseId),
 			categoryId: parsedData.data.categoryId ?? null,
 			name: parsedData.data.name,
 			description: parsedData.data.description,
@@ -181,7 +196,6 @@ export const action = async ({
 			parentId: parsedData.data.parentId ?? null,
 			name: parsedData.data.name,
 			description: parsedData.data.description,
-			weight: parsedData.data.weight,
 			sortOrder,
 		});
 
@@ -195,20 +209,24 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-item") {
-		const updateResult = await tryUpdateGradebookItem(
+		const updateResult = await tryUpdateGradebookItem({
 			payload,
-			request,
-			parsedData.data.itemId,
-			{
-				name: parsedData.data.name,
-				description: parsedData.data.description,
-				categoryId: parsedData.data.categoryId ?? null,
-				maxGrade: parsedData.data.maxGrade,
-				minGrade: parsedData.data.minGrade,
-				weight: parsedData.data.weight,
-				extraCredit: parsedData.data.extraCredit,
+			itemId: parsedData.data.itemId,
+			name: parsedData.data.name,
+			description: parsedData.data.description,
+			categoryId: parsedData.data.categoryId ?? null,
+			maxGrade: parsedData.data.maxGrade,
+			minGrade: parsedData.data.minGrade,
+			weight: parsedData.data.weight,
+			extraCredit: parsedData.data.extraCredit,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
 			},
-		);
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!updateResult.ok) {
 			return badRequest({ error: updateResult.error.message });
@@ -221,16 +239,22 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-category") {
-		const updateResult = await tryUpdateGradebookCategory(
+
+		const updateResult = await tryUpdateGradebookCategory({
 			payload,
-			request,
-			parsedData.data.categoryId,
-			{
-				name: parsedData.data.name,
-				description: parsedData.data.description,
-				weight: parsedData.data.weight,
+			categoryId: parsedData.data.categoryId,
+			name: parsedData.data.name,
+			description: parsedData.data.description,
+			weight: parsedData.data.weight,
+			extraCredit: parsedData.data.extraCredit,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
 			},
-		);
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!updateResult.ok) {
 			return badRequest({ error: updateResult.error.message });
@@ -305,6 +329,52 @@ export const action = async ({
 		});
 	}
 
+	if (parsedData.data.intent === "delete-item") {
+		const deleteResult = await tryDeleteGradebookItem({
+			payload,
+			itemId: parsedData.data.itemId,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
+			},
+			req: request,
+			overrideAccess: false,
+		});
+
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
+
+		return ok({
+			success: true,
+			message: "Gradebook item deleted successfully",
+		});
+	}
+
+	if (parsedData.data.intent === "delete-category") {
+		const deleteResult = await tryDeleteGradebookCategory({
+			payload,
+			categoryId: parsedData.data.categoryId,
+			user: {
+				...currentUser,
+				avatar: currentUser.avatar?.id,
+				collection: "users",
+			},
+			req: request,
+			overrideAccess: false,
+		});
+
+		if (!deleteResult.ok) {
+			return badRequest({ error: deleteResult.error.message });
+		}
+
+		return ok({
+			success: true,
+			message: "Gradebook category deleted successfully",
+		});
+	}
+
 	return badRequest({ error: "Invalid intent" });
 };
 
@@ -330,8 +400,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
-	const { hasExtraCredit, displayTotal, extraCreditItems, totalMaxGrade } =
-		loaderData;
+	const {
+		hasExtraCredit,
+		displayTotal,
+		extraCreditItems,
+		extraCreditCategories,
+		totalMaxGrade,
+	} = loaderData;
 	const [activeTab] = useQueryState("tab", {
 		defaultValue: "report",
 	});
@@ -344,6 +419,7 @@ export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
 					hasExtraCredit={hasExtraCredit}
 					displayTotal={displayTotal}
 					extraCreditItems={extraCreditItems}
+					extraCreditCategories={extraCreditCategories}
 					totalMaxGrade={totalMaxGrade}
 				/>
 			) : (

@@ -13,7 +13,7 @@ import {
 	tryReorderCategories,
 	tryUpdateGradebookCategory,
 } from "./gradebook-category-management";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import type { CreateUserArgs } from "./user-management";
 import { tryCreateUser } from "./user-management";
 
@@ -21,7 +21,7 @@ describe("Gradebook Category Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
-	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
+	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testSubCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 
@@ -79,10 +79,13 @@ describe("Gradebook Category Management", () => {
 		testCourse = courseResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId(
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(gradebookResult.ok).toBe(true);
 		if (!gradebookResult.ok) {
 			throw new Error("Failed to find gradebook for course");
@@ -104,28 +107,16 @@ describe("Gradebook Category Management", () => {
 			gradebookId: testGradebook.id,
 			name: "Test Category",
 			description: "Test Category Description",
-			weight: 50,
 			sortOrder: 0,
 		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.name).toBe("Test Category");
-			expect(result.value.weight).toBe(50);
+			expect(result.value.weight).toBe(null);
 			expect(result.value.sortOrder).toBe(0);
 			testCategory = result.value;
 		}
-	});
-
-	it("should not create category with invalid weight", async () => {
-		const result = await tryCreateGradebookCategory(payload, {} as Request, {
-			gradebookId: testGradebook.id,
-			name: "Invalid Weight Category",
-			weight: 150, // Invalid: > 100
-			sortOrder: 1,
-		});
-
-		expect(result.ok).toBe(false);
 	});
 
 	it("should not create category with invalid sort order", async () => {
@@ -144,7 +135,6 @@ describe("Gradebook Category Management", () => {
 			parentId: testCategory.id,
 			name: "Test Subcategory",
 			description: "Test Subcategory Description",
-			weight: 25,
 			sortOrder: 0,
 		});
 
@@ -285,20 +275,18 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should update gradebook category", async () => {
-		const result = await tryUpdateGradebookCategory(
+		const result = await tryUpdateGradebookCategory({
 			payload,
-			{} as Request,
-			testCategory.id,
-			{
-				name: "Updated Test Category",
-				weight: 60,
-			},
-		);
+			categoryId: testCategory.id,
+			name: "Updated Test Category",
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.name).toBe("Updated Test Category");
-			expect(result.value.weight).toBe(60);
 		}
 	});
 
@@ -343,11 +331,13 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should delete gradebook category", async () => {
-		const result = await tryDeleteGradebookCategory(
+		const result = await tryDeleteGradebookCategory({
 			payload,
-			{} as Request,
-			testSubCategory.id,
-		);
+			categoryId: testSubCategory.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {

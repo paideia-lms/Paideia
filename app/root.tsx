@@ -37,6 +37,7 @@ import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
 	ColorSchemeScript,
 	createTheme,
+	DirectionProvider,
 	MantineProvider,
 	Textarea,
 } from "@mantine/core";
@@ -69,6 +70,7 @@ import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
 import { DevTool } from "./components/dev-tool";
 import { RootErrorBoundary } from "./components/root-mode-error-boundary";
+import { SandboxCountdown } from "./components/sandbox-countdown";
 import { hintsUtils } from "./utils/client-hints";
 import { customLowlightAdapter } from "./utils/lowlight-adapter";
 import {
@@ -341,20 +343,20 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-						color: "blue",
-						radius: "sm" as const,
-					},
-					analyticsSettings: {
-						additionalJsScripts: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -431,9 +433,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -482,9 +484,9 @@ export const middleware = [
 					sectionId: Number(sectionId),
 					user: currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 				});
 
@@ -544,9 +546,9 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, currentUser);
 				context.set(userProfileContextKey, userProfileContext);
 			}
@@ -600,9 +602,9 @@ export const middleware = [
 					courseContext.courseId,
 					currentUser
 						? {
-								...currentUser,
-								avatar: currentUser?.avatar?.id,
-							}
+							...currentUser,
+							avatar: currentUser?.avatar?.id,
+						}
 						: null,
 					enrolmentContext?.enrolment ?? null,
 				);
@@ -650,7 +652,7 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { environment, payload, requestInfo, pageInfo, systemGlobals } =
+	const { environment, payload, requestInfo, pageInfo, systemGlobals, envVars } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
@@ -665,14 +667,26 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 	const users = result.value;
 
-	// Get current user's theme preference
+	// Get current user's theme and direction preference
 	const currentUser =
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
+	const direction = currentUser?.direction ?? "ltr";
 
 	// Get theme settings from appearance settings
 	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
 	const defaultRadius = systemGlobals.appearanceSettings.radius ?? "sm";
+
+	// Check if sandbox mode is enabled and calculate next reset time
+	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
+	let nextResetTime: string | null = null;
+	if (isSandboxMode) {
+		// Calculate next midnight (00:00:00)
+		const now = new Date();
+		const nextMidnight = new Date(now);
+		nextMidnight.setHours(24, 0, 0, 0); // Set to next midnight
+		nextResetTime = nextMidnight.toISOString();
+	}
 
 	// Check if we need to redirect to first-user creation
 	// Skip redirect check for essential routes
@@ -683,11 +697,14 @@ export async function loader({ context }: Route.LoaderArgs) {
 			timestamp: timestamp,
 			pageInfo: pageInfo,
 			theme: theme,
+			direction: direction,
 			primaryColor,
 			defaultRadius,
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
 			additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
+			isSandboxMode,
+			nextResetTime,
 		};
 	}
 
@@ -700,17 +717,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				};
+				userSession: userSession,
+				courseContext: context.get(courseContextKey),
+				courseModuleContext: context.get(courseModuleContextKey),
+				courseSectionContext: context.get(courseSectionContextKey),
+				enrolmentContext: context.get(enrolmentContextKey),
+				userModuleContext: context.get(userModuleContextKey),
+				userProfileContext: context.get(userProfileContextKey),
+				userAccessContext: context.get(userAccessContextKey),
+				userContext: context.get(userContextKey),
+				systemGlobals: systemGlobals,
+			};
 
 	return {
 		users: users,
@@ -718,6 +735,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 		timestamp: timestamp,
 		pageInfo: pageInfo,
 		theme: theme,
+		direction: direction,
 		isDevelopment: environment === "development",
 		primaryColor,
 		defaultRadius,
@@ -725,6 +743,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
 		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		debugData: debugData,
+		isSandboxMode,
+		nextResetTime,
 	};
 }
 
@@ -802,7 +822,7 @@ function AnalyticsScripts({
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return (
-		<html lang="en">
+		<html lang="en" dir="ltr">
 			<head>
 				<meta charSet="utf-8" />
 				<meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -819,9 +839,11 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 				<ColorSchemeScript />
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
-				<MantineProvider>
-					<RootErrorBoundary error={error} />
-				</MantineProvider>
+				<DirectionProvider initialDirection="ltr" detectDirection={false}>
+					<MantineProvider>
+						<RootErrorBoundary error={error} />
+					</MantineProvider>
+				</DirectionProvider>
 			</body>
 		</html>
 	);
@@ -830,12 +852,15 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 export default function App({ loaderData }: Route.ComponentProps) {
 	const {
 		theme,
+		direction,
 		isDevelopment,
 		additionalCssStylesheets,
 		additionalJsScripts,
 		primaryColor,
 		defaultRadius,
 		debugData,
+		isSandboxMode,
+		nextResetTime,
 	} = loaderData;
 
 	// Create theme dynamically with color and radius from appearance settings
@@ -868,6 +893,7 @@ export default function App({ loaderData }: Route.ComponentProps) {
 	return (
 		<html
 			lang="en"
+			dir={direction}
 			data-mantine-color-scheme={theme}
 			style={{ overscrollBehaviorX: "none" }}
 		>
@@ -910,17 +936,22 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<ColorSchemeScript defaultColorScheme={theme} />
 			</head>
 			<body style={{ overscrollBehaviorX: "none" }}>
-				<MantineProvider defaultColorScheme={theme} theme={mantineTheme}>
-					<CodeHighlightAdapterProvider adapter={customLowlightAdapter}>
-						<ModalsProvider>
-							<NuqsAdapter>
-								<Outlet />
-								<Notifications />
-								{isDevelopment && <DevTool data={debugData} />}
-							</NuqsAdapter>
-						</ModalsProvider>
-					</CodeHighlightAdapterProvider>
-				</MantineProvider>
+				<DirectionProvider initialDirection={direction} detectDirection={false}>
+					<MantineProvider defaultColorScheme={theme} theme={mantineTheme}>
+						<CodeHighlightAdapterProvider adapter={customLowlightAdapter}>
+							<ModalsProvider>
+								<NuqsAdapter>
+									<Outlet />
+									<Notifications />
+									{isDevelopment && <DevTool data={debugData} />}
+									{isSandboxMode && nextResetTime && (
+										<SandboxCountdown nextResetTime={nextResetTime} />
+									)}
+								</NuqsAdapter>
+							</ModalsProvider>
+						</CodeHighlightAdapterProvider>
+					</MantineProvider>
+				</DirectionProvider>
 				<ScrollRestoration />
 				<Scripts />
 			</body>

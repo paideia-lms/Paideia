@@ -1,18 +1,16 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { DiscussionSubmissions } from "server/collections";
-import type { DiscussionSubmission } from "server/payload-types";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
-	FailedToCreateUserGradeError,
 	InvalidArgumentError,
 	NonExistingDiscussionSubmissionError,
 	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import { tryCreateUserGrade } from "./user-grade-management";
+import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 
 export interface CreateDiscussionSubmissionArgs {
 	courseModuleLinkId: number;
@@ -35,15 +33,11 @@ export interface UpdateDiscussionSubmissionArgs {
 export interface GradeDiscussionSubmissionArgs {
 	payload: Payload;
 	id: number;
-	enrollmentId: number;
-	gradebookItemId: number;
-	gradedBy: number;
 	grade: number;
-	maxGrade: number;
 	feedback?: string;
-	submittedAt?: string | number;
+	gradedBy: number;
 	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
+	req: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
 
@@ -450,8 +444,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Handle courseModuleLink - can be object or number
 				const courseModuleLinkId =
 					typeof item.courseModuleLink === "object" &&
-					item.courseModuleLink !== null &&
-					"id" in item.courseModuleLink
+						item.courseModuleLink !== null &&
+						"id" in item.courseModuleLink
 						? item.courseModuleLink.id
 						: typeof item.courseModuleLink === "number"
 							? item.courseModuleLink
@@ -484,8 +478,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Get parentThread ID
 				const parentThreadId =
 					typeof item.parentThread === "object" &&
-					item.parentThread !== null &&
-					"id" in item.parentThread
+						item.parentThread !== null &&
+						"id" in item.parentThread
 						? item.parentThread.id
 						: typeof item.parentThread === "number"
 							? item.parentThread
@@ -998,59 +992,53 @@ export const tryListDiscussionSubmissions = Result.wrap(
 
 /**
  * Manually grades a discussion submission
+ * Updates the submission directly with grade, feedback, gradedBy, and gradedAt
+ * Does NOT create user-grade entries (that's done via tryReleaseDiscussionGrade)
  */
 export const tryGradeDiscussionSubmission = Result.wrap(
 	async (args: GradeDiscussionSubmissionArgs) => {
 		const {
 			payload,
 			id,
-			enrollmentId,
-			gradebookItemId,
-			gradedBy,
 			grade,
-			maxGrade,
 			feedback,
-			submittedAt,
+			gradedBy,
 			user = null,
 			req,
 			overrideAccess = false,
 		} = args;
 
-		// Validate required fields
+		// Validate ID
 		if (!id) {
 			throw new InvalidArgumentError("Discussion submission ID is required");
 		}
-		if (!enrollmentId) {
-			throw new InvalidArgumentError(
-				"Enrollment ID is required for gradebook integration",
-			);
-		}
-		if (!gradebookItemId) {
-			throw new InvalidArgumentError(
-				"Gradebook item ID is required for gradebook integration",
-			);
-		}
+
+		// Validate grade
 		if (grade < 0) {
 			throw new InvalidArgumentError("Grade cannot be negative");
 		}
-		if (grade > maxGrade) {
-			throw new InvalidArgumentError("Grade cannot exceed maximum grade");
-		}
 
 		// Start transaction
-		const transactionID = await payload.db.beginTransaction();
+		const transactionID = req?.transactionID ?? await payload.db.beginTransaction();
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
 		try {
-			// Get the current submission
+			// Construct req with transactionID
+			const reqWithTransaction = {
+				...req,
+				transactionID,
+			};
+
+			// Get the current submission with depth to access course module link
 			const currentSubmission = await payload.findByID({
 				collection: DiscussionSubmissions.slug,
 				id,
+				depth: 1,
 				user,
-				req: req ? { ...req, transactionID } : { transactionID },
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1060,41 +1048,71 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 				);
 			}
 
-			// Get the current submission (no need to update it with grade info)
-			const updatedSubmission = currentSubmission;
-
-			// Create user grade in gradebook
-			const submittedAtString =
-				submittedAt !== undefined
-					? String(submittedAt)
-					: updatedSubmission.createdAt !== undefined
-						? String(updatedSubmission.createdAt)
-						: undefined;
-
-			const userGradeResult = await tryCreateUserGrade({
-				payload,
-				user,
-				req: req ? { ...req, transactionID } : { transactionID },
-				overrideAccess,
-				enrollmentId,
-				gradebookItemId,
-				baseGrade: grade,
-				baseGradeSource: "submission",
-				submission: id,
-				submissionType: "discussion",
-				feedback,
-				gradedBy,
-				submittedAt: submittedAtString,
-			});
-
-			if (!userGradeResult.ok) {
-				throw new FailedToCreateUserGradeError(
-					`Failed to create gradebook entry: ${userGradeResult.error}`,
+			if (currentSubmission.status !== "published") {
+				throw new InvalidArgumentError(
+					"Only published discussion posts can be graded",
 				);
 			}
 
+			// Optionally validate grade against gradebook item limits if gradebook item exists
+			const courseModuleLinkId =
+				typeof currentSubmission.courseModuleLink === "number"
+					? currentSubmission.courseModuleLink
+					: currentSubmission.courseModuleLink.id;
+
+			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
+				payload,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+				courseModuleLinkId,
+			});
+
+			if (gradebookItemResult.ok) {
+				const gradebookItem = gradebookItemResult.value;
+				if (grade < gradebookItem.minGrade || grade > gradebookItem.maxGrade) {
+					throw new InvalidArgumentError(
+						`Grade must be between ${gradebookItem.minGrade} and ${gradebookItem.maxGrade}`,
+					);
+				}
+			}
+
+			const now = new Date().toISOString();
+
+			// Update submission with grade, feedback, gradedBy, and gradedAt
+			// Note: Using Record<string, unknown> because Payload types haven't been regenerated yet
+			await payload.update({
+				collection: DiscussionSubmissions.slug,
+				id,
+				data: {
+					grade,
+					feedback,
+					gradedBy,
+					gradedAt: now,
+				} as Record<string, unknown>,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
 			// Commit transaction
 			await payload.db.commitTransaction(transactionID);
+
+			// Fetch the updated submission with depth for return value
+			const updatedSubmission = await payload.findByID({
+				collection: DiscussionSubmissions.slug,
+				id,
+				depth: 1,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			if (!updatedSubmission) {
+				throw new NonExistingDiscussionSubmissionError(
+					`Failed to fetch updated submission with id '${id}'`,
+				);
+			}
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -1129,10 +1147,9 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 
 			return {
 				...updatedSubmission,
-				courseModuleLink: courseModuleLinkRef.id,
+				courseModuleLink: courseModuleLinkRef,
 				student,
 				enrollment,
-				userGrade: userGradeResult.value,
 			};
 		} catch (error) {
 			// Rollback transaction on error
@@ -1229,45 +1246,18 @@ export const calculateDiscussionGrade = Result.wrap(
 			};
 		}
 
-		// Get user grades for this enrollment and discussion type
-		const userGradesResult = await payload
-			.find({
-				collection: "user-grades",
-				where: {
-					and: [
-						{ enrollment: { equals: enrollmentId } },
-						{ submissionType: { equals: "discussion" } },
-					],
-				},
-				depth: 1,
-			})
-			.then((result) => {
-				return result.docs.map((doc) => {
-					// type narrowing
-					assertZodInternal(
-						"calculateDiscussionGrade: Submission is required",
-						doc.submission,
-						z
-							.object({
-								relationTo: z.string(),
-								value: z.object({
-									id: z.number(),
-								}),
-							})
-							.nullish(),
-					);
+		// Get gradebook item to determine maxGrade
+		const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseModuleLinkId,
+		});
 
-					return {
-						...doc,
-						submission: doc.submission as unknown as {
-							relationTo: "discussion-submissions";
-							value: DiscussionSubmission;
-						},
-					};
-				});
-			});
-
-		const userGrades = userGradesResult;
+		const maxGrade = gradebookItemResult.ok
+			? gradebookItemResult.value.maxGrade ?? 100
+			: 100; // Default max grade
 
 		let totalScore = 0;
 		let maxScore = 0;
@@ -1281,15 +1271,21 @@ export const calculateDiscussionGrade = Result.wrap(
 			gradedAt: string;
 		}> = [];
 
-		// Process each submission
+		// Process each submission - read grades directly from submissions
 		for (const submission of submissions) {
-			const userGrade = userGrades.find((ug) => {
-				return ug.submission?.value?.id === submission.id;
-			});
+			const submissionWithGrade = submission as typeof submission & {
+				grade?: number | null;
+				feedback?: string | null;
+				gradedAt?: string | null;
+			};
 
-			if (userGrade) {
-				const pointsEarned = userGrade.baseGrade || 0;
-				const maxPoints = userGrade.maxGrade || 100; // Default max grade
+			// Only count submissions that have been graded
+			if (
+				submissionWithGrade.grade !== null &&
+				submissionWithGrade.grade !== undefined
+			) {
+				const pointsEarned = submissionWithGrade.grade;
+				const maxPoints = maxGrade;
 
 				totalScore += pointsEarned;
 				maxScore += maxPoints;
@@ -1300,8 +1296,10 @@ export const calculateDiscussionGrade = Result.wrap(
 					title: submission.title || undefined,
 					pointsEarned,
 					maxPoints,
-					feedback: userGrade.feedback || "No feedback provided",
-					gradedAt: userGrade.gradedAt || submission.createdAt,
+					feedback:
+						submissionWithGrade.feedback || "No feedback provided",
+					gradedAt:
+						submissionWithGrade.gradedAt || submission.createdAt,
 				});
 			}
 		}

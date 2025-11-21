@@ -22,14 +22,22 @@ import {
 	IconChevronUp,
 	IconFolder,
 	IconPlus,
+	IconTrash,
 } from "@tabler/icons-react";
-import { useQueryState } from "nuqs";
-import { parseAsInteger } from "nuqs/server";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { getModuleIcon } from "../../utils/module-helper";
-import { CreateCategoryModal, CreateGradeItemModal } from "./modals";
+import {
+	CreateCategoryModal,
+	type CreateCategoryModalHandle,
+	CreateGradeItemModal,
+	type CreateGradeItemModalHandle,
+	UpdateGradeCategoryButton,
+	UpdateGradeItemButton,
+} from "./modals";
+import { useDeleteCategory, useDeleteManualItem } from "./hooks";
 import { OverallWeightDisplay, WeightDisplay } from "./weight-display";
+import { getTypeColor } from "./report-view";
 
 // ============================================================================
 // Gradebook Setup Types
@@ -69,7 +77,11 @@ export type GradebookSetupItem = {
 	overall_weight: number | null;
 	weight_explanation: string | null;
 	max_grade: number | null;
+	min_grade: number | null;
+	description: string | null;
+	category_id: number | null;
 	extra_credit?: boolean;
+	auto_weighted_zero?: boolean;
 	grade_items?: GradebookSetupItem[];
 	activityModuleLinkId?: number | null;
 };
@@ -102,19 +114,21 @@ const sumCategoryMaxGrade = (items: GradebookSetupItem[]): number => {
 function GradebookItemRow({
 	item,
 	depth = 0,
-	getTypeColor,
 	expandedCategoryIds,
 	onToggleCategory,
-	onEditItem,
-	onEditCategory,
+	onDeleteItem,
+	onDeleteCategory,
+	categoryOptions,
+	courseId,
 }: {
 	item: GradebookSetupItem;
 	depth?: number;
-	getTypeColor: (type: string) => string;
 	expandedCategoryIds: number[];
 	onToggleCategory: (categoryId: number) => void;
-	onEditItem?: (itemId: number) => void;
-	onEditCategory?: (categoryId: number) => void;
+	onDeleteItem?: (itemId: number) => void;
+	onDeleteCategory?: (categoryId: number) => void;
+	categoryOptions: Array<{ value: string; label: string }>;
+	courseId: number;
 }) {
 	const isCategory = item.type === "category";
 	const isLeafItem = !isCategory;
@@ -203,25 +217,28 @@ function GradebookItemRow({
 						weight={item.weight}
 						adjustedWeight={item.adjusted_weight}
 						extraCredit={item.extra_credit}
+						isCategory={isCategory}
+						autoWeightedZero={item.auto_weighted_zero ?? false}
 					/>
 				</Table.Td>
 				<Table.Td>
-					{/* Overall weight: for leaf items show their weight, for categories show sum of children when collapsed */}
+					{/* Effective weight: for leaf items show their weight, for categories show sum of children when collapsed */}
 					{isLeafItem ? (
 						<OverallWeightDisplay
 							overallWeight={item.overall_weight}
 							weightExplanation={item.weight_explanation}
+							extraCredit={item.extra_credit}
 						/>
 					) : // For categories, show sum of children's overall weights when collapsed
-					!isExpanded &&
-						categoryOverallWeight !== null &&
-						categoryOverallWeight > 0 ? (
-						<Text size="sm" fw={500} c="dimmed">
-							{categoryOverallWeight.toFixed(2)}%
-						</Text>
-					) : (
-						<Text size="sm">-</Text>
-					)}
+						!isExpanded &&
+							categoryOverallWeight !== null &&
+							categoryOverallWeight > 0 ? (
+							<Text size="sm" fw={500} c="dimmed">
+								{categoryOverallWeight.toFixed(2)}%
+							</Text>
+						) : (
+							<Text size="sm">-</Text>
+						)}
 				</Table.Td>
 				<Table.Td>
 					{isLeafItem ? (
@@ -229,28 +246,69 @@ function GradebookItemRow({
 							{item.max_grade !== null ? item.max_grade : "-"}
 						</Text>
 					) : // calculate the max grade of all leaf items
-					!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
-						<Text size="sm" c="dimmed">
-							{categoryMaxGrade ?? "-"}
-						</Text>
-					) : (
-						<Text size="sm">-</Text>
-					)}
+						!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
+							<Text size="sm" c="dimmed">
+								{categoryMaxGrade ?? "-"}
+							</Text>
+						) : (
+							<Text size="sm">-</Text>
+						)}
 				</Table.Td>
 				<Table.Td>
-					<Button
-						size="xs"
-						variant="subtle"
-						onClick={() => {
-							if (isCategory && onEditCategory) {
-								onEditCategory(item.id);
-							} else if (!isCategory && onEditItem) {
-								onEditItem(item.id);
-							}
-						}}
-					>
-						Edit
-					</Button>
+					<Group gap="xs" wrap="nowrap">
+						{isCategory ? (
+							<UpdateGradeCategoryButton
+								category={{
+									id: item.id,
+									name: item.name,
+									description: null,
+									weight: item.weight,
+									extraCredit: item.extra_credit ?? false,
+									hasItems: hasNestedItems ?? false,
+								}}
+							/>
+						) : (
+							<UpdateGradeItemButton
+								item={{
+									id: item.id,
+									name: item.name,
+									description: item.description,
+									categoryId: item.category_id,
+									maxGrade: item.max_grade,
+									minGrade: item.min_grade,
+									weight: item.weight,
+									adjustedWeight: item.adjusted_weight,
+									extraCredit: item.extra_credit ?? false,
+								}}
+								categoryOptions={categoryOptions}
+								courseId={courseId}
+							/>
+						)}
+						{/* Show delete button for categories */}
+						{isCategory && onDeleteCategory && (
+							<ActionIcon
+								size="sm"
+								variant="subtle"
+								color="red"
+								onClick={() => onDeleteCategory(item.id)}
+							>
+								<IconTrash size={16} />
+							</ActionIcon>
+						)}
+						{/* Show delete button only for manual items (items without activityModuleLinkId) */}
+						{isLeafItem &&
+							!item.activityModuleLinkId &&
+							onDeleteItem && (
+								<ActionIcon
+									size="sm"
+									variant="subtle"
+									color="red"
+									onClick={() => onDeleteItem(item.id)}
+								>
+									<IconTrash size={16} />
+								</ActionIcon>
+							)}
+					</Group>
 				</Table.Td>
 			</Table.Tr>
 			{/* Recursively render nested items */}
@@ -261,11 +319,12 @@ function GradebookItemRow({
 							key={nestedItem.id}
 							item={nestedItem}
 							depth={depth + 1}
-							getTypeColor={getTypeColor}
 							expandedCategoryIds={expandedCategoryIds}
 							onToggleCategory={onToggleCategory}
-							onEditItem={onEditItem}
-							onEditCategory={onEditCategory}
+							onDeleteItem={onDeleteItem}
+							onDeleteCategory={onDeleteCategory}
+							categoryOptions={categoryOptions}
+							courseId={courseId}
 						/>
 					))}
 				</>
@@ -341,31 +400,24 @@ export function GradebookSetupView({
 	hasExtraCredit,
 	displayTotal,
 	extraCreditItems,
+	extraCreditCategories,
 	totalMaxGrade,
 }: {
 	data: GradebookSetupData;
 	hasExtraCredit: boolean;
 	displayTotal: number;
 	extraCreditItems: GradebookSetupItem[];
+	extraCreditCategories: GradebookSetupItem[];
 	totalMaxGrade: number;
 }) {
 	const { gradebookSetupForUI, flattenedCategories } = data;
 
-	const [itemModalOpened, setItemModalOpened] = useQueryState(
-		"createItem",
-		parseAsInteger.withOptions({ shallow: false }),
-	);
-	const [categoryModalOpened, setCategoryModalOpened] = useQueryState(
-		"createCategory",
-		parseAsInteger.withOptions({ shallow: false }),
-	);
-
-	const [editingItemId, setEditingItemId] = useState<number | null>(null);
-	const [editingCategoryId, setEditingCategoryId] = useState<number | null>(
-		null,
-	);
+	const createItemModalRef = useRef<CreateGradeItemModalHandle>(null);
+	const createCategoryModalRef = useRef<CreateCategoryModalHandle>(null);
 
 	const [expandedCategoryIds, setExpandedCategoryIds] = useState<number[]>([]);
+	const { deleteManualItem } = useDeleteManualItem();
+	const { deleteCategory } = useDeleteCategory();
 
 	const toggleCategory = (categoryId: number) => {
 		setExpandedCategoryIds((prev) =>
@@ -373,6 +425,22 @@ export function GradebookSetupView({
 				? prev.filter((id) => id !== categoryId)
 				: [...prev, categoryId],
 		);
+	};
+
+	const handleDeleteItem = (itemId: number) => {
+		if (confirm("Are you sure you want to delete this gradebook item?")) {
+			deleteManualItem(data.course.id, itemId);
+		}
+	};
+
+	const handleDeleteCategory = (categoryId: number) => {
+		if (
+			confirm(
+				"Are you sure you want to delete this category? The category must be empty (no items or subcategories) to be deleted.",
+			)
+		) {
+			deleteCategory(data.course.id, categoryId);
+		}
 	};
 
 	if (!gradebookSetupForUI) {
@@ -401,25 +469,6 @@ export function GradebookSetupView({
 	const parentOptions: Array<{ value: string; label: string }> =
 		categoryOptions.slice();
 
-	const getTypeColor = (type: string) => {
-		switch (type) {
-			case "assignment":
-				return "blue";
-			case "quiz":
-				return "grape";
-			case "discussion":
-				return "teal";
-			case "page":
-				return "cyan";
-			case "whiteboard":
-				return "orange";
-			case "category":
-				return "gray";
-			default:
-				return "gray";
-		}
-	};
-
 	return (
 		<Stack gap="md">
 			<Group justify="space-between">
@@ -433,7 +482,7 @@ export function GradebookSetupView({
 							<Menu.Item
 								leftSection={<IconPlus size={16} />}
 								onClick={() => {
-									setItemModalOpened(1);
+									createItemModalRef.current?.open();
 								}}
 							>
 								Add Grade Item
@@ -441,7 +490,7 @@ export function GradebookSetupView({
 							<Menu.Item
 								leftSection={<IconFolder size={16} />}
 								onClick={() => {
-									setCategoryModalOpened(1);
+									createCategoryModalRef.current?.open();
 								}}
 							>
 								Add Category
@@ -453,26 +502,17 @@ export function GradebookSetupView({
 			</Group>
 
 			<CreateGradeItemModal
-				opened={!!itemModalOpened || editingItemId !== null}
-				onClose={() => {
-					setItemModalOpened(null);
-					setEditingItemId(null);
-				}}
+				ref={createItemModalRef}
 				categoryOptions={categoryOptions}
-				itemId={editingItemId}
 				courseId={data.course.id}
 			/>
 
 			<CreateCategoryModal
-				opened={!!categoryModalOpened || editingCategoryId !== null}
-				onClose={() => {
-					setCategoryModalOpened(null);
-					setEditingCategoryId(null);
-				}}
+				ref={createCategoryModalRef}
 				parentOptions={parentOptions}
-				categoryId={editingCategoryId}
-				courseId={data.course.id}
 			/>
+
+
 
 			<Paper withBorder>
 				<Table>
@@ -481,7 +521,7 @@ export function GradebookSetupView({
 							<Table.Th>Name</Table.Th>
 							<Table.Th>Type</Table.Th>
 							<Table.Th>Weight</Table.Th>
-							<Table.Th>Overall Weight</Table.Th>
+							<Table.Th>Effective Weight</Table.Th>
 							<Table.Th>Max Grade</Table.Th>
 							<Table.Th>Actions</Table.Th>
 						</Table.Tr>
@@ -499,15 +539,14 @@ export function GradebookSetupView({
 							gradebook_setup.items.map((item) => (
 								<GradebookItemRow
 									key={item.id}
-									item={item as GradebookSetupItem}
+									item={item}
 									depth={0}
-									getTypeColor={getTypeColor}
 									expandedCategoryIds={expandedCategoryIds}
 									onToggleCategory={toggleCategory}
-									onEditItem={(itemId) => setEditingItemId(itemId)}
-									onEditCategory={(categoryId) =>
-										setEditingCategoryId(categoryId)
-									}
+									onDeleteItem={handleDeleteItem}
+									onDeleteCategory={handleDeleteCategory}
+									categoryOptions={categoryOptions}
+									courseId={data.course.id}
 								/>
 							))
 						)}
@@ -528,27 +567,36 @@ export function GradebookSetupView({
 												<Stack gap="xs">
 													<div>
 														<Text size="xs" fw={700}>
-															Total Overall Weight: {displayTotal.toFixed(2)}%
+															Total Effective Weight: {displayTotal.toFixed(2)}%
 														</Text>
 													</div>
 													<div>
 														<Text size="xs" fw={700} mb={4}>
 															Extra Credit Contributions:
 														</Text>
-														{extraCreditItems.length > 0 ? (
-															extraCreditItems.map((item) => (
-																<Text key={item.id} size="xs">
-																	• {item.name}:{" "}
-																	{item.overall_weight?.toFixed(2)}%
-																</Text>
-															))
+														{extraCreditCategories.length > 0 ||
+															extraCreditItems.length > 0 ? (
+															<>
+																{extraCreditCategories.map((category) => (
+																	<Text key={category.id} size="xs">
+																		• {category.name} (Category):{" "}
+																		{category.overall_weight?.toFixed(2)}%
+																	</Text>
+																))}
+																{extraCreditItems.map((item) => (
+																	<Text key={item.id} size="xs">
+																		• {item.name}:{" "}
+																		{item.overall_weight?.toFixed(2)}%
+																	</Text>
+																))}
+															</>
 														) : (
 															<Text size="xs">No extra credit items</Text>
 														)}
 													</div>
 													<div>
 														<Text size="xs">
-															Extra credit items allow the total to exceed 100%.
+															Extra credit items and categories allow the total to exceed 100%.
 														</Text>
 													</div>
 												</Stack>
@@ -584,3 +632,4 @@ export function GradebookSetupView({
 		</Stack>
 	);
 }
+

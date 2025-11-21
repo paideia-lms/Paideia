@@ -24,14 +24,14 @@ export interface User {
 	firstName?: string | null;
 	lastName?: string | null;
 	role?:
-		| (
-				| "student"
-				| "instructor"
-				| "admin"
-				| "content-manager"
-				| "analytics-viewer"
-		  )
-		| null;
+	| (
+		| "student"
+		| "instructor"
+		| "admin"
+		| "content-manager"
+		| "analytics-viewer"
+	)
+	| null;
 	bio?: string | null;
 	/**
 	 * the id or file name of the avatar
@@ -41,6 +41,7 @@ export interface User {
 		filename?: string | null;
 	} | null;
 	theme: "light" | "dark";
+	direction: "ltr" | "rtl";
 	email: string;
 	updatedAt: string;
 	createdAt: string;
@@ -99,6 +100,7 @@ export const tryGetUserContext = async (
 					typeof impersonationResult.value.targetUser.avatar === "object"
 						? impersonationResult.value.targetUser.avatar
 						: null,
+				direction: impersonationResult.value.targetUser.direction ?? "ltr",
 			};
 			effectiveUserPermissions = impersonationResult.value.permissions;
 			isImpersonating = true;
@@ -112,6 +114,7 @@ export const tryGetUserContext = async (
 				typeof authenticatedUser.avatar === "object"
 					? authenticatedUser.avatar
 					: null,
+			direction: authenticatedUser.direction ?? "ltr",
 		},
 		effectiveUser: effectiveUser,
 		authenticatedUserPermissions: effectiveUserPermissions ?? [],

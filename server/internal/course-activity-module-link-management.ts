@@ -14,7 +14,7 @@ import {
 	tryDeleteGradebookItem,
 	tryGetNextItemSortOrder,
 } from "./gradebook-item-management";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 
 export interface CreateCourseActivityModuleLinkArgs {
 	course: number;
@@ -106,7 +106,13 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 
 		if (gradeableTypes.includes(moduleType)) {
 			// Try to get the gradebook for this course
-			const gradebookResult = await tryFindGradebookByCourseId(payload, course);
+			const gradebookResult = await tryGetGradebookByCourseWithDetails({
+				payload,
+				courseId: course,
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			if (gradebookResult.ok) {
 				const gradebook = gradebookResult.value;
@@ -127,7 +133,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 					payload,
 					request,
 					{
-						gradebookId: gradebook.id,
+						courseId: course,
 						categoryId: null,
 						name: activityModuleDoc.title || "Untitled Activity",
 						description: activityModuleDoc.description || undefined,
@@ -370,7 +376,20 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 		});
 
 		for (const item of gradebookItems.docs) {
-			await tryDeleteGradebookItem(payload, request, item.id, transactionID);
+			const deleteResult = await tryDeleteGradebookItem({
+				payload,
+				itemId: item.id,
+				user: null,
+				req: {
+					...request,
+					transactionID,
+				},
+				overrideAccess: true,
+			});
+
+			if (!deleteResult.ok) {
+				throw deleteResult.error;
+			}
 		}
 
 		////////////////////////////////////////////////////

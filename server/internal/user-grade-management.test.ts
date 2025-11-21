@@ -9,13 +9,19 @@ import {
 	tryGradeAssignmentSubmission,
 	trySubmitAssignment,
 } from "./assignment-submission-management";
+import {
+	type CreateDiscussionSubmissionArgs,
+	type GradeDiscussionSubmissionArgs,
+	tryCreateDiscussionSubmission,
+	tryGradeDiscussionSubmission,
+} from "./discussion-management";
 import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
-import { tryFindGradebookByCourseId } from "./gradebook-management";
+import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import {
 	tryAddAdjustment,
 	tryBulkUpdateUserGrades,
@@ -25,10 +31,12 @@ import {
 	tryFindUserGradeByEnrollmentAndItem,
 	tryFindUserGradeById,
 	tryGetGradesForItem,
+	tryGetAdjustedSingleUserGrades,
 	tryGetSingleUserGradesJsonRepresentation,
 	tryGetUserGradesForGradebook,
 	tryGetUserGradesJsonRepresentation,
-	tryReleaseGrade,
+	tryReleaseAssignmentGrade,
+	tryReleaseDiscussionGrade,
 	tryRemoveAdjustment,
 	tryToggleAdjustment,
 	tryUpdateUserGrade,
@@ -43,7 +51,7 @@ describe("User Grade Management", () => {
 	let student: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
 	let testEnrollment: TryResultValue<typeof tryCreateEnrollment>;
-	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
+	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testItem: TryResultValue<typeof tryCreateGradebookItem>;
 	let testItem2: TryResultValue<typeof tryCreateGradebookItem>;
@@ -137,10 +145,13 @@ describe("User Grade Management", () => {
 		testEnrollment = enrollmentResult.value;
 
 		// Get the gradebook created by the course
-		const gradebookResult = await tryFindGradebookByCourseId(
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(gradebookResult.ok).toBe(true);
 		if (!gradebookResult.ok) {
 			throw new Error("Failed to find gradebook for course");
@@ -156,7 +167,6 @@ describe("User Grade Management", () => {
 				parentId: null,
 				name: "Test Category",
 				description: "Test Category Description",
-				weight: 60,
 				sortOrder: 0,
 			},
 		);
@@ -169,7 +179,7 @@ describe("User Grade Management", () => {
 
 		// Create test items
 		const itemResult = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Assignment",
 			description: "Test Assignment Description",
@@ -187,7 +197,7 @@ describe("User Grade Management", () => {
 		testItem = itemResult.value;
 
 		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: null,
 			name: "Test Quiz",
 			description: "Test Quiz Description",
@@ -506,6 +516,70 @@ describe("User Grade Management", () => {
 		}
 	});
 
+	it("should get adjusted single user grades with JSON, YAML, and Markdown", async () => {
+		const result = await tryGetAdjustedSingleUserGrades({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) {
+			throw new Error("Failed to get adjusted single user grades");
+		}
+
+		const { json, yaml, markdown } = result.value;
+
+		// Verify JSON structure
+		expect(json.course_id).toBe(testCourse.id);
+		expect(json.gradebook_id).toBe(testGradebook.id);
+		expect(json.enrollment.enrollment_id).toBe(testEnrollment.id);
+		expect(json.enrollment.user_id).toBe(student.id);
+		expect(json.enrollment.items).toHaveLength(2);
+		expect(json.enrollment.graded_items).toBe(1);
+
+		// Verify YAML is valid and contains expected data
+		expect(yaml).toBeTruthy();
+		expect(typeof yaml).toBe("string");
+		expect(yaml.length).toBeGreaterThan(0);
+		// Verify YAML can be parsed back to JSON
+		const parsedYaml = Bun.YAML?.parse(yaml) as {
+			course_id?: number;
+			gradebook_id?: number;
+			enrollment?: { enrollment_id?: number };
+		} | null;
+		expect(parsedYaml).toBeTruthy();
+		if (parsedYaml) {
+			expect(parsedYaml.course_id).toBe(testCourse.id);
+			expect(parsedYaml.gradebook_id).toBe(testGradebook.id);
+			expect(parsedYaml.enrollment?.enrollment_id).toBe(testEnrollment.id);
+		}
+
+		// Verify Markdown contains expected content
+		expect(markdown).toBeTruthy();
+		expect(typeof markdown).toBe("string");
+		expect(markdown.length).toBeGreaterThan(0);
+		expect(markdown).toContain("# Single User Grade Report");
+		expect(markdown).toContain(`**Course:** ${testCourse.title}`);
+		expect(markdown).toContain(`**Student:** ${student.firstName} ${student.lastName}`);
+		expect(markdown).toContain(`**Enrollment ID:** ${testEnrollment.id}`);
+		expect(markdown).toContain("## Grade Summary");
+		expect(markdown).toContain("## Totals");
+		// Verify grade items are in the markdown
+		expect(markdown).toContain(testItem.name);
+		expect(markdown).toContain(testItem2.name);
+		// Verify totals section
+		expect(markdown).toContain("Total Grade");
+		expect(markdown).toContain("Total Max Grade");
+		expect(markdown).toContain("Final Grade");
+		expect(markdown).toContain("Total Weight");
+		expect(markdown).toContain("Graded Items");
+	});
+
 	it("should add bonus adjustment to user grade", async () => {
 		// First create a grade
 		const gradeResult = await tryCreateUserGrade({
@@ -709,7 +783,7 @@ describe("User Grade Management", () => {
 			payload,
 			{} as Request,
 			{
-				gradebookId: testGradebook.id,
+				courseId: testCourse.id,
 				categoryId: null,
 				name: "Extra Credit Project",
 				description: "Optional bonus project",
@@ -774,7 +848,7 @@ describe("User Grade Management", () => {
 			payload,
 			{} as Request,
 			{
-				gradebookId: testGradebook.id,
+				courseId: testCourse.id,
 				categoryId: null,
 				name: "Participation Bonus",
 				description: "Class participation extra credit",
@@ -887,12 +961,12 @@ describe("User Grade Management", () => {
 	});
 
 	it("should release grade from submission to user-grade", async () => {
-		// This test verifies that tryReleaseGrade correctly releases grades from submissions to user-grades
+		// This test verifies that tryReleaseAssignmentGrade correctly releases grades from submissions to user-grades
 		// Note: Full integration test requires creating assignment submission and grading it first
 		// which is tested in assignment-submission-management.test.ts
 
 		// Test with non-existent enrollment - should fail
-		const invalidResult = await tryReleaseGrade({
+		const invalidResult = await tryReleaseAssignmentGrade({
 			payload,
 			user: null,
 			req: mockRequest,
@@ -1052,7 +1126,7 @@ describe("User Grade Management", () => {
 		expect(gradeBeforeRelease.ok).toBe(false);
 
 		// Now release the grade - this should create the user-grade
-		const releaseResult = await tryReleaseGrade({
+		const releaseResult = await tryReleaseAssignmentGrade({
 			payload,
 			user: null,
 			req: mockRequest,
@@ -1090,8 +1164,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-						userGrade.submission !== null &&
-						"value" in userGrade.submission
+					userGrade.submission !== null &&
+					"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id
@@ -1140,5 +1214,266 @@ describe("User Grade Management", () => {
 
 		// Verify graded_items count is updated
 		expect(jsonData.enrollment.graded_items).toBeGreaterThan(0);
+	});
+
+	it("should release discussion grade from submissions to user-grade", async () => {
+		// Create a discussion activity module
+		const activityModuleResult = await tryCreateActivityModule(payload, {
+			title: "Class Discussion: Design Patterns",
+			description: "Discuss various design patterns",
+			type: "discussion",
+			status: "published",
+			userId: instructor.id,
+			discussionData: {
+				instructions:
+					"Participate in this discussion by creating threads and replies",
+				dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+				requireThread: true,
+				requireReplies: true,
+				minReplies: 2,
+				minWordsPerPost: 10,
+				allowAttachments: true,
+				allowUpvotes: true,
+				allowEditing: true,
+				allowDeletion: false,
+				moderationRequired: false,
+				anonymousPosting: false,
+				groupDiscussion: false,
+				threadSorting: "recent" as const,
+			},
+		});
+
+		expect(activityModuleResult.ok).toBe(true);
+		if (!activityModuleResult.ok) {
+			throw new Error("Failed to create activity module");
+		}
+		const activityModule = activityModuleResult.value;
+
+		// Create a section for the course
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: testCourse.id,
+				title: "Discussions Section",
+				description: "Section for discussions",
+			},
+			overrideAccess: true,
+		});
+
+		expect(sectionResult.ok).toBe(true);
+		if (!sectionResult.ok) {
+			throw new Error("Failed to create section");
+		}
+		const section = sectionResult.value;
+
+		// Create course-activity-module-link (this automatically creates a gradebook item)
+		const courseActivityModuleLinkArgs = {
+			course: testCourse.id,
+			activityModule: activityModule.id,
+			section: section.id,
+			contentOrder: 0,
+		};
+
+		const courseActivityModuleLinkResult =
+			await tryCreateCourseActivityModuleLink(
+				payload,
+				mockRequest,
+				courseActivityModuleLinkArgs,
+			);
+
+		expect(courseActivityModuleLinkResult.ok).toBe(true);
+		if (!courseActivityModuleLinkResult.ok) {
+			throw new Error("Failed to create course-activity-module-link");
+		}
+		const courseModuleLink = courseActivityModuleLinkResult.value;
+
+		// Verify gradebook item was created automatically
+		const gradebookItems = await payload.find({
+			collection: "gradebook-items",
+			where: {
+				activityModule: {
+					equals: courseModuleLink.id,
+				},
+			},
+		});
+
+		expect(gradebookItems.docs.length).toBeGreaterThan(0);
+		const gradebookItem = gradebookItems.docs[0];
+
+		// Create discussion submissions (thread, reply, comment)
+		const threadArgs: CreateDiscussionSubmissionArgs = {
+			courseModuleLinkId: courseModuleLink.id,
+			studentId: student.id,
+			enrollmentId: testEnrollment.id,
+			postType: "thread",
+			title: "Design Patterns Discussion",
+			content: "I think the singleton pattern is very useful for managing global state.",
+		};
+
+		const threadResult = await tryCreateDiscussionSubmission(
+			payload,
+			threadArgs,
+		);
+		expect(threadResult.ok).toBe(true);
+		if (!threadResult.ok) {
+			throw new Error("Failed to create thread");
+		}
+		const thread = threadResult.value;
+
+		const replyArgs: CreateDiscussionSubmissionArgs = {
+			courseModuleLinkId: courseModuleLink.id,
+			studentId: student.id,
+			enrollmentId: testEnrollment.id,
+			postType: "reply",
+			content: "I agree, but we should also consider the factory pattern.",
+			parentThread: thread.id,
+		};
+
+		const replyResult = await tryCreateDiscussionSubmission(payload, replyArgs);
+		expect(replyResult.ok).toBe(true);
+		if (!replyResult.ok) {
+			throw new Error("Failed to create reply");
+		}
+		const reply = replyResult.value;
+
+		const commentArgs: CreateDiscussionSubmissionArgs = {
+			courseModuleLinkId: courseModuleLink.id,
+			studentId: student.id,
+			enrollmentId: testEnrollment.id,
+			postType: "comment",
+			content: "Great point!",
+			parentThread: thread.id,
+		};
+
+		const commentResult = await tryCreateDiscussionSubmission(
+			payload,
+			commentArgs,
+		);
+		expect(commentResult.ok).toBe(true);
+		if (!commentResult.ok) {
+			throw new Error("Failed to create comment");
+		}
+
+		// Grade the thread (90 points)
+		const threadGradeArgs: GradeDiscussionSubmissionArgs = {
+			payload,
+			req: {
+				...mockRequest,
+			},
+			id: thread.id,
+			gradedBy: instructor.id,
+			grade: 90,
+			feedback: "Excellent thread! Very insightful.",
+			overrideAccess: true,
+		};
+
+		const threadGradeResult = await tryGradeDiscussionSubmission(threadGradeArgs);
+		expect(threadGradeResult.ok).toBe(true);
+		if (!threadGradeResult.ok) {
+			throw new Error("Failed to grade thread");
+		}
+
+		// Grade the reply (80 points)
+		const replyGradeArgs: GradeDiscussionSubmissionArgs = {
+			payload,
+			req: {
+				...mockRequest,
+			},
+			id: reply.id,
+			gradedBy: instructor.id,
+			grade: 80,
+			feedback: "Good reply with additional insights.",
+			overrideAccess: true,
+		};
+
+		const replyGradeResult = await tryGradeDiscussionSubmission(replyGradeArgs);
+		expect(replyGradeResult.ok).toBe(true);
+		if (!replyGradeResult.ok) {
+			throw new Error("Failed to grade reply");
+		}
+
+		// Don't grade the comment - it should be ignored in average calculation
+
+		// Verify no user-grade exists yet
+		const gradeBeforeRelease = await tryFindUserGradeByEnrollmentAndItem({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: gradebookItem.id,
+		});
+		expect(gradeBeforeRelease.ok).toBe(false);
+
+		// Now release the grade - this should create the user-grade with average (90 + 80) / 2 = 85
+		const releaseResult = await tryReleaseDiscussionGrade({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			courseActivityModuleLinkId: courseModuleLink.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+		expect(releaseResult.ok).toBe(true);
+		if (!releaseResult.ok) {
+			throw new Error(`Failed to release discussion grade: ${releaseResult.error}`);
+		}
+
+		const releaseData = releaseResult.value;
+		expect(releaseData.averageGrade).toBe(85); // (90 + 80) / 2
+		expect(releaseData.gradedPostsCount).toBe(2); // Only thread and reply are graded
+		expect(releaseData.totalPostsCount).toBe(3); // thread, reply, and comment
+
+		// Verify user-grade was created after release
+		const gradeAfterRelease = await tryFindUserGradeByEnrollmentAndItem({
+			payload,
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: gradebookItem.id,
+		});
+
+		expect(gradeAfterRelease.ok).toBe(true);
+		if (!gradeAfterRelease.ok) {
+			throw new Error("User grade should exist after release");
+		}
+
+		const userGrade = gradeAfterRelease.value;
+		expect(userGrade.baseGrade).toBe(85); // Average of graded posts
+		expect(userGrade.submissionType).toBe("discussion");
+		expect(userGrade.feedback).toContain("Excellent thread");
+		expect(userGrade.feedback).toContain("Good reply");
+
+		// Get single user grades JSON representation
+		const jsonResult = await tryGetSingleUserGradesJsonRepresentation({
+			payload,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+			courseId: testCourse.id,
+			enrollmentId: testEnrollment.id,
+		});
+
+		expect(jsonResult.ok).toBe(true);
+		if (!jsonResult.ok) {
+			throw new Error("Failed to get user grades JSON representation");
+		}
+
+		const jsonData = jsonResult.value;
+
+		// Find the gradebook item in the items array
+		const gradedItem = jsonData.enrollment.items.find(
+			(item) => item.item_id === gradebookItem.id,
+		);
+
+		expect(gradedItem).toBeDefined();
+		if (gradedItem) {
+			expect(gradedItem.base_grade).toBe(85);
+			expect(gradedItem.status).toBe("graded");
+			expect(gradedItem.graded_at).toBeDefined();
+			expect(gradedItem.item_name).toBe("Class Discussion: Design Patterns");
+		}
 	});
 });

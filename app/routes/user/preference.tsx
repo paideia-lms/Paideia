@@ -10,15 +10,12 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { pick } from "es-toolkit";
-import { data, href, useFetcher } from "react-router";
+import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateUser } from "server/internal/user-management";
 import { z } from "zod";
-import {
-	assertRequestMethod,
-	assertRequestMethodInRemix,
-} from "~/utils/assert-request-method";
+import { assertRequestMethodInRemix } from "~/utils/assert-request-method";
 import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
@@ -68,12 +65,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	return {
-		user: pick(targetUser, ["id", "firstName", "lastName", "bio", "theme"]),
+		user: pick(targetUser, ["id", "firstName", "lastName", "bio", "theme", "direction"]),
 	};
 };
 
 const actionSchema = z.object({
 	theme: z.enum(["light", "dark"]),
+	direction: z.enum(["ltr", "rtl"]),
 });
 
 export const action = async ({ context, request }: Route.ActionArgs) => {
@@ -100,14 +98,15 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 		});
 	}
 
-	const { theme } = parsed.data;
+	const { theme, direction } = parsed.data;
 
-	// Update user theme
+	// Update user theme and direction
 	const updateResult = await tryUpdateUser({
 		payload,
 		userId: currentUser.id,
 		data: {
 			theme,
+			direction,
 		},
 		user: {
 			...currentUser,
@@ -119,7 +118,7 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 	if (!updateResult.ok) {
 		return badRequest({
 			success: false,
-			error: "Failed to update theme preference.",
+			error: "Failed to update preferences.",
 		});
 	}
 
@@ -132,7 +131,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData?.success) {
 		notifications.show({
 			title: "Success",
-			message: "Theme preference updated successfully!",
+			message: "Preferences updated successfully!",
 			color: "green",
 		});
 	} else if (actionData && "error" in actionData) {
@@ -150,10 +149,15 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useUpdateUserPreference() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updatePreference = (userId: string, theme: "light" | "dark") => {
+	const updatePreference = (
+		userId: string,
+		theme: "light" | "dark",
+		direction: "ltr" | "rtl",
+	) => {
 		fetcher.submit(
 			{
 				theme: theme,
+				direction: direction,
 			},
 			{
 				method: "POST",
@@ -180,11 +184,16 @@ export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 		cascadeUpdates: true,
 		initialValues: {
 			theme: loaderData.user.theme,
+			direction: loaderData.user.direction ?? "ltr",
 		},
 	});
 
-	const handleSubmit = (values: { theme: string }) => {
-		updatePreference(String(user.id), values.theme as "light" | "dark");
+	const handleSubmit = (values: { theme: string; direction: string }) => {
+		updatePreference(
+			String(user.id),
+			values.theme as "light" | "dark",
+			values.direction as "ltr" | "rtl",
+		);
 	};
 
 	return (
@@ -214,6 +223,18 @@ export default function PreferencesPage({ loaderData }: Route.ComponentProps) {
 								<Group mt="xs">
 									<Radio value="light" label="Light" />
 									<Radio value="dark" label="Dark" />
+								</Group>
+							</Radio.Group>
+
+							<Radio.Group
+								{...form.getInputProps("direction")}
+								key={form.key("direction")}
+								label="Text Direction"
+								description="Choose your preferred text direction"
+							>
+								<Group mt="xs">
+									<Radio value="ltr" label="Left to Right" />
+									<Radio value="rtl" label="Right to Left" />
 								</Group>
 							</Radio.Group>
 

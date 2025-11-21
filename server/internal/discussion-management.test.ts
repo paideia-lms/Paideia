@@ -31,10 +31,6 @@ import {
 	type CreateEnrollmentArgs,
 	tryCreateEnrollment,
 } from "./enrollment-management";
-import {
-	type CreateGradebookItemArgs,
-	tryCreateGradebookItem,
-} from "./gradebook-item-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 const year = new Date().getFullYear();
@@ -46,7 +42,6 @@ describe("Discussion Management - Full Workflow", () => {
 	let studentId: number;
 	let courseId: number;
 	let enrollmentId: number;
-	let gradebookItemId: number;
 	let activityModuleId: number;
 	let discussionId: number;
 	let courseActivityModuleLinkId: number;
@@ -233,32 +228,8 @@ describe("Discussion Management - Full Workflow", () => {
 			courseActivityModuleLinkId,
 		);
 
-		// Create gradebook item for the discussion
-		const gradebookItemArgs: CreateGradebookItemArgs = {
-			gradebookId: courseResult.value.gradebook.id,
-			name: "Test Discussion",
-			description: "Discussion participation test",
-			activityModuleId: courseActivityModuleLinkId,
-			maxGrade: 100,
-			weight: 25,
-			sortOrder: 1,
-		};
-
-		const gradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			gradebookItemArgs,
-		);
-		if (!gradebookItemResult.ok) {
-			console.error(
-				"Gradebook item creation failed:",
-				gradebookItemResult.error,
-			);
-		}
-		expect(gradebookItemResult.ok).toBe(true);
-		if (gradebookItemResult.ok) {
-			gradebookItemId = gradebookItemResult.value.id;
-		}
+		// Note: Gradebook items are no longer required for grading discussion submissions
+		// Grades are stored directly on submissions, not in user-grades
 	});
 
 	afterAll(async () => {
@@ -866,27 +837,6 @@ describe("Discussion Management - Full Workflow", () => {
 	});
 
 	test("should manually grade a discussion submission", async () => {
-		// Create a separate gradebook item for this test to avoid conflicts
-		const gradingGradebookItemArgs: CreateGradebookItemArgs = {
-			gradebookId: 1, // Use the gradebook ID from the course creation
-			name: "Discussion Grading Test",
-			description: "Separate gradebook item for grading test",
-			activityModuleId: courseActivityModuleLinkId,
-			maxGrade: 100,
-			weight: 25,
-			sortOrder: 2,
-		};
-
-		const gradingGradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			gradingGradebookItemArgs,
-		);
-		expect(gradingGradebookItemResult.ok).toBe(true);
-		if (!gradingGradebookItemResult.ok) return;
-
-		const gradingGradebookItemId = gradingGradebookItemResult.value.id;
-
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			courseModuleLinkId: courseActivityModuleLinkId,
@@ -909,12 +859,10 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the submission
 		const gradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
+			req: mockRequest,
 			id: submissionId,
-			enrollmentId,
-			gradebookItemId: gradingGradebookItemId,
 			gradedBy: teacherId,
 			grade: 85,
-			maxGrade: 100,
 			feedback:
 				"Excellent participation! Great insights and thoughtful responses.",
 			overrideAccess: true,
@@ -927,54 +875,33 @@ describe("Discussion Management - Full Workflow", () => {
 
 		const gradedSubmission = result.value;
 
-		// Verify grading - grades are stored in userGrade, not in submission
-		expect(gradedSubmission.userGrade).toBeDefined();
-		expect(gradedSubmission.userGrade.baseGrade).toBe(85);
-		expect(gradedSubmission.userGrade.baseGradeSource).toBe("submission");
-		expect(gradedSubmission.userGrade.submissionType).toBe("discussion");
+		// Verify grading - grades are now stored directly on the submission
+		const submissionWithGrade = gradedSubmission as typeof gradedSubmission & {
+			grade?: number | null;
+			feedback?: string | null;
+			gradedBy?: number | { id: number } | null;
+			gradedAt?: string | null;
+		};
+		expect(submissionWithGrade.grade).toBe(85);
+		expect(submissionWithGrade.feedback).toBe(
+			"Excellent participation! Great insights and thoughtful responses.",
+		);
+		expect(submissionWithGrade.gradedBy).toBeDefined();
+		expect(submissionWithGrade.gradedAt).toBeDefined();
+
+		// Verify gradedBy is the teacher
+		const gradedById =
+			typeof submissionWithGrade.gradedBy === "object" &&
+				submissionWithGrade.gradedBy !== null &&
+				"id" in submissionWithGrade.gradedBy
+				? submissionWithGrade.gradedBy.id
+				: submissionWithGrade.gradedBy;
+		expect(gradedById).toBe(teacherId);
 	});
 
 	test("should calculate discussion grade based on all graded posts", async () => {
-		// Create separate gradebook items for this test to avoid conflicts
-		const threadGradebookItemArgs: CreateGradebookItemArgs = {
-			gradebookId: 1,
-			name: "Thread Grading Test",
-			description: "Separate gradebook item for thread grading",
-			activityModuleId: courseActivityModuleLinkId,
-			maxGrade: 100,
-			weight: 25,
-			sortOrder: 3,
-		};
-
-		const threadGradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			threadGradebookItemArgs,
-		);
-		expect(threadGradebookItemResult.ok).toBe(true);
-		if (!threadGradebookItemResult.ok) return;
-
-		const threadGradebookItemId = threadGradebookItemResult.value.id;
-
-		const replyGradebookItemArgs: CreateGradebookItemArgs = {
-			gradebookId: 1,
-			name: "Reply Grading Test",
-			description: "Separate gradebook item for reply grading",
-			activityModuleId: courseActivityModuleLinkId,
-			maxGrade: 100,
-			weight: 25,
-			sortOrder: 4,
-		};
-
-		const replyGradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			replyGradebookItemArgs,
-		);
-		expect(replyGradebookItemResult.ok).toBe(true);
-		if (!replyGradebookItemResult.ok) return;
-
-		const replyGradebookItemId = replyGradebookItemResult.value.id;
+		// Note: This test may need updates when calculateDiscussionGrade is updated
+		// to read grades from submissions instead of user-grades
 
 		// Create multiple submissions and grade them
 		const threadArgs: CreateDiscussionSubmissionArgs = {
@@ -998,12 +925,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the thread
 		const threadGradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
+			req: {
+				...mockRequest,
+			},
 			id: threadId,
-			enrollmentId,
-			gradebookItemId: threadGradebookItemId,
 			gradedBy: teacherId,
 			grade: 90,
-			maxGrade: 100,
 			feedback: "Excellent thread!",
 			overrideAccess: true,
 		};
@@ -1031,12 +958,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the reply
 		const replyGradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
+			req: {
+				...mockRequest,
+			},
 			id: replyId,
-			enrollmentId,
-			gradebookItemId: replyGradebookItemId,
 			gradedBy: teacherId,
 			grade: 80,
-			maxGrade: 100,
 			feedback: "Good reply!",
 			overrideAccess: true,
 		};
@@ -1066,12 +993,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the comment
 		const commentGradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
+			req: {
+				...mockRequest,
+			},
 			id: commentId,
-			enrollmentId,
-			gradebookItemId,
 			gradedBy: teacherId,
 			grade: 70,
-			maxGrade: 100,
 			feedback: "Nice comment!",
 			overrideAccess: true,
 		};

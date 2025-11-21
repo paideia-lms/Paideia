@@ -13,7 +13,7 @@ export function useCreateGradeItem() {
 			categoryId?: number | null;
 			maxGrade?: number;
 			minGrade?: number;
-			weight?: number;
+			weight?: number | null;
 			extraCredit?: boolean;
 		},
 	) => {
@@ -44,7 +44,7 @@ export function useCreateCategory() {
 		name: string;
 		description?: string;
 		parentId?: number | null;
-		weight?: number;
+		weight?: number | null;
 	}) => {
 		const submissionData = {
 			intent: "create-category" as const,
@@ -75,7 +75,7 @@ export function useUpdateGradeItem() {
 			categoryId?: number | null;
 			maxGrade?: number;
 			minGrade?: number;
-			weight?: number;
+			weight?: number | null;
 			extraCredit?: boolean;
 		},
 	) => {
@@ -103,12 +103,13 @@ export function useUpdateGradeItem() {
 export function useUpdateGradeCategory() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateGradeCategory = (
+	const updateGradeCategory = async (
 		categoryId: number,
 		values: {
 			name?: string;
 			description?: string;
-			weight?: number;
+			weight?: number | null;
+			extraCredit?: boolean;
 		},
 	) => {
 		const submissionData = {
@@ -116,7 +117,7 @@ export function useUpdateGradeCategory() {
 			categoryId,
 			...values,
 		};
-		fetcher.submit(submissionData, {
+		await fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
 		});
@@ -124,6 +125,54 @@ export function useUpdateGradeCategory() {
 
 	return {
 		updateGradeCategory,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useDeleteManualItem() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const deleteManualItem = (courseId: number, itemId: number) => {
+		const submissionData = {
+			intent: "delete-item" as const,
+			itemId,
+		};
+		fetcher.submit(submissionData, {
+			method: "POST",
+			encType: ContentType.JSON,
+			action: href("/course/:courseId/grades", {
+				courseId: courseId.toString(),
+			}),
+		});
+	};
+
+	return {
+		deleteManualItem,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useDeleteCategory() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const deleteCategory = (courseId: number, categoryId: number) => {
+		const submissionData = {
+			intent: "delete-category" as const,
+			categoryId,
+		};
+		fetcher.submit(submissionData, {
+			method: "POST",
+			encType: ContentType.JSON,
+			action: href("/course/:courseId/grades", {
+				courseId: courseId.toString(),
+			}),
+		});
+	};
+
+	return {
+		deleteCategory,
 		isLoading: fetcher.state !== "idle",
 		data: fetcher.data,
 	};

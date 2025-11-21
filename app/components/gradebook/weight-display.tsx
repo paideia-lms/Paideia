@@ -5,10 +5,14 @@ export function WeightDisplay({
 	weight,
 	adjustedWeight,
 	extraCredit,
+	isCategory = false,
+	autoWeightedZero = false,
 }: {
 	weight: number | null;
 	adjustedWeight: number | null;
 	extraCredit?: boolean;
+	isCategory?: boolean;
+	autoWeightedZero?: boolean;
 }) {
 	const hasWeight = weight !== null;
 	const hasAdjustedWeight = adjustedWeight !== null;
@@ -18,14 +22,32 @@ export function WeightDisplay({
 	let displayText: string;
 	let tooltipContent: React.ReactNode;
 
-	if (hasWeight && hasAdjustedWeight) {
+	// Special handling for auto-weighted-0 categories
+	if (autoWeightedZero && isCategory && !hasWeight) {
+		displayText = "auto (0%)";
+		tooltipContent = (
+			<Stack gap="xs">
+				<div>
+					<Text size="xs" fw={700}>
+						No weight specified
+					</Text>
+				</div>
+				<div>
+					<Text size="xs">
+						This category has no non-extra-credit items and is treated as 0%
+						weight. It does not participate in weight distribution.
+					</Text>
+				</div>
+			</Stack>
+		);
+	} else if (hasWeight && hasAdjustedWeight) {
 		if (weightsMatch) {
-			displayText = `${weight}%`;
+			displayText = `${weight.toFixed(2)}%`;
 			tooltipContent = (
 				<Stack gap="xs">
 					<div>
 						<Text size="xs" fw={700}>
-							Specified weight: {weight}%
+							Specified weight: {weight.toFixed(2)}%
 						</Text>
 					</div>
 					<div>
@@ -34,12 +56,12 @@ export function WeightDisplay({
 				</Stack>
 			);
 		} else {
-			displayText = `${weight}% (${Math.round(adjustedWeight)}%)`;
+			displayText = `${weight.toFixed(2)}% (${adjustedWeight.toFixed(2)}%)`;
 			tooltipContent = (
 				<Stack gap="xs">
 					<div>
 						<Text size="xs" fw={700}>
-							Specified weight: {weight}%
+							Specified weight: {weight.toFixed(2)}%
 						</Text>
 					</div>
 					<div>
@@ -55,7 +77,7 @@ export function WeightDisplay({
 			);
 		}
 	} else if (!hasWeight && hasAdjustedWeight) {
-		displayText = `- (${Math.round(adjustedWeight)}%)`;
+		displayText = `auto (${adjustedWeight.toFixed(2)}%)`;
 		tooltipContent = (
 			<Stack gap="xs">
 				<div>
@@ -75,7 +97,7 @@ export function WeightDisplay({
 			</Stack>
 		);
 	} else {
-		displayText = "-";
+		displayText = "auto (0%)";
 		tooltipContent = (
 			<Stack gap="xs">
 				<div>
@@ -100,9 +122,9 @@ export function WeightDisplay({
 								Extra Credit
 							</Text>
 							<Text size="xs">
-								This item is marked as extra credit. Extra credit items do not
-								participate in weight distribution and allow categories to total
-								above 100%.
+								{isCategory
+									? "This category is marked as extra credit. Extra credit categories do not participate in weight distribution and allow the total to exceed 100%."
+									: "This item is marked as extra credit. Extra credit items do not participate in weight distribution and allow categories to total above 100%."}
 							</Text>
 						</Stack>
 					}
@@ -116,8 +138,8 @@ export function WeightDisplay({
 		</Group>
 	);
 
-	// Always show tooltip if adjusted weight exists and is different from weight
-	if (hasAdjustedWeight && (!hasWeight || !weightsMatch)) {
+	// Always show tooltip if adjusted weight exists and is different from weight, or if auto-weighted-0
+	if (autoWeightedZero || (hasAdjustedWeight && (!hasWeight || !weightsMatch))) {
 		return (
 			<Tooltip label={tooltipContent} withArrow multiline w={300}>
 				<Box style={{ cursor: "help" }}>{weightContent}</Box>
@@ -131,12 +153,14 @@ export function WeightDisplay({
 export function OverallWeightDisplay({
 	overallWeight,
 	weightExplanation,
+	extraCredit,
 }: {
 	overallWeight: number | null;
 	weightExplanation: string | null;
+	extraCredit?: boolean;
 }) {
 	if (overallWeight === null) {
-		return <Text size="sm">-</Text>;
+		return <Text size="sm">0%</Text>;
 	}
 
 	return (
@@ -145,7 +169,7 @@ export function OverallWeightDisplay({
 				<Stack gap="xs">
 					<div>
 						<Text size="xs" fw={700}>
-							Overall weight: {overallWeight.toFixed(2)}% of course
+							Effective weight: {overallWeight.toFixed(2)}% of course
 						</Text>
 					</div>
 					{weightExplanation ? (
@@ -167,9 +191,15 @@ export function OverallWeightDisplay({
 			multiline
 			w={400}
 		>
-			<Text size="sm" style={{ cursor: "help" }}>
-				{overallWeight.toFixed(2)}%
-			</Text>
+			<Group>
+				<Text size="sm" style={{ cursor: "help" }}>
+					{overallWeight.toFixed(2)}%
+				</Text>
+
+				{/* {extraCredit && (
+					<IconPlusMinus size={16} style={{ cursor: "help" }} />
+				)} */}
+			</Group>
 		</Tooltip>
 	);
 }

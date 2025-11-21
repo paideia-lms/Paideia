@@ -735,7 +735,7 @@ export const trySubmitAssignment = Result.wrap(
 
 /**
  * Grades an assignment submission by updating the submission with grade and feedback
- * This does NOT update user-grades - use tryReleaseGrade to release grades to gradebook
+ * This does NOT update user-grades - use tryReleaseAssignmentGrade to release grades to gradebook
  */
 export const tryGradeAssignmentSubmission = Result.wrap(
 	async (args: GradeAssignmentSubmissionArgs) => {

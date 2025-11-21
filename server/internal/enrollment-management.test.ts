@@ -47,6 +47,7 @@ describe("Enrollment Management Functions", () => {
 				firstName: "Test",
 				lastName: "User",
 				theme: "light",
+				direction: "ltr",
 			},
 		});
 		testUserId = testUser.id;
@@ -178,6 +179,7 @@ describe("Enrollment Management Functions", () => {
 					firstName: "Test2",
 					lastName: "User2",
 					theme: "light",
+					direction: "ltr",
 				},
 			});
 
@@ -254,6 +256,7 @@ describe("Enrollment Management Functions", () => {
 					firstName: "Test3",
 					lastName: "User3",
 					theme: "light",
+					direction: "ltr",
 				},
 			});
 
@@ -325,6 +328,7 @@ describe("Enrollment Management Functions", () => {
 					firstName: "Test4",
 					lastName: "User4",
 					theme: "light",
+					direction: "ltr",
 				},
 			});
 
@@ -494,6 +498,7 @@ describe("Enrollment Management Functions", () => {
 					firstName: "Test5",
 					lastName: "User5",
 					theme: "light",
+					direction: "ltr",
 				},
 				// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
 				overrideAccess: true,
@@ -525,6 +530,7 @@ describe("Enrollment Management Functions", () => {
 						firstName: "Test6",
 						lastName: "User6",
 						theme: "light",
+						direction: "ltr",
 					},
 					overrideAccess: true,
 				});
@@ -771,13 +777,14 @@ describe("Enrollment Management Functions with Authentication", () => {
 		firstName?: string | null;
 		lastName?: string | null;
 		role?:
-			| "admin"
-			| "content-manager"
-			| "analytics-viewer"
-			| "instructor"
-			| "student"
-			| null;
+		| "admin"
+		| "content-manager"
+		| "analytics-viewer"
+		| "instructor"
+		| "student"
+		| null;
 		theme: "light" | "dark";
+		direction: "ltr" | "rtl";
 		updatedAt: string;
 		createdAt: string;
 	};
@@ -806,6 +813,7 @@ describe("Enrollment Management Functions with Authentication", () => {
 				lastName: "User",
 				role: "admin",
 				theme: "light",
+				direction: "ltr",
 			},
 			overrideAccess: true,
 		});
@@ -830,6 +838,7 @@ describe("Enrollment Management Functions with Authentication", () => {
 				firstName: "Test",
 				lastName: "User",
 				theme: "light",
+				direction: "ltr",
 			},
 			overrideAccess: true,
 		});

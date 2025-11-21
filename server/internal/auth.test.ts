@@ -354,6 +354,7 @@ describe("Authentication Functions", () => {
 					firstName: "Second",
 					lastName: "User",
 					theme: "light",
+					direction: "ltr",
 					role: "student",
 					_verified: true,
 				},

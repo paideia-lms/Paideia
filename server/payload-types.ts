@@ -240,6 +240,7 @@ export interface User {
   role?: ('admin' | 'content-manager' | 'analytics-viewer' | 'instructor' | 'student') | null;
   bio?: string | null;
   theme: 'light' | 'dark';
+  direction: 'ltr' | 'rtl';
   avatar?: (number | null) | Media;
   updatedAt: string;
   createdAt: string;
@@ -717,6 +718,10 @@ export interface DiscussionSubmission {
   lastActivityAt?: string | null;
   isPinned?: boolean | null;
   isLocked?: boolean | null;
+  grade?: number | null;
+  feedback?: string | null;
+  gradedBy?: (number | null) | User;
+  gradedAt?: string | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -891,6 +896,7 @@ export interface GradebookCategory {
   name: string;
   description?: string | null;
   weight?: number | null;
+  extraCredit?: boolean | null;
   sortOrder: number;
   subcategories?: {
     docs?: (number | GradebookCategory)[];
@@ -921,7 +927,7 @@ export interface GradebookItem {
   activityModuleType?: string | null;
   maxGrade: number;
   minGrade: number;
-  weight: number;
+  weight?: number | null;
   extraCredit?: boolean | null;
   userGrades?: {
     docs?: (number | UserGrade)[];
@@ -1288,6 +1294,7 @@ export interface UsersSelect<T extends boolean = true> {
   role?: T;
   bio?: T;
   theme?: T;
+  direction?: T;
   avatar?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1633,6 +1640,7 @@ export interface GradebookCategoriesSelect<T extends boolean = true> {
   name?: T;
   description?: T;
   weight?: T;
+  extraCredit?: T;
   sortOrder?: T;
   subcategories?: T;
   items?: T;
@@ -1793,6 +1801,10 @@ export interface DiscussionSubmissionsSelect<T extends boolean = true> {
   lastActivityAt?: T;
   isPinned?: T;
   isLocked?: T;
+  grade?: T;
+  feedback?: T;
+  gradedBy?: T;
+  gradedAt?: T;
   updatedAt?: T;
   createdAt?: T;
 }

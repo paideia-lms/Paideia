@@ -31,6 +31,10 @@ export const enum_users_role = pgEnum("enum_users_role", [
   "student",
 ]);
 export const enum_users_theme = pgEnum("enum_users_theme", ["light", "dark"]);
+export const enum_users_direction = pgEnum("enum_users_direction", [
+  "ltr",
+  "rtl",
+]);
 export const enum_courses_status = pgEnum("enum_courses_status", [
   "draft",
   "published",
@@ -192,7 +196,8 @@ export const users = pgTable(
     role: enum_users_role("role").default("student"),
     bio: varchar("bio"),
     theme: enum_users_theme("theme").notNull().default("light"),
-    avatar: integer("avatar_id").references(() => media.id, {
+    direction: enum_users_direction("direction").notNull().default("ltr"),
+    avatar: integer("avatar_id").references((): AnyPgColumn => media.id, {
       onDelete: "set null",
     }),
     updatedAt: timestamp("updated_at", {
@@ -1084,7 +1089,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references((): AnyPgColumn => users.id, {
+      .references(() => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {
@@ -1230,7 +1235,8 @@ export const gradebook_categories = pgTable(
     ),
     name: varchar("name").notNull(),
     description: varchar("description"),
-    weight: numeric("weight", { mode: "number" }).default(0),
+    weight: numeric("weight", { mode: "number" }),
+    extraCredit: boolean("extra_credit").default(false),
     sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1280,7 +1286,7 @@ export const gradebook_items = pgTable(
     ),
     maxGrade: numeric("max_grade", { mode: "number" }).notNull().default(100),
     minGrade: numeric("min_grade", { mode: "number" }).notNull().default(0),
-    weight: numeric("weight", { mode: "number" }).notNull().default(0),
+    weight: numeric("weight", { mode: "number" }),
     extraCredit: boolean("extra_credit").default(false),
     updatedAt: timestamp("updated_at", {
       mode: "string",
@@ -1651,6 +1657,16 @@ export const discussion_submissions = pgTable(
     }),
     isPinned: boolean("is_pinned").default(false),
     isLocked: boolean("is_locked").default(false),
+    grade: numeric("grade", { mode: "number" }),
+    feedback: varchar("feedback"),
+    gradedBy: integer("graded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gradedAt: timestamp("graded_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -1673,6 +1689,7 @@ export const discussion_submissions = pgTable(
     index("discussion_submissions_student_idx").on(columns.student),
     index("discussion_submissions_enrollment_idx").on(columns.enrollment),
     index("discussion_submissions_parent_thread_idx").on(columns.parentThread),
+    index("discussion_submissions_graded_by_idx").on(columns.gradedBy),
     index("discussion_submissions_updated_at_idx").on(columns.updatedAt),
     index("discussion_submissions_created_at_idx").on(columns.createdAt),
     index("courseModuleLink_2_idx").on(columns.courseModuleLink),
@@ -3211,6 +3228,11 @@ export const relations_discussion_submissions = relations(
     upvotes: many(discussion_submissions_upvotes, {
       relationName: "upvotes",
     }),
+    gradedBy: one(users, {
+      fields: [discussion_submissions.gradedBy],
+      references: [users.id],
+      relationName: "gradedBy",
+    }),
   }),
 );
 export const relations_course_grade_tables_grade_letters = relations(
@@ -3604,6 +3626,7 @@ export const relations_payload_jobs_stats = relations(
 type DatabaseSchema = {
   enum_users_role: typeof enum_users_role;
   enum_users_theme: typeof enum_users_theme;
+  enum_users_direction: typeof enum_users_direction;
   enum_courses_status: typeof enum_courses_status;
   enum_category_role_assignments_role: typeof enum_category_role_assignments_role;
   enum_enrollments_role: typeof enum_enrollments_role;

@@ -234,7 +234,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			courseResult.value.gradebook.id,
 		);
 		const gradebookItemArgs: CreateGradebookItemArgs = {
-			gradebookId: courseResult.value.gradebook.id,
+			courseId: courseResult.value.gradebook.id,
 			name: "Test Assignment",
 			description: "Assignment submission test",
 			activityModuleId: courseActivityModuleLinkId,

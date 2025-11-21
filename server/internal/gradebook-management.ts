@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Gradebooks } from "server/payload.config";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -20,12 +20,21 @@ import {
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 
 export interface CreateGradebookArgs {
+	payload: Payload;
 	courseId: number;
 	enabled?: boolean;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateGradebookArgs {
+	payload: Payload;
+	gradebookId: number;
 	enabled?: boolean;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface SearchGradebooksArgs {
@@ -41,16 +50,19 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-		| "manual_item"
-		| "category"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "category"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
+	min_grade: number | null;
+	description: string | null;
+	category_id: number | null;
 	extra_credit?: boolean; // Extra credit items don't affect weight distribution
 	grade_items?: GradebookSetupItem[];
 	activityModuleLinkId?: number | null; // Link ID to course-activity-module-links if this item is linked to an activity module
@@ -60,6 +72,7 @@ export interface GradebookSetupItemWithCalculations extends GradebookSetupItem {
 	adjusted_weight: number | null;
 	overall_weight: number | null; // Only for leaf items
 	weight_explanation: string | null; // Human-readable explanation of overall weight calculation
+	auto_weighted_zero?: boolean; // True if category is auto-weighted and should be treated as 0%
 	grade_items?: GradebookSetupItemWithCalculations[];
 }
 
@@ -82,6 +95,7 @@ export interface GradebookSetupForUI {
 		totalMaxGrade: number;
 	};
 	extraCreditItems: GradebookSetupItemWithCalculations[];
+	extraCreditCategories: GradebookSetupItemWithCalculations[];
 }
 
 export interface GradebookJsonRepresentation {
@@ -94,18 +108,27 @@ export interface GradebookJsonRepresentation {
  * Creates a new gradebook for a course using Payload local API
  */
 export const tryCreateGradebook = Result.wrap(
-	async (payload: Payload, request: Request, args: CreateGradebookArgs) => {
-		const { courseId, enabled = true } = args;
+	async (args: CreateGradebookArgs) => {
+		const {
+			payload,
+			courseId,
+			enabled = true,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Check if course exists
 		const course = await payload.findByID({
 			collection: "courses",
 			id: courseId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!course) {
-			throw new Error(`Course with ID ${courseId} not found`);
+			throw new UnknownError(`Course with ID ${courseId} not found`);
 		}
 
 		// Check if gradebook already exists for this course
@@ -117,7 +140,9 @@ export const tryCreateGradebook = Result.wrap(
 				},
 			},
 			limit: 1,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (existingGradebook.docs.length > 0) {
@@ -139,7 +164,9 @@ export const tryCreateGradebook = Result.wrap(
 					course: courseId,
 					enabled,
 				},
-				req: { ...request, transactionID },
+				user,
+				req: req ? { ...req, transactionID } : { transactionID },
+				overrideAccess,
 			});
 
 			// Commit transaction
@@ -169,31 +196,34 @@ export const tryCreateGradebook = Result.wrap(
 			throw error;
 		}
 	},
-	(error) => {
-		if (error instanceof DuplicateGradebookError) {
-			return error;
-		}
-		return new Error(
-			`Failed to create gradebook: ${error instanceof Error ? error.message : String(error)}`,
-		);
-	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create gradebook", {
+			cause: error,
+		}),
 );
 
 /**
  * Updates an existing gradebook using Payload local API
  */
 export const tryUpdateGradebook = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		gradebookId: number,
-		args: UpdateGradebookArgs,
-	) => {
+	async (args: UpdateGradebookArgs) => {
+		const {
+			payload,
+			gradebookId,
+			enabled,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Check if gradebook exists
 		const existingGradebook = await payload.findByID({
 			collection: Gradebooks.slug,
 			id: gradebookId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!existingGradebook) {
@@ -205,103 +235,43 @@ export const tryUpdateGradebook = Result.wrap(
 		const updatedGradebook = await payload.update({
 			collection: Gradebooks.slug,
 			id: gradebookId,
-			data: args,
-			req: request,
+			data: { enabled },
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return updatedGradebook as Gradebook;
 	},
 	(error) =>
-		new Error(
-			`Failed to update gradebook: ${error instanceof Error ? error.message : String(error)}`,
-		),
-);
-
-/**
- * Finds a gradebook by ID
- */
-export const tryFindGradebookById = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		const gradebook = await payload.findByID({
-			collection: Gradebooks.slug,
-			id: gradebookId,
-		});
-
-		if (!gradebook) {
-			throw new GradebookNotFoundError(
-				`Gradebook with ID ${gradebookId} not found`,
-			);
-		}
-
-		return gradebook as Gradebook;
-	},
-	(error) =>
-		new Error(
-			`Failed to find gradebook by ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
-);
-
-/**
- * Finds a gradebook by course ID
- */
-export const tryFindGradebookByCourseId = Result.wrap(
-	async (payload: Payload, courseId: number) => {
-		const gradebook = await payload.find({
-			collection: Gradebooks.slug,
-			where: {
-				course: {
-					equals: courseId,
-				},
-			},
-			limit: 1,
-		});
-
-		if (gradebook.docs.length === 0) {
-			throw new GradebookNotFoundError(
-				`Gradebook not found for course ${courseId}`,
-			);
-		}
-
-		return gradebook.docs[0] as Gradebook;
-	},
-	(error) =>
-		new Error(
-			`Failed to find gradebook by course ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to update gradebook", {
+			cause: error,
+		}),
 );
 
 // ! we should not delete gradebooks so we don't have the delete function here
-
-/**
- * Gets gradebook with all categories and items
- */
-export const tryGetGradebookWithDetails = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		const gradebook = await payload.findByID({
-			collection: Gradebooks.slug,
-			id: gradebookId,
-			depth: 2, // Get categories and items with their details
-		});
-
-		if (!gradebook) {
-			throw new GradebookNotFoundError(
-				`Gradebook with ID ${gradebookId} not found`,
-			);
-		}
-
-		return gradebook as Gradebook;
-	},
-	(error) =>
-		new Error(
-			`Failed to get gradebook with details: ${error instanceof Error ? error.message : String(error)}`,
-		),
-);
+export interface GetGradebookByCourseWithDetailsArgs {
+	payload: Payload;
+	courseId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
 
 /**
  * Gets gradebook by course ID with all details
  */
 export const tryGetGradebookByCourseWithDetails = Result.wrap(
-	async (payload: Payload, courseId: number) => {
+	async (args: GetGradebookByCourseWithDetailsArgs) => {
+		const {
+			payload,
+			courseId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const gradebook = await payload.find({
 			collection: Gradebooks.slug,
 			where: {
@@ -309,353 +279,71 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 					equals: courseId,
 				},
 			},
+			joins: {
+				"categories": {
+					limit: MOCK_INFINITY,
+				},
+				"items": {
+					limit: MOCK_INFINITY,
+				}
+			},
 			depth: 2, // Get categories and items with their details
 			limit: 1,
-		});
-
-		if (gradebook.docs.length === 0) {
-			throw new GradebookNotFoundError(
+			user,
+			req,
+			overrideAccess,
+		}).then((g) => {
+			const gradebook = g.docs[0];
+			if (!gradebook) throw new GradebookNotFoundError(
 				`Gradebook not found for course ${courseId}`,
 			);
-		}
 
-		return gradebook.docs[0] as Gradebook;
-	},
-	(error) =>
-		new Error(
-			`Failed to get gradebook by course with details: ${error instanceof Error ? error.message : String(error)}`,
-		),
-);
+			// type narrowing
+			assertZodInternal(
+				"tryGetGradebookByCourseWithDetails: Gradebook course should be object",
+				gradebook.course,
+				z.object({
+					id: z.number(),
+				}),
+			);
 
-/**
- * Constructs a JSON representation of the gradebook structure
- */
-export const tryGetGradebookJsonRepresentation = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		// Get the gradebook to verify it exists and get course ID
-		const gradebook = await payload.findByID({
-			collection: Gradebooks.slug,
-			id: gradebookId,
-			depth: 0,
+
+			const categories = gradebook.categories?.docs?.map(c => {
+				assertZodInternal(
+					"tryGetGradebookByCourseWithDetails: Category should be object",
+					c,
+					z.object({
+						id: z.number(),
+					}),
+				);
+				return c;
+			}) ?? [];
+
+			const items = gradebook.items?.docs?.map(i => {
+				assertZodInternal(
+					"tryGetGradebookByCourseWithDetails: Item should be object",
+					i,
+					z.object({
+						id: z.number(),
+					}),
+				);
+				return i
+			}) ?? [];
+
+			return {
+
+				...gradebook,
+				course: gradebook.course,
+				categories,
+				items,
+			}
 		});
 
-		if (!gradebook) {
-			throw new GradebookNotFoundError(
-				`Gradebook with ID ${gradebookId} not found`,
-			);
-		}
-
-		// Get course ID from gradebook
-		const courseId = gradebook.course;
-		assertZodInternal(
-			"tryGetGradebookJsonRepresentation: Course is required",
-			courseId,
-			z.number(),
-		);
-
-		// Get all categories for this gradebook (depth 0 to avoid deep nesting)
-		const categoriesPromise = payload
-			.find({
-				collection: "gradebook-categories",
-				where: {
-					gradebook: {
-						equals: gradebookId,
-					},
-				},
-				depth: 0,
-				joins: {
-					subcategories: {
-						limit: MOCK_INFINITY,
-					},
-					items: {
-						limit: MOCK_INFINITY,
-					},
-				},
-				pagination: false,
-				sort: "sortOrder",
-			})
-			.then((c) => {
-				const categories = c.docs;
-
-				return categories.map((category) => {
-					const parent = category.parent;
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: Parent is required",
-						parent,
-						z.number().nullish(),
-					);
-					const subcategories = category.subcategories?.docs ?? [];
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: Subcategories are required",
-						subcategories,
-						z.array(z.number()),
-					);
-					const items = category.items?.docs ?? [];
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: Items are required",
-						items,
-						z.array(z.number()),
-					);
-
-					const result = {
-						...category,
-						gradebook: gradebookId,
-						parent,
-						subcategories: subcategories,
-						items: items,
-					};
-					return result;
-				});
-			});
-
-		// Get all items for this gradebook (depth 0 to avoid deep nesting)
-		const itemsPromise = payload
-			.find({
-				collection: "gradebook-items",
-				where: {
-					gradebook: {
-						equals: gradebookId,
-					},
-				},
-				joins: {
-					// ! we don't need user grades
-					userGrades: false,
-				},
-				depth: 0,
-				pagination: false,
-				sort: "sortOrder",
-			})
-			.then((i) => {
-				const items = i.docs;
-				return items.map((item) => {
-					// type narrowing
-					const category = item.category;
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: Category is required",
-						category,
-						z.number().nullish(),
-					);
-
-					const activityModule = item.activityModule;
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: Activity module is required",
-						activityModule,
-						z.number().nullish(),
-					);
-
-					const userGrades = item.userGrades;
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: User grades are required",
-						userGrades,
-						z.undefined(),
-					);
-
-					const type = item.activityModuleType;
-					//   type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
-
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: Type is required",
-						type,
-						z
-							.enum(["page", "whiteboard", "assignment", "quiz", "discussion"])
-							.nullish(),
-					);
-
-					const activityModuleName = item.activityModuleName;
-					assertZodInternal(
-						"tryGetGradebookJsonRepresentation: Activity module name is required",
-						activityModuleName,
-						z.string().nullish(),
-					);
-
-					const result = {
-						...item,
-						category: category,
-						gradebook: gradebookId,
-						activityModule: activityModule,
-						userGrades: userGrades,
-						activityModuleType: type ?? null,
-						activityModuleName: activityModuleName ?? null,
-					};
-					return result;
-				});
-			});
-
-		// Wait for both queries to complete
-		const [categoriesData, itemsData] = await Promise.all([
-			categoriesPromise,
-			itemsPromise,
-		]);
-
-		// Map categories to CategoryData type
-		const categories: CategoryData[] = categoriesData.map((category) => ({
-			id: category.id,
-			gradebook: category.gradebook,
-			parent: category.parent ?? null,
-			name: category.name,
-			weight: category.weight ?? null,
-			subcategories: category.subcategories,
-			items: category.items,
-		}));
-
-		// Map items to ItemData type
-		const items: ItemData[] = itemsData.map((item) => ({
-			id: item.id,
-			gradebook: item.gradebook,
-			category: item.category ?? null,
-			name: item.name,
-			activityModuleType: item.activityModuleType,
-			activityModuleName: item.activityModuleName,
-			activityModuleLinkId: item.activityModule ?? null,
-			weight: item.weight,
-			maxGrade: item.maxGrade,
-			extraCredit: item.extraCredit ?? false,
-		}));
-
-		// console.log("items", items);
-
-		// Build the structure recursively
-		const setupItems: GradebookSetupItem[] = [];
-
-		// Process root-level items (items without a category)
-		const rootItems = items.filter((item) => !item.category);
-		for (const item of rootItems) {
-			setupItems.push({
-				id: item.id,
-				type: (item.activityModuleType ?? "manual_item") as
-					| "manual_item"
-					| "category"
-					| "page"
-					| "whiteboard"
-					| "assignment"
-					| "quiz"
-					| "discussion",
-				name: item.activityModuleName ?? item.name,
-				weight: item.weight || null,
-				max_grade: item.maxGrade || null,
-				extra_credit: item.extraCredit ?? false,
-				activityModuleLinkId: item.activityModuleLinkId ?? null,
-			});
-		}
-
-		// Process root categories (categories without a parent) recursively
-		// Note: buildCategoryStructure(null) only processes categories, not items,
-		// because root items are handled separately above
-		const rootCategoryStructures = buildCategoryStructure(
-			null,
-			categories,
-			items,
-		);
-		setupItems.push(...rootCategoryStructures);
-
-		// Note: We don't calculate adjusted weights here since this is the raw JSON representation
-		// Adjusted weights are calculated in tryGetGradebookSetupForUI
-
-		const result: GradebookJsonRepresentation = {
-			gradebook_id: gradebookId,
-			course_id: courseId,
-			gradebook_setup: {
-				items: setupItems,
-				exclude_empty_grades: true, // You can make this configurable if needed
-			},
-		};
-
-		return result;
+		return gradebook;
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to get gradebook JSON representation", {
-			cause: error,
-		}),
-);
-
-/**
- * Gets gradebook setup with calculations for UI display
- * This includes adjusted weights and overall weights, which are not in JSON/YAML
- */
-export const tryGetGradebookSetupForUI = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		// Get raw JSON representation (without calculations)
-		const jsonResult = await tryGetGradebookJsonRepresentation(
-			payload,
-			gradebookId,
-		);
-
-		if (!jsonResult.ok) {
-			throw jsonResult.error;
-		}
-
-		const jsonData = jsonResult.value;
-
-		// Calculate adjusted weights
-		const itemsWithAdjusted = calculateAdjustedWeights(
-			jsonData.gradebook_setup.items,
-		);
-
-		// Calculate overall weights and get totals
-		const totals = calculateOverallWeights(
-			itemsWithAdjusted as GradebookSetupItemWithCalculations[],
-		);
-
-		return {
-			gradebook_id: jsonData.gradebook_id,
-			course_id: jsonData.course_id,
-			gradebook_setup: {
-				items: itemsWithAdjusted as GradebookSetupItemWithCalculations[],
-				exclude_empty_grades: jsonData.gradebook_setup.exclude_empty_grades,
-			},
-			totals: {
-				baseTotal: totals.baseTotal,
-				extraCreditTotal: totals.extraCreditTotal,
-				calculatedTotal: totals.calculatedTotal,
-				totalMaxGrade: totals.totalMaxGrade,
-			},
-			extraCreditItems: totals.extraCreditItems,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get gradebook setup for UI", {
-			cause: error,
-		}),
-);
-
-/**
- * Constructs a YAML representation of the gradebook structure
- * Built on top of the JSON representation
- */
-export const tryGetGradebookYAMLRepresentation = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		// Get JSON representation first
-		const jsonResult = await tryGetGradebookJsonRepresentation(
-			payload,
-			gradebookId,
-		);
-
-		if (!jsonResult.ok) {
-			throw jsonResult.error;
-		}
-
-		const jsonRepresentation = jsonResult.value;
-
-		// Convert JSON to YAML using Bun.YAML.stringify
-		let yamlString: string;
-		try {
-			yamlString = Bun.YAML?.stringify(jsonRepresentation, null, 2);
-			if (!yamlString) {
-				throw new Error("Bun.YAML is not available");
-			}
-		} catch (error) {
-			throw new Error(
-				`Failed to convert JSON to YAML: ${error instanceof Error ? error.message : String(error)}`,
-			);
-		}
-
-		return yamlString;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to get gradebook YAML representation", {
+		new UnknownError("Failed to get gradebook by course with details", {
 			cause: error,
 		}),
 );
@@ -875,38 +563,303 @@ function buildFullBreakdownRows(
 	return rows;
 }
 
+export interface GetGradebookAllRepresentationsArgs {
+	payload: Payload;
+	courseId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
+export interface GradebookAllRepresentations {
+	json: GradebookJsonRepresentation;
+	yaml: string;
+	markdown: string;
+	ui: GradebookSetupForUI;
+}
+
 /**
- * Constructs a Markdown representation of the gradebook structure
- * Built on top of the JSON representation and UI setup
+ * Gets all gradebook representations (JSON, YAML, Markdown, UI) in a single call
+ * This is more efficient than calling each function separately as it only fetches data once
  */
-export const tryGetGradebookMarkdownRepresentation = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		// Get gradebook setup for UI (includes calculations)
-		const setupResult = await tryGetGradebookSetupForUI(payload, gradebookId);
+export const tryGetGradebookAllRepresentations = Result.wrap(
+	async (args: GetGradebookAllRepresentationsArgs) => {
+		const {
+			payload,
+			courseId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
-		if (!setupResult.ok) {
-			throw setupResult.error;
+		const gradebookId = courseId;
+
+		// Get all categories for this gradebook (depth 0 to avoid deep nesting)
+		const categoriesPromise = payload
+			.find({
+				collection: "gradebook-categories",
+				where: {
+					gradebook: {
+						equals: gradebookId,
+					},
+				},
+				depth: 0,
+				joins: {
+					subcategories: {
+						limit: MOCK_INFINITY,
+					},
+					items: {
+						limit: MOCK_INFINITY,
+					},
+				},
+				pagination: false,
+				sort: "sortOrder",
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((c) => {
+				const categories = c.docs;
+
+				return categories.map((category) => {
+					const parent = category.parent;
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: Parent is required",
+						parent,
+						z.number().nullish(),
+					);
+					const subcategories = category.subcategories?.docs ?? [];
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: Subcategories are required",
+						subcategories,
+						z.array(z.number()),
+					);
+					const items = category.items?.docs ?? [];
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: Items are required",
+						items,
+						z.array(z.number()),
+					);
+
+					const result = {
+						...category,
+						gradebook: gradebookId,
+						parent,
+						subcategories: subcategories,
+						items: items,
+					};
+					return result;
+				});
+			});
+
+		// Get all items for this gradebook (depth 0 to avoid deep nesting)
+		const itemsPromise = payload
+			.find({
+				collection: "gradebook-items",
+				where: {
+					gradebook: {
+						equals: gradebookId,
+					},
+				},
+				joins: {
+					// ! we don't need user grades
+					userGrades: false,
+				},
+				depth: 0,
+				pagination: false,
+				sort: "sortOrder",
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((i) => {
+				const items = i.docs;
+				return items.map((item) => {
+					// type narrowing
+					const category = item.category;
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: Category is required",
+						category,
+						z.number().nullish(),
+					);
+
+					const activityModule = item.activityModule;
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: Activity module is required",
+						activityModule,
+						z.number().nullish(),
+					);
+
+					const userGrades = item.userGrades;
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: User grades are required",
+						userGrades,
+						z.undefined(),
+					);
+
+					const type = item.activityModuleType;
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: Type is required",
+						type,
+						z
+							.enum(["page", "whiteboard", "assignment", "quiz", "discussion"])
+							.nullish(),
+					);
+
+					const activityModuleName = item.activityModuleName;
+					assertZodInternal(
+						"tryGetGradebookAllRepresentations: Activity module name is required",
+						activityModuleName,
+						z.string().nullish(),
+					);
+
+					const result = {
+						...item,
+						category: category,
+						gradebook: gradebookId,
+						activityModule: activityModule,
+						userGrades: userGrades,
+						activityModuleType: type ?? null,
+						activityModuleName: activityModuleName ?? null,
+					};
+					return result;
+				});
+			});
+
+		// Wait for both queries to complete
+		const [categoriesData, itemsData] = await Promise.all([
+			categoriesPromise,
+			itemsPromise,
+		]);
+
+		// Map categories to CategoryData type
+		const categories = categoriesData.map((category) => ({
+			id: category.id,
+			gradebook: category.gradebook,
+			parent: category.parent ?? null,
+			name: category.name,
+			weight: category.weight ?? null,
+			extraCredit: category.extraCredit ?? false,
+			subcategories: category.subcategories,
+			items: category.items,
+		})) satisfies CategoryData[];
+
+		// Map items to ItemData type
+		const items = itemsData.map((item) => ({
+			id: item.id,
+			gradebook: item.gradebook,
+			category: item.category ?? null,
+			name: item.name,
+			description: item.description ?? null,
+			activityModuleType: item.activityModuleType,
+			activityModuleName: item.activityModuleName,
+			activityModuleLinkId: item.activityModule ?? null,
+			weight: item.weight ?? null,
+			maxGrade: item.maxGrade,
+			minGrade: item.minGrade ?? null,
+			extraCredit: item.extraCredit ?? false,
+		})) satisfies ItemData[];
+
+		// Build the structure recursively
+		const setupItems: GradebookSetupItem[] = [];
+
+		// Process root-level items (items without a category)
+		const rootItems = items.filter((item) => !item.category);
+		for (const item of rootItems) {
+			setupItems.push({
+				id: item.id,
+				type: (item.activityModuleType ?? "manual_item") as
+					| "manual_item"
+					| "category"
+					| "page"
+					| "whiteboard"
+					| "assignment"
+					| "quiz"
+					| "discussion",
+				name: item.activityModuleName ?? item.name,
+				weight: item.weight ?? null,
+				max_grade: item.maxGrade ?? null,
+				min_grade: item.minGrade ?? null,
+				description: item.description ?? null,
+				category_id: null, // Root items don't have a category
+				extra_credit: item.extraCredit ?? false,
+				activityModuleLinkId: item.activityModuleLinkId ?? null,
+			});
 		}
 
-		const setup = setupResult.value;
+		// Process root categories (categories without a parent) recursively
+		// Note: buildCategoryStructure(null) only processes categories, not items,
+		// because root items are handled separately above
+		const rootCategoryStructures = buildCategoryStructure(
+			null,
+			categories,
+			items,
+		);
+		setupItems.push(...rootCategoryStructures);
 
-		// Get course information
-		const course = await payload.findByID({
-			collection: "courses",
-			id: setup.course_id,
-			depth: 0,
-		});
+		// Build JSON representation
+		const jsonData: GradebookJsonRepresentation = {
+			gradebook_id: gradebookId,
+			course_id: courseId,
+			gradebook_setup: {
+				items: setupItems,
+				exclude_empty_grades: true, // You can make this configurable if needed
+			},
+		};
 
-		if (!course) {
-			throw new Error(`Course with ID ${setup.course_id} not found`);
+		// Calculate adjusted weights for UI
+		const itemsWithAdjusted = calculateAdjustedWeights(
+			jsonData.gradebook_setup.items,
+		);
+
+		// Calculate overall weights and get totals
+		const totals = calculateOverallWeights(
+			itemsWithAdjusted as GradebookSetupItemWithCalculations[],
+		);
+
+		// Build UI representation
+		const uiData: GradebookSetupForUI = {
+			gradebook_id: jsonData.gradebook_id,
+			course_id: jsonData.course_id,
+			gradebook_setup: {
+				items: itemsWithAdjusted as GradebookSetupItemWithCalculations[],
+				exclude_empty_grades: jsonData.gradebook_setup.exclude_empty_grades,
+			},
+			totals: {
+				baseTotal: totals.baseTotal,
+				extraCreditTotal: totals.extraCreditTotal,
+				calculatedTotal: totals.calculatedTotal,
+				totalMaxGrade: totals.totalMaxGrade,
+			},
+			extraCreditItems: totals.extraCreditItems,
+			extraCreditCategories: totals.extraCreditCategories,
+		};
+
+		// Convert JSON to YAML using Bun.YAML.stringify
+		// Create a modified version without gradebook_id since it's the same as course_id
+		const yamlData = {
+			...jsonData,
+			gradebook_id: undefined,
+		};
+		// Remove undefined property
+		delete (yamlData as { gradebook_id?: number }).gradebook_id;
+
+		let yamlString: string;
+		try {
+			yamlString = Bun.YAML?.stringify(yamlData, null, 2);
+			if (!yamlString) {
+				throw new UnknownError("Bun.YAML is not available");
+			}
+		} catch (error) {
+			throw new UnknownError("Failed to convert JSON to YAML", {
+				cause: error,
+			});
 		}
 
-		// Build header
+		// Build Markdown representation
 		const header = `# Grade Report
 
-**Course:** Course ID ${setup.course_id}
-
-**Gradebook ID:** ${setup.gradebook_id}
+**Course ID:** ${uiData.course_id}
 
 ## Grade Summary
 
@@ -914,7 +867,7 @@ export const tryGetGradebookMarkdownRepresentation = Result.wrap(
 |----------------------------|--------|-----------|----------|--------|------------|--------------|`;
 
 		// Build grade summary rows
-		const summaryRows = buildGradeSummaryRows(setup.gradebook_setup.items);
+		const summaryRows = buildGradeSummaryRows(uiData.gradebook_setup.items);
 		const summarySection = [header, ...summaryRows].join("\n");
 
 		// Build full breakdown header
@@ -925,18 +878,18 @@ export const tryGetGradebookMarkdownRepresentation = Result.wrap(
 |----|------------------------|--------------|--------|-----------|-------|-------|----------------|`;
 
 		// Build full breakdown rows
-		const breakdownRows = buildFullBreakdownRows(setup.gradebook_setup.items);
+		const breakdownRows = buildFullBreakdownRows(uiData.gradebook_setup.items);
 		const breakdownSection = [breakdownHeader, ...breakdownRows].join("\n");
 
 		// Build totals section
 		const totalsSection = `
-**Current Course Total: ${formatNumber(0)} / ${formatNumber(setup.totals.totalMaxGrade)} (${formatPercentage(0)})**
+**Current Course Total: ${formatNumber(0)} / ${formatNumber(uiData.totals.totalMaxGrade)} (${formatPercentage(0)})**
 
 **Gradebook Settings:**
 
 | Setting                  | Value          |
 |--------------------------|----------------|
-| Exclude empty grades     | ${setup.gradebook_setup.exclude_empty_grades ? "Yes" : "No"}            |
+| Exclude empty grades     | ${uiData.gradebook_setup.exclude_empty_grades ? "Yes" : "No"}            |
 | Show weight              | Yes            |
 | Show contribution        | Yes            |
 | Show range               | Yes            |
@@ -951,11 +904,17 @@ export const tryGetGradebookMarkdownRepresentation = Result.wrap(
 		// Prettify the markdown using remark
 		const markdown = prettifyMarkdown(rawMarkdown);
 
-		return markdown;
+		return {
+			json: jsonData,
+			yaml: yamlString,
+			markdown,
+			ui: uiData,
+		};
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to get gradebook markdown representation", {
+		new UnknownError("Failed to get gradebook all representations", {
 			cause: error,
 		}),
 );
+

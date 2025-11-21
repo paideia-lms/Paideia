@@ -18,6 +18,7 @@ export interface CreateUserArgs {
 		bio?: string;
 		avatar?: number;
 		theme?: "light" | "dark";
+		direction?: "ltr" | "rtl";
 	};
 	user?: User | null;
 	req?: Partial<PayloadRequest>;
@@ -35,6 +36,7 @@ export interface UpdateUserArgs {
 		avatar?: number | Media;
 		_verified?: boolean;
 		theme?: "light" | "dark";
+		direction?: "ltr" | "rtl";
 	};
 	user?: User | null;
 	req?: Partial<PayloadRequest>;
@@ -130,6 +132,7 @@ export const tryCreateUser = Result.wrap(
 				bio,
 				avatar,
 				theme,
+				direction,
 			},
 			user = null,
 			req,
@@ -166,6 +169,7 @@ export const tryCreateUser = Result.wrap(
 					bio,
 					avatar,
 					theme: theme ?? "light",
+					direction: direction ?? "ltr",
 					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},
@@ -577,6 +581,7 @@ export const tryRegisterFirstUser = Result.wrap(
 					lastName,
 					role: "admin",
 					theme: "light",
+					direction: "ltr",
 				},
 				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
@@ -695,6 +700,7 @@ export const tryRegisterUser = Result.wrap(
 					lastName,
 					role: role ?? "student",
 					theme: "light",
+					direction: "ltr",
 					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},

@@ -8,14 +8,9 @@ import { tryCreateCourse } from "./course-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {
-	type GradebookSetupItem,
-	type GradebookSetupItemWithCalculations,
 	tryCreateGradebook,
-	tryFindGradebookByCourseId,
-	tryFindGradebookById,
 	tryGetGradebookByCourseWithDetails,
-	tryGetGradebookJsonRepresentation,
-	tryGetGradebookWithDetails,
+	tryGetGradebookAllRepresentations,
 	tryUpdateGradebook,
 } from "./gradebook-management";
 import type { CreateUserArgs } from "./user-management";
@@ -25,7 +20,7 @@ describe("Gradebook Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
-	let testGradebook: TryResultValue<typeof tryFindGradebookByCourseId>;
+	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testItem: TryResultValue<typeof tryCreateGradebookItem>;
 	let testItem2: TryResultValue<typeof tryCreateGradebookItem>;
@@ -84,10 +79,13 @@ describe("Gradebook Management", () => {
 		testCourse = courseResult.value;
 
 		// The course creation already creates a gradebook, so let's get it
-		const gradebookResult = await tryFindGradebookByCourseId(
+		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(gradebookResult.ok).toBe(true);
 		if (!gradebookResult.ok) {
 			throw new Error("Failed to find gradebook for course");
@@ -102,7 +100,6 @@ describe("Gradebook Management", () => {
 				gradebookId: testGradebook.id,
 				name: "Test Category",
 				description: "Test Category Description",
-				weight: 50,
 				sortOrder: 0,
 			},
 		);
@@ -115,13 +112,12 @@ describe("Gradebook Management", () => {
 
 		// Create test items
 		const itemResult = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Assignment",
 			description: "Test Assignment Description",
 			maxGrade: 100,
 			minGrade: 0,
-			weight: 25,
 			extraCredit: false,
 			sortOrder: 0,
 		});
@@ -133,7 +129,7 @@ describe("Gradebook Management", () => {
 		testItem = itemResult.value;
 
 		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			gradebookId: testGradebook.id,
+			courseId: testCourse.id,
 			categoryId: null,
 			name: "Test Manual Item",
 			description: "Test Manual Item Description",
@@ -161,7 +157,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should find existing gradebook for a course", async () => {
-		const result = await tryFindGradebookByCourseId(payload, testCourse.id);
+		const result = await tryGetGradebookByCourseWithDetails({
+			payload,
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -172,9 +174,13 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should not create duplicate gradebook for the same course", async () => {
-		const result = await tryCreateGradebook(payload, {} as Request, {
+		const result = await tryCreateGradebook({
+			payload,
 			courseId: testCourse.id,
 			enabled: true,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -183,18 +189,15 @@ describe("Gradebook Management", () => {
 		}
 	});
 
-	it("should find gradebook by ID", async () => {
-		const result = await tryFindGradebookById(payload, testGradebook.id);
-
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.id).toBe(testGradebook.id);
-			expect(result.value.course).toBeDefined();
-		}
-	});
 
 	it("should find gradebook by course ID", async () => {
-		const result = await tryFindGradebookByCourseId(payload, testCourse.id);
+		const result = await tryGetGradebookByCourseWithDetails({
+			payload,
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -203,14 +206,14 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should update gradebook", async () => {
-		const result = await tryUpdateGradebook(
+		const result = await tryUpdateGradebook({
 			payload,
-			{} as Request,
-			testGradebook.id,
-			{
-				enabled: false,
-			},
-		);
+			gradebookId: testGradebook.id,
+			enabled: false,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -218,22 +221,15 @@ describe("Gradebook Management", () => {
 		}
 	});
 
-	it("should get gradebook with details", async () => {
-		const result = await tryGetGradebookWithDetails(payload, testGradebook.id);
-
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.id).toBe(testGradebook.id);
-			expect(result.value.categories).toBeDefined();
-			expect(result.value.items).toBeDefined();
-		}
-	});
 
 	it("should get gradebook by course with details", async () => {
-		const result = await tryGetGradebookByCourseWithDetails(
+		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
-			testCourse.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -244,16 +240,19 @@ describe("Gradebook Management", () => {
 	});
 
 	it("should get gradebook JSON representation", async () => {
-		const result = await tryGetGradebookJsonRepresentation(
+		const result = await tryGetGradebookAllRepresentations({
 			payload,
-			testGradebook.id,
-		);
+			courseId: testCourse.id,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) {
-			throw new Error("Failed to get gradebook JSON representation");
+			throw new Error("Failed to get gradebook all representations");
 		}
-		const json = result.value;
+		const json = result.value.json;
 
 		console.log(JSON.stringify(json, null, 2));
 
@@ -283,7 +282,7 @@ describe("Gradebook Management", () => {
 		if (manualItem) {
 			expect(manualItem.id).toBe(testItem2.id);
 			expect(manualItem.type).toBe("manual_item");
-			expect(manualItem.weight).toBe(15);
+			expect(manualItem.weight).toBe(15); // auto-weighted
 			expect(manualItem.max_grade).toBe(50);
 		}
 
@@ -293,7 +292,7 @@ describe("Gradebook Management", () => {
 		if (category) {
 			expect(category.id).toBe(testCategory.id);
 			expect(category.type).toBe("category");
-			expect(category.weight).toBe(50);
+			expect(category.weight).toBe(null);
 			expect(category.max_grade).toBeNull();
 			expect(Array.isArray(category.grade_items)).toBe(true);
 			if (category.grade_items) {
@@ -307,7 +306,7 @@ describe("Gradebook Management", () => {
 				if (gradeItem) {
 					expect(gradeItem.id).toBe(testItem.id);
 					expect(gradeItem.type).toBe("manual_item"); // Default type when no activity module
-					expect(gradeItem.weight).toBe(25);
+					expect(gradeItem.weight).toBe(null); // auto-weighted
 					expect(gradeItem.max_grade).toBe(100);
 				}
 			}

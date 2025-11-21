@@ -154,6 +154,17 @@ export const Users = {
 			saveToJWT: true,
 		},
 		{
+			name: "direction",
+			type: "select",
+			options: [
+				{ label: "Left to Right", value: "ltr" },
+				{ label: "Right to Left", value: "rtl" },
+			],
+			defaultValue: "ltr",
+			required: true,
+			saveToJWT: true,
+		},
+		{
 			saveToJWT: true,
 			name: "avatar",
 			type: "relationship",

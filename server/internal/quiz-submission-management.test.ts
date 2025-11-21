@@ -291,7 +291,7 @@ describe("Quiz Management - Full Workflow", () => {
 		);
 
 		const gradebookItemArgs: CreateGradebookItemArgs = {
-			gradebookId: courseResult.value.gradebook.id,
+			courseId: courseId,
 			name: "Test Quiz",
 			description: "Quiz submission test",
 			activityModuleId: courseActivityModuleLinkId,
