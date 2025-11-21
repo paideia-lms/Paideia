@@ -85,7 +85,7 @@ export const CreateGradeItemModal = forwardRef<
 			minGrade: values.minGrade
 				? Number.parseFloat(values.minGrade)
 				: undefined,
-			weight: values.overrideWeight && values.weight
+			weight: values.overrideWeight
 				? Number.parseFloat(values.weight)
 				: null,
 			extraCredit: values.overrideWeight ? values.extraCredit : false,
@@ -219,7 +219,7 @@ export function UpdateGradeItemButton({
 			maxGrade: item.maxGrade ? String(item.maxGrade) : "",
 			minGrade: item.minGrade ? String(item.minGrade) : "",
 			overrideWeight: item.weight !== null,
-			weight: item.weight ? String(item.weight) : String(item.adjustedWeight),
+			weight: item.weight ? item.weight : item.adjustedWeight,
 			extraCredit: item.extraCredit ?? false,
 		},
 		validate: {
@@ -232,7 +232,7 @@ export function UpdateGradeItemButton({
 		const categoryId = values.category
 			? Number.parseInt(values.category, 10)
 			: null;
-		updateGradeItem(courseId, item.id, {
+		const data = {
 			name: values.name,
 			description: values.description || undefined,
 			categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
@@ -242,12 +242,14 @@ export function UpdateGradeItemButton({
 			minGrade: values.minGrade
 				? Number.parseFloat(values.minGrade)
 				: undefined,
-			weight: values.overrideWeight && values.weight
-				? Number.parseFloat(values.weight)
+			weight: values.overrideWeight
+				? values.weight ?? 0
 				: null,
 
 			extraCredit: values.overrideWeight ? values.extraCredit : false,
-		});
+		}
+
+		updateGradeItem(courseId, item.id, data);
 		setOpened(false);
 	});
 
@@ -261,7 +263,7 @@ export function UpdateGradeItemButton({
 					maxGrade: item.maxGrade ? String(item.maxGrade) : "",
 					minGrade: item.minGrade ? String(item.minGrade) : "",
 					overrideWeight: item.weight !== null,
-					weight: item.weight ? String(item.weight) : String(item.adjustedWeight),
+					weight: item.weight ? item.weight : item.adjustedWeight,
 					extraCredit: item.extraCredit ?? false,
 				});
 				form.reset();
@@ -294,7 +296,7 @@ type UpdateGradeItemModalProps = {
 		maxGrade: string;
 		minGrade: string;
 		overrideWeight: boolean;
-		weight: string;
+		weight: number | null;
 		extraCredit: boolean;
 	}>;
 	onSubmit: FormEventHandler<HTMLFormElement>;
@@ -538,7 +540,7 @@ export function UpdateGradeCategoryButton({ category }: UpdateGradeCategoryButto
 		await updateGradeCategory(category.id, {
 			name: values.name,
 			description: values.description || undefined,
-			weight: values.overrideWeight && values.weight
+			weight: values.overrideWeight
 				? Number.parseFloat(values.weight)
 				: null,
 			extraCredit: values.overrideWeight ? values.extraCredit : false,

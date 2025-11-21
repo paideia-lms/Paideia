@@ -15,6 +15,7 @@ import {
 	ThemeIcon,
 	Title,
 	Tooltip,
+	useMantineColorScheme,
 } from "@mantine/core";
 import {
 	Background,
@@ -45,6 +46,7 @@ import {
 	IconUserPlus,
 	IconUsers,
 } from "@tabler/icons-react";
+import { Clock } from "@gfazioli/mantine-clock";
 import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import { href, Link } from "react-router";
@@ -53,6 +55,7 @@ import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/index";
+import classes from "./clock-neon-theme.module.css";
 
 // Utility function to format schedule string
 export function formatSchedule(schedule: string): string {
@@ -271,31 +274,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		courseTitle: string;
 		courseId: number;
 	}> = [
-		{
-			id: 1,
-			title: "Databases CW1",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(10).minute(0).toISOString(),
-			courseTitle: "Databases",
-			courseId: 2,
-		},
-		{
-			id: 2,
-			title: "Functional Programming CW2",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(16).minute(0).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-		{
-			id: 3,
-			title: "Week 1: Object Oriented vs Functional Programming",
-			type: "discussion" as const,
-			dueDate: dayjs().hour(23).minute(59).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-	];
+			{
+				id: 1,
+				title: "Databases CW1",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(10).minute(0).toISOString(),
+				courseTitle: "Databases",
+				courseId: 2,
+			},
+			{
+				id: 2,
+				title: "Functional Programming CW2",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(16).minute(0).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+			{
+				id: 3,
+				title: "Week 1: Object Oriented vs Functional Programming",
+				type: "discussion" as const,
+				dueDate: dayjs().hour(23).minute(59).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+		];
 
 	// Mock program data
 	const mockProgram = {
@@ -1002,7 +1005,7 @@ function CurriculumMap({
 								<Stack gap={6}>
 									<Text size="xs" fw={600} c="dimmed">
 										{course.status === "completed" ||
-										course.status === "in progress"
+											course.status === "in progress"
 											? course.shortcode
 											: course.code}
 									</Text>
@@ -1100,6 +1103,7 @@ function AuthenticatedDashboard({
 	const [calendarValue, setCalendarValue] = useState<string | null>(
 		dayjs().format("YYYY-MM-DD"),
 	);
+	const { colorScheme } = useMantineColorScheme();
 
 	const {
 		user,
@@ -1116,6 +1120,25 @@ function AuthenticatedDashboard({
 	const greeting =
 		hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 	const userName = user.firstName || "there";
+
+	// Neon theme classNames for dark mode
+	const neonClassNames =
+		colorScheme === "dark"
+			? {
+				glassWrapper: classes.glassWrapper,
+				clockFace: classes.clockFace,
+				hourTick: classes.hourTick,
+				minuteTick: classes.minuteTick,
+				primaryNumber: classes.primaryNumber,
+				secondaryNumber: classes.secondaryNumber,
+				hourHand: classes.hourHand,
+				minuteHand: classes.minuteHand,
+				secondHand: classes.secondHand,
+				secondHandCounterweight: classes.secondHandCounterweight,
+				centerDot: classes.centerDot,
+				centerBlur: classes.centerBlur,
+			}
+			: undefined;
 
 	// Sort today's schedule by start time, then end time
 	const sortedScheduleItems = [
@@ -1152,17 +1175,24 @@ function AuthenticatedDashboard({
 			<Stack gap="xl">
 				{/* Greeting Header */}
 				<Group justify="space-between" align="flex-start">
-					<Stack gap="xs">
-						<Title order={1}>
-							{greeting}, {userName}!
-						</Title>
-						<Text c="dimmed" size="lg">
-							It's {dayjs().format("dddd, MMMM D, YYYY")}
-						</Text>
-						<Text size="xs" c="dimmed">
-							Timezone: {timeZone || "Not detected"}
-						</Text>
-					</Stack>
+					<Group gap="lg" align="flex-start">
+						<Clock
+							size={120}
+							secondHandBehavior="smooth"
+							classNames={neonClassNames}
+						/>
+						<Stack gap="xs">
+							<Title order={1}>
+								{greeting}, {userName}!
+							</Title>
+							<Text c="dimmed" size="lg">
+								It's {dayjs().format("dddd, MMMM D, YYYY")}
+							</Text>
+							<Text size="xs" c="dimmed">
+								Timezone: {timeZone || "Not detected"}
+							</Text>
+						</Stack>
+					</Group>
 					<Group>
 						<Button
 							component={Link}

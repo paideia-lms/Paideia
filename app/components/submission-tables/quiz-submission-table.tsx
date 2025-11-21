@@ -23,6 +23,7 @@ import {
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
 import { QuizActions } from "~/utils/module-actions";
+import { groupSubmissionsByStudent } from "./helpers";
 
 // ============================================================================
 // Types
@@ -93,19 +94,19 @@ function QuizSubmissionHistoryItem({
 										: "Returned"}
 						</Badge>
 						{submission.status === "graded" ||
-						submission.status === "returned" ? (
+							submission.status === "returned" ? (
 							<Badge color="green" variant="filled">
 								{submission.totalScore !== null &&
-								submission.totalScore !== undefined &&
-								submission.maxScore !== null &&
-								submission.maxScore !== undefined
+									submission.totalScore !== undefined &&
+									submission.maxScore !== null &&
+									submission.maxScore !== undefined
 									? `${submission.totalScore}/${submission.maxScore}`
 									: submission.totalScore !== null &&
-											submission.totalScore !== undefined
+										submission.totalScore !== undefined
 										? String(submission.totalScore)
 										: "-"}
 								{submission.percentage !== null &&
-								submission.percentage !== undefined
+									submission.percentage !== undefined
 									? ` (${submission.percentage.toFixed(1)}%)`
 									: ""}
 							</Badge>
@@ -162,10 +163,10 @@ function QuizStudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-				const attemptA = a.attemptNumber || 0;
-				const attemptB = b.attemptNumber || 0;
-				return attemptB - attemptA;
-			})
+			const attemptA = a.attemptNumber || 0;
+			const attemptB = b.attemptNumber || 0;
+			return attemptB - attemptA;
+		})
 		: [];
 
 	// Filter to show all submissions that have been submitted (have submittedAt)
@@ -195,7 +196,7 @@ function QuizStudentSubmissionRow({
 	const averagePercentage =
 		gradedSubmissions.length > 0
 			? gradedSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) /
-				gradedSubmissions.length
+			gradedSubmissions.length
 			: null;
 
 	return (
@@ -412,23 +413,16 @@ export function QuizSubmissionTable({
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
 }) {
-	// Create a map of quiz submissions by student ID
-	const quizSubmissionsByStudent = new Map<number, QuizSubmissionType[]>();
-	for (const submission of submissions) {
-		if (
+	// Filter and validate submissions, then group by student
+	const validSubmissions = submissions.filter(
+		(submission) =>
 			"attemptNumber" in submission &&
 			"status" in submission &&
-			submission.status !== undefined
-		) {
-			const studentId = submission.student.id;
-			if (!quizSubmissionsByStudent.has(studentId)) {
-				quizSubmissionsByStudent.set(studentId, []);
-			}
-			quizSubmissionsByStudent
-				.get(studentId)
-				?.push(submission as QuizSubmissionType);
-		}
-	}
+			submission.status !== undefined,
+	) as QuizSubmissionType[];
+
+	const quizSubmissionsByStudent =
+		groupSubmissionsByStudent(validSubmissions);
 
 	// Sort submissions by attempt number (newest first) for each student
 	for (const [studentId, studentSubmissions] of quizSubmissionsByStudent) {

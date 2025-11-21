@@ -16,8 +16,17 @@ import {
     IconPencil,
     IconSend,
 } from "@tabler/icons-react";
+import { countBy } from "es-toolkit/array";
 import { href, Link } from "react-router";
 import { DiscussionActions } from "~/utils/module-actions";
+import {
+    calculateDiscussionGradingStats,
+    filterPublishedSubmissions,
+    getDiscussionGradingStatusColor,
+    getDiscussionGradingStatusLabel,
+    groupAndSortDiscussionSubmissions,
+    sortSubmissionsByDate,
+} from "./helpers";
 
 // ============================================================================
 // Types
@@ -72,68 +81,20 @@ function DiscussionStudentSubmissionRow({
     isReleasing?: boolean;
 }) {
 
-    // Filter to only published submissions
-    const publishedSubmissions = studentSubmissions
-        ? studentSubmissions.filter((sub) => sub.status === "published")
-        : [];
-
-    // Sort by publishedAt or createdAt (newest first)
-    const sortedSubmissions = [...publishedSubmissions].sort((a, b) => {
-        const dateA = a.publishedAt
-            ? new Date(a.publishedAt)
-            : new Date(a.createdAt);
-        const dateB = b.publishedAt
-            ? new Date(b.publishedAt)
-            : new Date(b.createdAt);
-        return dateB.getTime() - dateA.getTime();
-    });
+    // Filter to only published submissions and sort by date
+    const publishedSubmissions = filterPublishedSubmissions(studentSubmissions);
+    const sortedSubmissions = sortSubmissionsByDate(publishedSubmissions);
 
     const hasSubmissions = sortedSubmissions.length > 0;
     const latestSubmission = sortedSubmissions[0];
     const email = enrollment.email || "-";
 
     // Count posts by type
-    const threadCount = sortedSubmissions.filter(
-        (sub) => sub.postType === "thread",
-    ).length;
-    const replyCount = sortedSubmissions.filter(
-        (sub) => sub.postType === "reply",
-    ).length;
-    const commentCount = sortedSubmissions.filter(
-        (sub) => sub.postType === "comment",
-    ).length;
+    const { thread: threadCount, reply: replyCount, comment: commentCount } = countBy(sortedSubmissions, (sub) => sub.postType);
 
-    // Calculate grading status and average score
-    const gradedSubmissions = sortedSubmissions.filter(
-        (sub) =>
-            sub.grade &&
-            sub.grade.baseGrade !== null &&
-            sub.grade.baseGrade !== undefined,
-    );
-    const gradedCount = gradedSubmissions.length;
-    const totalPublishedCount = sortedSubmissions.length;
-
-    // Determine status: Graded, Partially Graded, or Not Graded
-    let gradingStatus: "graded" | "partially-graded" | "not-graded";
-    if (gradedCount === 0) {
-        gradingStatus = "not-graded";
-    } else if (gradedCount === totalPublishedCount) {
-        gradingStatus = "graded";
-    } else {
-        gradingStatus = "partially-graded";
-    }
-
-    // Calculate average score (only from graded posts)
-    const totalScore = gradedSubmissions.reduce(
-        (sum, sub) => sum + (sub.grade?.baseGrade || 0),
-        0,
-    );
-    const averageScore = gradedCount > 0 ? totalScore / gradedCount : null;
-
-    // Get maxGrade from first graded submission (all should have same maxGrade)
-    const maxGrade = gradedSubmissions.length > 0 && gradedSubmissions[0].grade?.maxGrade !== null && gradedSubmissions[0].grade?.maxGrade !== undefined
-        ? gradedSubmissions[0].grade.maxGrade
-        : null;
+    // Calculate grading status and statistics
+    const { gradingStatus, averageScore, maxGrade } =
+        calculateDiscussionGradingStats(sortedSubmissions);
 
     return (
         <Table.Tr>
@@ -154,20 +115,10 @@ function DiscussionStudentSubmissionRow({
             <Table.Td>
                 {hasSubmissions ? (
                     <Badge
-                        color={
-                            gradingStatus === "graded"
-                                ? "green"
-                                : gradingStatus === "partially-graded"
-                                    ? "yellow"
-                                    : "gray"
-                        }
+                        color={getDiscussionGradingStatusColor(gradingStatus)}
                         variant="light"
                     >
-                        {gradingStatus === "graded"
-                            ? "Graded"
-                            : gradingStatus === "partially-graded"
-                                ? "Partially Graded"
-                                : "Not Graded"}
+                        {getDiscussionGradingStatusLabel(gradingStatus)}
                     </Badge>
                 ) : (
                     <Badge color="gray" variant="light">
@@ -231,9 +182,8 @@ function DiscussionStudentSubmissionRow({
                                 >
                                     Grade
                                 </Menu.Item>
-                                {latestSubmission.grade &&
-                                    latestSubmission.grade.baseGrade !== null &&
-                                    latestSubmission.grade.baseGrade !== undefined &&
+                                {(gradingStatus === "graded" ||
+                                    gradingStatus === "partially-graded") &&
                                     onReleaseGrade && (
                                         <Menu.Item
                                             leftSection={<IconSend size={14} />}
@@ -273,44 +223,18 @@ export function DiscussionSubmissionTable({
     onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
     isReleasing?: boolean;
 }) {
-    // Create a map of discussion submissions by student ID
-    const discussionSubmissionsByStudent = new Map<
-        number,
-        DiscussionSubmissionType[]
-    >();
-    for (const submission of submissions) {
-        if (
+    // Filter and validate submissions, then group and sort by student
+    const validSubmissions = submissions.filter(
+        (submission) =>
             "postType" in submission &&
             "content" in submission &&
             submission.student &&
             typeof submission.student === "object" &&
-            "id" in submission.student
-        ) {
-            const studentId = submission.student.id;
-            if (!discussionSubmissionsByStudent.has(studentId)) {
-                discussionSubmissionsByStudent.set(studentId, []);
-            }
-            discussionSubmissionsByStudent
-                .get(studentId)
-                ?.push(submission as DiscussionSubmissionType);
-        }
-    }
+            "id" in submission.student,
+    ) satisfies DiscussionSubmissionType[];
 
-    // Sort submissions by publishedAt or createdAt (newest first) for each student
-    for (const [studentId, studentSubmissions] of discussionSubmissionsByStudent) {
-        discussionSubmissionsByStudent.set(
-            studentId,
-            studentSubmissions.sort((a, b) => {
-                const dateA = a.publishedAt
-                    ? new Date(a.publishedAt)
-                    : new Date(a.createdAt);
-                const dateB = b.publishedAt
-                    ? new Date(b.publishedAt)
-                    : new Date(b.createdAt);
-                return dateB.getTime() - dateA.getTime();
-            }),
-        );
-    }
+    const discussionSubmissionsByStudent =
+        groupAndSortDiscussionSubmissions(validSubmissions);
 
     return (
         <Paper withBorder shadow="sm" p="md" radius="md">

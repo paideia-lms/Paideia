@@ -21,6 +21,11 @@ services:
       # Ports (optional, defaults shown)
       PORT: 3001
       FRONTEND_PORT: 3000
+      # Timezone (optional, default: UTC)
+      # TZ: America/New_York
+      # TZ: Europe/London
+      # TZ: Asia/Tokyo
+      # TZ: UTC
       # Email (optional - uncomment if using SMTP)
       # SMTP_HOST: smtp.example.com
       # SMTP_USER: your-email@example.com

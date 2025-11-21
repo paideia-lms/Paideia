@@ -32,6 +32,7 @@ import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
 import "@gfazioli/mantine-json-tree/styles.css";
+import "@gfazioli/mantine-clock/styles.css";
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {

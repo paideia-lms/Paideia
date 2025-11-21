@@ -28,6 +28,7 @@ import {
 	SubmissionHistoryItem,
 } from "~/components/submission-history";
 import { AssignmentActions } from "~/utils/module-actions";
+import { groupSubmissionsByStudent } from "./helpers";
 
 // ============================================================================
 // Types
@@ -297,15 +298,8 @@ export function AssignmentSubmissionTable({
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
 }) {
-	// Create a map of submissions by student ID
-	const submissionsByStudent = new Map<number, SubmissionType[]>();
-	for (const submission of submissions) {
-		const studentId = submission.student.id;
-		if (!submissionsByStudent.has(studentId)) {
-			submissionsByStudent.set(studentId, []);
-		}
-		submissionsByStudent.get(studentId)?.push(submission);
-	}
+	// Group submissions by student ID
+	const submissionsByStudent = groupSubmissionsByStudent(submissions);
 
 	const allRowIds = enrollments.map((e) => e.id);
 	const allSelected =
