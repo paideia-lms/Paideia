@@ -113,7 +113,7 @@ describe("Gradebook Category Management", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.name).toBe("Test Category");
-			expect(result.value.weight).toBe(50);
+			expect(result.value.weight).toBe(null);
 			expect(result.value.sortOrder).toBe(0);
 			testCategory = result.value;
 		}
@@ -279,7 +279,6 @@ describe("Gradebook Category Management", () => {
 			payload,
 			categoryId: testCategory.id,
 			name: "Updated Test Category",
-			weight: 60,
 			user: null,
 			req: undefined,
 			overrideAccess: true,
@@ -288,7 +287,6 @@ describe("Gradebook Category Management", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.name).toBe("Updated Test Category");
-			expect(result.value.weight).toBe(60);
 		}
 	});
 

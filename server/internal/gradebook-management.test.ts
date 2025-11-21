@@ -100,7 +100,6 @@ describe("Gradebook Management", () => {
 				gradebookId: testGradebook.id,
 				name: "Test Category",
 				description: "Test Category Description",
-				weight: 50,
 				sortOrder: 0,
 			},
 		);
@@ -119,7 +118,6 @@ describe("Gradebook Management", () => {
 			description: "Test Assignment Description",
 			maxGrade: 100,
 			minGrade: 0,
-			weight: 25,
 			extraCredit: false,
 			sortOrder: 0,
 		});
@@ -284,7 +282,7 @@ describe("Gradebook Management", () => {
 		if (manualItem) {
 			expect(manualItem.id).toBe(testItem2.id);
 			expect(manualItem.type).toBe("manual_item");
-			expect(manualItem.weight).toBe(15);
+			expect(manualItem.weight).toBe(15); // auto-weighted
 			expect(manualItem.max_grade).toBe(50);
 		}
 
@@ -294,7 +292,7 @@ describe("Gradebook Management", () => {
 		if (category) {
 			expect(category.id).toBe(testCategory.id);
 			expect(category.type).toBe("category");
-			expect(category.weight).toBe(50);
+			expect(category.weight).toBe(null);
 			expect(category.max_grade).toBeNull();
 			expect(Array.isArray(category.grade_items)).toBe(true);
 			if (category.grade_items) {
@@ -308,7 +306,7 @@ describe("Gradebook Management", () => {
 				if (gradeItem) {
 					expect(gradeItem.id).toBe(testItem.id);
 					expect(gradeItem.type).toBe("manual_item"); // Default type when no activity module
-					expect(gradeItem.weight).toBe(25);
+					expect(gradeItem.weight).toBe(null); // auto-weighted
 					expect(gradeItem.max_grade).toBe(100);
 				}
 			}

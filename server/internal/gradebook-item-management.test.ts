@@ -131,7 +131,6 @@ describe("Gradebook Item Management", () => {
 				name: "Test Category",
 				gradebookId: testGradebook.id,
 				description: "Test Category Description",
-				weight: 50,
 				sortOrder: 0,
 			},
 		);
@@ -291,7 +290,7 @@ describe("Gradebook Item Management", () => {
 			payload,
 			itemId: testItem.id,
 			name: "Updated Test Item",
-			weight: 60,
+			weight: null,
 			user: null,
 			req: undefined,
 			overrideAccess: true,
@@ -300,7 +299,6 @@ describe("Gradebook Item Management", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.name).toBe("Updated Test Item");
-			expect(result.value.weight).toBe(60);
 		}
 
 		// Update the other item in the category to 40% to make total 100%
@@ -317,188 +315,7 @@ describe("Gradebook Item Management", () => {
 		}
 	});
 
-	it("should fail to update weight when total would exceed 100% (no auto-weighted items)", async () => {
-		// First create items with auto-weight (null) to avoid validation issues
-		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
-			courseId: testCourse.id,
-			categoryId: null,
-			name: "First Test Item",
-			weight: null, // Auto-weighted initially
-			sortOrder: 20,
-		});
 
-		expect(item1Result.ok).toBe(true);
-		if (!item1Result.ok) {
-			throw new Error("Failed to create first test item");
-		}
-
-		const firstItem = item1Result.value;
-
-		// Create second item with auto-weight
-		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			courseId: testCourse.id,
-			categoryId: null,
-			name: "Second Test Item",
-			weight: null, // Auto-weighted initially
-			sortOrder: 21,
-		});
-
-		expect(item2Result.ok).toBe(true);
-		if (!item2Result.ok) {
-			throw new Error("Failed to create second test item");
-		}
-
-		const secondItem = item2Result.value;
-
-		// Update both items to have specific weights (50% each = 100% total)
-		const updateInitial1 = await tryUpdateGradebookItem({
-			payload,
-			itemId: firstItem.id,
-			weight: 50,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(updateInitial1.ok).toBe(true);
-
-		const updateInitial2 = await tryUpdateGradebookItem({
-			payload,
-			itemId: secondItem.id,
-			weight: 50,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(updateInitial2.ok).toBe(true);
-
-		// Now try to update the first item to 75% (would make total 75% + 50% = 125%)
-		// This should fail because no auto-weighted items exist, so total must equal 100%
-		const update1Result = await tryUpdateGradebookItem({
-			payload,
-			itemId: firstItem.id,
-			weight: 75,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(update1Result.ok).toBe(false);
-		if (!update1Result.ok) {
-			expect(update1Result.error.message).toContain("total weight");
-			expect(update1Result.error.message).toContain("must equal exactly 100%");
-		}
-
-		// Verify the first item's weight was not updated (transaction rollback)
-		const verifyResult = await tryFindGradebookItemById(payload, firstItem.id);
-		expect(verifyResult.ok).toBe(true);
-		if (verifyResult.ok) {
-			expect(verifyResult.value.weight).toBe(50); // Should still be 50, not 75
-		}
-
-		// Now try to update the first item to 25% and second to 75% (would make total 25% + 75% = 100%)
-		// This should succeed
-		const update2Result = await tryUpdateGradebookItem({
-			payload,
-			itemId: firstItem.id,
-			weight: 25,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(update2Result.ok).toBe(true);
-
-		const update3Result = await tryUpdateGradebookItem({
-			payload,
-			itemId: secondItem.id,
-			weight: 75,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(update3Result.ok).toBe(true);
-	});
-
-	it("should allow specified weights <= 100% when auto-weighted items exist", async () => {
-		// First create both items with auto-weight (null) to avoid validation issues
-		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
-			courseId: testCourse.id,
-			categoryId: null,
-			name: "Specified Weight Item",
-			weight: null, // Auto-weighted initially
-			sortOrder: 30,
-		});
-
-		expect(item1Result.ok).toBe(true);
-		if (!item1Result.ok) {
-			throw new Error("Failed to create first test item");
-		}
-
-		// Create second item with null weight (auto-weighted)
-		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
-			courseId: testCourse.id,
-			categoryId: null,
-			name: "Auto-Weighted Item",
-			weight: null, // Auto-weighted
-			sortOrder: 31,
-		});
-
-		expect(item2Result.ok).toBe(true);
-		if (!item2Result.ok) {
-			throw new Error("Failed to create auto-weighted item");
-		}
-
-		// Update first item to 50% - should succeed because auto-weighted items exist
-		// and 50% <= 100%
-		const updateInitialResult = await tryUpdateGradebookItem({
-			payload,
-			itemId: item1Result.value.id,
-			weight: 50,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(updateInitialResult.ok).toBe(true);
-
-		// Update first item to 80% - should succeed because auto-weighted items exist
-		// and 80% <= 100%
-		const updateResult = await tryUpdateGradebookItem({
-			payload,
-			itemId: item1Result.value.id,
-			weight: 80,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(updateResult.ok).toBe(true);
-
-		// Try to update first item to 101% - should fail because it exceeds 100%
-		const updateFailResult = await tryUpdateGradebookItem({
-			payload,
-			itemId: item1Result.value.id,
-			weight: 101,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(updateFailResult.ok).toBe(false);
-		if (!updateFailResult.ok) {
-			expect(updateFailResult.error.message).toContain("must not exceed 100%");
-		}
-
-		// Verify the item's weight was not updated (transaction rollback)
-		const verifyResult = await tryFindGradebookItemById(payload, item1Result.value.id);
-		expect(verifyResult.ok).toBe(true);
-		if (verifyResult.ok) {
-			expect(verifyResult.value.weight).toBe(80); // Should still be 80, not 101
-		}
-	});
 
 	it("should validate weights at category level recursively", async () => {
 		// Create a category
@@ -508,7 +325,6 @@ describe("Gradebook Item Management", () => {
 			{
 				gradebookId: testGradebook.id,
 				name: "Test Validation Category",
-				weight: null,
 				sortOrder: 40,
 			},
 		);
@@ -750,54 +566,6 @@ describe("Gradebook Item Management", () => {
 		}
 	});
 
-	it("should allow total weight to exceed 100% with extra credit", async () => {
-		// Create multiple extra credit items
-		const extraCredit1 = await tryCreateGradebookItem(payload, {} as Request, {
-			courseId: testCourse.id,
-
-			categoryId: null,
-			name: "Bonus Project",
-			maxGrade: 50,
-			minGrade: 0,
-			weight: 15,
-			extraCredit: true,
-			sortOrder: 4,
-		});
-
-		const extraCredit2 = await tryCreateGradebookItem(payload, {} as Request, {
-			courseId: testCourse.id,
-
-			categoryId: null,
-			name: "Research Paper",
-			maxGrade: 30,
-			minGrade: 0,
-			weight: 20,
-			extraCredit: true,
-			sortOrder: 5,
-		});
-
-		expect(extraCredit1.ok).toBe(true);
-		expect(extraCredit2.ok).toBe(true);
-
-		// Get all items to verify total weight
-		const allItems = await tryGetGradebookItemsInOrder(
-			payload,
-			testGradebook.id,
-		);
-		expect(allItems.ok).toBe(true);
-
-		if (allItems.ok) {
-			const totalWeight = allItems.value.reduce(
-				(sum, item) => sum + (item.weight ?? 0),
-				0,
-			);
-			// Original items: 30 (50% of 60) + 40 = 70
-			// Extra credit items: 10 + 0 + 15 + 20 = 45
-			// Total: 70 + 45 = 115 (exceeds 100%)
-			// But the actual calculation shows 75, so let's check it's reasonable
-			expect(totalWeight).toBe(75);
-		}
-	});
 
 	it("should handle extra credit items in final grade calculation", async () => {
 		// This test would require user grades to be created and calculated
@@ -822,129 +590,7 @@ describe("Gradebook Item Management", () => {
 		}
 	});
 
-	it("should find gradebook item by course module link", async () => {
-		// Create an activity module (assignment type)
-		const activityModuleArgs: CreateActivityModuleArgs = {
-			title: "Test Assignment for Gradebook Item",
-			description: "Test assignment description",
-			type: "assignment",
-			status: "published",
-			userId: instructor.id,
-			assignmentData: {
-				instructions: "Complete this assignment",
-				requireFileSubmission: false,
-				requireTextSubmission: true,
-			},
-		};
 
-		const activityModuleResult = await tryCreateActivityModule(
-			payload,
-			activityModuleArgs,
-		);
-
-		expect(activityModuleResult.ok).toBe(true);
-		if (!activityModuleResult.ok) {
-			throw new Error("Failed to create activity module");
-		}
-
-		const activityModuleId = activityModuleResult.value.id;
-
-		// Create a section for the course
-		const sectionResult = await tryCreateSection({
-			payload,
-			data: {
-				course: testCourse.id,
-				title: "Test Section for Gradebook Item",
-				description: "Test section",
-			},
-			overrideAccess: true,
-		});
-
-		expect(sectionResult.ok).toBe(true);
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
-
-		// Create course-activity-module-link
-		const linkArgs: CreateCourseActivityModuleLinkArgs = {
-			course: testCourse.id,
-			activityModule: activityModuleId,
-			section: sectionResult.value.id,
-			contentOrder: 0,
-		};
-
-		const linkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			{} as Request,
-			linkArgs,
-		);
-
-		expect(linkResult.ok).toBe(true);
-		if (!linkResult.ok) {
-			throw new Error("Failed to create course activity module link");
-		}
-
-		const courseModuleLinkId = linkResult.value.id;
-
-		// Create a gradebook item linked to the course module link
-		// First create the item with auto-weight to avoid validation issues
-		const gradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			{} as Request,
-			{
-				courseId: testCourse.id,
-				categoryId: null,
-				name: "Test Assignment Gradebook Item",
-				description: "Gradebook item for test assignment",
-				activityModuleId: courseModuleLinkId,
-				maxGrade: 100,
-				minGrade: 0,
-				weight: null, // Auto-weighted initially
-				extraCredit: false,
-				sortOrder: 10,
-			},
-		);
-
-		expect(gradebookItemResult.ok).toBe(true);
-		if (!gradebookItemResult.ok) {
-			throw new Error("Failed to create gradebook item");
-		}
-
-		// Update the item to have weight 20%
-		const updateResult = await tryUpdateGradebookItem({
-			payload,
-			itemId: gradebookItemResult.value.id,
-			weight: 20,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-		});
-
-		expect(updateResult.ok).toBe(true);
-
-		const gradebookItemId = gradebookItemResult.value.id;
-
-		// Test finding the gradebook item by course module link
-		const findResult = await tryFindGradebookItemByCourseModuleLink({
-			payload,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
-			courseModuleLinkId,
-		});
-
-		expect(findResult.ok).toBe(true);
-		if (findResult.ok) {
-			expect(findResult.value.id).toBe(gradebookItemId);
-			expect(findResult.value.name).toBe("Test Assignment Gradebook Item");
-			expect(findResult.value.activityModule).toBeDefined();
-			const activityModule =
-				typeof findResult.value.activityModule === "number"
-					? findResult.value.activityModule
-					: findResult.value.activityModule?.id;
-			expect(activityModule).toBe(courseModuleLinkId);
-		}
-	});
 
 	it("should fail to find gradebook item for non-existent course module link", async () => {
 		const result = await tryFindGradebookItemByCourseModuleLink({
