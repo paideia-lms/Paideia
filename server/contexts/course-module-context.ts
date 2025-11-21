@@ -116,6 +116,19 @@ export type CourseModuleDiscussionData = {
 	minReplies: number | null;
 };
 
+export type CourseModuleFileData = {
+	id: number;
+	media: Array<
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+				mimeType?: string | null;
+				filesize?: number | null;
+		  }
+	> | null;
+};
+
 export type CourseModule = {
 	id: number;
 	title: string;
@@ -126,6 +139,7 @@ export type CourseModule = {
 	owner: CourseModuleUser;
 	page: CourseModulePageData | null;
 	whiteboard: CourseModuleWhiteboardData | null;
+	file: CourseModuleFileData | null;
 	assignment: CourseModuleAssignmentData | null;
 	quiz: CourseModuleQuizData | null;
 	discussion: CourseModuleDiscussionData | null;
@@ -488,6 +502,15 @@ export const tryGetCourseModuleContext = Result.wrap(
 					? {
 							id: activityModule.whiteboard.id,
 							content: activityModule.whiteboard.content || null,
+						}
+					: null,
+			file:
+				activityModule.type === "file" &&
+				typeof activityModule.file === "object" &&
+				activityModule.file !== null
+					? {
+							id: activityModule.file.id,
+							media: activityModule.file.media || null,
 						}
 					: null,
 			assignment:

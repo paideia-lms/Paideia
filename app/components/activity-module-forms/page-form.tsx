@@ -4,6 +4,7 @@ import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { RichTextEditor } from "../rich-text-editor";
 import { CommonFields } from "./common-fields";
+import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 
 interface PageFormProps {
 	form: UseFormReturnType<ActivityModuleFormValues>;
@@ -40,7 +41,7 @@ function PageContentEditor({
 	const pageContent = useFormWatchForceUpdate(form, "pageContent");
 	return (
 		<div>
-			<RichTextEditor
+			<SimpleRichTextEditor
 				content={pageContent}
 				placeholder="Enter page content..."
 				onChange={(html) => {

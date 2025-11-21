@@ -1,3 +1,9 @@
+import {
+	IconFile,
+	IconFileText,
+	IconFileTypePdf,
+	IconPhoto,
+} from "@tabler/icons-react";
 import { createLoader, parseAsString } from "nuqs/server";
 import type { CourseModuleContext } from "server/contexts/course-module-context";
 import type {
@@ -6,6 +12,89 @@ import type {
 	QuizConfig,
 } from "server/json/raw-quiz-config.types.v2";
 import { isRegularQuiz } from "server/json/raw-quiz-config.types.v2";
+
+// ============================================================================
+// File Type Utilities
+// ============================================================================
+
+export type FileType = "image" | "pdf" | "text" | "other";
+
+export function getFileExtension(filename: string): string {
+	const parts = filename.split(".");
+	return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
+}
+
+export function getFileType(
+	filename?: string | null,
+	mimeType?: string | null,
+): FileType {
+	// Check MIME type first
+	if (mimeType) {
+		if (mimeType.startsWith("image/")) return "image";
+		if (mimeType === "application/pdf") return "pdf";
+		if (
+			mimeType.startsWith("text/") ||
+			mimeType === "application/json" ||
+			mimeType === "application/xml"
+		) {
+			return "text";
+		}
+	}
+
+	// Fallback to extension
+	if (filename) {
+		const ext = getFileExtension(filename);
+		if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
+			return "image";
+		}
+		if (ext === "pdf") return "pdf";
+		if (
+			["txt", "md", "json", "xml", "csv", "log", "yml", "yaml", "ini"].includes(
+				ext,
+			)
+		) {
+			return "text";
+		}
+	}
+
+	return "other";
+}
+
+export function getFileIcon(fileType: FileType) {
+	switch (fileType) {
+		case "image":
+			return IconPhoto;
+		case "pdf":
+			return IconFileTypePdf;
+		case "text":
+			return IconFileText;
+		default:
+			return IconFile;
+	}
+}
+
+export function formatFileSize(bytes: number): string {
+	if (bytes < 1024) return `${bytes} B`;
+	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+export function getFileTypeLabel(fileType: FileType): string {
+	switch (fileType) {
+		case "image":
+			return "Image";
+		case "pdf":
+			return "PDF";
+		case "text":
+			return "Text";
+		default:
+			return "File";
+	}
+}
+
+// ============================================================================
+// Module Settings Utilities
+// ============================================================================
 
 export const courseModuleSearchParams = {
 	action: parseAsString.withDefault(""),
@@ -113,11 +202,11 @@ export function transformQuizAnswersToSubmissionFormat(
 	questionId: string;
 	questionText: string;
 	questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+	| "multiple_choice"
+	| "true_false"
+	| "short_answer"
+	| "essay"
+	| "fill_blank";
 	selectedAnswer?: string;
 	multipleChoiceAnswers?: Array<{
 		option: string;
@@ -128,11 +217,11 @@ export function transformQuizAnswersToSubmissionFormat(
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -193,11 +282,11 @@ export function transformQuizAnswersToSubmissionFormat(
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;

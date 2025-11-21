@@ -243,6 +243,13 @@ export class NonExistingWhiteboardError extends Error {
 	}
 }
 
+export class NonExistingFileError extends Error {
+	static readonly type = "NonExistingFileError";
+	get type() {
+		return NonExistingFileError.type;
+	}
+}
+
 export class EmailSendError extends Error {
 	static readonly type = "EmailSendError";
 	get type() {
@@ -359,6 +366,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof CourseStructureNotFoundError) return error;
 	else if (error instanceof NonExistingPageError) return error;
 	else if (error instanceof NonExistingWhiteboardError) return error;
+	else if (error instanceof NonExistingFileError) return error;
 	else if (error instanceof EmailSendError) return error;
 	else if (error instanceof SeedDataLoadError) return error;
 	else if (error instanceof SandboxResetError) return error;

@@ -10,12 +10,14 @@ import { presetValuesToFileTypes } from "./file-types";
 export const activityModuleSchema = z.object({
 	title: z.string().min(1, "Title is required"),
 	description: z.string().optional(),
-	type: z.enum(["page", "whiteboard", "assignment", "quiz", "discussion"]),
+	type: z.enum(["page", "whiteboard", "file", "assignment", "quiz", "discussion"]),
 	status: z.enum(["draft", "published", "archived"]).optional(),
 	// Page fields
 	pageContent: z.string().optional(),
 	// Whiteboard fields
 	whiteboardContent: z.string().optional(),
+	// File fields
+	fileMedia: z.array(z.number()).optional(),
 	// Assignment fields
 	assignmentInstructions: z.string().optional(),
 	assignmentDueDate: z.string().optional(),
@@ -51,6 +53,9 @@ export type ActivityModuleFormValues = {
 	pageContent: string;
 	// Whiteboard fields
 	whiteboardContent: string;
+	// File fields
+	fileMedia: number[];
+	fileFiles: File[]; // Files to upload (before they become media IDs)
 	// Assignment fields
 	assignmentInstructions: string;
 	assignmentDueDate: Date | null;
@@ -90,6 +95,9 @@ export function getInitialFormValues(): ActivityModuleFormValues {
 		pageContent: "",
 		// Whiteboard fields
 		whiteboardContent: "",
+		// File fields
+		fileMedia: [],
+		fileFiles: [],
 		// Assignment fields
 		assignmentInstructions: "",
 		assignmentDueDate: null,
@@ -187,6 +195,11 @@ export function transformToActivityData(
 				minReplies?: number;
 		  }
 		| undefined;
+	let fileData:
+		| {
+				media?: number[];
+		  }
+		| undefined;
 
 	if (parsedData.type === "page") {
 		pageData = {
@@ -225,6 +238,10 @@ export function transformToActivityData(
 			gradingType: parsedData.quizGradingType,
 			rawQuizConfig: parsedData.rawQuizConfig,
 		};
+	} else if (parsedData.type === "file") {
+		fileData = {
+			media: parsedData.fileMedia,
+		};
 	} else if (parsedData.type === "discussion") {
 		discussionData = {
 			instructions: parsedData.discussionInstructions,
@@ -235,5 +252,5 @@ export function transformToActivityData(
 		};
 	}
 
-	return { pageData, whiteboardData, assignmentData, quizData, discussionData };
+	return { pageData, whiteboardData, fileData, assignmentData, quizData, discussionData };
 }

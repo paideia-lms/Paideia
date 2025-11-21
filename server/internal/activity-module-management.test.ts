@@ -193,6 +193,36 @@ describe("Activity Module Management", () => {
 		expect(activityModule.quiz).toBeDefined();
 	});
 
+	test("should create a file activity module", async () => {
+		const args: CreateActivityModuleArgs = {
+			title: "Test File Module",
+			description: "This is a test file module",
+			type: "file",
+			status: "draft",
+			userId: testUserId,
+			fileData: {
+				media: [],
+			},
+		};
+
+		const result = await tryCreateActivityModule(payload, args);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		const activityModule = result.value;
+
+		// Verify activity module
+		expect(activityModule.title).toBe(args.title);
+		expect(activityModule.description).toBe(args.description);
+		expect(activityModule.type).toBe(args.type);
+		expect(activityModule.status).toBe(args.status || "draft");
+		expect(activityModule.createdBy.id).toBe(testUserId);
+		expect(activityModule.id).toBeDefined();
+		expect(activityModule.createdAt).toBeDefined();
+		expect(activityModule.file).toBeDefined();
+	});
+
 	test("should create a discussion activity module", async () => {
 		const args: CreateActivityModuleArgs = {
 			title: "Test Discussion",
@@ -277,6 +307,17 @@ describe("Activity Module Management", () => {
 					userId: testUserId,
 					whiteboardData: {
 						content: JSON.stringify({ shapes: [], bindings: [] }),
+					},
+				},
+			},
+			{
+				type: "file" as const,
+				args: {
+					title: "file module",
+					type: "file" as const,
+					userId: testUserId,
+					fileData: {
+						media: [],
 					},
 				},
 			},
@@ -488,6 +529,45 @@ describe("Activity Module Management", () => {
 		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
 	});
 
+	test("should update file activity module", async () => {
+		const createArgs: CreateActivityModuleArgs = {
+			title: "Update Test File Module",
+			type: "file",
+			status: "draft",
+			userId: testUserId,
+			fileData: {
+				media: [],
+			},
+		};
+
+		const createResult = await tryCreateActivityModule(payload, createArgs);
+		expect(createResult.ok).toBe(true);
+		if (!createResult.ok) return;
+
+		const createdModule = createResult.value;
+
+		const updateArgs: UpdateActivityModuleArgs = {
+			id: createdModule.id,
+			type: "file",
+			title: "Updated File Title",
+			description: "Updated file description",
+			status: "published",
+			fileData: {
+				media: [],
+			},
+		};
+
+		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+		expect(updateResult.ok).toBe(true);
+		if (!updateResult.ok) return;
+
+		const updatedModule = updateResult.value;
+		expect(updatedModule.title).toBe("Updated File Title");
+		expect(updatedModule.description).toBe("Updated file description");
+		expect(updatedModule.status).toBe("published");
+		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
+	});
+
 	test("should update discussion activity module", async () => {
 		const createArgs: CreateActivityModuleArgs = {
 			title: "Update Test Discussion",
@@ -637,6 +717,36 @@ describe("Activity Module Management", () => {
 		expect(getResult.ok).toBe(false);
 	});
 
+	test("should delete file activity module with cascading delete", async () => {
+		const args: CreateActivityModuleArgs = {
+			title: "Delete Test File Module",
+			type: "file",
+			userId: testUserId,
+			fileData: {
+				media: [],
+			},
+		};
+
+		const createResult = await tryCreateActivityModule(payload, args);
+		expect(createResult.ok).toBe(true);
+		if (!createResult.ok) return;
+
+		const createdModule = createResult.value;
+		expect(createdModule.file).toBeDefined();
+
+		const deleteResult = await tryDeleteActivityModule(
+			payload,
+			createdModule.id,
+		);
+		expect(deleteResult.ok).toBe(true);
+
+		// Verify module is deleted
+		const getResult = await tryGetActivityModuleById(payload, {
+			id: createdModule.id,
+		});
+		expect(getResult.ok).toBe(false);
+	});
+
 	test("should delete discussion activity module with cascading delete", async () => {
 		const args: CreateActivityModuleArgs = {
 			title: "Delete Test Discussion",
@@ -732,6 +842,19 @@ describe("Activity Module Management", () => {
 
 		pageModulesResult.value.docs.forEach((module) => {
 			expect(module.type).toBe("page");
+		});
+
+		// Test filtering by file type
+		const fileModulesResult = await tryListActivityModules(payload, {
+			userId: testUserId,
+			type: "file",
+		});
+
+		expect(fileModulesResult.ok).toBe(true);
+		if (!fileModulesResult.ok) return;
+
+		fileModulesResult.value.docs.forEach((module) => {
+			expect(module.type).toBe("file");
 		});
 
 		// Test filtering by status

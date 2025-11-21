@@ -123,6 +123,8 @@ export const Courses = {
 			label: "Sections",
 			maxDepth: 2,
 		},
+		// ! we need this media relationship field to track the media used in the course description	
+		// ! description is rich text
 		{
 			name: "media",
 			type: "relationship",

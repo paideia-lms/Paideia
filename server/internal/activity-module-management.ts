@@ -1,4 +1,4 @@
-import type { Payload, User } from "payload";
+import type { Payload, PayloadRequest, User } from "payload";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -11,6 +11,7 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 
 // Base args that are common to all module types
 type BaseCreateActivityModuleArgs = {
@@ -18,6 +19,9 @@ type BaseCreateActivityModuleArgs = {
 	description?: string;
 	status?: "draft" | "published" | "archived";
 	userId: number;
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 };
 
 // Discriminated union for create args
@@ -70,13 +74,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -112,9 +116,17 @@ type CreateDiscussionModuleArgs = BaseCreateActivityModuleArgs & {
 	};
 };
 
+type CreateFileModuleArgs = BaseCreateActivityModuleArgs & {
+	type: "file";
+	fileData: {
+		media?: number[];
+	};
+};
+
 export type CreateActivityModuleArgs =
 	| CreatePageModuleArgs
 	| CreateWhiteboardModuleArgs
+	| CreateFileModuleArgs
 	| CreateAssignmentModuleArgs
 	| CreateQuizModuleArgs
 	| CreateDiscussionModuleArgs;
@@ -125,6 +137,9 @@ type BaseUpdateActivityModuleArgs = {
 	title?: string;
 	description?: string;
 	status?: "draft" | "published" | "archived";
+	user?: User | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 };
 
 // Discriminated union for update args
@@ -177,13 +192,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -219,9 +234,17 @@ type UpdateDiscussionModuleArgs = BaseUpdateActivityModuleArgs & {
 	};
 };
 
+type UpdateFileModuleArgs = BaseUpdateActivityModuleArgs & {
+	type: "file";
+	fileData: {
+		media?: number[];
+	};
+};
+
 export type UpdateActivityModuleArgs =
 	| UpdatePageModuleArgs
 	| UpdateWhiteboardModuleArgs
+	| UpdateFileModuleArgs
 	| UpdateAssignmentModuleArgs
 	| UpdateQuizModuleArgs
 	| UpdateDiscussionModuleArgs;
@@ -235,7 +258,7 @@ export interface GetActivityModuleByIdArgs {
  */
 export const tryCreateActivityModule = Result.wrap(
 	async (payload: Payload, args: CreateActivityModuleArgs) => {
-		const { title, description, type, status = "draft", userId } = args;
+		const { title, description, type, status = "draft", userId, user = null, req, overrideAccess = false } = args;
 
 		// Validate required fields
 		if (!title || title.trim() === "") {
@@ -246,12 +269,9 @@ export const tryCreateActivityModule = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Start transaction for creating activity module and related entity
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		// Handle transaction ID
+		const { transactionID, shouldCommitTransaction, reqWithTransaction } =
+			await handleTransactionId(payload, req);
 
 		try {
 			// Create the related entity first based on discriminated type
@@ -264,7 +284,9 @@ export const tryCreateActivityModule = Result.wrap(
 						content: args.pageData.content || "",
 						createdBy: userId,
 					},
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 				relatedEntityId = page.id;
 			} else if (type === "whiteboard") {
@@ -274,7 +296,9 @@ export const tryCreateActivityModule = Result.wrap(
 						content: args.whiteboardData.content || "",
 						createdBy: userId,
 					},
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 				relatedEntityId = whiteboard.id;
 			} else if (type === "assignment") {
@@ -294,7 +318,9 @@ export const tryCreateActivityModule = Result.wrap(
 						maxFiles: args.assignmentData.maxFiles,
 						createdBy: userId,
 					},
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 				relatedEntityId = assignment.id;
 			} else if (type === "quiz") {
@@ -320,9 +346,23 @@ export const tryCreateActivityModule = Result.wrap(
 						questions: args.quizData.questions,
 						createdBy: userId,
 					},
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 				relatedEntityId = quiz.id;
+			} else if (type === "file") {
+				const file = await payload.create({
+					collection: "files",
+					data: {
+						media: args.fileData.media || [],
+						createdBy: userId,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				});
+				relatedEntityId = file.id;
 			} else if (type === "discussion") {
 				const discussion = await payload.create({
 					collection: "discussions",
@@ -346,7 +386,9 @@ export const tryCreateActivityModule = Result.wrap(
 						threadSorting: args.discussionData.threadSorting || "recent",
 						createdBy: userId,
 					},
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 				relatedEntityId = discussion.id;
 			}
@@ -362,6 +404,7 @@ export const tryCreateActivityModule = Result.wrap(
 				...(type === "page" && relatedEntityId && { page: relatedEntityId }),
 				...(type === "whiteboard" &&
 					relatedEntityId && { whiteboard: relatedEntityId }),
+				...(type === "file" && relatedEntityId && { file: relatedEntityId }),
 				...(type === "assignment" &&
 					relatedEntityId && { assignment: relatedEntityId }),
 				...(type === "quiz" && relatedEntityId && { quiz: relatedEntityId }),
@@ -372,11 +415,15 @@ export const tryCreateActivityModule = Result.wrap(
 			const activityModule = await payload.create({
 				collection: "activity-modules",
 				data: activityModuleData,
-				req: { transactionID },
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
-			// Commit the transaction
-			await payload.db.commitTransaction(transactionID);
+			// Commit the transaction only if we created it
+			if (shouldCommitTransaction && transactionID) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -396,8 +443,10 @@ export const tryCreateActivityModule = Result.wrap(
 				createdBy,
 			};
 		} catch (error) {
-			// Rollback the transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Rollback the transaction on error only if we created it
+			if (shouldCommitTransaction) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},
@@ -450,6 +499,7 @@ export const tryGetActivityModuleById = Result.wrap(
 				const owner = am.owner;
 				const page = am.page;
 				const whiteboard = am.whiteboard;
+				const file = am.file;
 				const assignment = am.assignment;
 				const quiz = am.quiz;
 				const discussion = am.discussion;
@@ -502,6 +552,11 @@ export const tryGetActivityModuleById = Result.wrap(
 					discussion,
 					z.object({ id: z.number() }).nullish(),
 				);
+				assertZodInternal(
+					"tryGetActivityModuleById: File is required",
+					file,
+					z.object({ id: z.number() }).nullish(),
+				);
 
 				// NOTE: Submissions are no longer joined on activity-modules.
 				// They now link to course-activity-module-links instead.
@@ -531,6 +586,26 @@ export const tryGetActivityModuleById = Result.wrap(
 					};
 				});
 
+
+				// type narrowing file
+				const media = file?.media?.map((m) => {
+					assertZodInternal(
+						"tryGetActivityModuleById: Media should be number[]",
+						m,
+						z.number(),
+					);
+					return m;
+				});
+
+				const fileCreatedBy = file?.createdBy;
+				if (fileCreatedBy) {
+					assertZodInternal(
+						"tryGetActivityModuleById: File created by should be number",
+						fileCreatedBy,
+						z.number(),
+					);
+				}
+
 				return {
 					...am,
 					createdBy: {
@@ -543,6 +618,7 @@ export const tryGetActivityModuleById = Result.wrap(
 					},
 					page,
 					whiteboard,
+					file: file ? { ...file, media, createdBy: fileCreatedBy } : null,
 					assignment,
 					quiz,
 					discussion,
@@ -571,7 +647,7 @@ export const tryGetActivityModuleById = Result.wrap(
  */
 export const tryUpdateActivityModule = Result.wrap(
 	async (payload: Payload, args: UpdateActivityModuleArgs) => {
-		const { id, title, description, type, status } = args;
+		const { id, title, description, type, status, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -582,6 +658,9 @@ export const tryUpdateActivityModule = Result.wrap(
 		const existingModule = await payload.findByID({
 			collection: "activity-modules",
 			id,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!existingModule) {
@@ -598,12 +677,9 @@ export const tryUpdateActivityModule = Result.wrap(
 			);
 		}
 
-		// Start transaction for updating activity module and related entity
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		// Handle transaction ID
+		const { transactionID, shouldCommitTransaction, reqWithTransaction } =
+			await handleTransactionId(payload, req);
 
 		try {
 			// Build update data object for activity module
@@ -627,7 +703,9 @@ export const tryUpdateActivityModule = Result.wrap(
 						data: {
 							content: args.pageData.content,
 						},
-						req: { transactionID },
+						user,
+						req: reqWithTransaction,
+						overrideAccess,
 					});
 				}
 			} else if (type === "whiteboard") {
@@ -644,7 +722,9 @@ export const tryUpdateActivityModule = Result.wrap(
 						data: {
 							content: args.whiteboardData.content,
 						},
-						req: { transactionID },
+						user,
+						req: reqWithTransaction,
+						overrideAccess,
 					});
 				}
 			} else if (type === "assignment") {
@@ -674,7 +754,9 @@ export const tryUpdateActivityModule = Result.wrap(
 							maxFileSize: args.assignmentData.maxFileSize,
 							maxFiles: args.assignmentData.maxFiles,
 						},
-						req: { transactionID },
+						user,
+						req: reqWithTransaction,
+						overrideAccess,
 					});
 				}
 			} else if (type === "quiz") {
@@ -710,7 +792,28 @@ export const tryUpdateActivityModule = Result.wrap(
 							},
 							questions: args.quizData.questions,
 						},
-						req: { transactionID },
+						user,
+						req: reqWithTransaction,
+						overrideAccess,
+					});
+				}
+			} else if (type === "file") {
+				const fileId = existingModule.file;
+				if (
+					fileId &&
+					typeof fileId === "object" &&
+					"id" in fileId &&
+					fileId.id
+				) {
+					await payload.update({
+						collection: "files",
+						id: fileId.id,
+						data: {
+							media: args.fileData.media,
+						},
+						user,
+						req: reqWithTransaction,
+						overrideAccess,
 					});
 				}
 			} else if (type === "discussion") {
@@ -746,7 +849,9 @@ export const tryUpdateActivityModule = Result.wrap(
 							maxGroupSize: args.discussionData.maxGroupSize,
 							threadSorting: args.discussionData.threadSorting,
 						},
-						req: { transactionID },
+						user,
+						req: reqWithTransaction,
+						overrideAccess,
 					});
 				}
 			}
@@ -762,11 +867,15 @@ export const tryUpdateActivityModule = Result.wrap(
 				collection: "activity-modules",
 				id,
 				data: updateData,
-				req: { transactionID },
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
 			});
 
-			// Commit the transaction
-			await payload.db.commitTransaction(transactionID);
+			// Commit the transaction only if we created it
+			if (shouldCommitTransaction && transactionID) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -786,8 +895,10 @@ export const tryUpdateActivityModule = Result.wrap(
 				createdBy,
 			};
 		} catch (error) {
-			// Rollback the transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Rollback the transaction on error only if we created it
+			if (shouldCommitTransaction && transactionID) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},
@@ -811,6 +922,11 @@ export const tryDeleteActivityModule = Result.wrap(
 		// Check if activity module exists
 		const existingModule = await payload.findByID({
 			collection: "activity-modules",
+			joins: {
+				linkedCourses: {
+					limit: MOCK_INFINITY
+				}
+			},
 			id,
 		});
 
@@ -818,6 +934,11 @@ export const tryDeleteActivityModule = Result.wrap(
 			throw new NonExistingActivityModuleError(
 				`Activity module with id '${id}' not found`,
 			);
+		}
+
+
+		if (existingModule.linkedCourses?.docs && existingModule.linkedCourses.docs.length > 0) {
+			throw new InvalidArgumentError("Activity module is linked to courses and cannot be deleted");
 		}
 
 		// Start transaction for cascading delete
@@ -830,7 +951,20 @@ export const tryDeleteActivityModule = Result.wrap(
 		try {
 			// Delete related entity first
 			const moduleType = existingModule.type as string;
-			if (moduleType === "assignment" && existingModule.assignment) {
+			if (moduleType === "file" && existingModule.file) {
+				const fileId = existingModule.file;
+				if (
+					typeof fileId === "object" &&
+					"id" in fileId &&
+					fileId.id
+				) {
+					await payload.delete({
+						collection: "files",
+						id: fileId.id,
+						req: { transactionID },
+					});
+				}
+			} else if (moduleType === "assignment" && existingModule.assignment) {
 				const assignmentId = existingModule.assignment;
 				if (
 					typeof assignmentId === "object" &&
@@ -899,7 +1033,7 @@ export const tryListActivityModules = Result.wrap(
 		payload: Payload,
 		args: {
 			userId?: number;
-			type?: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
+			type?: "page" | "whiteboard" | "file" | "assignment" | "quiz" | "discussion";
 			status?: "draft" | "published" | "archived";
 			limit?: number;
 			page?: number;

@@ -92,6 +92,7 @@ export interface Config {
     'course-grade-tables': CourseGradeTable;
     groups: Group;
     'user-grades': UserGrade;
+    files: File;
     search: Search;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
@@ -167,6 +168,7 @@ export interface Config {
     'course-grade-tables': CourseGradeTablesSelect<false> | CourseGradeTablesSelect<true>;
     groups: GroupsSelect<false> | GroupsSelect<true>;
     'user-grades': UserGradesSelect<false> | UserGradesSelect<true>;
+    files: FilesSelect<false> | FilesSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
@@ -500,7 +502,7 @@ export interface ActivityModule {
   owner: number | User;
   title: string;
   description?: string | null;
-  type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
+  type: 'page' | 'whiteboard' | 'file' | 'assignment' | 'quiz' | 'discussion';
   status: 'draft' | 'published' | 'archived';
   createdBy: number | User;
   page?: (number | null) | Page;
@@ -508,6 +510,7 @@ export interface ActivityModule {
   assignment?: (number | null) | Assignment;
   quiz?: (number | null) | Quiz;
   discussion?: (number | null) | Discussion;
+  file?: (number | null) | File;
   grants?: {
     docs?: (number | ActivityModuleGrant)[];
     hasNextPage?: boolean;
@@ -722,6 +725,17 @@ export interface DiscussionSubmission {
   feedback?: string | null;
   gradedBy?: (number | null) | User;
   gradedAt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "files".
+ */
+export interface File {
+  id: number;
+  media?: (number | Media)[] | null;
+  createdBy: number | User;
   updatedAt: string;
   createdAt: string;
 }
@@ -1239,6 +1253,10 @@ export interface PayloadLockedDocument {
         value: number | UserGrade;
       } | null)
     | ({
+        relationTo: 'files';
+        value: number | File;
+      } | null)
+    | ({
         relationTo: 'search';
         value: number | Search;
       } | null);
@@ -1419,6 +1437,7 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   assignment?: T;
   quiz?: T;
   discussion?: T;
+  file?: T;
   grants?: T;
   linkedCourses?: T;
   updatedAt?: T;
@@ -1881,6 +1900,16 @@ export interface UserGradesSelect<T extends boolean = true> {
   gradedAt?: T;
   submittedAt?: T;
   status?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "files_select".
+ */
+export interface FilesSelect<T extends boolean = true> {
+  media?: T;
+  createdBy?: T;
   updatedAt?: T;
   createdAt?: T;
 }

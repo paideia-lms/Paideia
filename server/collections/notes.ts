@@ -87,6 +87,8 @@ export const Notes = {
 			label: "Is Public",
 			defaultValue: false,
 		},
+		// ! we need this media relationship field to track the media used in the note content
+		// ! content is rich text
 		{
 			name: "media",
 			type: "relationship",

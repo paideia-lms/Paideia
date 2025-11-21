@@ -59,6 +59,7 @@ export const enum_enrollments_status = pgEnum("enum_enrollments_status", [
 export const enum_activity_modules_type = pgEnum("enum_activity_modules_type", [
   "page",
   "whiteboard",
+  "file",
   "assignment",
   "quiz",
   "discussion",
@@ -569,6 +570,9 @@ export const activity_modules = pgTable(
     discussion: integer("discussion_id").references(() => discussions.id, {
       onDelete: "set null",
     }),
+    file: integer("file_id").references(() => files.id, {
+      onDelete: "set null",
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -592,6 +596,7 @@ export const activity_modules = pgTable(
     index("activity_modules_assignment_idx").on(columns.assignment),
     index("activity_modules_quiz_idx").on(columns.quiz),
     index("activity_modules_discussion_idx").on(columns.discussion),
+    index("activity_modules_file_idx").on(columns.file),
     index("activity_modules_updated_at_idx").on(columns.updatedAt),
     index("activity_modules_created_at_idx").on(columns.createdAt),
     index("owner_idx").on(columns.owner),
@@ -603,6 +608,7 @@ export const activity_modules = pgTable(
     index("assignment_idx").on(columns.assignment),
     index("quiz_idx").on(columns.quiz),
     index("discussion_idx").on(columns.discussion),
+    index("file_idx").on(columns.file),
   ],
 );
 
@@ -1965,6 +1971,65 @@ export const user_grades_rels = pgTable(
   ],
 );
 
+export const files = pgTable(
+  "files",
+  {
+    id: serial("id").primaryKey(),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("files_created_by_idx").on(columns.createdBy),
+    index("files_updated_at_idx").on(columns.updatedAt),
+    index("files_created_at_idx").on(columns.createdAt),
+    index("createdBy_7_idx").on(columns.createdBy),
+  ],
+);
+
+export const files_rels = pgTable(
+  "files_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("files_rels_order_idx").on(columns.order),
+    index("files_rels_parent_idx").on(columns.parent),
+    index("files_rels_path_idx").on(columns.path),
+    index("files_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [files.id],
+      name: "files_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "files_rels_media_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export const search = pgTable(
   "search",
   {
@@ -2182,6 +2247,7 @@ export const payload_locked_documents_rels = pgTable(
     "course-grade-tablesID": integer("course_grade_tables_id"),
     groupsID: integer("groups_id"),
     "user-gradesID": integer("user_grades_id"),
+    filesID: integer("files_id"),
     searchID: integer("search_id"),
   },
   (columns) => [
@@ -2249,6 +2315,7 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_user_grades_id_idx").on(
       columns["user-gradesID"],
     ),
+    index("payload_locked_documents_rels_files_id_idx").on(columns.filesID),
     index("payload_locked_documents_rels_search_id_idx").on(columns.searchID),
     foreignKey({
       columns: [columns["parent"]],
@@ -2379,6 +2446,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["user-gradesID"]],
       foreignColumns: [user_grades.id],
       name: "payload_locked_documents_rels_user_grades_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["filesID"]],
+      foreignColumns: [files.id],
+      name: "payload_locked_documents_rels_files_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["searchID"]],
@@ -2873,6 +2945,11 @@ export const relations_activity_modules = relations(
       fields: [activity_modules.discussion],
       references: [discussions.id],
       relationName: "discussion",
+    }),
+    file: one(files, {
+      fields: [activity_modules.file],
+      references: [files.id],
+      relationName: "file",
     }),
   }),
 );
@@ -3380,6 +3457,28 @@ export const relations_user_grades = relations(
     }),
   }),
 );
+export const relations_files_rels = relations(files_rels, ({ one }) => ({
+  parent: one(files, {
+    fields: [files_rels.parent],
+    references: [files.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [files_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
+export const relations_files = relations(files, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [files.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+  _rels: many(files_rels, {
+    relationName: "_rels",
+  }),
+}));
 export const relations_search_rels = relations(search_rels, ({ one }) => ({
   parent: one(search, {
     fields: [search_rels.parent],
@@ -3550,6 +3649,11 @@ export const relations_payload_locked_documents_rels = relations(
       fields: [payload_locked_documents_rels["user-gradesID"]],
       references: [user_grades.id],
       relationName: "user-grades",
+    }),
+    filesID: one(files, {
+      fields: [payload_locked_documents_rels.filesID],
+      references: [files.id],
+      relationName: "files",
     }),
     searchID: one(search, {
       fields: [payload_locked_documents_rels.searchID],
@@ -3763,6 +3867,8 @@ type DatabaseSchema = {
   user_grades_adjustments: typeof user_grades_adjustments;
   user_grades: typeof user_grades;
   user_grades_rels: typeof user_grades_rels;
+  files: typeof files;
+  files_rels: typeof files_rels;
   search: typeof search;
   search_rels: typeof search_rels;
   payload_kv: typeof payload_kv;
@@ -3827,6 +3933,8 @@ type DatabaseSchema = {
   relations_user_grades_adjustments: typeof relations_user_grades_adjustments;
   relations_user_grades_rels: typeof relations_user_grades_rels;
   relations_user_grades: typeof relations_user_grades;
+  relations_files_rels: typeof relations_files_rels;
+  relations_files: typeof relations_files;
   relations_search_rels: typeof relations_search_rels;
   relations_search: typeof relations_search;
   relations_payload_kv: typeof relations_payload_kv;

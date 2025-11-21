@@ -623,7 +623,7 @@ export const middleware = [
 		}
 	},
 	// set the user module context
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		const { payload, routeHierarchy } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -648,6 +648,7 @@ export const middleware = [
 						...currentUser,
 						avatar: currentUser?.avatar?.id,
 					},
+					request
 				);
 
 				if (userModuleContextResult.ok) {

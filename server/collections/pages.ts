@@ -22,6 +22,8 @@ export const Pages = {
 			required: true,
 			label: "Created By",
 		},
+		// ! we need this media relationship field to track the media used in the page content
+		// ! content is rich text 
 		{
 			name: "media",
 			type: "relationship",

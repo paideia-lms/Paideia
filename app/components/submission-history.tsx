@@ -12,23 +12,19 @@ import {
 	Tooltip,
 	Typography,
 } from "@mantine/core";
-import {
-	IconDots,
-	IconFile,
-	IconFileText,
-	IconFileTypePdf,
-	IconPencil,
-	IconPhoto,
-	IconTrash,
-} from "@tabler/icons-react";
+import { IconDots, IconPencil, IconTrash } from "@tabler/icons-react";
 import { href, Link } from "react-router";
+import {
+	formatFileSize,
+	getFileIcon,
+	getFileType,
+	getFileTypeLabel,
+} from "~/routes/course/module.$id/utils";
 import { AssignmentActions } from "~/utils/module-actions";
 
 // ============================================================================
 // Types
 // ============================================================================
-
-type FileType = "image" | "pdf" | "text" | "other";
 
 export interface SubmissionData {
 	id: number;
@@ -39,13 +35,13 @@ export interface SubmissionData {
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}> | null;
 	grade?: {
@@ -53,83 +49,6 @@ export interface SubmissionData {
 		maxGrade: number | null;
 		gradedAt?: string | null;
 	} | null;
-}
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
-function getFileExtension(filename: string): string {
-	const parts = filename.split(".");
-	return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
-}
-
-function getFileType(
-	filename?: string | null,
-	mimeType?: string | null,
-): FileType {
-	// Check MIME type first
-	if (mimeType) {
-		if (mimeType.startsWith("image/")) return "image";
-		if (mimeType === "application/pdf") return "pdf";
-		if (
-			mimeType.startsWith("text/") ||
-			mimeType === "application/json" ||
-			mimeType === "application/xml"
-		) {
-			return "text";
-		}
-	}
-
-	// Fallback to extension
-	if (filename) {
-		const ext = getFileExtension(filename);
-		if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
-			return "image";
-		}
-		if (ext === "pdf") return "pdf";
-		if (
-			["txt", "md", "json", "xml", "csv", "log", "yml", "yaml", "ini"].includes(
-				ext,
-			)
-		) {
-			return "text";
-		}
-	}
-
-	return "other";
-}
-
-function getFileIcon(fileType: FileType) {
-	switch (fileType) {
-		case "image":
-			return IconPhoto;
-		case "pdf":
-			return IconFileTypePdf;
-		case "text":
-			return IconFileText;
-		default:
-			return IconFile;
-	}
-}
-
-function formatFileSize(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function getFileTypeLabel(fileType: FileType): string {
-	switch (fileType) {
-		case "image":
-			return "Image";
-		case "pdf":
-			return "PDF";
-		case "text":
-			return "Text";
-		default:
-			return "File";
-	}
 }
 
 // ============================================================================
@@ -141,13 +60,13 @@ function SubmissionAttachments({
 }: {
 	attachments: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}>;
 }) {
@@ -291,7 +210,7 @@ export function SubmissionHistoryItem({
 								submission.grade?.baseGrade !== undefined && (
 									<Badge color="green" size="sm" variant="filled">
 										{submission.grade.maxGrade !== null &&
-										submission.grade.maxGrade !== undefined
+											submission.grade.maxGrade !== undefined
 											? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
 											: submission.grade.baseGrade}
 									</Badge>
@@ -431,7 +350,7 @@ export function SubmissionHistoryItem({
 							submission.grade?.baseGrade !== undefined && (
 								<Badge color="green" variant="filled">
 									{submission.grade.maxGrade !== null &&
-									submission.grade.maxGrade !== undefined
+										submission.grade.maxGrade !== undefined
 										? `${submission.grade.baseGrade}/${submission.grade.maxGrade}`
 										: submission.grade.baseGrade}
 								</Badge>

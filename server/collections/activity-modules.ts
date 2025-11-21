@@ -75,6 +75,8 @@ export const ActivityModules = {
 				// read only
 				{ label: "Page", value: "page" },
 				{ label: "Whiteboard", value: "whiteboard" },
+				// file allows instructor to upload multiple files for students to access
+				{ label: "File", value: "file" },
 				// these are the activity with participation
 				// assignments allow user to submit and upload their work
 				{ label: "Assignment", value: "assignment" },
@@ -133,6 +135,12 @@ export const ActivityModules = {
 			relationTo: "discussions",
 			label: "Discussion Configuration",
 		},
+		{
+			name: "file",
+			type: "relationship",
+			relationTo: "files",
+			label: "File Configuration",
+		},
 		// NOTE: Join fields for submissions have been removed because submissions
 		// now link to course-activity-module-links instead of activity-modules.
 		// To access submissions, traverse through course-activity-module-links.
@@ -180,6 +188,9 @@ export const ActivityModules = {
 		},
 		{
 			fields: ["discussion"],
+		},
+		{
+			fields: ["file"],
 		},
 	],
 } as const satisfies CollectionConfig;
