@@ -109,6 +109,7 @@ export function useUpdateGradeCategory() {
 			name?: string;
 			description?: string;
 			weight?: number | null;
+			extraCredit?: boolean;
 		},
 	) => {
 		const submissionData = {

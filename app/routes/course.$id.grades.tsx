@@ -84,10 +84,12 @@ export const loader = async ({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-			gradebookSetupForUI.extraCreditItems.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0 ||
+			gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
+		extraCreditCategories: gradebookSetupForUI?.extraCreditCategories ?? [],
 		totalMaxGrade: gradebookSetupForUI?.totals.totalMaxGrade ?? 0,
 		userGrades,
 	};
@@ -238,14 +240,14 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-category") {
-		console.log(data);
-		console.log("parsedData.data", JSON.stringify(parsedData.data, null, 2));
+
 		const updateResult = await tryUpdateGradebookCategory({
 			payload,
 			categoryId: parsedData.data.categoryId,
 			name: parsedData.data.name,
 			description: parsedData.data.description,
 			weight: parsedData.data.weight,
+			extraCredit: parsedData.data.extraCredit,
 			user: {
 				...currentUser,
 				avatar: currentUser.avatar?.id,
@@ -399,8 +401,13 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
-	const { hasExtraCredit, displayTotal, extraCreditItems, totalMaxGrade } =
-		loaderData;
+	const {
+		hasExtraCredit,
+		displayTotal,
+		extraCreditItems,
+		extraCreditCategories,
+		totalMaxGrade,
+	} = loaderData;
 	const [activeTab] = useQueryState("tab", {
 		defaultValue: "report",
 	});
@@ -413,6 +420,7 @@ export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
 					hasExtraCredit={hasExtraCredit}
 					displayTotal={displayTotal}
 					extraCreditItems={extraCreditItems}
+					extraCreditCategories={extraCreditCategories}
 					totalMaxGrade={totalMaxGrade}
 				/>
 			) : (

@@ -6,7 +6,7 @@ import { sum } from "es-toolkit"
  * Validates weight distribution at a level (course level or category level)
  * Rules:
  * 1. Filter away extra credit items from the level
- * 2. If no items left at this level, this level must have weight 0. 
+ * 2. If no items left at this level, this level must have weight null (auto-weighted). 
  * 3. If auto-weighted items (weight === null) exist in the level, then total of weight items must be <= 100%
  * 4. If auto-weighted items don't exist in the level, then total weight must equal exactly 100%
  * 5. Recursively validates nested categories
@@ -32,9 +32,9 @@ export function validateGradebookWeights(
 
 	// If no non-extra-credit items at this level, this level must have weight 0
 	if (nonExtraCreditItems.length === 0) {
-		if (levelWeight !== 0) {
+		if (levelWeight !== null) {
 			throw new WeightZeroRequiredError(
-				`Level ${levelName} must have weight 0 when no non-extra-credit items exist`,
+				`Level ${levelName} must be auto-weighted when no non-extra-credit items exist`,
 			);
 		}
 		return

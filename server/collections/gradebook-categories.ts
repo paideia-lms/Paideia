@@ -36,6 +36,12 @@ export const GradebookCategories = {
 			min: 0,
 			max: 100,
 		},
+		{
+			name: "extraCredit",
+			type: "checkbox",
+			label: "Extra Credit",
+			defaultValue: false,
+		},
 		// sort_order BIGINT(19) NOT NULL DEFAULT 0, -- Order within parent context
 		{
 			name: "sortOrder",

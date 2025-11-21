@@ -32,6 +32,7 @@ export interface UpdateGradebookCategoryArgs {
 	description?: string;
 	weight?: number | null;
 	sortOrder?: number;
+	extraCredit?: boolean;
 	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
@@ -129,12 +130,14 @@ export const tryCreateGradebookCategory = Result.wrap(
 				parent?: number | null;
 				name: string;
 				description?: string | null;
-				weight: number;
+				weight: null;
+				extraCredit: boolean;
 				sortOrder: number;
 			} = {
 				gradebook: gradebookId,
 				name,
-				weight: 0, // Categories always start with weight 0
+				weight: null, // Categories always start with weight 0
+				extraCredit: false, // Categories always start as non-extra-credit
 				sortOrder,
 			};
 
@@ -230,6 +233,7 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			description,
 			weight,
 			sortOrder,
+			extraCredit,
 			user = null,
 			req,
 			overrideAccess = false,
@@ -251,12 +255,27 @@ export const tryUpdateGradebookCategory = Result.wrap(
 						id: z.number(),
 					}),
 				);
-				return i;
+
+				assertZodInternal(
+					"tryUpdateGradebookCategory: Item weight is required",
+					i.weight,
+					z.number().nullable(),
+				);
+				return {
+					...i,
+					weight: i.weight,
+				};
 			});
+			assertZodInternal(
+				"tryUpdateGradebookCategory: Category items are required",
+				c.weight,
+				z.number().nullable(),
+			);
 			return {
 				...c,
-				items
-			}
+				weight: c.weight,
+				items: items,
+			};
 		});
 
 		if (!existingCategory) {
@@ -279,6 +298,16 @@ export const tryUpdateGradebookCategory = Result.wrap(
 		// Validate sort order if provided
 		if (sortOrder !== undefined && sortOrder < 0) {
 			throw new InvalidSortOrderError("Sort order must be non-negative");
+		}
+
+		// Validate that extra credit categories must have a weight
+		if (extraCredit === true) {
+			const finalWeight = weight !== undefined ? weight : existingCategory.weight;
+			if (finalWeight === null) {
+				throw new InvalidArgumentError(
+					"Extra credit categories must have a weight specified. Please set a weight before marking the category as extra credit.",
+				);
+			}
 		}
 
 		// Check if category has items by checking existing category weight
@@ -308,9 +337,10 @@ export const tryUpdateGradebookCategory = Result.wrap(
 		if (sortOrder !== undefined) {
 			updateData.sortOrder = sortOrder;
 		}
+		if (extraCredit !== undefined) {
+			updateData.extraCredit = extraCredit;
+		}
 
-		// Check if weight is being updated - if so, we need to validate overall weights
-		const isWeightUpdate = weight !== undefined;
 
 		// Use existing transaction if provided, otherwise create a new one
 		const transactionWasProvided = !!req?.transactionID;
@@ -336,17 +366,28 @@ export const tryUpdateGradebookCategory = Result.wrap(
 				overrideAccess,
 			});
 
-			const validateResult = await tryValidateOverallWeightTotal({
-				payload,
-				courseId: gradebookId,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-				errorMessagePrefix: "Category weight update",
-			});
 
-			if (!validateResult.ok) {
-				throw validateResult.error;
+
+			// Check if weight is being updated - if so, we need to validate overall weights
+			const isWeightUpdate = weight !== updatedCategory.weight;
+			const isExtraCreditUpdate = extraCredit !== updatedCategory.extraCredit;
+
+			if (
+				isWeightUpdate ||
+				isExtraCreditUpdate
+			) {
+				const validateResult = await tryValidateOverallWeightTotal({
+					payload,
+					courseId: gradebookId,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					errorMessagePrefix: "Category weight update",
+				});
+
+				if (!validateResult.ok) {
+					throw validateResult.error;
+				}
 			}
 
 			// Commit transaction only if we created it

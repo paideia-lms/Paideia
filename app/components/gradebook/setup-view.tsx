@@ -81,6 +81,7 @@ export type GradebookSetupItem = {
 	description: string | null;
 	category_id: number | null;
 	extra_credit?: boolean;
+	auto_weighted_zero?: boolean;
 	grade_items?: GradebookSetupItem[];
 	activityModuleLinkId?: number | null;
 };
@@ -216,6 +217,8 @@ function GradebookItemRow({
 						weight={item.weight}
 						adjustedWeight={item.adjusted_weight}
 						extraCredit={item.extra_credit}
+						isCategory={isCategory}
+						autoWeightedZero={item.auto_weighted_zero ?? false}
 					/>
 				</Table.Td>
 				<Table.Td>
@@ -260,6 +263,8 @@ function GradebookItemRow({
 									name: item.name,
 									description: null,
 									weight: item.weight,
+									extraCredit: item.extra_credit ?? false,
+									hasItems: hasNestedItems ?? false,
 								}}
 							/>
 						) : (
@@ -395,12 +400,14 @@ export function GradebookSetupView({
 	hasExtraCredit,
 	displayTotal,
 	extraCreditItems,
+	extraCreditCategories,
 	totalMaxGrade,
 }: {
 	data: GradebookSetupData;
 	hasExtraCredit: boolean;
 	displayTotal: number;
 	extraCreditItems: GradebookSetupItem[];
+	extraCreditCategories: GradebookSetupItem[];
 	totalMaxGrade: number;
 }) {
 	const { gradebookSetupForUI, flattenedCategories } = data;
@@ -567,20 +574,29 @@ export function GradebookSetupView({
 														<Text size="xs" fw={700} mb={4}>
 															Extra Credit Contributions:
 														</Text>
-														{extraCreditItems.length > 0 ? (
-															extraCreditItems.map((item) => (
-																<Text key={item.id} size="xs">
-																	• {item.name}:{" "}
-																	{item.overall_weight?.toFixed(2)}%
-																</Text>
-															))
+														{extraCreditCategories.length > 0 ||
+															extraCreditItems.length > 0 ? (
+															<>
+																{extraCreditCategories.map((category) => (
+																	<Text key={category.id} size="xs">
+																		• {category.name} (Category):{" "}
+																		{category.overall_weight?.toFixed(2)}%
+																	</Text>
+																))}
+																{extraCreditItems.map((item) => (
+																	<Text key={item.id} size="xs">
+																		• {item.name}:{" "}
+																		{item.overall_weight?.toFixed(2)}%
+																	</Text>
+																))}
+															</>
 														) : (
 															<Text size="xs">No extra credit items</Text>
 														)}
 													</div>
 													<div>
 														<Text size="xs">
-															Extra credit items allow the total to exceed 100%.
+															Extra credit items and categories allow the total to exceed 100%.
 														</Text>
 													</div>
 												</Stack>

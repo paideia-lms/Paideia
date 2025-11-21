@@ -1,5 +1,6 @@
 import {
 	ActionIcon,
+	Alert,
 	Button,
 	Checkbox,
 	Group,
@@ -150,21 +151,22 @@ export const CreateGradeItemModal = forwardRef<
 					/>
 
 					{overrideWeight && (
-						<NumberInput
-							{...form.getInputProps("weight")}
-							key={form.key("weight")}
-							label="Weight (%)"
-							placeholder="Enter weight (optional)"
-							min={0}
-							max={100}
-						/>
+						<>
+							<NumberInput
+								{...form.getInputProps("weight")}
+								key={form.key("weight")}
+								label="Weight (%)"
+								placeholder="Enter weight (optional)"
+								min={0}
+								max={100}
+							/>
+							<Checkbox
+								{...form.getInputProps("extraCredit", { type: "checkbox" })}
+								key={form.key("extraCredit")}
+								label="Extra Credit"
+							/>
+						</>
 					)}
-
-					<Checkbox
-						{...form.getInputProps("extraCredit", { type: "checkbox" })}
-						key={form.key("extraCredit")}
-						label="Extra Credit"
-					/>
 
 					<Group justify="flex-end" gap="xs">
 						<Button variant="default" onClick={() => setOpened(false)} type="button">
@@ -507,6 +509,8 @@ type UpdateGradeCategoryButtonProps = {
 		name: string;
 		description: string | null;
 		weight: number | null;
+		extraCredit: boolean;
+		hasItems: boolean;
 	};
 }
 
@@ -522,6 +526,7 @@ export function UpdateGradeCategoryButton({ category }: UpdateGradeCategoryButto
 			description: category?.description ?? "",
 			overrideWeight: category?.weight !== null,
 			weight: category?.weight ? String(category.weight) : "",
+			extraCredit: category?.extraCredit ?? false,
 		},
 		validate: {
 			name: (value) =>
@@ -536,6 +541,7 @@ export function UpdateGradeCategoryButton({ category }: UpdateGradeCategoryButto
 			weight: values.overrideWeight && values.weight
 				? Number.parseFloat(values.weight)
 				: null,
+			extraCredit: values.overrideWeight ? values.extraCredit : false,
 		});
 		setOpened(false);
 	});
@@ -549,38 +555,44 @@ export function UpdateGradeCategoryButton({ category }: UpdateGradeCategoryButto
 				description: category.description ?? "",
 				overrideWeight: category.weight !== null,
 				weight: category.weight ? String(category.weight) : "",
+				extraCredit: category.extraCredit ?? false,
 			});
 			form.reset();
 			setOpened(true);
 		}} loading={isLoading} variant="subtle">
 			<IconPencil />
 		</ActionIcon>
-		<UpdateGradeCategoryModal opened={opened} onClose={() => setOpened(false)} onExitTransitionEnd={() => form.reset()} form={form} onSubmit={handleSubmit} isLoading={isLoading} />
+		<UpdateGradeCategoryModal opened={opened} onClose={() => setOpened(false)} onExitTransitionEnd={() => form.reset()} category={category} form={form} onSubmit={handleSubmit} isLoading={isLoading} />
 	</>;
 }
+
 
 type UpdateGradeCategoryModalProps = {
 	opened: boolean;
 	onClose: () => void;
 	onExitTransitionEnd?: () => void;
+	category: {
+		hasItems: boolean;
+	};
 	form: UseFormReturnType<{
 		name: string;
 		description: string;
 		overrideWeight: boolean;
 		weight: string;
+		extraCredit: boolean;
 	}>;
-	onSubmit: FormEventHandler<HTMLFormElement>
+	onSubmit: FormEventHandler<HTMLFormElement>;
 	isLoading: boolean;
-}
+};
 
-export function UpdateGradeCategoryModal({ opened, onClose, onExitTransitionEnd, form, onSubmit, isLoading }: UpdateGradeCategoryModalProps) {
+export function UpdateGradeCategoryModal({ opened, onClose, onExitTransitionEnd, category, form, onSubmit, isLoading }: UpdateGradeCategoryModalProps) {
 	const overrideWeight = useFormWatchForceUpdate(form, "overrideWeight");
 
 	return (
 		<Modal
 			opened={opened}
 			onClose={onClose}
-			onExitTransitionEnd={onExitTransitionEnd}
+			onExitTransitionEnd={onExitTransitionEnd ?? undefined}
 			title="Edit Category"
 			centered
 		>
@@ -602,21 +614,36 @@ export function UpdateGradeCategoryModal({ opened, onClose, onExitTransitionEnd,
 						minRows={3}
 					/>
 
-					<Checkbox
-						{...form.getInputProps("overrideWeight", { type: "checkbox" })}
-						key={form.key("overrideWeight")}
-						label="Override Weight"
-					/>
+					{category.hasItems ? (
+						<>
+							<Checkbox
+								{...form.getInputProps("overrideWeight", { type: "checkbox" })}
+								key={form.key("overrideWeight")}
+								label="Override Weight"
+							/>
 
-					{overrideWeight && (
-						<NumberInput
-							{...form.getInputProps("weight")}
-							key={form.key("weight")}
-							label="Weight (%)"
-							placeholder="Enter weight (optional)"
-							min={0}
-							max={100}
-						/>
+							{overrideWeight && (
+								<>
+									<NumberInput
+										{...form.getInputProps("weight")}
+										key={form.key("weight")}
+										label="Weight (%)"
+										placeholder="Enter weight (optional)"
+										min={0}
+										max={100}
+									/>
+									<Checkbox
+										{...form.getInputProps("extraCredit", { type: "checkbox" })}
+										key={form.key("extraCredit")}
+										label="Extra Credit"
+									/>
+								</>
+							)}
+						</>
+					) : (
+						<Alert color="blue" title="Weight Information">
+							Weight can only be changed when category has items.
+						</Alert>
 					)}
 
 					<Group justify="flex-end" gap="xs">

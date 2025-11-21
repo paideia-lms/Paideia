@@ -72,6 +72,7 @@ export interface GradebookSetupItemWithCalculations extends GradebookSetupItem {
 	adjusted_weight: number | null;
 	overall_weight: number | null; // Only for leaf items
 	weight_explanation: string | null; // Human-readable explanation of overall weight calculation
+	auto_weighted_zero?: boolean; // True if category is auto-weighted and should be treated as 0%
 	grade_items?: GradebookSetupItemWithCalculations[];
 }
 
@@ -94,6 +95,7 @@ export interface GradebookSetupForUI {
 		totalMaxGrade: number;
 	};
 	extraCreditItems: GradebookSetupItemWithCalculations[];
+	extraCreditCategories: GradebookSetupItemWithCalculations[];
 }
 
 export interface GradebookJsonRepresentation {
@@ -737,6 +739,7 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 			parent: category.parent ?? null,
 			name: category.name,
 			weight: category.weight ?? null,
+			extraCredit: category.extraCredit ?? false,
 			subcategories: category.subcategories,
 			items: category.items,
 		})) satisfies CategoryData[];
@@ -829,6 +832,7 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 				totalMaxGrade: totals.totalMaxGrade,
 			},
 			extraCreditItems: totals.extraCreditItems,
+			extraCreditCategories: totals.extraCreditCategories,
 		};
 
 		// Convert JSON to YAML using Bun.YAML.stringify

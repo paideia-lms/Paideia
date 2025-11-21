@@ -16,6 +16,7 @@ export const createCategorySchema = z.object({
 	name: z.string().min(1, "Name is required"),
 	description: z.string().optional(),
 	parentId: z.coerce.number().optional().nullable(),
+	extraCredit: z.boolean().optional(),
 });
 
 export const updateItemSchema = z.object({
@@ -36,6 +37,7 @@ export const updateCategorySchema = z.object({
 	name: z.string().min(1, "Name is required").optional(),
 	description: z.string().optional(),
 	weight: z.coerce.number().nullable(),
+	extraCredit: z.boolean().optional(),
 });
 
 export const getItemSchema = z.object({

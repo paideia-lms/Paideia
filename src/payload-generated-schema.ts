@@ -1236,6 +1236,7 @@ export const gradebook_categories = pgTable(
     name: varchar("name").notNull(),
     description: varchar("description"),
     weight: numeric("weight", { mode: "number" }),
+    extraCredit: boolean("extra_credit").default(false),
     sortOrder: numeric("sort_order", { mode: "number" }).notNull(),
     updatedAt: timestamp("updated_at", {
       mode: "string",

@@ -13,9 +13,9 @@ import type {
 export function calculateAdjustedWeights(
 	items: GradebookSetupItem[],
 ): GradebookSetupItemWithCalculations[] {
-	const result: GradebookSetupItemWithCalculations[] = [];
+	// First pass: Process children recursively and identify auto-weighted-0 categories
+	const processedItems: GradebookSetupItemWithCalculations[] = [];
 
-	// First, calculate adjusted weights for nested items in categories
 	for (const item of items) {
 		const processedItem: GradebookSetupItemWithCalculations = {
 			...item,
@@ -27,23 +27,70 @@ export function calculateAdjustedWeights(
 				: undefined,
 		};
 
+		// Special handling for auto-weighted categories (bottom-up check)
+		// This must happen after children are processed
+		if (processedItem.type === "category" && processedItem.weight === null) {
+			// Check if category has no non-extra-credit items
+			const hasNonExtraCreditItems = processedItem.grade_items?.some(
+				(child) => child.type !== "category" && !(child.extra_credit ?? false),
+			) ?? false;
+
+			// Check if category has nested categories
+			const hasNestedCategories = processedItem.grade_items?.some(
+				(child) => child.type === "category",
+			) ?? false;
+
+			if (!hasNonExtraCreditItems) {
+				// No non-extra-credit items
+				if (!hasNestedCategories) {
+					// No nested categories - mark as auto-weighted-0
+					processedItem.auto_weighted_zero = true;
+				} else {
+					// Has nested categories - check if all are auto-weighted-0
+					const allSubcategoriesAutoWeightedZero = processedItem.grade_items
+						?.filter((child) => child.type === "category")
+						.every((child) => child.auto_weighted_zero === true) ?? false;
+
+					if (allSubcategoriesAutoWeightedZero) {
+						// All subcategories are auto-weighted-0 - mark this as auto-weighted-0
+						processedItem.auto_weighted_zero = true;
+					}
+				}
+			}
+		}
+
+		processedItems.push(processedItem);
+	}
+
+	// Second pass: Calculate adjusted weights, excluding auto-weighted-0 categories from distribution
+	const result: GradebookSetupItemWithCalculations[] = [];
+
+	for (const processedItem of processedItems) {
 		// Calculate adjusted weight for this item
 		// Extra credit items don't participate in weight distribution
-		const nonExtraCreditItems = items.filter(
-			(item) => !(item.extra_credit ?? false),
+		// Auto-weighted-0 categories also don't participate in weight distribution
+		const nonExtraCreditItems = processedItems.filter(
+			(p) => !(p.extra_credit ?? false),
 		);
 
-		// Only calculate weight distribution for non-extra-credit items
-		// Separate items with specified weights and auto-weighted items (weight === null)
-		const itemsWithWeight = nonExtraCreditItems.filter(
-			(item) => item.weight !== null,
+		// Check if this item is auto-weighted-0
+		const isAutoWeightedZero = processedItem.auto_weighted_zero === true;
+
+		// Items that participate in weight distribution: non-extra-credit and not auto-weighted-0
+		const participatingItems = nonExtraCreditItems.filter(
+			(p) => !(p.auto_weighted_zero === true),
 		);
-		const autoWeightedItems = nonExtraCreditItems.filter(
-			(item) => item.weight === null,
+
+		// Separate items with specified weights and auto-weighted items (weight === null)
+		const itemsWithWeight = participatingItems.filter(
+			(p) => p.weight !== null,
+		);
+		const autoWeightedItems = participatingItems.filter(
+			(p) => p.weight === null,
 		);
 
 		const totalSpecifiedWeight = itemsWithWeight.reduce(
-			(sum, item) => sum + (item.weight ?? 0),
+			(sum, p) => sum + (p.weight ?? 0),
 			0,
 		);
 
@@ -54,15 +101,18 @@ export function calculateAdjustedWeights(
 				: 0;
 
 		// Check if this item is extra credit
-		const isExtraCredit = item.extra_credit ?? false;
+		const isExtraCredit = processedItem.extra_credit ?? false;
 
-		if (isExtraCredit) {
+		if (isAutoWeightedZero) {
+			// Auto-weighted-0 categories are treated as 0% but still show as auto-weighted
+			processedItem.adjusted_weight = 0;
+		} else if (isExtraCredit) {
 			// Extra credit items use their specified weight, but don't affect distribution
 			// If no weight specified, use null (extra credit doesn't get auto-distributed)
-			processedItem.adjusted_weight = item.weight;
-		} else if (item.weight !== null) {
+			processedItem.adjusted_weight = processedItem.weight;
+		} else if (processedItem.weight !== null) {
 			// Non-extra-credit item with specified weight, use it as adjusted weight
-			processedItem.adjusted_weight = item.weight;
+			processedItem.adjusted_weight = processedItem.weight;
 		} else {
 			// Non-extra-credit item without specified weight (auto-weighted), use distributed weight
 			// If there are auto-weighted items and remaining weight > 0, distribute it
@@ -95,6 +145,7 @@ export function calculateOverallWeights(
 	extraCreditTotal: number;
 	calculatedTotal: number;
 	extraCreditItems: GradebookSetupItemWithCalculations[];
+	extraCreditCategories: GradebookSetupItemWithCalculations[];
 	totalMaxGrade: number;
 } {
 	// Use rootItems as the search scope, or default to items if not provided
@@ -246,6 +297,33 @@ export function calculateOverallWeights(
 		}
 	}
 
+	// Helper function to calculate overall weight for a category
+	// This traverses up the parent chain to calculate the category's effective weight
+	const calculateCategoryOverallWeight = (
+		category: GradebookSetupItemWithCalculations,
+		searchItems: GradebookSetupItemWithCalculations[],
+	): number => {
+		if (category.adjusted_weight === null) {
+			return 0;
+		}
+
+		// Start with the category's adjusted weight as a decimal
+		let overallWeight = category.adjusted_weight / 100;
+
+		// Find parent category and multiply by parent's overall weight
+		const parentCategory = findContainingCategory(category.id, searchItems);
+		if (parentCategory) {
+			const parentOverallWeight = calculateCategoryOverallWeight(
+				parentCategory,
+				searchItems,
+			);
+			overallWeight *= parentOverallWeight / 100;
+		}
+
+		// Convert back to percentage
+		return overallWeight * 100;
+	};
+
 	// Calculate totals from all leaf items
 	const collectLeafItems = (
 		items: GradebookSetupItemWithCalculations[],
@@ -261,7 +339,24 @@ export function calculateOverallWeights(
 		return leafItems;
 	};
 
+	// Collect all categories (for extra credit calculation)
+	const collectAllCategories = (
+		items: GradebookSetupItemWithCalculations[],
+	): GradebookSetupItemWithCalculations[] => {
+		const categories: GradebookSetupItemWithCalculations[] = [];
+		for (const item of items) {
+			if (item.type === "category") {
+				categories.push(item);
+				if (item.grade_items) {
+					categories.push(...collectAllCategories(item.grade_items));
+				}
+			}
+		}
+		return categories;
+	};
+
 	const allLeafItems = collectLeafItems(searchScope);
+	const allCategories = collectAllCategories(searchScope);
 
 	// Separate base and extra credit items
 	const baseItems = allLeafItems.filter(
@@ -271,14 +366,30 @@ export function calculateOverallWeights(
 		(item) => item.extra_credit === true && item.overall_weight !== null,
 	);
 
+	// Calculate extra credit from categories
+	const extraCreditCategories = allCategories.filter(
+		(category) => category.extra_credit === true,
+	);
+	let extraCreditFromCategories = 0;
+	for (const category of extraCreditCategories) {
+		if (category.adjusted_weight !== null) {
+			const categoryOverallWeight = calculateCategoryOverallWeight(
+				category,
+				searchScope,
+			);
+			extraCreditFromCategories += categoryOverallWeight;
+		}
+	}
+
 	const baseTotal = baseItems.reduce(
 		(sum, item) => sum + (item.overall_weight ?? 0),
 		0,
 	);
-	const extraCreditTotal = extraCreditItems.reduce(
+	const extraCreditFromItems = extraCreditItems.reduce(
 		(sum, item) => sum + (item.overall_weight ?? 0),
 		0,
 	);
+	const extraCreditTotal = extraCreditFromItems + extraCreditFromCategories;
 
 	// Always use 100 + extraCreditTotal as the total, don't rely on baseTotal which may be wrong
 	const calculatedTotal = 100 + extraCreditTotal;
@@ -288,11 +399,26 @@ export function calculateOverallWeights(
 		0,
 	);
 
+	// Build extra credit categories with their overall weights for display
+	const extraCreditCategoriesWithWeights = extraCreditCategories.map(
+		(category) => {
+			const categoryOverallWeight = calculateCategoryOverallWeight(
+				category,
+				searchScope,
+			);
+			return {
+				...category,
+				overall_weight: categoryOverallWeight,
+			};
+		},
+	);
+
 	return {
 		baseTotal,
 		extraCreditTotal,
 		calculatedTotal,
 		extraCreditItems,
+		extraCreditCategories: extraCreditCategoriesWithWeights,
 		totalMaxGrade,
 	};
 }

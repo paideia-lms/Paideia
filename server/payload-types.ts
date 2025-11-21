@@ -896,6 +896,7 @@ export interface GradebookCategory {
   name: string;
   description?: string | null;
   weight?: number | null;
+  extraCredit?: boolean | null;
   sortOrder: number;
   subcategories?: {
     docs?: (number | GradebookCategory)[];
@@ -1639,6 +1640,7 @@ export interface GradebookCategoriesSelect<T extends boolean = true> {
   name?: T;
   description?: T;
   weight?: T;
+  extraCredit?: T;
   sortOrder?: T;
   subcategories?: T;
   items?: T;

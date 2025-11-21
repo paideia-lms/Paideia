@@ -9,6 +9,7 @@ export interface CategoryData {
 	parent: number | null;
 	name: string;
 	weight: number | null;
+	extraCredit?: boolean;
 	subcategories: number[];
 	items: number[];
 }
@@ -101,6 +102,7 @@ export function buildCategoryStructure(
 			min_grade: null, // Categories don't have min_grade
 			description: null, // Categories don't have description
 			category_id: category.parent ?? null, // Parent category ID
+			extra_credit: category.extraCredit ?? false,
 			grade_items: nestedStructure.length > 0 ? nestedStructure : undefined,
 		});
 	}
