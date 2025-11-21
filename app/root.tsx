@@ -148,6 +148,7 @@ export const middleware = [
 		let isAdminMedia = false;
 		let isAdminAppearance = false;
 		let isAdminTheme = false;
+		let isAdminLogo = false;
 		let isAdminAnalytics = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
@@ -239,6 +240,10 @@ export const middleware = [
 				route.id === ("routes/admin/appearance/theme" as typeof route.id)
 			)
 				isAdminTheme = true;
+			else if (
+				route.id === ("routes/admin/appearance/logo" as typeof route.id)
+			)
+				isAdminLogo = true;
 			else if (route.id === ("routes/admin/analytics" as typeof route.id))
 				isAdminAnalytics = true;
 		}
@@ -310,6 +315,7 @@ export const middleware = [
 				isAdminMedia,
 				isAdminAppearance,
 				isAdminTheme,
+				isAdminLogo,
 				isAdminAnalytics,
 				params: params as Record<string, string>,
 			},
@@ -678,6 +684,45 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
 	const defaultRadius = systemGlobals.appearanceSettings.radius ?? "sm";
 
+	// Fetch logo and favicon media objects based on theme
+	const logoMediaId =
+		theme === "dark"
+			? systemGlobals.appearanceSettings.logoDark
+			: systemGlobals.appearanceSettings.logoLight;
+	const faviconMediaId =
+		theme === "dark"
+			? systemGlobals.appearanceSettings.faviconDark
+			: systemGlobals.appearanceSettings.faviconLight;
+
+	let logoMedia = null;
+	let faviconMedia = null;
+
+	if (logoMediaId) {
+		try {
+			logoMedia = await payload.findByID({
+				collection: "media",
+				id: logoMediaId,
+				depth: 0,
+				overrideAccess: true,
+			});
+		} catch {
+			// Logo not found, ignore
+		}
+	}
+
+	if (faviconMediaId) {
+		try {
+			faviconMedia = await payload.findByID({
+				collection: "media",
+				id: faviconMediaId,
+				depth: 0,
+				overrideAccess: true,
+			});
+		} catch {
+			// Favicon not found, ignore
+		}
+	}
+
 	// Check if sandbox mode is enabled and calculate next reset time
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 	let nextResetTime: string | null = null;
@@ -704,6 +749,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
 			additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
+			logoMedia,
+			faviconMedia,
 			isSandboxMode,
 			nextResetTime,
 		};
@@ -743,6 +790,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
 		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
+		logoMedia,
+		faviconMedia,
 		debugData: debugData,
 		isSandboxMode,
 		nextResetTime,
@@ -904,11 +953,20 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<meta title="Paideia LMS" />
 				<meta name="description" content="Paideia LMS" />
 				<ClientHintCheck />
-				{/* ! this will force the browser to reload the favicon, see https://stackoverflow.com/questions/2208933/how-do-i-force-a-favicon-refresh */}
-				<link
-					rel="icon"
-					href={`/favicon.ico?timestamp=${loaderData.timestamp}`}
-				/>
+				{/* Favicon based on theme */}
+				{loaderData.faviconMedia?.filename ? (
+					<link
+						rel="icon"
+						href={href(`/api/media/file/:filenameOrId`, {
+							filenameOrId: loaderData.faviconMedia.filename,
+						}) + `?timestamp=${loaderData.timestamp}`}
+					/>
+				) : (
+					<link
+						rel="icon"
+						href={`/favicon.ico?timestamp=${loaderData.timestamp}`}
+					/>
+				)}
 				<link
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}

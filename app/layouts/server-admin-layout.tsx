@@ -104,7 +104,11 @@ export default function ServerAdminLayout({
 			return AdminTab.Server;
 		if (pageInfo.isAdminSitePolicies) return AdminTab.General;
 		if (pageInfo.isAdminMigrations) return AdminTab.Development;
-		if (pageInfo.isAdminAppearance || pageInfo.isAdminTheme)
+		if (
+			pageInfo.isAdminAppearance ||
+			pageInfo.isAdminTheme ||
+			pageInfo.isAdminLogo
+		)
 			return AdminTab.Appearance;
 		if (pageInfo.isAdminAnalytics) return AdminTab.General;
 		// Default to query param or 'general'

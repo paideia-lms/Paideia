@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type { } from "@payloadcms/db-postgres";
+import type {} from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -197,7 +197,7 @@ export const users = pgTable(
     bio: varchar("bio"),
     theme: enum_users_theme("theme").notNull().default("light"),
     direction: enum_users_direction("direction").notNull().default("ltr"),
-    avatar: integer("avatar_id").references((): AnyPgColumn => media.id, {
+    avatar: integer("avatar_id").references(() => media.id, {
       onDelete: "set null",
     }),
     updatedAt: timestamp("updated_at", {
@@ -2583,21 +2583,60 @@ export const appearance_settings_additional_css_stylesheets = pgTable(
   ],
 );
 
-export const appearance_settings = pgTable("appearance_settings", {
-  id: serial("id").primaryKey(),
-  color: enum_appearance_settings_color("color").default("blue"),
-  radius: enum_appearance_settings_radius("radius").default("sm"),
-  updatedAt: timestamp("updated_at", {
-    mode: "string",
-    withTimezone: true,
-    precision: 3,
-  }),
-  createdAt: timestamp("created_at", {
-    mode: "string",
-    withTimezone: true,
-    precision: 3,
-  }),
-});
+export const appearance_settings = pgTable(
+  "appearance_settings",
+  {
+    id: serial("id").primaryKey(),
+    color: enum_appearance_settings_color("color").default("blue"),
+    radius: enum_appearance_settings_radius("radius").default("sm"),
+    logoLight: integer("logo_light_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    logoDark: integer("logo_dark_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    compactLogoLight: integer("compact_logo_light_id").references(
+      () => media.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    compactLogoDark: integer("compact_logo_dark_id").references(
+      () => media.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    faviconLight: integer("favicon_light_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    faviconDark: integer("favicon_dark_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+  },
+  (columns) => [
+    index("appearance_settings_logo_light_idx").on(columns.logoLight),
+    index("appearance_settings_logo_dark_idx").on(columns.logoDark),
+    index("appearance_settings_compact_logo_light_idx").on(
+      columns.compactLogoLight,
+    ),
+    index("appearance_settings_compact_logo_dark_idx").on(
+      columns.compactLogoDark,
+    ),
+    index("appearance_settings_favicon_light_idx").on(columns.faviconLight),
+    index("appearance_settings_favicon_dark_idx").on(columns.faviconDark),
+  ],
+);
 
 export const analytics_settings_additional_js_scripts = pgTable(
   "analytics_settings_additional_js_scripts",
@@ -3591,13 +3630,43 @@ export const relations_appearance_settings_additional_css_stylesheets =
   }));
 export const relations_appearance_settings = relations(
   appearance_settings,
-  ({ many }) => ({
+  ({ one, many }) => ({
     additionalCssStylesheets: many(
       appearance_settings_additional_css_stylesheets,
       {
         relationName: "additionalCssStylesheets",
       },
     ),
+    logoLight: one(media, {
+      fields: [appearance_settings.logoLight],
+      references: [media.id],
+      relationName: "logoLight",
+    }),
+    logoDark: one(media, {
+      fields: [appearance_settings.logoDark],
+      references: [media.id],
+      relationName: "logoDark",
+    }),
+    compactLogoLight: one(media, {
+      fields: [appearance_settings.compactLogoLight],
+      references: [media.id],
+      relationName: "compactLogoLight",
+    }),
+    compactLogoDark: one(media, {
+      fields: [appearance_settings.compactLogoDark],
+      references: [media.id],
+      relationName: "compactLogoDark",
+    }),
+    faviconLight: one(media, {
+      fields: [appearance_settings.faviconLight],
+      references: [media.id],
+      relationName: "faviconLight",
+    }),
+    faviconDark: one(media, {
+      fields: [appearance_settings.faviconDark],
+      references: [media.id],
+      relationName: "faviconDark",
+    }),
   }),
 );
 export const relations_analytics_settings_additional_js_scripts = relations(

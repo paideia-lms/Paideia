@@ -2071,6 +2071,30 @@ export interface AppearanceSetting {
         id?: string | null;
       }[]
     | null;
+  /**
+   * Upload the main logo image for light mode. This will be displayed when the site is in light mode.
+   */
+  logoLight?: (number | null) | Media;
+  /**
+   * Upload the main logo image for dark mode. This will be displayed when the site is in dark mode.
+   */
+  logoDark?: (number | null) | Media;
+  /**
+   * Upload a compact version of the logo for light mode. This is typically used in smaller spaces like navigation bars.
+   */
+  compactLogoLight?: (number | null) | Media;
+  /**
+   * Upload a compact version of the logo for dark mode. This is typically used in smaller spaces like navigation bars.
+   */
+  compactLogoDark?: (number | null) | Media;
+  /**
+   * Upload the favicon for light mode. This is the small icon displayed in browser tabs and bookmarks.
+   */
+  faviconLight?: (number | null) | Media;
+  /**
+   * Upload the favicon for dark mode. This is the small icon displayed in browser tabs and bookmarks.
+   */
+  faviconDark?: (number | null) | Media;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2199,6 +2223,12 @@ export interface AppearanceSettingsSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  logoLight?: T;
+  logoDark?: T;
+  compactLogoLight?: T;
+  compactLogoDark?: T;
+  faviconLight?: T;
+  faviconDark?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

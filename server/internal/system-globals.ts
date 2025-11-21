@@ -63,9 +63,9 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				};
+				userMediaStorageTotal: null,
+				siteUploadLimit: null,
+			};
 
 		const appearanceSettings = {
 			additionalCssStylesheets: appearanceResult.ok
@@ -77,6 +77,24 @@ export const tryGetSystemGlobals = Result.wrap(
 			radius: appearanceResult.ok
 				? (appearanceResult.value.radius ?? "sm")
 				: "sm",
+			logoLight: appearanceResult.ok
+				? appearanceResult.value.logoLight
+				: undefined,
+			logoDark: appearanceResult.ok
+				? appearanceResult.value.logoDark
+				: undefined,
+			compactLogoLight: appearanceResult.ok
+				? appearanceResult.value.compactLogoLight
+				: undefined,
+			compactLogoDark: appearanceResult.ok
+				? appearanceResult.value.compactLogoDark
+				: undefined,
+			faviconLight: appearanceResult.ok
+				? appearanceResult.value.faviconLight
+				: undefined,
+			faviconDark: appearanceResult.ok
+				? appearanceResult.value.faviconDark
+				: undefined,
 		};
 
 		const analyticsSettings = {

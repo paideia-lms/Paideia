@@ -2451,6 +2451,49 @@ export const tryFindMediaUsages = Result.wrap(
 			}
 		}
 
+		// Search appearance-settings global for logo fields
+		const appearanceSettings = await payload.findGlobal({
+			slug: "appearance-settings",
+			user: args.user,
+			req: args.req,
+			overrideAccess: true,
+		});
+
+		if (appearanceSettings) {
+			// Helper function to extract media ID from logo field
+			const getLogoId = (logo: unknown): number | null => {
+				if (logo === null || logo === undefined) return null;
+				if (typeof logo === "number") return logo;
+				if (typeof logo === "object" && logo !== null && "id" in logo) {
+					return typeof logo.id === "number" ? logo.id : null;
+				}
+				return null;
+			};
+
+			// Check all 6 logo fields
+			const logoFields = [
+				{ field: "logoLight", fieldPath: "logoLight" },
+				{ field: "logoDark", fieldPath: "logoDark" },
+				{ field: "compactLogoLight", fieldPath: "compactLogoLight" },
+				{ field: "compactLogoDark", fieldPath: "compactLogoDark" },
+				{ field: "faviconLight", fieldPath: "faviconLight" },
+				{ field: "faviconDark", fieldPath: "faviconDark" },
+			] as const;
+
+			for (const { field, fieldPath } of logoFields) {
+				const logoId = getLogoId(
+					appearanceSettings[field as keyof typeof appearanceSettings],
+				);
+				if (logoId === normalizedMediaId) {
+					usages.push({
+						collection: "appearance-settings",
+						documentId: appearanceSettings.id,
+						fieldPath,
+					});
+				}
+			}
+		}
+
 		return {
 			usages,
 			totalUsages: usages.length,

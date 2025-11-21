@@ -77,6 +77,7 @@ export type PageInfo = {
 	isAdminMedia: boolean;
 	isAdminAppearance: boolean;
 	isAdminTheme: boolean;
+	isAdminLogo: boolean;
 	isAdminAnalytics: boolean;
 	/**
 	 * the params of the current route
@@ -100,6 +101,12 @@ export type SystemGlobals = {
 		additionalCssStylesheets: string[];
 		color: string;
 		radius: "xs" | "sm" | "md" | "lg" | "xl";
+		logoLight?: number | null;
+		logoDark?: number | null;
+		compactLogoLight?: number | null;
+		compactLogoDark?: number | null;
+		faviconLight?: number | null;
+		faviconDark?: number | null;
 	};
 	analyticsSettings: {
 		additionalJsScripts: Array<{

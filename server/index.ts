@@ -10,7 +10,7 @@ import { getPayload, type Migration as MigrationType } from "payload";
 import { RouterContextProvider } from "react-router";
 import { migrations } from "src/migrations";
 import { createStorage } from "unstorage";
-// biome-ignore lint/suspicious/noTsIgnore: <explanation>
+// biome-ignore lint/suspicious/noTsIgnore: unstorage driver types
 // @ts-ignore
 import lruCacheDriver from "unstorage/drivers/lru-cache";
 import { getHints } from "../app/utils/client-hints";
@@ -132,6 +132,12 @@ async function startServer() {
 									additionalCssStylesheets: [],
 									color: "blue",
 									radius: "sm",
+									logoLight: undefined,
+									logoDark: undefined,
+									compactLogoLight: undefined,
+									compactLogoDark: undefined,
+									faviconLight: undefined,
+									faviconDark: undefined,
 								},
 								analyticsSettings: {
 									additionalJsScripts: [],
@@ -200,6 +206,7 @@ async function startServer() {
 								isAdminMedia: false,
 								isAdminAppearance: false,
 								isAdminTheme: false,
+								isAdminLogo: false,
 								isAdminAnalytics: false,
 								params: {},
 							},
