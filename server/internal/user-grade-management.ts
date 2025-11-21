@@ -1095,7 +1095,7 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 
 				if (category?.weight) {
 					// Item weight is a percentage of the category weight
-					effectiveWeight = (gradebookItem.weight ?? 0 / 100) * category.weight;
+					effectiveWeight = ((gradebookItem.weight ?? 0) / 100) * category.weight;
 				}
 			}
 
@@ -1403,7 +1403,7 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 			// Calculate effective weight, effective weight cannot be null
 			let effectiveWeight = item.weight ?? 0;
 			if (category?.weight) {
-				effectiveWeight = (item.weight ?? 0 / 100) * category.weight;
+				effectiveWeight = ((item.weight ?? 0) / 100) * category.weight;
 			}
 
 			const itemType = Array.isArray(item.activityModuleType)

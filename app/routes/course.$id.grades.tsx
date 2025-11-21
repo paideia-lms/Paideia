@@ -209,7 +209,6 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-item") {
-		console.log(parsedData.data.weight)
 		const updateResult = await tryUpdateGradebookItem({
 			payload,
 			itemId: parsedData.data.itemId,

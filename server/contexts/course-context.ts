@@ -384,13 +384,11 @@ export const tryGetCourseContext = async (
 	const gradebookResult = await tryGetGradebookByCourseWithDetails({
 		payload,
 		courseId,
-		user: user
-			? {
-				...user,
-				collection: "users",
-				avatar: user.avatar?.id,
-			}
-			: null,
+		user: {
+			...user,
+			collection: "users",
+			avatar: user.avatar?.id,
+		},
 		req: undefined,
 		overrideAccess: false,
 	});
@@ -410,13 +408,11 @@ export const tryGetCourseContext = async (
 		const allRepresentationsResult = await tryGetGradebookAllRepresentations({
 			payload,
 			courseId,
-			user: user
-				? {
-					...user,
-					collection: "users",
-					avatar: user.avatar?.id,
-				}
-				: null,
+			user: {
+				...user,
+				collection: "users",
+				avatar: user.avatar?.id,
+			},
 			req: undefined,
 			overrideAccess: false,
 		});

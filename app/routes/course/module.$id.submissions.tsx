@@ -265,7 +265,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 			// Get student ID from submission
 			const studentId =
-				submission.student.id
+				submission.student.id;
 
 			// Build a map of ALL submissions by ID for parent lookup (needed because parent might be from another student)
 			const allSubmissionsMap = new Map(

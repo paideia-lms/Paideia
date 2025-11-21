@@ -1,7 +1,7 @@
 import { describe, expect, it } from "bun:test";
 import { WeightExceedsLimitError } from "~/utils/error";
 import type { GradebookSetupItem } from "../gradebook-management";
-import { validateGradebookWeights } from "../../utils/validate-gradebook-weights";
+import { validateGradebookWeights } from "./validate-gradebook-weights";
 
 describe("validateGradebookWeights", () => {
 	it("should pass when total weight equals exactly 100% with no auto-weighted items", () => {
@@ -29,7 +29,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -58,11 +58,11 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).toThrow(WeightExceedsLimitError);
 
 		try {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		} catch (error) {
 			if (error instanceof WeightExceedsLimitError) {
 				expect(error.message).toContain("total weight");
@@ -97,7 +97,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -126,7 +126,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -165,11 +165,11 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).toThrow(WeightExceedsLimitError);
 
 		try {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		} catch (error) {
 			if (error instanceof WeightExceedsLimitError) {
 				expect(error.message).toContain("total specified weight");
@@ -215,7 +215,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -246,7 +246,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -287,11 +287,11 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).toThrow(WeightExceedsLimitError);
 
 		try {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		} catch (error) {
 			if (error instanceof WeightExceedsLimitError) {
 				expect(error.message).toContain("course level > Category 1");
@@ -369,7 +369,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -422,11 +422,11 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).toThrow(WeightExceedsLimitError);
 
 		try {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		} catch (error) {
 			if (error instanceof WeightExceedsLimitError) {
 				expect(error.message).toContain(
@@ -440,7 +440,7 @@ describe("validateGradebookWeights", () => {
 		const items: GradebookSetupItem[] = [];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -469,7 +469,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		expect(() => {
-			validateGradebookWeights(items, "course level", "Test");
+			validateGradebookWeights(items, "course level", null, "Test");
 		}).not.toThrow();
 	});
 
@@ -488,7 +488,7 @@ describe("validateGradebookWeights", () => {
 		];
 
 		try {
-			validateGradebookWeights(items, "course level", "Item creation");
+			validateGradebookWeights(items, "course level", null, "Item creation");
 		} catch (error) {
 			if (error instanceof WeightExceedsLimitError) {
 				expect(error.message).toContain("Item creation");
