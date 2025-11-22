@@ -3,6 +3,7 @@ import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 import type { User } from "../payload-types";
+import { assertZodInternal } from "server/utils/type-narrowing";
 
 export interface GetAppearanceSettingsArgs {
 	payload: Payload;
@@ -30,7 +31,7 @@ export interface UpdateAppearanceSettingsArgs {
 }
 
 export type AppearanceSettings = {
-	additionalCssStylesheets: string[];
+	additionalCssStylesheets: { url: string; id?: string | null }[];
 	color: string;
 	radius: "xs" | "sm" | "md" | "lg" | "xl";
 	logoLight?: number | null;
@@ -59,93 +60,79 @@ const validColors = [
 
 const validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
 
-// Schema that accepts both number IDs and objects with id property
-const logoFieldSchema = z.union([
-	z.number(),
-	z.null(),
-	z.object({ id: z.number() }),
-	z.object({ id: z.string() }),
-]);
-
-const appearanceSettingsSchema = z.object({
-	additionalCssStylesheets: z
-		.array(
-			z.object({
-				url: z.string().url(),
-			}),
-		)
-		.optional(),
-	color: z.enum([...validColors] as [string, ...string[]]).optional(),
-	radius: z.enum([...validRadius] as [string, ...string[]]).optional(),
-	logoLight: logoFieldSchema.optional(),
-	logoDark: logoFieldSchema.optional(),
-	compactLogoLight: logoFieldSchema.optional(),
-	compactLogoDark: logoFieldSchema.optional(),
-	faviconLight: logoFieldSchema.optional(),
-	faviconDark: logoFieldSchema.optional(),
-});
-
 /**
  * Read appearance settings from the AppearanceSettings global.
  * Falls back to sensible defaults when unset/partial.
  */
 export const tryGetAppearanceSettings = Result.wrap(
-	async (args: GetAppearanceSettingsArgs): Promise<AppearanceSettings> => {
+	async (args: GetAppearanceSettingsArgs) => {
 		const { payload, user = null, req } = args;
 
-		const raw = await payload.findGlobal({
-			slug: "appearance-settings",
-			user,
-			req,
-			// ! this is a system request, we don't care about access control
-			overrideAccess: true,
-		});
+		const setting = await payload
+			.findGlobal({
+				slug: "appearance-settings",
+				user,
+				req,
+				// ! this is a system request, we don't care about access control
+				overrideAccess: true,
+			})
+			.then((raw) => {
+				// type narrow down the raw to AppearanceSetting
+				assertZodInternal(
+					"tryGetAppearanceSettings: Color",
+					raw.color,
+					z.enum([...validColors] as [string, ...string[]]).nullish(),
+				);
+				assertZodInternal(
+					"tryGetAppearanceSettings: Radius",
+					raw.radius,
+					z.enum([...validRadius] as [string, ...string[]]).nullish(),
+				);
+				assertZodInternal(
+					"tryGetAppearanceSettings: Logo",
+					raw.logoLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryGetAppearanceSettings: Logo",
+					raw.logoDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryGetAppearanceSettings: Logo",
+					raw.compactLogoLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryGetAppearanceSettings: Logo",
+					raw.compactLogoDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryGetAppearanceSettings: Logo",
+					raw.faviconLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryGetAppearanceSettings: Logo",
+					raw.faviconDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				return {
+					...raw,
+					additionalCssStylesheets: raw.additionalCssStylesheets ?? [],
+					color: raw.color ?? "blue",
+					radius: raw.radius ?? "sm",
+					logoLight: raw.logoLight ?? null,
+					logoDark: raw.logoDark ?? null,
+					compactLogoLight: raw.compactLogoLight ?? null,
+					compactLogoDark: raw.compactLogoDark ?? null,
+					faviconLight: raw.faviconLight ?? null,
+					faviconDark: raw.faviconDark ?? null,
+				};
+			});
 
-		const stylesheets = raw.additionalCssStylesheets ?? [];
-		const color = raw.color ?? "blue";
-		const radius = raw.radius ?? "sm";
-
-		// Validate color is in allowed list
-		if (!validColors.includes(color as (typeof validColors)[number])) {
-			return {
-				additionalCssStylesheets: stylesheets.map((item) => item.url),
-				color: "blue",
-				radius: radius as "xs" | "sm" | "md" | "lg" | "xl",
-			};
-		}
-
-		// Validate radius is in allowed list
-		if (!validRadius.includes(radius as (typeof validRadius)[number])) {
-			return {
-				additionalCssStylesheets: stylesheets.map((item) => item.url),
-				color: color as string,
-				radius: "sm",
-			};
-		}
-
-		// Extract logo fields - handle both object and ID formats
-		const getLogoId = (
-			logo: number | null | undefined | { id: number } | { id: string },
-		): number | null | undefined => {
-			if (logo === null || logo === undefined) return logo;
-			if (typeof logo === "number") return logo;
-			if (typeof logo === "object" && logo !== null && "id" in logo) {
-				return typeof logo.id === "number" ? logo.id : null;
-			}
-			return null;
-		};
-
-		return {
-			additionalCssStylesheets: stylesheets.map((item) => item.url),
-			color: color as string,
-			radius: radius as "xs" | "sm" | "md" | "lg" | "xl",
-			logoLight: getLogoId(raw.logoLight),
-			logoDark: getLogoId(raw.logoDark),
-			compactLogoLight: getLogoId(raw.compactLogoLight),
-			compactLogoDark: getLogoId(raw.compactLogoDark),
-			faviconLight: getLogoId(raw.faviconLight),
-			faviconDark: getLogoId(raw.faviconDark),
-		};
+		return setting;
 	},
 	(error) =>
 		transformError(error) ??
@@ -162,7 +149,7 @@ export const tryClearLogo = Result.wrap(
 		field: LogoField;
 		req?: Partial<PayloadRequest>;
 		overrideAccess?: boolean;
-	}): Promise<AppearanceSettings> => {
+	}) => {
 		const { payload, user, field, req, overrideAccess = false } = args;
 
 		const updateData: {
@@ -171,55 +158,70 @@ export const tryClearLogo = Result.wrap(
 			[field]: null,
 		};
 
-		const updated = await payload.updateGlobal({
-			slug: "appearance-settings",
-			data: updateData,
-			user,
-			req,
-			overrideAccess,
-		});
+		const updated = await payload
+			.updateGlobal({
+				slug: "appearance-settings",
+				data: updateData,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((raw) => {
+				assertZodInternal(
+					"tryClearLogo: Color",
+					raw.color,
+					z.enum([...validColors] as [string, ...string[]]).nullish(),
+				);
+				assertZodInternal(
+					"tryClearLogo: Radius",
+					raw.radius,
+					z.enum([...validRadius] as [string, ...string[]]).nullish(),
+				);
+				assertZodInternal(
+					"tryClearLogo: Logo",
+					raw.logoLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryClearLogo: Logo",
+					raw.logoDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryClearLogo: Logo",
+					raw.compactLogoLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryClearLogo: Logo",
+					raw.compactLogoDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryClearLogo: Logo",
+					raw.faviconLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryClearLogo: Logo",
+					raw.faviconDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				return {
+					...raw,
+					additionalCssStylesheets: raw.additionalCssStylesheets ?? [],
+					color: raw.color ?? "blue",
+					radius: raw.radius ?? "sm",
+					logoLight: raw.logoLight ?? null,
+					logoDark: raw.logoDark ?? null,
+					compactLogoLight: raw.compactLogoLight ?? null,
+					compactLogoDark: raw.compactLogoDark ?? null,
+					faviconLight: raw.faviconLight ?? null,
+					faviconDark: raw.faviconDark ?? null,
+				};
+			});
 
-		const updatedStylesheets = updated.additionalCssStylesheets ?? [];
-		const color = updated.color ?? "blue";
-		const radius = updated.radius ?? "sm";
-
-		// Validate color is in allowed list
-		const validColor = validColors.includes(
-			color as (typeof validColors)[number],
-		)
-			? (color as string)
-			: "blue";
-
-		// Validate radius is in allowed list
-		const validRadiusValue = validRadius.includes(
-			radius as (typeof validRadius)[number],
-		)
-			? (radius as "xs" | "sm" | "md" | "lg" | "xl")
-			: "sm";
-
-		// Extract logo fields - handle both object and ID formats
-		const getLogoId = (
-			logo: number | null | undefined | { id: number } | { id: string },
-		): number | null | undefined => {
-			if (logo === null || logo === undefined) return logo;
-			if (typeof logo === "number") return logo;
-			if (typeof logo === "object" && logo !== null && "id" in logo) {
-				return typeof logo.id === "number" ? logo.id : null;
-			}
-			return null;
-		};
-
-		return {
-			additionalCssStylesheets: updatedStylesheets.map((item) => item.url),
-			color: validColor,
-			radius: validRadiusValue,
-			logoLight: getLogoId(updated.logoLight),
-			logoDark: getLogoId(updated.logoDark),
-			compactLogoLight: getLogoId(updated.compactLogoLight),
-			compactLogoDark: getLogoId(updated.compactLogoDark),
-			faviconLight: getLogoId(updated.faviconLight),
-			faviconDark: getLogoId(updated.faviconDark),
-		};
+		return updated;
 	},
 	(error) =>
 		transformError(error) ??
@@ -238,7 +240,7 @@ type LogoField =
  * Update appearance settings in the AppearanceSettings global.
  */
 export const tryUpdateAppearanceSettings = Result.wrap(
-	async (args: UpdateAppearanceSettingsArgs): Promise<AppearanceSettings> => {
+	async (args: UpdateAppearanceSettingsArgs) => {
 		const { payload, user, data, req, overrideAccess = false } = args;
 
 		// Validate URLs before saving
@@ -317,111 +319,71 @@ export const tryUpdateAppearanceSettings = Result.wrap(
 			updateData.faviconDark = data.faviconDark;
 		}
 
-		const updated = await payload.updateGlobal({
-			slug: "appearance-settings",
-			data: updateData,
-			user,
-			req,
-			overrideAccess,
-		});
-
-		const parsed = appearanceSettingsSchema.safeParse(updated);
-
-		if (!parsed.success) {
-			return {
-				additionalCssStylesheets: [],
-				color: "blue",
-				radius: "sm",
-			};
-		}
-
-		const updatedStylesheets = parsed.data.additionalCssStylesheets ?? [];
-		const color = parsed.data.color ?? "blue";
-		const radius = parsed.data.radius ?? "sm";
-
-		// Validate color is in allowed list
-		const validColor = validColors.includes(
-			color as (typeof validColors)[number],
-		)
-			? (color as string)
-			: "blue";
-
-		// Validate radius is in allowed list
-		const validRadiusValue = validRadius.includes(
-			radius as (typeof validRadius)[number],
-		)
-			? (radius as "xs" | "sm" | "md" | "lg" | "xl")
-			: "sm";
-
-		// Extract logo fields - handle both object and ID formats
-		const getLogoId = (
-			logo: number | null | undefined | { id: number } | { id: string },
-		): number | null | undefined => {
-			if (logo === null || logo === undefined) return logo;
-			if (typeof logo === "number") return logo;
-			if (typeof logo === "object" && logo !== null && "id" in logo) {
-				return typeof logo.id === "number" ? logo.id : null;
-			}
-			return null;
-		};
-
-		return {
-			additionalCssStylesheets: updatedStylesheets.map((item) => item.url),
-			color: validColor,
-			radius: validRadiusValue,
-			logoLight: getLogoId(
-				parsed.data.logoLight as
-					| number
-					| null
-					| undefined
-					| { id: number }
-					| { id: string },
-			),
-			logoDark: getLogoId(
-				parsed.data.logoDark as
-					| number
-					| null
-					| undefined
-					| { id: number }
-					| { id: string },
-			),
-			compactLogoLight: getLogoId(
-				parsed.data.compactLogoLight as
-					| number
-					| null
-					| undefined
-					| { id: number }
-					| { id: string },
-			),
-			compactLogoDark: getLogoId(
-				parsed.data.compactLogoDark as
-					| number
-					| null
-					| undefined
-					| { id: number }
-					| { id: string },
-			),
-			faviconLight: getLogoId(
-				parsed.data.faviconLight as
-					| number
-					| null
-					| undefined
-					| { id: number }
-					| { id: string },
-			),
-			faviconDark: getLogoId(
-				parsed.data.faviconDark as
-					| number
-					| null
-					| undefined
-					| { id: number }
-					| { id: string },
-			),
-		};
+		const updated = await payload
+			.updateGlobal({
+				slug: "appearance-settings",
+				data: updateData,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((raw) => {
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Color",
+					raw.color,
+					z.enum([...validColors] as [string, ...string[]]).nullish(),
+				);
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Radius",
+					raw.radius,
+					z.enum([...validRadius] as [string, ...string[]]).nullish(),
+				);
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Logo",
+					raw.logoLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Logo",
+					raw.logoDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Logo",
+					raw.compactLogoLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Logo",
+					raw.compactLogoDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Logo",
+					raw.faviconLight,
+					z.object({ id: z.number() }).nullish(),
+				);
+				assertZodInternal(
+					"tryUpdateAppearanceSettings: Logo",
+					raw.faviconDark,
+					z.object({ id: z.number() }).nullish(),
+				);
+				return {
+					...raw,
+					additionalCssStylesheets: raw.additionalCssStylesheets ?? [],
+					color: raw.color ?? "blue",
+					radius: raw.radius ?? "sm",
+					logoLight: raw.logoLight ?? null,
+					logoDark: raw.logoDark ?? null,
+					compactLogoLight: raw.compactLogoLight ?? null,
+					compactLogoDark: raw.compactLogoDark ?? null,
+					faviconLight: raw.faviconLight ?? null,
+					faviconDark: raw.faviconDark ?? null,
+				};
+			});
+		return updated;
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to update appearance settings", {
-			cause: error,
-		}),
+		new UnknownError("Failed to update appearance settings", { cause: error }),
 );

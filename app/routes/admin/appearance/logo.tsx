@@ -11,14 +11,6 @@ import {
 } from "@mantine/core";
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import prettyBytes from "pretty-bytes";
@@ -30,11 +22,16 @@ import {
 	tryGetAppearanceSettings,
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
-import { tryCreateMedia } from "server/internal/media-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
+import { handleUploadError } from "~/utils/handle-upload-errors";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Media } from "server/payload-types";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -43,7 +40,30 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
 import type { Route } from "./+types/logo";
+import { stringify } from "qs";
+
+enum Action {
+	Clear = "clear",
+	Upload = "upload",
+}
+enum Field {
+	LogoLight = "logoLight",
+	LogoDark = "logoDark",
+	CompactLogoLight = "compactLogoLight",
+	CompactLogoDark = "compactLogoDark",
+	FaviconLight = "faviconLight",
+	FaviconDark = "faviconDark",
+}
+
+// Define search params for logo actions
+export const logoSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
+	field: parseAsStringEnum(Object.values(Field)),
+};
+
+export const loadSearchParams = createLoader(logoSearchParams);
 
 type LogoField =
 	| "logoLight"
@@ -63,7 +83,7 @@ type LogoData = {
 };
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -77,44 +97,15 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can access this area");
 	}
 
-	const settings = await tryGetAppearanceSettings({
-		payload,
-		overrideAccess: true,
-	});
-
-	if (!settings.ok) {
-		throw new ForbiddenResponse("Failed to get appearance settings");
-	}
-
-	const logoData: LogoData = {};
-
-	// Fetch media objects for each logo field if they exist
-	const logoFields: LogoField[] = [
-		"logoLight",
-		"logoDark",
-		"compactLogoLight",
-		"compactLogoDark",
-		"faviconLight",
-		"faviconDark",
-	];
-
-	for (const field of logoFields) {
-		const mediaId = settings.value[field];
-		if (mediaId) {
-			try {
-				const media = await payload.findByID({
-					collection: "media",
-					id: mediaId,
-					depth: 0,
-					overrideAccess: true,
-				});
-				logoData[field] = media as Media;
-			} catch {
-				// Media not found, set to null
-				logoData[field] = null;
-			}
-		}
-	}
+	// Get logo data directly from system globals
+	const logoData: LogoData = {
+		logoLight: systemGlobals.appearanceSettings.logoLight ?? null,
+		logoDark: systemGlobals.appearanceSettings.logoDark ?? null,
+		compactLogoLight: systemGlobals.appearanceSettings.compactLogoLight ?? null,
+		compactLogoDark: systemGlobals.appearanceSettings.compactLogoDark ?? null,
+		faviconLight: systemGlobals.appearanceSettings.faviconLight ?? null,
+		faviconDark: systemGlobals.appearanceSettings.faviconDark ?? null,
+	};
 
 	return {
 		logos: logoData,
@@ -122,7 +113,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
+
+const clearAction = async ({ request, context, searchParams }: Route.ActionArgs & { searchParams: { action: Action, field: Field } }) => {
+	const { field } = searchParams;
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -137,167 +130,172 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		return forbidden({ error: "Only admins can access this area" });
 	}
 
-	// Handle clear logo action
-	const url = new URL(request.url);
-	const actionType = url.searchParams.get("action");
-	const fieldParam = url.searchParams.get("field");
+	const clearResult = await tryClearLogo({
+		payload,
+		user: currentUser,
+		field,
+		overrideAccess: false,
+	});
 
-	if (actionType === "clear" && fieldParam) {
-		const field = fieldParam as LogoField;
-		if (
-			field === "logoLight" ||
-			field === "logoDark" ||
-			field === "compactLogoLight" ||
-			field === "compactLogoDark" ||
-			field === "faviconLight" ||
-			field === "faviconDark"
-		) {
-			const clearResult = await tryClearLogo({
-				payload,
-				user: currentUser,
-				field,
-				overrideAccess: false,
-			});
-
-			if (!clearResult.ok) {
-				return badRequest({ error: clearResult.error.message });
-			}
-
-			return ok({
-				message: "Logo cleared successfully",
-				logoField: field,
-			});
-		}
-		return badRequest({ error: "Invalid field name" });
+	if (!clearResult.ok) {
+		return badRequest({ error: clearResult.error.message });
 	}
 
-	const transactionID = await payload.db.beginTransaction();
+	return ok({
+		message: "Logo cleared successfully",
+		logoField: field,
+	});
 
-	if (!transactionID) {
-		return badRequest({ error: "Failed to begin transaction" });
+}
+
+const uploadAction = async ({ request, context, searchParams }: Route.ActionArgs & { searchParams: { action: Action, field: Field } }) => {
+	const { field } = searchParams;
+	const { payload, systemGlobals } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (currentUser.role !== "admin") {
+		return forbidden({ error: "Only admins can access this area" });
 	}
 
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	try {
-		assertRequestMethod(request.method, "POST");
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
 
-		const uploadedMediaIds: number[] = [];
-		let logoField: LogoField | null = null;
+	let logoField: LogoField | null = null;
 
-		const uploadHandler = async (fileUpload: FileUpload) => {
-			// Determine which logo field this file is for
-			const fieldName = fileUpload.fieldName as LogoField;
-			if (
-				fieldName === "logoLight" ||
-				fieldName === "logoDark" ||
-				fieldName === "compactLogoLight" ||
-				fieldName === "compactLogoDark" ||
-				fieldName === "faviconLight" ||
-				fieldName === "faviconDark"
-			) {
-				logoField = fieldName;
-
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
-
-				// Validate MIME type is an image
-				if (!fileUpload.type.startsWith("image/")) {
-					throw new Error("File must be an image");
-				}
-
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					userId: currentUser.id,
-					user: currentUser,
-					req: { transactionID },
-				});
-
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
-
-				const mediaId = mediaResult.value.media.id;
-				uploadedMediaIds.push(mediaId);
-				return mediaId;
-			}
-		};
-
-		await parseFormDataWithFallback(
-			request,
-			uploadHandler as FileUploadHandler,
+	// Parse form data with media upload handler
+	const parseResult = await tryParseFormDataWithMediaUpload({
+		payload,
+		request,
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		maxFileSize,
+		maxFiles: 1,
+		fields: [
 			{
-				...(maxFileSize !== undefined && { maxFileSize }),
-				maxFiles: 1,
+				fieldName: (fieldName) => {
+					const validFields: LogoField[] = [
+						"logoLight",
+						"logoDark",
+						"compactLogoLight",
+						"compactLogoDark",
+						"faviconLight",
+						"faviconDark",
+					];
+					return validFields.includes(fieldName as LogoField);
+				},
+				alt: (fieldName) => `${fieldName} image`,
+				onUpload: (fieldName, _mediaId, _filename) => {
+					logoField = fieldName as LogoField;
+				},
 			},
+		],
+		validateFile: (fileUpload) => {
+			// Validate MIME type is an image
+			if (!fileUpload.type.startsWith("image/")) {
+				throw new Error("File must be an image");
+			}
+		},
+	});
+
+	if (!parseResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return handleUploadError(
+			parseResult.error,
+			maxFileSize,
+			"Failed to parse form data",
 		);
+	}
 
-		if (uploadedMediaIds.length === 0 || !logoField) {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({ error: "No file uploaded or invalid field name" });
-		}
+	const { uploadedMedia } = parseResult.value;
 
-		// Get current appearance settings
-		const currentSettings = await tryGetAppearanceSettings({
-			payload,
-			overrideAccess: true,
+	if (uploadedMedia.length === 0 || !logoField) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({ error: "No file uploaded or invalid field name" });
+	}
+
+	// Get current appearance settings
+	const currentSettings = await tryGetAppearanceSettings({
+		payload,
+		overrideAccess: true,
+		req: transactionInfo.reqWithTransaction,
+	});
+
+	if (!currentSettings.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({ error: "Failed to get current settings" });
+	}
+
+	// Update appearance settings with the new logo
+	const updateData: {
+		[K in LogoField]?: number | null;
+	} = {
+		[logoField]: uploadedMedia[0].mediaId,
+	};
+
+	const updateResult = await tryUpdateAppearanceSettings({
+		payload,
+		user: currentUser,
+		data: updateData,
+		req: transactionInfo.reqWithTransaction,
+		overrideAccess: false,
+	});
+
+	if (!updateResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({ error: updateResult.error.message });
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+
+	return ok({
+		message: "Logo uploaded successfully",
+		logoField,
+	});
+}
+
+const getActionUrl = (action: Action, field: Field) => {
+	return href("/admin/appearance/logo") + "?" + stringify({ action, field });
+}
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request, context } = args;
+	// Handle clear logo action
+	const { action: actionType, field: fieldParam } = loadSearchParams(request);
+
+	if (!actionType || !fieldParam) {
+		return badRequest({ error: "Action and field are required" });
+	}
+
+
+	if (actionType === "clear") {
+		return clearAction({
+			...args,
+			searchParams: {
+				action: actionType,
+				field: fieldParam,
+			},
 		});
-
-		if (!currentSettings.ok) {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({ error: "Failed to get current settings" });
-		}
-
-		// Update appearance settings with the new logo
-		const updateData: {
-			[K in LogoField]?: number | null;
-		} = {
-			[logoField]: uploadedMediaIds[0],
-		};
-
-		const updateResult = await tryUpdateAppearanceSettings({
-			payload,
-			user: currentUser,
-			data: updateData,
-			req: { transactionID },
-			overrideAccess: false,
-		});
-
-		if (!updateResult.ok) {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({ error: updateResult.error.message });
-		}
-
-		await payload.db.commitTransaction(transactionID);
-
-		return ok({
-			message: "Logo uploaded successfully",
-			logoField,
-		});
-	} catch (error) {
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("Logo upload error:", error);
-
-		if (error instanceof MaxFileSizeExceededError) {
-			return badRequest({
-				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
-			});
-		}
-
-		if (error instanceof MaxFilesExceededError) {
-			return badRequest({
-				error: error.message,
-			});
-		}
-
-		return badRequest({
-			error:
-				error instanceof Error ? error.message : "Failed to process request",
+	} else if (actionType === "upload") {
+		return uploadAction({
+			...args,
+			searchParams: {
+				action: actionType,
+				field: fieldParam,
+			},
 		});
 	}
+
+	return badRequest({ error: "Invalid action" });
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -309,7 +307,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: actionData.message || "Logo uploaded successfully",
 			color: "green",
 		});
-	} else {
+	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized || actionData?.status === StatusCode.Forbidden) {
 		notifications.show({
 			title: "Error",
 			message: actionData?.error || "Failed to upload logo",
@@ -320,7 +318,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-export function useUploadLogo(field: LogoField) {
+export function useUploadLogo(field: Field) {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const uploadLogo = (file: File) => {
@@ -329,6 +327,7 @@ export function useUploadLogo(field: LogoField) {
 		fetcher.submit(formData, {
 			method: "POST",
 			encType: ContentType.MULTIPART,
+			action: getActionUrl(Action.Upload, field),
 		});
 	};
 
@@ -339,13 +338,13 @@ export function useUploadLogo(field: LogoField) {
 	};
 }
 
-export function useClearLogo(field: LogoField) {
+export function useClearLogo(field: Field) {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const clearLogo = () => {
 		fetcher.submit(null, {
 			method: "POST",
-			action: `?action=clear&field=${field}`,
+			action: getActionUrl(Action.Clear, field),
 		});
 	};
 
@@ -375,8 +374,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: logo.filename,
-			})
+			filenameOrId: logo.filename,
+		})
 		: null;
 
 	return (
@@ -477,8 +476,8 @@ function LogoLightDropzone({
 	logo?: Media | null;
 	uploadLimit?: number;
 }) {
-	const { uploadLogo, isLoading } = useUploadLogo("logoLight");
-	const { clearLogo, isLoading: isClearing } = useClearLogo("logoLight");
+	const { uploadLogo, isLoading } = useUploadLogo(Field.LogoLight);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.LogoLight);
 
 	return (
 		<LogoDropzoneBase
@@ -504,8 +503,8 @@ function LogoDarkDropzone({
 	logo?: Media | null;
 	uploadLimit?: number;
 }) {
-	const { uploadLogo, isLoading } = useUploadLogo("logoDark");
-	const { clearLogo, isLoading: isClearing } = useClearLogo("logoDark");
+	const { uploadLogo, isLoading } = useUploadLogo(Field.LogoDark);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.LogoDark);
 
 	return (
 		<LogoDropzoneBase
@@ -531,8 +530,8 @@ function CompactLogoLightDropzone({
 	logo?: Media | null;
 	uploadLimit?: number;
 }) {
-	const { uploadLogo, isLoading } = useUploadLogo("compactLogoLight");
-	const { clearLogo, isLoading: isClearing } = useClearLogo("compactLogoLight");
+	const { uploadLogo, isLoading } = useUploadLogo(Field.CompactLogoLight);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.CompactLogoLight);
 
 	return (
 		<LogoDropzoneBase
@@ -558,8 +557,8 @@ function CompactLogoDarkDropzone({
 	logo?: Media | null;
 	uploadLimit?: number;
 }) {
-	const { uploadLogo, isLoading } = useUploadLogo("compactLogoDark");
-	const { clearLogo, isLoading: isClearing } = useClearLogo("compactLogoDark");
+	const { uploadLogo, isLoading } = useUploadLogo(Field.CompactLogoDark);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.CompactLogoDark);
 
 	return (
 		<LogoDropzoneBase
@@ -585,8 +584,8 @@ function FaviconLightDropzone({
 	logo?: Media | null;
 	uploadLimit?: number;
 }) {
-	const { uploadLogo, isLoading } = useUploadLogo("faviconLight");
-	const { clearLogo, isLoading: isClearing } = useClearLogo("faviconLight");
+	const { uploadLogo, isLoading } = useUploadLogo(Field.FaviconLight);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.FaviconLight);
 
 	return (
 		<LogoDropzoneBase
@@ -612,8 +611,8 @@ function FaviconDarkDropzone({
 	logo?: Media | null;
 	uploadLimit?: number;
 }) {
-	const { uploadLogo, isLoading } = useUploadLogo("faviconDark");
-	const { clearLogo, isLoading: isClearing } = useClearLogo("faviconDark");
+	const { uploadLogo, isLoading } = useUploadLogo(Field.FaviconDark);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.FaviconDark);
 
 	return (
 		<LogoDropzoneBase

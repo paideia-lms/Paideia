@@ -23,13 +23,17 @@ use `matches` to from Route.ComponentProps to check current route.
 
 don't use `useEffect`, use `useEffectEvent` instead.
 
-in loader and actions, we need to use `overrideAccess` to false and provide the current user ( `effectiveUser ?? authenticatedUser`) to the function.
+in loader and actions, we need to use `overrideAccess` to false and provide the current user ( `effectiveUser ?? authenticatedUser`) to the function. in `action`, when we need to handle multiple action in one server route action, we should use `searchParams` to handle the action. then we create individual action functions for each action. we should have `getActionUrl` for getting the action url for each action. see `app/routes/admin/appearance/logo.tsx` for an example.
 
-we don't check for access in loader and actions. we only check for access in internal functions and through access hook in collections. 
+in `clientAction`, we should use `notifications` from `@mantine/notifications` to show notifications. we check the `actionData.status` against `StatusCode` to show the appropriate notification.
+
+
+it is not necessary to check for access in loader and actions because we already check for access in internal functions and through access hook in collections. 
 
 we only use mantine form uncontrolled mode for all forms. never use `cascadeUpdates` for mantine form.
 
 after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
+
 
 ## Routing
 
@@ -91,10 +95,9 @@ we should not expose the depth variable to args for internal functions. The outp
 
 we should standardize internal function arg. internal function should always have only one arg and we should create type for the arg, the arg type should include `payload: Payload`, `user?: TypedUser | null`, `req?: Partial<PayloadRequest>` and `overrideAccess?: boolean` as args. sometimes we might need to have `s3Client: S3Client` as args. 
 
-internal functions must handle transactions if the function is doing multiple mutations to the database. for internal functions that handle transactions, we should check if `req` has `transactionID` and if it does, we should use it, otherwise we should create a new transaction. When we handle transaction, we should use `TransactionIdNotFoundError` to throw error when transaction ID is not found. We also need to determine if we need to commit/rollback the transaction or not. if transaction is created outside the function, the commit and rollback should be done outside the function. transaction commit and rollback should always be handled at the same level as the transaction creation. We don't do nested transactions in this project. 
+internal functions must handle transactions if the function is doing multiple mutations to the database. for internal functions that handle transactions, we should use `handleTransactionId` to handle the transaction. if we use `handleTransactionId` and `isTransactionCreated` is true, we should always use `commitTransactionIfCreated` and `rollbackTransactionIfCreated` to commit and rollback the transaction **at the same level** as the transaction creation.
 
 for other function, we don't need to check for transaction, we simply pass the req into payload function call (payload.find) as it is. (if req has transaction ID, good, if not, we let it be). 
-
 
 course and the linked gradebook should always have the same id. so we can use them interchangeably.
 

@@ -359,6 +359,12 @@ export const middleware = [
 					additionalCssStylesheets: [],
 					color: "blue",
 					radius: "sm" as const,
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
 				},
 				analyticsSettings: {
 					additionalJsScripts: [],
@@ -692,44 +698,15 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
 	const defaultRadius = systemGlobals.appearanceSettings.radius ?? "sm";
 
-	// Fetch logo and favicon media objects based on theme
-	const logoMediaId =
+	// Get logo and favicon media objects directly from system globals based on theme
+	const logoMedia =
 		theme === "dark"
-			? systemGlobals.appearanceSettings.logoDark
-			: systemGlobals.appearanceSettings.logoLight;
-	const faviconMediaId =
+			? systemGlobals.appearanceSettings.logoDark ?? null
+			: systemGlobals.appearanceSettings.logoLight ?? null;
+	const faviconMedia =
 		theme === "dark"
-			? systemGlobals.appearanceSettings.faviconDark
-			: systemGlobals.appearanceSettings.faviconLight;
-
-	let logoMedia = null;
-	let faviconMedia = null;
-
-	if (logoMediaId) {
-		try {
-			logoMedia = await payload.findByID({
-				collection: "media",
-				id: logoMediaId,
-				depth: 0,
-				overrideAccess: true,
-			});
-		} catch {
-			// Logo not found, ignore
-		}
-	}
-
-	if (faviconMediaId) {
-		try {
-			faviconMedia = await payload.findByID({
-				collection: "media",
-				id: faviconMediaId,
-				depth: 0,
-				overrideAccess: true,
-			});
-		} catch {
-			// Favicon not found, ignore
-		}
-	}
+			? systemGlobals.appearanceSettings.faviconDark ?? null
+			: systemGlobals.appearanceSettings.faviconLight ?? null;
 
 	// Check if sandbox mode is enabled and calculate next reset time
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
@@ -982,8 +959,8 @@ export default function App({ loaderData }: Route.ComponentProps) {
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
 				/>
 				{/* Additional CSS stylesheets configured by admin */}
-				{additionalCssStylesheets.map((url) => (
-					<link key={url} rel="stylesheet" href={url} />
+				{additionalCssStylesheets.map((stylesheet) => (
+					<link key={stylesheet.id} rel="stylesheet" href={stylesheet.url} />
 				))}
 				{/* Additional JavaScript scripts configured by admin */}
 				<AnalyticsScripts scripts={additionalJsScripts} />

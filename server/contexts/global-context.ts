@@ -7,6 +7,7 @@ import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
+import { Media } from "server/payload-types";
 
 export type PageInfo = {
 	isInAdminLayout: boolean;
@@ -98,15 +99,15 @@ export type SystemGlobals = {
 		siteUploadLimit: number | null;
 	};
 	appearanceSettings: {
-		additionalCssStylesheets: string[];
+		additionalCssStylesheets: { id: number | string; url: string }[];
 		color: string;
 		radius: "xs" | "sm" | "md" | "lg" | "xl";
-		logoLight?: number | null;
-		logoDark?: number | null;
-		compactLogoLight?: number | null;
-		compactLogoDark?: number | null;
-		faviconLight?: number | null;
-		faviconDark?: number | null;
+		logoLight?: Media | null;
+		logoDark?: Media | null;
+		compactLogoLight?: Media | null;
+		compactLogoDark?: Media | null;
+		faviconLight?: Media | null;
+		faviconDark?: Media | null;
 	};
 	analyticsSettings: {
 		additionalJsScripts: Array<{

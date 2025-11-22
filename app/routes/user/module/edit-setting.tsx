@@ -1,9 +1,5 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
 import {
 	MaxFileSizeExceededError,
 	MaxFilesExceededError,
@@ -18,8 +14,8 @@ import {
 	tryUpdateActivityModule,
 	type UpdateActivityModuleArgs,
 } from "server/internal/activity-module-management";
-import { tryCreateMedia } from "server/internal/media-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
+import { parseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { z } from "zod";
 import {
 	AssignmentForm,
@@ -41,7 +37,6 @@ import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -121,41 +116,25 @@ export const action = async ({
 		const isMultipart = contentType.includes("multipart/form-data");
 
 		let parsedData: z.infer<typeof activityModuleSchema>;
-		const uploadedMediaIds: number[] = [];
+		let uploadedMediaIds: number[] = [];
 
 		if (isMultipart) {
 			// Handle file uploads for file module type
-			const uploadHandler: FileUploadHandler = async (
-				fileUpload: FileUpload,
-			) => {
-				if (fileUpload.fieldName === "files") {
-					const arrayBuffer = await fileUpload.arrayBuffer();
-					const fileBuffer = Buffer.from(arrayBuffer);
-
-					const mediaResult = await tryCreateMedia({
-						payload,
-						file: fileBuffer,
-						filename: fileUpload.name,
-						mimeType: fileUpload.type || "application/octet-stream",
-						userId: currentUser.id,
-						user: currentUser,
-						req: reqWithTransaction,
-					});
-
-					if (!mediaResult.ok) {
-						throw mediaResult.error;
-					}
-
-					const mediaId = mediaResult.value.media.id;
-					uploadedMediaIds.push(mediaId);
-					return String(mediaId);
-				}
-				return undefined;
-			};
-
-			const formData = await parseFormDataWithFallback(request, uploadHandler, {
-				...(maxFileSize !== undefined && { maxFileSize }),
+			const { formData, uploadedMedia } = await parseFormDataWithMediaUpload({
+				payload,
+				request,
+				userId: currentUser.id,
+				user: currentUser,
+				req: reqWithTransaction,
+				maxFileSize,
+				fields: [
+					{
+						fieldName: "files",
+					},
+				],
 			});
+
+			uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
 
 			// Extract form data (excluding files) and parse values
 			const formDataObj: Record<string, unknown> = {};

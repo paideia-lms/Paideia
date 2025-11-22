@@ -1,9 +1,5 @@
 import { Button, Container, Group, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
 import {
 	MaxFileSizeExceededError,
 	MaxFilesExceededError,
@@ -34,7 +30,7 @@ import {
 	tryRemoveUpvoteDiscussionSubmission,
 	tryUpvoteDiscussionSubmission,
 } from "server/internal/discussion-management";
-import { tryCreateMedia } from "server/internal/media-management";
+import { parseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import {
 	tryCheckInProgressSubmission,
 	tryGetNextAttemptNumber,
@@ -64,7 +60,6 @@ import {
 	DiscussionActions,
 	QuizActions,
 } from "~/utils/module-actions";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -176,12 +171,12 @@ export const loader = async ({
 					Number(moduleLinkId),
 					currentUser
 						? {
-								...currentUser,
-								avatar:
-									currentUser.avatar && typeof currentUser.avatar === "object"
-										? currentUser.avatar.id
-										: currentUser.avatar,
-							}
+							...currentUser,
+							avatar:
+								currentUser.avatar && typeof currentUser.avatar === "object"
+									? currentUser.avatar.id
+									: currentUser.avatar,
+						}
 						: null,
 				);
 
@@ -195,13 +190,13 @@ export const loader = async ({
 	// Extract values from discriminated union based on module type
 	const userSubmission =
 		moduleSpecificData.type === "assignment" ||
-		moduleSpecificData.type === "quiz"
+			moduleSpecificData.type === "quiz"
 			? moduleSpecificData.userSubmission
 			: null;
 	const userSubmissions =
 		moduleSpecificData.type === "assignment" ||
-		moduleSpecificData.type === "quiz" ||
-		moduleSpecificData.type === "discussion"
+			moduleSpecificData.type === "quiz" ||
+			moduleSpecificData.type === "discussion"
 			? moduleSpecificData.userSubmissions
 			: [];
 	const discussionThreads =
@@ -569,20 +564,20 @@ export const action = async ({
 		// Parse answers if provided
 		let answers:
 			| Array<{
-					questionId: string;
-					questionText: string;
-					questionType:
-						| "multiple_choice"
-						| "true_false"
-						| "short_answer"
-						| "essay"
-						| "fill_blank";
-					selectedAnswer?: string;
-					multipleChoiceAnswers?: Array<{
-						option: string;
-						isSelected: boolean;
-					}>;
-			  }>
+				questionId: string;
+				questionText: string;
+				questionType:
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
+				selectedAnswer?: string;
+				multipleChoiceAnswers?: Array<{
+					option: string;
+					isSelected: boolean;
+				}>;
+			}>
 			| undefined;
 
 		if (answersJson && typeof answersJson === "string") {
@@ -704,39 +699,22 @@ export const action = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	try {
-		const uploadedFileIds: number[] = [];
-
-		const uploadHandler = async (fileUpload: FileUpload) => {
-			if (fileUpload.fieldName === "files") {
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
-
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					alt: `Assignment submission file - ${fileUpload.name}`,
-					userId: currentUser.id,
-					user: currentUser,
-					req: { transactionID },
-				});
-
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
-
-				const fileId = mediaResult.value.media.id;
-				uploadedFileIds.push(fileId);
-				return fileId;
-			}
-		};
-
-		const formData = await parseFormDataWithFallback(
+		// Parse form data with media upload handler
+		const { formData, uploadedMedia } = await parseFormDataWithMediaUpload({
+			payload,
 			request,
-			uploadHandler as FileUploadHandler,
-			maxFileSize !== undefined ? { maxFileSize } : undefined,
-		);
+			userId: currentUser.id,
+			user: currentUser,
+			req: { transactionID },
+			maxFileSize,
+			fields: [
+				{
+					fieldName: "files",
+					alt: (_fieldName, filename) =>
+						`Assignment submission file - ${filename}`,
+				},
+			],
+		});
 
 		const parsed = z
 			.object({
@@ -756,8 +734,8 @@ export const action = async ({
 		const textContent = parsed.data.textContent || "";
 
 		// Build attachments array from uploaded files
-		const attachments = uploadedFileIds.map((fileId) => ({
-			file: fileId,
+		const attachments = uploadedMedia.map((media) => ({
+			file: media.mediaId,
 		}));
 
 		// Find existing draft submission
@@ -970,11 +948,11 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1244,34 +1222,34 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				// Type guard to ensure we have an assignment submission
 				const assignmentSubmission =
 					userSubmission &&
-					"content" in userSubmission &&
-					"attachments" in userSubmission
+						"content" in userSubmission &&
+						"attachments" in userSubmission
 						? {
-								id: userSubmission.id,
-								status: userSubmission.status as
-									| "draft"
-									| "submitted"
-									| "graded"
-									| "returned",
-								content: (userSubmission.content as string) || null,
-								attachments: userSubmission.attachments
-									? userSubmission.attachments.map((att) => ({
-											file:
-												typeof att.file === "object" &&
-												att.file !== null &&
-												"id" in att.file
-													? att.file.id
-													: Number(att.file),
-											description: att.description as string | undefined,
-										}))
-									: null,
-								submittedAt: ("submittedAt" in userSubmission
-									? userSubmission.submittedAt
-									: null) as string | null,
-								attemptNumber: ("attemptNumber" in userSubmission
-									? userSubmission.attemptNumber
-									: 1) as number,
-							}
+							id: userSubmission.id,
+							status: userSubmission.status as
+								| "draft"
+								| "submitted"
+								| "graded"
+								| "returned",
+							content: (userSubmission.content as string) || null,
+							attachments: userSubmission.attachments
+								? userSubmission.attachments.map((att) => ({
+									file:
+										typeof att.file === "object" &&
+											att.file !== null &&
+											"id" in att.file
+											? att.file.id
+											: Number(att.file),
+									description: att.description as string | undefined,
+								}))
+								: null,
+							submittedAt: ("submittedAt" in userSubmission
+								? userSubmission.submittedAt
+								: null) as string | null,
+							attemptNumber: ("attemptNumber" in userSubmission
+								? userSubmission.attemptNumber
+								: 1) as number,
+						}
 						: null;
 
 				// Map all submissions for display - filter assignment submissions only
@@ -1295,9 +1273,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						attachments:
 							"attachments" in sub && sub.attachments
 								? (sub.attachments as Array<{
-										file: number | { id: number; filename: string };
-										description?: string;
-									}>)
+									file: number | { id: number; filename: string };
+									description?: string;
+								}>)
 								: null,
 					}));
 
@@ -1337,8 +1315,8 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					// Use userSubmission which is already the active in_progress submission
 					const activeSubmission =
 						userSubmission &&
-						"status" in userSubmission &&
-						userSubmission.status === "in_progress"
+							"status" in userSubmission &&
+							userSubmission.status === "in_progress"
 							? userSubmission
 							: null;
 

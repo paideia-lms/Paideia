@@ -1,9 +1,5 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
 import {
 	MaxFileSizeExceededError,
 	MaxFilesExceededError,
@@ -23,7 +19,7 @@ import {
 	type CreateActivityModuleArgs,
 	tryCreateActivityModule,
 } from "server/internal/activity-module-management";
-import { tryCreateMedia } from "server/internal/media-management";
+import { parseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { z } from "zod";
 import {
 	AssignmentForm,
@@ -44,7 +40,6 @@ import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import { badRequest, UnauthorizedResponse } from "~/utils/responses";
 import type { Route } from "./+types/new";
 
@@ -97,43 +92,25 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 		const isMultipart = contentType.includes("multipart/form-data");
 
 		let parsedData: ReturnType<typeof activityModuleSchema.parse>;
-		const uploadedMediaIds: number[] = [];
+		let uploadedMediaIds: number[] = [];
 
 		if (isMultipart) {
 			// Handle file uploads for file module type
-			const uploadHandler: FileUploadHandler = async (
-				fileUpload: FileUpload,
-			) => {
-				if (fileUpload.fieldName === "files") {
-					const arrayBuffer = await fileUpload.arrayBuffer();
-					const fileBuffer = Buffer.from(arrayBuffer);
-
-					const mediaResult = await tryCreateMedia({
-						payload,
-						file: fileBuffer,
-						filename: fileUpload.name,
-						mimeType: fileUpload.type || "application/octet-stream",
-						userId: currentUser.id,
-						user: currentUser,
-						req: { transactionID },
-					});
-
-					if (!mediaResult.ok) {
-						throw mediaResult.error;
-					}
-
-					const mediaId = mediaResult.value.media.id;
-					uploadedMediaIds.push(mediaId);
-					return String(mediaId);
-				}
-				return undefined;
-			};
-
-			const formData = await parseFormDataWithFallback(request, uploadHandler, {
-				...(maxFileSize !== undefined && { maxFileSize }),
+			const { formData, uploadedMedia } = await parseFormDataWithMediaUpload({
+				payload,
+				request,
+				userId: currentUser.id,
+				user: currentUser,
+				req: { transactionID },
+				maxFileSize,
+				fields: [
+					{
+						fieldName: "files",
+					},
+				],
 			});
 
-			console.log("uploadedMediaIds", uploadedMediaIds);
+			uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
 			// Extract form data (excluding files) and parse values
 			const formDataObj: Record<string, unknown> = {};
 			for (const [key, value] of formData.entries()) {
@@ -208,11 +185,6 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 				error: `Invalid module type or missing data for ${parsedData.type}`,
 			});
 		}
-
-		// Note: tryCreateActivityModule creates its own transaction
-		// We'll commit our transaction after media creation, then let module creation use its own
-		// If module creation fails, we'll need to clean up media (future improvement)
-		await payload.db.commitTransaction(transactionID);
 
 		const createResult = await tryCreateActivityModule(payload, createArgs);
 

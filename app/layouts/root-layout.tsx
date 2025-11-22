@@ -36,6 +36,7 @@ import {
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
 import { getAvatarUrl } from "server/contexts/utils/user-utils";
+import type { Media } from "server/payload-types";
 import { canSeeUserModules } from "server/utils/permissions";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
@@ -50,26 +51,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const theme = currentUser?.theme ?? "light";
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
-	// Get logo media ID based on theme
-	const logoMediaId =
+	// Get logo media directly from system globals based on theme
+	const logoMedia =
 		theme === "dark"
-			? systemGlobals.appearanceSettings.logoDark
-			: systemGlobals.appearanceSettings.logoLight;
-
-	let logoMedia = null;
-	if (logoMediaId) {
-		const { payload } = context.get(globalContextKey);
-		try {
-			logoMedia = await payload.findByID({
-				collection: "media",
-				id: logoMediaId,
-				depth: 0,
-				overrideAccess: true,
-			});
-		} catch {
-			// Logo not found, ignore
-		}
-	}
+			? systemGlobals.appearanceSettings.logoDark ?? null
+			: systemGlobals.appearanceSettings.logoLight ?? null;
 
 	return {
 		userSession,
@@ -137,7 +123,7 @@ export function HeaderTabs({
 	userSession: UserSession | null;
 	pageInfo: PageInfo;
 	canSeeUserModules: boolean;
-	logoMedia: { filename?: string | null } | null;
+	logoMedia: Media | null;
 }) {
 	const navigate = useNavigate();
 	const [userMenuOpened, setUserMenuOpened] = useState(false);
@@ -330,7 +316,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-													"Anonymous"
+												"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -376,8 +362,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-											// component={Link}
-											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										// component={Link}
+										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>

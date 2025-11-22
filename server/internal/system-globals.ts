@@ -1,7 +1,6 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
 import { tryGetAnalyticsSettings } from "./analytics-settings";
 import { tryGetAppearanceSettings } from "./appearance-settings";
 import { tryGetMaintenanceSettings } from "./maintenance-settings";
@@ -63,13 +62,18 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				};
+				userMediaStorageTotal: null,
+				siteUploadLimit: null,
+			};
 
 		const appearanceSettings = {
 			additionalCssStylesheets: appearanceResult.ok
-				? (appearanceResult.value.additionalCssStylesheets ?? [])
+				? (appearanceResult.value.additionalCssStylesheets ?? []).map(
+					(stylesheet) => ({
+						id: stylesheet.id ?? 0,
+						url: stylesheet.url,
+					}),
+				)
 				: [],
 			color: appearanceResult.ok
 				? (appearanceResult.value.color ?? "blue")

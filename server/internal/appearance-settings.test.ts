@@ -107,7 +107,7 @@ describe("Appearance Settings Functions", () => {
 		}
 
 		// Verify logoLight was set
-		expect(updateResult.value.logoLight).toBe(logoMediaId);
+		expect(updateResult.value.logoLight?.id).toBe(logoMediaId);
 
 		// Verify the logo is tracked in media usage
 		const findUsagesResult = await tryFindMediaUsages({
@@ -208,9 +208,9 @@ describe("Appearance Settings Functions", () => {
 		}
 
 		// Verify all logos were set
-		expect(updateResult.value.logoLight).toBe(logoLightId);
-		expect(updateResult.value.logoDark).toBe(logoDarkId);
-		expect(updateResult.value.compactLogoLight).toBe(compactLogoLightId);
+		expect(updateResult.value.logoLight?.id).toBe(logoLightId);
+		expect(updateResult.value.logoDark?.id).toBe(logoDarkId);
+		expect(updateResult.value.compactLogoLight?.id).toBe(compactLogoLightId);
 
 		// Verify each logo is tracked in media usage
 		const logoLightUsagesResult = await tryFindMediaUsages({
@@ -323,8 +323,8 @@ describe("Appearance Settings Functions", () => {
 		}
 
 		// Verify favicons were set
-		expect(updateResult.value.faviconLight).toBe(faviconLightId);
-		expect(updateResult.value.faviconDark).toBe(faviconDarkId);
+		expect(updateResult.value.faviconLight?.id).toBe(faviconLightId);
+		expect(updateResult.value.faviconDark?.id).toBe(faviconDarkId);
 
 		// Verify favicons are tracked in media usage
 		const faviconLightUsagesResult = await tryFindMediaUsages({
@@ -412,6 +412,6 @@ describe("Appearance Settings Functions", () => {
 			throw new Error("Failed to get appearance settings");
 		}
 
-		expect(getSettingsResult.value.logoLight).toBe(logoMediaId);
+		expect(getSettingsResult.value.logoLight?.id).toBe(logoMediaId);
 	});
 });
