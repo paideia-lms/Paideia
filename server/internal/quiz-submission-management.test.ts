@@ -298,7 +298,8 @@ describe("Quiz Management - Full Workflow", () => {
 			verifyActivityModule ? "Found" : "Not found",
 		);
 
-		const gradebookItemArgs: CreateGradebookItemArgs = {
+		const gradebookItemResult = await tryCreateGradebookItem({
+			payload,
 			courseId: courseId,
 			name: "Test Quiz",
 			description: "Quiz submission test",
@@ -306,13 +307,10 @@ describe("Quiz Management - Full Workflow", () => {
 			maxGrade: 100,
 			weight: 25,
 			sortOrder: 1,
-		};
-
-		const gradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			gradebookItemArgs,
-		);
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+		});
 		if (!gradebookItemResult.ok) {
 			console.error(
 				"Gradebook item creation failed:",

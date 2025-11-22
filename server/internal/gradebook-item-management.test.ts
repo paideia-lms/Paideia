@@ -153,7 +153,8 @@ describe("Gradebook Item Management", () => {
 	it("should create a gradebook item", async () => {
 		// First create items with auto-weight (null) to avoid validation issues
 		// Then update their weights to specific values
-		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
+		const item1Result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Item",
@@ -163,6 +164,9 @@ describe("Gradebook Item Management", () => {
 			weight: null, // Auto-weighted initially
 			extraCredit: false,
 			sortOrder: 0,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(item1Result.ok).toBe(true);
@@ -172,7 +176,8 @@ describe("Gradebook Item Management", () => {
 		testItem = item1Result.value;
 
 		// Create second item with auto-weight
-		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+		const item2Result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Item 2",
@@ -182,6 +187,9 @@ describe("Gradebook Item Management", () => {
 			weight: null, // Auto-weighted initially
 			extraCredit: false,
 			sortOrder: 1,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(item2Result.ok).toBe(true);
@@ -227,40 +235,49 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should not create item with invalid grade values", async () => {
-		const result = await tryCreateGradebookItem(payload, {} as Request, {
+		const result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
-
 			categoryId: testCategory.id,
 			name: "Invalid Item",
 			maxGrade: 50,
 			minGrade: 100, // Invalid: min > max
 			weight: 25,
 			sortOrder: 1,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
 	});
 
 	it("should not create item with invalid weight", async () => {
-		const result = await tryCreateGradebookItem(payload, {} as Request, {
+		const result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
-
 			categoryId: testCategory.id,
 			name: "Invalid Weight Item",
 			weight: 150, // Invalid: > 100
 			sortOrder: 1,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
 	});
 
 	it("should not create item with invalid sort order", async () => {
-		const result = await tryCreateGradebookItem(payload, {} as Request, {
+		const result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
-
 			categoryId: testCategory.id,
 			name: "Invalid Sort Item",
 			sortOrder: -1, // Invalid: negative
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(false);
@@ -334,12 +351,16 @@ describe("Gradebook Item Management", () => {
 		const validationCategory = categoryResult.value;
 
 		// First create items with auto-weight (null) to avoid validation issues
-		const item1Result = await tryCreateGradebookItem(payload, {} as Request, {
+		const item1Result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: validationCategory.id,
 			name: "Category Item 1",
 			weight: null, // Auto-weighted initially
 			sortOrder: 0,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(item1Result.ok).toBe(true);
@@ -348,12 +369,16 @@ describe("Gradebook Item Management", () => {
 		}
 
 		// Create second item with auto-weight
-		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+		const item2Result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: validationCategory.id,
 			name: "Category Item 2",
 			weight: null, // Auto-weighted initially
 			sortOrder: 1,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(item2Result.ok).toBe(true);
@@ -409,12 +434,16 @@ describe("Gradebook Item Management", () => {
 		// testItem2 should already exist from the first test, but if not, create it
 		if (!testItem2) {
 			// Create another item in the category with auto-weight (null) to avoid validation issues
-			const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+			const item2Result = await tryCreateGradebookItem({
+				payload,
 				courseId: testCourse.id,
 				categoryId: testCategory.id,
 				name: "Test Item 2",
 				weight: null, // Auto-weighted to avoid validation issues
 				sortOrder: 1,
+				user: null,
+				req: undefined,
+				overrideAccess: true,
 			});
 
 			expect(item2Result.ok).toBe(true);
@@ -486,17 +515,17 @@ describe("Gradebook Item Management", () => {
 		// Ensure testItem2 exists before trying to delete it
 		if (!testItem2) {
 			// Create a temporary item to delete
-			const tempItemResult = await tryCreateGradebookItem(
+			const tempItemResult = await tryCreateGradebookItem({
 				payload,
-				{} as Request,
-				{
-					courseId: testCourse.id,
-					categoryId: testCategory.id,
-					name: "Temp Item to Delete",
-					weight: null, // Auto-weighted
-					sortOrder: 100,
-				},
-			);
+				courseId: testCourse.id,
+				categoryId: testCategory.id,
+				name: "Temp Item to Delete",
+				weight: null, // Auto-weighted
+				sortOrder: 100,
+				user: instructor as typeof instructor & { collection: "users" },
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(tempItemResult.ok).toBe(true);
 			if (!tempItemResult.ok) {
@@ -526,9 +555,9 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should create extra credit gradebook item", async () => {
-		const result = await tryCreateGradebookItem(payload, {} as Request, {
+		const result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
-
 			categoryId: null, // Extra credit items are typically not in categories
 			name: "Extra Credit Assignment",
 			description: "Optional extra credit work",
@@ -537,6 +566,9 @@ describe("Gradebook Item Management", () => {
 			weight: 10, // This will be added to the total weight, potentially exceeding 100%
 			extraCredit: true,
 			sortOrder: 2,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -549,9 +581,9 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should create extra credit item with zero weight", async () => {
-		const result = await tryCreateGradebookItem(payload, {} as Request, {
+		const result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
-
 			categoryId: null,
 			name: "Participation Extra Credit",
 			description: "Class participation bonus",
@@ -560,6 +592,9 @@ describe("Gradebook Item Management", () => {
 			weight: 0, // Zero weight extra credit
 			extraCredit: true,
 			sortOrder: 3,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);

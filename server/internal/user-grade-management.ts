@@ -69,12 +69,12 @@ export interface AddAdjustmentArgs {
 	overrideAccess?: boolean;
 	gradeId: number;
 	type:
-		| "bonus"
-		| "penalty"
-		| "late_deduction"
-		| "participation"
-		| "curve"
-		| "other";
+	| "bonus"
+	| "penalty"
+	| "late_deduction"
+	| "participation"
+	| "curve"
+	| "other";
 	points: number;
 	reason: string;
 	appliedBy: number;
@@ -125,12 +125,12 @@ export interface UserGradeItem {
 	item_id: number;
 	item_name: string;
 	item_type:
-		| "manual_item"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	category_id?: number | null;
 	category_name?: string | null;
 	weight: number;
@@ -290,14 +290,14 @@ export const tryCreateUserGrade = Result.wrap(
 					baseGradeSource,
 					submission: submission
 						? {
-								relationTo:
-									submissionType === "assignment"
-										? "assignment-submissions"
-										: submissionType === "quiz"
-											? "quiz-submissions"
-											: "discussion-submissions",
-								value: submission,
-							}
+							relationTo:
+								submissionType === "assignment"
+									? "assignment-submissions"
+									: submissionType === "quiz"
+										? "quiz-submissions"
+										: "discussion-submissions",
+							value: submission,
+						}
 						: undefined,
 					submissionType,
 					feedback,
@@ -679,8 +679,8 @@ export const tryFindUserGradesBySubmissionIds = Result.wrap(
 					gradesBySubmissionId.set(submissionId, {
 						baseGrade:
 							grade.isOverridden &&
-							grade.overrideGrade !== null &&
-							grade.overrideGrade !== undefined
+								grade.overrideGrade !== null &&
+								grade.overrideGrade !== undefined
 								? grade.overrideGrade
 								: (grade.baseGrade ?? null),
 						maxGrade: grade.maxGrade ?? null,
@@ -928,12 +928,12 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 							gradedBy,
 							gradedAt:
 								gradeData.baseGrade !== null &&
-								gradeData.baseGrade !== undefined
+									gradeData.baseGrade !== undefined
 									? now
 									: undefined,
 							status:
 								gradeData.baseGrade !== null &&
-								gradeData.baseGrade !== undefined
+									gradeData.baseGrade !== undefined
 									? "graded"
 									: "draft",
 							submittedAt: gradeData.submittedAt,
@@ -957,12 +957,12 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 							gradedBy,
 							gradedAt:
 								gradeData.baseGrade !== null &&
-								gradeData.baseGrade !== undefined
+									gradeData.baseGrade !== undefined
 									? now
 									: undefined,
 							status:
 								gradeData.baseGrade !== null &&
-								gradeData.baseGrade !== undefined
+									gradeData.baseGrade !== undefined
 									? "graded"
 									: "draft",
 							submittedAt: gradeData.submittedAt,
@@ -1046,9 +1046,9 @@ export const tryCalculateUserFinalGrade = Result.wrap(
 			const gradebookItem =
 				typeof grade.gradebookItem === "number"
 					? await payload.findByID({
-							collection: "gradebook-items",
-							id: grade.gradebookItem,
-						})
+						collection: "gradebook-items",
+						id: grade.gradebookItem,
+					})
 					: grade.gradebookItem;
 
 			if (!gradebookItem) {
@@ -1309,13 +1309,13 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 		enrollment: {
 			id: number;
 			user:
-				| number
-				| {
-						id: number;
-						firstName?: string | null;
-						lastName?: string | null;
-						email: string;
-				  };
+			| number
+			| {
+				id: number;
+				firstName?: string | null;
+				lastName?: string | null;
+				email: string;
+			};
 		};
 		gradebookId: number;
 		gradebookItems: Array<{
@@ -1325,9 +1325,9 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 			maxGrade: number;
 			minGrade: number;
 			category?:
-				| number
-				| { id: number; name: string; weight?: number | null }
-				| null;
+			| number
+			| { id: number; name: string; weight?: number | null }
+			| null;
 			activityModuleType?: string | string[] | null;
 		}>;
 		gradesByEnrollment: Map<number, UserGrade[]>;
@@ -1350,12 +1350,12 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 		const user =
 			typeof enrollment.user === "number"
 				? await payload.findByID({
-						collection: Users.slug,
-						id: enrollment.user,
-						user: contextUser,
-						req,
-						overrideAccess,
-					})
+					collection: Users.slug,
+					id: enrollment.user,
+					user: contextUser,
+					req,
+					overrideAccess,
+				})
 				: enrollment.user;
 
 		if (!user) {
@@ -1393,12 +1393,12 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 			const category =
 				typeof item.category === "number"
 					? await payload.findByID({
-							collection: GradebookCategories.slug,
-							id: item.category,
-							user: contextUser,
-							req,
-							overrideAccess,
-						})
+						collection: GradebookCategories.slug,
+						id: item.category,
+						user: contextUser,
+						req,
+						overrideAccess,
+					})
 					: item.category;
 
 			// Calculate effective weight, effective weight cannot be null
@@ -1412,21 +1412,21 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 				: item.activityModuleType;
 			const validItemType =
 				itemType &&
-				[
-					"manual_item",
-					"page",
-					"whiteboard",
-					"assignment",
-					"quiz",
-					"discussion",
-				].includes(itemType)
+					[
+						"manual_item",
+						"page",
+						"whiteboard",
+						"assignment",
+						"quiz",
+						"discussion",
+					].includes(itemType)
 					? (itemType as
-							| "manual_item"
-							| "page"
-							| "whiteboard"
-							| "assignment"
-							| "quiz"
-							| "discussion")
+						| "manual_item"
+						| "page"
+						| "whiteboard"
+						| "assignment"
+						| "quiz"
+						| "discussion")
 					: "manual_item";
 
 			items.push({
@@ -1739,9 +1739,11 @@ export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
 				return docs.map((item) => {
 					const category = item.category;
 					assertZodInternal(
-						"tryGetSingleUserGradesJsonRepresentation: Category is required",
+						"tryGetSingleUserGradesJsonRepresentation: Category is object",
 						category,
-						z.number().nullable(),
+						z.object({
+							id: z.number(),
+						}).nullable(),
 					);
 					assertZodInternal(
 						"tryGetSingleUserGradesJsonRepresentation: Weight is required",
@@ -1907,13 +1909,13 @@ export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
 			courseId: baseData.course_id,
 			user: user
 				? ({
-						...user,
-						collection: "users",
-						avatar:
-							typeof user.avatar === "object" && user.avatar !== null
-								? user.avatar.id
-								: user.avatar,
-					} as TypedUser)
+					...user,
+					collection: "users",
+					avatar:
+						typeof user.avatar === "object" && user.avatar !== null
+							? user.avatar.id
+							: user.avatar,
+				} as TypedUser)
 				: null,
 			req,
 			overrideAccess,
@@ -2127,8 +2129,8 @@ export const tryGetAdjustedSingleUserGrades = Result.wrap(
 					: "-";
 			const overrideGradeStr =
 				item.is_overridden &&
-				item.override_grade !== null &&
-				item.override_grade !== undefined
+					item.override_grade !== null &&
+					item.override_grade !== undefined
 					? formatNumberForMarkdown(item.override_grade)
 					: "-";
 			const statusStr =
@@ -2151,11 +2153,10 @@ export const tryGetAdjustedSingleUserGrades = Result.wrap(
 |--------|-------|
 | Total Grade | ${totalGrade > 0 ? formatNumberForMarkdown(totalGrade) : "-"} |
 | Total Max Grade | ${formatNumberForMarkdown(totalMaxGrade)} |
-| Final Grade | ${
-			enrollment.final_grade !== null && enrollment.final_grade !== undefined
+| Final Grade | ${enrollment.final_grade !== null && enrollment.final_grade !== undefined
 				? formatNumberForMarkdown(enrollment.final_grade)
 				: "-"
-		} |
+			} |
 | Total Weight | ${formatPercentageForMarkdown(enrollment.total_weight)} |
 | Graded Items | ${enrollment.graded_items} / ${enrollment.items.length} |`;
 
@@ -2468,13 +2469,13 @@ export const tryReleaseDiscussionGrade = Result.wrap(
 			// Get all discussion submissions for this student
 			const typedUser: TypedUser | null = user
 				? ({
-						...user,
-						collection: "users",
-						avatar:
-							typeof user.avatar === "object" && user.avatar !== null
-								? user.avatar.id
-								: (user.avatar ?? undefined),
-					} as TypedUser)
+					...user,
+					collection: "users",
+					avatar:
+						typeof user.avatar === "object" && user.avatar !== null
+							? user.avatar.id
+							: (user.avatar ?? undefined),
+				} as TypedUser)
 				: null;
 
 			const submissionsResult = await tryListDiscussionSubmissions({

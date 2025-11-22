@@ -151,6 +151,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 				requireTextSubmission: true,
 				requireFileSubmission: false,
 			},
+			overrideAccess: true,
 		};
 
 		const activityModuleResult = await tryCreateActivityModule(
@@ -205,6 +206,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			activityModule: activityModuleId,
 			section: sectionResult.value.id,
 			order: 0,
+			overrideAccess: true,
 		};
 
 		const courseActivityModuleLinkResult =
@@ -242,7 +244,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			"gradebookId:",
 			courseResult.value.gradebook.id,
 		);
-		const gradebookItemArgs: CreateGradebookItemArgs = {
+		const gradebookItemResult = await tryCreateGradebookItem({
+			payload,
 			courseId: courseResult.value.gradebook.id,
 			name: "Test Assignment",
 			description: "Assignment submission test",
@@ -250,13 +253,10 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			maxGrade: 100,
 			weight: 25,
 			sortOrder: 1,
-		};
-
-		const gradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			gradebookItemArgs,
-		);
+			user: null,
+			req: mockRequest,
+			overrideAccess: true,
+		});
 		if (!gradebookItemResult.ok) {
 			console.error(
 				"Gradebook item creation failed:",

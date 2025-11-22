@@ -31,6 +31,7 @@ export interface ValidateOverallWeightTotalArgs {
 }
 
 export interface CreateGradebookItemArgs {
+	payload: Payload;
 	courseId: number;
 	categoryId?: number | null;
 	name: string;
@@ -41,7 +42,9 @@ export interface CreateGradebookItemArgs {
 	weight?: number | null;
 	extraCredit?: boolean;
 	sortOrder: number;
-	transactionID?: string | number; // Optional transaction ID for nested transactions
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateGradebookItemArgs {
@@ -73,8 +76,9 @@ export interface DeleteGradebookItemArgs {
  * Creates a new gradebook item using Payload local API
  */
 export const tryCreateGradebookItem = Result.wrap(
-	async (payload: Payload, request: Request, args: CreateGradebookItemArgs) => {
+	async (args: CreateGradebookItemArgs) => {
 		const {
+			payload,
 			courseId,
 			categoryId,
 			name,
@@ -85,6 +89,9 @@ export const tryCreateGradebookItem = Result.wrap(
 			weight,
 			extraCredit = false,
 			sortOrder,
+			user = null,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate grade values
@@ -119,17 +126,18 @@ export const tryCreateGradebookItem = Result.wrap(
 			throw new InvalidSortOrderError("Sort order must be non-negative");
 		}
 
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
 		const transactionID =
-			args.transactionID || (await payload.db.beginTransaction());
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
 
-		const reqWithTransaction: Partial<PayloadRequest> = {
-			...request,
-			transactionID,
-		};
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
 
 		try {
 			const newItem = await payload.create({
@@ -146,16 +154,18 @@ export const tryCreateGradebookItem = Result.wrap(
 					extraCredit,
 					sortOrder,
 				},
+				user,
 				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			// Validate overall weight total after creation
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
 				courseId,
-				user: null,
+				user,
 				req: reqWithTransaction,
-				overrideAccess: true,
+				overrideAccess,
 				errorMessagePrefix: "Item creation",
 			});
 
@@ -163,8 +173,8 @@ export const tryCreateGradebookItem = Result.wrap(
 				throw validateResult.error;
 			}
 
-			// Only commit transaction if we started it (not if it was provided)
-			if (!args.transactionID) {
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
 				await payload.db.commitTransaction(transactionID);
 			}
 
@@ -211,8 +221,8 @@ export const tryCreateGradebookItem = Result.wrap(
 			};
 			return result;
 		} catch (error) {
-			// Only rollback transaction if we started it (not if it was provided)
-			if (!args.transactionID) {
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
 				await payload.db.rollbackTransaction(transactionID);
 			}
 			throw error;

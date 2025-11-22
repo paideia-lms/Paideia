@@ -179,7 +179,8 @@ describe("User Grade Management", () => {
 		testCategory = categoryResult.value;
 
 		// Create test items
-		const itemResult = await tryCreateGradebookItem(payload, {} as Request, {
+		const itemResult = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Assignment",
@@ -189,6 +190,9 @@ describe("User Grade Management", () => {
 			weight: 50, // 50% of category weight (60) = 30% of total
 			extraCredit: false,
 			sortOrder: 0,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(itemResult.ok).toBe(true);
@@ -197,7 +201,8 @@ describe("User Grade Management", () => {
 		}
 		testItem = itemResult.value;
 
-		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+		const item2Result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: null,
 			name: "Test Quiz",
@@ -207,6 +212,9 @@ describe("User Grade Management", () => {
 			weight: 40, // 40% of total
 			extraCredit: false,
 			sortOrder: 1,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(item2Result.ok).toBe(true);
@@ -781,21 +789,21 @@ describe("User Grade Management", () => {
 
 	it("should handle extra credit items in grade calculation", async () => {
 		// Create an extra credit gradebook item
-		const extraCreditItem = await tryCreateGradebookItem(
+		const extraCreditItem = await tryCreateGradebookItem({
 			payload,
-			{} as Request,
-			{
-				courseId: testCourse.id,
-				categoryId: null,
-				name: "Extra Credit Project",
-				description: "Optional bonus project",
-				maxGrade: 25,
-				minGrade: 0,
-				weight: 15, // This will make total weight exceed 100%
-				extraCredit: true,
-				sortOrder: 2,
-			},
-		);
+			courseId: testCourse.id,
+			categoryId: null,
+			name: "Extra Credit Project",
+			description: "Optional bonus project",
+			maxGrade: 25,
+			minGrade: 0,
+			weight: 15, // This will make total weight exceed 100%
+			extraCredit: true,
+			sortOrder: 2,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(extraCreditItem.ok).toBe(true);
 		if (!extraCreditItem.ok) {
@@ -846,21 +854,21 @@ describe("User Grade Management", () => {
 
 	it("should handle zero weight extra credit items", async () => {
 		// Create a zero weight extra credit item
-		const zeroWeightExtraCredit = await tryCreateGradebookItem(
+		const zeroWeightExtraCredit = await tryCreateGradebookItem({
 			payload,
-			{} as Request,
-			{
-				courseId: testCourse.id,
-				categoryId: null,
-				name: "Participation Bonus",
-				description: "Class participation extra credit",
-				maxGrade: 10,
-				minGrade: 0,
-				weight: 0, // Zero weight
-				extraCredit: true,
-				sortOrder: 3,
-			},
-		);
+			courseId: testCourse.id,
+			categoryId: null,
+			name: "Participation Bonus",
+			description: "Class participation extra credit",
+			maxGrade: 10,
+			minGrade: 0,
+			weight: 0, // Zero weight
+			extraCredit: true,
+			sortOrder: 3,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(zeroWeightExtraCredit.ok).toBe(true);
 		if (!zeroWeightExtraCredit.ok) {
@@ -1166,8 +1174,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-						userGrade.submission !== null &&
-						"value" in userGrade.submission
+					userGrade.submission !== null &&
+					"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id

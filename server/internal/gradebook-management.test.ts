@@ -111,7 +111,8 @@ describe("Gradebook Management", () => {
 		testCategory = categoryResult.value;
 
 		// Create test items
-		const itemResult = await tryCreateGradebookItem(payload, {} as Request, {
+		const itemResult = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Assignment",
@@ -120,6 +121,9 @@ describe("Gradebook Management", () => {
 			minGrade: 0,
 			extraCredit: false,
 			sortOrder: 0,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 		});
 
 		expect(itemResult.ok).toBe(true);
@@ -128,7 +132,8 @@ describe("Gradebook Management", () => {
 		}
 		testItem = itemResult.value;
 
-		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+		const item2Result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: null,
 			name: "Test Manual Item",
@@ -137,6 +142,9 @@ describe("Gradebook Management", () => {
 			minGrade: 0,
 			weight: 15,
 			extraCredit: false,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
 			sortOrder: 1,
 		});
 

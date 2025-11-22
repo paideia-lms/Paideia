@@ -24,6 +24,7 @@ export interface CreateCourseActivityModuleLinkArgs {
 	contentOrder?: number;
 	settings?: CourseModuleSettingsV1;
 	transactionID?: string | number;
+	overrideAccess?: boolean;
 }
 
 export interface SearchCourseActivityModuleLinksArgs {
@@ -50,6 +51,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			contentOrder = 0,
 			settings,
 			transactionID,
+			overrideAccess = false,
 		} = args;
 
 		const newLink = await payload.create({
@@ -99,6 +101,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				...request,
 				transactionID,
 			},
+			overrideAccess,
 		});
 
 		const moduleType = activityModuleDoc.type;
@@ -129,23 +132,25 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 					: 0;
 
 				// Create the gradebook item
-				const createItemResult = await tryCreateGradebookItem(
+				const createItemResult = await tryCreateGradebookItem({
 					payload,
-					request,
-					{
-						courseId: course,
-						categoryId: null,
-						name: activityModuleDoc.title || "Untitled Activity",
-						description: activityModuleDoc.description || undefined,
-						activityModuleId: newLink.id,
-						maxGrade: 100, // Default max grade
-						minGrade: 0,
-						weight: null, // Auto weighted by default
-						extraCredit: false,
-						sortOrder,
+					courseId: course,
+					categoryId: null,
+					name: activityModuleDoc.title || "Untitled Activity",
+					description: activityModuleDoc.description || undefined,
+					activityModuleId: newLink.id,
+					maxGrade: 100, // Default max grade
+					minGrade: 0,
+					weight: null, // Auto weighted by default
+					extraCredit: false,
+					sortOrder,
+					user: null,
+					req: {
+						...request,
 						transactionID,
 					},
-				);
+					overrideAccess: true,
+				});
 
 				// If gradebook item creation fails, we should still return the link
 				// but log the error (the transaction will handle rollback if needed)

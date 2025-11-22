@@ -73,6 +73,517 @@ async function getVfsFileText(
 	return buffer.toString("utf-8");
 }
 
+/**
+ * Helper to throw error if result is not ok
+ */
+function assertResultOk<T>(
+	result: Result<T, Error>,
+	errorMessage: string,
+): asserts result is Result<T, Error> & { ok: true; value: T } {
+	if (!result.ok) {
+		throw new Error(`${errorMessage}: ${result.error.message}`);
+	}
+}
+
+/**
+ * Create user with avatar from VFS
+ */
+async function createUserWithAvatar(
+	payload: Payload,
+	req: Request,
+	userData: {
+		email: string;
+		password: string;
+		firstName: string;
+		lastName: string;
+		role: "student" | "admin";
+	},
+	avatarPath: string | null,
+	avatarFilename: string | null,
+): Promise<Awaited<ReturnType<typeof tryCreateUser>>["value"]> {
+	const userResult = await tryCreateUser({
+		payload,
+		data: {
+			email: userData.email,
+			password: userData.password,
+			firstName: userData.firstName,
+			lastName: userData.lastName,
+			role: userData.role,
+		},
+		req,
+		overrideAccess: true,
+	});
+
+	assertResultOk(userResult, `Failed to create user ${userData.email}`);
+
+	if (avatarPath && avatarFilename) {
+		const avatarBuffer = await getVfsFileBuffer(vfs, avatarPath);
+		if (avatarBuffer) {
+			const mediaResult = await tryCreateMedia({
+				payload,
+				file: avatarBuffer,
+				filename: avatarFilename,
+				mimeType: "image/png",
+				alt: `${userData.firstName} ${userData.lastName} avatar`,
+				userId: userResult.value.id,
+				overrideAccess: true,
+			});
+
+			assertResultOk(
+				mediaResult,
+				`Failed to create avatar for ${userData.email}`,
+			);
+
+			const updateResult = await tryUpdateUser({
+				payload,
+				userId: userResult.value.id,
+				data: { avatar: mediaResult.value.media.id },
+				overrideAccess: true,
+			});
+
+			assertResultOk(
+				updateResult,
+				`Failed to update avatar for ${userData.email}`,
+			);
+		}
+	}
+
+	return userResult.value;
+}
+
+/**
+ * Create admin user (first user)
+ */
+async function createAdminUser(
+	payload: Payload,
+	req: Request,
+	adminData: SeedData["admin"],
+): Promise<
+	NonNullable<Awaited<ReturnType<typeof tryRegisterFirstUser>>["value"]>["user"]
+> {
+	const adminResult = await tryRegisterFirstUser({
+		payload,
+		req,
+		email: adminData.email,
+		password: adminData.password,
+		firstName: adminData.firstName,
+		lastName: adminData.lastName,
+	});
+
+	assertResultOk(adminResult, "Failed to create admin user");
+
+	const adminUser = adminResult.value.user;
+
+	// Create and assign admin avatar
+	const avatarBuffer = await getVfsFileBuffer(vfs, "fixture/paideia-logo.png");
+	if (avatarBuffer) {
+		const mediaResult = await tryCreateMedia({
+			payload,
+			file: avatarBuffer,
+			filename: "paideia-logo.png",
+			mimeType: "image/png",
+			alt: "Admin avatar",
+			userId: adminUser.id,
+			overrideAccess: true,
+		});
+
+		if (mediaResult.ok) {
+			const updateResult = await tryUpdateUser({
+				payload,
+				userId: adminUser.id,
+				data: { avatar: mediaResult.value.media.id },
+				overrideAccess: true,
+			});
+
+			if (updateResult.ok) {
+				console.log(
+					`✅ Admin avatar assigned with media ID: ${mediaResult.value.media.id}`,
+				);
+			}
+		}
+	}
+
+	return adminUser;
+}
+
+/**
+ * Create course categories
+ */
+async function createCategories(
+	payload: Payload,
+	req: Request,
+): Promise<{ name: string; id: number }[]> {
+	const categories: { name: string; id: number }[] = [];
+
+	const stemCategory = await tryCreateCategory(payload, req, { name: "STEM" });
+	assertResultOk(stemCategory, "Failed to create STEM category");
+	categories.push({ name: "STEM", id: stemCategory.value.id });
+
+	const humanitiesCategory = await tryCreateCategory(payload, req, {
+		name: "Humanities",
+	});
+	assertResultOk(humanitiesCategory, "Failed to create Humanities category");
+	categories.push({ name: "Humanities", id: humanitiesCategory.value.id });
+
+	const csSubcat = await tryCreateCategory(payload, req, {
+		name: "Computer Science",
+		parent: stemCategory.value.id,
+	});
+	assertResultOk(csSubcat, "Failed to create Computer Science subcategory");
+	categories.push({ name: "Computer Science", id: csSubcat.value.id });
+
+	const mathSubcat = await tryCreateCategory(payload, req, {
+		name: "Mathematics",
+		parent: stemCategory.value.id,
+	});
+	assertResultOk(mathSubcat, "Failed to create Mathematics subcategory");
+	categories.push({ name: "Mathematics", id: mathSubcat.value.id });
+
+	return categories;
+}
+
+/**
+ * Create courses
+ */
+async function createCourses(
+	payload: Payload,
+	coursesData: readonly SeedData["courses"][number][],
+	adminUserId: number,
+	categories: { name: string; id: number }[],
+): Promise<Awaited<ReturnType<typeof tryCreateCourse>>["value"][]> {
+	const courses: Awaited<ReturnType<typeof tryCreateCourse>>["value"][] = [];
+
+	// Create first 6 courses with categories
+	for (let i = 0; i < 6; i++) {
+		const courseData = coursesData[i];
+		const categoryId =
+			categories.length > 0 ? categories[i % categories.length].id : undefined;
+
+		const courseResult = await tryCreateCourse({
+			payload,
+			data: {
+				title: courseData.title,
+				description: courseData.description,
+				slug: courseData.slug,
+				createdBy: adminUserId,
+				status: courseData.status,
+				category: categoryId,
+			},
+			overrideAccess: true,
+		});
+
+		assertResultOk(
+			courseResult,
+			`Failed to create course "${courseData.title}"`,
+		);
+		courses.push(courseResult.value);
+	}
+
+	// Create uncategorized course
+	const uncategorizedCourseData = coursesData[6];
+	const uncategorizedResult = await tryCreateCourse({
+		payload,
+		data: {
+			title: uncategorizedCourseData.title,
+			description: uncategorizedCourseData.description,
+			slug: uncategorizedCourseData.slug,
+			createdBy: adminUserId,
+			status: uncategorizedCourseData.status,
+		},
+		overrideAccess: true,
+	});
+
+	assertResultOk(uncategorizedResult, "Failed to create uncategorized course");
+	courses.push(uncategorizedResult.value);
+
+	return courses;
+}
+
+/**
+ * Create enrollment
+ */
+async function createEnrollment(
+	payload: Payload,
+	req: Request,
+	userId: number,
+	courseId: number,
+	role: "student" | "teacher" | "ta" | "manager",
+	status: "active" | "inactive" | "completed",
+): Promise<Awaited<ReturnType<typeof tryCreateEnrollment>>["value"]> {
+	const enrollmentResult = await tryCreateEnrollment({
+		payload,
+		userId,
+		course: courseId,
+		role,
+		status,
+		user: null,
+		req,
+		overrideAccess: true,
+	});
+
+	assertResultOk(
+		enrollmentResult,
+		`Failed to create ${role} enrollment for user ${userId}`,
+	);
+
+	return enrollmentResult.value;
+}
+
+/**
+ * Build activity module args from module data
+ */
+async function buildActivityModuleArgs(
+	moduleData: SeedData["modules"]["additional"][number],
+	adminUserId: number,
+	whiteboardFixtureLoader: () => Promise<string>,
+): Promise<CreateActivityModuleArgs> {
+	const baseArgs = {
+		title: moduleData.title,
+		description: moduleData.description,
+		status: moduleData.status,
+		userId: adminUserId,
+		overrideAccess: true,
+	};
+
+	switch (moduleData.type) {
+		case "page":
+			return {
+				...baseArgs,
+				type: "page" as const,
+				pageData: { content: moduleData.content },
+			};
+
+		case "whiteboard": {
+			const whiteboardContent = await whiteboardFixtureLoader();
+			return {
+				...baseArgs,
+				type: "whiteboard" as const,
+				whiteboardData: { content: whiteboardContent },
+			};
+		}
+
+		case "assignment":
+			return {
+				...baseArgs,
+				type: "assignment" as const,
+				assignmentData: {
+					instructions: moduleData.instructions,
+					dueDate: moduleData.dueDate,
+					maxAttempts: moduleData.maxAttempts,
+				},
+			};
+
+		case "quiz": {
+			const quizData: {
+				instructions?: string;
+				points?: number;
+				timeLimit?: number;
+				rawQuizConfig?: QuizConfig;
+			} = {
+				instructions: moduleData.instructions,
+				points: moduleData.points,
+				timeLimit: moduleData.timeLimit,
+			};
+			if (moduleData.rawQuizConfig) {
+				quizData.rawQuizConfig = moduleData.rawQuizConfig as QuizConfig;
+			}
+			return {
+				...baseArgs,
+				type: "quiz" as const,
+				quizData,
+			};
+		}
+
+		case "discussion":
+			return {
+				...baseArgs,
+				type: "discussion" as const,
+				discussionData: {
+					instructions: moduleData.instructions,
+					minReplies: moduleData.minReplies,
+					threadSorting: moduleData.threadSorting,
+				},
+			};
+
+		default:
+			throw new Error(
+				`Unknown module type: ${(moduleData as { type: string }).type}`,
+			);
+	}
+}
+
+/**
+ * Create whiteboard fixture loader with state tracking
+ */
+function createWhiteboardFixtureLoader(): () => Promise<string> {
+	let loaded = false;
+
+	return async () => {
+		if (loaded) {
+			return JSON.stringify({ shapes: [], bindings: [] });
+		}
+
+		loaded = true;
+		const fixtureContent = await getVfsFileText(
+			vfs,
+			"fixture/whiteboard-data.json",
+		);
+
+		if (!fixtureContent) {
+			console.log(
+				"⚠️  Skipping whiteboard fixture: whiteboard-data.json not found in VFS or file system, using empty default",
+			);
+			return JSON.stringify({ shapes: [], bindings: [] });
+		}
+
+		try {
+			const parsed = JSON.parse(fixtureContent);
+			return JSON.stringify(parsed);
+		} catch (error) {
+			console.error("Invalid JSON in whiteboard-data.json:", error);
+			return JSON.stringify({ shapes: [], bindings: [] });
+		}
+	};
+}
+
+/**
+ * Create activity modules
+ */
+async function createActivityModules(
+	payload: Payload,
+	modulesData: {
+		page: SeedData["modules"]["page"];
+		additional: readonly SeedData["modules"]["additional"][number][];
+	},
+	adminUserId: number,
+): Promise<{
+	pageModule: Awaited<ReturnType<typeof tryCreateActivityModule>>["value"];
+	additionalModules: Awaited<
+		ReturnType<typeof tryCreateActivityModule>
+	>["value"][];
+}> {
+	// Create page module
+	const pageModuleResult = await tryCreateActivityModule(payload, {
+		title: modulesData.page.title,
+		description: modulesData.page.description,
+		type: "page",
+		status: "published",
+		userId: adminUserId,
+		pageData: { content: modulesData.page.content },
+		overrideAccess: true,
+	});
+
+	assertResultOk(pageModuleResult, "Failed to create page module");
+
+	// Create additional modules
+	const additionalModules: Awaited<
+		ReturnType<typeof tryCreateActivityModule>
+	>["value"][] = [];
+	const whiteboardLoader = createWhiteboardFixtureLoader();
+
+	for (const moduleData of modulesData.additional) {
+		const moduleArgs = await buildActivityModuleArgs(
+			moduleData,
+			adminUserId,
+			whiteboardLoader,
+		);
+
+		const moduleResult = await tryCreateActivityModule(payload, moduleArgs);
+		assertResultOk(
+			moduleResult,
+			`Failed to create additional module "${moduleData.title}"`,
+		);
+
+		additionalModules.push(moduleResult.value);
+	}
+
+	return {
+		pageModule: pageModuleResult.value,
+		additionalModules,
+	};
+}
+
+/**
+ * Create course sections
+ */
+async function createSections(
+	payload: Payload,
+	sectionsData: readonly SeedData["sections"][number][],
+	courseId: number,
+): Promise<Awaited<ReturnType<typeof tryCreateSection>>["value"][]> {
+	const sections: Awaited<ReturnType<typeof tryCreateSection>>["value"][] = [];
+
+	for (const sectionData of sectionsData) {
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: courseId,
+				title: sectionData.title,
+				description: sectionData.description,
+			},
+			overrideAccess: true,
+		});
+
+		assertResultOk(
+			sectionResult,
+			`Failed to create course section "${sectionData.title}"`,
+		);
+
+		sections.push(sectionResult.value);
+	}
+
+	return sections;
+}
+
+/**
+ * Link modules to course sections
+ */
+async function linkModulesToSections(
+	payload: Payload,
+	req: Request,
+	courseId: number,
+	modules: Awaited<ReturnType<typeof tryCreateActivityModule>>["value"][],
+	sections: Awaited<ReturnType<typeof tryCreateSection>>["value"][],
+): Promise<
+	Awaited<ReturnType<typeof tryCreateCourseActivityModuleLink>>["value"][]
+> {
+	if (sections.length === 0) {
+		throw new Error(
+			"No sections were created, cannot link modules to sections",
+		);
+	}
+
+	const links: Awaited<
+		ReturnType<typeof tryCreateCourseActivityModuleLink>
+	>["value"][] = [];
+
+	for (let i = 0; i < modules.length; i++) {
+		const module = modules[i];
+		if (!module) continue;
+
+		const sectionIndex = i % sections.length;
+		const section = sections[sectionIndex];
+		if (!section) continue;
+
+		const linkResult = await tryCreateCourseActivityModuleLink(payload, req, {
+			course: courseId,
+			activityModule: module.id,
+			section: section.id,
+			order: Math.floor(i / sections.length),
+			overrideAccess: true,
+		});
+
+		assertResultOk(
+			linkResult,
+			`Failed to link module "${module.title}" to section "${section.title}"`,
+		);
+
+		links.push(linkResult.value);
+	}
+
+	return links;
+}
+
 export { testData };
 
 /**
@@ -82,23 +593,16 @@ export { testData };
 export const tryRunSeed = Result.wrap(
 	async (args: RunSeedArgs) => {
 		const { payload, seedData } = args;
-
-		// Use provided seedData or fall back to testData
 		const data = seedData ?? testData;
 
 		console.log("🌱 Checking if database needs seeding...");
 
-		// Check if database is fresh
 		const needsSeeding = await tryCheckFirstUser({
 			payload,
 			overrideAccess: true,
 		});
 
-		if (!needsSeeding.ok) {
-			throw new Error(
-				`Failed to check first user: ${needsSeeding.error.message}`,
-			);
-		}
+		assertResultOk(needsSeeding, "Failed to check first user");
 
 		if (!needsSeeding.value) {
 			console.log("✅ Database already has users, skipping seed");
@@ -107,610 +611,240 @@ export const tryRunSeed = Result.wrap(
 
 		console.log("🌱 Database is fresh, starting seed process...");
 
-		// Create a mock request object for functions that require it
 		const mockRequest = new Request("http://localhost:3000");
 
-		// Step 1: Register first admin user
+		// Create users
 		console.log("👤 Creating admin user...");
-		const adminResult = await tryRegisterFirstUser({
-			payload,
-			req: mockRequest,
-			email: data.admin.email,
-			password: data.admin.password,
-			firstName: data.admin.firstName,
-			lastName: data.admin.lastName,
-		});
-
-		if (!adminResult.ok) {
-			throw new Error(
-				`Failed to create admin user: ${adminResult.error.message}`,
-			);
-		}
-
-		const adminUser = adminResult.value.user;
+		const adminUser = await createAdminUser(payload, mockRequest, data.admin);
 		console.log(`✅ Admin user created with ID: ${adminUser.id}`);
 
-		// Step 1.5: Create and assign admin avatar
-		console.log("🖼️  Creating admin avatar...");
-		const adminAvatarBuffer = await getVfsFileBuffer(
-			vfs,
-			"fixture/paideia-logo.png",
-		);
-		if (adminAvatarBuffer) {
-			const adminAvatarResult = await tryCreateMedia({
-				payload,
-				file: adminAvatarBuffer,
-				filename: "paideia-logo.png",
-				mimeType: "image/png",
-				alt: "Admin avatar",
-				userId: adminUser.id,
-				// ! this is a seeding process, we can override access
-				overrideAccess: true,
-			});
-
-			if (adminAvatarResult.ok) {
-				const updateAdminResult = await tryUpdateUser({
-					payload,
-					userId: adminUser.id,
-					data: {
-						avatar: adminAvatarResult.value.media.id,
-					},
-					// ! this is a seeding process, we can override access because it is not part of the test suite and is not affected by the test suite.
-					overrideAccess: true,
-				});
-
-				if (updateAdminResult.ok) {
-					console.log(
-						`✅ Admin avatar assigned with media ID: ${adminAvatarResult.value.media.id}`,
-					);
-				}
-			}
-		} else {
-			console.log(
-				"⚠️  Skipping admin avatar creation: paideia-logo.png not found in VFS or file system",
-			);
-		}
-
-		// Step 2: Create second user (student)
 		console.log("👤 Creating student user...");
-		const studentResult = await tryCreateUser({
+		const studentUser = await createUserWithAvatar(
 			payload,
-			data: {
-				email: data.users.student.email,
-				password: data.users.student.password,
-				firstName: data.users.student.firstName,
-				lastName: data.users.student.lastName,
-				role: "student",
-			},
-			req: mockRequest,
-			overrideAccess: true,
-		});
-
-		if (!studentResult.ok) {
-			throw new Error(
-				`Failed to create student user: ${studentResult.error.message}`,
-			);
+			mockRequest,
+			{ ...data.users.student, role: "student" },
+			"fixture/gem.png",
+			"gem.png",
+		);
+		if (!studentUser) {
+			throw new Error("Failed to create student user");
 		}
-
-		const studentUser = studentResult.value;
 		console.log(`✅ Student user created with ID: ${studentUser.id}`);
 
-		// Step 2.5: Create and assign student avatar
-		console.log("🖼️  Creating student avatar...");
-		const studentAvatarBuffer = await getVfsFileBuffer(vfs, "fixture/gem.png");
-		if (studentAvatarBuffer) {
-			const studentAvatarResult = await tryCreateMedia({
-				payload,
-				file: studentAvatarBuffer,
-				filename: "gem.png",
-				mimeType: "image/png",
-				alt: "Student avatar",
-				userId: studentUser.id,
-				// ! this is a seeding process, we can override access
-				overrideAccess: true,
-			});
-
-			if (studentAvatarResult.ok) {
-				const updateStudentResult = await tryUpdateUser({
-					payload,
-					userId: studentUser.id,
-					data: {
-						avatar: studentAvatarResult.value.media.id,
-					},
-					// ! this is a seeding process, we can override access because it is not part of the test suite and is not affected by the test suite.
-					overrideAccess: true,
-				});
-
-				if (updateStudentResult.ok) {
-					console.log(
-						`✅ Student avatar assigned with media ID: ${studentAvatarResult.value.media.id}`,
-					);
-				}
-			}
-		} else {
-			console.log(
-				"⚠️  Skipping student avatar creation: gem.png not found in VFS or file system",
-			);
-		}
-
-		// Step 3: Create teacher user
 		console.log("👤 Creating teacher user...");
-		const teacherResult = await tryCreateUser({
+		const teacherUser = await createUserWithAvatar(
 			payload,
-			data: {
-				email: data.users.teacher.email,
-				password: data.users.teacher.password,
-				firstName: data.users.teacher.firstName,
-				lastName: data.users.teacher.lastName,
-				role: "student", // Users start as students, role is set via enrollment
-			},
-			req: mockRequest,
-			overrideAccess: true,
-		});
-
-		if (!teacherResult.ok) {
-			throw new Error(
-				`Failed to create teacher user: ${teacherResult.error.message}`,
-			);
+			mockRequest,
+			{ ...data.users.teacher, role: "student" },
+			null,
+			null,
+		);
+		if (!teacherUser) {
+			throw new Error("Failed to create teacher user");
 		}
-
-		const teacherUser = teacherResult.value;
 		console.log(`✅ Teacher user created with ID: ${teacherUser.id}`);
 
-		// Step 4: Create TA user
 		console.log("👤 Creating TA user...");
-		const taResult = await tryCreateUser({
+		const taUser = await createUserWithAvatar(
 			payload,
-			data: {
-				email: data.users.ta.email,
-				password: data.users.ta.password,
-				firstName: data.users.ta.firstName,
-				lastName: data.users.ta.lastName,
-				role: "student", // Users start as students, role is set via enrollment
-			},
-			req: mockRequest,
-			overrideAccess: true,
-		});
-
-		if (!taResult.ok) {
-			throw new Error(`Failed to create TA user: ${taResult.error.message}`);
+			mockRequest,
+			{ ...data.users.ta, role: "student" },
+			null,
+			null,
+		);
+		if (!taUser) {
+			throw new Error("Failed to create TA user");
 		}
-
-		const taUser = taResult.value;
 		console.log(`✅ TA user created with ID: ${taUser.id}`);
 
-		// Step 4.5: Create additional students
 		console.log("👤 Creating additional students...");
-		const additionalStudents = [];
-		for (let i = 0; i < data.users.additionalStudents.length; i++) {
-			const studentData = data.users.additionalStudents[i];
-			const studentResult = await tryCreateUser({
+		const additionalStudents: Awaited<
+			ReturnType<typeof tryCreateUser>
+		>["value"][] = [];
+		for (const studentData of data.users.additionalStudents) {
+			const student = await createUserWithAvatar(
 				payload,
-				data: {
-					email: studentData.email,
-					password: studentData.password,
-					firstName: studentData.firstName,
-					lastName: studentData.lastName,
-					role: "student",
-				},
-				req: mockRequest,
-				overrideAccess: true,
-			});
-
-			if (studentResult.ok) {
-				additionalStudents.push(studentResult.value);
-				console.log(
-					`✅ Additional student created with ID: ${studentResult.value.id}`,
-				);
+				mockRequest,
+				{ ...studentData, role: "student" },
+				null,
+				null,
+			);
+			if (student) {
+				additionalStudents.push(student);
+				console.log(`✅ Additional student created with ID: ${student.id}`);
 			}
 		}
 
-		// Step 5: Create course categories
+		// Create categories
 		console.log("🏷️  Creating course categories...");
-		const categoryResults: { name: string; id: number }[] = [];
-		const stemCategory = await tryCreateCategory(payload, mockRequest, {
-			name: "STEM",
-		});
-		if (stemCategory.ok) {
-			categoryResults.push({ name: "STEM", id: stemCategory.value.id });
-			console.log(`✅ Category created: STEM (ID: ${stemCategory.value.id})`);
-		}
-		const humanitiesCategory = await tryCreateCategory(payload, mockRequest, {
-			name: "Humanities",
-		});
-		if (humanitiesCategory.ok) {
-			categoryResults.push({
-				name: "Humanities",
-				id: humanitiesCategory.value.id,
-			});
-			console.log(
-				`✅ Category created: Humanities (ID: ${humanitiesCategory.value.id})`,
-			);
-		}
-		const csSubcat = stemCategory.ok
-			? await tryCreateCategory(payload, mockRequest, {
-					name: "Computer Science",
-					parent: stemCategory.value.id,
-				})
-			: null;
-		if (csSubcat && csSubcat.ok) {
-			categoryResults.push({ name: "Computer Science", id: csSubcat.value.id });
-			console.log(
-				`✅ Subcategory created: Computer Science (ID: ${csSubcat.value.id})`,
-			);
-		}
-		const mathSubcat = stemCategory.ok
-			? await tryCreateCategory(payload, mockRequest, {
-					name: "Mathematics",
-					parent: stemCategory.value.id,
-				})
-			: null;
-		if (mathSubcat && mathSubcat.ok) {
-			categoryResults.push({ name: "Mathematics", id: mathSubcat.value.id });
-			console.log(
-				`✅ Subcategory created: Mathematics (ID: ${mathSubcat.value.id})`,
-			);
+		const categories = await createCategories(payload, mockRequest);
+		for (const cat of categories) {
+			console.log(`✅ Category created: ${cat.name} (ID: ${cat.id})`);
 		}
 
-		// Step 6: Create multiple courses and assign categories
+		// Create courses
 		console.log("📚 Creating courses...");
-		const courses = [];
-		for (let i = 0; i < 6; i++) {
-			const courseData = data.courses[i];
-			const randomCategoryId =
-				categoryResults.length > 0
-					? categoryResults[i % categoryResults.length].id
-					: undefined;
-			const courseResult = await tryCreateCourse({
-				payload,
-				data: {
-					title: courseData.title,
-					description: courseData.description,
-					slug: courseData.slug,
-					createdBy: adminUser.id,
-					status: courseData.status,
-					// Assign to a category if available
-					category: randomCategoryId,
-				},
-				overrideAccess: true,
-			});
-
-			if (courseResult.ok) {
-				courses.push(courseResult.value);
-				console.log(`✅ Course created with ID: ${courseResult.value.id}`);
-			}
-		}
-
-		// Additionally create an uncategorized course (no category assigned)
-		console.log("📚 Creating uncategorized course...");
-		{
-			const uncategorizedCourseData = data.courses[6];
-			const uncategorizedCourseResult = await tryCreateCourse({
-				payload,
-				data: {
-					title: uncategorizedCourseData.title,
-					description: uncategorizedCourseData.description,
-					slug: uncategorizedCourseData.slug,
-					createdBy: adminUser.id,
-					status: uncategorizedCourseData.status,
-					// Intentionally omit category to create an uncategorized course
-				},
-				overrideAccess: true,
-			});
-
-			if (uncategorizedCourseResult.ok) {
-				courses.push(uncategorizedCourseResult.value);
-				console.log(
-					`✅ Uncategorized course created with ID: ${uncategorizedCourseResult.value.id}`,
-				);
-			}
-		}
-
-		const course = courses[0]; // Use first course for enrollments
-
-		// Step 6: Enroll student in course
-		console.log("🎓 Enrolling student in course...");
-		const studentEnrollmentResult = await tryCreateEnrollment({
+		const courses = await createCourses(
 			payload,
-			userId: studentUser.id,
-			course: course.id,
-			role: "student",
-			status: "active",
-			user: null,
-			req: mockRequest,
-			overrideAccess: true,
-		});
+			data.courses as readonly SeedData["courses"][number][],
+			adminUser.id,
+			categories,
+		);
+		for (const createdCourse of courses) {
+			if (createdCourse) {
+				console.log(`✅ Course created with ID: ${createdCourse.id}`);
+			}
+		}
 
-		if (!studentEnrollmentResult.ok) {
+		if (courses.length === 0) {
 			throw new Error(
-				`Failed to create student enrollment: ${studentEnrollmentResult.error.message}`,
+				"No courses were created, cannot proceed with enrollments",
 			);
 		}
 
-		const studentEnrollment = studentEnrollmentResult.value;
+		const course = courses[0];
+		if (!course) {
+			throw new Error("First course is undefined");
+		}
+
+		// Create enrollments
+		console.log("🎓 Enrolling users in course...");
+		const studentEnrollment = await createEnrollment(
+			payload,
+			mockRequest,
+			studentUser.id,
+			course.id,
+			"student",
+			"active",
+		);
+		if (!studentEnrollment) {
+			throw new Error("Failed to create student enrollment");
+		}
 		console.log(
 			`✅ Student enrollment created with ID: ${studentEnrollment.id}`,
 		);
 
-		// Step 7: Enroll teacher in course
-		console.log("🎓 Enrolling teacher in course...");
-		const teacherEnrollmentResult = await tryCreateEnrollment({
+		const teacherEnrollment = await createEnrollment(
 			payload,
-			userId: teacherUser.id,
-			course: course.id,
-			role: "teacher",
-			status: "active",
-			user: null,
-			req: mockRequest,
-			overrideAccess: true,
-		});
-
-		if (!teacherEnrollmentResult.ok) {
-			throw new Error(
-				`Failed to create teacher enrollment: ${teacherEnrollmentResult.error.message}`,
-			);
+			mockRequest,
+			teacherUser.id,
+			course.id,
+			"teacher",
+			"active",
+		);
+		if (!teacherEnrollment) {
+			throw new Error("Failed to create teacher enrollment");
 		}
-
-		const teacherEnrollment = teacherEnrollmentResult.value;
 		console.log(
 			`✅ Teacher enrollment created with ID: ${teacherEnrollment.id}`,
 		);
 
-		// Step 8: Enroll TA in course
-		console.log("🎓 Enrolling TA in course...");
-		const taEnrollmentResult = await tryCreateEnrollment({
+		const taEnrollment = await createEnrollment(
 			payload,
-			userId: taUser.id,
-			course: course.id,
-			role: "ta",
-			status: "active",
-			user: null,
-			req: mockRequest,
-			overrideAccess: true,
-		});
-
-		if (!taEnrollmentResult.ok) {
-			throw new Error(
-				`Failed to create TA enrollment: ${taEnrollmentResult.error.message}`,
-			);
+			mockRequest,
+			taUser.id,
+			course.id,
+			"ta",
+			"active",
+		);
+		if (!taEnrollment) {
+			throw new Error("Failed to create TA enrollment");
 		}
-
-		const taEnrollment = taEnrollmentResult.value;
 		console.log(`✅ TA enrollment created with ID: ${taEnrollment.id}`);
 
-		// Step 8.6: Enroll admin as manager in another course
 		if (courses.length > 1) {
-			console.log("🧑‍💼 Enrolling admin as manager in a course...");
-			const managerEnrollmentResult = await tryCreateEnrollment({
-				payload,
-				userId: adminUser.id,
-				course: courses[1].id,
-				role: "manager",
-				status: "active",
-				user: null,
-				req: mockRequest,
-				overrideAccess: true,
-			});
-			if (managerEnrollmentResult.ok) {
+			const secondCourse = courses[1];
+			if (secondCourse) {
+				console.log("🧑‍💼 Enrolling admin as manager...");
+				await createEnrollment(
+					payload,
+					mockRequest,
+					adminUser.id,
+					secondCourse.id,
+					"manager",
+					"active",
+				);
 				console.log(
-					`✅ Admin enrolled as manager in course ID: ${courses[1].id} (enrollment ID: ${managerEnrollmentResult.value.id})`,
+					`✅ Admin enrolled as manager in course ID: ${secondCourse.id}`,
 				);
 			}
 		}
 
-		// Step 8.5: Enroll additional students
 		console.log("🎓 Enrolling additional students...");
-		const additionalEnrollments = [];
+		const additionalEnrollments: Awaited<
+			ReturnType<typeof tryCreateEnrollment>
+		>["value"][] = [];
 		for (let i = 0; i < additionalStudents.length; i++) {
 			const student = additionalStudents[i];
+			if (!student) continue;
+
 			const status =
 				data.enrollmentStatuses[i % data.enrollmentStatuses.length];
-			const enrollmentResult = await tryCreateEnrollment({
-				payload,
-				userId: student.id,
-				course: course.id,
-				role: "student",
-				status,
-				user: null,
-				req: mockRequest,
-				overrideAccess: true,
-			});
-
-			if (enrollmentResult.ok) {
-				additionalEnrollments.push(enrollmentResult.value);
-				console.log(
-					`✅ Additional student enrollment created with ID: ${enrollmentResult.value.id}`,
-				);
-			}
-		}
-
-		// Step 9: Create page module
-		console.log("📄 Creating page module...");
-		const pageModuleResult = await tryCreateActivityModule(payload, {
-			title: data.modules.page.title,
-			description: data.modules.page.description,
-			type: "page",
-			status: "published",
-			userId: adminUser.id,
-			pageData: {
-				content: data.modules.page.content,
-			},
-		});
-
-		if (!pageModuleResult.ok) {
-			throw new Error(
-				`Failed to create page module: ${pageModuleResult.error.message}`,
-			);
-		}
-
-		const pageModule = pageModuleResult.value;
-		console.log(`✅ Page module created with ID: ${pageModule.id}`);
-
-		// Step 9.5: Create additional activity modules
-		console.log("📄 Creating additional activity modules...");
-		const additionalModules = [];
-
-		// Track if we've loaded the fixture whiteboard data
-		let whiteboardFixtureLoaded = false;
-
-		for (let i = 0; i < data.modules.additional.length; i++) {
-			const moduleData = data.modules.additional[i];
-			const baseArgs = {
-				title: moduleData.title,
-				description: moduleData.description,
-				status: moduleData.status,
-				userId: adminUser.id,
-			};
-
-			let moduleArgs: CreateActivityModuleArgs;
-			if (moduleData.type === "page") {
-				moduleArgs = {
-					...baseArgs,
-					type: "page" as const,
-					pageData: { content: moduleData.content },
-				};
-			} else if (moduleData.type === "whiteboard") {
-				// Use fixture whiteboard data for the first whiteboard
-				let whiteboardContent: string;
-				if (whiteboardFixtureLoaded) {
-					whiteboardContent = JSON.stringify({ shapes: [], bindings: [] });
-				} else {
-					const fixtureContent = await getVfsFileText(
-						vfs,
-						"fixture/whiteboard-data.json",
-					);
-					if (!fixtureContent) {
-						console.log(
-							"⚠️  Skipping whiteboard fixture: whiteboard-data.json not found in VFS or file system, using empty default",
-						);
-						whiteboardContent = JSON.stringify({ shapes: [], bindings: [] });
-					} else {
-						// Validate and parse JSON to ensure it's valid before saving
-						try {
-							const parsed = JSON.parse(fixtureContent);
-							// Re-stringify to ensure consistent formatting
-							whiteboardContent = JSON.stringify(parsed);
-						} catch (error) {
-							console.error("Invalid JSON in whiteboard-data.json:", error);
-							// Fallback to empty content if JSON is invalid
-							whiteboardContent = JSON.stringify({ shapes: [], bindings: [] });
-						}
-					}
-					whiteboardFixtureLoaded = true;
-				}
-
-				moduleArgs = {
-					...baseArgs,
-					type: "whiteboard" as const,
-					whiteboardData: {
-						content: whiteboardContent,
-					},
-				};
-			} else if (moduleData.type === "assignment") {
-				moduleArgs = {
-					...baseArgs,
-					type: "assignment" as const,
-					assignmentData: {
-						instructions: moduleData.instructions,
-						dueDate: moduleData.dueDate,
-						maxAttempts: moduleData.maxAttempts,
-					},
-				};
-			} else if (moduleData.type === "quiz") {
-				const quizData: {
-					instructions?: string;
-					points?: number;
-					timeLimit?: number;
-					rawQuizConfig?: QuizConfig;
-				} = {
-					instructions: moduleData.instructions,
-					points: moduleData.points,
-					timeLimit: moduleData.timeLimit,
-				};
-				if (moduleData.rawQuizConfig) {
-					quizData.rawQuizConfig = moduleData.rawQuizConfig as QuizConfig;
-				}
-				moduleArgs = {
-					...baseArgs,
-					type: "quiz" as const,
-					quizData,
-				};
-			} else {
-				moduleArgs = {
-					...baseArgs,
-					type: "discussion" as const,
-					discussionData: {
-						instructions: moduleData.instructions,
-						minReplies: moduleData.minReplies,
-						threadSorting: moduleData.threadSorting,
-					},
-				};
-			}
-
-			const moduleResult = await tryCreateActivityModule(payload, moduleArgs);
-
-			if (moduleResult.ok) {
-				additionalModules.push(moduleResult.value);
-				console.log(
-					`✅ Additional module created with ID: ${moduleResult.value.id} (${moduleResult.value.type})`,
-				);
-			}
-		}
-
-		// Step 10: Create sections for the course
-		console.log("📁 Creating course sections...");
-		const sections = [];
-
-		for (let i = 0; i < data.sections.length; i++) {
-			const sectionData = data.sections[i];
-			const sectionResult = await tryCreateSection({
-				payload,
-				data: {
-					course: course.id,
-					title: sectionData.title,
-					description: sectionData.description,
-				},
-				overrideAccess: true,
-			});
-
-			if (sectionResult.ok) {
-				sections.push(sectionResult.value);
-				console.log(
-					`✅ Course section created with ID: ${sectionResult.value.id} (${sectionData.title})`,
-				);
-			}
-		}
-
-		// Step 11: Link modules to course sections
-		console.log("🔗 Linking modules to course sections...");
-		const links = [];
-		const allModules = [pageModule, ...additionalModules];
-
-		// Distribute modules across sections
-		for (let i = 0; i < allModules.length; i++) {
-			const module = allModules[i];
-			const sectionIndex = i % sections.length;
-			const section = sections[sectionIndex];
-
-			const linkResult = await tryCreateCourseActivityModuleLink(
+			const enrollment = await createEnrollment(
 				payload,
 				mockRequest,
-				{
-					course: course.id,
-					activityModule: module.id,
-					section: section.id,
-					order: Math.floor(i / sections.length), // Distribute order within each section
-				},
+				student.id,
+				course.id,
+				"student",
+				status,
 			);
-
-			if (linkResult.ok) {
-				links.push(linkResult.value);
+			if (enrollment) {
+				additionalEnrollments.push(enrollment);
 				console.log(
-					`✅ Module ${module.title} linked to section ${section.title}`,
+					`✅ Additional student enrollment created with ID: ${enrollment.id}`,
 				);
 			}
 		}
 
+		// Create activity modules
+		console.log("📄 Creating activity modules...");
+		const { pageModule, additionalModules } = await createActivityModules(
+			payload,
+			{
+				page: data.modules.page,
+				additional: data.modules
+					.additional as readonly SeedData["modules"]["additional"][number][],
+			},
+			adminUser.id,
+		);
+		if (!pageModule) {
+			throw new Error("Failed to create page module");
+		}
+		console.log(`✅ Page module created with ID: ${pageModule.id}`);
+		console.log(
+			`✅ Additional modules created: ${additionalModules.length} modules`,
+		);
+
+		// Create sections
+		console.log("📁 Creating course sections...");
+		const sections = await createSections(
+			payload,
+			data.sections as readonly SeedData["sections"][number][],
+			course.id,
+		);
+		for (const section of sections) {
+			if (section) {
+				console.log(`✅ Course section created with ID: ${section.id}`);
+			}
+		}
+
+		// Link modules to sections
+		console.log("🔗 Linking modules to course sections...");
+		const allModules = [pageModule, ...additionalModules];
+		const links = await linkModulesToSections(
+			payload,
+			mockRequest,
+			course.id,
+			allModules,
+			sections,
+		);
+		for (const link of links) {
+			if (link) {
+				console.log(`✅ Module linked to section (ID: ${link.id})`);
+			}
+		}
+
+		// Summary
 		console.log("🎉 Seed process completed successfully!");
 		console.log("📊 Summary:");
 		console.log(`   - Admin user: ${adminUser.email} (ID: ${adminUser.id})`);

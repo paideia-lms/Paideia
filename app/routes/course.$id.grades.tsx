@@ -139,7 +139,8 @@ export const action = async ({
 		const sortOrder = sortOrderResult.value;
 
 		// Create gradebook item
-		const createResult = await tryCreateGradebookItem(payload, request, {
+		const createResult = await tryCreateGradebookItem({
+			payload,
 			courseId: Number(courseId),
 			categoryId: parsedData.data.categoryId ?? null,
 			name: parsedData.data.name,
@@ -149,6 +150,9 @@ export const action = async ({
 			weight: parsedData.data.weight,
 			extraCredit: parsedData.data.extraCredit ?? false,
 			sortOrder,
+			user: currentUser,
+			req: request,
+			overrideAccess: false,
 		});
 
 		if (!createResult.ok) {
