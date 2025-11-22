@@ -399,7 +399,7 @@ export const middleware = [
 	/**
 	 * set the course context
 	 */
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const currentUser =
@@ -438,12 +438,8 @@ export const middleware = [
 				const sectionContext = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					user: currentUser
-						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
-						: null,
+					user: currentUser,
+					req: request,
 				});
 
 				if (!sectionContext.ok) return;
@@ -469,7 +465,7 @@ export const middleware = [
 		}
 	},
 	// set the course section context
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
@@ -489,12 +485,8 @@ export const middleware = [
 				const sectionResult = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					user: currentUser
-						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
-						: null,
+					user: currentUser,
+					req: request,
 				});
 
 				if (sectionResult.ok) {
@@ -520,10 +512,19 @@ export const middleware = [
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		if (userSession?.isAuthenticated && currentUser) {
+			const typedUser = {
+				...currentUser,
+				collection: "users" as const,
+				avatar: currentUser.avatar
+					? typeof currentUser.avatar === "number"
+						? currentUser.avatar
+						: currentUser.avatar.id
+					: undefined,
+			};
 			const userAccessContext = await getUserAccessContext(
 				payload,
 				currentUser.id,
-				currentUser,
+				typedUser as any,
 			);
 			context.set(userAccessContextKey, userAccessContext);
 		}
@@ -556,7 +557,19 @@ export const middleware = [
 							userAccessContext,
 							currentUser,
 						)
-						: await getUserProfileContext(payload, profileUserId, currentUser);
+						: await getUserProfileContext(
+							payload,
+							profileUserId,
+							{
+								...currentUser,
+								collection: "users" as const,
+								avatar: currentUser.avatar
+									? typeof currentUser.avatar === "number"
+										? currentUser.avatar
+										: currentUser.avatar.id
+									: undefined,
+							} as any,
+						);
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -607,12 +620,7 @@ export const middleware = [
 					payload,
 					Number(moduleLinkId),
 					courseContext.courseId,
-					currentUser
-						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
-						: null,
+					currentUser,
 					enrolmentContext?.enrolment ?? null,
 				);
 
@@ -644,11 +652,8 @@ export const middleware = [
 				const userModuleContextResult = await tryGetUserModuleContext(
 					payload,
 					moduleId,
-					{
-						...currentUser,
-						avatar: currentUser?.avatar?.id,
-					},
-					request
+					currentUser,
+					request,
 				);
 
 				if (userModuleContextResult.ok) {

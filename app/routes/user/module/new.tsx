@@ -1,6 +1,6 @@
-import { Button, Container, Paper, Select, Stack, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
+import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { useState } from "react";
 import {
 	type ActionFunctionArgs,
 	href,
@@ -33,11 +33,10 @@ import type { z } from "zod";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
-	getInitialFormValues,
+	getInitialFormValuesForType,
 	transformFormValues,
 	transformToActivityData,
 } from "~/utils/activity-module-schema";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
@@ -110,11 +109,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 						filename: fileUpload.name,
 						mimeType: fileUpload.type || "application/octet-stream",
 						userId: currentUser.id,
-						user: {
-							...currentUser,
-							collection: "users",
-							avatar: currentUser.avatar?.id ?? undefined,
-						},
+						user: currentUser,
 						req: { transactionID },
 					});
 
@@ -278,7 +273,7 @@ export function useCreateModule() {
 
 	const createModule = (values: ActivityModuleFormValues) => {
 		// Get files from form state if file type
-		const files = values.fileFiles || [];
+		const files = values.type === "file" ? values.fileFiles : [];
 
 		// If files are present, use FormData with MULTIPART encoding
 		if (files.length > 0 && values.type === "file") {
@@ -333,21 +328,7 @@ export function useCreateModule() {
 export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 	const { uploadLimit } = loaderData;
 	const { createModule, isLoading } = useCreateModule();
-
-	const form = useForm<
-		ActivityModuleFormValues,
-		(values: ActivityModuleFormValues) => ActivityModuleFormValues
-	>({
-		mode: "uncontrolled",
-		cascadeUpdates: true,
-		initialValues: getInitialFormValues(),
-		validate: {
-			title: (value) =>
-				value.trim().length === 0 ? "Title is required" : null,
-		},
-	});
-
-	const selectedType = useFormWatchForceUpdate(form, "type");
+	const [selectedType, setSelectedType] = useState<ActivityModuleFormValues["type"]>("page");
 
 	return (
 		<Container size="md" py="xl">
@@ -370,43 +351,68 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 					Create New Activity Module
 				</Title>
 
-				<form
-					onSubmit={form.onSubmit((values) => {
-						createModule(values);
-					})}
-				>
-					<Stack gap="md">
-						<Select
-							{...form.getInputProps("type")}
-							key={form.key("type")}
-							label="Module Type"
-							placeholder="Select module type"
-							required
-							withAsterisk
-							data={[
-								{ value: "page", label: "Page" },
-								{ value: "whiteboard", label: "Whiteboard" },
-								{ value: "file", label: "File" },
-								{ value: "assignment", label: "Assignment" },
-								{ value: "quiz", label: "Quiz" },
-								{ value: "discussion", label: "Discussion" },
-							]}
+				<Stack gap="md">
+					<Select
+						value={selectedType}
+						onChange={(value) => setSelectedType(value as ActivityModuleFormValues["type"])}
+						label="Module Type"
+						placeholder="Select module type"
+						required
+						withAsterisk
+						data={[
+							{ value: "page", label: "Page" },
+							{ value: "whiteboard", label: "Whiteboard" },
+							{ value: "file", label: "File" },
+							{ value: "assignment", label: "Assignment" },
+							{ value: "quiz", label: "Quiz" },
+							{ value: "discussion", label: "Discussion" },
+						]}
+					/>
+
+					{selectedType === "page" && (
+						<PageForm
+							initialValues={getInitialFormValuesForType("page") as any}
+							onSubmit={(values) => createModule(values)}
+							isLoading={isLoading}
 						/>
-
-						{selectedType === "page" && <PageForm form={form} />}
-						{selectedType === "whiteboard" && <WhiteboardForm form={form} />}
-						{selectedType === "file" && (
-							<FileForm form={form} uploadLimit={uploadLimit} />
-						)}
-						{selectedType === "assignment" && <AssignmentForm form={form} />}
-						{selectedType === "quiz" && <QuizForm form={form} />}
-						{selectedType === "discussion" && <DiscussionForm form={form} />}
-
-						<Button type="submit" size="lg" mt="lg" loading={isLoading}>
-							Create Module
-						</Button>
-					</Stack>
-				</form>
+					)}
+					{selectedType === "whiteboard" && (
+						<WhiteboardForm
+							initialValues={getInitialFormValuesForType("whiteboard") as any}
+							onSubmit={(values) => createModule(values)}
+							isLoading={isLoading}
+						/>
+					)}
+					{selectedType === "file" && (
+						<FileForm
+							initialValues={getInitialFormValuesForType("file") as any}
+							onSubmit={(values) => createModule(values)}
+							uploadLimit={uploadLimit}
+							isLoading={isLoading}
+						/>
+					)}
+					{selectedType === "assignment" && (
+						<AssignmentForm
+							initialValues={getInitialFormValuesForType("assignment") as any}
+							onSubmit={(values) => createModule(values)}
+							isLoading={isLoading}
+						/>
+					)}
+					{selectedType === "quiz" && (
+						<QuizForm
+							initialValues={getInitialFormValuesForType("quiz") as any}
+							onSubmit={(values) => createModule(values)}
+							isLoading={isLoading}
+						/>
+					)}
+					{selectedType === "discussion" && (
+						<DiscussionForm
+							initialValues={getInitialFormValuesForType("discussion") as any}
+							onSubmit={(values) => createModule(values)}
+							isLoading={isLoading}
+						/>
+					)}
+				</Stack>
 			</Paper>
 		</Container>
 	);

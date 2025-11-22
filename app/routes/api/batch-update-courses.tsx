@@ -59,11 +59,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				...(status ? { status } : {}),
 				...(category !== undefined ? { category: category ?? null } : {}),
 			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			overrideAccess: true,
 		});
 

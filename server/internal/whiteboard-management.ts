@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -14,7 +14,7 @@ export interface CreateWhiteboardArgs {
 	payload: Payload;
 	content?: string;
 	userId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -23,7 +23,7 @@ export interface UpdateWhiteboardArgs {
 	payload: Payload;
 	id: number;
 	content?: string;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -31,7 +31,7 @@ export interface UpdateWhiteboardArgs {
 export interface DeleteWhiteboardArgs {
 	payload: Payload;
 	id: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -39,7 +39,7 @@ export interface DeleteWhiteboardArgs {
 export interface GetWhiteboardByIdArgs {
 	payload: Payload;
 	id: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }

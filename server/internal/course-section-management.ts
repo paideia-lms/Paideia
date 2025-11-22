@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import {
 	CourseActivityModuleLinks,
 	CourseSections,
@@ -16,8 +16,10 @@ import type { CourseModuleSettingsV1 } from "../json/course-module-settings.type
 import type {
 	CourseActivityModuleLink,
 	CourseSection,
-	User,
+	ActivityModule as PayloadActivityModule,
 } from "../payload-types";
+
+
 
 // ============================================================================
 // Basic CRUD Operations
@@ -32,7 +34,7 @@ export interface CreateSectionArgs {
 		parentSection?: number;
 		contentOrder?: number;
 	};
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -46,7 +48,7 @@ export interface UpdateSectionArgs {
 		parentSection?: number;
 		contentOrder?: number;
 	};
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -54,7 +56,7 @@ export interface UpdateSectionArgs {
 export interface FindSectionByIdArgs {
 	payload: Payload;
 	sectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -62,7 +64,7 @@ export interface FindSectionByIdArgs {
 export interface DeleteSectionArgs {
 	payload: Payload;
 	sectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -462,7 +464,7 @@ export const tryDeleteSection = Result.wrap(
 export interface FindSectionsByCourseArgs {
 	payload: Payload;
 	courseId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -470,7 +472,7 @@ export interface FindSectionsByCourseArgs {
 export interface FindRootSectionsArgs {
 	payload: Payload;
 	courseId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -478,7 +480,7 @@ export interface FindRootSectionsArgs {
 export interface FindChildSectionsArgs {
 	payload: Payload;
 	parentSectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -486,7 +488,7 @@ export interface FindChildSectionsArgs {
 export interface GetSectionTreeArgs {
 	payload: Payload;
 	courseId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -494,7 +496,7 @@ export interface GetSectionTreeArgs {
 export interface GetSectionAncestorsArgs {
 	payload: Payload;
 	sectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -502,7 +504,7 @@ export interface GetSectionAncestorsArgs {
 export interface GetSectionDepthArgs {
 	payload: Payload;
 	sectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -798,7 +800,7 @@ export interface ReorderSectionArgs {
 	payload: Payload;
 	sectionId: number;
 	newContentOrder: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -806,7 +808,7 @@ export interface ReorderSectionArgs {
 export interface ReorderSectionsArgs {
 	payload: Payload;
 	sectionIds: number[];
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -963,7 +965,7 @@ export interface NestSectionArgs {
 	payload: Payload;
 	sectionId: number;
 	newParentSectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -971,7 +973,7 @@ export interface NestSectionArgs {
 export interface UnnestSectionArgs {
 	payload: Payload;
 	sectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -981,7 +983,7 @@ export interface MoveSectionArgs {
 	sectionId: number;
 	newParentSectionId: number | null;
 	newOrder: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1359,7 +1361,7 @@ export interface AddActivityModuleToSectionArgs {
 	activityModuleId: number;
 	sectionId: number;
 	order?: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1367,7 +1369,7 @@ export interface AddActivityModuleToSectionArgs {
 export interface RemoveActivityModuleFromSectionArgs {
 	payload: Payload;
 	linkId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1376,7 +1378,7 @@ export interface ReorderActivityModulesInSectionArgs {
 	payload: Payload;
 	sectionId: number;
 	linkIds: number[];
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1386,7 +1388,7 @@ export interface MoveActivityModuleBetweenSectionsArgs {
 	linkId: number;
 	newSectionId: number;
 	newOrder?: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1793,7 +1795,7 @@ export interface ValidateNoCircularReferenceArgs {
 export interface GetSectionModulesCountArgs {
 	payload: Payload;
 	sectionId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -1866,8 +1868,8 @@ export const tryGetSectionModulesCount = Result.wrap(
 export interface ActivityModuleSummary {
 	id: number;
 	title: string;
-	type: "page" | "assignment" | "quiz" | "discussion" | "whiteboard";
-	status: "draft" | "published" | "archived";
+	type: PayloadActivityModule["type"];
+	status: PayloadActivityModule["status"];
 }
 
 export interface CourseStructureItem {
@@ -1900,7 +1902,7 @@ export interface CourseStructure {
 export interface GetCourseStructureArgs {
 	payload: Payload;
 	courseId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -2151,7 +2153,7 @@ async function checkCircularReference(
 
 export interface GeneralMoveArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	source: {
@@ -2207,117 +2209,117 @@ export const tryGeneralMove = Result.wrap(
 			const sourceItem =
 				source.type === "section"
 					? await payload
-							.findByID({
-								collection: CourseSections.slug,
-								id: source.id,
-								user,
-								req: req ? { ...req, transactionID } : { transactionID },
-								overrideAccess: true,
-							})
-							.then((result) => {
-								const parentSection = result.parentSection;
-								assertZodInternal(
-									"tryGeneralMove: Parent section is required",
-									parentSection,
-									z.object({ id: z.number() }).nullish(),
-								);
-								const course = result.course;
-								assertZodInternal(
-									"tryGeneralMove: Course is required",
-									course,
-									z.object({ id: z.number() }),
-								);
-								return {
-									...result,
-									parentSection,
-									course,
-								};
-							})
+						.findByID({
+							collection: CourseSections.slug,
+							id: source.id,
+							user,
+							req: req ? { ...req, transactionID } : { transactionID },
+							overrideAccess: true,
+						})
+						.then((result) => {
+							const parentSection = result.parentSection;
+							assertZodInternal(
+								"tryGeneralMove: Parent section is required",
+								parentSection,
+								z.object({ id: z.number() }).nullish(),
+							);
+							const course = result.course;
+							assertZodInternal(
+								"tryGeneralMove: Course is required",
+								course,
+								z.object({ id: z.number() }),
+							);
+							return {
+								...result,
+								parentSection,
+								course,
+							};
+						})
 					: await payload
-							.findByID({
-								collection: CourseActivityModuleLinks.slug,
-								id: source.id,
-								user,
-								req: req ? { ...req, transactionID } : { transactionID },
-								overrideAccess: true,
-							})
-							.then((result) => {
-								const section = result.section;
-								assertZodInternal(
-									"tryGeneralMove: Section is required",
-									section,
-									z.object({ id: z.number() }),
-								);
-								const course = result.course;
-								assertZodInternal(
-									"tryGeneralMove: Course is required",
-									course,
-									z.object({ id: z.number() }),
-								);
-								return {
-									...result,
-									section,
-									course,
-								};
-							});
+						.findByID({
+							collection: CourseActivityModuleLinks.slug,
+							id: source.id,
+							user,
+							req: req ? { ...req, transactionID } : { transactionID },
+							overrideAccess: true,
+						})
+						.then((result) => {
+							const section = result.section;
+							assertZodInternal(
+								"tryGeneralMove: Section is required",
+								section,
+								z.object({ id: z.number() }),
+							);
+							const course = result.course;
+							assertZodInternal(
+								"tryGeneralMove: Course is required",
+								course,
+								z.object({ id: z.number() }),
+							);
+							return {
+								...result,
+								section,
+								course,
+							};
+						});
 
 			// Get target item (skip for root moves)
 			const targetItem =
 				target.type === "section"
 					? await payload
-							.findByID({
-								collection: CourseSections.slug,
-								id: target.id,
-								user,
-								req: req ? { ...req, transactionID } : { transactionID },
-								overrideAccess: true,
-							})
-							.then((result) => {
-								const parentSection = result.parentSection;
-								assertZodInternal(
-									"tryGeneralMove: Parent section is required",
-									parentSection,
-									z.object({ id: z.number() }).nullish(),
-								);
-								const course = result.course;
-								assertZodInternal(
-									"tryGeneralMove: Course is required",
-									course,
-									z.object({ id: z.number() }),
-								);
-								return {
-									...result,
-									parentSection,
-									course,
-								};
-							})
+						.findByID({
+							collection: CourseSections.slug,
+							id: target.id,
+							user,
+							req: req ? { ...req, transactionID } : { transactionID },
+							overrideAccess: true,
+						})
+						.then((result) => {
+							const parentSection = result.parentSection;
+							assertZodInternal(
+								"tryGeneralMove: Parent section is required",
+								parentSection,
+								z.object({ id: z.number() }).nullish(),
+							);
+							const course = result.course;
+							assertZodInternal(
+								"tryGeneralMove: Course is required",
+								course,
+								z.object({ id: z.number() }),
+							);
+							return {
+								...result,
+								parentSection,
+								course,
+							};
+						})
 					: await payload
-							.findByID({
-								collection: CourseActivityModuleLinks.slug,
-								id: target.id,
-								user,
-								req: req ? { ...req, transactionID } : { transactionID },
-								overrideAccess: true,
-							})
-							.then((result) => {
-								const section = result.section;
-								assertZodInternal(
-									"tryGeneralMove: Section is required",
-									section,
-									z.object({ id: z.number() }),
-								);
-								const course = result.course;
-								assertZodInternal(
-									"tryGeneralMove: Course is required",
-									course,
-									z.object({ id: z.number() }),
-								);
-								return {
-									...result,
-									section,
-									course,
-								};
-							});
+						.findByID({
+							collection: CourseActivityModuleLinks.slug,
+							id: target.id,
+							user,
+							req: req ? { ...req, transactionID } : { transactionID },
+							overrideAccess: true,
+						})
+						.then((result) => {
+							const section = result.section;
+							assertZodInternal(
+								"tryGeneralMove: Section is required",
+								section,
+								z.object({ id: z.number() }),
+							);
+							const course = result.course;
+							assertZodInternal(
+								"tryGeneralMove: Course is required",
+								course,
+								z.object({ id: z.number() }),
+							);
+							return {
+								...result,
+								section,
+								course,
+							};
+						});
 			// Determine course ID
 			const sourceCourseId = sourceItem.course.id;
 
@@ -2455,19 +2457,19 @@ export const tryGeneralMove = Result.wrap(
 			const finalResult =
 				source.type === "section"
 					? await payload.findByID({
-							collection: CourseSections.slug,
-							id: source.id,
-							user,
-							req: req ? { ...req, transactionID } : { transactionID },
-							overrideAccess: true,
-						})
+						collection: CourseSections.slug,
+						id: source.id,
+						user,
+						req: req ? { ...req, transactionID } : { transactionID },
+						overrideAccess: true,
+					})
 					: await payload.findByID({
-							collection: CourseActivityModuleLinks.slug,
-							id: source.id,
-							user,
-							req: req ? { ...req, transactionID } : { transactionID },
-							overrideAccess: true,
-						});
+						collection: CourseActivityModuleLinks.slug,
+						id: source.id,
+						user,
+						req: req ? { ...req, transactionID } : { transactionID },
+						overrideAccess: true,
+					});
 
 			await payload.db.commitTransaction(transactionID);
 			return finalResult;

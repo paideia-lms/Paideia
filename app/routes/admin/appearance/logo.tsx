@@ -160,10 +160,7 @@ export const action = async ({
 		) {
 			const clearResult = await tryClearLogo({
 				payload,
-				user: {
-					...currentUser,
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				field,
 				overrideAccess: false,
 			});
@@ -221,11 +218,7 @@ export const action = async ({
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -273,10 +266,7 @@ export const action = async ({
 
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id ?? undefined,
-			},
+			user: currentUser,
 			data: updateData,
 			req: { transactionID },
 			overrideAccess: false,

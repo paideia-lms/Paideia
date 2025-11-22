@@ -65,10 +65,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		overrideAccess: false,
 	});
 
@@ -254,19 +251,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 																12,
 															)}
 														>

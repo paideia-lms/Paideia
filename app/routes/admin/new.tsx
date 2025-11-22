@@ -125,11 +125,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					mimeType: fileUpload.type,
 					alt: "User avatar",
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -188,10 +184,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				role: parsed.data.role,
 				avatar: parsed.data.avatar ?? undefined,
 			},
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			overrideAccess: true,
 			req: { ...request, transactionID },
 		});

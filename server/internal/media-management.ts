@@ -19,6 +19,7 @@ import {
 } from "~/utils/error";
 import { envVars } from "../env";
 import type { Media } from "../payload-types";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 
 export interface CreateMediaArgs {
 	payload: Payload;
@@ -1295,19 +1296,7 @@ export const tryRenameMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const { transactionID, isTransactionCreated, reqWithTransaction } = await handleTransactionId(payload, req);
 
 		try {
 			// Get the media record
@@ -1347,7 +1336,7 @@ export const tryRenameMedia = Result.wrap(
 			// If the new filename is the same as the old one, just return the media
 			if (oldFilename === newFilename) {
 				// Commit transaction only if we created it
-				if (!transactionWasProvided) {
+				if (isTransactionCreated) {
 					await payload.db.commitTransaction(transactionID);
 				}
 				return { media };
@@ -1399,7 +1388,7 @@ export const tryRenameMedia = Result.wrap(
 			});
 
 			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
+			if (isTransactionCreated) {
 				await payload.db.commitTransaction(transactionID);
 			}
 
@@ -1408,7 +1397,7 @@ export const tryRenameMedia = Result.wrap(
 			};
 		} catch (error) {
 			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
+			if (isTransactionCreated) {
 				await payload.db.rollbackTransaction(transactionID);
 			}
 			throw error;

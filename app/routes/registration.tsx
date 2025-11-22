@@ -99,14 +99,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 	}
 
 	// Respect registration settings unless creating the first user
-	const currentUserRaw =
-		userSession?.effectiveUser || userSession?.authenticatedUser || null;
-	const currentUser = currentUserRaw
-		? { ...currentUserRaw, avatar: currentUserRaw.avatar?.id }
-		: null;
+	const currentUser =
+		userSession?.effectiveUser ?? userSession?.authenticatedUser;
 	const settingsResult = await tryGetRegistrationSettings({
 		payload,
-		user: currentUser || null,
+		user: currentUser,
+		req: request,
 		// ! this has override access because it is a system request, we don't care about access control
 		overrideAccess: true,
 	});

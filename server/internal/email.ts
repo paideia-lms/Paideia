@@ -1,4 +1,4 @@
-import type { BasePayload } from "payload";
+import type { BasePayload, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { EmailSendError } from "~/utils/error";
 import type { User } from "../payload-types";
@@ -8,7 +8,7 @@ export type TrySendEmailArgs = {
 	to: string;
 	subject: string;
 	html: string;
-	user: Omit<User, "avatar" | "direction" | "theme"> & { avatar?: string | null };
+	user?: Omit<TypedUser, "avatar" | "direction" | "theme">;
 	overrideAccess: boolean;
 };
 

@@ -1715,13 +1715,13 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 		}
 
 		// 2. Get courses from enrollments
-		const enrollmentsResult = await tryFindEnrollmentsByUser(
+		const enrollmentsResult = await tryFindEnrollmentsByUser({
 			payload,
 			userId,
 			user,
 			req,
 			overrideAccess,
-		);
+		});
 		if (enrollmentsResult.ok) {
 			for (const enrollment of enrollmentsResult.value) {
 				// Get course details

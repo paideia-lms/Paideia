@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 import type { User } from "../payload-types";
@@ -9,7 +9,7 @@ import { tryGetSitePolicies } from "./site-policies";
 
 export interface GetSystemGlobalsArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }

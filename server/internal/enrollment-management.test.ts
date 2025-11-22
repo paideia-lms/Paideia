@@ -79,10 +79,11 @@ describe("Enrollment Management Functions", () => {
 		test("should create a new enrollment successfully", async () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUserId,
+				userId: testUserId,
 				course: testCourseId,
 				role: "student",
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			};
 
@@ -111,10 +112,11 @@ describe("Enrollment Management Functions", () => {
 		test("should fail when trying to create duplicate enrollment", async () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUserId,
+				userId: testUserId,
 				course: testCourseId,
 				role: "teacher",
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			};
 
@@ -140,9 +142,10 @@ describe("Enrollment Management Functions", () => {
 		test("should fail when course ID is missing", async () => {
 			const enrollmentArgs = {
 				payload,
-				user: testUserId,
+				userId: testUserId,
 				role: "student",
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			} as CreateEnrollmentArgs;
 
@@ -154,9 +157,10 @@ describe("Enrollment Management Functions", () => {
 		test("should fail when role is missing", async () => {
 			const enrollmentArgs = {
 				payload,
-				user: testUserId,
+				userId: testUserId,
 				course: testCourseId,
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			} as CreateEnrollmentArgs;
 
@@ -185,7 +189,8 @@ describe("Enrollment Management Functions", () => {
 
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUser2.id,
+				userId: testUser2.id,
+				user: null,
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -262,7 +267,8 @@ describe("Enrollment Management Functions", () => {
 
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUser3.id,
+				userId: testUser3.id,
+				user: null,
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -276,13 +282,13 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should delete enrollment successfully", async () => {
-			const result = await tryDeleteEnrollment(
+			const result = await tryDeleteEnrollment({
 				payload,
 				enrollmentId,
-				null,
-				undefined,
-				true,
-			);
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -291,25 +297,25 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should fail when enrollment ID is missing", async () => {
-			const result = await tryDeleteEnrollment(
+			const result = await tryDeleteEnrollment({
 				payload,
-				0,
-				null,
-				undefined,
-				true,
-			);
+				enrollmentId: 0,
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(false);
 		});
 
 		test("should fail when enrollment does not exist", async () => {
-			const result = await tryDeleteEnrollment(
+			const result = await tryDeleteEnrollment({
 				payload,
-				99999,
-				null,
-				undefined,
-				true,
-			);
+				enrollmentId: 99999,
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(false);
 		});
@@ -334,7 +340,8 @@ describe("Enrollment Management Functions", () => {
 
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUser4.id,
+				userId: testUser4.id,
+				user: null,
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -348,13 +355,13 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should find enrollment by ID successfully", async () => {
-			const result = await tryFindEnrollmentById(
+			const result = await tryFindEnrollmentById({
 				payload,
 				enrollmentId,
-				null,
-				undefined,
-				true,
-			);
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -365,25 +372,25 @@ describe("Enrollment Management Functions", () => {
 		});
 
 		test("should fail when enrollment ID is missing", async () => {
-			const result = await tryFindEnrollmentById(
+			const result = await tryFindEnrollmentById({
 				payload,
-				0,
-				null,
-				undefined,
-				true,
-			);
+				enrollmentId: 0,
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(false);
 		});
 
 		test("should fail when enrollment does not exist", async () => {
-			const result = await tryFindEnrollmentById(
+			const result = await tryFindEnrollmentById({
 				payload,
-				99999,
-				null,
-				undefined,
-				true,
-			);
+				enrollmentId: 99999,
+				user: null,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(false);
 		});
@@ -506,7 +513,8 @@ describe("Enrollment Management Functions", () => {
 
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUser5.id,
+				userId: testUser5.id,
+				user: null,
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -577,7 +585,8 @@ describe("Enrollment Management Functions", () => {
 
 				const enrollmentArgs: CreateEnrollmentArgs = {
 					payload,
-					user: testUser6.id,
+					userId: testUser6.id,
+					user: null,
 					course: testCourseId,
 					role: "student",
 					status: "active",
@@ -597,14 +606,14 @@ describe("Enrollment Management Functions", () => {
 
 		describe("tryAddGroupsToEnrollment", () => {
 			test("should add groups to existing enrollment", async () => {
-				const result = await tryAddGroupsToEnrollment(
+				const result = await tryAddGroupsToEnrollment({
 					payload,
 					enrollmentId,
-					[mathGroupId, scienceGroupId],
-					null,
-					undefined,
-					true,
-				);
+					groupIds: [mathGroupId, scienceGroupId],
+					user: null,
+					req: undefined,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -625,27 +634,27 @@ describe("Enrollment Management Functions", () => {
 			});
 
 			test("should fail when enrollment ID is missing", async () => {
-				const result = await tryAddGroupsToEnrollment(
+				const result = await tryAddGroupsToEnrollment({
 					payload,
-					0,
-					[mathGroupId],
-					null,
-					undefined,
-					true,
-				);
+					enrollmentId: 0,
+					groupIds: [mathGroupId],
+					user: null,
+					req: undefined,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 			});
 
 			test("should fail when groups array is empty", async () => {
-				const result = await tryAddGroupsToEnrollment(
+				const result = await tryAddGroupsToEnrollment({
 					payload,
 					enrollmentId,
-					[],
-					null,
-					undefined,
-					true,
-				);
+					groupIds: [],
+					user: null,
+					req: undefined,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 			});
@@ -688,14 +697,14 @@ describe("Enrollment Management Functions", () => {
 
 		describe("tryRemoveGroupsFromEnrollment", () => {
 			test("should remove groups from enrollment", async () => {
-				const result = await tryRemoveGroupsFromEnrollment(
+				const result = await tryRemoveGroupsFromEnrollment({
 					payload,
 					enrollmentId,
-					[artGroupId, scienceGroupId],
-					null,
-					undefined,
-					true,
-				);
+					groupIds: [artGroupId, scienceGroupId],
+					user: null,
+					req: undefined,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -715,14 +724,14 @@ describe("Enrollment Management Functions", () => {
 			});
 
 			test("should fail when enrollment ID is missing", async () => {
-				const result = await tryRemoveGroupsFromEnrollment(
+				const result = await tryRemoveGroupsFromEnrollment({
 					payload,
-					0,
-					[mathGroupId],
-					null,
-					undefined,
-					true,
-				);
+					enrollmentId: 0,
+					groupIds: [mathGroupId],
+					user: null,
+					req: undefined,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 			});
@@ -730,14 +739,14 @@ describe("Enrollment Management Functions", () => {
 
 		describe("tryFindEnrollmentsByGroup", () => {
 			test("should find enrollments by group ID", async () => {
-				const result = await tryFindEnrollmentsByGroup(
+				const result = await tryFindEnrollmentsByGroup({
 					payload,
-					econGroupId,
-					10,
-					null,
-					undefined,
-					true,
-				);
+					groupId: econGroupId,
+					limit: 10,
+					user: null,
+					req: undefined,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -754,14 +763,14 @@ describe("Enrollment Management Functions", () => {
 			});
 
 			test("should fail when group ID is missing", async () => {
-				const result = await tryFindEnrollmentsByGroup(
+				const result = await tryFindEnrollmentsByGroup({
 					payload,
-					0,
-					10,
-					null,
-					undefined,
-					true,
-				);
+					groupId: 0,
+					limit: 10,
+					user: null,
+					req: undefined,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 			});
@@ -771,23 +780,7 @@ describe("Enrollment Management Functions", () => {
 
 describe("Enrollment Management Functions with Authentication", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let adminUser: {
-		id: number;
-		email: string;
-		firstName?: string | null;
-		lastName?: string | null;
-		role?:
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer"
-		| "instructor"
-		| "student"
-		| null;
-		theme: "light" | "dark";
-		direction: "ltr" | "rtl";
-		updatedAt: string;
-		createdAt: string;
-	};
+	let adminUser: TypedUser | null;
 	let testUserId: number;
 	let testCourseId: number;
 
@@ -817,7 +810,7 @@ describe("Enrollment Management Functions with Authentication", () => {
 			},
 			overrideAccess: true,
 		});
-		adminUser = testUser;
+		adminUser = testUser as TypedUser;
 
 		// Verify admin
 		await payload.update({
@@ -872,11 +865,11 @@ describe("Enrollment Management Functions with Authentication", () => {
 		test("admin should be able to create enrollments", async () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUserId,
+				userId: testUserId,
 				course: testCourseId,
 				role: "student",
 				status: "active",
-				authenticatedUser: adminUser,
+				user: adminUser,
 				overrideAccess: false,
 			};
 
@@ -903,7 +896,8 @@ describe("Enrollment Management Functions with Authentication", () => {
 		test("unauthenticated request should fail to create enrollment", async () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
-				user: testUserId,
+				userId: testUserId,
+				user: null,
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -923,7 +917,7 @@ describe("Enrollment Management Functions with Authentication", () => {
 				course: testCourseId,
 				limit: 10,
 				page: 1,
-				authenticatedUser: adminUser,
+				user: adminUser,
 				overrideAccess: false,
 			};
 

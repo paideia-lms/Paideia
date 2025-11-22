@@ -1,4 +1,4 @@
-import type { BasePayload, PayloadRequest } from "payload";
+import type { BasePayload, PayloadRequest, TypedUser } from "payload";
 import { createContext } from "react-router";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { Result } from "typescript-result";
@@ -153,10 +153,13 @@ export const userModuleContextKey =
  * This includes the module data, linked courses, grants, and instructors
  */
 export const tryGetUserModuleContext = Result.wrap(
-	async (payload: BasePayload, moduleId: number, currentUser: User | null, req?: Partial<PayloadRequest>) => {
+	async (payload: BasePayload, moduleId: number, currentUser: TypedUser | null, req?: Partial<PayloadRequest>) => {
 		// Fetch the activity module
-		const moduleResult = await tryGetActivityModuleById(payload, {
+		const moduleResult = await tryGetActivityModuleById({
+			payload,
 			id: moduleId,
+			user: currentUser,
+			req,
 		});
 
 		if (!moduleResult.ok) {
@@ -175,21 +178,19 @@ export const tryGetUserModuleContext = Result.wrap(
 
 		if (
 			module.type === "file" &&
-			typeof module.file === "object" &&
-			module.file !== null &&
-			module.file.media &&
-			Array.isArray(module.file.media) &&
-			module.file.media.length > 0
+			module.media &&
+			Array.isArray(module.media) &&
+			module.media.length > 0
 		) {
 			try {
 				const mediaResult = await payload.find({
 					collection: "media",
 					where: {
 						id: {
-							in: module.file.media,
+							in: module.media,
 						},
 					},
-					limit: module.file.media.length,
+					limit: module.media.length,
 					user: currentUser,
 					req,
 					depth: 0,
@@ -229,60 +230,49 @@ export const tryGetUserModuleContext = Result.wrap(
 				avatar: module.owner.avatar ?? null,
 			},
 			page:
-				module.type === "page" &&
-					typeof module.page === "object" &&
-					module.page !== null
+				module.type === "page"
 					? {
-						id: module.page.id,
-						content: module.page.content || null,
+						id: module.id,
+						content: module.content || null,
 					}
 					: null,
 			whiteboard:
-				module.type === "whiteboard" &&
-					typeof module.whiteboard === "object" &&
-					module.whiteboard !== null
+				module.type === "whiteboard"
 					? {
-						id: module.whiteboard.id,
-						content: module.whiteboard.content || null,
+						id: module.id,
+						content: module.content || null,
 					}
 					: null,
 			file:
-				module.type === "file" &&
-					typeof module.file === "object" &&
-					module.file !== null
+				module.type === "file"
 					? {
-						id: module.file.id,
+						id: module.id,
 						media: enrichedMedia,
 					}
 					: null,
 			assignment:
-				module.type === "assignment" &&
-					typeof module.assignment === "object" &&
-					module.assignment !== null
+				module.type === "assignment"
 					? {
-						id: module.assignment.id,
-						instructions: module.assignment.instructions || null,
-						dueDate: module.assignment.dueDate || null,
-						maxAttempts: module.assignment.maxAttempts || null,
+						id: module.id,
+						instructions: module.instructions || null,
+						dueDate: module.dueDate || null,
+						maxAttempts: module.maxAttempts || null,
 						allowLateSubmissions:
-							module.assignment.allowLateSubmissions || null,
+							module.allowLateSubmissions || null,
 						requireTextSubmission:
-							module.assignment.requireTextSubmission || null,
+							module.requireTextSubmission || null,
 						requireFileSubmission:
-							module.assignment.requireFileSubmission || null,
-						allowedFileTypes: module.assignment.allowedFileTypes || null,
-						maxFileSize: module.assignment.maxFileSize || null,
-						maxFiles: module.assignment.maxFiles || null,
+							module.requireFileSubmission || null,
+						allowedFileTypes: module.allowedFileTypes || null,
+						maxFileSize: module.maxFileSize || null,
+						maxFiles: module.maxFiles || null,
 					}
 					: null,
 			quiz:
-				module.type === "quiz" &&
-					typeof module.quiz === "object" &&
-					module.quiz !== null
+				module.type === "quiz"
 					? (() => {
 						// Get rawQuizConfig to check for globalTimer
-						const rawConfig = module.quiz
-							.rawQuizConfig as unknown as QuizConfig | null;
+						const rawConfig = module.rawQuizConfig as unknown as QuizConfig | null;
 
 						// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
 						const timeLimit = rawConfig?.globalTimer
@@ -290,28 +280,26 @@ export const tryGetUserModuleContext = Result.wrap(
 							: null;
 
 						return {
-							id: module.quiz.id,
-							instructions: module.quiz.instructions || null,
-							dueDate: module.quiz.dueDate || null,
-							maxAttempts: module.quiz.maxAttempts || null,
-							points: module.quiz.points || null,
+							id: module.id,
+							instructions: module.instructions || null,
+							dueDate: module.dueDate || null,
+							maxAttempts: module.maxAttempts || null,
+							points: module.points || null,
 							timeLimit,
-							gradingType: module.quiz.gradingType || null,
+							gradingType: module.gradingType || null,
 							rawQuizConfig: rawConfig,
 						};
 					})()
 					: null,
 			discussion:
-				module.type === "discussion" &&
-					typeof module.discussion === "object" &&
-					module.discussion !== null
+				module.type === "discussion"
 					? {
-						id: module.discussion.id,
-						instructions: module.discussion.instructions || null,
-						dueDate: module.discussion.dueDate || null,
-						requireThread: module.discussion.requireThread || null,
-						requireReplies: module.discussion.requireReplies || null,
-						minReplies: module.discussion.minReplies || null,
+						id: module.id,
+						instructions: module.instructions || null,
+						dueDate: module.dueDate || null,
+						requireThread: module.requireThread || null,
+						requireReplies: module.requireReplies || null,
+						minReplies: module.minReplies || null,
 					}
 					: null,
 			createdAt: module.createdAt,

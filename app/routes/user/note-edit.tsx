@@ -42,11 +42,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const note = await tryFindNoteById({
 		payload,
 		noteId: Number(params.noteId),
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		overrideAccess: false,
 	});
 
@@ -123,11 +119,7 @@ export const action = async ({
 					mimeType: fileUpload.type,
 					alt: "Note image",
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -208,11 +200,7 @@ export const action = async ({
 				content,
 				isPublic,
 			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: reqWithTransaction,
 			overrideAccess: false,
 		});

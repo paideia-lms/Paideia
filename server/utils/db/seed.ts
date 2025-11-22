@@ -412,10 +412,11 @@ export const tryRunSeed = Result.wrap(
 		console.log("🎓 Enrolling student in course...");
 		const studentEnrollmentResult = await tryCreateEnrollment({
 			payload,
-			user: studentUser.id,
+			userId: studentUser.id,
 			course: course.id,
 			role: "student",
 			status: "active",
+			user: null,
 			req: mockRequest,
 			overrideAccess: true,
 		});
@@ -435,10 +436,11 @@ export const tryRunSeed = Result.wrap(
 		console.log("🎓 Enrolling teacher in course...");
 		const teacherEnrollmentResult = await tryCreateEnrollment({
 			payload,
-			user: teacherUser.id,
+			userId: teacherUser.id,
 			course: course.id,
 			role: "teacher",
 			status: "active",
+			user: null,
 			req: mockRequest,
 			overrideAccess: true,
 		});
@@ -458,10 +460,11 @@ export const tryRunSeed = Result.wrap(
 		console.log("🎓 Enrolling TA in course...");
 		const taEnrollmentResult = await tryCreateEnrollment({
 			payload,
-			user: taUser.id,
+			userId: taUser.id,
 			course: course.id,
 			role: "ta",
 			status: "active",
+			user: null,
 			req: mockRequest,
 			overrideAccess: true,
 		});
@@ -480,10 +483,11 @@ export const tryRunSeed = Result.wrap(
 			console.log("🧑‍💼 Enrolling admin as manager in a course...");
 			const managerEnrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: adminUser.id,
+				userId: adminUser.id,
 				course: courses[1].id,
 				role: "manager",
 				status: "active",
+				user: null,
 				req: mockRequest,
 				overrideAccess: true,
 			});
@@ -503,10 +507,11 @@ export const tryRunSeed = Result.wrap(
 				data.enrollmentStatuses[i % data.enrollmentStatuses.length];
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: student.id,
+				userId: student.id,
 				course: course.id,
 				role: "student",
 				status,
+				user: null,
 				req: mockRequest,
 				overrideAccess: true,
 			});

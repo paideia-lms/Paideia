@@ -119,11 +119,7 @@ export const action = async ({
 			activityModuleId: Number(moduleId),
 			grantedToUserId: Number(parsed.data.userId),
 			grantedByUserId: currentUser.id,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});
@@ -143,11 +139,7 @@ export const action = async ({
 			payload,
 			activityModuleId: Number(moduleId),
 			userId: Number(parsed.data.userId),
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});

@@ -3,7 +3,10 @@ import { TransactionIdNotFoundError } from "~/utils/error";
 
 export interface HandleTransactionIdResult {
     transactionID: string | number;
-    shouldCommitTransaction: boolean;
+    /** 
+     * if transaction created, we need to commit and rollback the transaction in the same level
+     */
+    isTransactionCreated: boolean;
     reqWithTransaction: Partial<PayloadRequest>;
 }
 
@@ -24,7 +27,7 @@ export async function handleTransactionId(
     req?: Partial<PayloadRequest>,
 ): Promise<HandleTransactionIdResult> {
     let transactionID: string | number | undefined;
-    let shouldCommitTransaction = false;
+    let isTransactionCreated = false;
 
     if (req?.transactionID) {
         const reqTransactionID = req.transactionID;
@@ -42,7 +45,7 @@ export async function handleTransactionId(
             throw new TransactionIdNotFoundError("Failed to begin transaction");
         }
         transactionID = newTransactionID;
-        shouldCommitTransaction = true;
+        isTransactionCreated = true;
     }
 
     // Ensure transactionID is defined (TypeScript narrowing)
@@ -58,7 +61,7 @@ export async function handleTransactionId(
 
     return {
         transactionID,
-        shouldCommitTransaction,
+        isTransactionCreated,
         reqWithTransaction,
     };
 }

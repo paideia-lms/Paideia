@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest, Where } from "payload";
+import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
 import { getAccessResults } from "payload";
 import searchQueryParser from "search-query-parser";
 import { assertZodInternal } from "server/utils/type-narrowing";
@@ -20,7 +20,7 @@ export interface CreateUserArgs {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -38,7 +38,7 @@ export interface UpdateUserArgs {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	transactionID?: string | number;
@@ -47,7 +47,7 @@ export interface UpdateUserArgs {
 export interface FindUserByEmailArgs {
 	payload: Payload;
 	email: string;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -55,7 +55,7 @@ export interface FindUserByEmailArgs {
 export interface FindUserByIdArgs {
 	payload: Payload;
 	userId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -63,7 +63,7 @@ export interface FindUserByIdArgs {
 export interface DeleteUserArgs {
 	payload: Payload;
 	userId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -74,7 +74,7 @@ export interface FindAllUsersArgs {
 	page?: number;
 	sort?: string;
 	query?: string;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }
@@ -103,13 +103,13 @@ export interface RegisterUserArgs {
 	lastName: string;
 	role?: User["role"];
 	req?: Partial<PayloadRequest>;
-	user?: User | null;
+	user?: TypedUser | null;
 }
 
 export interface HandleImpersonationArgs {
 	payload: Payload;
 	impersonateUserId: string;
-	authenticatedUser: User;
+	authenticatedUser: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 }

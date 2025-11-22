@@ -294,6 +294,7 @@ export interface Course {
   title: string;
   slug: string;
   description: string;
+  media?: (number | Media)[] | null;
   status: 'draft' | 'published' | 'archived';
   thumbnail?: (number | null) | Media;
   tags?:
@@ -324,7 +325,6 @@ export interface Course {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -530,8 +530,8 @@ export interface ActivityModule {
  */
 export interface Page {
   id: number;
-  content?: string | null;
   createdBy: number | User;
+  content?: string | null;
   media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
@@ -872,8 +872,8 @@ export interface Note {
   id: number;
   createdBy: number | User;
   content: string;
-  isPublic?: boolean | null;
   media?: (number | Media)[] | null;
+  isPublic?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1341,6 +1341,7 @@ export interface CoursesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   description?: T;
+  media?: T;
   status?: T;
   thumbnail?: T;
   tags?:
@@ -1355,7 +1356,6 @@ export interface CoursesSelect<T extends boolean = true> {
   groups?: T;
   category?: T;
   sections?: T;
-  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1460,8 +1460,8 @@ export interface ActivityModuleGrantsSelect<T extends boolean = true> {
  * via the `definition` "pages_select".
  */
 export interface PagesSelect<T extends boolean = true> {
-  content?: T;
   createdBy?: T;
+  content?: T;
   media?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1631,8 +1631,8 @@ export interface MediaSelect<T extends boolean = true> {
 export interface NotesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
-  isPublic?: T;
   media?: T;
+  isPublic?: T;
   updatedAt?: T;
   createdAt?: T;
 }

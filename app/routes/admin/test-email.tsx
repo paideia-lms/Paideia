@@ -169,10 +169,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		to: parsed.data.recipient,
 		subject,
 		html: body,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id?.toString() || null,
-		},
+		user: currentUser,
 		overrideAccess: false,
 	});
 

@@ -108,10 +108,8 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			theme,
 			direction,
 		},
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
+		req: request,
 		overrideAccess: false,
 	});
 

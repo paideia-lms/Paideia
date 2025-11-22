@@ -48,10 +48,7 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			title,
 			description: description || undefined,
 		},
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 	});
 
 	if (!result.ok) {

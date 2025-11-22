@@ -63,7 +63,7 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
 	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
@@ -92,10 +92,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
+		req: request,
 		overrideAccess: false,
 	});
 
@@ -111,8 +109,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: profileUser.avatar.filename,
-					})
+					filenameOrId: profileUser.avatar.filename,
+				})
 				: null;
 		}
 	}
@@ -251,11 +249,7 @@ export const action = async ({
 					mimeType: fileUpload.type,
 					alt: `User avatar`,
 					userId: userId,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -346,10 +340,8 @@ export const action = async ({
 			payload,
 			userId: userId,
 			data: updateData,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
+			req: request,
 			overrideAccess: false,
 			transactionID,
 		});

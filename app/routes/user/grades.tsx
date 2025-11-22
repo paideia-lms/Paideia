@@ -6,7 +6,7 @@ import { tryFindUserById } from "server/internal/user-management";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/grades";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 
@@ -30,10 +30,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
+		req: request,
 		overrideAccess: false,
 	});
 

@@ -126,11 +126,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			limit,
 			page,
 			depth: 1, // Include createdBy user info
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			overrideAccess: true,
 		});
 
@@ -138,22 +134,14 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		statsResult = await tryGetUserMediaStats({
 			payload,
 			userId,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			overrideAccess: true,
 		});
 
 		// Also get system-wide stats for comparison
 		systemStatsResult = await tryGetSystemMediaStats({
 			payload,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: request,
 		});
 	} else {
@@ -163,22 +151,14 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			limit,
 			page,
 			depth: 1, // Include createdBy user info
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: request,
 		});
 
 		// Get system-wide media stats
 		statsResult = await tryGetSystemMediaStats({
 			payload,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: request,
 		});
 	}
@@ -202,19 +182,16 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		limit: 100,
 		page: 1,
 		sort: "-createdAt",
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		req: request,
 	});
 
 	const userOptions = usersResult.ok
 		? usersResult.value.docs.map((user) => ({
-				value: user.id.toString(),
-				label:
-					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-			}))
+			value: user.id.toString(),
+			label:
+				`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+		}))
 		: [];
 
 	// Fetch orphaned media files
@@ -223,11 +200,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		s3Client,
 		limit,
 		page: orphanedPage,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		req: request,
 	});
 
@@ -316,11 +289,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					id: mediaId,
 					newFilename,
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -407,11 +376,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				s3Client,
 				id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
 				userId: currentUser.id,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				req: { transactionID },
 			});
 
@@ -461,11 +426,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					payload,
 					s3Client,
 					filenames,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 					overrideAccess: true,
 				});
@@ -486,11 +447,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				const result = await tryPruneAllOrphanedMedia({
 					payload,
 					s3Client,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 					overrideAccess: true,
 				});
@@ -934,8 +891,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1105,8 +1062,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	return (
@@ -1185,8 +1142,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	// Get creator info
@@ -1197,7 +1154,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-				"Unknown"
+			"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1208,13 +1165,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: creatorAvatarId.toString(),
-			})
+			filenameOrId: creatorAvatarId.toString(),
+		})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-				id: creatorId.toString(),
-			})
+			id: creatorId.toString(),
+		})
 		: undefined;
 
 	return (
@@ -1471,7 +1428,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-							"Unknown"
+						"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1482,13 +1439,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:filenameOrId`, {
-							filenameOrId: creatorAvatarId.toString(),
-						})
+						filenameOrId: creatorAvatarId.toString(),
+					})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-							id: creatorId.toString(),
-						})
+						id: creatorId.toString(),
+					})
 					: undefined;
 
 				return (

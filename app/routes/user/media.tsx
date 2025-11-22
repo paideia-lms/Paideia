@@ -153,11 +153,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		limit: 20,
 		page: 1,
 		depth: 0,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		overrideAccess: false,
 	});
 
@@ -182,11 +178,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const statsResult = await tryGetUserMediaStats({
 		payload,
 		userId,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		overrideAccess: false,
 	});
 
@@ -281,7 +273,7 @@ export const action = async ({
 			// Check permissions
 			const createdById =
 				typeof mediaRecord.createdBy === "object" &&
-				mediaRecord.createdBy !== null
+					mediaRecord.createdBy !== null
 					? mediaRecord.createdBy.id
 					: mediaRecord.createdBy;
 			const deletePermission = canDeleteMedia(currentUser, createdById);
@@ -302,11 +294,7 @@ export const action = async ({
 					id: mediaId,
 					newFilename,
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -410,11 +398,7 @@ export const action = async ({
 				s3Client,
 				id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
 				userId: currentUser.id,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				req: { transactionID },
 			});
 
@@ -448,11 +432,7 @@ export const action = async ({
 					filename: fileUpload.name,
 					mimeType: fileUpload.type,
 					userId: userId,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -1018,8 +998,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1110,8 +1090,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	return (
@@ -1190,8 +1170,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	return (

@@ -779,7 +779,7 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 
 export interface FindGradebookItemByCourseModuleLinkArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseModuleLinkId: number;

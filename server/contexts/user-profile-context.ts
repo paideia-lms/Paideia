@@ -8,15 +8,17 @@
  * Note: This is different from user-access-context which is for the authenticated user
  * This context is for the user whose profile is being viewed (could be self or another user)
  */
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { createContext, href } from "react-router";
 import type { UserAccessContext } from "server/contexts/user-access-context";
-import type { User } from "server/contexts/user-context";
+import { type User } from "server/contexts/user-context";
+import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
 import { tryFindUserById } from "server/internal/user-management";
-import type { Note } from "server/payload-types";
+import type { Note, ActivityModule as PayloadActivityModule, Enrollment as PayloadEnrollment } from "server/payload-types";
+
 
 type Course = {
 	id: number;
@@ -42,8 +44,8 @@ type ActivityModule = {
 	description: string;
 	createdAt: string;
 	updatedAt: string;
-	type: "quiz" | "assignment" | "discussion" | "page" | "whiteboard";
-	status: "draft" | "published" | "archived";
+	type: PayloadActivityModule["type"];
+	status: PayloadActivityModule["status"];
 	linkedCourses: number[];
 	accessType: "owned" | "granted" | "readonly";
 };
@@ -53,8 +55,8 @@ type ActivityModule = {
  */
 export type Enrollment = {
 	id: number;
-	role: "student" | "teacher" | "ta" | "manager";
-	status: "active" | "inactive" | "completed" | "dropped";
+	role: PayloadEnrollment["role"];
+	status: PayloadEnrollment["status"];
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	course: Course;
@@ -71,11 +73,11 @@ export interface UserProfileContext {
 		bio: string;
 		email: string;
 		role:
-			| "student"
-			| "instructor"
-			| "admin"
-			| "content-manager"
-			| "analytics-viewer";
+		| "student"
+		| "instructor"
+		| "admin"
+		| "content-manager"
+		| "analytics-viewer";
 		avatarUrl: string | null;
 	};
 	/** Activity modules accessible by the profile user */
@@ -110,12 +112,7 @@ export const convertUserAccessContextToUserProfileContext = (
 	// The activityModules and enrollments are already in the correct format
 
 	// Handle avatar URL
-	let avatarUrl: string | null = null;
-	if (user.avatar?.filename) {
-		avatarUrl = href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: user.avatar.filename,
-		});
-	}
+	const avatarUrl = getAvatarUrl(user);
 
 	return {
 		profileUserId: user.id,
@@ -145,16 +142,14 @@ export const getUserProfileContext = async (
 	/**
 	 * the current user, need to verify the access
 	 */
-	currentUser: User,
+	currentUser: TypedUser,
+	req?: Partial<PayloadRequest>,
 ): Promise<UserProfileContext | null> => {
 	// Fetch the profile user data
 	const userResult = await tryFindUserById({
 		payload,
 		userId: profileUserId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		overrideAccess: false,
 	});
 
@@ -174,10 +169,12 @@ export const getUserProfileContext = async (
 
 	const result = await tryGetUserActivityModules(payload, {
 		userId: profileUserId,
-		user: {
-			...currentUser,
-			collection: "users",
-		},
+		user: currentUser
+			? {
+				...currentUser,
+				collection: "users",
+			}
+			: null,
 		overrideAccess: true,
 	});
 
@@ -185,16 +182,13 @@ export const getUserProfileContext = async (
 
 	const { modulesOwnedOrGranted, autoGrantedModules } = result.value;
 
-	const enrollments = await tryFindEnrollmentsByUser(
+	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
-		profileUserId,
-		{
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-		undefined,
-		true,
-	);
+		userId: profileUserId,
+		user: currentUser,
+		req: req,
+		overrideAccess: false,
+	});
 
 	if (!enrollments.ok) throw new Error("Failed to get user enrollments");
 
@@ -249,11 +243,8 @@ export const getUserProfileContext = async (
 	const heatmapResult = await tryGenerateNoteHeatmap({
 		payload,
 		userId: profileUserId,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
+		req: req,
 		overrideAccess: false,
 	});
 

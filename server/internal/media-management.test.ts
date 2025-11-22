@@ -1175,10 +1175,11 @@ describe("Media Management", () => {
 		// 3. Create enrollment
 		const enrollmentResult = await tryCreateEnrollment({
 			payload,
-			user: testUserId,
+			userId: testUserId,
 			course: courseId,
 			role: "student",
 			status: "active",
+			user: null,
 			overrideAccess: true,
 		});
 

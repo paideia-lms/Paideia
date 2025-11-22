@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
@@ -18,6 +18,7 @@ const year = new Date().getFullYear();
 describe("Activity Module Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let testUserId: number;
+	let testUser: TypedUser | null;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -32,7 +33,7 @@ describe("Activity Module Management", () => {
 			config: sanitizedConfig,
 		});
 
-		// Create test user
+		// Create test admin user (only admin, instructor, or content-manager can create activity modules)
 		const userArgs: CreateUserArgs = {
 			payload,
 			data: {
@@ -40,7 +41,7 @@ describe("Activity Module Management", () => {
 				password: "password123",
 				firstName: "Test",
 				lastName: "User",
-				role: "student",
+				role: "admin",
 			},
 			overrideAccess: true,
 		};
@@ -51,6 +52,13 @@ describe("Activity Module Management", () => {
 
 		if (userResult.ok) {
 			testUserId = userResult.value.id;
+			// Fetch the full user object for passing to internal functions
+			const userDoc = await payload.findByID({
+				collection: "users",
+				id: testUserId,
+				overrideAccess: true,
+			});
+			testUser = userDoc as TypedUser;
 		}
 	});
 
@@ -71,6 +79,7 @@ describe("Activity Module Management", () => {
 			type: "page",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			pageData: {
 				content: "<p>This is test page content</p>",
 			},
@@ -100,6 +109,7 @@ describe("Activity Module Management", () => {
 			type: "assignment",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			assignmentData: {
 				instructions: "Complete this assignment",
 				dueDate: "2024-12-31",
@@ -129,13 +139,15 @@ describe("Activity Module Management", () => {
 
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
-		expect(activityModule.description).toBe(args.description);
-		expect(activityModule.type).toBe(args.type);
+		expect(activityModule.type).toBe("assignment");
+		if (activityModule.type !== "assignment") throw new Error("Test Error: Activity module type is not assignment");
+		// For assignments, description uses instructions if provided
+		expect(activityModule.description).toBe(args.assignmentData.instructions || args.description);
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
-		expect(activityModule.assignment).toBeDefined();
+		expect(activityModule.maxFiles).toBeDefined();
 	});
 
 	test("should create a quiz activity module", async () => {
@@ -145,6 +157,7 @@ describe("Activity Module Management", () => {
 			type: "quiz",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			quizData: {
 				description: "Quiz description",
 				instructions: "Answer all questions",
@@ -184,13 +197,14 @@ describe("Activity Module Management", () => {
 
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
-		expect(activityModule.description).toBe(args.description);
+		// For quizzes, description uses quizData.description if provided
+		expect(activityModule.description).toBe(args.quizData.description || args.description);
 		expect(activityModule.type).toBe(args.type);
+		if (activityModule.type !== "quiz") throw new Error("Test Error: Activity module type is not quiz");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
-		expect(activityModule.quiz).toBeDefined();
 	});
 
 	test("should create a file activity module", async () => {
@@ -200,6 +214,7 @@ describe("Activity Module Management", () => {
 			type: "file",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			fileData: {
 				media: [],
 			},
@@ -216,11 +231,12 @@ describe("Activity Module Management", () => {
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe(args.type);
+		if (activityModule.type !== "file") throw new Error("Test Error: Activity module type is not file");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
-		expect(activityModule.file).toBeDefined();
+		expect(activityModule.media).toBeDefined();
 	});
 
 	test("should create a discussion activity module", async () => {
@@ -230,6 +246,7 @@ describe("Activity Module Management", () => {
 			type: "discussion",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			discussionData: {
 				description: "Discussion description",
 				instructions: "Participate in this discussion",
@@ -258,13 +275,17 @@ describe("Activity Module Management", () => {
 
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
-		expect(activityModule.description).toBe(args.description);
+		// For discussions, description uses discussionData.description if provided
+		if (args.type === "discussion") {
+			expect(activityModule.description).toBe(args.discussionData.description || args.description);
+		}
 		expect(activityModule.type).toBe(args.type);
+		if (activityModule.type !== "discussion") throw new Error("Test Error: Activity module type is not discussion");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
-		expect(activityModule.discussion).toBeDefined();
+		expect(activityModule.minReplies).toBeDefined();
 	});
 
 	test("should create activity module with default status", async () => {
@@ -272,6 +293,7 @@ describe("Activity Module Management", () => {
 			title: "Test Activity Module 2",
 			type: "whiteboard",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			whiteboardData: {
 				content: JSON.stringify({ shapes: [], bindings: [] }),
 			},
@@ -294,6 +316,7 @@ describe("Activity Module Management", () => {
 					title: "page module",
 					type: "page" as const,
 					userId: testUserId,
+					user: testUser ?? undefined,
 					pageData: {
 						content: "<p>Test page content</p>",
 					},
@@ -305,6 +328,7 @@ describe("Activity Module Management", () => {
 					title: "whiteboard module",
 					type: "whiteboard" as const,
 					userId: testUserId,
+					user: testUser ?? undefined,
 					whiteboardData: {
 						content: JSON.stringify({ shapes: [], bindings: [] }),
 					},
@@ -316,6 +340,7 @@ describe("Activity Module Management", () => {
 					title: "file module",
 					type: "file" as const,
 					userId: testUserId,
+					user: testUser ?? undefined,
 					fileData: {
 						media: [],
 					},
@@ -327,6 +352,7 @@ describe("Activity Module Management", () => {
 					title: "assignment module",
 					type: "assignment" as const,
 					userId: testUserId,
+					user: testUser ?? undefined,
 					assignmentData: {
 						instructions: "Complete this assignment",
 						dueDate: "2024-12-31",
@@ -340,6 +366,7 @@ describe("Activity Module Management", () => {
 					title: "quiz module",
 					type: "quiz" as const,
 					userId: testUserId,
+					user: testUser ?? undefined,
 					quizData: {
 						instructions: "Answer all questions",
 						points: 100,
@@ -352,6 +379,7 @@ describe("Activity Module Management", () => {
 					title: "discussion module",
 					type: "discussion" as const,
 					userId: testUserId,
+					user: testUser ?? undefined,
 					discussionData: {
 						instructions: "Participate in this discussion",
 						minReplies: 1,
@@ -376,6 +404,7 @@ describe("Activity Module Management", () => {
 			title: "Get Test Module",
 			type: "page",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			pageData: {
 				content: "<p>Get test content</p>",
 			},
@@ -387,8 +416,10 @@ describe("Activity Module Management", () => {
 
 		const createdModule = createResult.value;
 
-		const getResult = await tryGetActivityModuleById(payload, {
+		const getResult = await tryGetActivityModuleById({
+			payload,
 			id: createdModule.id,
+			user: testUser ?? undefined,
 		});
 
 		expect(getResult.ok).toBe(true);
@@ -408,6 +439,7 @@ describe("Activity Module Management", () => {
 			type: "page",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			pageData: {
 				content: "<p>Original content</p>",
 			},
@@ -425,6 +457,7 @@ describe("Activity Module Management", () => {
 			title: "Updated Page Title",
 			description: "Updated page description",
 			status: "published",
+			user: testUser ?? undefined,
 			pageData: {
 				content: "<p>Updated content</p>",
 			},
@@ -447,6 +480,7 @@ describe("Activity Module Management", () => {
 			type: "assignment",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			assignmentData: {
 				instructions: "Original instructions",
 				dueDate: "2024-12-31",
@@ -466,6 +500,7 @@ describe("Activity Module Management", () => {
 			title: "Updated Assignment Title",
 			description: "Updated assignment description",
 			status: "published",
+			user: testUser ?? undefined,
 			assignmentData: {
 				instructions: "Updated instructions",
 				dueDate: `${year}-01-31`,
@@ -480,7 +515,8 @@ describe("Activity Module Management", () => {
 
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Assignment Title");
-		expect(updatedModule.description).toBe("Updated assignment description");
+		// For assignments, description uses instructions if provided
+		expect(updatedModule.description).toBe(updateArgs.assignmentData.instructions || "Updated assignment description");
 		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
 	});
@@ -491,6 +527,7 @@ describe("Activity Module Management", () => {
 			type: "quiz",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			quizData: {
 				instructions: "Original quiz instructions",
 				points: 50,
@@ -510,7 +547,9 @@ describe("Activity Module Management", () => {
 			title: "Updated Quiz Title",
 			description: "Updated quiz description",
 			status: "published",
+			user: testUser ?? undefined,
 			quizData: {
+				description: "Updated quiz description",
 				instructions: "Updated quiz instructions",
 				points: 100,
 				timeLimit: 60,
@@ -535,6 +574,7 @@ describe("Activity Module Management", () => {
 			type: "file",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			fileData: {
 				media: [],
 			},
@@ -552,6 +592,7 @@ describe("Activity Module Management", () => {
 			title: "Updated File Title",
 			description: "Updated file description",
 			status: "published",
+			user: testUser ?? undefined,
 			fileData: {
 				media: [],
 			},
@@ -574,6 +615,7 @@ describe("Activity Module Management", () => {
 			type: "discussion",
 			status: "draft",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			discussionData: {
 				instructions: "Original discussion instructions",
 				minReplies: 1,
@@ -594,7 +636,9 @@ describe("Activity Module Management", () => {
 			title: "Updated Discussion Title",
 			description: "Updated discussion description",
 			status: "published",
+			user: testUser ?? undefined,
 			discussionData: {
+				description: "Updated discussion description",
 				instructions: "Updated discussion instructions",
 				minReplies: 3,
 				minWordsPerPost: 100,
@@ -609,7 +653,8 @@ describe("Activity Module Management", () => {
 
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Discussion Title");
-		expect(updatedModule.description).toBe("Updated discussion description");
+		// For discussions, description uses discussionData.description if provided
+		expect(updatedModule.description).toBe(updateArgs.discussionData.description || "Updated discussion description");
 		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
 	});
@@ -619,6 +664,7 @@ describe("Activity Module Management", () => {
 			title: "Delete Test Page Module",
 			type: "page",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			pageData: {
 				content: "<p>Delete test content</p>",
 			},
@@ -630,15 +676,18 @@ describe("Activity Module Management", () => {
 
 		const createdModule = createResult.value;
 
-		const deleteResult = await tryDeleteActivityModule(
+		const deleteResult = await tryDeleteActivityModule({
 			payload,
-			createdModule.id,
-		);
+			id: createdModule.id,
+			user: testUser ?? undefined,
+		});
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify module is deleted
-		const getResult = await tryGetActivityModuleById(payload, {
+		const getResult = await tryGetActivityModuleById({
+			payload,
 			id: createdModule.id,
+			user: testUser ?? undefined,
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -648,6 +697,7 @@ describe("Activity Module Management", () => {
 			title: "Delete Test Assignment",
 			type: "assignment",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			assignmentData: {
 				instructions: "Complete this assignment",
 				dueDate: "2024-12-31",
@@ -660,17 +710,21 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		expect(createdModule.assignment).toBeDefined();
+		if (createdModule.type !== "assignment") throw new Error("Test Error: Activity module type is not assignment");
+		expect(createdModule.maxAttempts).toBeDefined();
 
-		const deleteResult = await tryDeleteActivityModule(
+		const deleteResult = await tryDeleteActivityModule({
 			payload,
-			createdModule.id,
-		);
+			id: createdModule.id,
+			user: testUser ?? undefined,
+		});
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify module is deleted
-		const getResult = await tryGetActivityModuleById(payload, {
+		const getResult = await tryGetActivityModuleById({
+			payload,
 			id: createdModule.id,
+			user: testUser ?? undefined,
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -680,6 +734,7 @@ describe("Activity Module Management", () => {
 			title: "Delete Test Quiz",
 			type: "quiz",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			quizData: {
 				instructions: "Answer all questions",
 				points: 100,
@@ -702,17 +757,21 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		expect(createdModule.quiz).toBeDefined();
+		if (createdModule.type !== "quiz") throw new Error("Test Error: Activity module type is not quiz");
+		expect(createdModule.points).toBeDefined();
 
-		const deleteResult = await tryDeleteActivityModule(
+		const deleteResult = await tryDeleteActivityModule({
 			payload,
-			createdModule.id,
-		);
+			id: createdModule.id,
+			user: testUser ?? undefined,
+		});
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify module is deleted
-		const getResult = await tryGetActivityModuleById(payload, {
+		const getResult = await tryGetActivityModuleById({
+			payload,
 			id: createdModule.id,
+			user: testUser ?? undefined,
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -722,6 +781,7 @@ describe("Activity Module Management", () => {
 			title: "Delete Test File Module",
 			type: "file",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			fileData: {
 				media: [],
 			},
@@ -732,17 +792,21 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		expect(createdModule.file).toBeDefined();
+		if (createdModule.type !== "file") throw new Error("Test Error: Activity module type is not file");
+		expect(createdModule.media).toBeDefined();
 
-		const deleteResult = await tryDeleteActivityModule(
+		const deleteResult = await tryDeleteActivityModule({
 			payload,
-			createdModule.id,
-		);
+			id: createdModule.id,
+			user: testUser ?? undefined,
+		});
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify module is deleted
-		const getResult = await tryGetActivityModuleById(payload, {
+		const getResult = await tryGetActivityModuleById({
+			payload,
 			id: createdModule.id,
+			user: testUser ?? undefined,
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -752,6 +816,7 @@ describe("Activity Module Management", () => {
 			title: "Delete Test Discussion",
 			type: "discussion",
 			userId: testUserId,
+			user: testUser ?? undefined,
 			discussionData: {
 				instructions: "Participate in this discussion",
 				minReplies: 2,
@@ -765,17 +830,21 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		expect(createdModule.discussion).toBeDefined();
+		if (createdModule.type !== "discussion") throw new Error("Test Error: Activity module type is not discussion");
+		expect(createdModule.minReplies).toBeDefined();
 
-		const deleteResult = await tryDeleteActivityModule(
+		const deleteResult = await tryDeleteActivityModule({
 			payload,
-			createdModule.id,
-		);
+			id: createdModule.id,
+			user: testUser ?? undefined,
+		});
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify module is deleted
-		const getResult = await tryGetActivityModuleById(payload, {
+		const getResult = await tryGetActivityModuleById({
+			payload,
 			id: createdModule.id,
+			user: testUser ?? undefined,
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -788,6 +857,7 @@ describe("Activity Module Management", () => {
 				type: "page" as const,
 				status: "published" as const,
 				userId: testUserId,
+				user: testUser ?? undefined,
 				pageData: {
 					content: "<p>List test 1</p>",
 				},
@@ -797,6 +867,7 @@ describe("Activity Module Management", () => {
 				type: "assignment" as const,
 				status: "draft" as const,
 				userId: testUserId,
+				user: testUser ?? undefined,
 				assignmentData: {
 					instructions: "Complete this assignment",
 					dueDate: "2024-12-31",
@@ -808,6 +879,7 @@ describe("Activity Module Management", () => {
 				type: "quiz" as const,
 				status: "published" as const,
 				userId: testUserId,
+				user: testUser ?? undefined,
 				quizData: {
 					instructions: "Answer all questions",
 					points: 100,
@@ -821,7 +893,8 @@ describe("Activity Module Management", () => {
 		}
 
 		// Test listing all modules
-		const listResult = await tryListActivityModules(payload, {
+		const listResult = await tryListActivityModules({
+			payload,
 			userId: testUserId,
 		});
 
@@ -832,7 +905,8 @@ describe("Activity Module Management", () => {
 		expect(listResult.value.totalDocs).toBeGreaterThanOrEqual(modules.length);
 
 		// Test filtering by type
-		const pageModulesResult = await tryListActivityModules(payload, {
+		const pageModulesResult = await tryListActivityModules({
+			payload,
 			userId: testUserId,
 			type: "page",
 		});
@@ -845,7 +919,8 @@ describe("Activity Module Management", () => {
 		});
 
 		// Test filtering by file type
-		const fileModulesResult = await tryListActivityModules(payload, {
+		const fileModulesResult = await tryListActivityModules({
+			payload,
 			userId: testUserId,
 			type: "file",
 		});
@@ -858,7 +933,8 @@ describe("Activity Module Management", () => {
 		});
 
 		// Test filtering by status
-		const publishedModulesResult = await tryListActivityModules(payload, {
+		const publishedModulesResult = await tryListActivityModules({
+			payload,
 			userId: testUserId,
 			status: "published",
 		});
@@ -878,6 +954,7 @@ describe("Activity Module Management", () => {
 				title: `Pagination Test Module ${i + 1}`,
 				type: "page",
 				userId: testUserId,
+				user: testUser ?? undefined,
 				pageData: {
 					content: `<p>Pagination test ${i + 1}</p>`,
 				},
@@ -888,7 +965,8 @@ describe("Activity Module Management", () => {
 		}
 
 		// Test pagination
-		const page1Result = await tryListActivityModules(payload, {
+		const page1Result = await tryListActivityModules({
+			payload,
 			userId: testUserId,
 			limit: 2,
 			page: 1,
@@ -936,7 +1014,8 @@ describe("Activity Module Management", () => {
 	// because the discriminated union enforces this at compile time
 
 	test("should fail to get non-existent activity module", async () => {
-		const result = await tryGetActivityModuleById(payload, {
+		const result = await tryGetActivityModuleById({
+			payload,
 			id: 99999,
 		});
 
@@ -958,7 +1037,10 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should fail to delete non-existent activity module", async () => {
-		const result = await tryDeleteActivityModule(payload, 99999);
+		const result = await tryDeleteActivityModule({
+			payload,
+			id: 99999,
+		});
 		expect(result.ok).toBe(false);
 	});
 });

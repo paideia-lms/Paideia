@@ -718,10 +718,11 @@ describe("Course Management Functions", () => {
 			// Create enrollment for regular user in course2
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: regularUserId,
+				userId: regularUserId,
 				course: course2Id,
 				role: "student",
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			});
 
@@ -926,10 +927,11 @@ describe("Course Management Functions", () => {
 			// Enroll the regular user in their own course
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: regularUserId,
+				userId: regularUserId,
 				course: ownedCourseResult.value.id,
 				role: "teacher",
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			});
 			expect(enrollmentResult.ok).toBe(true);
@@ -1130,10 +1132,11 @@ describe("Course Management Functions", () => {
 			// Enroll test user in course3
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: testUserId,
+				userId: testUserId,
 				course: course3Id,
 				role: "student",
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			});
 
@@ -1311,10 +1314,11 @@ describe("Course Management Functions", () => {
 			// Enroll the test user in their own course
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: testUserId,
+				userId: testUserId,
 				course: ownedCourseResult.value.id,
 				role: "teacher",
 				status: "active",
+				user: null,
 				overrideAccess: true,
 			});
 			expect(enrollmentResult.ok).toBe(true);

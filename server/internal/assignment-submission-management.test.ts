@@ -122,10 +122,11 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		// Create enrollment
 		const enrollmentArgs: CreateEnrollmentArgs = {
 			payload,
-			user: studentId,
+			userId: studentId,
 			course: courseId,
 			role: "student",
 			status: "active",
+			user: null,
 			overrideAccess: true,
 		};
 
@@ -166,13 +167,20 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		activityModuleId = activityModuleResult.value.id;
 		console.log("Created activity module with ID:", activityModuleId);
 		// Get the assignment ID from the activity module
-		if (
-			activityModuleResult.value.assignment &&
-			typeof activityModuleResult.value.assignment === "object" &&
-			"id" in activityModuleResult.value.assignment
-		) {
-			assignmentId = activityModuleResult.value.assignment.id as number;
-			console.log("Extracted assignment ID:", assignmentId);
+		// Since AssignmentModuleResult is a discriminated union, we need to check the type first
+		if (activityModuleResult.value.type === "assignment") {
+			// Fetch the activity module with depth to get the assignment relationship
+			const module = await payload.findByID({
+				collection: "activity-modules",
+				id: activityModuleId,
+				depth: 1,
+			});
+			if (module.assignment) {
+				assignmentId = typeof module.assignment === "object" && "id" in module.assignment
+					? module.assignment.id
+					: module.assignment as number;
+				console.log("Extracted assignment ID:", assignmentId);
+			}
 		}
 
 		// Create a section for the course

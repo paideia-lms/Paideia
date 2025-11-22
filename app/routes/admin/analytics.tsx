@@ -126,10 +126,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateAnalyticsSettings({
 		payload,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		data: {
 			additionalJsScripts,
 		},
@@ -265,7 +262,7 @@ function AnalyticsScriptCard({
 				required
 				error={
 					form.getValues().scripts[index]?.src &&
-					!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
+						!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
 						? "Must be a valid HTTP or HTTPS URL"
 						: undefined
 				}
@@ -472,7 +469,7 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 										: undefined,
 								dataMeasurementId:
 									script.dataMeasurementId &&
-									script.dataMeasurementId.trim() !== ""
+										script.dataMeasurementId.trim() !== ""
 										? script.dataMeasurementId
 										: undefined,
 							}),

@@ -134,7 +134,7 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create enrollment
 		const enrollmentArgs: CreateEnrollmentArgs = {
 			payload,
-			user: studentId,
+			userId: studentId,
 			course: courseId,
 			role: "student",
 			status: "active",
@@ -220,13 +220,20 @@ describe("Quiz Management - Full Workflow", () => {
 		activityModuleId = activityModuleResult.value.id;
 		console.log("Created activity module with ID:", activityModuleId);
 		// Get the quiz ID from the activity module
-		if (
-			activityModuleResult.value.quiz &&
-			typeof activityModuleResult.value.quiz === "object" &&
-			"id" in activityModuleResult.value.quiz
-		) {
-			quizId = activityModuleResult.value.quiz.id as number;
-			console.log("Extracted quiz ID:", quizId);
+		// Since QuizModuleResult is a discriminated union, we need to check the type first
+		if (activityModuleResult.value.type === "quiz") {
+			// Fetch the activity module with depth to get the quiz relationship
+			const module = await payload.findByID({
+				collection: "activity-modules",
+				id: activityModuleId,
+				depth: 1,
+			});
+			if (module.quiz) {
+				quizId = typeof module.quiz === "object" && "id" in module.quiz
+					? module.quiz.id
+					: module.quiz as number;
+				console.log("Extracted quiz ID:", quizId);
+			}
 		}
 
 		// Create a section for the course
@@ -1672,7 +1679,7 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 		// Create enrollment
 		const enrollmentArgs: CreateEnrollmentArgs = {
 			payload,
-			user: studentId,
+			userId: studentId,
 			course: courseId,
 			role: "student",
 			status: "active",
@@ -1886,7 +1893,7 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 		// Create enrollment
 		const enrollmentArgs: CreateEnrollmentArgs = {
 			payload,
-			user: studentId,
+			userId: studentId,
 			course: courseId,
 			role: "student",
 			status: "active",
@@ -2096,7 +2103,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Create enrollment
 		const enrollmentArgs: CreateEnrollmentArgs = {
 			payload,
-			user: studentId,
+			userId: studentId,
 			course: courseId,
 			role: "student",
 			status: "active",

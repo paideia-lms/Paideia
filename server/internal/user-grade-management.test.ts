@@ -131,10 +131,11 @@ describe("User Grade Management", () => {
 		// Create enrollment for student in the course
 		const enrollmentResult = await tryCreateEnrollment({
 			payload,
-			user: student.id,
+			userId: student.id,
 			course: testCourse.id,
 			role: "student",
 			status: "active",
+			user: null,
 			overrideAccess: true,
 		});
 

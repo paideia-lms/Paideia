@@ -4,7 +4,7 @@
  * this context is available when user is in a course
  */
 
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { createContext } from "react-router";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
 import { tryFindCourseById } from "server/internal/course-management";
@@ -179,20 +179,15 @@ export const courseContextKey =
 export const tryGetCourseContext = async (
 	payload: Payload,
 	courseId: number,
-	user: User | null,
+	user?: TypedUser | null,
+	req?: Partial<PayloadRequest>,
 ) => {
 	// Get course
 	const courseResult = await tryFindCourseById({
 		payload,
 		courseId: courseId,
-		user: user
-			? {
-				...user,
-				collection: "users",
-				avatar: user.avatar?.id,
-			}
-			: null,
-		// ! we cannot use overrideAccess true here
+		user: user,
+		req
 	});
 
 	if (!courseResult.ok) {
@@ -352,10 +347,8 @@ export const tryGetCourseContext = async (
 	const courseStructureResult = await tryGetCourseStructure({
 		payload,
 		courseId: course.id,
-		user: {
-			...user,
-			avatar: user.avatar?.id,
-		},
+		user: user,
+		req,
 		overrideAccess: false,
 	});
 
@@ -384,12 +377,8 @@ export const tryGetCourseContext = async (
 	const gradebookResult = await tryGetGradebookByCourseWithDetails({
 		payload,
 		courseId,
-		user: {
-			...user,
-			collection: "users",
-			avatar: user.avatar?.id,
-		},
-		req: undefined,
+		user: user,
+		req,
 		overrideAccess: false,
 	});
 
@@ -408,12 +397,8 @@ export const tryGetCourseContext = async (
 		const allRepresentationsResult = await tryGetGradebookAllRepresentations({
 			payload,
 			courseId,
-			user: {
-				...user,
-				collection: "users",
-				avatar: user.avatar?.id,
-			},
-			req: undefined,
+			user: user,
+			req,
 			overrideAccess: false,
 		});
 

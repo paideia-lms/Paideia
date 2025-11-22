@@ -1,4 +1,5 @@
 import {
+	Button,
 	Checkbox,
 	Input,
 	NumberInput,
@@ -6,44 +7,69 @@ import {
 	Textarea,
 	Title,
 } from "@mantine/core";
+import { useForm } from "@mantine/form";
 import type { UseFormReturnType } from "@mantine/form";
-import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import type { ActivityModuleFormValues, DiscussionModuleFormValues } from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { CommonFields } from "./common-fields";
 
 interface DiscussionFormProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	initialValues?: Partial<DiscussionModuleFormValues>;
+	onSubmit: (values: DiscussionModuleFormValues) => void;
+	isLoading?: boolean;
 }
 
-export function DiscussionForm({ form }: DiscussionFormProps) {
+export function DiscussionForm({ initialValues, onSubmit, isLoading }: DiscussionFormProps) {
+	const form = useForm<DiscussionModuleFormValues>({
+		mode: "uncontrolled",
+		cascadeUpdates: true,
+		initialValues: {
+			title: initialValues?.title || "",
+			description: initialValues?.description || "",
+			type: "discussion" as const,
+			status: initialValues?.status || "draft",
+			discussionInstructions: initialValues?.discussionInstructions || "",
+			discussionDueDate: initialValues?.discussionDueDate || null,
+			discussionRequireThread: initialValues?.discussionRequireThread || false,
+			discussionRequireReplies: initialValues?.discussionRequireReplies || false,
+			discussionMinReplies: initialValues?.discussionMinReplies || 1,
+		},
+		validate: {
+			title: (value) =>
+				value.trim().length === 0 ? "Title is required" : null,
+		},
+	});
+
+
 	return (
-		<Stack gap="md">
-			<CommonFields form={form} />
+		<form onSubmit={form.onSubmit(onSubmit)}>
+			<Stack gap="md">
+				<CommonFields form={form as UseFormReturnType<ActivityModuleFormValues>} />
 
-			<Textarea
-				{...form.getInputProps("description")}
-				key={form.key("description")}
-				label="Description"
-				placeholder="Enter module description"
-				minRows={3}
-			/>
+				<Textarea
+					{...form.getInputProps("description")}
+					key={form.key("description")}
+					label="Description"
+					placeholder="Enter module description"
+					minRows={3}
+				/>
 
-			<Title order={4} mt="md">
-				Discussion Settings
-			</Title>
+				<Title order={4} mt="md">
+					Discussion Settings
+				</Title>
 
-			<InstructionsEditor form={form} />
+				<InstructionsEditor form={form} />
 
-			{/* TODO: move to course module specific settings */}
-			{/* <DateTimePicker
+				{/* TODO: move to course module specific settings */}
+				{/* <DateTimePicker
 				{...form.getInputProps("discussionDueDate")}
 				key={form.key("discussionDueDate")}
 				label="Due Date"
 				placeholder="Select due date"
 			/> */}
 
-			{/* <Checkbox
+				{/* <Checkbox
 				{...form.getInputProps("discussionRequireThread", {
 					type: "checkbox",
 				})}
@@ -60,14 +86,19 @@ export function DiscussionForm({ form }: DiscussionFormProps) {
 			/>
 
 			<MinimumRepliesInput form={form} /> */}
-		</Stack>
+
+				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
+					Save
+				</Button>
+			</Stack>
+		</form>
 	);
 }
 
 function InstructionsEditor({
 	form,
 }: {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<DiscussionModuleFormValues>;
 }) {
 	const instructions = useFormWatchForceUpdate(
 		form,
@@ -90,7 +121,7 @@ function InstructionsEditor({
 function MinimumRepliesInput({
 	form,
 }: {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<DiscussionModuleFormValues>;
 }) {
 	useFormWatchForceUpdate(form, "discussionRequireReplies");
 	const discussionRequireReplies = form.getValues().discussionRequireReplies;

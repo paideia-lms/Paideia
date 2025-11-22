@@ -2,50 +2,17 @@
  * user context:
  * this context is available when user is logged in
  */
+
 import {
 	type Payload,
 	type TypedUser as PayloadUser,
 	parseCookies,
 } from "payload";
-import { createContext, href } from "react-router";
+import { createContext, } from "react-router";
 import { tryHandleImpersonation } from "server/internal/user-management";
 
-export function getAvatarUrl(user: PayloadUser) {
-	if (user.avatar && typeof user.avatar === "object" && user.avatar.filename) {
-		return href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: user.avatar.filename,
-		});
-	}
-	return null;
-}
 
-export interface User {
-	id: number;
-	firstName?: string | null;
-	lastName?: string | null;
-	role?:
-	| (
-		| "student"
-		| "instructor"
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer"
-	)
-	| null;
-	bio?: string | null;
-	/**
-	 * the id or file name of the avatar
-	 */
-	avatar: {
-		id: number;
-		filename?: string | null;
-	} | null;
-	theme: "light" | "dark";
-	direction: "ltr" | "rtl";
-	email: string;
-	updatedAt: string;
-	createdAt: string;
-}
+export type User = PayloadUser
 
 export interface UserSession {
 	authenticatedUser: User; // The actual logged-in user (admin)
@@ -96,11 +63,7 @@ export const tryGetUserContext = async (
 		if (impersonationResult.ok && impersonationResult.value) {
 			effectiveUser = {
 				...impersonationResult.value.targetUser,
-				avatar:
-					typeof impersonationResult.value.targetUser.avatar === "object"
-						? impersonationResult.value.targetUser.avatar
-						: null,
-				direction: impersonationResult.value.targetUser.direction ?? "ltr",
+				collection: "users",
 			};
 			effectiveUserPermissions = impersonationResult.value.permissions;
 			isImpersonating = true;

@@ -1,4 +1,5 @@
 import type { AccessResult, CollectionConfig } from "payload";
+import { richTextContent } from "./utils/rich-text-content";
 
 /**
  * notes are like journals and tweets
@@ -76,25 +77,19 @@ export const Notes = {
 				update: () => false,
 			},
 		},
-		{
+		...richTextContent({
 			name: "content",
 			type: "textarea",
 			required: true,
-		},
+		}),
 		{
 			name: "isPublic",
 			type: "checkbox",
 			label: "Is Public",
 			defaultValue: false,
 		},
-		// ! we need this media relationship field to track the media used in the note content
-		// ! content is rich text
-		{
-			name: "media",
-			type: "relationship",
-			relationTo: "media",
-			hasMany: true,
-			label: "Media",
-		},
+
 	],
 } as const satisfies CollectionConfig;
+
+

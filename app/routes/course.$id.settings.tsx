@@ -110,8 +110,8 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -226,11 +226,7 @@ export const action = async ({
 					mimeType: fileUpload.type,
 					alt: "Course thumbnail",
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -254,11 +250,7 @@ export const action = async ({
 					mimeType: fileUpload.type,
 					alt: "Course description image",
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -353,11 +345,7 @@ export const action = async ({
 				thumbnail: thumbnailMediaId,
 				category: parsed.data.category,
 			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: reqWithTransaction,
 			overrideAccess: true,
 		});

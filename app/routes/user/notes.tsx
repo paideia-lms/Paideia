@@ -95,6 +95,7 @@ export const loader = async ({
 				payload,
 				userId,
 				currentUser,
+				request,
 			);
 		}
 	} else {
@@ -103,6 +104,7 @@ export const loader = async ({
 			payload,
 			userId,
 			currentUser,
+			request,
 		);
 	}
 
@@ -171,11 +173,8 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const result = await tryDeleteNote({
 		payload,
 		noteId,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
+		req: request,
 		overrideAccess: false,
 	});
 
@@ -265,10 +264,9 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${
-							value === null || value === 0
-								? "No notes"
-								: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
+							? "No notes"
+							: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}

@@ -20,7 +20,7 @@ import type { NestedQuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import z from "zod";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
-import type { ActivityModuleFormValues } from "../activity-module-form";
+import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
 import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 
 // ============================================================================
@@ -28,7 +28,7 @@ import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 // ============================================================================
 
 interface RegularQuizBuilderProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 }
 
 export function RegularQuizBuilder({ form }: RegularQuizBuilderProps) {
@@ -138,7 +138,7 @@ export function RegularQuizBuilder({ form }: RegularQuizBuilderProps) {
 // ============================================================================
 
 interface NestedQuizTabProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	quizIndex: number;
 }
 
@@ -220,7 +220,7 @@ function NestedQuizTab({ form, quizIndex }: NestedQuizTabProps) {
 // ============================================================================
 
 interface ContainerQuizBuilderProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 }
 
 export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {

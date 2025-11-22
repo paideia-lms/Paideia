@@ -99,11 +99,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					mimeType: fileUpload.type,
 					alt: "Note image",
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
+					user: currentUser,
 					req: { transactionID },
 				});
 
@@ -184,11 +180,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				createdBy: currentUser.id,
 				isPublic,
 			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id ?? undefined,
-			},
+			user: currentUser,
 			req: reqWithTransaction,
 			overrideAccess: false,
 		});

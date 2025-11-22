@@ -52,16 +52,7 @@ export const loader = async ({
 	let userGrades = null;
 	const userGradesResult = await tryGetUserGradesJsonRepresentation({
 		payload,
-		user: currentUser
-			? {
-				...currentUser,
-				avatar:
-					typeof currentUser.avatar === "object" &&
-						currentUser.avatar !== null
-						? currentUser.avatar.id
-						: currentUser.avatar,
-			}
-			: null,
+		user: currentUser,
 		req: request,
 		overrideAccess: false,
 		courseId: Number(courseId),
@@ -115,13 +106,9 @@ export const action = async ({
 		{
 			payload,
 			courseId: Number(courseId),
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
+			user: currentUser,
 			req: request,
-			overrideAccess: true,
+			overrideAccess: false,
 		}
 	);
 	if (!gradebookResult.ok) {
@@ -219,11 +206,7 @@ export const action = async ({
 			minGrade: parsedData.data.minGrade,
 			weight: parsedData.data.weight,
 			extraCredit: parsedData.data.extraCredit,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});
@@ -247,11 +230,7 @@ export const action = async ({
 			description: parsedData.data.description,
 			weight: parsedData.data.weight,
 			extraCredit: parsedData.data.extraCredit,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});
@@ -333,11 +312,7 @@ export const action = async ({
 		const deleteResult = await tryDeleteGradebookItem({
 			payload,
 			itemId: parsedData.data.itemId,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});
@@ -356,11 +331,7 @@ export const action = async ({
 		const deleteResult = await tryDeleteGradebookCategory({
 			payload,
 			categoryId: parsedData.data.categoryId,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});

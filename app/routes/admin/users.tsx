@@ -59,10 +59,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit: 10,
 		page,
 		sort: "-createdAt",
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		overrideAccess: false,
 	});
 

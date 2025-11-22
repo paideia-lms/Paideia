@@ -57,7 +57,7 @@ This changelog documents the initial implementation of the file activity module 
 - Created `server/internal/utils/handle-transaction-id.ts` utility function
 - Handles transaction ID extraction from `req` (supports string, number, or Promise)
 - Creates new transaction if none exists
-- Returns `transactionID`, `shouldCommitTransaction` flag, and `reqWithTransaction`
+- Returns `transactionID`, `isTransactionCreated` flag, and `reqWithTransaction`
 - Used by `tryCreateActivityModule` and `tryUpdateActivityModule` to reduce code duplication
 
 ### UI Components
@@ -245,7 +245,7 @@ This changelog documents the initial implementation of the file activity module 
 **Function:**
 - Centralizes transaction ID handling logic
 - Accepts `payload` and optional `req`
-- Returns `transactionID`, `shouldCommitTransaction`, and `reqWithTransaction`
+- Returns `transactionID`, `isTransactionCreated`, and `reqWithTransaction`
 - Handles Promise transaction IDs
 - Creates new transaction if none exists
 

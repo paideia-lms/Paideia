@@ -85,10 +85,8 @@ export const loader = async ({
 	const sectionsResult = await tryFindSectionsByCourse({
 		payload,
 		courseId: Number(courseId),
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
+		req: request,
 		overrideAccess: false,
 	});
 
@@ -151,10 +149,8 @@ export const action = async ({
 			description: description.trim(),
 			parentSection: parentSectionId,
 		},
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
+		req: request,
 		overrideAccess: false,
 	});
 

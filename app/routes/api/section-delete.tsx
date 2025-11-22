@@ -41,10 +41,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const result = await tryDeleteSection({
 			payload,
 			sectionId,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			overrideAccess: false,
 		});
 

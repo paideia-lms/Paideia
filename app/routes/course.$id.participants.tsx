@@ -127,15 +127,12 @@ export const action = async ({
 
 		const createResult = await tryCreateEnrollment({
 			payload,
-			user: userId,
+			userId: userId,
 			course: Number(courseId),
 			role,
 			status,
 			groups: groupIds,
-			authenticatedUser: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});
@@ -180,10 +177,7 @@ export const action = async ({
 			role,
 			status,
 			groups: groupIds,
-			authenticatedUser: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});
@@ -201,16 +195,13 @@ export const action = async ({
 			return badRequest({ error: "Invalid enrollment ID" });
 		}
 
-		const deleteResult = await tryDeleteEnrollment(
+		const deleteResult = await tryDeleteEnrollment({
 			payload,
 			enrollmentId,
-			{
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			request,
-			false,
-		);
+			user: currentUser,
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!deleteResult.ok) {
 			return badRequest({ error: deleteResult.error.message });

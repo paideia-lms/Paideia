@@ -40,6 +40,7 @@ import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
+import { getAvatarUrl } from "server/contexts/utils/user-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { envVars, systemGlobals } = context.get(globalContextKey);
@@ -281,12 +282,7 @@ export function HeaderTabs({
 														>
 															<Avatar
 																src={
-																	authenticatedUser.avatar?.filename
-																		? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId:
-																				authenticatedUser.avatar.filename,
-																		})
-																		: null
+																	getAvatarUrl(authenticatedUser)
 																}
 																alt={
 																	`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
@@ -305,11 +301,7 @@ export function HeaderTabs({
 														>
 															<Avatar
 																src={
-																	currentUser.avatar?.filename
-																		? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId: currentUser.avatar.filename,
-																		})
-																		: null
+																	getAvatarUrl(currentUser)
 																}
 																alt={
 																	`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
@@ -324,11 +316,7 @@ export function HeaderTabs({
 											) : (
 												<Avatar
 													src={
-														currentUser.avatar?.filename
-															? href(`/api/media/file/:filenameOrId`, {
-																filenameOrId: currentUser.avatar.filename,
-															})
-															: null
+														getAvatarUrl(currentUser)
 													}
 													alt={
 														`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||

@@ -125,11 +125,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			const submissionResult = await tryGetAssignmentSubmissionById({
 				payload,
 				id: submissionId,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				req: request,
 				overrideAccess: false,
 			});
@@ -164,10 +160,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const gradebookItemResult =
 					await tryFindGradebookItemByCourseModuleLink({
 						payload,
-						user: {
-							...currentUser,
-							avatar: currentUser.avatar?.id ?? undefined,
-						},
+						user: currentUser,
 						req: request,
 						overrideAccess: false,
 						courseModuleLinkId: courseModuleContext.moduleLinkId,
@@ -187,11 +180,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			const submissionResult = await tryGetQuizSubmissionById({
 				payload,
 				id: submissionId,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				req: request,
 				overrideAccess: false,
 			});
@@ -226,10 +215,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const gradebookItemResult =
 					await tryFindGradebookItemByCourseModuleLink({
 						payload,
-						user: {
-							...currentUser,
-							avatar: currentUser.avatar?.id ?? undefined,
-						},
+						user: currentUser,
 						req: request,
 						overrideAccess: false,
 						courseModuleLinkId: courseModuleContext.moduleLinkId,
@@ -402,10 +388,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const gradebookItemResult =
 					await tryFindGradebookItemByCourseModuleLink({
 						payload,
-						user: {
-							...currentUser,
-							avatar: currentUser.avatar?.id ?? undefined,
-						},
+						user: currentUser,
 						req: request,
 						overrideAccess: false,
 						courseModuleLinkId: courseModuleContext.moduleLinkId,
@@ -434,10 +417,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	let maxGrade: number | null = null;
 	const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 		payload,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id ?? undefined,
-		},
+		user: currentUser,
 		req: request,
 		overrideAccess: false,
 		courseModuleLinkId: courseModuleContext.moduleLinkId,
@@ -545,11 +525,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const deleteResult = await tryDeleteAssignmentSubmission({
 			payload,
 			id,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id ?? undefined,
-			},
+			user: currentUser,
 			req: request,
 			overrideAccess: false,
 		});
@@ -611,11 +587,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				feedback:
 					feedback && typeof feedback === "string" ? feedback : undefined,
 				gradedBy: currentUser.id,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -634,11 +606,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			const submissionResult = await tryGetQuizSubmissionById({
 				payload,
 				id,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				req: request,
 				overrideAccess: false,
 			});
@@ -656,11 +624,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			// Get gradebook item
 			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 				payload,
-				user: {
-					...currentUser,
-
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				req: request,
 				overrideAccess: false,
 				courseModuleLinkId: courseModuleContext.moduleLinkId,
@@ -700,11 +664,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				feedback:
 					feedback && typeof feedback === "string" ? feedback : undefined,
 				gradedBy: currentUser.id,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
+				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -770,10 +730,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		if (moduleType === "assignment") {
 			releaseResult = await tryReleaseAssignmentGrade({
 				payload,
-				user: {
-					...currentUser,
-					avatar: currentUser.avatar?.id ?? null,
-				},
+				user: currentUser,
 				req: request,
 				overrideAccess: false,
 				courseActivityModuleLinkId: courseModuleLinkIdValue,
@@ -782,10 +739,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		} else if (moduleType === "discussion") {
 			releaseResult = await tryReleaseDiscussionGrade({
 				payload,
-				user: {
-					...currentUser,
-					avatar: currentUser.avatar?.id ?? null,
-				},
+				user: currentUser,
 				req: request,
 				overrideAccess: false,
 				courseActivityModuleLinkId: courseModuleLinkIdValue,
@@ -794,10 +748,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		} else if (moduleType === "quiz") {
 			releaseResult = await tryReleaseQuizGrade({
 				payload,
-				user: {
-					...currentUser,
-					avatar: currentUser.avatar?.id ?? null,
-				},
+				user: currentUser,
 				req: request,
 				overrideAccess: false,
 				courseActivityModuleLinkId: courseModuleLinkIdValue,

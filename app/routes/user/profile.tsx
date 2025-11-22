@@ -94,11 +94,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const targetUserResult = await tryFindUserById({
 			payload,
 			userId: targetUserId,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			overrideAccess: true,
+			user: currentUser,
+			req: request,
+			overrideAccess: false,
 		});
 
 		if (!targetUserResult.ok || !targetUserResult.value) {

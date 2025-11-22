@@ -1,11 +1,8 @@
-import { Button, Container, Divider, Group, Paper, Select, Stack, Text, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
-import { modals } from "@mantine/modals";
+import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { IconTrash } from "@tabler/icons-react";
+import { useState } from "react";
 import {
 	href,
-	redirect,
 	type SubmitTarget,
 	useFetcher,
 } from "react-router";
@@ -13,7 +10,6 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import {
-	tryDeleteActivityModule,
 	tryUpdateActivityModule,
 	type UpdateActivityModuleArgs,
 } from "server/internal/activity-module-management";
@@ -52,7 +48,9 @@ import {
 	ok,
 	StatusCode,
 } from "~/utils/responses";
+import { DeleteActivityModule } from "~/components/delete-activity-module";
 import type { Route } from "./+types/edit-setting";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -68,8 +66,6 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			"You only have read-only access to this module",
 		);
 	}
-
-
 
 	// Check if module has linked courses (cannot be deleted if it does)
 	const hasLinkedCourses = userModuleContext.linkedCourses.length > 0;
@@ -108,33 +104,12 @@ export const action = async ({
 		});
 	}
 
-	// Check if this is a delete action
-	const contentType = request.headers.get("content-type") || "";
-	if (contentType.includes("application/json")) {
-		const { data } = await getDataAndContentTypeFromRequest(request);
-		if (data && typeof data === "object" && "_action" in data && data._action === "delete") {
-			const deleteResult = await tryDeleteActivityModule(payload, Number(moduleId));
 
-			if (!deleteResult.ok) {
-				return badRequest({
-					success: false,
-					error: deleteResult.error.message,
-				});
-			}
+	////////////////////////////////////////////////////////////
+	// Update Module
+	////////////////////////////////////////////////////////////
 
-			// Redirect to user modules page after successful deletion
-			throw redirect(href("/user/modules/:id?", { id: String(currentUser.id) }));
-		}
-	}
-
-	const transactionID = await payload.db.beginTransaction();
-
-	if (!transactionID) {
-		return badRequest({
-			success: false,
-			error: "Failed to begin transaction",
-		});
-	}
+	const { transactionID, reqWithTransaction } = await handleTransactionId(payload, request)
 
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
@@ -160,12 +135,8 @@ export const action = async ({
 						filename: fileUpload.name,
 						mimeType: fileUpload.type || "application/octet-stream",
 						userId: currentUser.id,
-						user: {
-							...currentUser,
-							collection: "users",
-							avatar: currentUser.avatar?.id ?? undefined,
-						},
-						req: { transactionID },
+						user: currentUser,
+						req: reqWithTransaction,
 					});
 
 					if (!mediaResult.ok) {
@@ -236,51 +207,27 @@ export const action = async ({
 		let updateArgs: UpdateActivityModuleArgs;
 		if (parsedData.type === "page" && pageData) {
 			updateArgs = {
-				...baseArgs, type: "page" as const, pageData, req: { transactionID }, user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				}
+				...baseArgs, type: "page" as const, pageData, req: { transactionID }, user: currentUser
 			};
 		} else if (parsedData.type === "whiteboard" && whiteboardData) {
 			updateArgs = {
-				...baseArgs, type: "whiteboard" as const, whiteboardData, req: { transactionID }, user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				}
+				...baseArgs, type: "whiteboard" as const, whiteboardData, req: { transactionID }, user: currentUser
 			};
 		} else if (parsedData.type === "assignment" && assignmentData) {
 			updateArgs = {
-				...baseArgs, type: "assignment" as const, assignmentData, req: { transactionID }, user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				}
+				...baseArgs, type: "assignment" as const, assignmentData, req: { transactionID }, user: currentUser,
 			};
 		} else if (parsedData.type === "quiz" && quizData) {
 			updateArgs = {
-				...baseArgs, type: "quiz" as const, quizData, req: { transactionID }, user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				}
+				...baseArgs, type: "quiz" as const, quizData, req: { transactionID }, user: currentUser
 			};
 		} else if (parsedData.type === "file" && finalFileData) {
 			updateArgs = {
-				...baseArgs, type: "file" as const, fileData: finalFileData, req: { transactionID }, user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				}
+				...baseArgs, type: "file" as const, fileData: finalFileData, req: { transactionID }, user: currentUser
 			};
 		} else if (parsedData.type === "discussion" && discussionData) {
 			updateArgs = {
-				...baseArgs, type: "discussion" as const, discussionData, req: { transactionID }, user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				}
+				...baseArgs, type: "discussion" as const, discussionData, req: { transactionID }, user: currentUser
 			};
 		} else {
 			await payload.db.rollbackTransaction(transactionID);
@@ -381,34 +328,10 @@ export function useUpdateModule() {
 	};
 }
 
-// Custom hook for deleting module
-export function useDeleteModule() {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const deleteModule = (moduleId: string) => {
-		fetcher.submit(
-			{ _action: "delete" },
-			{
-				method: "POST",
-				action: href("/user/module/edit/:moduleId/setting", {
-					moduleId,
-				}),
-				encType: ContentType.JSON,
-			},
-		);
-	};
-
-	return {
-		deleteModule,
-		isLoading: fetcher.state !== "idle",
-		data: fetcher.data,
-	};
-}
-
 export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 	const { module, uploadLimit, hasLinkedCourses } = loaderData;
 	const { updateModule, isLoading } = useUpdateModule();
-	const { deleteModule, isLoading: isDeleting } = useDeleteModule();
+	const [selectedType] = useState<ActivityModuleFormValues["type"]>(module.type);
 
 	// Extract activity-specific data
 	const pageData = module.page;
@@ -418,91 +341,71 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 	const quizData = module.quiz;
 	const discussionData = module.discussion;
 
-	// Mantine Form
-	const mantineForm = useForm<
-		ActivityModuleFormValues,
-		(values: ActivityModuleFormValues) => ActivityModuleFormValues
-	>({
-		mode: "uncontrolled",
-		cascadeUpdates: true,
-		initialValues: {
+	// Prepare initial values for each form type
+	const getInitialValues = () => {
+		const base = {
 			title: module.title,
 			description: module.description || "",
-			type: module.type,
 			status: module.status,
-			// Page fields
-			pageContent: pageData?.content || "",
-			// Whiteboard fields
-			whiteboardContent: whiteboardData?.content || "",
-			// File fields
-			fileMedia:
-				fileData?.media
-					?.map(
-						(m: number | { id: number } | null | undefined) =>
-							typeof m === "object" && m !== null && "id" in m ? m.id : m,
-					)
-					.filter((id: number | null | undefined): id is number =>
-						typeof id === "number",
-					) || [],
-			fileFiles: [], // Files to upload (empty for edit, user can add new files)
-			// Assignment fields
-			assignmentInstructions: assignmentData?.instructions || "",
-			assignmentDueDate: assignmentData?.dueDate
-				? new Date(assignmentData.dueDate)
-				: null,
-			assignmentMaxAttempts: assignmentData?.maxAttempts || 1,
-			assignmentAllowLateSubmissions:
-				assignmentData?.allowLateSubmissions || false,
-			assignmentRequireTextSubmission:
-				assignmentData?.requireTextSubmission || false,
-			assignmentRequireFileSubmission:
-				assignmentData?.requireFileSubmission || false,
-			assignmentAllowedFileTypes: fileTypesToPresetValues(
-				assignmentData?.allowedFileTypes,
-			),
-			assignmentMaxFileSize: assignmentData?.maxFileSize || 10,
-			assignmentMaxFiles: assignmentData?.maxFiles || 5,
-			// Quiz fields
-			quizInstructions: quizData?.instructions || "",
-			quizDueDate: quizData?.dueDate ? new Date(quizData.dueDate) : null,
-			quizMaxAttempts: quizData?.maxAttempts || 1,
-			quizPoints: quizData?.points || 100,
-			quizTimeLimit: quizData?.timeLimit || 60,
-			quizGradingType: quizData?.gradingType || "automatic",
-			rawQuizConfig: quizData?.rawQuizConfig || null,
-			// Discussion fields
-			discussionInstructions: discussionData?.instructions || "",
-			discussionDueDate: discussionData?.dueDate
-				? new Date(discussionData.dueDate)
-				: null,
-			discussionRequireThread: discussionData?.requireThread || false,
-			discussionRequireReplies: discussionData?.requireReplies || false,
-			discussionMinReplies: discussionData?.minReplies || 1,
-		},
-		validate: {
-			title: (value) =>
-				value.trim().length === 0 ? "Title is required" : null,
-		},
-	});
+		};
 
-	const selectedType = mantineForm.values.type;
-
-	const handleDelete = () => {
-		modals.openConfirmModal({
-			title: "Delete Activity Module",
-			children: (
-				<Text size="sm">
-					Are you sure you want to delete this activity module? This action
-					cannot be undone. The module must not be linked to any courses to be
-					deleted.
-				</Text>
-			),
-			labels: { confirm: "Delete", cancel: "Cancel" },
-			confirmProps: { color: "red" },
-			onConfirm: () => {
-				deleteModule(String(module.id));
-			},
-		});
+		switch (module.type) {
+			case "page":
+				return { ...base, type: "page" as const, pageContent: pageData?.content || "" };
+			case "whiteboard":
+				return { ...base, type: "whiteboard" as const, whiteboardContent: whiteboardData?.content || "" };
+			case "file":
+				return {
+					...base,
+					type: "file" as const,
+					fileMedia:
+						fileData?.media
+							?.map(
+								(m: number | { id: number } | null | undefined) =>
+									typeof m === "object" && m !== null && "id" in m ? m.id : m,
+							)
+							.filter((id: number | null | undefined): id is number =>
+								typeof id === "number",
+							) || [],
+					fileFiles: [],
+				};
+			case "assignment":
+				return {
+					...base,
+					type: "assignment" as const,
+					assignmentInstructions: assignmentData?.instructions || "",
+					assignmentDueDate: assignmentData?.dueDate ? new Date(assignmentData.dueDate) : null,
+					assignmentMaxAttempts: assignmentData?.maxAttempts || 1,
+					assignmentAllowLateSubmissions: assignmentData?.allowLateSubmissions || false,
+					assignmentRequireTextSubmission: assignmentData?.requireTextSubmission || false,
+					assignmentRequireFileSubmission: assignmentData?.requireFileSubmission || false,
+					assignmentAllowedFileTypes: fileTypesToPresetValues(assignmentData?.allowedFileTypes),
+					assignmentMaxFileSize: assignmentData?.maxFileSize || 10,
+					assignmentMaxFiles: assignmentData?.maxFiles || 5,
+				};
+			case "quiz":
+				return {
+					...base,
+					type: "quiz" as const,
+					quizInstructions: quizData?.instructions || "",
+					quizDueDate: quizData?.dueDate ? new Date(quizData.dueDate) : null,
+					quizMaxAttempts: quizData?.maxAttempts || 1,
+					quizPoints: quizData?.points || 100,
+					quizTimeLimit: quizData?.timeLimit || 60,
+					quizGradingType: quizData?.gradingType || "automatic",
+					rawQuizConfig: quizData?.rawQuizConfig || null,
+				};
+			case "discussion":
+				return {
+					...base,
+					type: "discussion" as const,
+					discussionInstructions: discussionData?.instructions || "",
+					discussionDueDate: discussionData?.dueDate ? new Date(discussionData.dueDate) : null,
+					discussionRequireThread: discussionData?.requireThread || false,
+					discussionRequireReplies: discussionData?.requireReplies || false,
+					discussionMinReplies: discussionData?.minReplies || 1,
+				};
+		}
 	};
 
 	return (
@@ -524,105 +427,73 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 					<Title order={2} mb="lg">
 						Edit Activity Module
 					</Title>
-					<form
-						onSubmit={mantineForm.onSubmit((values) => {
-							updateModule(String(module.id), values);
-						})}
-					>
-						<Stack gap="md">
-							<Select
-								{...mantineForm.getInputProps("type")}
-								key={mantineForm.key("type")}
-								label="Module Type"
-								placeholder="Select module type"
-								disabled
-								data={[
-									{ value: "page", label: "Page" },
-									{ value: "whiteboard", label: "Whiteboard" },
-									{ value: "file", label: "File" },
-									{ value: "assignment", label: "Assignment" },
-									{ value: "quiz", label: "Quiz" },
-									{ value: "discussion", label: "Discussion" },
-								]}
-							/>
-
-							{selectedType === "page" && <PageForm form={mantineForm} />}
-							{selectedType === "whiteboard" && (
-								<WhiteboardForm form={mantineForm} />
-							)}
-							{selectedType === "file" && (
-								<FileForm
-									form={mantineForm}
-									uploadLimit={uploadLimit}
-									existingMedia={[]}
-								/>
-							)}
-							{selectedType === "assignment" && (
-								<AssignmentForm form={mantineForm} />
-							)}
-							{selectedType === "quiz" && <QuizForm form={mantineForm} />}
-							{selectedType === "discussion" && (
-								<DiscussionForm form={mantineForm} />
-							)}
-
-							<Button type="submit" size="lg" mt="lg" loading={isLoading}>
-								Update Module
-							</Button>
-						</Stack>
-					</form>
-				</Paper>
-
-				{/* Danger Zone */}
-				<Paper
-					withBorder
-					shadow="sm"
-					p="xl"
-					style={{ borderColor: "var(--mantine-color-red-6)" }}
-				>
 					<Stack gap="md">
-						<div>
-							<Title order={3} c="red">
-								Danger Zone
-							</Title>
-							<Text size="sm" c="dimmed" mt="xs">
-								Irreversible and destructive actions
-							</Text>
-						</div>
+						<Select
+							value={module.type}
+							label="Module Type"
+							placeholder="Select module type"
+							disabled
+							data={[
+								{ value: "page", label: "Page" },
+								{ value: "whiteboard", label: "Whiteboard" },
+								{ value: "file", label: "File" },
+								{ value: "assignment", label: "Assignment" },
+								{ value: "quiz", label: "Quiz" },
+								{ value: "discussion", label: "Discussion" },
+							]}
+						/>
 
-						<Divider color="red" />
-
-						<Group justify="space-between" align="flex-start">
-							<div style={{ flex: 1 }}>
-								<Text fw={500} mb="xs">
-									Delete this activity module
-								</Text>
-								{hasLinkedCourses ? (
-									<Text size="sm" c="dimmed">
-										This activity module cannot be deleted because it is linked to
-										one or more courses. Please remove it from all courses before
-										deleting.
-									</Text>
-								) : (
-									<Text size="sm" c="dimmed">
-										Once you delete an activity module, there is no going back.
-										Please be certain.
-									</Text>
-								)}
-							</div>
-							<Button
-								color="red"
-								variant="light"
-								leftSection={<IconTrash size={16} />}
-								onClick={handleDelete}
-								loading={isDeleting}
-								disabled={hasLinkedCourses}
-								style={{ minWidth: "150px" }}
-							>
-								Delete Module
-							</Button>
-						</Group>
+						{selectedType === "page" && (
+							<PageForm
+								initialValues={getInitialValues() as any}
+								onSubmit={(values) => updateModule(String(module.id), values)}
+								isLoading={isLoading}
+							/>
+						)}
+						{selectedType === "whiteboard" && (
+							<WhiteboardForm
+								initialValues={getInitialValues() as any}
+								onSubmit={(values) => updateModule(String(module.id), values)}
+								isLoading={isLoading}
+							/>
+						)}
+						{selectedType === "file" && (
+							<FileForm
+								initialValues={getInitialValues() as any}
+								onSubmit={(values) => updateModule(String(module.id), values)}
+								uploadLimit={uploadLimit}
+								existingMedia={[]}
+								isLoading={isLoading}
+							/>
+						)}
+						{selectedType === "assignment" && (
+							<AssignmentForm
+								initialValues={getInitialValues() as any}
+								onSubmit={(values) => updateModule(String(module.id), values)}
+								isLoading={isLoading}
+							/>
+						)}
+						{selectedType === "quiz" && (
+							<QuizForm
+								initialValues={getInitialValues() as any}
+								onSubmit={(values) => updateModule(String(module.id), values)}
+								isLoading={isLoading}
+							/>
+						)}
+						{selectedType === "discussion" && (
+							<DiscussionForm
+								initialValues={getInitialValues() as any}
+								onSubmit={(values) => updateModule(String(module.id), values)}
+								isLoading={isLoading}
+							/>
+						)}
 					</Stack>
 				</Paper>
+
+				<DeleteActivityModule
+					moduleId={module.id}
+					hasLinkedCourses={hasLinkedCourses}
+				/>
 			</Stack>
 		</Container>
 	);

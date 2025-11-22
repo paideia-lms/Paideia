@@ -29,7 +29,7 @@ import { tryGetGradebookAllRepresentations } from "./gradebook-management";
 
 export interface CreateUserGradeArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	enrollmentId: number;
@@ -45,7 +45,7 @@ export interface CreateUserGradeArgs {
 
 export interface UpdateUserGradeArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	gradeId: number;
@@ -64,7 +64,7 @@ export interface UpdateUserGradeArgs {
 
 export interface AddAdjustmentArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	gradeId: number;
@@ -82,7 +82,7 @@ export interface AddAdjustmentArgs {
 
 export interface RemoveAdjustmentArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	gradeId: number;
@@ -91,7 +91,7 @@ export interface RemoveAdjustmentArgs {
 
 export interface ToggleAdjustmentArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	gradeId: number;
@@ -108,7 +108,7 @@ export interface SearchUserGradesArgs {
 
 export interface BulkGradeUpdateArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	enrollmentId: number;
@@ -505,7 +505,7 @@ export const tryUpdateUserGrade = Result.wrap(
 
 export interface FindUserGradeByIdArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	gradeId: number;
@@ -544,7 +544,7 @@ export const tryFindUserGradeById = Result.wrap(
 
 export interface FindUserGradeByEnrollmentAndItemArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	enrollmentId: number;
@@ -605,7 +605,7 @@ export const tryFindUserGradeByEnrollmentAndItem = Result.wrap(
 
 export interface FindUserGradesBySubmissionIdsArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	submissionIds: number[];
@@ -702,7 +702,7 @@ export const tryFindUserGradesBySubmissionIds = Result.wrap(
 
 export interface DeleteUserGradeArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	gradeId: number;
@@ -734,7 +734,7 @@ export const tryDeleteUserGrade = Result.wrap(
 
 export interface GetUserGradesForGradebookArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	enrollmentId: number;
@@ -818,7 +818,7 @@ export const tryGetUserGradesForGradebook = Result.wrap(
 
 export interface GetGradesForItemArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	gradebookItemId: number;
@@ -998,7 +998,7 @@ export const tryBulkUpdateUserGrades = Result.wrap(
 
 export interface CalculateUserFinalGradeArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	enrollmentId: number;
@@ -1330,7 +1330,7 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 			activityModuleType?: string | string[] | null;
 		}>;
 		gradesByEnrollment: Map<number, UserGrade[]>;
-		user?: User | null;
+		user?: TypedUser | null;
 		req?: Partial<PayloadRequest>;
 		overrideAccess?: boolean;
 	}): Promise<UserGradeEnrollment> => {
@@ -1478,7 +1478,7 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 
 export interface GetUserGradesJsonRepresentationArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseId: number;
@@ -1643,7 +1643,7 @@ export const tryGetUserGradesJsonRepresentation = Result.wrap(
 
 export interface GetSingleUserGradesJsonRepresentationArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseId: number;
@@ -1825,7 +1825,7 @@ export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
 
 export interface GetAdjustedSingleUserGradesJsonRepresentationArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseId: number;
@@ -1968,7 +1968,7 @@ export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
 
 export interface GetAdjustedSingleUserGradesArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseId: number;
@@ -2168,7 +2168,7 @@ export const tryGetAdjustedSingleUserGrades = Result.wrap(
 
 export interface ReleaseAssignmentGradeArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseActivityModuleLinkId: number;
@@ -2399,7 +2399,7 @@ export const tryReleaseAssignmentGrade = Result.wrap(
 
 export interface ReleaseDiscussionGradeArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseActivityModuleLinkId: number;
@@ -2658,7 +2658,7 @@ export const tryReleaseDiscussionGrade = Result.wrap(
 
 export interface ReleaseQuizGradeArgs {
 	payload: Payload;
-	user?: User | null;
+	user?: TypedUser | null;
 	req?: Partial<PayloadRequest>;
 	overrideAccess?: boolean;
 	courseActivityModuleLinkId: number;

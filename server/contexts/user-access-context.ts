@@ -5,19 +5,19 @@
  * it stores all the enrollments of this users
  * it stores all the notes created by this user with heatmap data
  */
-import type { Payload } from "payload";
+import type { Payload, TypedUser } from "payload";
 import { createContext } from "react-router";
 import type { User } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
-import type { Note } from "server/payload-types";
+import type { Note, Course as PayloadCourse, ActivityModule as PayloadActivityModule, Enrollment as PayloadEnrollment } from "server/payload-types";
 
 type Course = {
 	id: number;
 	title: string;
 	slug: string;
-	status: "draft" | "published" | "archived";
+	status: PayloadCourse["status"];
 	description: string;
 	createdAt: string;
 	updatedAt: string;
@@ -30,12 +30,12 @@ type Course = {
 		} | null;
 	} | null;
 	thumbnail?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+	}
+	| null;
 };
 
 type ActivityModule = {
@@ -44,8 +44,8 @@ type ActivityModule = {
 	description: string;
 	createdAt: string;
 	updatedAt: string;
-	type: "quiz" | "assignment" | "discussion" | "page" | "whiteboard";
-	status: "draft" | "published" | "archived";
+	type: PayloadActivityModule["type"];
+	status: PayloadActivityModule["status"];
 	linkedCourses: number[];
 	accessType: "owned" | "granted" | "readonly";
 };
@@ -55,8 +55,8 @@ type ActivityModule = {
  */
 export type Enrollment = {
 	id: number;
-	role: "student" | "teacher" | "ta" | "manager";
-	status: "active" | "inactive" | "completed" | "dropped";
+	role: PayloadEnrollment["role"];
+	status: PayloadEnrollment["status"];
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	course: Course;
@@ -84,14 +84,11 @@ export const getUserAccessContext = async (
 	/**
 	 * the current user, need to verify the access
 	 */
-	user: User,
+	user: TypedUser,
 ): Promise<UserAccessContext | null> => {
 	const result = await tryGetUserActivityModules(payload, {
 		userId: userId,
-		user: {
-			...user,
-			collection: "users",
-		},
+		user,
 		overrideAccess: true,
 	});
 
@@ -102,16 +99,13 @@ export const getUserAccessContext = async (
 
 	const { modulesOwnedOrGranted, autoGrantedModules } = result.value;
 
-	const enrollments = await tryFindEnrollmentsByUser(
+	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
-		user.id,
-		{
-			...user,
-			avatar: user.avatar?.id,
-		},
-		undefined,
-		true,
-	);
+		userId: user.id,
+		user: user,
+		req: undefined,
+		overrideAccess: true,
+	});
 
 	if (!enrollments.ok) throw new Error("Failed to get user enrollments");
 
@@ -134,17 +128,17 @@ export const getUserAccessContext = async (
 					category: enrollment.course.category
 						? typeof enrollment.course.category === "object"
 							? {
-									id: enrollment.course.category.id,
-									name: enrollment.course.category.name,
-									parent:
-										enrollment.course.category.parent &&
+								id: enrollment.course.category.id,
+								name: enrollment.course.category.name,
+								parent:
+									enrollment.course.category.parent &&
 										typeof enrollment.course.category.parent === "object"
-											? {
-													id: enrollment.course.category.parent.id,
-													name: enrollment.course.category.parent.name,
-												}
-											: null,
-								}
+										? {
+											id: enrollment.course.category.parent.id,
+											name: enrollment.course.category.parent.name,
+										}
+										: null,
+							}
 							: null
 						: null,
 					thumbnail: enrollment.course.thumbnail ?? null,
@@ -182,11 +176,7 @@ export const getUserAccessContext = async (
 	const heatmapResult = await tryGenerateNoteHeatmap({
 		payload,
 		userId,
-		user: {
-			...user,
-			collection: "users",
-			avatar: user.avatar?.id,
-		},
+		user: user,
 		overrideAccess: false,
 	});
 

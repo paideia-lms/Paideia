@@ -599,12 +599,12 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				firstName: string | null;
 				lastName: string | null;
 				avatar?:
-					| number
-					| {
-							id: number;
-							filename?: string;
-					  }
-					| null;
+				| number
+				| {
+					id: number;
+					filename?: string;
+				}
+				| null;
 				enrollments: {
 					courseId: number;
 					role: "teacher" | "ta";
@@ -670,7 +670,7 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 type FindAutoGrantedModulesForInstructorArgs = {
 	payload: Payload;
 	userId: number;
-	user?: User | null;
+	user?: TypedUser | null;
 	overrideAccess?: boolean;
 };
 

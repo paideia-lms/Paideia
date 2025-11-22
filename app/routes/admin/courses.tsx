@@ -77,11 +77,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit: 10,
 		page,
 		sort: "-createdAt",
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 	});
 
 	if (!coursesResult.ok) {
@@ -109,7 +105,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		const createdByName =
 			createdBy !== null
 				? `${createdBy.firstName || ""} ${createdBy.lastName || ""}`.trim() ||
-					createdBy.email
+				createdBy.email
 				: "Unknown";
 
 		const category = course.category;
@@ -333,8 +329,8 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 															event.currentTarget.checked
 																? [...selectedCourseIds, course.id]
 																: selectedCourseIds.filter(
-																		(id) => id !== course.id,
-																	),
+																	(id) => id !== course.id,
+																),
 														)
 													}
 												/>

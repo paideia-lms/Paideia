@@ -124,9 +124,7 @@ export const tryCreateNote = Result.wrap(
 					depth: 0,
 					pagination: false,
 					overrideAccess: true,
-					req: req?.transactionID
-						? { ...req, transactionID: req.transactionID }
-						: req,
+					req,
 				});
 
 				resolvedIds = mediaResult.docs.map((doc) => doc.id);
@@ -227,9 +225,8 @@ export const tryUpdateNote = Result.wrap(
 						depth: 0,
 						pagination: false,
 						overrideAccess: true,
-						req: req?.transactionID
-							? { ...req, transactionID: req.transactionID }
-							: req,
+						user,
+						req,
 					});
 
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);

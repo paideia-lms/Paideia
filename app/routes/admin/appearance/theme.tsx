@@ -97,10 +97,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateAppearanceSettings({
 		payload,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		user: currentUser,
 		data: {
 			color,
 			radius: radius as "xs" | "sm" | "md" | "lg" | "xl" | undefined,

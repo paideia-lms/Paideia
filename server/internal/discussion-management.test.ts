@@ -124,7 +124,7 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create enrollment
 		const enrollmentArgs: CreateEnrollmentArgs = {
 			payload,
-			user: studentId,
+			userId: studentId,
 			course: courseId,
 			role: "student",
 			status: "active",
@@ -179,13 +179,20 @@ describe("Discussion Management - Full Workflow", () => {
 		console.log("Created activity module with ID:", activityModuleId);
 
 		// Get the discussion ID from the activity module
-		if (
-			activityModuleResult.value.discussion &&
-			typeof activityModuleResult.value.discussion === "object" &&
-			"id" in activityModuleResult.value.discussion
-		) {
-			discussionId = activityModuleResult.value.discussion.id as number;
-			console.log("Extracted discussion ID:", discussionId);
+		// Since DiscussionModuleResult is a discriminated union, we need to check the type first
+		if (activityModuleResult.value.type === "discussion") {
+			// Fetch the activity module with depth to get the discussion relationship
+			const module = await payload.findByID({
+				collection: "activity-modules",
+				id: activityModuleId,
+				depth: 1,
+			});
+			if (module.discussion) {
+				discussionId = typeof module.discussion === "object" && "id" in module.discussion
+					? module.discussion.id
+					: module.discussion as number;
+				console.log("Extracted discussion ID:", discussionId);
+			}
 		}
 
 		// Create a section for the course
