@@ -8,11 +8,10 @@ import {
 	type TypedUser as PayloadUser,
 	parseCookies,
 } from "payload";
-import { createContext, } from "react-router";
+import { createContext } from "react-router";
 import { tryHandleImpersonation } from "server/internal/user-management";
 
-
-export type User = PayloadUser
+export type User = PayloadUser;
 
 export interface UserSession {
 	authenticatedUser: User; // The actual logged-in user (admin)

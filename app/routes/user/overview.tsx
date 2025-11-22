@@ -63,7 +63,11 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/overview";
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
@@ -109,8 +113,8 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: profileUser.avatar.filename,
-				})
+						filenameOrId: profileUser.avatar.filename,
+					})
 				: null;
 		}
 	}

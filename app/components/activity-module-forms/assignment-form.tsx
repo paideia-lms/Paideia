@@ -10,9 +10,12 @@ import {
 	Textarea,
 	Title,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
 import type { UseFormReturnType } from "@mantine/form";
-import type { ActivityModuleFormValues, AssignmentModuleFormValues } from "~/utils/activity-module-schema";
+import { useForm } from "@mantine/form";
+import type {
+	ActivityModuleFormValues,
+	AssignmentModuleFormValues,
+} from "~/utils/activity-module-schema";
 import {
 	PRESET_FILE_TYPE_OPTIONS,
 	presetValuesToFileTypes,
@@ -27,7 +30,11 @@ interface AssignmentFormProps {
 	isLoading?: boolean;
 }
 
-export function AssignmentForm({ initialValues, onSubmit, isLoading }: AssignmentFormProps) {
+export function AssignmentForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: AssignmentFormProps) {
 	const form = useForm<AssignmentModuleFormValues>({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
@@ -39,10 +46,14 @@ export function AssignmentForm({ initialValues, onSubmit, isLoading }: Assignmen
 			assignmentInstructions: initialValues?.assignmentInstructions || "",
 			assignmentDueDate: initialValues?.assignmentDueDate || null,
 			assignmentMaxAttempts: initialValues?.assignmentMaxAttempts || 1,
-			assignmentAllowLateSubmissions: initialValues?.assignmentAllowLateSubmissions || false,
-			assignmentRequireTextSubmission: initialValues?.assignmentRequireTextSubmission || false,
-			assignmentRequireFileSubmission: initialValues?.assignmentRequireFileSubmission || false,
-			assignmentAllowedFileTypes: initialValues?.assignmentAllowedFileTypes || [],
+			assignmentAllowLateSubmissions:
+				initialValues?.assignmentAllowLateSubmissions || false,
+			assignmentRequireTextSubmission:
+				initialValues?.assignmentRequireTextSubmission || false,
+			assignmentRequireFileSubmission:
+				initialValues?.assignmentRequireFileSubmission || false,
+			assignmentAllowedFileTypes:
+				initialValues?.assignmentAllowedFileTypes || [],
 			assignmentMaxFileSize: initialValues?.assignmentMaxFileSize || 10,
 			assignmentMaxFiles: initialValues?.assignmentMaxFiles || 5,
 		},
@@ -59,7 +70,9 @@ export function AssignmentForm({ initialValues, onSubmit, isLoading }: Assignmen
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields form={form as UseFormReturnType<ActivityModuleFormValues>} />
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
 
 				<Textarea
 					{...form.getInputProps("description")}

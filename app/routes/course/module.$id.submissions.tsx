@@ -14,9 +14,7 @@ import {
 	tryGetAssignmentSubmissionById,
 	tryGradeAssignmentSubmission,
 } from "server/internal/assignment-submission-management";
-import {
-	tryGradeDiscussionSubmission,
-} from "server/internal/discussion-management";
+import { tryGradeDiscussionSubmission } from "server/internal/discussion-management";
 import { tryFindGradebookItemByCourseModuleLink } from "server/internal/gradebook-item-management";
 import {
 	tryGetQuizSubmissionById,
@@ -250,8 +248,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			gradingModuleType = "discussion";
 
 			// Get student ID from submission
-			const studentId =
-				submission.student.id;
+			const studentId = submission.student.id;
 
 			// Build a map of ALL submissions by ID for parent lookup (needed because parent might be from another student)
 			const allSubmissionsMap = new Map(
@@ -266,7 +263,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-							subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -277,12 +274,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					const author =
 						typeof student === "object" && student !== null
 							? {
-								id: student.id,
-								firstName: student.firstName ?? null,
-								lastName: student.lastName ?? null,
-								email: student.email ?? null,
-								avatar: student.avatar ?? null,
-							}
+									id: student.id,
+									firstName: student.firstName ?? null,
+									lastName: student.lastName ?? null,
+									email: student.email ?? null,
+									avatar: student.avatar ?? null,
+								}
 							: null;
 
 					return [
@@ -319,7 +316,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-							subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -343,11 +340,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			const studentSubmissionsWithParents = studentSubmissions.map((sub) => {
 				const parentPost =
 					sub.parentThread && sub.postType !== "thread"
-						? allSubmissionsMap.get(sub.parentThread) ?? null
+						? (allSubmissionsMap.get(sub.parentThread) ?? null)
 						: null;
 
 				// Build ancestors chain (all parents up to thread)
-				const ancestors: typeof sub[] = [];
+				const ancestors: (typeof sub)[] = [];
 				if (parentPost) {
 					let current: typeof sub | null = parentPost;
 					while (current) {
@@ -430,8 +427,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Extract submissions from discriminated union based on module type
 	const allSubmissions =
 		courseModuleContext.moduleSpecificData.type === "assignment" ||
-			courseModuleContext.moduleSpecificData.type === "quiz" ||
-			courseModuleContext.moduleSpecificData.type === "discussion"
+		courseModuleContext.moduleSpecificData.type === "quiz" ||
+		courseModuleContext.moduleSpecificData.type === "discussion"
 			? courseModuleContext.moduleSpecificData.submissions
 			: [];
 
@@ -446,13 +443,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-					submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 					? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						gradedAt: submissionWithGrade.gradedAt || null,
-						feedback: submissionWithGrade.feedback || null,
-					}
+							baseGrade: submissionWithGrade.grade,
+							maxGrade,
+							gradedAt: submissionWithGrade.gradedAt || null,
+							feedback: submissionWithGrade.feedback || null,
+						}
 					: null,
 		};
 	});
@@ -822,13 +819,13 @@ type SubmissionType = {
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
 		description?: string;
 	}> | null;
 	grade?: {

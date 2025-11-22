@@ -204,32 +204,35 @@ export const tryCreateCourse = Result.wrap(
 			});
 
 			// create the gradebook as well
-			const gradebookResult = await payload.create({
-				collection: Gradebooks.slug,
-				data: {
-					course: newCourse.id,
-				},
-				depth: 0,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			}).then((g) => {
-				// type narrowing 
-				assertZodInternal(
-					"tryCreateCourse: Gradebook course should be a number ",
-					g.course,
-					z.number(),
-				);
-				return {
-					...g,
-					course: g.course,
-				}
-			});
+			const gradebookResult = await payload
+				.create({
+					collection: Gradebooks.slug,
+					data: {
+						course: newCourse.id,
+					},
+					depth: 0,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				})
+				.then((g) => {
+					// type narrowing
+					assertZodInternal(
+						"tryCreateCourse: Gradebook course should be a number ",
+						g.course,
+						z.number(),
+					);
+					return {
+						...g,
+						course: g.course,
+					};
+				});
 
 			if (gradebookResult.course !== newCourse.id) {
-				throw new DevelopmentError("tryCreateCourse: Gradebook course ID does not match course ID");
+				throw new DevelopmentError(
+					"tryCreateCourse: Gradebook course ID does not match course ID",
+				);
 			}
-
 
 			// create a default section for the course
 			const defaultSectionResult = await payload.create({
@@ -610,11 +613,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-							...category,
-							parent,
-							courses: categoryCourses,
-							subcategories: categorySubcategories,
-						}
+								...category,
+								parent,
+								courses: categoryCourses,
+								subcategories: categorySubcategories,
+							}
 						: null,
 					sections,
 				};

@@ -8,6 +8,7 @@ import type {
 import {
 	ActionIcon,
 	Box,
+	Button,
 	Loader,
 	Stack,
 	Textarea,
@@ -15,9 +16,8 @@ import {
 	Tooltip,
 	useMantineColorScheme,
 } from "@mantine/core";
-import { Button } from "@mantine/core";
-import { useForm } from "@mantine/form";
 import type { UseFormReturnType } from "@mantine/form";
+import { useForm } from "@mantine/form";
 import {
 	useDebouncedCallback,
 	useFullscreen,
@@ -25,7 +25,10 @@ import {
 } from "@mantine/hooks";
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
-import type { ActivityModuleFormValues, WhiteboardModuleFormValues } from "~/utils/activity-module-schema";
+import type {
+	ActivityModuleFormValues,
+	WhiteboardModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
 import { useWhiteboardData } from "./useWhiteboardData";
@@ -43,7 +46,11 @@ interface WhiteboardFormProps {
 	isLoading?: boolean;
 }
 
-export function WhiteboardForm({ initialValues, onSubmit, isLoading }: WhiteboardFormProps) {
+export function WhiteboardForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: WhiteboardFormProps) {
 	const form = useForm<WhiteboardModuleFormValues>({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
@@ -100,7 +107,9 @@ export function WhiteboardForm({ initialValues, onSubmit, isLoading }: Whiteboar
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields form={form as UseFormReturnType<ActivityModuleFormValues>} />
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
 
 				<Textarea
 					{...form.getInputProps("description")}
@@ -155,7 +164,9 @@ export function WhiteboardForm({ initialValues, onSubmit, isLoading }: Whiteboar
 									theme={colorScheme === "dark" ? "dark" : "light"}
 									renderTopRightUI={() => (
 										<Tooltip
-											label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+											label={
+												fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"
+											}
 										>
 											<ActionIcon
 												onClick={toggle}

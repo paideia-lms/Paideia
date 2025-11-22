@@ -4,7 +4,11 @@
 }
 
 .clockFace {
-	background: radial-gradient(circle, rgba(0, 212, 255, 0.1) 0%, transparent 70%);
+	background: radial-gradient(
+		circle,
+		rgba(0, 212, 255, 0.1) 0%,
+		transparent 70%
+	);
 }
 
 .hourTick {
@@ -60,7 +64,11 @@
 }
 
 .centerBlur {
-	background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent) !important;
+	background: radial-gradient(
+		circle,
+		rgba(255, 255, 255, 0.3),
+		transparent
+	) !important;
 }
 
 @keyframes neon-pulse {
@@ -77,4 +85,3 @@
 			inset 0 0 30px rgba(0, 212, 255, 0.2);
 	}
 }
-

@@ -9,8 +9,8 @@ import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {
 	tryCreateGradebook,
-	tryGetGradebookByCourseWithDetails,
 	tryGetGradebookAllRepresentations,
+	tryGetGradebookByCourseWithDetails,
 	tryUpdateGradebook,
 } from "./gradebook-management";
 import type { CreateUserArgs } from "./user-management";
@@ -189,7 +189,6 @@ describe("Gradebook Management", () => {
 		}
 	});
 
-
 	it("should find gradebook by course ID", async () => {
 		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
@@ -220,7 +219,6 @@ describe("Gradebook Management", () => {
 			expect(result.value.enabled).toBe(false);
 		}
 	});
-
 
 	it("should get gradebook by course with details", async () => {
 		const result = await tryGetGradebookByCourseWithDetails({

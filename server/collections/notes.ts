@@ -88,8 +88,5 @@ export const Notes = {
 			label: "Is Public",
 			defaultValue: false,
 		},
-
 	],
 } as const satisfies CollectionConfig;
-
-

@@ -444,8 +444,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Handle courseModuleLink - can be object or number
 				const courseModuleLinkId =
 					typeof item.courseModuleLink === "object" &&
-						item.courseModuleLink !== null &&
-						"id" in item.courseModuleLink
+					item.courseModuleLink !== null &&
+					"id" in item.courseModuleLink
 						? item.courseModuleLink.id
 						: typeof item.courseModuleLink === "number"
 							? item.courseModuleLink
@@ -478,8 +478,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Get parentThread ID
 				const parentThreadId =
 					typeof item.parentThread === "object" &&
-						item.parentThread !== null &&
-						"id" in item.parentThread
+					item.parentThread !== null &&
+					"id" in item.parentThread
 						? item.parentThread.id
 						: typeof item.parentThread === "number"
 							? item.parentThread
@@ -1019,7 +1019,8 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 		}
 
 		// Start transaction
-		const transactionID = req?.transactionID ?? await payload.db.beginTransaction();
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
@@ -1256,7 +1257,7 @@ export const calculateDiscussionGrade = Result.wrap(
 		});
 
 		const maxGrade = gradebookItemResult.ok
-			? gradebookItemResult.value.maxGrade ?? 100
+			? (gradebookItemResult.value.maxGrade ?? 100)
 			: 100; // Default max grade
 
 		let totalScore = 0;
@@ -1296,10 +1297,8 @@ export const calculateDiscussionGrade = Result.wrap(
 					title: submission.title || undefined,
 					pointsEarned,
 					maxPoints,
-					feedback:
-						submissionWithGrade.feedback || "No feedback provided",
-					gradedAt:
-						submissionWithGrade.gradedAt || submission.createdAt,
+					feedback: submissionWithGrade.feedback || "No feedback provided",
+					gradedAt: submissionWithGrade.gradedAt || submission.createdAt,
 				});
 			}
 		}

@@ -50,13 +50,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-	| "manual_item"
-	| "category"
-	| "page"
-	| "whiteboard"
-	| "assignment"
-	| "quiz"
-	| "discussion";
+		| "manual_item"
+		| "category"
+		| "page"
+		| "whiteboard"
+		| "assignment"
+		| "quiz"
+		| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
@@ -272,72 +272,75 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 			overrideAccess = false,
 		} = args;
 
-		const gradebook = await payload.find({
-			collection: Gradebooks.slug,
-			where: {
-				course: {
-					equals: courseId,
+		const gradebook = await payload
+			.find({
+				collection: Gradebooks.slug,
+				where: {
+					course: {
+						equals: courseId,
+					},
 				},
-			},
-			joins: {
-				"categories": {
-					limit: MOCK_INFINITY,
+				joins: {
+					categories: {
+						limit: MOCK_INFINITY,
+					},
+					items: {
+						limit: MOCK_INFINITY,
+					},
 				},
-				"items": {
-					limit: MOCK_INFINITY,
-				}
-			},
-			depth: 2, // Get categories and items with their details
-			limit: 1,
-			user,
-			req,
-			overrideAccess,
-		}).then((g) => {
-			const gradebook = g.docs[0];
-			if (!gradebook) throw new GradebookNotFoundError(
-				`Gradebook not found for course ${courseId}`,
-			);
+				depth: 2, // Get categories and items with their details
+				limit: 1,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((g) => {
+				const gradebook = g.docs[0];
+				if (!gradebook)
+					throw new GradebookNotFoundError(
+						`Gradebook not found for course ${courseId}`,
+					);
 
-			// type narrowing
-			assertZodInternal(
-				"tryGetGradebookByCourseWithDetails: Gradebook course should be object",
-				gradebook.course,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-
-			const categories = gradebook.categories?.docs?.map(c => {
+				// type narrowing
 				assertZodInternal(
-					"tryGetGradebookByCourseWithDetails: Category should be object",
-					c,
+					"tryGetGradebookByCourseWithDetails: Gradebook course should be object",
+					gradebook.course,
 					z.object({
 						id: z.number(),
 					}),
 				);
-				return c;
-			}) ?? [];
 
-			const items = gradebook.items?.docs?.map(i => {
-				assertZodInternal(
-					"tryGetGradebookByCourseWithDetails: Item should be object",
-					i,
-					z.object({
-						id: z.number(),
-					}),
-				);
-				return i
-			}) ?? [];
+				const categories =
+					gradebook.categories?.docs?.map((c) => {
+						assertZodInternal(
+							"tryGetGradebookByCourseWithDetails: Category should be object",
+							c,
+							z.object({
+								id: z.number(),
+							}),
+						);
+						return c;
+					}) ?? [];
 
-			return {
+				const items =
+					gradebook.items?.docs?.map((i) => {
+						assertZodInternal(
+							"tryGetGradebookByCourseWithDetails: Item should be object",
+							i,
+							z.object({
+								id: z.number(),
+							}),
+						);
+						return i;
+					}) ?? [];
 
-				...gradebook,
-				course: gradebook.course,
-				categories,
-				items,
-			}
-		});
+				return {
+					...gradebook,
+					course: gradebook.course,
+					categories,
+					items,
+				};
+			});
 
 		return gradebook;
 	},
@@ -917,4 +920,3 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 			cause: error,
 		}),
 );
-

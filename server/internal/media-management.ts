@@ -1296,7 +1296,8 @@ export const tryRenameMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		const { transactionID, isTransactionCreated, reqWithTransaction } = await handleTransactionId(payload, req);
+		const { transactionID, isTransactionCreated, reqWithTransaction } =
+			await handleTransactionId(payload, req);
 
 		try {
 			// Get the media record

@@ -1,10 +1,13 @@
 import { Button, Stack, Textarea, Title } from "@mantine/core";
-import { useForm } from "@mantine/form";
 import type { UseFormReturnType } from "@mantine/form";
-import type { ActivityModuleFormValues, PageModuleFormValues } from "~/utils/activity-module-schema";
+import { useForm } from "@mantine/form";
+import type {
+	ActivityModuleFormValues,
+	PageModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { CommonFields } from "./common-fields";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
+import { CommonFields } from "./common-fields";
 
 interface PageFormProps {
 	initialValues?: Partial<PageModuleFormValues>;
@@ -12,7 +15,11 @@ interface PageFormProps {
 	isLoading?: boolean;
 }
 
-export function PageForm({ initialValues, onSubmit, isLoading }: PageFormProps) {
+export function PageForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: PageFormProps) {
 	const form = useForm<PageModuleFormValues>({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
@@ -29,11 +36,12 @@ export function PageForm({ initialValues, onSubmit, isLoading }: PageFormProps) 
 		},
 	});
 
-
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields form={form as UseFormReturnType<ActivityModuleFormValues>} />
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
 
 				<Textarea
 					{...form.getInputProps("description")}

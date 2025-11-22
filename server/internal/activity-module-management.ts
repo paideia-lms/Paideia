@@ -1,3 +1,4 @@
+import { omit } from "es-toolkit";
 import type { Payload, PayloadRequest, TypedUser, User } from "payload";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
@@ -11,7 +12,6 @@ import {
 } from "~/utils/error";
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 import { handleTransactionId } from "./utils/handle-transaction-id";
-import { omit } from "es-toolkit";
 
 // Base args that are common to all module types
 type BaseCreateActivityModuleArgs = {
@@ -74,13 +74,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -192,13 +192,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -303,12 +303,12 @@ type Assignment = {
 	maxAttempts?: number | null;
 	allowLateSubmissions?: boolean | null;
 	allowedFileTypes?:
-	| {
-		extension: string;
-		mimeType: string;
-		id?: string | null;
-	}[]
-	| null;
+		| {
+				extension: string;
+				mimeType: string;
+				id?: string | null;
+		  }[]
+		| null;
 	maxFileSize?: number | null;
 	maxFiles?: number | null;
 	requireTextSubmission?: boolean | null;
@@ -336,45 +336,45 @@ type Quiz = {
 	shuffleAnswers?: boolean | null;
 	showOneQuestionAtATime?: boolean | null;
 	rawQuizConfig?:
-	| {
-		[k: string]: unknown;
-	}
-	| unknown[]
-	| string
-	| number
-	| boolean
-	| null;
+		| {
+				[k: string]: unknown;
+		  }
+		| unknown[]
+		| string
+		| number
+		| boolean
+		| null;
 	questions?:
-	| {
-		questionText: string;
-		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
-		points: number;
-		options?:
 		| {
-			text: string;
-			isCorrect?: boolean | null;
-			feedback?: string | null;
-			id?: string | null;
-		}[]
+				questionText: string;
+				questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank"
+					| "matching"
+					| "ordering";
+				points: number;
+				options?:
+					| {
+							text: string;
+							isCorrect?: boolean | null;
+							feedback?: string | null;
+							id?: string | null;
+					  }[]
+					| null;
+				correctAnswer?: string | null;
+				explanation?: string | null;
+				hints?:
+					| {
+							hint: string;
+							id?: string | null;
+					  }[]
+					| null;
+				id?: string | null;
+		  }[]
 		| null;
-		correctAnswer?: string | null;
-		explanation?: string | null;
-		hints?:
-		| {
-			hint: string;
-			id?: string | null;
-		}[]
-		| null;
-		id?: string | null;
-	}[]
-	| null;
 	updatedAt: string;
 	createdAt: string;
 };
@@ -402,13 +402,13 @@ type Discussion = {
 	maxGroupSize?: number | null;
 	threadSorting?: ("recent" | "upvoted" | "active" | "alphabetical") | null;
 	pinnedThreads?:
-	| {
-		thread: number | { id: number };
-		pinnedAt: string;
-		pinnedBy: number | { id: number };
-		id?: string | null;
-	}[]
-	| null;
+		| {
+				thread: number | { id: number };
+				pinnedAt: string;
+				pinnedBy: number | { id: number };
+				id?: string | null;
+		  }[]
+		| null;
 	updatedAt: string;
 	createdAt: string;
 };
@@ -1164,18 +1164,20 @@ export const tryGetActivityModuleById = Result.wrap(
 						...owner,
 						avatar: ownerAvatar ?? null,
 					},
-					page: page ? {
-						...page,
-						media: pageMedia ?? null,
-					} : null,
+					page: page
+						? {
+								...page,
+								media: pageMedia ?? null,
+							}
+						: null,
 					whiteboard,
 					file: file
 						? {
-							id: file.id,
-							media: fileMedia ?? null,
-							updatedAt: file.updatedAt,
-							createdAt: file.createdAt,
-						}
+								id: file.id,
+								media: fileMedia ?? null,
+								updatedAt: file.updatedAt,
+								createdAt: file.createdAt,
+							}
 						: null,
 					assignment,
 					quiz,
@@ -1224,18 +1226,12 @@ export const tryGetActivityModuleById = Result.wrap(
 			updatedAt: activityModuleResult.updatedAt,
 			createdAt: activityModuleResult.createdAt,
 			// Cast to ActivityModuleData types to allow createdBy from Payload
-			page:
-				activityModuleResult.page,
-			whiteboard:
-				activityModuleResult.whiteboard,
-			file:
-				activityModuleResult.file,
-			assignment:
-				activityModuleResult.assignment,
-			quiz:
-				activityModuleResult.quiz,
-			discussion:
-				activityModuleResult.discussion,
+			page: activityModuleResult.page,
+			whiteboard: activityModuleResult.whiteboard,
+			file: activityModuleResult.file,
+			assignment: activityModuleResult.assignment,
+			quiz: activityModuleResult.quiz,
+			discussion: activityModuleResult.discussion,
 		};
 
 		return buildDiscriminatedUnionResult(baseResult, moduleData);
@@ -1672,13 +1668,7 @@ export const tryDeleteActivityModule = Result.wrap(
 export interface ListActivityModulesArgs {
 	payload: Payload;
 	userId?: number;
-	type?:
-	| "page"
-	| "whiteboard"
-	| "file"
-	| "assignment"
-	| "quiz"
-	| "discussion";
+	type?: "page" | "whiteboard" | "file" | "assignment" | "quiz" | "discussion";
 	status?: "draft" | "published" | "archived";
 	limit?: number;
 	page?: number;

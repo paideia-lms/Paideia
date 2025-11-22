@@ -276,12 +276,12 @@ export default function AdminSitePolicies({
 					update({
 						userMediaStorageTotal:
 							values.userMediaStorageTotal !== undefined &&
-								values.userMediaStorageTotal !== null
+							values.userMediaStorageTotal !== null
 								? values.userMediaStorageTotal
 								: null,
 						siteUploadLimit:
 							values.siteUploadLimit !== undefined &&
-								values.siteUploadLimit !== null
+							values.siteUploadLimit !== null
 								? values.siteUploadLimit
 								: null,
 					});

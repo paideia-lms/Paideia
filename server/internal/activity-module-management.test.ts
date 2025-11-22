@@ -140,9 +140,12 @@ describe("Activity Module Management", () => {
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.type).toBe("assignment");
-		if (activityModule.type !== "assignment") throw new Error("Test Error: Activity module type is not assignment");
+		if (activityModule.type !== "assignment")
+			throw new Error("Test Error: Activity module type is not assignment");
 		// For assignments, description uses instructions if provided
-		expect(activityModule.description).toBe(args.assignmentData.instructions || args.description);
+		expect(activityModule.description).toBe(
+			args.assignmentData.instructions || args.description,
+		);
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
@@ -198,9 +201,12 @@ describe("Activity Module Management", () => {
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
 		// For quizzes, description uses quizData.description if provided
-		expect(activityModule.description).toBe(args.quizData.description || args.description);
+		expect(activityModule.description).toBe(
+			args.quizData.description || args.description,
+		);
 		expect(activityModule.type).toBe(args.type);
-		if (activityModule.type !== "quiz") throw new Error("Test Error: Activity module type is not quiz");
+		if (activityModule.type !== "quiz")
+			throw new Error("Test Error: Activity module type is not quiz");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
@@ -231,7 +237,8 @@ describe("Activity Module Management", () => {
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe(args.type);
-		if (activityModule.type !== "file") throw new Error("Test Error: Activity module type is not file");
+		if (activityModule.type !== "file")
+			throw new Error("Test Error: Activity module type is not file");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
@@ -277,10 +284,13 @@ describe("Activity Module Management", () => {
 		expect(activityModule.title).toBe(args.title);
 		// For discussions, description uses discussionData.description if provided
 		if (args.type === "discussion") {
-			expect(activityModule.description).toBe(args.discussionData.description || args.description);
+			expect(activityModule.description).toBe(
+				args.discussionData.description || args.description,
+			);
 		}
 		expect(activityModule.type).toBe(args.type);
-		if (activityModule.type !== "discussion") throw new Error("Test Error: Activity module type is not discussion");
+		if (activityModule.type !== "discussion")
+			throw new Error("Test Error: Activity module type is not discussion");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
@@ -516,7 +526,10 @@ describe("Activity Module Management", () => {
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Assignment Title");
 		// For assignments, description uses instructions if provided
-		expect(updatedModule.description).toBe(updateArgs.assignmentData.instructions || "Updated assignment description");
+		expect(updatedModule.description).toBe(
+			updateArgs.assignmentData.instructions ||
+				"Updated assignment description",
+		);
 		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
 	});
@@ -654,7 +667,9 @@ describe("Activity Module Management", () => {
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Discussion Title");
 		// For discussions, description uses discussionData.description if provided
-		expect(updatedModule.description).toBe(updateArgs.discussionData.description || "Updated discussion description");
+		expect(updatedModule.description).toBe(
+			updateArgs.discussionData.description || "Updated discussion description",
+		);
 		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
 	});
@@ -710,7 +725,8 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		if (createdModule.type !== "assignment") throw new Error("Test Error: Activity module type is not assignment");
+		if (createdModule.type !== "assignment")
+			throw new Error("Test Error: Activity module type is not assignment");
 		expect(createdModule.maxAttempts).toBeDefined();
 
 		const deleteResult = await tryDeleteActivityModule({
@@ -757,7 +773,8 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		if (createdModule.type !== "quiz") throw new Error("Test Error: Activity module type is not quiz");
+		if (createdModule.type !== "quiz")
+			throw new Error("Test Error: Activity module type is not quiz");
 		expect(createdModule.points).toBeDefined();
 
 		const deleteResult = await tryDeleteActivityModule({
@@ -792,7 +809,8 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		if (createdModule.type !== "file") throw new Error("Test Error: Activity module type is not file");
+		if (createdModule.type !== "file")
+			throw new Error("Test Error: Activity module type is not file");
 		expect(createdModule.media).toBeDefined();
 
 		const deleteResult = await tryDeleteActivityModule({
@@ -830,7 +848,8 @@ describe("Activity Module Management", () => {
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
-		if (createdModule.type !== "discussion") throw new Error("Test Error: Activity module type is not discussion");
+		if (createdModule.type !== "discussion")
+			throw new Error("Test Error: Activity module type is not discussion");
 		expect(createdModule.minReplies).toBeDefined();
 
 		const deleteResult = await tryDeleteActivityModule({

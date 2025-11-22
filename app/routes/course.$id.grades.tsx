@@ -75,8 +75,8 @@ export const loader = async ({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-			gradebookSetupForUI.extraCreditItems.length > 0 ||
-			gradebookSetupForUI.extraCreditCategories.length > 0
+				gradebookSetupForUI.extraCreditItems.length > 0 ||
+				gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -95,22 +95,20 @@ export const action = async ({
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
-
 	if (!userSession?.isAuthenticated) {
 		return badRequest({ error: "Unauthorized" });
 	}
-	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get gradebook for this course
-	const gradebookResult = await tryGetGradebookByCourseWithDetails(
-		{
-			payload,
-			courseId: Number(courseId),
-			user: currentUser,
-			req: request,
-			overrideAccess: false,
-		}
-	);
+	const gradebookResult = await tryGetGradebookByCourseWithDetails({
+		payload,
+		courseId: Number(courseId),
+		user: currentUser,
+		req: request,
+		overrideAccess: false,
+	});
 	if (!gradebookResult.ok) {
 		return badRequest({ error: "Gradebook not found for this course" });
 	}
@@ -222,7 +220,6 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-category") {
-
 		const updateResult = await tryUpdateGradebookCategory({
 			payload,
 			categoryId: parsedData.data.categoryId,

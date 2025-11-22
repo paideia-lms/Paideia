@@ -11,7 +11,12 @@ import type { User } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
-import type { Note, Course as PayloadCourse, ActivityModule as PayloadActivityModule, Enrollment as PayloadEnrollment } from "server/payload-types";
+import type {
+	Note,
+	ActivityModule as PayloadActivityModule,
+	Course as PayloadCourse,
+	Enrollment as PayloadEnrollment,
+} from "server/payload-types";
 
 type Course = {
 	id: number;
@@ -30,12 +35,12 @@ type Course = {
 		} | null;
 	} | null;
 	thumbnail?:
-	| number
-	| {
-		id: number;
-		filename?: string | null;
-	}
-	| null;
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+		  }
+		| null;
 };
 
 type ActivityModule = {
@@ -128,17 +133,17 @@ export const getUserAccessContext = async (
 					category: enrollment.course.category
 						? typeof enrollment.course.category === "object"
 							? {
-								id: enrollment.course.category.id,
-								name: enrollment.course.category.name,
-								parent:
-									enrollment.course.category.parent &&
+									id: enrollment.course.category.id,
+									name: enrollment.course.category.name,
+									parent:
+										enrollment.course.category.parent &&
 										typeof enrollment.course.category.parent === "object"
-										? {
-											id: enrollment.course.category.parent.id,
-											name: enrollment.course.category.parent.name,
-										}
-										: null,
-							}
+											? {
+													id: enrollment.course.category.parent.id,
+													name: enrollment.course.category.parent.name,
+												}
+											: null,
+								}
 							: null
 						: null,
 					thumbnail: enrollment.course.thumbnail ?? null,

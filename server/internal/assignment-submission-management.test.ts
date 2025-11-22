@@ -176,9 +176,10 @@ describe("Assignment Submission Management - Full Workflow", () => {
 				depth: 1,
 			});
 			if (module.assignment) {
-				assignmentId = typeof module.assignment === "object" && "id" in module.assignment
-					? module.assignment.id
-					: module.assignment as number;
+				assignmentId =
+					typeof module.assignment === "object" && "id" in module.assignment
+						? module.assignment.id
+						: (module.assignment as number);
 				console.log("Extracted assignment ID:", assignmentId);
 			}
 		}

@@ -299,10 +299,7 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 
 			// Final grade is the sum of all item grades
 			const finalGradeValue = hasAnyGrade ? totalGrade : null;
-			finalGradesByEnrollment.set(
-				enrollment.enrollment_id,
-				finalGradeValue,
-			);
+			finalGradesByEnrollment.set(enrollment.enrollment_id, finalGradeValue);
 		}
 
 		// Debug logging (remove after debugging)
@@ -429,11 +426,12 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 											<Text size="sm" fw={500}>
 												Total
 											</Text>
-											{totalMaxGrade !== undefined && totalMaxGrade !== null && (
-												<Text size="xs" c="dimmed">
-													/ {totalMaxGrade}
-												</Text>
-											)}
+											{totalMaxGrade !== undefined &&
+												totalMaxGrade !== null && (
+													<Text size="xs" c="dimmed">
+														/ {totalMaxGrade}
+													</Text>
+												)}
 										</Stack>
 									) : (
 										""
@@ -492,7 +490,9 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 											);
 										})}
 										<Table.Td>
-											{finalGrade !== null && finalGrade !== undefined && typeof finalGrade === "number" ? (
+											{finalGrade !== null &&
+											finalGrade !== undefined &&
+											typeof finalGrade === "number" ? (
 												<Text size="sm" fw={500}>
 													{finalGrade.toFixed(2)}
 												</Text>

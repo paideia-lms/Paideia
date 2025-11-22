@@ -1,31 +1,27 @@
 import {
-    ActionIcon,
-    Anchor,
-    Badge,
-    Button,
-    Group,
-    Menu,
-    Paper,
-    ScrollArea,
-    Stack,
-    Table,
-    Text,
+	ActionIcon,
+	Anchor,
+	Badge,
+	Button,
+	Group,
+	Menu,
+	Paper,
+	ScrollArea,
+	Stack,
+	Table,
+	Text,
 } from "@mantine/core";
-import {
-    IconDots,
-    IconPencil,
-    IconSend,
-} from "@tabler/icons-react";
+import { IconDots, IconPencil, IconSend } from "@tabler/icons-react";
 import { countBy } from "es-toolkit/array";
 import { href, Link } from "react-router";
 import { DiscussionActions } from "~/utils/module-actions";
 import {
-    calculateDiscussionGradingStats,
-    filterPublishedSubmissions,
-    getDiscussionGradingStatusColor,
-    getDiscussionGradingStatusLabel,
-    groupAndSortDiscussionSubmissions,
-    sortSubmissionsByDate,
+	calculateDiscussionGradingStats,
+	filterPublishedSubmissions,
+	getDiscussionGradingStatusColor,
+	getDiscussionGradingStatusLabel,
+	groupAndSortDiscussionSubmissions,
+	sortSubmissionsByDate,
 } from "./helpers";
 
 // ============================================================================
@@ -33,32 +29,32 @@ import {
 // ============================================================================
 
 type DiscussionSubmissionType = {
-    id: number;
-    status: "draft" | "published" | "hidden" | "deleted";
-    postType: "thread" | "reply" | "comment";
-    title?: string | null;
-    content: string;
-    publishedAt?: string | null;
-    createdAt: string;
-    student: {
-        id: number;
-        firstName?: string | null;
-        lastName?: string | null;
-        email?: string | null;
-    };
-    grade?: {
-        baseGrade: number | null;
-        maxGrade: number | null;
-        gradedAt?: string | null;
-        feedback?: string | null;
-    } | null;
+	id: number;
+	status: "draft" | "published" | "hidden" | "deleted";
+	postType: "thread" | "reply" | "comment";
+	title?: string | null;
+	content: string;
+	publishedAt?: string | null;
+	createdAt: string;
+	student: {
+		id: number;
+		firstName?: string | null;
+		lastName?: string | null;
+		email?: string | null;
+	};
+	grade?: {
+		baseGrade: number | null;
+		maxGrade: number | null;
+		gradedAt?: string | null;
+		feedback?: string | null;
+	} | null;
 };
 
 type Enrollment = {
-    id: number;
-    userId: number;
-    name: string;
-    email?: string | null;
+	id: number;
+	userId: number;
+	name: string;
+	email?: string | null;
 };
 
 // ============================================================================
@@ -66,212 +62,215 @@ type Enrollment = {
 // ============================================================================
 
 function DiscussionStudentSubmissionRow({
-    courseId,
-    enrollment,
-    studentSubmissions,
-    moduleLinkId,
-    onReleaseGrade,
-    isReleasing,
+	courseId,
+	enrollment,
+	studentSubmissions,
+	moduleLinkId,
+	onReleaseGrade,
+	isReleasing,
 }: {
-    courseId: number;
-    enrollment: Enrollment;
-    studentSubmissions: DiscussionSubmissionType[] | undefined;
-    moduleLinkId: number;
-    onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-    isReleasing?: boolean;
+	courseId: number;
+	enrollment: Enrollment;
+	studentSubmissions: DiscussionSubmissionType[] | undefined;
+	moduleLinkId: number;
+	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
+	isReleasing?: boolean;
 }) {
+	// Filter to only published submissions and sort by date
+	const publishedSubmissions = filterPublishedSubmissions(studentSubmissions);
+	const sortedSubmissions = sortSubmissionsByDate(publishedSubmissions);
 
-    // Filter to only published submissions and sort by date
-    const publishedSubmissions = filterPublishedSubmissions(studentSubmissions);
-    const sortedSubmissions = sortSubmissionsByDate(publishedSubmissions);
+	const hasSubmissions = sortedSubmissions.length > 0;
+	const latestSubmission = sortedSubmissions[0];
+	const email = enrollment.email || "-";
 
-    const hasSubmissions = sortedSubmissions.length > 0;
-    const latestSubmission = sortedSubmissions[0];
-    const email = enrollment.email || "-";
+	// Count posts by type
+	const {
+		thread: threadCount,
+		reply: replyCount,
+		comment: commentCount,
+	} = countBy(sortedSubmissions, (sub) => sub.postType);
 
-    // Count posts by type
-    const { thread: threadCount, reply: replyCount, comment: commentCount } = countBy(sortedSubmissions, (sub) => sub.postType);
+	// Calculate grading status and statistics
+	const { gradingStatus, averageScore, maxGrade } =
+		calculateDiscussionGradingStats(sortedSubmissions);
 
-    // Calculate grading status and statistics
-    const { gradingStatus, averageScore, maxGrade } =
-        calculateDiscussionGradingStats(sortedSubmissions);
-
-    return (
-        <Table.Tr>
-            <Table.Td>
-                <Anchor
-                    component={Link}
-                    to={
-                        href("/course/:courseId/participants/profile", {
-                            courseId: String(courseId),
-                        }) + `?userId=${enrollment.userId}`
-                    }
-                    size="sm"
-                >
-                    {enrollment.name}
-                </Anchor>
-            </Table.Td>
-            <Table.Td>{email}</Table.Td>
-            <Table.Td>
-                {hasSubmissions ? (
-                    <Badge
-                        color={getDiscussionGradingStatusColor(gradingStatus)}
-                        variant="light"
-                    >
-                        {getDiscussionGradingStatusLabel(gradingStatus)}
-                    </Badge>
-                ) : (
-                    <Badge color="gray" variant="light">
-                        No posts
-                    </Badge>
-                )}
-            </Table.Td>
-            <Table.Td>
-                {hasSubmissions ? (
-                    <Stack gap={2}>
-                        <Text size="sm">
-                            {threadCount} {threadCount === 1 ? "thread" : "threads"}
-                        </Text>
-                        <Text size="xs" c="dimmed">
-                            {replyCount} replies, {commentCount} comments
-                        </Text>
-                    </Stack>
-                ) : (
-                    <Text size="sm" c="dimmed">
-                        0
-                    </Text>
-                )}
-            </Table.Td>
-            <Table.Td>
-                {averageScore !== null && maxGrade !== null ? (
-                    <Text size="sm" fw={500}>
-                        {averageScore.toFixed(1)}/{maxGrade}
-                    </Text>
-                ) : (
-                    <Text size="sm" c="dimmed">
-                        -
-                    </Text>
-                )}
-            </Table.Td>
-            <Table.Td>
-                {latestSubmission?.publishedAt
-                    ? new Date(latestSubmission.publishedAt).toLocaleString()
-                    : latestSubmission?.createdAt
-                        ? new Date(latestSubmission.createdAt).toLocaleString()
-                        : "-"}
-            </Table.Td>
-            <Table.Td>
-                <Group gap="xs">
-                    {hasSubmissions && latestSubmission ? (
-                        <Menu position="bottom-end">
-                            <Menu.Target>
-                                <ActionIcon variant="light" size="lg">
-                                    <IconDots size={18} />
-                                </ActionIcon>
-                            </Menu.Target>
-                            <Menu.Dropdown>
-                                <Menu.Item
-                                    component={Link}
-                                    to={
-                                        href("/course/module/:moduleLinkId/submissions", {
-                                            moduleLinkId: String(moduleLinkId),
-                                        }) +
-                                        `?action=${DiscussionActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
-                                    }
-                                    leftSection={<IconPencil size={14} />}
-                                >
-                                    Grade
-                                </Menu.Item>
-                                {(gradingStatus === "graded" ||
-                                    gradingStatus === "partially-graded") &&
-                                    onReleaseGrade && (
-                                        <Menu.Item
-                                            leftSection={<IconSend size={14} />}
-                                            onClick={() => {
-                                                onReleaseGrade(moduleLinkId, enrollment.id);
-                                            }}
-                                            disabled={isReleasing}
-                                        >
-                                            {isReleasing ? "Releasing..." : "Release Grade"}
-                                        </Menu.Item>
-                                    )}
-                            </Menu.Dropdown>
-                        </Menu>
-                    ) : (
-                        <Button size="xs" variant="light" disabled>
-                            Actions
-                        </Button>
-                    )}
-                </Group>
-            </Table.Td>
-        </Table.Tr>
-    );
+	return (
+		<Table.Tr>
+			<Table.Td>
+				<Anchor
+					component={Link}
+					to={
+						href("/course/:courseId/participants/profile", {
+							courseId: String(courseId),
+						}) + `?userId=${enrollment.userId}`
+					}
+					size="sm"
+				>
+					{enrollment.name}
+				</Anchor>
+			</Table.Td>
+			<Table.Td>{email}</Table.Td>
+			<Table.Td>
+				{hasSubmissions ? (
+					<Badge
+						color={getDiscussionGradingStatusColor(gradingStatus)}
+						variant="light"
+					>
+						{getDiscussionGradingStatusLabel(gradingStatus)}
+					</Badge>
+				) : (
+					<Badge color="gray" variant="light">
+						No posts
+					</Badge>
+				)}
+			</Table.Td>
+			<Table.Td>
+				{hasSubmissions ? (
+					<Stack gap={2}>
+						<Text size="sm">
+							{threadCount} {threadCount === 1 ? "thread" : "threads"}
+						</Text>
+						<Text size="xs" c="dimmed">
+							{replyCount} replies, {commentCount} comments
+						</Text>
+					</Stack>
+				) : (
+					<Text size="sm" c="dimmed">
+						0
+					</Text>
+				)}
+			</Table.Td>
+			<Table.Td>
+				{averageScore !== null && maxGrade !== null ? (
+					<Text size="sm" fw={500}>
+						{averageScore.toFixed(1)}/{maxGrade}
+					</Text>
+				) : (
+					<Text size="sm" c="dimmed">
+						-
+					</Text>
+				)}
+			</Table.Td>
+			<Table.Td>
+				{latestSubmission?.publishedAt
+					? new Date(latestSubmission.publishedAt).toLocaleString()
+					: latestSubmission?.createdAt
+						? new Date(latestSubmission.createdAt).toLocaleString()
+						: "-"}
+			</Table.Td>
+			<Table.Td>
+				<Group gap="xs">
+					{hasSubmissions && latestSubmission ? (
+						<Menu position="bottom-end">
+							<Menu.Target>
+								<ActionIcon variant="light" size="lg">
+									<IconDots size={18} />
+								</ActionIcon>
+							</Menu.Target>
+							<Menu.Dropdown>
+								<Menu.Item
+									component={Link}
+									to={
+										href("/course/module/:moduleLinkId/submissions", {
+											moduleLinkId: String(moduleLinkId),
+										}) +
+										`?action=${DiscussionActions.GRADE_SUBMISSION}&submissionId=${latestSubmission.id}`
+									}
+									leftSection={<IconPencil size={14} />}
+								>
+									Grade
+								</Menu.Item>
+								{(gradingStatus === "graded" ||
+									gradingStatus === "partially-graded") &&
+									onReleaseGrade && (
+										<Menu.Item
+											leftSection={<IconSend size={14} />}
+											onClick={() => {
+												onReleaseGrade(moduleLinkId, enrollment.id);
+											}}
+											disabled={isReleasing}
+										>
+											{isReleasing ? "Releasing..." : "Release Grade"}
+										</Menu.Item>
+									)}
+							</Menu.Dropdown>
+						</Menu>
+					) : (
+						<Button size="xs" variant="light" disabled>
+							Actions
+						</Button>
+					)}
+				</Group>
+			</Table.Td>
+		</Table.Tr>
+	);
 }
 
 export function DiscussionSubmissionTable({
-    courseId,
-    enrollments,
-    submissions,
-    moduleLinkId,
-    onReleaseGrade,
-    isReleasing,
+	courseId,
+	enrollments,
+	submissions,
+	moduleLinkId,
+	onReleaseGrade,
+	isReleasing,
 }: {
-    courseId: number;
-    enrollments: Enrollment[];
-    submissions: DiscussionSubmissionType[];
-    moduleLinkId: number;
-    onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
-    isReleasing?: boolean;
+	courseId: number;
+	enrollments: Enrollment[];
+	submissions: DiscussionSubmissionType[];
+	moduleLinkId: number;
+	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
+	isReleasing?: boolean;
 }) {
-    // Filter and validate submissions, then group and sort by student
-    const validSubmissions = submissions.filter(
-        (submission) =>
-            "postType" in submission &&
-            "content" in submission &&
-            submission.student &&
-            typeof submission.student === "object" &&
-            "id" in submission.student,
-    ) satisfies DiscussionSubmissionType[];
+	// Filter and validate submissions, then group and sort by student
+	const validSubmissions = submissions.filter(
+		(submission) =>
+			"postType" in submission &&
+			"content" in submission &&
+			submission.student &&
+			typeof submission.student === "object" &&
+			"id" in submission.student,
+	) satisfies DiscussionSubmissionType[];
 
-    const discussionSubmissionsByStudent =
-        groupAndSortDiscussionSubmissions(validSubmissions);
+	const discussionSubmissionsByStudent =
+		groupAndSortDiscussionSubmissions(validSubmissions);
 
-    return (
-        <Paper withBorder shadow="sm" p="md" radius="md">
-            <ScrollArea>
-                <Table highlightOnHover style={{ minWidth: 900 }}>
-                    <Table.Thead>
-                        <Table.Tr>
-                            <Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
-                            <Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
-                            <Table.Th style={{ minWidth: 100 }}>Status</Table.Th>
-                            <Table.Th style={{ minWidth: 150 }}>Posts</Table.Th>
-                            <Table.Th style={{ minWidth: 100 }}>Score</Table.Th>
-                            <Table.Th style={{ minWidth: 180 }}>Latest Post</Table.Th>
-                            <Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
-                        </Table.Tr>
-                    </Table.Thead>
-                    <Table.Tbody>
-                        {enrollments.map((enrollment) => {
-                            const studentSubmissions = discussionSubmissionsByStudent.get(
-                                enrollment.userId,
-                            );
+	return (
+		<Paper withBorder shadow="sm" p="md" radius="md">
+			<ScrollArea>
+				<Table highlightOnHover style={{ minWidth: 900 }}>
+					<Table.Thead>
+						<Table.Tr>
+							<Table.Th style={{ minWidth: 200 }}>Student Name</Table.Th>
+							<Table.Th style={{ minWidth: 200 }}>Email</Table.Th>
+							<Table.Th style={{ minWidth: 100 }}>Status</Table.Th>
+							<Table.Th style={{ minWidth: 150 }}>Posts</Table.Th>
+							<Table.Th style={{ minWidth: 100 }}>Score</Table.Th>
+							<Table.Th style={{ minWidth: 180 }}>Latest Post</Table.Th>
+							<Table.Th style={{ minWidth: 100 }}>Actions</Table.Th>
+						</Table.Tr>
+					</Table.Thead>
+					<Table.Tbody>
+						{enrollments.map((enrollment) => {
+							const studentSubmissions = discussionSubmissionsByStudent.get(
+								enrollment.userId,
+							);
 
-                            return (
-                                <DiscussionStudentSubmissionRow
-                                    key={enrollment.id}
-                                    courseId={courseId}
-                                    enrollment={enrollment}
-                                    studentSubmissions={studentSubmissions}
-                                    moduleLinkId={moduleLinkId}
-                                    onReleaseGrade={onReleaseGrade}
-                                    isReleasing={isReleasing}
-                                />
-                            );
-                        })}
-                    </Table.Tbody>
-                </Table>
-            </ScrollArea>
-        </Paper>
-    );
+							return (
+								<DiscussionStudentSubmissionRow
+									key={enrollment.id}
+									courseId={courseId}
+									enrollment={enrollment}
+									studentSubmissions={studentSubmissions}
+									moduleLinkId={moduleLinkId}
+									onReleaseGrade={onReleaseGrade}
+									isReleasing={isReleasing}
+								/>
+							);
+						})}
+					</Table.Tbody>
+				</Table>
+			</ScrollArea>
+		</Paper>
+	);
 }

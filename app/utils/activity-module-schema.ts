@@ -1,8 +1,8 @@
+import type { Simplify } from "node_modules/type-fest";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
 import { presetValuesToFileTypes } from "./file-types";
-import { Simplify } from "node_modules/type-fest";
 
 /**
  * Base schema with common fields for all activity module types
@@ -104,69 +104,81 @@ type BaseActivityModuleFormValues = {
 /**
  * Page module form values
  */
-export type PageModuleFormValues = Simplify<BaseActivityModuleFormValues & {
-	type: "page";
-	pageContent: string;
-}>;
+export type PageModuleFormValues = Simplify<
+	BaseActivityModuleFormValues & {
+		type: "page";
+		pageContent: string;
+	}
+>;
 
 /**
  * Whiteboard module form values
  */
-export type WhiteboardModuleFormValues = Simplify<BaseActivityModuleFormValues & {
-	type: "whiteboard";
-	whiteboardContent: string;
-}>;
+export type WhiteboardModuleFormValues = Simplify<
+	BaseActivityModuleFormValues & {
+		type: "whiteboard";
+		whiteboardContent: string;
+	}
+>;
 
 /**
  * File module form values
  */
-export type FileModuleFormValues = Simplify<BaseActivityModuleFormValues & {
-	type: "file";
-	fileMedia: number[];
-	fileFiles: File[]; // Files to upload (before they become media IDs)
-}>;
+export type FileModuleFormValues = Simplify<
+	BaseActivityModuleFormValues & {
+		type: "file";
+		fileMedia: number[];
+		fileFiles: File[]; // Files to upload (before they become media IDs)
+	}
+>;
 
 /**
  * Assignment module form values
  */
-export type AssignmentModuleFormValues = Simplify<BaseActivityModuleFormValues & {
-	type: "assignment";
-	assignmentInstructions: string;
-	assignmentDueDate: Date | null;
-	assignmentMaxAttempts: number;
-	assignmentAllowLateSubmissions: boolean;
-	assignmentRequireTextSubmission: boolean;
-	assignmentRequireFileSubmission: boolean;
-	assignmentAllowedFileTypes: string[];
-	assignmentMaxFileSize: number;
-	assignmentMaxFiles: number;
-}>;
+export type AssignmentModuleFormValues = Simplify<
+	BaseActivityModuleFormValues & {
+		type: "assignment";
+		assignmentInstructions: string;
+		assignmentDueDate: Date | null;
+		assignmentMaxAttempts: number;
+		assignmentAllowLateSubmissions: boolean;
+		assignmentRequireTextSubmission: boolean;
+		assignmentRequireFileSubmission: boolean;
+		assignmentAllowedFileTypes: string[];
+		assignmentMaxFileSize: number;
+		assignmentMaxFiles: number;
+	}
+>;
 
 /**
  * Quiz module form values
  */
-export type QuizModuleFormValues = Simplify<BaseActivityModuleFormValues & {
-	type: "quiz";
-	quizInstructions: string;
-	quizDueDate: Date | null;
-	quizMaxAttempts: number;
-	quizPoints: number;
-	quizTimeLimit: number;
-	quizGradingType: "automatic" | "manual";
-	rawQuizConfig: QuizConfig | null;
-}>;
+export type QuizModuleFormValues = Simplify<
+	BaseActivityModuleFormValues & {
+		type: "quiz";
+		quizInstructions: string;
+		quizDueDate: Date | null;
+		quizMaxAttempts: number;
+		quizPoints: number;
+		quizTimeLimit: number;
+		quizGradingType: "automatic" | "manual";
+		rawQuizConfig: QuizConfig | null;
+	}
+>;
 
 /**
  * Discussion module form values
  */
-export type DiscussionModuleFormValues = Simplify<BaseActivityModuleFormValues & {
-	type: "discussion";
-	discussionInstructions: string;
-	discussionDueDate: Date | null;
-	discussionRequireThread: boolean;
-	discussionRequireReplies: boolean;
-	discussionMinReplies: number;
-}>;
+export type DiscussionModuleFormValues = Simplify<
+	BaseActivityModuleFormValues & {
+		type: "discussion";
+		discussionInstructions: string;
+		discussionDueDate: Date | null;
+		discussionRequireThread: boolean;
+		discussionRequireReplies: boolean;
+		discussionMinReplies: number;
+	}
+>;
 
 /**
  * Discriminated union of all activity module form values
@@ -405,51 +417,51 @@ export function transformToActivityData(
 ) {
 	let pageData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let whiteboardData:
 		| {
-			content?: string;
-		}
+				content?: string;
+		  }
 		| undefined;
 	let assignmentData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			allowLateSubmissions?: boolean;
-			requireTextSubmission?: boolean;
-			requireFileSubmission?: boolean;
-			allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
-			maxFileSize?: number;
-			maxFiles?: number;
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				allowLateSubmissions?: boolean;
+				requireTextSubmission?: boolean;
+				requireFileSubmission?: boolean;
+				allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
+				maxFileSize?: number;
+				maxFiles?: number;
+		  }
 		| undefined;
 	let quizData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			maxAttempts?: number;
-			points?: number;
-			timeLimit?: number;
-			gradingType?: "automatic" | "manual";
-			rawQuizConfig?: QuizConfig;
-		}
+				instructions?: string;
+				dueDate?: string;
+				maxAttempts?: number;
+				points?: number;
+				timeLimit?: number;
+				gradingType?: "automatic" | "manual";
+				rawQuizConfig?: QuizConfig;
+		  }
 		| undefined;
 	let discussionData:
 		| {
-			instructions?: string;
-			dueDate?: string;
-			requireThread?: boolean;
-			requireReplies?: boolean;
-			minReplies?: number;
-		}
+				instructions?: string;
+				dueDate?: string;
+				requireThread?: boolean;
+				requireReplies?: boolean;
+				minReplies?: number;
+		  }
 		| undefined;
 	let fileData:
 		| {
-			media?: number[];
-		}
+				media?: number[];
+		  }
 		| undefined;
 
 	if (parsedData.type === "page") {
@@ -464,7 +476,7 @@ export function transformToActivityData(
 		// Convert preset values to file types
 		const allowedFileTypes =
 			parsedData.assignmentAllowedFileTypes &&
-				parsedData.assignmentAllowedFileTypes.length > 0
+			parsedData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(parsedData.assignmentAllowedFileTypes)
 				: undefined;
 
@@ -503,5 +515,12 @@ export function transformToActivityData(
 		};
 	}
 
-	return { pageData, whiteboardData, fileData, assignmentData, quizData, discussionData };
+	return {
+		pageData,
+		whiteboardData,
+		fileData,
+		assignmentData,
+		quizData,
+		discussionData,
+	};
 }

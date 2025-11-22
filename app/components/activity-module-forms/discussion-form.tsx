@@ -7,9 +7,12 @@ import {
 	Textarea,
 	Title,
 } from "@mantine/core";
-import { useForm } from "@mantine/form";
 import type { UseFormReturnType } from "@mantine/form";
-import type { ActivityModuleFormValues, DiscussionModuleFormValues } from "~/utils/activity-module-schema";
+import { useForm } from "@mantine/form";
+import type {
+	ActivityModuleFormValues,
+	DiscussionModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { CommonFields } from "./common-fields";
@@ -20,7 +23,11 @@ interface DiscussionFormProps {
 	isLoading?: boolean;
 }
 
-export function DiscussionForm({ initialValues, onSubmit, isLoading }: DiscussionFormProps) {
+export function DiscussionForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: DiscussionFormProps) {
 	const form = useForm<DiscussionModuleFormValues>({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
@@ -32,7 +39,8 @@ export function DiscussionForm({ initialValues, onSubmit, isLoading }: Discussio
 			discussionInstructions: initialValues?.discussionInstructions || "",
 			discussionDueDate: initialValues?.discussionDueDate || null,
 			discussionRequireThread: initialValues?.discussionRequireThread || false,
-			discussionRequireReplies: initialValues?.discussionRequireReplies || false,
+			discussionRequireReplies:
+				initialValues?.discussionRequireReplies || false,
 			discussionMinReplies: initialValues?.discussionMinReplies || 1,
 		},
 		validate: {
@@ -41,11 +49,12 @@ export function DiscussionForm({ initialValues, onSubmit, isLoading }: Discussio
 		},
 	});
 
-
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields form={form as UseFormReturnType<ActivityModuleFormValues>} />
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
 
 				<Textarea
 					{...form.getInputProps("description")}

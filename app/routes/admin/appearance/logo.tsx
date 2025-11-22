@@ -1,4 +1,3 @@
-import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import {
 	Alert,
 	Button,
@@ -10,6 +9,7 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
+import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
 import type {
 	FileUpload,
@@ -116,19 +116,13 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		}
 	}
 
-
-
 	return {
 		logos: logoData,
-		uploadLimit: systemGlobals.sitePolicies
-			.siteUploadLimit,
+		uploadLimit: systemGlobals.sitePolicies.siteUploadLimit,
 	};
 };
 
-export const action = async ({
-	request,
-	context,
-}: Route.ActionArgs) => {
+export const action = async ({ request, context }: Route.ActionArgs) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -306,9 +300,7 @@ export const action = async ({
 	}
 };
 
-export async function clientAction({
-	serverAction,
-}: Route.ClientActionArgs) {
+export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData?.status === StatusCode.Ok) {
@@ -383,8 +375,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: logo.filename,
-		})
+				filenameOrId: logo.filename,
+			})
 		: null;
 
 	return (
@@ -644,9 +636,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return <DefaultErrorBoundary error={error} />;
 }
 
-export default function AdminLogoPage({
-	loaderData,
-}: Route.ComponentProps) {
+export default function AdminLogoPage({ loaderData }: Route.ComponentProps) {
 	const { logos, uploadLimit } = loaderData;
 
 	return (
@@ -656,10 +646,7 @@ export default function AdminLogoPage({
 				name="description"
 				content="Configure logo settings including logos and favicons for light and dark modes."
 			/>
-			<meta
-				property="og:title"
-				content="Logo Settings | Admin | Paideia LMS"
-			/>
+			<meta property="og:title" content="Logo Settings | Admin | Paideia LMS" />
 			<meta
 				property="og:description"
 				content="Configure logo settings including logos and favicons for light and dark modes."
@@ -685,25 +672,42 @@ export default function AdminLogoPage({
 
 			<Grid>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<LogoLightDropzone logo={logos.logoLight} uploadLimit={uploadLimit ?? undefined} />
+					<LogoLightDropzone
+						logo={logos.logoLight}
+						uploadLimit={uploadLimit ?? undefined}
+					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<LogoDarkDropzone logo={logos.logoDark} uploadLimit={uploadLimit ?? undefined} />
+					<LogoDarkDropzone
+						logo={logos.logoDark}
+						uploadLimit={uploadLimit ?? undefined}
+					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<CompactLogoLightDropzone logo={logos.compactLogoLight} uploadLimit={uploadLimit ?? undefined} />
+					<CompactLogoLightDropzone
+						logo={logos.compactLogoLight}
+						uploadLimit={uploadLimit ?? undefined}
+					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<CompactLogoDarkDropzone logo={logos.compactLogoDark} uploadLimit={uploadLimit ?? undefined} />
+					<CompactLogoDarkDropzone
+						logo={logos.compactLogoDark}
+						uploadLimit={uploadLimit ?? undefined}
+					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<FaviconLightDropzone logo={logos.faviconLight} uploadLimit={uploadLimit ?? undefined} />
+					<FaviconLightDropzone
+						logo={logos.faviconLight}
+						uploadLimit={uploadLimit ?? undefined}
+					/>
 				</Grid.Col>
 				<Grid.Col span={{ base: 12, md: 6 }}>
-					<FaviconDarkDropzone logo={logos.faviconDark} uploadLimit={uploadLimit ?? undefined} />
+					<FaviconDarkDropzone
+						logo={logos.faviconDark}
+						uploadLimit={uploadLimit ?? undefined}
+					/>
 				</Grid.Col>
 			</Grid>
 		</Stack>
 	);
 }
-

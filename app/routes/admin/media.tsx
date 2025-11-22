@@ -188,10 +188,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const userOptions = usersResult.ok
 		? usersResult.value.docs.map((user) => ({
-			value: user.id.toString(),
-			label:
-				`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-		}))
+				value: user.id.toString(),
+				label:
+					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+			}))
 		: [];
 
 	// Fetch orphaned media files
@@ -891,8 +891,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1062,8 +1062,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (
@@ -1142,8 +1142,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	// Get creator info
@@ -1154,7 +1154,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-			"Unknown"
+				"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1165,13 +1165,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: creatorAvatarId.toString(),
-		})
+				filenameOrId: creatorAvatarId.toString(),
+			})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-			id: creatorId.toString(),
-		})
+				id: creatorId.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1428,7 +1428,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-						"Unknown"
+							"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1439,13 +1439,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: creatorAvatarId.toString(),
-					})
+							filenameOrId: creatorAvatarId.toString(),
+						})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-						id: creatorId.toString(),
-					})
+							id: creatorId.toString(),
+						})
 					: undefined;
 
 				return (

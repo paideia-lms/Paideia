@@ -63,9 +63,9 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-				userMediaStorageTotal: null,
-				siteUploadLimit: null,
-			};
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				};
 
 		const appearanceSettings = {
 			additionalCssStylesheets: appearanceResult.ok

@@ -371,51 +371,51 @@ export const tryUpdateAppearanceSettings = Result.wrap(
 			radius: validRadiusValue,
 			logoLight: getLogoId(
 				parsed.data.logoLight as
-				| number
-				| null
-				| undefined
-				| { id: number }
-				| { id: string },
+					| number
+					| null
+					| undefined
+					| { id: number }
+					| { id: string },
 			),
 			logoDark: getLogoId(
 				parsed.data.logoDark as
-				| number
-				| null
-				| undefined
-				| { id: number }
-				| { id: string },
+					| number
+					| null
+					| undefined
+					| { id: number }
+					| { id: string },
 			),
 			compactLogoLight: getLogoId(
 				parsed.data.compactLogoLight as
-				| number
-				| null
-				| undefined
-				| { id: number }
-				| { id: string },
+					| number
+					| null
+					| undefined
+					| { id: number }
+					| { id: string },
 			),
 			compactLogoDark: getLogoId(
 				parsed.data.compactLogoDark as
-				| number
-				| null
-				| undefined
-				| { id: number }
-				| { id: string },
+					| number
+					| null
+					| undefined
+					| { id: number }
+					| { id: string },
 			),
 			faviconLight: getLogoId(
 				parsed.data.faviconLight as
-				| number
-				| null
-				| undefined
-				| { id: number }
-				| { id: string },
+					| number
+					| null
+					| undefined
+					| { id: number }
+					| { id: string },
 			),
 			faviconDark: getLogoId(
 				parsed.data.faviconDark as
-				| number
-				| null
-				| undefined
-				| { id: number }
-				| { id: string },
+					| number
+					| null
+					| undefined
+					| { id: number }
+					| { id: string },
 			),
 		};
 	},

@@ -9,15 +9,15 @@ import {
 	tryGradeAssignmentSubmission,
 	trySubmitAssignment,
 } from "./assignment-submission-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
+import { tryCreateCourse } from "./course-management";
+import { tryCreateSection } from "./course-section-management";
 import {
 	type CreateDiscussionSubmissionArgs,
 	type GradeDiscussionSubmissionArgs,
 	tryCreateDiscussionSubmission,
 	tryGradeDiscussionSubmission,
 } from "./discussion-management";
-import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
-import { tryCreateCourse } from "./course-management";
-import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
@@ -30,8 +30,8 @@ import {
 	tryDeleteUserGrade,
 	tryFindUserGradeByEnrollmentAndItem,
 	tryFindUserGradeById,
-	tryGetGradesForItem,
 	tryGetAdjustedSingleUserGrades,
+	tryGetGradesForItem,
 	tryGetSingleUserGradesJsonRepresentation,
 	tryGetUserGradesForGradebook,
 	tryGetUserGradesJsonRepresentation,
@@ -527,7 +527,6 @@ describe("User Grade Management", () => {
 			enrollmentId: testEnrollment.id,
 		});
 
-
 		expect(result.ok).toBe(true);
 		if (!result.ok) {
 			throw new Error("Failed to get adjusted single user grades");
@@ -566,7 +565,9 @@ describe("User Grade Management", () => {
 		expect(markdown.length).toBeGreaterThan(0);
 		expect(markdown).toContain("# Single User Grade Report");
 		expect(markdown).toContain(`**Course:** ${testCourse.title}`);
-		expect(markdown).toContain(`**Student:** ${student.firstName} ${student.lastName}`);
+		expect(markdown).toContain(
+			`**Student:** ${student.firstName} ${student.lastName}`,
+		);
 		expect(markdown).toContain(`**Enrollment ID:** ${testEnrollment.id}`);
 		expect(markdown).toContain("## Grade Summary");
 		expect(markdown).toContain("## Totals");
@@ -1165,8 +1166,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-					userGrade.submission !== null &&
-					"value" in userGrade.submission
+						userGrade.submission !== null &&
+						"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id
@@ -1308,7 +1309,8 @@ describe("User Grade Management", () => {
 			enrollmentId: testEnrollment.id,
 			postType: "thread",
 			title: "Design Patterns Discussion",
-			content: "I think the singleton pattern is very useful for managing global state.",
+			content:
+				"I think the singleton pattern is very useful for managing global state.",
 		};
 
 		const threadResult = await tryCreateDiscussionSubmission(
@@ -1368,7 +1370,8 @@ describe("User Grade Management", () => {
 			overrideAccess: true,
 		};
 
-		const threadGradeResult = await tryGradeDiscussionSubmission(threadGradeArgs);
+		const threadGradeResult =
+			await tryGradeDiscussionSubmission(threadGradeArgs);
 		expect(threadGradeResult.ok).toBe(true);
 		if (!threadGradeResult.ok) {
 			throw new Error("Failed to grade thread");
@@ -1418,7 +1421,9 @@ describe("User Grade Management", () => {
 
 		expect(releaseResult.ok).toBe(true);
 		if (!releaseResult.ok) {
-			throw new Error(`Failed to release discussion grade: ${releaseResult.error}`);
+			throw new Error(
+				`Failed to release discussion grade: ${releaseResult.error}`,
+			);
 		}
 
 		const releaseData = releaseResult.value;

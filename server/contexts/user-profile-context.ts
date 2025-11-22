@@ -11,14 +11,17 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { createContext, href } from "react-router";
 import type { UserAccessContext } from "server/contexts/user-access-context";
-import { type User } from "server/contexts/user-context";
+import type { User } from "server/contexts/user-context";
 import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
 import { tryFindUserById } from "server/internal/user-management";
-import type { Note, ActivityModule as PayloadActivityModule, Enrollment as PayloadEnrollment } from "server/payload-types";
-
+import type {
+	Note,
+	ActivityModule as PayloadActivityModule,
+	Enrollment as PayloadEnrollment,
+} from "server/payload-types";
 
 type Course = {
 	id: number;
@@ -73,11 +76,11 @@ export interface UserProfileContext {
 		bio: string;
 		email: string;
 		role:
-		| "student"
-		| "instructor"
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer";
+			| "student"
+			| "instructor"
+			| "admin"
+			| "content-manager"
+			| "analytics-viewer";
 		avatarUrl: string | null;
 	};
 	/** Activity modules accessible by the profile user */
@@ -171,9 +174,9 @@ export const getUserProfileContext = async (
 		userId: profileUserId,
 		user: currentUser
 			? {
-				...currentUser,
-				collection: "users",
-			}
+					...currentUser,
+					collection: "users",
+				}
 			: null,
 		overrideAccess: true,
 	});

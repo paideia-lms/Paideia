@@ -12,14 +12,14 @@ import {
 	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import { tryGetGradebookAllRepresentations } from "./gradebook-management";
-import { validateGradebookWeights } from "./utils/validate-gradebook-weights";
 import type {
 	Enrollment,
 	GradebookItem,
 	User,
 	UserGrade,
 } from "../payload-types";
+import { tryGetGradebookAllRepresentations } from "./gradebook-management";
+import { validateGradebookWeights } from "./utils/validate-gradebook-weights";
 
 export interface ValidateOverallWeightTotalArgs {
 	payload: Payload;
@@ -99,7 +99,11 @@ export const tryCreateGradebookItem = Result.wrap(
 		}
 
 		// Validate weight
-		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
+		if (
+			weight !== undefined &&
+			weight !== null &&
+			(weight < 0 || weight > 100)
+		) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
@@ -321,7 +325,11 @@ export const tryUpdateGradebookItem = Result.wrap(
 		}
 
 		// Validate weight if provided
-		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
+		if (
+			weight !== undefined &&
+			weight !== null &&
+			(weight < 0 || weight > 100)
+		) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
@@ -332,7 +340,10 @@ export const tryUpdateGradebookItem = Result.wrap(
 		const finalWeight = weight !== undefined ? weight : existingItem.weight;
 
 		// Validate that extra credit items must have a weight (cannot be null)
-		if (finalExtraCredit && (finalWeight === null || finalWeight === undefined)) {
+		if (
+			finalExtraCredit &&
+			(finalWeight === null || finalWeight === undefined)
+		) {
 			throw new WeightExceedsLimitError(
 				"Extra credit items must have a specified weight (cannot be null or undefined)",
 			);
@@ -481,13 +492,7 @@ export const tryFindGradebookItemById = Result.wrap(
  */
 export const tryDeleteGradebookItem = Result.wrap(
 	async (args: DeleteGradebookItemArgs) => {
-		const {
-			payload,
-			itemId,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, itemId, user = null, req, overrideAccess = false } = args;
 
 		// Check if item exists and get gradebook ID
 		const existingItem = await payload.findByID({

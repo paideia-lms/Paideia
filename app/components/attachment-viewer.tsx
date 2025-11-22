@@ -16,10 +16,10 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { href } from "react-router";
 import {
+	type FileType,
 	formatFileSize,
 	getFileIcon,
 	getFileType,
-	type FileType,
 } from "~/routes/course/module.$id/utils";
 
 // ============================================================================

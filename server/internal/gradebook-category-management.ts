@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
-import { GradebookCategories } from "server/payload.config";
 import { GradebookItems } from "server/collections/gradebook-items";
+import { GradebookCategories } from "server/payload.config";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -63,13 +63,7 @@ export const tryCreateGradebookCategory = Result.wrap(
 		request: Request,
 		args: CreateGradebookCategoryArgs,
 	) => {
-		const {
-			gradebookId,
-			parentId,
-			name,
-			description,
-			sortOrder,
-		} = args;
+		const { gradebookId, parentId, name, description, sortOrder } = args;
 
 		// Validate sort order
 		if (sortOrder < 0) {
@@ -240,43 +234,45 @@ export const tryUpdateGradebookCategory = Result.wrap(
 		} = args;
 
 		// Check if category exists
-		const existingCategory = await payload.findByID({
-			collection: GradebookCategories.slug,
-			id: categoryId,
-			user,
-			req,
-			overrideAccess,
-		}).then((c) => {
-			const items = c.items?.docs?.map(i => {
-				assertZodInternal(
-					"tryUpdateGradebookCategory: Item is required",
-					i,
-					z.object({
-						id: z.number(),
-					}),
-				);
+		const existingCategory = await payload
+			.findByID({
+				collection: GradebookCategories.slug,
+				id: categoryId,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then((c) => {
+				const items = c.items?.docs?.map((i) => {
+					assertZodInternal(
+						"tryUpdateGradebookCategory: Item is required",
+						i,
+						z.object({
+							id: z.number(),
+						}),
+					);
 
+					assertZodInternal(
+						"tryUpdateGradebookCategory: Item weight is required",
+						i.weight,
+						z.number().nullable(),
+					);
+					return {
+						...i,
+						weight: i.weight,
+					};
+				});
 				assertZodInternal(
-					"tryUpdateGradebookCategory: Item weight is required",
-					i.weight,
+					"tryUpdateGradebookCategory: Category items are required",
+					c.weight,
 					z.number().nullable(),
 				);
 				return {
-					...i,
-					weight: i.weight,
+					...c,
+					weight: c.weight,
+					items: items,
 				};
 			});
-			assertZodInternal(
-				"tryUpdateGradebookCategory: Category items are required",
-				c.weight,
-				z.number().nullable(),
-			);
-			return {
-				...c,
-				weight: c.weight,
-				items: items,
-			};
-		});
 
 		if (!existingCategory) {
 			throw new GradebookCategoryNotFoundError(
@@ -291,7 +287,11 @@ export const tryUpdateGradebookCategory = Result.wrap(
 				: existingCategory.gradebook.id;
 
 		// Validate weight if provided
-		if (weight !== undefined && weight !== null && (weight < 0 || weight > 100)) {
+		if (
+			weight !== undefined &&
+			weight !== null &&
+			(weight < 0 || weight > 100)
+		) {
 			throw new WeightExceedsLimitError("Weight must be between 0 and 100");
 		}
 
@@ -302,7 +302,8 @@ export const tryUpdateGradebookCategory = Result.wrap(
 
 		// Validate that extra credit categories must have a weight
 		if (extraCredit === true) {
-			const finalWeight = weight !== undefined ? weight : existingCategory.weight;
+			const finalWeight =
+				weight !== undefined ? weight : existingCategory.weight;
 			if (finalWeight === null) {
 				throw new InvalidArgumentError(
 					"Extra credit categories must have a weight specified. Please set a weight before marking the category as extra credit.",
@@ -312,7 +313,8 @@ export const tryUpdateGradebookCategory = Result.wrap(
 
 		// Check if category has items by checking existing category weight
 		// If weight is 0, the category has no items (categories start with weight 0 and only get weight when they have items)
-		const hasItems = existingCategory.items && existingCategory.items.length > 0;
+		const hasItems =
+			existingCategory.items && existingCategory.items.length > 0;
 
 		// If category has no items and weight is being updated to something other than 0, throw error
 		if (weight !== undefined && !hasItems) {
@@ -341,7 +343,6 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			updateData.extraCredit = extraCredit;
 		}
 
-
 		// Use existing transaction if provided, otherwise create a new one
 		const transactionWasProvided = !!req?.transactionID;
 		const transactionID =
@@ -366,16 +367,11 @@ export const tryUpdateGradebookCategory = Result.wrap(
 				overrideAccess,
 			});
 
-
-
 			// Check if weight is being updated - if so, we need to validate overall weights
 			const isWeightUpdate = weight !== updatedCategory.weight;
 			const isExtraCreditUpdate = extraCredit !== updatedCategory.extraCredit;
 
-			if (
-				isWeightUpdate ||
-				isExtraCreditUpdate
-			) {
+			if (isWeightUpdate || isExtraCreditUpdate) {
 				const validateResult = await tryValidateOverallWeightTotal({
 					payload,
 					courseId: gradebookId,
@@ -493,9 +489,12 @@ export const tryValidateNoSubItemAndCategory = Result.wrap(
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to validate category has no subcategories or items", {
-			cause: error,
-		}),
+		new UnknownError(
+			"Failed to validate category has no subcategories or items",
+			{
+				cause: error,
+			},
+		),
 );
 
 /**

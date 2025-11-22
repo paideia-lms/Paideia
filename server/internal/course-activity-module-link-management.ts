@@ -140,7 +140,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 						activityModuleId: newLink.id,
 						maxGrade: 100, // Default max grade
 						minGrade: 0,
-						weight: null, // Auto weighted by default 
+						weight: null, // Auto weighted by default
 						extraCredit: false,
 						sortOrder,
 						transactionID,

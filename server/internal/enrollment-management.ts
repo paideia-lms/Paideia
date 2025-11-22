@@ -9,8 +9,8 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import { handleTransactionId } from "./utils/handle-transaction-id";
 import type { Enrollment } from "../payload-types";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 
 export interface CreateEnrollmentArgs {
 	payload: Payload;
@@ -339,8 +339,13 @@ export const tryUpdateEnrollment = Result.wrap(
  */
 export const tryFindEnrollmentById = Result.wrap(
 	async (args: FindEnrollmentByIdArgs) => {
-		const { payload, enrollmentId, user = null, req, overrideAccess = false } =
-			args;
+		const {
+			payload,
+			enrollmentId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate required fields
 		if (!enrollmentId) {
@@ -448,8 +453,13 @@ export const trySearchEnrollments = Result.wrap(
  */
 export const tryDeleteEnrollment = Result.wrap(
 	async (args: DeleteEnrollmentArgs) => {
-		const { payload, enrollmentId, user = null, req, overrideAccess = false } =
-			args;
+		const {
+			payload,
+			enrollmentId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate required fields
 		if (!enrollmentId) {

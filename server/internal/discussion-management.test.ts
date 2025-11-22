@@ -188,9 +188,10 @@ describe("Discussion Management - Full Workflow", () => {
 				depth: 1,
 			});
 			if (module.discussion) {
-				discussionId = typeof module.discussion === "object" && "id" in module.discussion
-					? module.discussion.id
-					: module.discussion as number;
+				discussionId =
+					typeof module.discussion === "object" && "id" in module.discussion
+						? module.discussion.id
+						: (module.discussion as number);
 				console.log("Extracted discussion ID:", discussionId);
 			}
 		}
@@ -899,8 +900,8 @@ describe("Discussion Management - Full Workflow", () => {
 		// Verify gradedBy is the teacher
 		const gradedById =
 			typeof submissionWithGrade.gradedBy === "object" &&
-				submissionWithGrade.gradedBy !== null &&
-				"id" in submissionWithGrade.gradedBy
+			submissionWithGrade.gradedBy !== null &&
+			"id" in submissionWithGrade.gradedBy
 				? submissionWithGrade.gradedBy.id
 				: submissionWithGrade.gradedBy;
 		expect(gradedById).toBe(teacherId);

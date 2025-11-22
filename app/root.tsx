@@ -240,9 +240,7 @@ export const middleware = [
 				route.id === ("routes/admin/appearance/theme" as typeof route.id)
 			)
 				isAdminTheme = true;
-			else if (
-				route.id === ("routes/admin/appearance/logo" as typeof route.id)
-			)
+			else if (route.id === ("routes/admin/appearance/logo" as typeof route.id))
 				isAdminLogo = true;
 			else if (route.id === ("routes/admin/analytics" as typeof route.id))
 				isAdminAnalytics = true;
@@ -350,20 +348,20 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-					color: "blue",
-					radius: "sm" as const,
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
+					maintenanceSettings: { maintenanceMode: false },
+					sitePolicies: {
+						userMediaStorageTotal: null,
+						siteUploadLimit: null,
+					},
+					appearanceSettings: {
+						additionalCssStylesheets: [],
+						color: "blue",
+						radius: "sm" as const,
+					},
+					analyticsSettings: {
+						additionalJsScripts: [],
+					},
+				};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -554,13 +552,10 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
-						: await getUserProfileContext(
-							payload,
-							profileUserId,
-							{
+								userAccessContext,
+								currentUser,
+							)
+						: await getUserProfileContext(payload, profileUserId, {
 								...currentUser,
 								collection: "users" as const,
 								avatar: currentUser.avatar
@@ -568,8 +563,7 @@ export const middleware = [
 										? currentUser.avatar
 										: currentUser.avatar.id
 									: undefined,
-							} as any,
-						);
+							} as any);
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -665,8 +659,14 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { environment, payload, requestInfo, pageInfo, systemGlobals, envVars } =
-		context.get(globalContextKey);
+	const {
+		environment,
+		payload,
+		requestInfo,
+		pageInfo,
+		systemGlobals,
+		envVars,
+	} = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
 	// console.log(routes)
@@ -771,17 +771,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-				userSession: userSession,
-				courseContext: context.get(courseContextKey),
-				courseModuleContext: context.get(courseModuleContextKey),
-				courseSectionContext: context.get(courseSectionContextKey),
-				enrolmentContext: context.get(enrolmentContextKey),
-				userModuleContext: context.get(userModuleContextKey),
-				userProfileContext: context.get(userProfileContextKey),
-				userAccessContext: context.get(userAccessContextKey),
-				userContext: context.get(userContextKey),
-				systemGlobals: systemGlobals,
-			};
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				};
 
 	return {
 		users: users,
@@ -963,9 +963,11 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				{loaderData.faviconMedia?.filename ? (
 					<link
 						rel="icon"
-						href={href(`/api/media/file/:filenameOrId`, {
-							filenameOrId: loaderData.faviconMedia.filename,
-						}) + `?timestamp=${loaderData.timestamp}`}
+						href={
+							href(`/api/media/file/:filenameOrId`, {
+								filenameOrId: loaderData.faviconMedia.filename,
+							}) + `?timestamp=${loaderData.timestamp}`
+						}
 					/>
 				) : (
 					<link

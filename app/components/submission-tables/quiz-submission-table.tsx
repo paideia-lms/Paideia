@@ -94,19 +94,19 @@ function QuizSubmissionHistoryItem({
 										: "Returned"}
 						</Badge>
 						{submission.status === "graded" ||
-							submission.status === "returned" ? (
+						submission.status === "returned" ? (
 							<Badge color="green" variant="filled">
 								{submission.totalScore !== null &&
-									submission.totalScore !== undefined &&
-									submission.maxScore !== null &&
-									submission.maxScore !== undefined
+								submission.totalScore !== undefined &&
+								submission.maxScore !== null &&
+								submission.maxScore !== undefined
 									? `${submission.totalScore}/${submission.maxScore}`
 									: submission.totalScore !== null &&
-										submission.totalScore !== undefined
+											submission.totalScore !== undefined
 										? String(submission.totalScore)
 										: "-"}
 								{submission.percentage !== null &&
-									submission.percentage !== undefined
+								submission.percentage !== undefined
 									? ` (${submission.percentage.toFixed(1)}%)`
 									: ""}
 							</Badge>
@@ -163,10 +163,10 @@ function QuizStudentSubmissionRow({
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
 		? [...studentSubmissions].sort((a, b) => {
-			const attemptA = a.attemptNumber || 0;
-			const attemptB = b.attemptNumber || 0;
-			return attemptB - attemptA;
-		})
+				const attemptA = a.attemptNumber || 0;
+				const attemptB = b.attemptNumber || 0;
+				return attemptB - attemptA;
+			})
 		: [];
 
 	// Filter to show all submissions that have been submitted (have submittedAt)
@@ -196,7 +196,7 @@ function QuizStudentSubmissionRow({
 	const averagePercentage =
 		gradedSubmissions.length > 0
 			? gradedSubmissions.reduce((sum, s) => sum + (s.percentage || 0), 0) /
-			gradedSubmissions.length
+				gradedSubmissions.length
 			: null;
 
 	return (
@@ -421,8 +421,7 @@ export function QuizSubmissionTable({
 			submission.status !== undefined,
 	) as QuizSubmissionType[];
 
-	const quizSubmissionsByStudent =
-		groupSubmissionsByStudent(validSubmissions);
+	const quizSubmissionsByStudent = groupSubmissionsByStudent(validSubmissions);
 
 	// Sort submissions by attempt number (newest first) for each student
 	for (const [studentId, studentSubmissions] of quizSubmissionsByStudent) {

@@ -1,14 +1,11 @@
-import {
-	Button,
-	Select,
-	Stack,
-	Textarea,
-	Title,
-} from "@mantine/core";
-import { useForm } from "@mantine/form";
+import { Button, Select, Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
+import { useForm } from "@mantine/form";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
-import type { ActivityModuleFormValues, QuizModuleFormValues } from "~/utils/activity-module-schema";
+import type {
+	ActivityModuleFormValues,
+	QuizModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
 import { ContainerQuizBuilder, RegularQuizBuilder } from "./quiz-builder-v2";
@@ -19,7 +16,11 @@ interface QuizFormProps {
 	isLoading?: boolean;
 }
 
-export function QuizForm({ initialValues, onSubmit, isLoading }: QuizFormProps) {
+export function QuizForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: QuizFormProps) {
 	const form = useForm<QuizModuleFormValues>({
 		mode: "uncontrolled",
 		cascadeUpdates: true,
@@ -45,7 +46,9 @@ export function QuizForm({ initialValues, onSubmit, isLoading }: QuizFormProps) 
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
-				<CommonFields form={form as UseFormReturnType<ActivityModuleFormValues>} />
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
 
 				<Textarea
 					{...form.getInputProps("description")}

@@ -18,9 +18,11 @@ import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/system";
 
 function getServerTimezone() {
-	return Intl.DateTimeFormat().resolvedOptions().timeZone ||
+	return (
+		Intl.DateTimeFormat().resolvedOptions().timeZone ||
 		process.env.TZ ||
-		"Unknown";
+		"Unknown"
+	);
 }
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -552,7 +554,10 @@ export default function SystemPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<PlatformInfoSection platformInfo={platformInfo} />
-				<SystemResourcesSection systemResources={systemResources} serverTimezone={serverTimezone} />
+				<SystemResourcesSection
+					systemResources={systemResources}
+					serverTimezone={serverTimezone}
+				/>
 
 				<Paper withBorder shadow="sm" p="md" radius="md">
 					<Stack gap="md">

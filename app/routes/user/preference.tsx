@@ -65,7 +65,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	return {
-		user: pick(targetUser, ["id", "firstName", "lastName", "bio", "theme", "direction"]),
+		user: pick(targetUser, [
+			"id",
+			"firstName",
+			"lastName",
+			"bio",
+			"theme",
+			"direction",
+		]),
 	};
 };
 

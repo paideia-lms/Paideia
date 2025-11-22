@@ -229,9 +229,10 @@ describe("Quiz Management - Full Workflow", () => {
 				depth: 1,
 			});
 			if (module.quiz) {
-				quizId = typeof module.quiz === "object" && "id" in module.quiz
-					? module.quiz.id
-					: module.quiz as number;
+				quizId =
+					typeof module.quiz === "object" && "id" in module.quiz
+						? module.quiz.id
+						: (module.quiz as number);
 				console.log("Extracted quiz ID:", quizId);
 			}
 		}

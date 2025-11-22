@@ -202,11 +202,11 @@ export function transformQuizAnswersToSubmissionFormat(
 	questionId: string;
 	questionText: string;
 	questionType:
-	| "multiple_choice"
-	| "true_false"
-	| "short_answer"
-	| "essay"
-	| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 	selectedAnswer?: string;
 	multipleChoiceAnswers?: Array<{
 		option: string;
@@ -217,11 +217,11 @@ export function transformQuizAnswersToSubmissionFormat(
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -282,11 +282,11 @@ export function transformQuizAnswersToSubmissionFormat(
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;

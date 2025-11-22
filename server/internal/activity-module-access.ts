@@ -599,12 +599,12 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				firstName: string | null;
 				lastName: string | null;
 				avatar?:
-				| number
-				| {
-					id: number;
-					filename?: string;
-				}
-				| null;
+					| number
+					| {
+							id: number;
+							filename?: string;
+					  }
+					| null;
 				enrollments: {
 					courseId: number;
 					role: "teacher" | "ta";

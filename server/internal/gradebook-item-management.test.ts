@@ -127,7 +127,6 @@ describe("Gradebook Item Management", () => {
 			payload,
 			{} as Request,
 			{
-
 				name: "Test Category",
 				gradebookId: testGradebook.id,
 				description: "Test Category Description",
@@ -315,8 +314,6 @@ describe("Gradebook Item Management", () => {
 		}
 	});
 
-
-
 	it("should validate weights at category level recursively", async () => {
 		// Create a category
 		const categoryResult = await tryCreateGradebookCategory(
@@ -401,7 +398,9 @@ describe("Gradebook Item Management", () => {
 
 		expect(updateResult.ok).toBe(false);
 		if (!updateResult.ok) {
-			expect(updateResult.error.message).toContain("course level > Test Validation Category");
+			expect(updateResult.error.message).toContain(
+				"course level > Test Validation Category",
+			);
 			expect(updateResult.error.message).toContain("must equal exactly 100%");
 		}
 	});
@@ -487,13 +486,17 @@ describe("Gradebook Item Management", () => {
 		// Ensure testItem2 exists before trying to delete it
 		if (!testItem2) {
 			// Create a temporary item to delete
-			const tempItemResult = await tryCreateGradebookItem(payload, {} as Request, {
-				courseId: testCourse.id,
-				categoryId: testCategory.id,
-				name: "Temp Item to Delete",
-				weight: null, // Auto-weighted
-				sortOrder: 100,
-			});
+			const tempItemResult = await tryCreateGradebookItem(
+				payload,
+				{} as Request,
+				{
+					courseId: testCourse.id,
+					categoryId: testCategory.id,
+					name: "Temp Item to Delete",
+					weight: null, // Auto-weighted
+					sortOrder: 100,
+				},
+			);
 
 			expect(tempItemResult.ok).toBe(true);
 			if (!tempItemResult.ok) {
@@ -566,7 +569,6 @@ describe("Gradebook Item Management", () => {
 		}
 	});
 
-
 	it("should handle extra credit items in final grade calculation", async () => {
 		// This test would require user grades to be created and calculated
 		// For now, we'll just verify the items exist
@@ -589,8 +591,6 @@ describe("Gradebook Item Management", () => {
 			});
 		}
 	});
-
-
 
 	it("should fail to find gradebook item for non-existent course module link", async () => {
 		const result = await tryFindGradebookItemByCourseModuleLink({

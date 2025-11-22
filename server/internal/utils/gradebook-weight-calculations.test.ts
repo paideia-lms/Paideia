@@ -450,7 +450,8 @@ describe("Gradebook Weight Calculations", () => {
 
 			// Check that subcategory is also marked
 			if (parentCategory.grade_items) {
-				const subcategory = parentCategory.grade_items[0] as GradebookSetupItemWithCalculations;
+				const subcategory = parentCategory
+					.grade_items[0] as GradebookSetupItemWithCalculations;
 				expect(subcategory.auto_weighted_zero).toBe(true);
 				expect(subcategory.adjusted_weight).toBe(0); // Treated as 0
 			}
@@ -495,7 +496,8 @@ describe("Gradebook Weight Calculations", () => {
 			expect(category.auto_weighted_zero).toBeUndefined();
 			// The item inside should have adjusted_weight
 			if (category.grade_items) {
-				const item = category.grade_items[0] as GradebookSetupItemWithCalculations;
+				const item = category
+					.grade_items[0] as GradebookSetupItemWithCalculations;
 				expect(item.adjusted_weight).toBe(100); // Single item gets 100%
 			}
 		});

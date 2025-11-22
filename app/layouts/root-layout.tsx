@@ -35,12 +35,12 @@ import {
 	type PageInfo,
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
+import { getAvatarUrl } from "server/contexts/utils/user-utils";
 import { canSeeUserModules } from "server/utils/permissions";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
-import { getAvatarUrl } from "server/contexts/utils/user-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { envVars, systemGlobals } = context.get(globalContextKey);
@@ -208,7 +208,9 @@ export function HeaderTabs({
 		<div className={classes.header}>
 			<Container size="xl" className={classes.mainSection}>
 				<Group justify="space-between" wrap="nowrap">
-					<Box style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
+					<Box
+						style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}
+					>
 						{logoMedia?.filename ? (
 							<Box
 								style={{
@@ -281,9 +283,7 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={
-																	getAvatarUrl(authenticatedUser)
-																}
+																src={getAvatarUrl(authenticatedUser)}
 																alt={
 																	`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
 																	"Admin"
@@ -300,9 +300,7 @@ export function HeaderTabs({
 															withArrow
 														>
 															<Avatar
-																src={
-																	getAvatarUrl(currentUser)
-																}
+																src={getAvatarUrl(currentUser)}
 																alt={
 																	`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 																	"Anonymous"
@@ -315,9 +313,7 @@ export function HeaderTabs({
 												</Tooltip.Group>
 											) : (
 												<Avatar
-													src={
-														getAvatarUrl(currentUser)
-													}
+													src={getAvatarUrl(currentUser)}
 													alt={
 														`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 														"Anonymous"
@@ -334,7 +330,7 @@ export function HeaderTabs({
 										<Text fw={500} size="sm" lh={1} mr={3}>
 											{isAuthenticated && currentUser
 												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
+													"Anonymous"
 												: "Not signed in"}
 										</Text>
 										{isAdmin && (
@@ -380,8 +376,8 @@ export function HeaderTabs({
 										</Menu.Item>
 										<Menu.Item
 											leftSection={<IconCalendar size={16} stroke={1.5} />}
-										// component={Link}
-										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+											// component={Link}
+											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
 										>
 											Calendar
 										</Menu.Item>

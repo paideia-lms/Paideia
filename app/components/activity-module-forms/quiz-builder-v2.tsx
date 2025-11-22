@@ -19,8 +19,8 @@ import { useState } from "react";
 import type { NestedQuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import z from "zod";
-import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
+import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 
 // ============================================================================

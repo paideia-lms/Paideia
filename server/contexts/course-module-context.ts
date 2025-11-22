@@ -65,12 +65,12 @@ export type CourseModuleUser = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-	| number
-	| {
-		id: number;
-		filename?: string | null;
-	}
-	| null;
+		| number
+		| {
+				id: number;
+				filename?: string | null;
+		  }
+		| null;
 };
 
 export type CourseModulePageData = {
@@ -121,11 +121,11 @@ export type CourseModuleFileData = {
 	media: Array<
 		| number
 		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		}
+				id: number;
+				filename?: string | null;
+				mimeType?: string | null;
+				filesize?: number | null;
+		  }
 	> | null;
 };
 
@@ -202,33 +202,33 @@ export type QuizSubmissionDisplayData = {
 
 export type ModuleSpecificData =
 	| {
-		type: "quiz";
-		quizSubmissionsForDisplay: QuizSubmissionDisplayData[];
-		hasActiveQuizAttempt: boolean;
-		quizRemainingTime: number | undefined;
-		submissions: QuizSubmissionResolved[];
-		userSubmissions: QuizSubmissionResolved[];
-		userSubmission: QuizSubmissionResolved | null;
-	}
+			type: "quiz";
+			quizSubmissionsForDisplay: QuizSubmissionDisplayData[];
+			hasActiveQuizAttempt: boolean;
+			quizRemainingTime: number | undefined;
+			submissions: QuizSubmissionResolved[];
+			userSubmissions: QuizSubmissionResolved[];
+			userSubmission: QuizSubmissionResolved | null;
+	  }
 	| {
-		type: "assignment";
-		// Assignment-specific data can be added here in the future
-		submissions: AssignmentSubmissionResolved[];
-		userSubmissions: AssignmentSubmissionResolved[];
-		userSubmission: AssignmentSubmissionResolved | null;
-	}
+			type: "assignment";
+			// Assignment-specific data can be added here in the future
+			submissions: AssignmentSubmissionResolved[];
+			userSubmissions: AssignmentSubmissionResolved[];
+			userSubmission: AssignmentSubmissionResolved | null;
+	  }
 	| {
-		type: "discussion";
-		// Discussion-specific data can be added here in the future
-		submissions: DiscussionSubmissionResolved[];
-		userSubmissions: DiscussionSubmissionResolved[];
-		userSubmission: null;
-		threads: DiscussionThread[];
-	}
+			type: "discussion";
+			// Discussion-specific data can be added here in the future
+			submissions: DiscussionSubmissionResolved[];
+			userSubmissions: DiscussionSubmissionResolved[];
+			userSubmission: null;
+			threads: DiscussionThread[];
+	  }
 	| {
-		type: "page" | "whiteboard" | "file";
-		// Page/whiteboard/file modules don't have module-specific data
-	};
+			type: "page" | "whiteboard" | "file";
+			// Page/whiteboard/file modules don't have module-specific data
+	  };
 
 export type CourseModuleContext = {
 	module: CourseModule;
@@ -269,14 +269,14 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 	) => {
 		const formattedUser: TypedUser | null = currentUser
 			? {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar
-					? typeof currentUser.avatar === "number"
-						? currentUser.avatar
-						: currentUser.avatar.id
-					: undefined,
-			}
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar
+						? typeof currentUser.avatar === "number"
+							? currentUser.avatar
+							: currentUser.avatar.id
+						: undefined,
+				}
 			: null;
 
 		const threadsResult = await tryGetDiscussionThreadsWithAllReplies(payload, {
@@ -305,13 +305,13 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 		const student = thread.student;
 		const authorName = student
 			? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
-			student.email ||
-			"Unknown"
+				student.email ||
+				"Unknown"
 			: "Unknown";
 		const authorAvatar = student
 			? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
-			student.email?.[0]?.toUpperCase() ||
-			"U"
+				student.email?.[0]?.toUpperCase() ||
+				"U"
 			: "U";
 
 		const isUpvoted =
@@ -332,13 +332,13 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 			const replyStudent = reply.student;
 			const replyAuthorName = replyStudent
 				? `${replyStudent.firstName || ""} ${replyStudent.lastName || ""}`.trim() ||
-				replyStudent.email ||
-				"Unknown"
+					replyStudent.email ||
+					"Unknown"
 				: "Unknown";
 			const replyAuthorAvatar = replyStudent
 				? `${replyStudent.firstName?.[0] || ""}${replyStudent.lastName?.[0] || ""}`.trim() ||
-				replyStudent.email?.[0]?.toUpperCase() ||
-				"U"
+					replyStudent.email?.[0]?.toUpperCase() ||
+					"U"
 				: "U";
 
 			const replyIsUpvoted =
@@ -488,90 +488,90 @@ export const tryGetCourseModuleContext = Result.wrap(
 			},
 			page:
 				activityModule.type === "page" &&
-					typeof activityModule.page === "object" &&
-					activityModule.page !== null
+				typeof activityModule.page === "object" &&
+				activityModule.page !== null
 					? {
-						id: activityModule.page.id,
-						content: activityModule.page.content || null,
-					}
+							id: activityModule.page.id,
+							content: activityModule.page.content || null,
+						}
 					: null,
 			whiteboard:
 				activityModule.type === "whiteboard" &&
-					typeof activityModule.whiteboard === "object" &&
-					activityModule.whiteboard !== null
+				typeof activityModule.whiteboard === "object" &&
+				activityModule.whiteboard !== null
 					? {
-						id: activityModule.whiteboard.id,
-						content: activityModule.whiteboard.content || null,
-					}
+							id: activityModule.whiteboard.id,
+							content: activityModule.whiteboard.content || null,
+						}
 					: null,
 			file:
 				activityModule.type === "file" &&
-					typeof activityModule.file === "object" &&
-					activityModule.file !== null
+				typeof activityModule.file === "object" &&
+				activityModule.file !== null
 					? {
-						id: activityModule.file.id,
-						media: activityModule.file.media || null,
-					}
+							id: activityModule.file.id,
+							media: activityModule.file.media || null,
+						}
 					: null,
 			assignment:
 				activityModule.type === "assignment" &&
-					typeof activityModule.assignment === "object" &&
-					activityModule.assignment !== null
+				typeof activityModule.assignment === "object" &&
+				activityModule.assignment !== null
 					? {
-						id: activityModule.assignment.id,
-						instructions: activityModule.assignment.instructions || null,
-						dueDate: activityModule.assignment.dueDate || null,
-						maxAttempts: activityModule.assignment.maxAttempts || null,
-						allowLateSubmissions:
-							activityModule.assignment.allowLateSubmissions || null,
-						requireTextSubmission:
-							activityModule.assignment.requireTextSubmission || null,
-						requireFileSubmission:
-							activityModule.assignment.requireFileSubmission || null,
-						allowedFileTypes:
-							activityModule.assignment.allowedFileTypes || null,
-						maxFileSize: activityModule.assignment.maxFileSize || null,
-						maxFiles: activityModule.assignment.maxFiles || null,
-					}
+							id: activityModule.assignment.id,
+							instructions: activityModule.assignment.instructions || null,
+							dueDate: activityModule.assignment.dueDate || null,
+							maxAttempts: activityModule.assignment.maxAttempts || null,
+							allowLateSubmissions:
+								activityModule.assignment.allowLateSubmissions || null,
+							requireTextSubmission:
+								activityModule.assignment.requireTextSubmission || null,
+							requireFileSubmission:
+								activityModule.assignment.requireFileSubmission || null,
+							allowedFileTypes:
+								activityModule.assignment.allowedFileTypes || null,
+							maxFileSize: activityModule.assignment.maxFileSize || null,
+							maxFiles: activityModule.assignment.maxFiles || null,
+						}
 					: null,
 			quiz:
 				activityModule.type === "quiz" &&
-					typeof activityModule.quiz === "object" &&
-					activityModule.quiz !== null
+				typeof activityModule.quiz === "object" &&
+				activityModule.quiz !== null
 					? (() => {
-						// Get rawQuizConfig to check for globalTimer
-						const rawConfig = activityModule.quiz
-							.rawQuizConfig as unknown as QuizConfig | null;
+							// Get rawQuizConfig to check for globalTimer
+							const rawConfig = activityModule.quiz
+								.rawQuizConfig as unknown as QuizConfig | null;
 
-						// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
-						const timeLimit = rawConfig?.globalTimer
-							? rawConfig.globalTimer / 60
-							: null;
+							// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
+							const timeLimit = rawConfig?.globalTimer
+								? rawConfig.globalTimer / 60
+								: null;
 
-						return {
-							id: activityModule.quiz.id,
-							instructions: activityModule.quiz.instructions || null,
-							dueDate: activityModule.quiz.dueDate || null,
-							maxAttempts: activityModule.quiz.maxAttempts || null,
-							points: activityModule.quiz.points || null,
-							timeLimit,
-							gradingType: activityModule.quiz.gradingType || null,
-							rawQuizConfig: rawConfig,
-						};
-					})()
+							return {
+								id: activityModule.quiz.id,
+								instructions: activityModule.quiz.instructions || null,
+								dueDate: activityModule.quiz.dueDate || null,
+								maxAttempts: activityModule.quiz.maxAttempts || null,
+								points: activityModule.quiz.points || null,
+								timeLimit,
+								gradingType: activityModule.quiz.gradingType || null,
+								rawQuizConfig: rawConfig,
+							};
+						})()
 					: null,
 			discussion:
 				activityModule.type === "discussion" &&
-					typeof activityModule.discussion === "object" &&
-					activityModule.discussion !== null
+				typeof activityModule.discussion === "object" &&
+				activityModule.discussion !== null
 					? {
-						id: activityModule.discussion.id,
-						instructions: activityModule.discussion.instructions || null,
-						dueDate: activityModule.discussion.dueDate || null,
-						requireThread: activityModule.discussion.requireThread || null,
-						requireReplies: activityModule.discussion.requireReplies || null,
-						minReplies: activityModule.discussion.minReplies || null,
-					}
+							id: activityModule.discussion.id,
+							instructions: activityModule.discussion.instructions || null,
+							dueDate: activityModule.discussion.dueDate || null,
+							requireThread: activityModule.discussion.requireThread || null,
+							requireReplies: activityModule.discussion.requireReplies || null,
+							minReplies: activityModule.discussion.minReplies || null,
+						}
 					: null,
 			createdAt: activityModule.createdAt,
 			updatedAt: activityModule.updatedAt,
@@ -580,14 +580,14 @@ export const tryGetCourseModuleContext = Result.wrap(
 		// Format user for internal functions
 		const formattedUser: TypedUser | null = currentUser
 			? {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar
-					? typeof currentUser.avatar === "number"
-						? currentUser.avatar
-						: currentUser.avatar.id
-					: undefined,
-			}
+					...currentUser,
+					collection: "users",
+					avatar: currentUser.avatar
+						? typeof currentUser.avatar === "number"
+							? currentUser.avatar
+							: currentUser.avatar.id
+						: undefined,
+				}
 			: null;
 
 		// Get course structure to determine next/previous modules
@@ -636,20 +636,20 @@ export const tryGetCourseModuleContext = Result.wrap(
 		const previousModule: PreviousNextModule =
 			currentModuleIndex > 0
 				? {
-					id: flattenedModules[currentModuleIndex - 1].moduleLinkId,
-					title: flattenedModules[currentModuleIndex - 1].title,
-					type: flattenedModules[currentModuleIndex - 1].type,
-				}
+						id: flattenedModules[currentModuleIndex - 1].moduleLinkId,
+						title: flattenedModules[currentModuleIndex - 1].title,
+						type: flattenedModules[currentModuleIndex - 1].type,
+					}
 				: null;
 
 		const nextModule: PreviousNextModule =
 			currentModuleIndex < flattenedModules.length - 1 &&
-				currentModuleIndex !== -1
+			currentModuleIndex !== -1
 				? {
-					id: flattenedModules[currentModuleIndex + 1].moduleLinkId,
-					title: flattenedModules[currentModuleIndex + 1].title,
-					type: flattenedModules[currentModuleIndex + 1].type,
-				}
+						id: flattenedModules[currentModuleIndex + 1].moduleLinkId,
+						title: flattenedModules[currentModuleIndex + 1].title,
+						type: flattenedModules[currentModuleIndex + 1].type,
+					}
 				: null;
 
 		// Check if user can submit assignments
@@ -820,13 +820,13 @@ export const tryGetCourseModuleContext = Result.wrap(
 						const student = thread.student;
 						const authorName = student
 							? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
-							student.email ||
-							"Unknown"
+								student.email ||
+								"Unknown"
 							: "Unknown";
 						const authorAvatar = student
 							? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
-							student.email?.[0]?.toUpperCase() ||
-							"U"
+								student.email?.[0]?.toUpperCase() ||
+								"U"
 							: "U";
 
 						const isUpvoted =

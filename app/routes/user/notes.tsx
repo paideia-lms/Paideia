@@ -264,9 +264,10 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
-							? "No notes"
-							: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${
+							value === null || value === 0
+								? "No notes"
+								: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}

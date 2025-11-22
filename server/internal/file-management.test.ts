@@ -2,7 +2,6 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
-import { tryCreateMedia } from "./media-management";
 import {
 	type CreateFileArgs,
 	tryCreateFile,
@@ -10,6 +9,7 @@ import {
 	tryGetFileById,
 	tryUpdateFile,
 } from "./file-management";
+import { tryCreateMedia } from "./media-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 describe("File Management Functions", () => {
@@ -349,4 +349,3 @@ describe("File Management Functions", () => {
 		expect(result.ok).toBe(false);
 	});
 });
-

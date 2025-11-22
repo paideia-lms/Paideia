@@ -1,11 +1,16 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import { useState } from "react";
+import type {
+	FileUpload,
+	FileUploadHandler,
+} from "@remix-run/form-data-parser";
 import {
-	href,
-	type SubmitTarget,
-	useFetcher,
-} from "react-router";
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import prettyBytes from "pretty-bytes";
+import { useState } from "react";
+import { href, type SubmitTarget, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
@@ -14,6 +19,8 @@ import {
 	type UpdateActivityModuleArgs,
 } from "server/internal/activity-module-management";
 import { tryCreateMedia } from "server/internal/media-management";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
+import type { z } from "zod";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -22,7 +29,7 @@ import {
 	QuizForm,
 	WhiteboardForm,
 } from "~/components/activity-module-forms";
-import type { z } from "zod";
+import { DeleteActivityModule } from "~/components/delete-activity-module";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
@@ -30,12 +37,6 @@ import {
 	transformToActivityData,
 } from "~/utils/activity-module-schema";
 import { fileTypesToPresetValues } from "~/utils/file-types";
-import type { FileUpload, FileUploadHandler } from "@remix-run/form-data-parser";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
 import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
@@ -48,9 +49,7 @@ import {
 	ok,
 	StatusCode,
 } from "~/utils/responses";
-import { DeleteActivityModule } from "~/components/delete-activity-module";
 import type { Route } from "./+types/edit-setting";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -104,12 +103,14 @@ export const action = async ({
 		});
 	}
 
-
 	////////////////////////////////////////////////////////////
 	// Update Module
 	////////////////////////////////////////////////////////////
 
-	const { transactionID, reqWithTransaction } = await handleTransactionId(payload, request)
+	const { transactionID, reqWithTransaction } = await handleTransactionId(
+		payload,
+		request,
+	);
 
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
@@ -124,7 +125,9 @@ export const action = async ({
 
 		if (isMultipart) {
 			// Handle file uploads for file module type
-			const uploadHandler: FileUploadHandler = async (fileUpload: FileUpload) => {
+			const uploadHandler: FileUploadHandler = async (
+				fileUpload: FileUpload,
+			) => {
 				if (fileUpload.fieldName === "files") {
 					const arrayBuffer = await fileUpload.arrayBuffer();
 					const fileBuffer = Buffer.from(arrayBuffer);
@@ -150,13 +153,9 @@ export const action = async ({
 				return undefined;
 			};
 
-			const formData = await parseFormDataWithFallback(
-				request,
-				uploadHandler,
-				{
-					...(maxFileSize !== undefined && { maxFileSize }),
-				},
-			);
+			const formData = await parseFormDataWithFallback(request, uploadHandler, {
+				...(maxFileSize !== undefined && { maxFileSize }),
+			});
 
 			// Extract form data (excluding files) and parse values
 			const formDataObj: Record<string, unknown> = {};
@@ -181,8 +180,14 @@ export const action = async ({
 			parsedData = activityModuleSchema.parse(data);
 		}
 
-		const { pageData, whiteboardData, fileData, assignmentData, quizData, discussionData } =
-			transformToActivityData(parsedData);
+		const {
+			pageData,
+			whiteboardData,
+			fileData,
+			assignmentData,
+			quizData,
+			discussionData,
+		} = transformToActivityData(parsedData);
 
 		// For file type, combine existing media IDs with newly uploaded media IDs
 		let finalFileData = fileData;
@@ -207,27 +212,51 @@ export const action = async ({
 		let updateArgs: UpdateActivityModuleArgs;
 		if (parsedData.type === "page" && pageData) {
 			updateArgs = {
-				...baseArgs, type: "page" as const, pageData, req: { transactionID }, user: currentUser
+				...baseArgs,
+				type: "page" as const,
+				pageData,
+				req: { transactionID },
+				user: currentUser,
 			};
 		} else if (parsedData.type === "whiteboard" && whiteboardData) {
 			updateArgs = {
-				...baseArgs, type: "whiteboard" as const, whiteboardData, req: { transactionID }, user: currentUser
+				...baseArgs,
+				type: "whiteboard" as const,
+				whiteboardData,
+				req: { transactionID },
+				user: currentUser,
 			};
 		} else if (parsedData.type === "assignment" && assignmentData) {
 			updateArgs = {
-				...baseArgs, type: "assignment" as const, assignmentData, req: { transactionID }, user: currentUser,
+				...baseArgs,
+				type: "assignment" as const,
+				assignmentData,
+				req: { transactionID },
+				user: currentUser,
 			};
 		} else if (parsedData.type === "quiz" && quizData) {
 			updateArgs = {
-				...baseArgs, type: "quiz" as const, quizData, req: { transactionID }, user: currentUser
+				...baseArgs,
+				type: "quiz" as const,
+				quizData,
+				req: { transactionID },
+				user: currentUser,
 			};
 		} else if (parsedData.type === "file" && finalFileData) {
 			updateArgs = {
-				...baseArgs, type: "file" as const, fileData: finalFileData, req: { transactionID }, user: currentUser
+				...baseArgs,
+				type: "file" as const,
+				fileData: finalFileData,
+				req: { transactionID },
+				user: currentUser,
 			};
 		} else if (parsedData.type === "discussion" && discussionData) {
 			updateArgs = {
-				...baseArgs, type: "discussion" as const, discussionData, req: { transactionID }, user: currentUser
+				...baseArgs,
+				type: "discussion" as const,
+				discussionData,
+				req: { transactionID },
+				user: currentUser,
 			};
 		} else {
 			await payload.db.rollbackTransaction(transactionID);
@@ -236,7 +265,6 @@ export const action = async ({
 				error: `Invalid module type or missing data for ${parsedData.type}`,
 			});
 		}
-
 
 		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
 
@@ -331,7 +359,9 @@ export function useUpdateModule() {
 export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 	const { module, uploadLimit, hasLinkedCourses } = loaderData;
 	const { updateModule, isLoading } = useUpdateModule();
-	const [selectedType] = useState<ActivityModuleFormValues["type"]>(module.type);
+	const [selectedType] = useState<ActivityModuleFormValues["type"]>(
+		module.type,
+	);
 
 	// Extract activity-specific data
 	const pageData = module.page;
@@ -351,21 +381,29 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 
 		switch (module.type) {
 			case "page":
-				return { ...base, type: "page" as const, pageContent: pageData?.content || "" };
+				return {
+					...base,
+					type: "page" as const,
+					pageContent: pageData?.content || "",
+				};
 			case "whiteboard":
-				return { ...base, type: "whiteboard" as const, whiteboardContent: whiteboardData?.content || "" };
+				return {
+					...base,
+					type: "whiteboard" as const,
+					whiteboardContent: whiteboardData?.content || "",
+				};
 			case "file":
 				return {
 					...base,
 					type: "file" as const,
 					fileMedia:
 						fileData?.media
-							?.map(
-								(m: number | { id: number } | null | undefined) =>
-									typeof m === "object" && m !== null && "id" in m ? m.id : m,
+							?.map((m: number | { id: number } | null | undefined) =>
+								typeof m === "object" && m !== null && "id" in m ? m.id : m,
 							)
-							.filter((id: number | null | undefined): id is number =>
-								typeof id === "number",
+							.filter(
+								(id: number | null | undefined): id is number =>
+									typeof id === "number",
 							) || [],
 					fileFiles: [],
 				};
@@ -374,12 +412,19 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 					...base,
 					type: "assignment" as const,
 					assignmentInstructions: assignmentData?.instructions || "",
-					assignmentDueDate: assignmentData?.dueDate ? new Date(assignmentData.dueDate) : null,
+					assignmentDueDate: assignmentData?.dueDate
+						? new Date(assignmentData.dueDate)
+						: null,
 					assignmentMaxAttempts: assignmentData?.maxAttempts || 1,
-					assignmentAllowLateSubmissions: assignmentData?.allowLateSubmissions || false,
-					assignmentRequireTextSubmission: assignmentData?.requireTextSubmission || false,
-					assignmentRequireFileSubmission: assignmentData?.requireFileSubmission || false,
-					assignmentAllowedFileTypes: fileTypesToPresetValues(assignmentData?.allowedFileTypes),
+					assignmentAllowLateSubmissions:
+						assignmentData?.allowLateSubmissions || false,
+					assignmentRequireTextSubmission:
+						assignmentData?.requireTextSubmission || false,
+					assignmentRequireFileSubmission:
+						assignmentData?.requireFileSubmission || false,
+					assignmentAllowedFileTypes: fileTypesToPresetValues(
+						assignmentData?.allowedFileTypes,
+					),
 					assignmentMaxFileSize: assignmentData?.maxFileSize || 10,
 					assignmentMaxFiles: assignmentData?.maxFiles || 5,
 				};
@@ -400,7 +445,9 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 					...base,
 					type: "discussion" as const,
 					discussionInstructions: discussionData?.instructions || "",
-					discussionDueDate: discussionData?.dueDate ? new Date(discussionData.dueDate) : null,
+					discussionDueDate: discussionData?.dueDate
+						? new Date(discussionData.dueDate)
+						: null,
 					discussionRequireThread: discussionData?.requireThread || false,
 					discussionRequireReplies: discussionData?.requireReplies || false,
 					discussionMinReplies: discussionData?.minReplies || 1,

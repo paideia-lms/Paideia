@@ -58,7 +58,10 @@ import type {
 	RankingQuestion,
 	SingleSelectionMatrixQuestion,
 } from "server/json/raw-quiz-config.types.v2";
-import type { ActivityModuleFormValues, QuizModuleFormValues } from "~/utils/activity-module-schema";
+import type {
+	ActivityModuleFormValues,
+	QuizModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
@@ -87,8 +90,8 @@ export function PassScoringInput({
 export interface GradingConfigEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| "rawQuizConfig.grading"
-	| `rawQuizConfig.nestedQuizzes.${number}.grading`;
+		| "rawQuizConfig.grading"
+		| `rawQuizConfig.nestedQuizzes.${number}.grading`;
 }
 
 export function GradingConfigEditor({ form, path }: GradingConfigEditorProps) {
@@ -153,8 +156,8 @@ export function GradingConfigEditor({ form, path }: GradingConfigEditorProps) {
 export interface ScoringEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.pages.${number}.questions.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+		| `rawQuizConfig.pages.${number}.questions.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
 }
 
 export function ScoringEditor({ form, path }: ScoringEditorProps) {
@@ -361,8 +364,8 @@ export function ScoringEditor({ form, path }: ScoringEditorProps) {
 export interface MultipleChoiceEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.pages.${number}.questions.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+		| `rawQuizConfig.pages.${number}.questions.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
 }
 
 export function MultipleChoiceEditor({
@@ -461,8 +464,8 @@ export function MultipleChoiceEditor({
 export interface ChoiceEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.pages.${number}.questions.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+		| `rawQuizConfig.pages.${number}.questions.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
 }
 
 export function ChoiceEditor({ form, path }: ChoiceEditorProps) {
@@ -558,8 +561,8 @@ export function ChoiceEditor({ form, path }: ChoiceEditorProps) {
 export interface FillInTheBlankEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.pages.${number}.questions.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+		| `rawQuizConfig.pages.${number}.questions.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
 }
 
 export function FillInTheBlankEditor({
@@ -654,8 +657,8 @@ export function FillInTheBlankEditor({
 export interface RankingEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.pages.${number}.questions.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+		| `rawQuizConfig.pages.${number}.questions.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
 }
 
 // Sortable Ranking Item
@@ -887,8 +890,8 @@ export function RankingEditor({ form, path }: RankingEditorProps) {
 export interface MatrixEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.pages.${number}.questions.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+		| `rawQuizConfig.pages.${number}.questions.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
 }
 
 export function SingleSelectionMatrixEditor({ form, path }: MatrixEditorProps) {
@@ -1262,8 +1265,8 @@ export function MultipleSelectionMatrixEditor({
 export interface ResourceEditorProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.resources.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.resources.${number}`;
+		| `rawQuizConfig.resources.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.resources.${number}`;
 	resourceNumber: number;
 	availablePages: Array<{ id: string; title: string }>;
 	onRemove: () => void;
@@ -1401,11 +1404,11 @@ export function ResourceEditor({
 export interface ResourcesListProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| "rawQuizConfig.resources"
-	| `rawQuizConfig.nestedQuizzes.${number}.resources`;
+		| "rawQuizConfig.resources"
+		| `rawQuizConfig.nestedQuizzes.${number}.resources`;
 	pagesPath:
-	| "rawQuizConfig.pages"
-	| `rawQuizConfig.nestedQuizzes.${number}.pages`;
+		| "rawQuizConfig.pages"
+		| `rawQuizConfig.nestedQuizzes.${number}.pages`;
 }
 
 export function ResourcesList({ form, path, pagesPath }: ResourcesListProps) {
@@ -1501,8 +1504,8 @@ export function ResourcesList({ form, path, pagesPath }: ResourcesListProps) {
 export interface SortablePageBreakItemProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	basePath:
-	| "rawQuizConfig.pages"
-	| `rawQuizConfig.nestedQuizzes.${number}.pages`;
+		| "rawQuizConfig.pages"
+		| `rawQuizConfig.nestedQuizzes.${number}.pages`;
 	id: string; // Format: "pageBreak-{pageId}"
 	pageNumber: number;
 }
@@ -1576,8 +1579,8 @@ export function SortablePageBreakItem({
 export interface SortableQuestionItemProps {
 	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
-	| `rawQuizConfig.pages.${number}.questions.${number}`
-	| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
+		| `rawQuizConfig.pages.${number}.questions.${number}`
+		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
 	questionNumber: number;
 	pageNumber: number;
 }

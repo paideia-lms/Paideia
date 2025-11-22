@@ -31,14 +31,16 @@ export function calculateAdjustedWeights(
 		// This must happen after children are processed
 		if (processedItem.type === "category" && processedItem.weight === null) {
 			// Check if category has no non-extra-credit items
-			const hasNonExtraCreditItems = processedItem.grade_items?.some(
-				(child) => child.type !== "category" && !(child.extra_credit ?? false),
-			) ?? false;
+			const hasNonExtraCreditItems =
+				processedItem.grade_items?.some(
+					(child) =>
+						child.type !== "category" && !(child.extra_credit ?? false),
+				) ?? false;
 
 			// Check if category has nested categories
-			const hasNestedCategories = processedItem.grade_items?.some(
-				(child) => child.type === "category",
-			) ?? false;
+			const hasNestedCategories =
+				processedItem.grade_items?.some((child) => child.type === "category") ??
+				false;
 
 			if (!hasNonExtraCreditItems) {
 				// No non-extra-credit items
@@ -47,9 +49,10 @@ export function calculateAdjustedWeights(
 					processedItem.auto_weighted_zero = true;
 				} else {
 					// Has nested categories - check if all are auto-weighted-0
-					const allSubcategoriesAutoWeightedZero = processedItem.grade_items
-						?.filter((child) => child.type === "category")
-						.every((child) => child.auto_weighted_zero === true) ?? false;
+					const allSubcategoriesAutoWeightedZero =
+						processedItem.grade_items
+							?.filter((child) => child.type === "category")
+							.every((child) => child.auto_weighted_zero === true) ?? false;
 
 					if (allSubcategoriesAutoWeightedZero) {
 						// All subcategories are auto-weighted-0 - mark this as auto-weighted-0
@@ -82,9 +85,7 @@ export function calculateAdjustedWeights(
 		);
 
 		// Separate items with specified weights and auto-weighted items (weight === null)
-		const itemsWithWeight = participatingItems.filter(
-			(p) => p.weight !== null,
-		);
+		const itemsWithWeight = participatingItems.filter((p) => p.weight !== null);
 		const autoWeightedItems = participatingItems.filter(
 			(p) => p.weight === null,
 		);

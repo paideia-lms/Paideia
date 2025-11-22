@@ -73,7 +73,7 @@ export const GradebookItems = {
 			min: 0,
 		},
 		{
-			// weight can null 
+			// weight can null
 			name: "weight",
 			type: "number",
 			label: "Weight (%)",

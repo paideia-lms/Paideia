@@ -273,7 +273,7 @@ export const action = async ({
 			// Check permissions
 			const createdById =
 				typeof mediaRecord.createdBy === "object" &&
-					mediaRecord.createdBy !== null
+				mediaRecord.createdBy !== null
 					? mediaRecord.createdBy.id
 					: mediaRecord.createdBy;
 			const deletePermission = canDeleteMedia(currentUser, createdById);
@@ -998,8 +998,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1090,8 +1090,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (
@@ -1170,8 +1170,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (

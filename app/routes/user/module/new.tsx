@@ -1,5 +1,14 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import type {
+	FileUpload,
+	FileUploadHandler,
+} from "@remix-run/form-data-parser";
+import {
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
+} from "@remix-run/form-data-parser";
+import prettyBytes from "pretty-bytes";
 import { useState } from "react";
 import {
 	type ActionFunctionArgs,
@@ -8,12 +17,6 @@ import {
 	redirect,
 	useFetcher,
 } from "react-router";
-import type { FileUpload, FileUploadHandler } from "@remix-run/form-data-parser";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
@@ -21,6 +24,7 @@ import {
 	tryCreateActivityModule,
 } from "server/internal/activity-module-management";
 import { tryCreateMedia } from "server/internal/media-management";
+import type { z } from "zod";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -29,7 +33,6 @@ import {
 	QuizForm,
 	WhiteboardForm,
 } from "~/components/activity-module-forms";
-import type { z } from "zod";
 import {
 	type ActivityModuleFormValues,
 	activityModuleSchema,
@@ -94,11 +97,13 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 		const isMultipart = contentType.includes("multipart/form-data");
 
 		let parsedData: ReturnType<typeof activityModuleSchema.parse>;
-		let uploadedMediaIds: number[] = [];
+		const uploadedMediaIds: number[] = [];
 
 		if (isMultipart) {
 			// Handle file uploads for file module type
-			const uploadHandler: FileUploadHandler = async (fileUpload: FileUpload) => {
+			const uploadHandler: FileUploadHandler = async (
+				fileUpload: FileUpload,
+			) => {
 				if (fileUpload.fieldName === "files") {
 					const arrayBuffer = await fileUpload.arrayBuffer();
 					const fileBuffer = Buffer.from(arrayBuffer);
@@ -124,14 +129,9 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 				return undefined;
 			};
 
-
-			const formData = await parseFormDataWithFallback(
-				request,
-				uploadHandler,
-				{
-					...(maxFileSize !== undefined && { maxFileSize }),
-				},
-			);
+			const formData = await parseFormDataWithFallback(request, uploadHandler, {
+				...(maxFileSize !== undefined && { maxFileSize }),
+			});
 
 			console.log("uploadedMediaIds", uploadedMediaIds);
 			// Extract form data (excluding files) and parse values
@@ -157,8 +157,14 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 			parsedData = activityModuleSchema.parse(data);
 		}
 
-		const { pageData, whiteboardData, fileData, assignmentData, quizData, discussionData } =
-			transformToActivityData(parsedData);
+		const {
+			pageData,
+			whiteboardData,
+			fileData,
+			assignmentData,
+			quizData,
+			discussionData,
+		} = transformToActivityData(parsedData);
 
 		// For file type, use uploaded media IDs
 		let finalFileData = fileData;
@@ -186,7 +192,11 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 		} else if (parsedData.type === "quiz" && quizData) {
 			createArgs = { ...baseArgs, type: "quiz" as const, quizData };
 		} else if (parsedData.type === "file" && finalFileData) {
-			createArgs = { ...baseArgs, type: "file" as const, fileData: finalFileData };
+			createArgs = {
+				...baseArgs,
+				type: "file" as const,
+				fileData: finalFileData,
+			};
 		} else if (parsedData.type === "discussion" && discussionData) {
 			createArgs = { ...baseArgs, type: "discussion" as const, discussionData };
 		} else {
@@ -328,7 +338,8 @@ export function useCreateModule() {
 export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 	const { uploadLimit } = loaderData;
 	const { createModule, isLoading } = useCreateModule();
-	const [selectedType, setSelectedType] = useState<ActivityModuleFormValues["type"]>("page");
+	const [selectedType, setSelectedType] =
+		useState<ActivityModuleFormValues["type"]>("page");
 
 	return (
 		<Container size="md" py="xl">
@@ -354,7 +365,9 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 				<Stack gap="md">
 					<Select
 						value={selectedType}
-						onChange={(value) => setSelectedType(value as ActivityModuleFormValues["type"])}
+						onChange={(value) =>
+							setSelectedType(value as ActivityModuleFormValues["type"])
+						}
 						label="Module Type"
 						placeholder="Select module type"
 						required
