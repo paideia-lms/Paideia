@@ -1,16 +1,12 @@
 import {
 	Button,
-	Divider,
-	NumberInput,
 	Select,
 	Stack,
 	Textarea,
 	Title,
 } from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
 import { useForm } from "@mantine/form";
 import type { UseFormReturnType } from "@mantine/form";
-import { useEffect } from "react";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import type { ActivityModuleFormValues, QuizModuleFormValues } from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
@@ -46,38 +42,20 @@ export function QuizForm({ initialValues, onSubmit, isLoading }: QuizFormProps) 
 		},
 	});
 
-	useEffect(() => {
-		if (initialValues) {
-			form.setValues({
-				title: initialValues.title || "",
-				description: initialValues.description || "",
-				type: "quiz" as const,
-				status: initialValues.status || "draft",
-				quizInstructions: initialValues.quizInstructions || "",
-				quizDueDate: initialValues.quizDueDate || null,
-				quizMaxAttempts: initialValues.quizMaxAttempts || 1,
-				quizPoints: initialValues.quizPoints || 100,
-				quizTimeLimit: initialValues.quizTimeLimit || 60,
-				quizGradingType: initialValues.quizGradingType || "automatic",
-				rawQuizConfig: initialValues.rawQuizConfig || null,
-			});
-		}
-	}, [initialValues]);
-
 	return (
 		<form onSubmit={form.onSubmit(onSubmit)}>
 			<Stack gap="md">
 				<CommonFields form={form as UseFormReturnType<ActivityModuleFormValues>} />
 
-			<Textarea
-				{...form.getInputProps("description")}
-				key={form.key("description")}
-				label="Description"
-				placeholder="Enter module description"
-				minRows={3}
-				autosize
-			/>
-			{/* 
+				<Textarea
+					{...form.getInputProps("description")}
+					key={form.key("description")}
+					label="Description"
+					placeholder="Enter module description"
+					minRows={3}
+					autosize
+				/>
+				{/* 
 			<Title order={4} mt="md">
 				Legacy Quiz Settings (Optional)
 			</Title>
