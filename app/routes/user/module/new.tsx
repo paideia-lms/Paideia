@@ -180,6 +180,8 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
 			userId: currentUser.id,
+			user: currentUser,
+			req: { transactionID },
 		};
 
 		let createArgs: CreateActivityModuleArgs;

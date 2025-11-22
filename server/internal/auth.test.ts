@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { executeAuthStrategies, getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import type { User } from "../payload-types";
 import { type CheckFirstUserArgs, tryCheckFirstUser } from "./check-first-user";
@@ -206,13 +206,14 @@ describe("Authentication Functions", () => {
 			});
 
 			// Authenticate using payload.auth
-			const authResult = await payload.auth({
+			const authResult = await executeAuthStrategies({
 				headers: authenticatedRequest.headers,
+				canSetHeaders: true,
+				payload
 			});
 
 			// Verify authentication
 			expect(authResult.user).toBeDefined();
-			expect(authResult.permissions).toBeDefined();
 
 			// Verify user profile
 			const user = authResult.user as User;
@@ -256,8 +257,10 @@ describe("Authentication Functions", () => {
 				},
 			});
 
-			const authResult = await payload.auth({
+			const authResult = await executeAuthStrategies({
 				headers: invalidRequest.headers,
+				canSetHeaders: true,
+				payload
 			});
 
 			// Should not be authenticated
@@ -267,8 +270,10 @@ describe("Authentication Functions", () => {
 		test("should fail authentication with no token", async () => {
 			const unauthenticatedRequest = new Request("http://localhost:3000/test");
 
-			const authResult = await payload.auth({
+			const authResult = await executeAuthStrategies({
 				headers: unauthenticatedRequest.headers,
+				canSetHeaders: true,
+				payload
 			});
 
 			// Should not be authenticated
@@ -306,8 +311,10 @@ describe("Authentication Functions", () => {
 			});
 
 			// Step 3: Authenticate the request
-			const authResult = await payload.auth({
+			const authResult = await executeAuthStrategies({
 				headers: cookieRequest.headers,
+				canSetHeaders: true,
+				payload
 			});
 
 			// Step 4: Verify authentication worked
@@ -334,8 +341,10 @@ describe("Authentication Functions", () => {
 			// Here we simulate an unauthenticated request after logout
 			const loggedOutRequest = new Request("http://localhost:3000/test");
 
-			const authResult = await payload.auth({
+			const authResult = await executeAuthStrategies({
 				headers: loggedOutRequest.headers,
+				canSetHeaders: true,
+				payload
 			});
 
 			// Should not be authenticated after logout
@@ -389,8 +398,10 @@ describe("Authentication Functions", () => {
 				},
 			});
 
-			const authResult = await payload.auth({
+			const authResult = await executeAuthStrategies({
 				headers: authenticatedRequest.headers,
+				canSetHeaders: true,
+				payload
 			});
 
 			expect(authResult.user).toBeDefined();

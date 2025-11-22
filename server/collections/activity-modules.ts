@@ -1,44 +1,101 @@
 import type { AccessResult, CollectionConfig } from "payload";
+import { CustomForbidden } from "./utils/custom-forbidden";
+import type { CustomTFunction } from "server/utils/db/custom-translations";
+import { match, P } from "ts-pattern";
+
+const slug = "activity-modules" as const;
 
 // Activity Modules collection - generic container for all learning activities
 export const ActivityModules = {
-	slug: "activity-modules",
+	slug,
 	defaultSort: "-createdAt",
 	access: {
 		read: (): AccessResult => {
 			return true;
 		},
 		create: ({ req }): AccessResult => {
-			// require login to create activity modules
-			if (!req.user) return false;
-			// only admin, instructor, and content manager can create activity modules
-			if (
-				req.user.role === "admin" ||
-				req.user.role === "instructor" ||
-				req.user.role === "content-manager"
-			)
-				return true;
-			// no one else can create activity modules
-			return false;
+			return match(req.user)
+				.with(
+					P.union(
+						// must be logged in to create activity modules
+						P.nullish,
+						// only admin, instructor, and content manager can create activity modules
+						{
+							role: P.not(P.union("admin", "instructor", "content-manager")),
+						},
+					),
+					(user) => {
+						throw new CustomForbidden(
+							"create",
+							user?.role ?? "unauthenticated",
+							slug,
+							req.t as CustomTFunction,
+						);
+					},
+				)
+				.otherwise(() => {
+					return true;
+				});
 		},
 		update: ({ req }): AccessResult => {
-			if (!req.user) return false;
-			if (req.user.role === "admin") return true;
-
-			return {
-				or: [
-					{ owner: { equals: req.user.id } },
-					{ "grants.grantedTo": { equals: req.user.id } },
-				],
-			};
+			return match(req.user)
+				.with(
+					// must be logged in to update activity modules
+					P.nullish,
+					() => {
+						throw new CustomForbidden(
+							"update",
+							"unauthenticated",
+							slug,
+							req.t as CustomTFunction,
+						);
+					},
+				)
+				.with(
+					// admin can update any activity module
+					{ role: "admin" },
+					() => {
+						return true;
+					},
+				)
+				.otherwise((user) => {
+					// owners and users with grants can update
+					const where: AccessResult = {
+						or: [
+							{ owner: { equals: user.id } },
+							{ "grants.grantedTo": { equals: user.id } },
+						],
+					};
+					return where;
+				});
 		},
 		delete: ({ req }): AccessResult => {
-			if (!req.user) return false;
-			if (req.user.role === "admin") return true;
-
-			return {
-				owner: { equals: req.user.id },
-			};
+			return match(req.user)
+				.with(
+					// must be logged in to delete activity modules
+					P.nullish,
+					() => {
+						throw new CustomForbidden(
+							"delete",
+							"unauthenticated",
+							slug,
+							req.t as CustomTFunction,
+						);
+					},
+				)
+				.with(
+					// admin can delete any activity module
+					{ role: "admin" },
+					() => {
+						return true;
+					},
+				)
+				.otherwise((user) => {
+					// only owners can delete
+					return {
+						owner: { equals: user.id },
+					};
+				});
 		},
 	},
 	fields: [

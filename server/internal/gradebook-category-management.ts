@@ -18,11 +18,15 @@ import type { GradebookCategory } from "../payload-types";
 import { tryValidateOverallWeightTotal } from "./gradebook-item-management";
 
 export interface CreateGradebookCategoryArgs {
+	payload: Payload;
 	gradebookId: number;
 	parentId?: number | null;
 	name: string;
 	description?: string;
 	sortOrder: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 }
 
 export interface UpdateGradebookCategoryArgs {
@@ -58,12 +62,18 @@ export interface ValidateNoSubItemAndCategoryArgs {
  * Creates a new gradebook category using Payload local API
  */
 export const tryCreateGradebookCategory = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		args: CreateGradebookCategoryArgs,
-	) => {
-		const { gradebookId, parentId, name, description, sortOrder } = args;
+	async (args: CreateGradebookCategoryArgs) => {
+		const {
+			payload,
+			gradebookId,
+			parentId,
+			name,
+			description,
+			sortOrder,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Validate sort order
 		if (sortOrder < 0) {
@@ -74,7 +84,9 @@ export const tryCreateGradebookCategory = Result.wrap(
 		const gradebook = await payload.findByID({
 			collection: "gradebooks",
 			id: gradebookId,
-			req: request,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!gradebook) {
@@ -88,7 +100,9 @@ export const tryCreateGradebookCategory = Result.wrap(
 			const parentCategory = await payload.findByID({
 				collection: GradebookCategories.slug,
 				id: parentId,
-				req: request,
+				user,
+				req,
+				overrideAccess,
 			});
 
 			if (!parentCategory) {
@@ -143,15 +157,16 @@ export const tryCreateGradebookCategory = Result.wrap(
 				categoryData.description = description;
 			}
 
-			const reqWithTransaction: Partial<PayloadRequest> = {
-				...request,
-				transactionID,
-			};
+			const reqWithTransaction: Partial<PayloadRequest> = req
+				? { ...req, transactionID }
+				: { transactionID };
 
 			const newCategory = await payload.create({
 				collection: GradebookCategories.slug,
 				data: categoryData,
+				user,
 				req: reqWithTransaction,
+				overrideAccess,
 			});
 
 			// Note: We don't validate overall weight total for categories because:
@@ -423,7 +438,7 @@ export const tryFindGradebookCategoryById = Result.wrap(
 			);
 		}
 
-		return category as GradebookCategory;
+		return category;
 	},
 	(error) =>
 		transformError(error) ??
@@ -604,11 +619,27 @@ export const tryDeleteGradebookCategory = Result.wrap(
 		}),
 );
 
+export interface GetGradebookCategoriesHierarchyArgs {
+	payload: Payload;
+	gradebookId: number;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 /**
  * Gets all categories for a gradebook in hierarchical order
  */
 export const tryGetGradebookCategoriesHierarchy = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
+	async (args: GetGradebookCategoriesHierarchyArgs) => {
+		const {
+			payload,
+			gradebookId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const categories = await payload.find({
 			collection: GradebookCategories.slug,
 			where: {
@@ -619,6 +650,9 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
 			depth: 2, // Get subcategories and items
 			limit: 999999,
 			sort: "sortOrder",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		// Build hierarchy
@@ -663,11 +697,29 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
 		}),
 );
 
+export interface GetNextSortOrderArgs {
+	payload: Payload;
+	gradebookId: number;
+	parentId?: number | null;
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 /**
  * Gets next available sort order for a category within its parent context
  */
 export const tryGetNextSortOrder = Result.wrap(
-	async (payload: Payload, gradebookId: number, parentId?: number | null) => {
+	async (args: GetNextSortOrderArgs) => {
+		const {
+			payload,
+			gradebookId,
+			parentId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const where: {
 			gradebook: { equals: number };
 			parent?: { equals: number | null };
@@ -692,6 +744,9 @@ export const tryGetNextSortOrder = Result.wrap(
 			where,
 			limit: 1,
 			sort: "-sortOrder",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (categories.docs.length === 0) {
@@ -706,16 +761,39 @@ export const tryGetNextSortOrder = Result.wrap(
 		new UnknownError("Failed to get next sort order", { cause: error }),
 );
 
+export interface ReorderCategoriesArgs {
+	payload: Payload;
+	categoryIds: number[];
+	user?: TypedUser | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+}
+
 /**
  * Reorders categories within a parent context
  */
 export const tryReorderCategories = Result.wrap(
-	async (payload: Payload, request: Request, categoryIds: number[]) => {
-		const transactionID = await payload.db.beginTransaction();
+	async (args: ReorderCategoriesArgs) => {
+		const {
+			payload,
+			categoryIds,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		// Use existing transaction if provided, otherwise create a new one
+		const transactionWasProvided = !!req?.transactionID;
+		const transactionID =
+			req?.transactionID ?? (await payload.db.beginTransaction());
 
 		if (!transactionID) {
 			throw new TransactionIdNotFoundError("Failed to begin transaction");
 		}
+
+		const reqWithTransaction: Partial<PayloadRequest> = req
+			? { ...req, transactionID }
+			: { transactionID };
 
 		try {
 			// Update sort order for each category
@@ -726,17 +804,23 @@ export const tryReorderCategories = Result.wrap(
 					data: {
 						sortOrder: i,
 					},
-					req: { ...request, transactionID },
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
 				});
 			}
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			// Commit transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.commitTransaction(transactionID);
+			}
 
 			return { success: true };
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			// Rollback transaction only if we created it
+			if (!transactionWasProvided) {
+				await payload.db.rollbackTransaction(transactionID);
+			}
 			throw error;
 		}
 	},

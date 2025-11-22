@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryCreateGroup,
@@ -407,10 +407,12 @@ describe("Enrollment Management Functions", () => {
 
 		// Helper to get authenticated user from token
 		const getAuthUser = async (token: string): Promise<TypedUser | null> => {
-			const authResult = await payload.auth({
+			const authResult = await executeAuthStrategies({
 				headers: new Headers({
 					Authorization: `Bearer ${token}`,
 				}),
+				canSetHeaders: true,
+				payload
 			});
 			return authResult.user;
 		};

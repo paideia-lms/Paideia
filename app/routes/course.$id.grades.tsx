@@ -167,11 +167,14 @@ export const action = async ({
 
 	if (parsedData.data.intent === "create-category") {
 		// Get next sort order
-		const sortOrderResult = await tryGetNextSortOrder(
+		const sortOrderResult = await tryGetNextSortOrder({
 			payload,
 			gradebookId,
-			parsedData.data.parentId ?? null,
-		);
+			parentId: parsedData.data.parentId ?? null,
+			user: currentUser,
+			req: request,
+			overrideAccess: false,
+		});
 
 		if (!sortOrderResult.ok) {
 			return badRequest({ error: "Failed to get sort order" });
@@ -180,12 +183,16 @@ export const action = async ({
 		const sortOrder = sortOrderResult.value;
 
 		// Create gradebook category
-		const createResult = await tryCreateGradebookCategory(payload, request, {
+		const createResult = await tryCreateGradebookCategory({
+			payload,
 			gradebookId,
 			parentId: parsedData.data.parentId ?? null,
 			name: parsedData.data.name,
 			description: parsedData.data.description,
 			sortOrder,
+			user: currentUser,
+			req: request,
+			overrideAccess: false,
 		});
 
 		if (!createResult.ok) {

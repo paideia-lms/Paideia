@@ -106,6 +106,7 @@ async function startServer() {
 						const c = new RouterContextProvider();
 						const requestInfo = getRequestInfo(request);
 						const hints = getHints(request);
+
 						c.set(globalContextKey, {
 							environment: process.env.NODE_ENV,
 							payload: payload,

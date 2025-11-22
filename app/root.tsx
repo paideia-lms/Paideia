@@ -85,6 +85,7 @@ export const middleware = [
 	 * update the page info to the global context
 	 */
 	async ({ request, context, params }) => {
+
 		const routeHierarchy = tryGetRouteHierarchy(new URL(request.url).pathname);
 		let isAdmin = false;
 		let isMyCourses = false;
@@ -327,6 +328,7 @@ export const middleware = [
 
 		const userSession = await tryGetUserContext(payload, request);
 
+
 		// Set the user context
 		context.set(userContextKey, userSession);
 	},
@@ -348,20 +350,20 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-						color: "blue",
-						radius: "sm" as const,
-					},
-					analyticsSettings: {
-						additionalJsScripts: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -552,18 +554,18 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext(payload, profileUserId, {
-								...currentUser,
-								collection: "users" as const,
-								avatar: currentUser.avatar
-									? typeof currentUser.avatar === "number"
-										? currentUser.avatar
-										: currentUser.avatar.id
-									: undefined,
-							} as any);
+							...currentUser,
+							collection: "users" as const,
+							avatar: currentUser.avatar
+								? typeof currentUser.avatar === "number"
+									? currentUser.avatar
+									: currentUser.avatar.id
+								: undefined,
+						} as any);
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -771,17 +773,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				};
+				userSession: userSession,
+				courseContext: context.get(courseContextKey),
+				courseModuleContext: context.get(courseModuleContextKey),
+				courseSectionContext: context.get(courseSectionContextKey),
+				enrolmentContext: context.get(enrolmentContextKey),
+				userModuleContext: context.get(userModuleContextKey),
+				userProfileContext: context.get(userProfileContextKey),
+				userAccessContext: context.get(userAccessContextKey),
+				userContext: context.get(userContextKey),
+				systemGlobals: systemGlobals,
+			};
 
 	return {
 		users: users,

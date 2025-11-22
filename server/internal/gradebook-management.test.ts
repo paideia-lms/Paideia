@@ -93,16 +93,16 @@ describe("Gradebook Management", () => {
 		testGradebook = gradebookResult.value;
 
 		// Create a test category
-		const categoryResult = await tryCreateGradebookCategory(
+		const categoryResult = await tryCreateGradebookCategory({
 			payload,
-			{} as Request,
-			{
-				gradebookId: testGradebook.id,
-				name: "Test Category",
-				description: "Test Category Description",
-				sortOrder: 0,
-			},
-		);
+			gradebookId: testGradebook.id,
+			name: "Test Category",
+			description: "Test Category Description",
+			sortOrder: 0,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) {

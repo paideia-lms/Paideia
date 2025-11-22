@@ -123,16 +123,16 @@ describe("Gradebook Item Management", () => {
 		testGradebook = gradebookResult.value;
 
 		// Create a test category
-		const categoryResult = await tryCreateGradebookCategory(
+		const categoryResult = await tryCreateGradebookCategory({
 			payload,
-			{} as Request,
-			{
-				name: "Test Category",
-				gradebookId: testGradebook.id,
-				description: "Test Category Description",
-				sortOrder: 0,
-			},
-		);
+			name: "Test Category",
+			gradebookId: testGradebook.id,
+			description: "Test Category Description",
+			sortOrder: 0,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) {
@@ -333,15 +333,15 @@ describe("Gradebook Item Management", () => {
 
 	it("should validate weights at category level recursively", async () => {
 		// Create a category
-		const categoryResult = await tryCreateGradebookCategory(
+		const categoryResult = await tryCreateGradebookCategory({
 			payload,
-			{} as Request,
-			{
-				gradebookId: testGradebook.id,
-				name: "Test Validation Category",
-				sortOrder: 40,
-			},
-		);
+			gradebookId: testGradebook.id,
+			name: "Test Validation Category",
+			sortOrder: 40,
+			user: null,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) {
