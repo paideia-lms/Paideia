@@ -1,9 +1,9 @@
 import type { Payload, PayloadRequest, TypedUser } from "payload";
+import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 import type { User } from "../payload-types";
-import { assertZodInternal } from "server/utils/type-narrowing";
 
 export interface GetAppearanceSettingsArgs {
 	payload: Payload;

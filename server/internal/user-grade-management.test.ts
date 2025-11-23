@@ -850,10 +850,8 @@ describe("User Grade Management", () => {
 
 		expect(finalGradeResult.ok).toBe(true);
 		if (finalGradeResult.ok) {
-
 			// Should have 3 graded items now (quiz + extra credit + zero weight)
 			expect(finalGradeResult.value.gradedItems).toBe(3);
-
 		}
 	});
 
@@ -910,7 +908,6 @@ describe("User Grade Management", () => {
 
 		expect(finalGradeResult.ok).toBe(true);
 		if (finalGradeResult.ok) {
-
 			// Should have 4 graded items now
 			expect(finalGradeResult.value.gradedItems).toBe(4);
 		}
@@ -967,7 +964,6 @@ describe("User Grade Management", () => {
 			// Should have a final grade that includes all adjustments and extra credit
 			expect(finalGradeResult.value.finalGrade).toBeDefined();
 			expect(finalGradeResult.value.finalGrade).toBeGreaterThan(0);
-
 		}
 	});
 
@@ -1183,8 +1179,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-					userGrade.submission !== null &&
-					"value" in userGrade.submission
+						userGrade.submission !== null &&
+						"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id

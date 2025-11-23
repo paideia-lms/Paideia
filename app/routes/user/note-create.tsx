@@ -5,21 +5,24 @@ import { redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateNote } from "server/internal/note-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
-import { commitTransactionIfCreated, rollbackTransactionIfCreated } from "server/internal/utils/handle-transaction-id";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
+import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
 import {
 	badRequest,
 	NotFoundResponse,
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/note-create";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -86,7 +89,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 	if (!parseResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(parseResult.error, maxFileSize, "Failed to parse form data");
+		return handleUploadError(
+			parseResult.error,
+			maxFileSize,
+			"Failed to parse form data",
+		);
 	}
 
 	const { formData, uploadedMedia } = parseResult.value;
@@ -103,11 +110,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	}
 
 	// Replace base64 images with actual media URLs
-	content = replaceBase64ImagesWithMediaUrls(
-		content,
-		uploadedMedia,
-		formData,
-	);
+	content = replaceBase64ImagesWithMediaUrls(content, uploadedMedia, formData);
 
 	// Create note with updated content
 	// Pass transaction context so filename resolution can see uncommitted media

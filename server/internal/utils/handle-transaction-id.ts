@@ -66,8 +66,6 @@ export async function handleTransactionId(
 	};
 }
 
-
-
 /**
  * get the drizzle interactive transaction from payload using the transactionID.
  *
@@ -87,7 +85,6 @@ export function getTx<T extends Payload>(
 	>[0];
 }
 
-
 /**
  * Rolls back a transaction if it was created by handleTransactionId.
  * Use this for early returns when validation fails.
@@ -105,7 +102,6 @@ export async function rollbackTransactionIfCreated(
 		await payload.db.rollbackTransaction(transactionID);
 	}
 }
-
 
 /**
  * Commits a transaction if it was created by handleTransactionId.

@@ -3,6 +3,7 @@ import { notifications } from "@mantine/notifications";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { parseAsString, useQueryState } from "nuqs";
+import { stringify } from "qs";
 import { useEffect } from "react";
 import { href, Link, redirect, useFetcher, useRevalidator } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
@@ -25,18 +26,16 @@ import {
 	tryUpvoteDiscussionSubmission,
 } from "server/internal/discussion-management";
 import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
-import {
 	tryCheckInProgressSubmission,
 	tryGetNextAttemptNumber,
 	tryStartQuizAttempt,
 	trySubmitQuiz,
 } from "server/internal/quiz-submission-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import type { QuizAnswers } from "server/json/raw-quiz-config.types.v2";
 import {
 	canParticipateInDiscussion,
@@ -53,6 +52,7 @@ import { WhiteboardPreview } from "~/components/activity-modules-preview/whitebo
 import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	AssignmentActions,
 	DiscussionActions,
@@ -65,7 +65,7 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { stringify } from "qs";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/route";
 import { DiscussionThreadView } from "./components/discussion-thread-view";
 import { ModuleDatesInfo } from "./components/module-dates-info";
@@ -170,12 +170,12 @@ export const loader = async ({
 					Number(moduleLinkId),
 					currentUser
 						? {
-							...currentUser,
-							avatar:
-								currentUser.avatar && typeof currentUser.avatar === "object"
-									? currentUser.avatar.id
-									: currentUser.avatar,
-						}
+								...currentUser,
+								avatar:
+									currentUser.avatar && typeof currentUser.avatar === "object"
+										? currentUser.avatar.id
+										: currentUser.avatar,
+							}
 						: null,
 				);
 
@@ -189,13 +189,13 @@ export const loader = async ({
 	// Extract values from discriminated union based on module type
 	const userSubmission =
 		moduleSpecificData.type === "assignment" ||
-			moduleSpecificData.type === "quiz"
+		moduleSpecificData.type === "quiz"
 			? moduleSpecificData.userSubmission
 			: null;
 	const userSubmissions =
 		moduleSpecificData.type === "assignment" ||
-			moduleSpecificData.type === "quiz" ||
-			moduleSpecificData.type === "discussion"
+		moduleSpecificData.type === "quiz" ||
+		moduleSpecificData.type === "discussion"
 			? moduleSpecificData.userSubmissions
 			: [];
 	const discussionThreads =
@@ -235,7 +235,11 @@ export const loader = async ({
 	};
 };
 
-const getActionUrl = (action: string, moduleLinkId: string, additionalParams?: Record<string, string | null>) => {
+const getActionUrl = (
+	action: string,
+	moduleLinkId: string,
+	additionalParams?: Record<string, string | null>,
+) => {
 	const baseUrl = href("/course/module/:moduleLinkId", {
 		moduleLinkId: String(moduleLinkId),
 	});
@@ -258,7 +262,9 @@ const createThreadAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: string; replyTo: string | null } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: string; replyTo: string | null };
+}) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -297,9 +303,7 @@ const createThreadAction = async ({
 	}
 
 	// Check if user can participate in discussions
-	const canParticipate = canParticipateInDiscussion(
-		enrolmentContext.enrolment,
-	);
+	const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
 	if (!canParticipate.allowed) {
 		throw new ForbiddenResponse(canParticipate.reason);
 	}
@@ -515,7 +519,9 @@ const createReplyAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: string; replyTo: string | null } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: string; replyTo: string | null };
+}) => {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -568,9 +574,7 @@ const createReplyAction = async ({
 	}
 
 	// Check if user can participate in discussions
-	const canParticipate = canParticipateInDiscussion(
-		enrolmentContext.enrolment,
-	);
+	const canParticipate = canParticipateInDiscussion(enrolmentContext.enrolment);
 	if (!canParticipate.allowed) {
 		throw new ForbiddenResponse(canParticipate.reason);
 	}
@@ -663,20 +667,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}>
+				questionId: string;
+				questionText: string;
+				questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank";
+				selectedAnswer?: string;
+				multipleChoiceAnswers?: Array<{
+					option: string;
+					isSelected: boolean;
+				}>;
+		  }>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -1098,7 +1102,10 @@ export const action = async (args: Route.ActionArgs) => {
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
+	if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Error",
 			message:
@@ -1182,11 +1189,11 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1226,7 +1233,10 @@ export const useCreateThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(DiscussionActions.CREATE_THREAD, String(moduleLinkId)),
+			action: getActionUrl(
+				DiscussionActions.CREATE_THREAD,
+				String(moduleLinkId),
+			),
 		});
 	};
 
@@ -1252,7 +1262,10 @@ export const useUpvoteThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(DiscussionActions.UPVOTE_THREAD, String(moduleLinkId)),
+			action: getActionUrl(
+				DiscussionActions.UPVOTE_THREAD,
+				String(moduleLinkId),
+			),
 		});
 	};
 
@@ -1284,7 +1297,10 @@ export const useRemoveUpvoteThread = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(DiscussionActions.REMOVE_UPVOTE_THREAD, String(moduleLinkId)),
+			action: getActionUrl(
+				DiscussionActions.REMOVE_UPVOTE_THREAD,
+				String(moduleLinkId),
+			),
 		});
 	};
 
@@ -1314,7 +1330,10 @@ export const useUpvoteReply = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(DiscussionActions.UPVOTE_REPLY, String(moduleLinkId)),
+			action: getActionUrl(
+				DiscussionActions.UPVOTE_REPLY,
+				String(moduleLinkId),
+			),
 		});
 	};
 
@@ -1343,7 +1362,10 @@ export const useRemoveUpvoteReply = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: getActionUrl(DiscussionActions.REMOVE_UPVOTE_REPLY, String(moduleLinkId)),
+			action: getActionUrl(
+				DiscussionActions.REMOVE_UPVOTE_REPLY,
+				String(moduleLinkId),
+			),
 		});
 	};
 
@@ -1404,7 +1426,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 		quizSubmissionsForDisplay,
 		hasActiveQuizAttempt,
 	} = loaderData;
-	const { submitAssignment, isSubmitting } = useSubmitAssignment(loaderData.moduleLinkId);
+	const { submitAssignment, isSubmitting } = useSubmitAssignment(
+		loaderData.moduleLinkId,
+	);
 	const { startQuizAttempt } = useStartQuizAttempt(loaderData.moduleLinkId);
 	const { submitQuiz } = useSubmitQuiz(loaderData.moduleLinkId);
 	const [showQuiz] = useQueryState("showQuiz", parseAsString.withDefault(""));
@@ -1427,34 +1451,34 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				// Type guard to ensure we have an assignment submission
 				const assignmentSubmission =
 					userSubmission &&
-						"content" in userSubmission &&
-						"attachments" in userSubmission
+					"content" in userSubmission &&
+					"attachments" in userSubmission
 						? {
-							id: userSubmission.id,
-							status: userSubmission.status as
-								| "draft"
-								| "submitted"
-								| "graded"
-								| "returned",
-							content: (userSubmission.content as string) || null,
-							attachments: userSubmission.attachments
-								? userSubmission.attachments.map((att) => ({
-									file:
-										typeof att.file === "object" &&
-											att.file !== null &&
-											"id" in att.file
-											? att.file.id
-											: Number(att.file),
-									description: att.description as string | undefined,
-								}))
-								: null,
-							submittedAt: ("submittedAt" in userSubmission
-								? userSubmission.submittedAt
-								: null) as string | null,
-							attemptNumber: ("attemptNumber" in userSubmission
-								? userSubmission.attemptNumber
-								: 1) as number,
-						}
+								id: userSubmission.id,
+								status: userSubmission.status as
+									| "draft"
+									| "submitted"
+									| "graded"
+									| "returned",
+								content: (userSubmission.content as string) || null,
+								attachments: userSubmission.attachments
+									? userSubmission.attachments.map((att) => ({
+											file:
+												typeof att.file === "object" &&
+												att.file !== null &&
+												"id" in att.file
+													? att.file.id
+													: Number(att.file),
+											description: att.description as string | undefined,
+										}))
+									: null,
+								submittedAt: ("submittedAt" in userSubmission
+									? userSubmission.submittedAt
+									: null) as string | null,
+								attemptNumber: ("attemptNumber" in userSubmission
+									? userSubmission.attemptNumber
+									: 1) as number,
+							}
 						: null;
 
 				// Map all submissions for display - filter assignment submissions only
@@ -1478,9 +1502,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						attachments:
 							"attachments" in sub && sub.attachments
 								? (sub.attachments as Array<{
-									file: number | { id: number; filename: string };
-									description?: string;
-								}>)
+										file: number | { id: number; filename: string };
+										description?: string;
+									}>)
 								: null,
 					}));
 
@@ -1520,8 +1544,8 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					// Use userSubmission which is already the active in_progress submission
 					const activeSubmission =
 						userSubmission &&
-							"status" in userSubmission &&
-							userSubmission.status === "in_progress"
+						"status" in userSubmission &&
+						userSubmission.status === "in_progress"
 							? userSubmission
 							: null;
 

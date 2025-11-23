@@ -1,13 +1,13 @@
 import type { S3Client } from "@aws-sdk/client-s3";
 import type { BasePayload } from "payload";
 import { createContext } from "react-router";
+import type { Media } from "server/payload-types";
 import type { Storage } from "unstorage";
 import type { RouteInfo } from "~/utils/routes-utils";
 import type { envVars } from "../env";
 import type { Api, Backend } from "../index";
 import type { RequestInfo } from "../utils/get-request-info";
 import type { PlatformDetectionResult } from "../utils/hosting-platform-detection";
-import { Media } from "server/payload-types";
 
 export type PageInfo = {
 	isInAdminLayout: boolean;

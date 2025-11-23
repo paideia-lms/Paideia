@@ -13,7 +13,9 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconTrash, IconUpload, IconX } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
 import prettyBytes from "pretty-bytes";
+import { stringify } from "qs";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -27,11 +29,10 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Media } from "server/payload-types";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -40,9 +41,8 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/logo";
-import { stringify } from "qs";
 
 enum Action {
 	Clear = "clear",
@@ -113,8 +113,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	};
 };
 
-
-const clearAction = async ({ request, context, searchParams }: Route.ActionArgs & { searchParams: { action: Action, field: Field } }) => {
+const clearAction = async ({
+	request,
+	context,
+	searchParams,
+}: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
 	const { field } = searchParams;
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
@@ -145,10 +148,13 @@ const clearAction = async ({ request, context, searchParams }: Route.ActionArgs 
 		message: "Logo cleared successfully",
 		logoField: field,
 	});
+};
 
-}
-
-const uploadAction = async ({ request, context, searchParams }: Route.ActionArgs & { searchParams: { action: Action, field: Field } }) => {
+const uploadAction = async ({
+	request,
+	context,
+	searchParams,
+}: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
 	const { field } = searchParams;
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
@@ -261,11 +267,11 @@ const uploadAction = async ({ request, context, searchParams }: Route.ActionArgs
 		message: "Logo uploaded successfully",
 		logoField,
 	});
-}
+};
 
 const getActionUrl = (action: Action, field: Field) => {
 	return href("/admin/appearance/logo") + "?" + stringify({ action, field });
-}
+};
 
 export const action = async (args: Route.ActionArgs) => {
 	const { request, context } = args;
@@ -275,7 +281,6 @@ export const action = async (args: Route.ActionArgs) => {
 	if (!actionType || !fieldParam) {
 		return badRequest({ error: "Action and field are required" });
 	}
-
 
 	if (actionType === "clear") {
 		return clearAction({
@@ -307,7 +312,11 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: actionData.message || "Logo uploaded successfully",
 			color: "green",
 		});
-	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized || actionData?.status === StatusCode.Forbidden) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Error",
 			message: actionData?.error || "Failed to upload logo",
@@ -374,8 +383,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: logo.filename,
-		})
+				filenameOrId: logo.filename,
+			})
 		: null;
 
 	return (
@@ -531,7 +540,9 @@ function CompactLogoLightDropzone({
 	uploadLimit?: number;
 }) {
 	const { uploadLogo, isLoading } = useUploadLogo(Field.CompactLogoLight);
-	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.CompactLogoLight);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(
+		Field.CompactLogoLight,
+	);
 
 	return (
 		<LogoDropzoneBase
@@ -558,7 +569,9 @@ function CompactLogoDarkDropzone({
 	uploadLimit?: number;
 }) {
 	const { uploadLogo, isLoading } = useUploadLogo(Field.CompactLogoDark);
-	const { clearLogo, isLoading: isClearing } = useClearLogo(Field.CompactLogoDark);
+	const { clearLogo, isLoading: isClearing } = useClearLogo(
+		Field.CompactLogoDark,
+	);
 
 	return (
 		<LogoDropzoneBase

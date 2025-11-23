@@ -209,7 +209,7 @@ describe("Authentication Functions", () => {
 			const authResult = await executeAuthStrategies({
 				headers: authenticatedRequest.headers,
 				canSetHeaders: true,
-				payload
+				payload,
 			});
 
 			// Verify authentication
@@ -260,7 +260,7 @@ describe("Authentication Functions", () => {
 			const authResult = await executeAuthStrategies({
 				headers: invalidRequest.headers,
 				canSetHeaders: true,
-				payload
+				payload,
 			});
 
 			// Should not be authenticated
@@ -273,7 +273,7 @@ describe("Authentication Functions", () => {
 			const authResult = await executeAuthStrategies({
 				headers: unauthenticatedRequest.headers,
 				canSetHeaders: true,
-				payload
+				payload,
 			});
 
 			// Should not be authenticated
@@ -314,7 +314,7 @@ describe("Authentication Functions", () => {
 			const authResult = await executeAuthStrategies({
 				headers: cookieRequest.headers,
 				canSetHeaders: true,
-				payload
+				payload,
 			});
 
 			// Step 4: Verify authentication worked
@@ -344,7 +344,7 @@ describe("Authentication Functions", () => {
 			const authResult = await executeAuthStrategies({
 				headers: loggedOutRequest.headers,
 				canSetHeaders: true,
-				payload
+				payload,
 			});
 
 			// Should not be authenticated after logout
@@ -401,7 +401,7 @@ describe("Authentication Functions", () => {
 			const authResult = await executeAuthStrategies({
 				headers: authenticatedRequest.headers,
 				canSetHeaders: true,
-				payload
+				payload,
 			});
 
 			expect(authResult.user).toBeDefined();

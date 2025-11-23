@@ -5,11 +5,6 @@ import {
 	IconPhoto,
 } from "@tabler/icons-react";
 import { createLoader, parseAsString, parseAsStringEnum } from "nuqs/server";
-import {
-	AssignmentActions,
-	DiscussionActions,
-	QuizActions,
-} from "~/utils/module-actions";
 import type { CourseModuleContext } from "server/contexts/course-module-context";
 import type {
 	Question,
@@ -17,6 +12,11 @@ import type {
 	QuizConfig,
 } from "server/json/raw-quiz-config.types.v2";
 import { isRegularQuiz } from "server/json/raw-quiz-config.types.v2";
+import {
+	AssignmentActions,
+	DiscussionActions,
+	QuizActions,
+} from "~/utils/module-actions";
 
 // ============================================================================
 // File Type Utilities
@@ -211,11 +211,11 @@ export function transformQuizAnswersToSubmissionFormat(
 	questionId: string;
 	questionText: string;
 	questionType:
-	| "multiple_choice"
-	| "true_false"
-	| "short_answer"
-	| "essay"
-	| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 	selectedAnswer?: string;
 	multipleChoiceAnswers?: Array<{
 		option: string;
@@ -226,11 +226,11 @@ export function transformQuizAnswersToSubmissionFormat(
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -291,11 +291,11 @@ export function transformQuizAnswersToSubmissionFormat(
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;

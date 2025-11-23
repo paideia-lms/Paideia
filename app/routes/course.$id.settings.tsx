@@ -25,19 +25,18 @@ import {
 	tryGetCategoryTree,
 } from "server/internal/course-category-management";
 import { tryUpdateCourse } from "server/internal/course-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
 	commitTransactionIfCreated,
+	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Course } from "server/payload-types";
 import { canSeeCourseSettings } from "server/utils/permissions";
 import z from "zod";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { RichTextEditor } from "~/components/rich-text-editor";
+import { handleUploadError } from "~/utils/handle-upload-errors";
+import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -45,6 +44,7 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/course.$id.settings";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -106,8 +106,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-			filenameOrId: thumbnailFileNameOrId,
-		})
+				filenameOrId: thumbnailFileNameOrId,
+			})
 		: null;
 
 	return {
@@ -300,7 +300,10 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 		throw redirect(
 			href("/course/:courseId", { courseId: String(actionData.id) }),
 		);
-	} else if (actionData?.status === StatusCode.BadRequest || actionData?.status === StatusCode.Unauthorized) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Update failed",
 			message: actionData.error,

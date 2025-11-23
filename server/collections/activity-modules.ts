@@ -1,7 +1,7 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import { CustomForbidden } from "./utils/custom-forbidden";
 import type { CustomTFunction } from "server/utils/db/custom-translations";
 import { match, P } from "ts-pattern";
+import { CustomForbidden } from "./utils/custom-forbidden";
 
 const slug = "activity-modules" as const;
 

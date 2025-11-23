@@ -1,7 +1,12 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useQueryState } from "nuqs";
-import { parseAsStringEnum } from "nuqs/server";
+import {
+	createLoader,
+	parseAsStringEnum,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import {
 	href,
 	type LoaderFunctionArgs,
@@ -19,8 +24,6 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -40,13 +43,13 @@ import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	StatusCode,
 	UnauthorizedResponse,
 } from "~/utils/responses";
-import { createLoader, parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
-import { stringify } from "qs";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
@@ -318,9 +321,8 @@ const createFileAction = async ({
 	const { fileData } = transformToActivityData(parsedData);
 
 	// For file type, use uploaded media IDs
-	const finalFileData = uploadedMediaIds.length > 0
-		? { media: uploadedMediaIds }
-		: fileData;
+	const finalFileData =
+		uploadedMediaIds.length > 0 ? { media: uploadedMediaIds } : fileData;
 
 	if (!finalFileData) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -680,7 +682,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 export function useCreatePage() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createPage = (values: Extract<ActivityModuleFormValues, { type: "page" }>) => {
+	const createPage = (
+		values: Extract<ActivityModuleFormValues, { type: "page" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -700,7 +704,9 @@ export function useCreatePage() {
 export function useCreateWhiteboard() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createWhiteboard = (values: Extract<ActivityModuleFormValues, { type: "whiteboard" }>) => {
+	const createWhiteboard = (
+		values: Extract<ActivityModuleFormValues, { type: "whiteboard" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -720,7 +726,9 @@ export function useCreateWhiteboard() {
 export function useCreateFile() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createFile = (values: Extract<ActivityModuleFormValues, { type: "file" }>) => {
+	const createFile = (
+		values: Extract<ActivityModuleFormValues, { type: "file" }>,
+	) => {
 		const files = values.fileFiles;
 		const formData = new FormData();
 
@@ -763,7 +771,9 @@ export function useCreateFile() {
 export function useCreateAssignment() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createAssignment = (values: Extract<ActivityModuleFormValues, { type: "assignment" }>) => {
+	const createAssignment = (
+		values: Extract<ActivityModuleFormValues, { type: "assignment" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -783,7 +793,9 @@ export function useCreateAssignment() {
 export function useCreateQuiz() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createQuiz = (values: Extract<ActivityModuleFormValues, { type: "quiz" }>) => {
+	const createQuiz = (
+		values: Extract<ActivityModuleFormValues, { type: "quiz" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -803,7 +815,9 @@ export function useCreateQuiz() {
 export function useCreateDiscussion() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createDiscussion = (values: Extract<ActivityModuleFormValues, { type: "discussion" }>) => {
+	const createDiscussion = (
+		values: Extract<ActivityModuleFormValues, { type: "discussion" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -892,9 +906,18 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 	const { uploadLimit } = loaderData;
 	const [selectedType, setSelectedType] = useQueryState(
 		"type",
-		parseAsStringEnum(["page", "whiteboard", "file", "assignment", "quiz", "discussion"]).withDefault("page").withOptions({
-			shallow: false,
-		}),
+		parseAsStringEnum([
+			"page",
+			"whiteboard",
+			"file",
+			"assignment",
+			"quiz",
+			"discussion",
+		])
+			.withDefault("page")
+			.withOptions({
+				shallow: false,
+			}),
 	);
 
 	return (
@@ -940,7 +963,9 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 
 					{selectedType === "page" && <PageFormWrapper />}
 					{selectedType === "whiteboard" && <WhiteboardFormWrapper />}
-					{selectedType === "file" && <FileFormWrapper uploadLimit={uploadLimit} />}
+					{selectedType === "file" && (
+						<FileFormWrapper uploadLimit={uploadLimit} />
+					)}
 					{selectedType === "assignment" && <AssignmentFormWrapper />}
 					{selectedType === "quiz" && <QuizFormWrapper />}
 					{selectedType === "discussion" && <DiscussionFormWrapper />}

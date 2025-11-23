@@ -1,5 +1,10 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -13,8 +18,6 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -35,6 +38,7 @@ import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -42,8 +46,7 @@ import {
 	ok,
 	StatusCode,
 } from "~/utils/responses";
-import { createLoader, parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
-import { stringify } from "qs";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/edit-setting";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -358,9 +361,8 @@ const updateFileAction = async ({
 	// For file type, combine existing media IDs with newly uploaded media IDs
 	const existingMediaIds = parsedData.fileMedia ?? [];
 	const allMediaIds = [...existingMediaIds, ...uploadedMediaIds];
-	const finalFileData = allMediaIds.length > 0
-		? { media: allMediaIds }
-		: fileData;
+	const finalFileData =
+		allMediaIds.length > 0 ? { media: allMediaIds } : fileData;
 
 	if (!finalFileData) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -661,7 +663,11 @@ const updateDiscussionAction = async ({
 };
 
 const getActionUrl = (action: Action, moduleId: string) => {
-	return href("/user/module/edit/:moduleId/setting", { moduleId }) + "?" + stringify({ action });
+	return (
+		href("/user/module/edit/:moduleId/setting", { moduleId }) +
+		"?" +
+		stringify({ action })
+	);
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -768,7 +774,10 @@ export const clientAction = async ({
 export function useUpdatePage() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updatePage = (moduleId: string, values: Extract<ActivityModuleFormValues, { type: "page" }>) => {
+	const updatePage = (
+		moduleId: string,
+		values: Extract<ActivityModuleFormValues, { type: "page" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -788,7 +797,10 @@ export function useUpdatePage() {
 export function useUpdateWhiteboard() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateWhiteboard = (moduleId: string, values: Extract<ActivityModuleFormValues, { type: "whiteboard" }>) => {
+	const updateWhiteboard = (
+		moduleId: string,
+		values: Extract<ActivityModuleFormValues, { type: "whiteboard" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -808,7 +820,10 @@ export function useUpdateWhiteboard() {
 export function useUpdateFile() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateFile = (moduleId: string, values: Extract<ActivityModuleFormValues, { type: "file" }>) => {
+	const updateFile = (
+		moduleId: string,
+		values: Extract<ActivityModuleFormValues, { type: "file" }>,
+	) => {
 		const files = values.fileFiles;
 		const formData = new FormData();
 
@@ -851,7 +866,10 @@ export function useUpdateFile() {
 export function useUpdateAssignment() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateAssignment = (moduleId: string, values: Extract<ActivityModuleFormValues, { type: "assignment" }>) => {
+	const updateAssignment = (
+		moduleId: string,
+		values: Extract<ActivityModuleFormValues, { type: "assignment" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -871,7 +889,10 @@ export function useUpdateAssignment() {
 export function useUpdateQuiz() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateQuiz = (moduleId: string, values: Extract<ActivityModuleFormValues, { type: "quiz" }>) => {
+	const updateQuiz = (
+		moduleId: string,
+		values: Extract<ActivityModuleFormValues, { type: "quiz" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -891,7 +912,10 @@ export function useUpdateQuiz() {
 export function useUpdateDiscussion() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateDiscussion = (moduleId: string, values: Extract<ActivityModuleFormValues, { type: "discussion" }>) => {
+	const updateDiscussion = (
+		moduleId: string,
+		values: Extract<ActivityModuleFormValues, { type: "discussion" }>,
+	) => {
 		const submissionData = transformFormValues(values);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		fetcher.submit(submissionData as any, {
@@ -1148,38 +1172,68 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 						{module.type === "page" && (
 							<PageFormWrapper
 								moduleId={module.id}
-								initialValues={getInitialValues() as Extract<ActivityModuleFormValues, { type: "page" }>}
+								initialValues={
+									getInitialValues() as Extract<
+										ActivityModuleFormValues,
+										{ type: "page" }
+									>
+								}
 							/>
 						)}
 						{module.type === "whiteboard" && (
 							<WhiteboardFormWrapper
 								moduleId={module.id}
-								initialValues={getInitialValues() as Extract<ActivityModuleFormValues, { type: "whiteboard" }>}
+								initialValues={
+									getInitialValues() as Extract<
+										ActivityModuleFormValues,
+										{ type: "whiteboard" }
+									>
+								}
 							/>
 						)}
 						{module.type === "file" && (
 							<FileFormWrapper
 								moduleId={module.id}
-								initialValues={getInitialValues() as Extract<ActivityModuleFormValues, { type: "file" }>}
+								initialValues={
+									getInitialValues() as Extract<
+										ActivityModuleFormValues,
+										{ type: "file" }
+									>
+								}
 								uploadLimit={uploadLimit}
 							/>
 						)}
 						{module.type === "assignment" && (
 							<AssignmentFormWrapper
 								moduleId={module.id}
-								initialValues={getInitialValues() as Extract<ActivityModuleFormValues, { type: "assignment" }>}
+								initialValues={
+									getInitialValues() as Extract<
+										ActivityModuleFormValues,
+										{ type: "assignment" }
+									>
+								}
 							/>
 						)}
 						{module.type === "quiz" && (
 							<QuizFormWrapper
 								moduleId={module.id}
-								initialValues={getInitialValues() as Extract<ActivityModuleFormValues, { type: "quiz" }>}
+								initialValues={
+									getInitialValues() as Extract<
+										ActivityModuleFormValues,
+										{ type: "quiz" }
+									>
+								}
 							/>
 						)}
 						{module.type === "discussion" && (
 							<DiscussionFormWrapper
 								moduleId={module.id}
-								initialValues={getInitialValues() as Extract<ActivityModuleFormValues, { type: "discussion" }>}
+								initialValues={
+									getInitialValues() as Extract<
+										ActivityModuleFormValues,
+										{ type: "discussion" }
+									>
+								}
 							/>
 						)}
 					</Stack>

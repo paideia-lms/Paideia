@@ -27,6 +27,8 @@ import {
 	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
+import { stringify } from "qs";
 import { useEffect, useState } from "react";
 import { href, Link, useFetcher, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -41,8 +43,6 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import {
 	canEditOtherAdmin,
 	canEditProfileAvatar,
@@ -55,6 +55,7 @@ import {
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
 import { ContentType } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -63,8 +64,7 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
-import { stringify } from "qs";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/overview";
 
 export const loader = async ({
@@ -117,8 +117,8 @@ export const loader = async ({
 		if (typeof profileUser.avatar === "object") {
 			avatarUrl = profileUser.avatar.filename
 				? href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: profileUser.avatar.filename,
-				})
+						filenameOrId: profileUser.avatar.filename,
+					})
 				: null;
 		}
 	}
@@ -340,7 +340,11 @@ const updateAction = async ({
 	};
 
 	// Only admins can update email and role
-	if (isAdmin && parsed.data.email !== null && parsed.data.email !== undefined) {
+	if (
+		isAdmin &&
+		parsed.data.email !== null &&
+		parsed.data.email !== undefined
+	) {
 		updateData.email = parsed.data.email;
 	}
 
@@ -370,9 +374,13 @@ const updateAction = async ({
 };
 
 const getActionUrl = (action: Action, userId?: number) => {
-	return href("/user/overview/:id?", {
-		id: userId ? userId.toString() : undefined,
-	}) + "?" + stringify({ action });
+	return (
+		href("/user/overview/:id?", {
+			id: userId ? userId.toString() : undefined,
+		}) +
+		"?" +
+		stringify({ action })
+	);
 };
 
 export const action = async (args: Route.ActionArgs) => {
@@ -407,7 +415,8 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Profile updated",
-			message: actionData.message || "Your profile has been updated successfully",
+			message:
+				actionData.message || "Your profile has been updated successfully",
 			color: "green",
 		});
 	} else if (

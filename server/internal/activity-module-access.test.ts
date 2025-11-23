@@ -34,7 +34,7 @@ describe("Activity Module Access Control", () => {
 				Authorization: `Bearer ${token}`,
 			}),
 			canSetHeaders: true,
-			payload
+			payload,
 		});
 		if (!authResult.user) throw new Error("Failed to get authenticated user");
 		return authResult.user;

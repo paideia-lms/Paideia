@@ -159,7 +159,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			stylesheets: additionalCssStylesheets.map((sheet) => ({ url: sheet.url })),
+			stylesheets: additionalCssStylesheets.map((sheet) => ({
+				url: sheet.url,
+			})),
 		},
 	});
 
@@ -224,7 +226,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 							key={`${url}-${
 								// biome-ignore lint/suspicious/noArrayIndexKey: url may not be unique, index is needed
 								index
-								}`}
+							}`}
 							align="flex-start"
 							wrap="nowrap"
 						>
@@ -235,9 +237,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 								style={{ flex: 1 }}
 								error={
 									form.getValues().stylesheets[index]?.url &&
-										!form
-											.getValues()
-											.stylesheets[index]?.url.match(/^https?:\/\/.+/)
+									!form
+										.getValues()
+										.stylesheets[index]?.url.match(/^https?:\/\/.+/)
 										? "Must be a valid HTTP or HTTPS URL"
 										: undefined
 								}

@@ -284,7 +284,7 @@ describe("First User Check Functions - With Access Control", () => {
 				Authorization: `Bearer ${token}`,
 			}),
 			canSetHeaders: true,
-			payload
+			payload,
 		});
 		return authResult.user;
 	};

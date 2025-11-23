@@ -4,9 +4,9 @@
  */
 
 import {
+	executeAuthStrategies,
 	type Payload,
 	type TypedUser as PayloadUser,
-	executeAuthStrategies,
 	parseCookies,
 } from "payload";
 import { createContext } from "react-router";
@@ -35,10 +35,8 @@ export const tryGetUserContext = async (
 	const { user: authenticatedUser } = await executeAuthStrategies({
 		headers: request.headers,
 		canSetHeaders: true,
-		payload
+		payload,
 	});
-
-
 
 	if (!authenticatedUser) {
 		// No authenticated user, don't set context - let it use default null value

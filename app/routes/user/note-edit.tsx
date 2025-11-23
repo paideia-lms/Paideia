@@ -1,5 +1,6 @@
 import { Container, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
 import { redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -8,17 +9,19 @@ import {
 	tryFindNoteById,
 	tryUpdateNote,
 } from "server/internal/note-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
-import { commitTransactionIfCreated, rollbackTransactionIfCreated } from "server/internal/utils/handle-transaction-id";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
-import { DefaultErrorBoundary } from "app/components/default-error-boundary";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
+import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/note-edit";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -127,11 +130,7 @@ export const action = async ({
 	}
 
 	// Replace base64 images with actual media URLs
-	content = replaceBase64ImagesWithMediaUrls(
-		content,
-		uploadedMedia,
-		formData,
-	);
+	content = replaceBase64ImagesWithMediaUrls(content, uploadedMedia, formData);
 
 	// Update note with updated content
 	// Pass transaction context so filename resolution can see uncommitted media

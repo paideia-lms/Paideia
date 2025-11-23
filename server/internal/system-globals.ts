@@ -62,18 +62,18 @@ export const tryGetSystemGlobals = Result.wrap(
 		const sitePolicies = sitePoliciesResult.ok
 			? sitePoliciesResult.value
 			: {
-				userMediaStorageTotal: null,
-				siteUploadLimit: null,
-			};
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				};
 
 		const appearanceSettings = {
 			additionalCssStylesheets: appearanceResult.ok
 				? (appearanceResult.value.additionalCssStylesheets ?? []).map(
-					(stylesheet) => ({
-						id: stylesheet.id ?? 0,
-						url: stylesheet.url,
-					}),
-				)
+						(stylesheet) => ({
+							id: stylesheet.id ?? 0,
+							url: stylesheet.url,
+						}),
+					)
 				: [],
 			color: appearanceResult.ok
 				? (appearanceResult.value.color ?? "blue")

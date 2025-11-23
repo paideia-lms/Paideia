@@ -16,6 +16,8 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
+import { stringify } from "qs";
 import { useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
 import { Users } from "server/collections/users";
@@ -27,11 +29,10 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { User } from "server/payload-types";
 import { enum_users_role } from "src/payload-generated-schema";
 import z from "zod";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -40,8 +41,7 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
-import { stringify } from "qs";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -77,7 +77,6 @@ export const userSearchParams = {
 };
 
 export const loadSearchParams = createLoader(userSearchParams);
-
 
 const inputSchema = z.object({
 	email: z.email(),

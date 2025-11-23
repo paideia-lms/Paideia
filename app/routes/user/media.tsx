@@ -36,7 +36,9 @@ import {
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
 import prettyBytes from "pretty-bytes";
+import { stringify } from "qs";
 import { useEffect, useId, useRef, useState } from "react";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
@@ -53,18 +55,17 @@ import {
 	tryGetUserMediaStats,
 	tryRenameMedia,
 } from "server/internal/media-management";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
 	commitTransactionIfCreated,
+	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Media } from "server/payload-types";
 import { canDeleteMedia } from "server/utils/permissions";
 import { useMediaUsageData } from "~/routes/api/media-usage";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
 import { ContentType } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	canPreview,
 	getFileIcon,
@@ -82,8 +83,7 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { createLoader, parseAsStringEnum } from "nuqs/server";
-import { stringify } from "qs";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/media";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
@@ -276,8 +276,7 @@ const updateAction = async ({
 
 	// Check permissions
 	const createdById =
-		typeof mediaRecord.createdBy === "object" &&
-			mediaRecord.createdBy !== null
+		typeof mediaRecord.createdBy === "object" && mediaRecord.createdBy !== null
 			? mediaRecord.createdBy.id
 			: mediaRecord.createdBy;
 	const deletePermission = canDeleteMedia(currentUser, createdById);
@@ -561,16 +560,14 @@ export const action = async (args: Route.ActionArgs) => {
 				action: actionType,
 			},
 		});
-	}
-	else if (actionType === Action.Update) {
+	} else if (actionType === Action.Update) {
 		return updateAction({
 			...args,
 			searchParams: {
 				action: actionType,
 			},
 		});
-	}
-	else if (actionType === Action.Delete) {
+	} else if (actionType === Action.Delete) {
 		return deleteAction({
 			...args,
 			searchParams: {
@@ -1077,8 +1074,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1169,8 +1166,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (
@@ -1249,8 +1246,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (

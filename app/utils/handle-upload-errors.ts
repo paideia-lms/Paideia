@@ -1,6 +1,6 @@
 import {
-    MaxFileSizeExceededError,
-    MaxFilesExceededError,
+	MaxFileSizeExceededError,
+	MaxFilesExceededError,
 } from "@remix-run/form-data-parser";
 import prettyBytes from "pretty-bytes";
 import { badRequest } from "./responses";
@@ -14,24 +14,23 @@ import { badRequest } from "./responses";
  * @returns BadRequest response with appropriate error message
  */
 export function handleUploadError(
-    error: unknown,
-    maxFileSize?: number,
-    defaultMessage = "Failed to process upload",
+	error: unknown,
+	maxFileSize?: number,
+	defaultMessage = "Failed to process upload",
 ) {
-    if (error instanceof MaxFileSizeExceededError) {
-        return badRequest({
-            error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
-        });
-    }
+	if (error instanceof MaxFileSizeExceededError) {
+		return badRequest({
+			error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
+		});
+	}
 
-    if (error instanceof MaxFilesExceededError) {
-        return badRequest({
-            error: error.message,
-        });
-    }
+	if (error instanceof MaxFilesExceededError) {
+		return badRequest({
+			error: error.message,
+		});
+	}
 
-    return badRequest({
-        error: error instanceof Error ? error.message : defaultMessage,
-    });
+	return badRequest({
+		error: error instanceof Error ? error.message : defaultMessage,
+	});
 }
-

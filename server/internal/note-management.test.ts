@@ -31,7 +31,7 @@ describe("Note Management Functions", () => {
 				Authorization: `Bearer ${token}`,
 			}),
 			canSetHeaders: true,
-			payload
+			payload,
 		});
 		return authResult.user;
 	};
