@@ -208,6 +208,18 @@ export function getInitialFormValues(): PageModuleFormValues {
 /**
  * Get initial form values for a specific module type
  */
+export function getInitialFormValuesForType(type: "page"): PageModuleFormValues;
+export function getInitialFormValuesForType(
+	type: "whiteboard",
+): WhiteboardModuleFormValues;
+export function getInitialFormValuesForType(type: "file"): FileModuleFormValues;
+export function getInitialFormValuesForType(
+	type: "assignment",
+): AssignmentModuleFormValues;
+export function getInitialFormValuesForType(type: "quiz"): QuizModuleFormValues;
+export function getInitialFormValuesForType(
+	type: "discussion",
+): DiscussionModuleFormValues;
 export function getInitialFormValuesForType(
 	type: ActivityModuleFormValues["type"],
 ): ActivityModuleFormValues {
@@ -220,6 +232,7 @@ export function getInitialFormValuesForType(
 				status: "draft",
 				pageContent: "",
 			};
+
 		case "whiteboard":
 			return {
 				title: "",
@@ -228,6 +241,7 @@ export function getInitialFormValuesForType(
 				status: "draft",
 				whiteboardContent: "",
 			};
+
 		case "file":
 			return {
 				title: "",
@@ -237,6 +251,7 @@ export function getInitialFormValuesForType(
 				fileMedia: [],
 				fileFiles: [],
 			};
+
 		case "assignment":
 			return {
 				title: "",
@@ -253,6 +268,7 @@ export function getInitialFormValuesForType(
 				assignmentMaxFileSize: 10,
 				assignmentMaxFiles: 5,
 			};
+
 		case "quiz":
 			return {
 				title: "",
@@ -267,6 +283,7 @@ export function getInitialFormValuesForType(
 				quizGradingType: "automatic",
 				rawQuizConfig: null,
 			};
+
 		case "discussion":
 			return {
 				title: "",
@@ -279,6 +296,12 @@ export function getInitialFormValuesForType(
 				discussionRequireReplies: false,
 				discussionMinReplies: 1,
 			};
+
+		default: {
+			// TypeScript pattern: exhaustive check
+			const _exhaustive: never = type;
+			throw new Error(`Unknown module type: ${_exhaustive}`);
+		}
 	}
 }
 
@@ -417,51 +440,51 @@ export function transformToActivityData(
 ) {
 	let pageData:
 		| {
-				content?: string;
-		  }
+			content?: string;
+		}
 		| undefined;
 	let whiteboardData:
 		| {
-				content?: string;
-		  }
+			content?: string;
+		}
 		| undefined;
 	let assignmentData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				allowLateSubmissions?: boolean;
-				requireTextSubmission?: boolean;
-				requireFileSubmission?: boolean;
-				allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
-				maxFileSize?: number;
-				maxFiles?: number;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			allowLateSubmissions?: boolean;
+			requireTextSubmission?: boolean;
+			requireFileSubmission?: boolean;
+			allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
+			maxFileSize?: number;
+			maxFiles?: number;
+		}
 		| undefined;
 	let quizData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				points?: number;
-				timeLimit?: number;
-				gradingType?: "automatic" | "manual";
-				rawQuizConfig?: QuizConfig;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			maxAttempts?: number;
+			points?: number;
+			timeLimit?: number;
+			gradingType?: "automatic" | "manual";
+			rawQuizConfig?: QuizConfig;
+		}
 		| undefined;
 	let discussionData:
 		| {
-				instructions?: string;
-				dueDate?: string;
-				requireThread?: boolean;
-				requireReplies?: boolean;
-				minReplies?: number;
-		  }
+			instructions?: string;
+			dueDate?: string;
+			requireThread?: boolean;
+			requireReplies?: boolean;
+			minReplies?: number;
+		}
 		| undefined;
 	let fileData:
 		| {
-				media?: number[];
-		  }
+			media?: number[];
+		}
 		| undefined;
 
 	if (parsedData.type === "page") {
@@ -476,7 +499,7 @@ export function transformToActivityData(
 		// Convert preset values to file types
 		const allowedFileTypes =
 			parsedData.assignmentAllowedFileTypes &&
-			parsedData.assignmentAllowedFileTypes.length > 0
+				parsedData.assignmentAllowedFileTypes.length > 0
 				? presetValuesToFileTypes(parsedData.assignmentAllowedFileTypes)
 				: undefined;
 

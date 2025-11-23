@@ -4,7 +4,12 @@ import {
 	IconFileTypePdf,
 	IconPhoto,
 } from "@tabler/icons-react";
-import { createLoader, parseAsString } from "nuqs/server";
+import { createLoader, parseAsString, parseAsStringEnum } from "nuqs/server";
+import {
+	AssignmentActions,
+	DiscussionActions,
+	QuizActions,
+} from "~/utils/module-actions";
 import type { CourseModuleContext } from "server/contexts/course-module-context";
 import type {
 	Question,
@@ -97,10 +102,14 @@ export function getFileTypeLabel(fileType: FileType): string {
 // ============================================================================
 
 export const courseModuleSearchParams = {
-	action: parseAsString.withDefault(""),
-	showQuiz: parseAsString.withDefault(""),
-	threadId: parseAsString.withDefault(""),
-	replyTo: parseAsString.withDefault(""),
+	action: parseAsStringEnum([
+		...Object.values(AssignmentActions),
+		...Object.values(DiscussionActions),
+		...Object.values(QuizActions),
+	]),
+	showQuiz: parseAsString,
+	threadId: parseAsString,
+	replyTo: parseAsString,
 };
 
 export const loadSearchParams = createLoader(courseModuleSearchParams);
@@ -202,11 +211,11 @@ export function transformQuizAnswersToSubmissionFormat(
 	questionId: string;
 	questionText: string;
 	questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+	| "multiple_choice"
+	| "true_false"
+	| "short_answer"
+	| "essay"
+	| "fill_blank";
 	selectedAnswer?: string;
 	multipleChoiceAnswers?: Array<{
 		option: string;
@@ -217,11 +226,11 @@ export function transformQuizAnswersToSubmissionFormat(
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -282,11 +291,11 @@ export function transformQuizAnswersToSubmissionFormat(
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;

@@ -1,13 +1,8 @@
 import { Container, Paper, Select, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import { useQueryState } from "nuqs";
+import { parseAsStringEnum } from "nuqs/server";
 import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import prettyBytes from "pretty-bytes";
-import { useState } from "react";
-import {
-	type ActionFunctionArgs,
 	href,
 	type LoaderFunctionArgs,
 	redirect,
@@ -19,8 +14,13 @@ import {
 	type CreateActivityModuleArgs,
 	tryCreateActivityModule,
 } from "server/internal/activity-module-management";
-import { parseFormDataWithMediaUpload } from "~/utils/upload-handler";
-import type { z } from "zod";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
+import { handleUploadError } from "~/utils/handle-upload-errors";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -40,7 +40,13 @@ import {
 	ContentType,
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
-import { badRequest, UnauthorizedResponse } from "~/utils/responses";
+import {
+	badRequest,
+	StatusCode,
+	UnauthorizedResponse,
+} from "~/utils/responses";
+import { createLoader, parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
+import { stringify } from "qs";
 import type { Route } from "./+types/new";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
@@ -52,7 +58,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	return {
 		user: currentUser,
@@ -60,7 +66,176 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 	};
 };
 
-export const action = async ({ request, context }: ActionFunctionArgs) => {
+enum Action {
+	CreatePage = "createPage",
+	CreateWhiteboard = "createWhiteboard",
+	CreateFile = "createFile",
+	CreateAssignment = "createAssignment",
+	CreateQuiz = "createQuiz",
+	CreateDiscussion = "createDiscussion",
+}
+
+// Define search params for module creation
+export const moduleSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(moduleSearchParams);
+
+const createPageAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	// Handle JSON request
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = activityModuleSchema.parse(data);
+
+	if (parsedData.type !== "page") {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Invalid module type for page action",
+		});
+	}
+
+	const { pageData } = transformToActivityData(parsedData);
+
+	if (!pageData) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Missing page data",
+		});
+	}
+
+	const createArgs: CreateActivityModuleArgs = {
+		title: parsedData.title,
+		description: parsedData.description,
+		status: parsedData.status || ("draft" as const),
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		type: "page" as const,
+		pageData,
+	};
+
+	const createResult = await tryCreateActivityModule(payload, createArgs);
+
+	if (!createResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: createResult.error.message,
+		});
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+
+	throw redirect("/user/profile");
+};
+
+const createWhiteboardAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	// Handle JSON request
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = activityModuleSchema.parse(data);
+
+	if (parsedData.type !== "whiteboard") {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Invalid module type for whiteboard action",
+		});
+	}
+
+	const { whiteboardData } = transformToActivityData(parsedData);
+
+	if (!whiteboardData) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Missing whiteboard data",
+		});
+	}
+
+	const createArgs: CreateActivityModuleArgs = {
+		title: parsedData.title,
+		description: parsedData.description,
+		status: parsedData.status || ("draft" as const),
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		type: "whiteboard" as const,
+		whiteboardData,
+	};
+
+	const createResult = await tryCreateActivityModule(payload, createArgs);
+
+	if (!createResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: createResult.error.message,
+		});
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+
+	throw redirect("/user/profile");
+};
+
+const createFileAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -72,248 +247,655 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	const transactionID = await payload.db.beginTransaction();
-
-	if (!transactionID) {
+	if (!currentUser) {
 		return badRequest({
 			success: false,
-			error: "Failed to begin transaction",
+			error: "You must be logged in to create modules",
 		});
 	}
 
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	try {
-		const contentType = request.headers.get("content-type") || "";
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
 
-		// Check if this is a multipart form (file upload)
-		const isMultipart = contentType.includes("multipart/form-data");
+	// Parse form data with media upload handler
+	const parseResult = await tryParseFormDataWithMediaUpload({
+		payload,
+		request,
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		maxFileSize,
+		fields: [
+			{
+				fieldName: "files",
+			},
+		],
+	});
 
-		let parsedData: ReturnType<typeof activityModuleSchema.parse>;
-		let uploadedMediaIds: number[] = [];
+	if (!parseResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return handleUploadError(
+			parseResult.error,
+			maxFileSize,
+			"Failed to parse form data",
+		);
+	}
 
-		if (isMultipart) {
-			// Handle file uploads for file module type
-			const { formData, uploadedMedia } = await parseFormDataWithMediaUpload({
-				payload,
-				request,
-				userId: currentUser.id,
-				user: currentUser,
-				req: { transactionID },
-				maxFileSize,
-				fields: [
-					{
-						fieldName: "files",
-					},
-				],
-			});
+	const { formData, uploadedMedia } = parseResult.value;
 
-			uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
-			// Extract form data (excluding files) and parse values
-			const formDataObj: Record<string, unknown> = {};
-			for (const [key, value] of formData.entries()) {
-				if (key !== "files") {
-					const stringValue = value.toString();
-					// Try to parse JSON values (arrays, objects, booleans, numbers)
-					try {
-						formDataObj[key] = JSON.parse(stringValue);
-					} catch {
-						// If not JSON, keep as string
-						formDataObj[key] = stringValue;
-					}
-				}
+	const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
+
+	// Extract form data (excluding files) and parse values
+	const formDataObj: Record<string, unknown> = {};
+	for (const [key, value] of formData.entries()) {
+		if (key !== "files") {
+			const stringValue = value.toString();
+			// Try to parse JSON values (arrays, objects, booleans, numbers)
+			try {
+				formDataObj[key] = JSON.parse(stringValue);
+			} catch {
+				// If not JSON, keep as string
+				formDataObj[key] = stringValue;
 			}
-
-			// Parse the form data
-			parsedData = activityModuleSchema.parse(formDataObj);
-		} else {
-			// Handle JSON request (non-file module types)
-			const { data } = await getDataAndContentTypeFromRequest(request);
-			parsedData = activityModuleSchema.parse(data);
 		}
+	}
 
-		const {
-			pageData,
-			whiteboardData,
-			fileData,
-			assignmentData,
-			quizData,
-			discussionData,
-		} = transformToActivityData(parsedData);
+	// Parse the form data
+	const parsedData = activityModuleSchema.parse(formDataObj);
 
-		// For file type, use uploaded media IDs
-		let finalFileData = fileData;
-		if (parsedData.type === "file" && uploadedMediaIds.length > 0) {
-			finalFileData = {
-				media: uploadedMediaIds,
-			};
-		}
-
-		// Build args based on module type (discriminated union)
-		const baseArgs = {
-			title: parsedData.title,
-			description: parsedData.description,
-			status: parsedData.status || ("draft" as const),
-			userId: currentUser.id,
-			user: currentUser,
-			req: { transactionID },
-		};
-
-		let createArgs: CreateActivityModuleArgs;
-		if (parsedData.type === "page" && pageData) {
-			createArgs = { ...baseArgs, type: "page" as const, pageData };
-		} else if (parsedData.type === "whiteboard" && whiteboardData) {
-			createArgs = { ...baseArgs, type: "whiteboard" as const, whiteboardData };
-		} else if (parsedData.type === "assignment" && assignmentData) {
-			createArgs = { ...baseArgs, type: "assignment" as const, assignmentData };
-		} else if (parsedData.type === "quiz" && quizData) {
-			createArgs = { ...baseArgs, type: "quiz" as const, quizData };
-		} else if (parsedData.type === "file" && finalFileData) {
-			createArgs = {
-				...baseArgs,
-				type: "file" as const,
-				fileData: finalFileData,
-			};
-		} else if (parsedData.type === "discussion" && discussionData) {
-			createArgs = { ...baseArgs, type: "discussion" as const, discussionData };
-		} else {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({
-				success: false,
-				error: `Invalid module type or missing data for ${parsedData.type}`,
-			});
-		}
-
-		const createResult = await tryCreateActivityModule(payload, createArgs);
-
-		if (!createResult.ok) {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({
-				success: false,
-				error: createResult.error.message,
-			});
-		}
-
-		await payload.db.commitTransaction(transactionID);
-
-		throw redirect("/user/profile");
-	} catch (error) {
-		if (error instanceof Response) {
-			// we can directly throw the response error
-			throw error;
-		}
-
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("Module creation error:", error);
-
-		if (error instanceof MaxFileSizeExceededError) {
-			return badRequest({
-				success: false,
-				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
-			});
-		}
-
-		if (error instanceof MaxFilesExceededError) {
-			return badRequest({
-				success: false,
-				error: error.message,
-			});
-		}
-
-		console.error("Module creation error:", error);
-
+	if (parsedData.type !== "file") {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
 		return badRequest({
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Failed to process request",
+			error: "Invalid module type for file action",
 		});
 	}
+
+	const { fileData } = transformToActivityData(parsedData);
+
+	// For file type, use uploaded media IDs
+	const finalFileData = uploadedMediaIds.length > 0
+		? { media: uploadedMediaIds }
+		: fileData;
+
+	if (!finalFileData) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Missing file data",
+		});
+	}
+
+	const createArgs: CreateActivityModuleArgs = {
+		title: parsedData.title,
+		description: parsedData.description,
+		status: parsedData.status || ("draft" as const),
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		type: "file" as const,
+		fileData: finalFileData,
+	};
+
+	const createResult = await tryCreateActivityModule(payload, createArgs);
+
+	if (!createResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: createResult.error.message,
+		});
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+
+	throw redirect("/user/profile");
+};
+
+const createAssignmentAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	// Handle JSON request
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = activityModuleSchema.parse(data);
+
+	if (parsedData.type !== "assignment") {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Invalid module type for assignment action",
+		});
+	}
+
+	const { assignmentData } = transformToActivityData(parsedData);
+
+	if (!assignmentData) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Missing assignment data",
+		});
+	}
+
+	const createArgs: CreateActivityModuleArgs = {
+		title: parsedData.title,
+		description: parsedData.description,
+		status: parsedData.status || ("draft" as const),
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		type: "assignment" as const,
+		assignmentData,
+	};
+
+	const createResult = await tryCreateActivityModule(payload, createArgs);
+
+	if (!createResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: createResult.error.message,
+		});
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+
+	throw redirect("/user/profile");
+};
+
+const createQuizAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	// Handle JSON request
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = activityModuleSchema.parse(data);
+
+	if (parsedData.type !== "quiz") {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Invalid module type for quiz action",
+		});
+	}
+
+	const { quizData } = transformToActivityData(parsedData);
+
+	if (!quizData) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Missing quiz data",
+		});
+	}
+
+	const createArgs: CreateActivityModuleArgs = {
+		title: parsedData.title,
+		description: parsedData.description,
+		status: parsedData.status || ("draft" as const),
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		type: "quiz" as const,
+		quizData,
+	};
+
+	const createResult = await tryCreateActivityModule(payload, createArgs);
+
+	if (!createResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: createResult.error.message,
+		});
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+
+	throw redirect("/user/profile");
+};
+
+const createDiscussionAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		return badRequest({
+			success: false,
+			error: "You must be logged in to create modules",
+		});
+	}
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	// Handle JSON request
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = activityModuleSchema.parse(data);
+
+	if (parsedData.type !== "discussion") {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Invalid module type for discussion action",
+		});
+	}
+
+	const { discussionData } = transformToActivityData(parsedData);
+
+	if (!discussionData) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: "Missing discussion data",
+		});
+	}
+
+	const createArgs: CreateActivityModuleArgs = {
+		title: parsedData.title,
+		description: parsedData.description,
+		status: parsedData.status || ("draft" as const),
+		userId: currentUser.id,
+		user: currentUser,
+		req: transactionInfo.reqWithTransaction,
+		type: "discussion" as const,
+		discussionData,
+	};
+
+	const createResult = await tryCreateActivityModule(payload, createArgs);
+
+	if (!createResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({
+			success: false,
+			error: createResult.error.message,
+		});
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+
+	throw redirect("/user/profile");
+};
+
+const getActionUrl = (action: Action) => {
+	return href("/user/module/new") + "?" + stringify({ action });
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			success: false,
+			error: "Action is required",
+		});
+	}
+
+	if (actionType === Action.CreatePage) {
+		return createPageAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.CreateWhiteboard) {
+		return createWhiteboardAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.CreateFile) {
+		return createFileAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.CreateAssignment) {
+		return createAssignmentAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.CreateQuiz) {
+		return createQuizAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.CreateDiscussion) {
+		return createDiscussionAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		success: false,
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.success !== false) {
+	if (actionData?.status === StatusCode.BadRequest) {
+		notifications.show({
+			title: "Error",
+			message: actionData.error || "Failed to create module",
+			color: "red",
+		});
+	} else {
 		notifications.show({
 			title: "Success",
 			message: "Activity module created successfully",
 			color: "green",
 		});
-	} else if ("error" in actionData) {
-		notifications.show({
-			title: "Error",
-			message: actionData?.error,
-			color: "red",
-		});
 	}
+
 	return actionData;
 }
 
-// Custom hook for creating module
-export function useCreateModule() {
+// Custom hooks for creating modules
+export function useCreatePage() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createModule = (values: ActivityModuleFormValues) => {
-		// Get files from form state if file type
-		const files = values.type === "file" ? values.fileFiles : [];
-
-		// If files are present, use FormData with MULTIPART encoding
-		if (files.length > 0 && values.type === "file") {
-			const formData = new FormData();
-
-			// Add form fields
-			const submissionData = transformFormValues(values);
-			for (const [key, value] of Object.entries(submissionData)) {
-				if (value !== undefined && value !== null) {
-					// JSON.stringify arrays, objects, booleans, and numbers so they can be parsed back
-					if (
-						typeof value === "object" ||
-						typeof value === "boolean" ||
-						typeof value === "number"
-					) {
-						formData.append(key, JSON.stringify(value));
-					} else {
-						formData.append(key, String(value));
-					}
-				}
-			}
-
-			// Add files
-			for (const file of files) {
-				formData.append("files", file);
-			}
-
-			fetcher.submit(formData, {
-				method: "POST",
-				action: href("/user/module/new"),
-				encType: ContentType.MULTIPART,
-			});
-		} else {
-			// Use JSON for non-file modules
-			const submissionData = transformFormValues(values);
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
-			fetcher.submit(submissionData as any, {
-				method: "POST",
-				action: href("/user/module/new"),
-				encType: ContentType.JSON,
-			});
-		}
+	const createPage = (values: Extract<ActivityModuleFormValues, { type: "page" }>) => {
+		const submissionData = transformFormValues(values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: getActionUrl(Action.CreatePage),
+			encType: ContentType.JSON,
+		});
 	};
 
 	return {
-		createModule,
+		createPage,
 		isLoading: fetcher.state !== "idle",
 		data: fetcher.data,
 	};
 }
 
+export function useCreateWhiteboard() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createWhiteboard = (values: Extract<ActivityModuleFormValues, { type: "whiteboard" }>) => {
+		const submissionData = transformFormValues(values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: getActionUrl(Action.CreateWhiteboard),
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		createWhiteboard,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useCreateFile() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createFile = (values: Extract<ActivityModuleFormValues, { type: "file" }>) => {
+		const files = values.fileFiles;
+		const formData = new FormData();
+
+		// Add form fields
+		const submissionData = transformFormValues(values);
+		for (const [key, value] of Object.entries(submissionData)) {
+			if (value !== undefined && value !== null) {
+				// JSON.stringify arrays, objects, booleans, and numbers so they can be parsed back
+				if (
+					typeof value === "object" ||
+					typeof value === "boolean" ||
+					typeof value === "number"
+				) {
+					formData.append(key, JSON.stringify(value));
+				} else {
+					formData.append(key, String(value));
+				}
+			}
+		}
+
+		// Add files
+		for (const file of files) {
+			formData.append("files", file);
+		}
+
+		fetcher.submit(formData, {
+			method: "POST",
+			action: getActionUrl(Action.CreateFile),
+			encType: ContentType.MULTIPART,
+		});
+	};
+
+	return {
+		createFile,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useCreateAssignment() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createAssignment = (values: Extract<ActivityModuleFormValues, { type: "assignment" }>) => {
+		const submissionData = transformFormValues(values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: getActionUrl(Action.CreateAssignment),
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		createAssignment,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useCreateQuiz() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createQuiz = (values: Extract<ActivityModuleFormValues, { type: "quiz" }>) => {
+		const submissionData = transformFormValues(values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: getActionUrl(Action.CreateQuiz),
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		createQuiz,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+export function useCreateDiscussion() {
+	const fetcher = useFetcher<typeof clientAction>();
+
+	const createDiscussion = (values: Extract<ActivityModuleFormValues, { type: "discussion" }>) => {
+		const submissionData = transformFormValues(values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		fetcher.submit(submissionData as any, {
+			method: "POST",
+			action: getActionUrl(Action.CreateDiscussion),
+			encType: ContentType.JSON,
+		});
+	};
+
+	return {
+		createDiscussion,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+// Form wrappers that use their respective hooks
+function PageFormWrapper() {
+	const { createPage, isLoading } = useCreatePage();
+	return (
+		<PageForm
+			initialValues={getInitialFormValuesForType("page")}
+			onSubmit={(values) => createPage(values)}
+			isLoading={isLoading}
+		/>
+	);
+}
+
+function WhiteboardFormWrapper() {
+	const { createWhiteboard, isLoading } = useCreateWhiteboard();
+	return (
+		<WhiteboardForm
+			initialValues={getInitialFormValuesForType("whiteboard")}
+			onSubmit={(values) => createWhiteboard(values)}
+			isLoading={isLoading}
+		/>
+	);
+}
+
+function FileFormWrapper({ uploadLimit }: { uploadLimit?: number }) {
+	const { createFile, isLoading } = useCreateFile();
+	return (
+		<FileForm
+			initialValues={getInitialFormValuesForType("file")}
+			onSubmit={(values) => createFile(values)}
+			uploadLimit={uploadLimit}
+			isLoading={isLoading}
+		/>
+	);
+}
+
+function AssignmentFormWrapper() {
+	const { createAssignment, isLoading } = useCreateAssignment();
+	return (
+		<AssignmentForm
+			initialValues={getInitialFormValuesForType("assignment")}
+			onSubmit={(values) => createAssignment(values)}
+			isLoading={isLoading}
+		/>
+	);
+}
+
+function QuizFormWrapper() {
+	const { createQuiz, isLoading } = useCreateQuiz();
+	return (
+		<QuizForm
+			initialValues={getInitialFormValuesForType("quiz")}
+			onSubmit={(values) => createQuiz(values)}
+			isLoading={isLoading}
+		/>
+	);
+}
+
+function DiscussionFormWrapper() {
+	const { createDiscussion, isLoading } = useCreateDiscussion();
+	return (
+		<DiscussionForm
+			initialValues={getInitialFormValuesForType("discussion")}
+			onSubmit={(values) => createDiscussion(values)}
+			isLoading={isLoading}
+		/>
+	);
+}
+
 export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 	const { uploadLimit } = loaderData;
-	const { createModule, isLoading } = useCreateModule();
-	const [selectedType, setSelectedType] =
-		useState<ActivityModuleFormValues["type"]>("page");
+	const [selectedType, setSelectedType] = useQueryState(
+		"type",
+		parseAsStringEnum(["page", "whiteboard", "file", "assignment", "quiz", "discussion"]).withDefault("page").withOptions({
+			shallow: false,
+		}),
+	);
 
 	return (
 		<Container size="md" py="xl">
@@ -356,49 +938,12 @@ export default function NewModulePage({ loaderData }: Route.ComponentProps) {
 						]}
 					/>
 
-					{selectedType === "page" && (
-						<PageForm
-							initialValues={getInitialFormValuesForType("page") as any}
-							onSubmit={(values) => createModule(values)}
-							isLoading={isLoading}
-						/>
-					)}
-					{selectedType === "whiteboard" && (
-						<WhiteboardForm
-							initialValues={getInitialFormValuesForType("whiteboard") as any}
-							onSubmit={(values) => createModule(values)}
-							isLoading={isLoading}
-						/>
-					)}
-					{selectedType === "file" && (
-						<FileForm
-							initialValues={getInitialFormValuesForType("file") as any}
-							onSubmit={(values) => createModule(values)}
-							uploadLimit={uploadLimit}
-							isLoading={isLoading}
-						/>
-					)}
-					{selectedType === "assignment" && (
-						<AssignmentForm
-							initialValues={getInitialFormValuesForType("assignment") as any}
-							onSubmit={(values) => createModule(values)}
-							isLoading={isLoading}
-						/>
-					)}
-					{selectedType === "quiz" && (
-						<QuizForm
-							initialValues={getInitialFormValuesForType("quiz") as any}
-							onSubmit={(values) => createModule(values)}
-							isLoading={isLoading}
-						/>
-					)}
-					{selectedType === "discussion" && (
-						<DiscussionForm
-							initialValues={getInitialFormValuesForType("discussion") as any}
-							onSubmit={(values) => createModule(values)}
-							isLoading={isLoading}
-						/>
-					)}
+					{selectedType === "page" && <PageFormWrapper />}
+					{selectedType === "whiteboard" && <WhiteboardFormWrapper />}
+					{selectedType === "file" && <FileFormWrapper uploadLimit={uploadLimit} />}
+					{selectedType === "assignment" && <AssignmentFormWrapper />}
+					{selectedType === "quiz" && <QuizFormWrapper />}
+					{selectedType === "discussion" && <DiscussionFormWrapper />}
 				</Stack>
 			</Paper>
 		</Container>

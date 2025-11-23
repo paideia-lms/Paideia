@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type {} from "@payloadcms/db-postgres";
+import type { } from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -198,7 +198,7 @@ export const users = pgTable(
     bio: varchar("bio"),
     theme: enum_users_theme("theme").notNull().default("light"),
     direction: enum_users_direction("direction").notNull().default("ltr"),
-    avatar: integer("avatar_id").references(() => media.id, {
+    avatar: integer("avatar_id").references((): AnyPgColumn => media.id, {
       onDelete: "set null",
     }),
     updatedAt: timestamp("updated_at", {
