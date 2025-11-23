@@ -138,6 +138,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Create activity module with assignment
 		const activityModuleArgs: CreateActivityModuleArgs = {
+			payload,
+			req: mockRequest,
 			title: "Test Assignment",
 			description: "A test assignment for submission workflow",
 			type: "assignment",
@@ -155,7 +157,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		};
 
 		const activityModuleResult = await tryCreateActivityModule(
-			payload,
 			activityModuleArgs,
 		);
 		if (!activityModuleResult.ok) {
@@ -202,6 +203,8 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		// Create course-activity-module-link
 		const courseActivityModuleLinkArgs: CreateCourseActivityModuleLinkArgs = {
+			payload,
+			req: mockRequest,
 			course: courseId,
 			activityModule: activityModuleId,
 			section: sectionResult.value.id,
@@ -211,8 +214,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 
 		const courseActivityModuleLinkResult =
 			await tryCreateCourseActivityModuleLink(
-				payload,
-				mockRequest,
 				courseActivityModuleLinkArgs,
 			);
 		expect(courseActivityModuleLinkResult.ok).toBe(true);
@@ -459,7 +460,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		// Grade the assignment (only updates submission, does NOT create user-grade)
 		const gradeResult = await tryGradeAssignmentSubmission({
 			payload,
-			request: mockRequest,
+			req: mockRequest,
 			id: submissionId,
 			grade: 85,
 			feedback:
@@ -712,7 +713,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		// Try to grade with negative grade
 		const negativeGradeResult = await tryGradeAssignmentSubmission({
 			payload,
-			request: mockRequest,
+			req: mockRequest,
 			id: submissionId,
 			grade: -10,
 			feedback: "Invalid grade",
@@ -726,7 +727,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		// Try to grade with grade exceeding maximum
 		const excessiveGradeResult = await tryGradeAssignmentSubmission({
 			payload,
-			request: mockRequest,
+			req: mockRequest,
 			id: submissionId,
 			grade: 150,
 			feedback: "Grade too high",
@@ -767,7 +768,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		// Try to grade a draft submission
 		const gradeResult = await tryGradeAssignmentSubmission({
 			payload,
-			request: mockRequest,
+			req: mockRequest,
 			id: submissionId,
 			grade: 80,
 			feedback: "Should not be able to grade draft",

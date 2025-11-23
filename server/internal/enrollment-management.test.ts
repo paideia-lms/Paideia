@@ -49,6 +49,7 @@ describe("Enrollment Management Functions", () => {
 				theme: "light",
 				direction: "ltr",
 			},
+			overrideAccess: true
 		});
 		testUserId = testUser.id;
 
@@ -62,6 +63,7 @@ describe("Enrollment Management Functions", () => {
 				slug: "test-course",
 				status: "published",
 			},
+			overrideAccess: true
 		});
 		testCourseId = testCourse.id;
 	});

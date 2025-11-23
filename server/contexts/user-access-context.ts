@@ -11,6 +11,7 @@ import type { User } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
+import { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import type {
 	Note,
 	ActivityModule as PayloadActivityModule,
@@ -35,12 +36,12 @@ type Course = {
 		} | null;
 	} | null;
 	thumbnail?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string | null;
+	}
+	| null;
 };
 
 type ActivityModule = {
@@ -80,22 +81,15 @@ export const userAccessContext = createContext<UserAccessContext | null>(null);
 export const userAccessContextKey =
 	"userAccessContext" as unknown as typeof userAccessContext;
 
+type getUserAccessContextArgs = BaseInternalFunctionArgs & {
+	userId: number;
+}
+
 export const getUserAccessContext = async (
-	payload: Payload,
-	/**
-	 * the target user id
-	 */
-	userId: number,
-	/**
-	 * the current user, need to verify the access
-	 */
-	user: TypedUser,
+	args: getUserAccessContextArgs,
 ): Promise<UserAccessContext | null> => {
-	const result = await tryGetUserActivityModules(payload, {
-		userId: userId,
-		user,
-		overrideAccess: true,
-	});
+	const { payload, userId, user, overrideAccess = false, req } = args;
+	const result = await tryGetUserActivityModules(args);
 
 	if (!result.ok)
 		throw new Error(result.error.message, {
@@ -106,10 +100,10 @@ export const getUserAccessContext = async (
 
 	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
-		userId: user.id,
+		userId: userId,
 		user: user,
-		req: undefined,
-		overrideAccess: true,
+		req,
+		overrideAccess,
 	});
 
 	if (!enrollments.ok) throw new Error("Failed to get user enrollments");
@@ -133,17 +127,17 @@ export const getUserAccessContext = async (
 					category: enrollment.course.category
 						? typeof enrollment.course.category === "object"
 							? {
-									id: enrollment.course.category.id,
-									name: enrollment.course.category.name,
-									parent:
-										enrollment.course.category.parent &&
+								id: enrollment.course.category.id,
+								name: enrollment.course.category.name,
+								parent:
+									enrollment.course.category.parent &&
 										typeof enrollment.course.category.parent === "object"
-											? {
-													id: enrollment.course.category.parent.id,
-													name: enrollment.course.category.parent.name,
-												}
-											: null,
-								}
+										? {
+											id: enrollment.course.category.parent.id,
+											name: enrollment.course.category.parent.name,
+										}
+										: null,
+							}
 							: null
 						: null,
 					thumbnail: enrollment.course.thumbnail ?? null,

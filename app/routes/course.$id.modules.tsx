@@ -11,6 +11,11 @@ import {
 	tryDeleteCourseActivityModuleLink,
 } from "server/internal/course-activity-module-link-management";
 import { tryCreateSection } from "server/internal/course-section-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import { canSeeCourseModules } from "server/utils/permissions";
 import { z } from "zod";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
@@ -19,7 +24,6 @@ import {
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
 import {
-	BadRequestResponse,
 	badRequest,
 	ForbiddenResponse,
 	ok,
@@ -80,12 +84,11 @@ export function useDeleteModuleLink() {
 	};
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 	const userAccessContext = context.get(userAccessContextKey);
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -106,10 +109,10 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					userId: enrolmentContext.enrolment.userId,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				userId: enrolmentContext.enrolment.userId,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -191,10 +194,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					userId: enrollment.user as number,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				userId: enrollment.user as number,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -213,62 +216,50 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "create") {
-		// Start transaction
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			return badRequest({ error: "Failed to begin transaction" });
-		}
+		const transactionInfo = await handleTransactionId(payload, request);
 
-		try {
-			// Use provided section ID or create a default section
-			let targetSectionId = parsedData.data.sectionId;
+		// Use provided section ID or create a default section
+		let targetSectionId = parsedData.data.sectionId;
 
-			if (!targetSectionId) {
-				const sectionResult = await tryCreateSection({
-					payload,
-					data: {
-						course: Number(courseId),
-						title: "Default Section",
-						description: "Default section for activity modules",
-					},
-					req: { ...request, transactionID },
-					overrideAccess: true,
-				});
-
-				if (!sectionResult.ok) {
-					await payload.db.rollbackTransaction(transactionID);
-					return badRequest({ error: "Failed to create section" });
-				}
-
-				targetSectionId = sectionResult.value.id;
-			}
-
-			const createResult = await tryCreateCourseActivityModuleLink(
+		if (!targetSectionId) {
+			const sectionResult = await tryCreateSection({
 				payload,
-				request,
-				{
+				data: {
 					course: Number(courseId),
-					activityModule: parsedData.data.activityModuleId,
-					section: targetSectionId,
-					order: 0,
-					transactionID,
+					title: "Default Section",
+					description: "Default section for activity modules",
 				},
-			);
+				req: transactionInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
-			if (!createResult.ok) {
-				await payload.db.rollbackTransaction(transactionID);
-				return badRequest({ error: createResult.error.message });
+			if (!sectionResult.ok) {
+				await rollbackTransactionIfCreated(payload, transactionInfo);
+				return badRequest({ error: "Failed to create section" });
 			}
 
-			await payload.db.commitTransaction(transactionID);
-			return ok({
-				success: true,
-				message: "Activity module linked successfully",
-			});
-		} catch {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({ error: "Failed to create link" });
+			targetSectionId = sectionResult.value.id;
 		}
+
+		const createResult = await tryCreateCourseActivityModuleLink({
+			payload,
+			req: transactionInfo.reqWithTransaction,
+			course: Number(courseId),
+			activityModule: parsedData.data.activityModuleId,
+			section: targetSectionId,
+			order: 0,
+		});
+
+		if (!createResult.ok) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return badRequest({ error: createResult.error.message });
+		}
+
+		await commitTransactionIfCreated(payload, transactionInfo);
+		return ok({
+			success: true,
+			message: "Activity module linked successfully",
+		});
 	}
 
 	if (parsedData.data.intent === "delete") {
@@ -276,9 +267,13 @@ export const action = async ({
 		const redirectTo = parsedData.data.redirectTo;
 
 		const deleteResult = await tryDeleteCourseActivityModuleLink(
-			payload,
-			request,
-			linkId,
+			{
+				payload,
+				req: request,
+				linkId
+			},
+
+
 		);
 
 		if (!deleteResult.ok) {

@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
+import type { Payload } from "payload";
 import { QuizSubmissions } from "server/collections";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { JobQueue } from "server/payload.config";
@@ -10,13 +10,18 @@ import {
 	InvalidArgumentError,
 	NonExistingQuizSubmissionError,
 	QuizTimeLimitExceededError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { tryCreateUserGrade } from "./user-grade-management";
 
-export interface CreateQuizArgs {
+export type CreateQuizArgs = BaseInternalFunctionArgs & {
 	title: string;
 	description?: string;
 	instructions?: string;
@@ -35,13 +40,13 @@ export interface CreateQuizArgs {
 	questions: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -55,9 +60,9 @@ export interface CreateQuizArgs {
 		}>;
 	}>;
 	createdBy: number;
-}
+};
 
-export interface UpdateQuizArgs {
+export type UpdateQuizArgs = BaseInternalFunctionArgs & {
 	id: number;
 	title?: string;
 	description?: string;
@@ -77,13 +82,13 @@ export interface UpdateQuizArgs {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -96,10 +101,9 @@ export interface UpdateQuizArgs {
 			hint: string;
 		}>;
 	}>;
-}
+};
 
-export interface CreateQuizSubmissionArgs {
-	payload: Payload;
+export type CreateQuizSubmissionArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -108,11 +112,11 @@ export interface CreateQuizSubmissionArgs {
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -120,35 +124,27 @@ export interface CreateQuizSubmissionArgs {
 		}>;
 	}>;
 	timeSpent?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface StartQuizAttemptArgs {
-	payload: Payload;
+export type StartQuizAttemptArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
 	attemptNumber?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateQuizSubmissionArgs {
-	payload: Payload;
+export type UpdateQuizSubmissionArgs = BaseInternalFunctionArgs & {
 	id: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	answers?: Array<{
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -156,12 +152,9 @@ export interface UpdateQuizSubmissionArgs {
 		}>;
 	}>;
 	timeSpent?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GradeQuizSubmissionArgs {
+export type GradeQuizSubmissionArgs = BaseInternalFunctionArgs & {
 	id: number;
 	enrollmentId: number;
 	gradebookItemId: number;
@@ -169,24 +162,15 @@ export interface GradeQuizSubmissionArgs {
 	submittedAt?: string | number;
 }
 
-export interface GetQuizByIdArgs {
-	payload: Payload;
+export type GetQuizByIdArgs = BaseInternalFunctionArgs & {
 	id: number | string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetQuizSubmissionByIdArgs {
-	payload: Payload;
+export type GetQuizSubmissionByIdArgs = BaseInternalFunctionArgs & {
 	id: number | string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface ListQuizSubmissionsArgs {
-	payload: Payload;
+export type ListQuizSubmissionsArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId?: number;
 	/**
 	 * The student ID to filter by. If not provided, all students will be included.
@@ -196,41 +180,29 @@ export interface ListQuizSubmissionsArgs {
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	limit?: number;
 	page?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface CheckInProgressSubmissionArgs {
-	payload: Payload;
+export type CheckInProgressSubmissionArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
 	studentId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetNextAttemptNumberArgs {
-	payload: Payload;
+export type GetNextAttemptNumberArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
 	studentId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface SubmitQuizArgs {
-	payload: Payload;
+export type SubmitQuizArgs = BaseInternalFunctionArgs & {
 	submissionId: number;
 	answers?: Array<{
 		questionId: string;
 		questionText: string;
 		questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -238,14 +210,11 @@ export interface SubmitQuizArgs {
 		}>;
 	}>;
 	timeSpent?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 	/**
 	 * If true, bypasses the time limit check (useful for auto-submit)
 	 */
 	bypassTimeLimit?: boolean;
-}
+};
 
 export interface QuizGradingResult {
 	totalScore: number;
@@ -265,13 +234,9 @@ export interface QuizGradingResult {
 	feedback: string;
 }
 
-export interface GetQuizGradesReportArgs {
-	payload: Payload;
+export type GetQuizGradesReportArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface QuizGradesReport {
 	courseModuleLinkId: number;
@@ -320,13 +285,9 @@ export interface QuizGradesReport {
 	};
 }
 
-export interface GetQuizStatisticsReportArgs {
-	payload: Payload;
+export type GetQuizStatisticsReportArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface QuizStatisticsReport {
 	courseModuleLinkId: number;
@@ -365,8 +326,9 @@ export interface QuizStatisticsReport {
  * Creates a new quiz
  */
 export const tryCreateQuiz = Result.wrap(
-	async (payload: Payload, args: CreateQuizArgs) => {
+	async (args: CreateQuizArgs) => {
 		const {
+			payload,
 			title,
 			description,
 			instructions,
@@ -541,7 +503,8 @@ export const tryGetQuizById = Result.wrap(
  * Updates a quiz
  */
 export const tryUpdateQuiz = Result.wrap(
-	async (payload: Payload, args: UpdateQuizArgs) => {
+	async (args: UpdateQuizArgs) => {
+		const { payload } = args;
 		const {
 			id,
 			title,
@@ -1217,7 +1180,7 @@ export const trySubmitQuiz = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-					"id" in currentSubmission.courseModuleLink
+						"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1328,33 +1291,39 @@ export const trySubmitQuiz = Result.wrap(
 		}),
 );
 
+type CalculateQuizGradeArgs = BaseInternalFunctionArgs & {
+	quizId: number;
+	answers: Array<{
+		questionId: string;
+		questionText: string;
+		questionType:
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
+		selectedAnswer?: string | null;
+		multipleChoiceAnswers?: Array<{
+			option: string;
+			isSelected: boolean;
+		}>;
+	}>;
+};
+
 /**
  * Calculates quiz grade based on answers and correct answers
  */
-export const calculateQuizGrade = Result.wrap(
-	async (
-		payload: Payload,
-		quizId: number,
-		answers: Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
-			selectedAnswer?: string | null;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}>,
-	): Promise<QuizGradingResult> => {
+export const tryCalculateQuizGrade = Result.wrap(
+	async (args: CalculateQuizGradeArgs) => {
+		const { payload, quizId, answers, user = null, req, overrideAccess = false } = args;
+
 		// Get the quiz to access correct answers
 		const quiz = await payload.findByID({
 			collection: "quizzes",
 			id: quizId,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!quiz) {
@@ -1548,8 +1517,8 @@ export const calculateQuizGrade = Result.wrap(
  * Grades a quiz submission automatically and creates gradebook entry
  */
 export const tryGradeQuizSubmission = Result.wrap(
-	async (payload: Payload, request: Request, args: GradeQuizSubmissionArgs) => {
-		const { id, enrollmentId, gradebookItemId, gradedBy, submittedAt } = args;
+	async (args: GradeQuizSubmissionArgs) => {
+		const { payload, id, enrollmentId, gradebookItemId, gradedBy, submittedAt, req, user = null, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -1568,19 +1537,14 @@ export const tryGradeQuizSubmission = Result.wrap(
 			);
 		}
 
-		// Start transaction
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Get the current submission
 			const currentSubmission = await payload.findByID({
 				collection: QuizSubmissions.slug,
 				id,
-				req: { transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			if (!currentSubmission) {
@@ -1600,11 +1564,11 @@ export const tryGradeQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-					"id" in currentSubmission.courseModuleLink
+						"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
-				req: { transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			if (!courseModuleLink) {
@@ -1646,11 +1610,15 @@ export const tryGradeQuizSubmission = Result.wrap(
 						})),
 				}));
 
-			const gradingResult = await calculateQuizGrade(
-				payload,
-				quiz.id,
-				validAnswers,
-			);
+			const gradingResult = await tryCalculateQuizGrade(
+				{
+					payload,
+					quizId: quiz.id,
+					answers: validAnswers,
+					user,
+					req: transactionInfo.reqWithTransaction,
+					overrideAccess,
+				});
 
 			if (!gradingResult.ok) {
 				throw new Error(
@@ -1671,7 +1639,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 					percentage: gradeData.percentage,
 					autoGraded: true,
 				},
-				req: { transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			// Create user grade in gradebook
@@ -1684,7 +1652,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 			const userGradeResult = await tryCreateUserGrade({
 				payload,
 				user: null,
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess: false,
 				enrollmentId,
 				gradebookItemId,
@@ -1704,8 +1672,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 			}
 			payload.logger.info("User grade created successfully");
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -1752,8 +1719,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				questionResults: gradeData.questionResults,
 			};
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -2420,10 +2386,10 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 			// Build response distribution for multiple choice
 			let responseDistribution:
 				| Array<{
-						option: string;
-						count: number;
-						percentage: number;
-				  }>
+					option: string;
+					count: number;
+					percentage: number;
+				}>
 				| undefined;
 
 			if (

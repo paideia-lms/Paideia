@@ -1,4 +1,3 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -8,40 +7,25 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateFileArgs {
-	payload: Payload;
+export type CreateFileArgs = BaseInternalFunctionArgs & {
 	media?: number[];
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateFileArgs {
-	payload: Payload;
+export type UpdateFileArgs = BaseInternalFunctionArgs & {
 	id: number;
 	media?: number[];
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteFileArgs {
-	payload: Payload;
+export type DeleteFileArgs = BaseInternalFunctionArgs & {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetFileByIdArgs {
-	payload: Payload;
+export type GetFileByIdArgs = BaseInternalFunctionArgs & {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export const tryCreateFile = Result.wrap(
 	async (args: CreateFileArgs) => {

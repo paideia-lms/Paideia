@@ -165,18 +165,13 @@ export const loader = async ({
 
 				// Get the thread with all nested replies using the course module context function
 				const threadResult = await tryGetDiscussionThreadWithReplies(
-					payload,
-					threadIdNum,
-					Number(moduleLinkId),
-					currentUser
-						? {
-								...currentUser,
-								avatar:
-									currentUser.avatar && typeof currentUser.avatar === "object"
-										? currentUser.avatar.id
-										: currentUser.avatar,
-							}
-						: null,
+					{
+						payload,
+						threadId: threadIdNum,
+						courseModuleLinkId: Number(moduleLinkId),
+						user: currentUser,
+						req: request,
+					}
 				);
 
 				if (threadResult.ok) {
@@ -189,13 +184,13 @@ export const loader = async ({
 	// Extract values from discriminated union based on module type
 	const userSubmission =
 		moduleSpecificData.type === "assignment" ||
-		moduleSpecificData.type === "quiz"
+			moduleSpecificData.type === "quiz"
 			? moduleSpecificData.userSubmission
 			: null;
 	const userSubmissions =
 		moduleSpecificData.type === "assignment" ||
-		moduleSpecificData.type === "quiz" ||
-		moduleSpecificData.type === "discussion"
+			moduleSpecificData.type === "quiz" ||
+			moduleSpecificData.type === "discussion"
 			? moduleSpecificData.userSubmissions
 			: [];
 	const discussionThreads =
@@ -667,20 +662,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-				questionId: string;
-				questionText: string;
-				questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank";
-				selectedAnswer?: string;
-				multipleChoiceAnswers?: Array<{
-					option: string;
-					isSelected: boolean;
-				}>;
-		  }>
+			questionId: string;
+			questionText: string;
+			questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
+			selectedAnswer?: string;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected: boolean;
+			}>;
+		}>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -1189,11 +1184,11 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 			questionId: string;
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1451,34 +1446,34 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				// Type guard to ensure we have an assignment submission
 				const assignmentSubmission =
 					userSubmission &&
-					"content" in userSubmission &&
-					"attachments" in userSubmission
+						"content" in userSubmission &&
+						"attachments" in userSubmission
 						? {
-								id: userSubmission.id,
-								status: userSubmission.status as
-									| "draft"
-									| "submitted"
-									| "graded"
-									| "returned",
-								content: (userSubmission.content as string) || null,
-								attachments: userSubmission.attachments
-									? userSubmission.attachments.map((att) => ({
-											file:
-												typeof att.file === "object" &&
-												att.file !== null &&
-												"id" in att.file
-													? att.file.id
-													: Number(att.file),
-											description: att.description as string | undefined,
-										}))
-									: null,
-								submittedAt: ("submittedAt" in userSubmission
-									? userSubmission.submittedAt
-									: null) as string | null,
-								attemptNumber: ("attemptNumber" in userSubmission
-									? userSubmission.attemptNumber
-									: 1) as number,
-							}
+							id: userSubmission.id,
+							status: userSubmission.status as
+								| "draft"
+								| "submitted"
+								| "graded"
+								| "returned",
+							content: (userSubmission.content as string) || null,
+							attachments: userSubmission.attachments
+								? userSubmission.attachments.map((att) => ({
+									file:
+										typeof att.file === "object" &&
+											att.file !== null &&
+											"id" in att.file
+											? att.file.id
+											: Number(att.file),
+									description: att.description as string | undefined,
+								}))
+								: null,
+							submittedAt: ("submittedAt" in userSubmission
+								? userSubmission.submittedAt
+								: null) as string | null,
+							attemptNumber: ("attemptNumber" in userSubmission
+								? userSubmission.attemptNumber
+								: 1) as number,
+						}
 						: null;
 
 				// Map all submissions for display - filter assignment submissions only
@@ -1502,9 +1497,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						attachments:
 							"attachments" in sub && sub.attachments
 								? (sub.attachments as Array<{
-										file: number | { id: number; filename: string };
-										description?: string;
-									}>)
+									file: number | { id: number; filename: string };
+									description?: string;
+								}>)
 								: null,
 					}));
 
@@ -1544,8 +1539,8 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					// Use userSubmission which is already the active in_progress submission
 					const activeSubmission =
 						userSubmission &&
-						"status" in userSubmission &&
-						userSubmission.status === "in_progress"
+							"status" in userSubmission &&
+							userSubmission.status === "in_progress"
 							? userSubmission
 							: null;
 

@@ -2,7 +2,6 @@ import { beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
-import { checkUserCourseAccess } from "../utils/check-course-access";
 import {
 	tryAssignCategoryRole,
 	tryCheckUserCategoryRole,
@@ -111,18 +110,24 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should assign category role to user", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Science",
+			overrideAccess: true,
 		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) return;
 
-		const assignResult = await tryAssignCategoryRole(payload, mockRequest, {
+		const assignResult = await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		expect(assignResult.ok).toBe(true);
@@ -132,54 +137,68 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should revoke category role from user", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Mathematics",
+			overrideAccess: true,
 		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) return;
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-coordinator",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
-		const revokeResult = await tryRevokeCategoryRole(
+		const revokeResult = await tryRevokeCategoryRole({
 			payload,
-			mockRequest,
-			user1.id,
-			categoryResult.value.id,
-		);
+			req: mockRequest,
+			userId: user1.id,
+			categoryId: categoryResult.value.id,
+			overrideAccess: true,
+		});
 
 		expect(revokeResult.ok).toBe(true);
 	});
 
 	test("should update existing role assignment", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Arts",
+			overrideAccess: true,
 		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) return;
 
-		const assignResult = await tryAssignCategoryRole(payload, mockRequest, {
+		const assignResult = await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-reviewer",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		expect(assignResult.ok).toBe(true);
 		if (!assignResult.ok) return;
 
-		const updateResult = await tryUpdateCategoryRole(
+		const updateResult = await tryUpdateCategoryRole({
 			payload,
-			mockRequest,
-			assignResult.value.id,
-			"category-admin",
-		);
+			req: mockRequest,
+			assignmentId: assignResult.value.id,
+			newRole: "category-admin",
+			overrideAccess: true,
+		});
 
 		expect(updateResult.ok).toBe(true);
 		if (updateResult.ok) {
@@ -188,29 +207,38 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should prevent duplicate assignments (one role per user per category)", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "History",
+			overrideAccess: true,
 		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) return;
 
 		// First assignment
-		const assign1Result = await tryAssignCategoryRole(payload, mockRequest, {
+		const assign1Result = await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-coordinator",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		expect(assign1Result.ok).toBe(true);
 
 		// Second assignment should update, not create duplicate
-		const assign2Result = await tryAssignCategoryRole(payload, mockRequest, {
+		const assign2Result = await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		expect(assign2Result.ok).toBe(true);
@@ -220,8 +248,10 @@ describe("Category Role Management Functions", () => {
 
 		// Verify only one assignment exists
 		const assignments = await tryGetCategoryRoleAssignments(
-			payload,
-			categoryResult.value.id,
+			{
+				payload,
+				categoryId: categoryResult.value.id,
+			}
 		);
 		expect(assignments.ok).toBe(true);
 		if (assignments.ok) {
@@ -234,30 +264,45 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should get all role assignments for a user", async () => {
-		const cat1 = await tryCreateCategory(payload, mockRequest, {
+		const cat1 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Category 1",
+			overrideAccess: true,
 		});
-		const cat2 = await tryCreateCategory(payload, mockRequest, {
+		const cat2 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Category 2",
+			overrideAccess: true,
 		});
 
 		if (!cat1.ok || !cat2.ok) return;
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user2.id,
 			categoryId: cat1.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user2.id,
 			categoryId: cat2.value.id,
 			role: "category-coordinator",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
-		const userRoles = await tryGetUserCategoryRoles(payload, user2.id);
+		const userRoles = await tryGetUserCategoryRoles({
+			payload,
+			userId: user2.id,
+		});
 
 		expect(userRoles.ok).toBe(true);
 		if (userRoles.ok) {
@@ -266,29 +311,40 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should get all role assignments for a category", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Popular Category",
+			overrideAccess: true,
 		});
 
 		if (!categoryResult.ok) return;
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user2.id,
 			categoryId: categoryResult.value.id,
 			role: "category-coordinator",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		const assignments = await tryGetCategoryRoleAssignments(
-			payload,
-			categoryResult.value.id,
+			{
+				payload,
+				categoryId: categoryResult.value.id,
+			}
 		);
 
 		expect(assignments.ok).toBe(true);
@@ -298,23 +354,31 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should find specific role assignment", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Find Test Category",
+			overrideAccess: true,
 		});
 
 		if (!categoryResult.ok) return;
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-reviewer",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		const found = await tryFindCategoryRoleAssignment(
-			payload,
-			user1.id,
-			categoryResult.value.id,
+			{
+				payload,
+				userId: user1.id,
+				categoryId: categoryResult.value.id,
+			}
 		);
 
 		expect(found.ok).toBe(true);
@@ -324,23 +388,31 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should check if user has role on category", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Check Role Category",
+			overrideAccess: true,
 		});
 
 		if (!categoryResult.ok) return;
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		const checkResult = await tryCheckUserCategoryRole(
-			payload,
-			user1.id,
-			categoryResult.value.id,
+			{
+				payload,
+				userId: user1.id,
+				categoryId: categoryResult.value.id,
+			}
 		);
 
 		expect(checkResult.ok).toBe(true);
@@ -350,32 +422,43 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should get effective role with inheritance from parent category", async () => {
-		const parentCat = await tryCreateCategory(payload, mockRequest, {
+		const parentCat = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Parent Category",
+			overrideAccess: true,
 		});
 
 		if (!parentCat.ok) return;
 
-		const childCat = await tryCreateCategory(payload, mockRequest, {
+		const childCat = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Child Category",
 			parent: parentCat.value.id,
+			overrideAccess: true,
 		});
 
 		if (!childCat.ok) return;
 
 		// Assign role on parent
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: parentCat.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		// Check effective role on child (should inherit from parent)
 		const effectiveRole = await tryGetEffectiveCategoryRole(
-			payload,
-			user1.id,
-			childCat.value.id,
+			{
+				payload,
+				userId: user1.id,
+				categoryId: childCat.value.id,
+			}
 		);
 
 		expect(effectiveRole.ok).toBe(true);
@@ -385,47 +468,64 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should respect role priority (admin > coordinator > reviewer)", async () => {
-		const grandparent = await tryCreateCategory(payload, mockRequest, {
+		const grandparent = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Grandparent",
+			overrideAccess: true,
 		});
 
 		if (!grandparent.ok) return;
 
-		const parent = await tryCreateCategory(payload, mockRequest, {
+		const parent = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Parent",
 			parent: grandparent.value.id,
+			overrideAccess: true,
 		});
 
 		if (!parent.ok) return;
 
-		const child = await tryCreateCategory(payload, mockRequest, {
+		const child = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Child",
 			parent: parent.value.id,
+			overrideAccess: true,
 		});
 
 		if (!child.ok) return;
 
 		// Assign reviewer on grandparent
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: grandparent.value.id,
 			role: "category-reviewer",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		// Assign admin on parent (higher priority)
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: parent.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		// Check effective role on child (should be admin, not reviewer)
 		const effectiveRole = await tryGetEffectiveCategoryRole(
-			payload,
-			user1.id,
-			child.value.id,
+			{
+				payload,
+				userId: user1.id,
+				categoryId: child.value.id,
+			}
 		);
 
 		expect(effectiveRole.ok).toBe(true);
@@ -435,15 +535,21 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should get all courses user can access via category roles", async () => {
-		const category = await tryCreateCategory(payload, mockRequest, {
+		const category = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Course Access Category",
+			overrideAccess: true,
 		});
 
 		if (!category.ok) return;
 
-		const subcategory = await tryCreateCategory(payload, mockRequest, {
+		const subcategory = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Subcategory",
 			parent: category.value.id,
+			overrideAccess: true,
 		});
 
 		if (!subcategory.ok) return;
@@ -474,16 +580,21 @@ describe("Category Role Management Functions", () => {
 		});
 
 		// Assign role on parent category
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: category.value.id,
 			role: "category-coordinator",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		const userCourses = await tryGetUserCoursesFromCategories(
-			payload,
-			user1.id,
+			{
+				payload,
+				userId: user1.id,
+			}
 		);
 
 		expect(userCourses.ok).toBe(true);
@@ -493,8 +604,11 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should check course access via direct category", async () => {
-		const category = await tryCreateCategory(payload, mockRequest, {
+		const category = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Direct Access Category",
+			overrideAccess: true,
 		});
 
 		if (!category.ok) return;
@@ -513,17 +627,22 @@ describe("Category Role Management Functions", () => {
 
 		if (!course.ok) return;
 
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: category.value.id,
 			role: "category-admin",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		const access = await tryCheckUserCourseAccessViaCategory(
-			payload,
-			user1.id,
-			course.value.id,
+			{
+				payload,
+				userId: user1.id,
+				courseId: course.value.id,
+			}
 		);
 
 		expect(access.ok).toBe(true);
@@ -533,15 +652,21 @@ describe("Category Role Management Functions", () => {
 	});
 
 	test("should check course access via ancestor category", async () => {
-		const parentCat = await tryCreateCategory(payload, mockRequest, {
+		const parentCat = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Ancestor Category",
+			overrideAccess: true,
 		});
 
 		if (!parentCat.ok) return;
 
-		const childCat = await tryCreateCategory(payload, mockRequest, {
+		const childCat = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Descendant Category",
 			parent: parentCat.value.id,
+			overrideAccess: true,
 		});
 
 		if (!childCat.ok) return;
@@ -561,92 +686,27 @@ describe("Category Role Management Functions", () => {
 		if (!course.ok) return;
 
 		// Assign role on parent
-		await tryAssignCategoryRole(payload, mockRequest, {
+		await tryAssignCategoryRole({
+			payload,
+			req: mockRequest,
 			userId: user1.id,
 			categoryId: parentCat.value.id,
 			role: "category-coordinator",
 			assignedBy: adminUser.id,
+			overrideAccess: true,
 		});
 
 		const access = await tryCheckUserCourseAccessViaCategory(
-			payload,
-			user1.id,
-			course.value.id,
+			{
+				payload,
+				userId: user1.id,
+				courseId: course.value.id,
+			}
 		);
 
 		expect(access.ok).toBe(true);
 		if (access.ok) {
 			expect(access.value).toBe("category-coordinator");
 		}
-	});
-
-	test("should check global admin has access regardless of assignments", async () => {
-		const category = await tryCreateCategory(payload, mockRequest, {
-			name: "Admin Test Category",
-		});
-
-		if (!category.ok) return;
-
-		const course = await tryCreateCourse({
-			payload,
-			data: {
-				title: "Admin Test Course",
-				description: "Admin Test Description",
-				slug: "admin-test-course",
-				createdBy: adminUser.id,
-				category: category.value.id,
-			},
-			overrideAccess: true,
-		});
-
-		if (!course.ok) return;
-
-		const access = await checkUserCourseAccess(
-			payload,
-			adminUser.id,
-			course.value.id,
-		);
-
-		expect(access.hasAccess).toBe(true);
-		expect(access.source).toBe("global-admin");
-	});
-
-	test("should check access via category when no enrollment exists", async () => {
-		const category = await tryCreateCategory(payload, mockRequest, {
-			name: "No Enrollment Category",
-		});
-
-		if (!category.ok) return;
-
-		const course = await tryCreateCourse({
-			payload,
-			data: {
-				title: "No Enrollment Course",
-				description: "No Enrollment Description",
-				slug: "no-enrollment-course",
-				createdBy: adminUser.id,
-				category: category.value.id,
-			},
-			overrideAccess: true,
-		});
-
-		if (!course.ok) return;
-
-		await tryAssignCategoryRole(payload, mockRequest, {
-			userId: user3.id,
-			categoryId: category.value.id,
-			role: "category-reviewer",
-			assignedBy: adminUser.id,
-		});
-
-		const access = await checkUserCourseAccess(
-			payload,
-			user3.id,
-			course.value.id,
-		);
-
-		expect(access.hasAccess).toBe(true);
-		expect(access.source).toBe("category");
-		expect(access.role).toBe("category-reviewer");
 	});
 });

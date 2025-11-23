@@ -1,25 +1,16 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface GetRegistrationSettingsArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+export type GetRegistrationSettingsArgs = BaseInternalFunctionArgs & {};
 
-export interface UpdateRegistrationSettingsArgs {
-	payload: Payload;
-	user: User;
+export type UpdateRegistrationSettingsArgs = BaseInternalFunctionArgs & {
 	data: {
 		disableRegistration?: boolean;
 		showRegistrationButton?: boolean;
 	};
-	overrideAccess?: boolean;
-}
+};
 
 export type RegistrationSettings = {
 	disableRegistration: boolean;

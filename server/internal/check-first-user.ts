@@ -1,27 +1,12 @@
-import type { Payload, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CheckFirstUserArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Request;
-	overrideAccess?: boolean;
-}
+export type CheckFirstUserArgs = BaseInternalFunctionArgs & {};
 
-export interface GetUserCountArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Request;
-	overrideAccess?: boolean;
-}
+export type GetUserCountArgs = BaseInternalFunctionArgs & {};
 
-export interface ValidateFirstUserStateArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Request;
-	overrideAccess?: boolean;
-}
+export type ValidateFirstUserStateArgs = BaseInternalFunctionArgs & {};
 
 /**
  * Checks if the database has any users

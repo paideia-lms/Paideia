@@ -1,4 +1,3 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -11,9 +10,9 @@ import {
 } from "~/utils/error";
 import type { Enrollment } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateEnrollmentArgs {
-	payload: Payload;
+export type CreateEnrollmentArgs = BaseInternalFunctionArgs & {
 	userId: number; // User ID
 	course: number; // Course ID
 	role: "student" | "teacher" | "ta" | "manager";
@@ -21,42 +20,26 @@ export interface CreateEnrollmentArgs {
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateEnrollmentArgs {
-	payload: Payload;
+export type UpdateEnrollmentArgs = BaseInternalFunctionArgs & {
 	enrollmentId: number;
 	role?: "student" | "teacher" | "ta" | "manager";
 	status?: "active" | "inactive" | "completed" | "dropped";
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteEnrollmentArgs {
-	payload: Payload;
+export type DeleteEnrollmentArgs = BaseInternalFunctionArgs & {
 	enrollmentId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindEnrollmentByIdArgs {
-	payload: Payload;
+export type FindEnrollmentByIdArgs = BaseInternalFunctionArgs & {
 	enrollmentId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface SearchEnrollmentsArgs {
-	payload: Payload;
+export type SearchEnrollmentsArgs = BaseInternalFunctionArgs & {
 	userId?: number;
 	course?: number;
 	role?: "student" | "teacher" | "ta" | "manager";
@@ -64,82 +47,47 @@ export interface SearchEnrollmentsArgs {
 	groupId?: number; // Filter by group ID
 	limit?: number;
 	page?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindEnrollmentsByUserArgs {
-	payload: Payload;
+export type FindEnrollmentsByUserArgs = BaseInternalFunctionArgs & {
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindEnrollmentsByCourseArgs {
-	payload: Payload;
+export type FindEnrollmentsByCourseArgs = BaseInternalFunctionArgs & {
 	courseId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindUserEnrollmentInCourseArgs {
-	payload: Payload;
+export type FindUserEnrollmentInCourseArgs = BaseInternalFunctionArgs & {
 	userId: number;
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindActiveEnrollmentsArgs {
-	payload: Payload;
+export type FindActiveEnrollmentsArgs = BaseInternalFunctionArgs & {
 	limit?: number;
 	page?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateEnrollmentStatusArgs {
-	payload: Payload;
+export type UpdateEnrollmentStatusArgs = BaseInternalFunctionArgs & {
 	enrollmentId: number;
 	status: "active" | "inactive" | "completed" | "dropped";
 	completedAt?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface AddGroupsToEnrollmentArgs {
-	payload: Payload;
+export type AddGroupsToEnrollmentArgs = BaseInternalFunctionArgs & {
 	enrollmentId: number;
 	groupIds: number[];
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface RemoveGroupsFromEnrollmentArgs {
-	payload: Payload;
+export type RemoveGroupsFromEnrollmentArgs = BaseInternalFunctionArgs & {
 	enrollmentId: number;
 	groupIds: number[];
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindEnrollmentsByGroupArgs {
-	payload: Payload;
+export type FindEnrollmentsByGroupArgs = BaseInternalFunctionArgs & {
 	groupId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Creates a new enrollment using Payload local API

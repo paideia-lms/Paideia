@@ -263,7 +263,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+							subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -274,12 +274,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					const author =
 						typeof student === "object" && student !== null
 							? {
-									id: student.id,
-									firstName: student.firstName ?? null,
-									lastName: student.lastName ?? null,
-									email: student.email ?? null,
-									avatar: student.avatar ?? null,
-								}
+								id: student.id,
+								firstName: student.firstName ?? null,
+								lastName: student.lastName ?? null,
+								email: student.email ?? null,
+								avatar: student.avatar ?? null,
+							}
 							: null;
 
 					return [
@@ -316,7 +316,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+							subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -427,8 +427,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Extract submissions from discriminated union based on module type
 	const allSubmissions =
 		courseModuleContext.moduleSpecificData.type === "assignment" ||
-		courseModuleContext.moduleSpecificData.type === "quiz" ||
-		courseModuleContext.moduleSpecificData.type === "discussion"
+			courseModuleContext.moduleSpecificData.type === "quiz" ||
+			courseModuleContext.moduleSpecificData.type === "discussion"
 			? courseModuleContext.moduleSpecificData.submissions
 			: [];
 
@@ -443,13 +443,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+					submissionWithGrade.grade !== undefined
 					? {
-							baseGrade: submissionWithGrade.grade,
-							maxGrade,
-							gradedAt: submissionWithGrade.gradedAt || null,
-							feedback: submissionWithGrade.feedback || null,
-						}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						gradedAt: submissionWithGrade.gradedAt || null,
+						feedback: submissionWithGrade.feedback || null,
+					}
 					: null,
 		};
 	});
@@ -578,7 +578,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		if (moduleType === "assignment") {
 			const gradeResult = await tryGradeAssignmentSubmission({
 				payload,
-				request,
+				req: request,
 				id,
 				grade: scoreValue,
 				feedback:
@@ -634,7 +634,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			const gradebookItemId = gradebookItemResult.value.id;
 
 			// Grade the quiz submission
-			const gradeResult = await tryGradeQuizSubmission(payload, request, {
+			const gradeResult = await tryGradeQuizSubmission({
+				payload,
+				req: request,
 				id,
 				enrollmentId,
 				gradebookItemId,
@@ -819,13 +821,13 @@ type SubmissionType = {
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}> | null;
 	grade?: {

@@ -47,7 +47,7 @@ import {
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/course.$id.settings";
 
-export const loader = async ({ context }: Route.LoaderArgs) => {
+export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -83,7 +83,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	// Fetch categories via internal functions and flatten
 	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
-	const categoriesResult = await tryGetCategoryTree(payload);
+	const categoriesResult = await tryGetCategoryTree({
+		payload,
+		req: request,
+	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
 	}
@@ -106,8 +109,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {

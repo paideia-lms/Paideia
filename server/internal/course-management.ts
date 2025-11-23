@@ -1,5 +1,5 @@
 import type { Simplify } from "@payloadcms/db-postgres/drizzle";
-import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
+import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import {
 	CourseCategories,
@@ -14,20 +14,24 @@ import { z } from "zod";
 import {
 	DevelopmentError,
 	InvalidArgumentError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
 import type { Course, Group } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
 // e.g. Replace<Enrollment, "groups", number[]>
 // Omit and add a new property
 type Replace<O, T extends keyof O, W> = Simplify<Omit<O, T> & { [K in T]: W }>;
 
-export interface CreateCourseArgs {
-	payload: Payload;
+export type CreateCourseArgs = BaseInternalFunctionArgs & {
 	data: {
 		title: string;
 		description: string;
@@ -38,13 +42,9 @@ export interface CreateCourseArgs {
 		tags?: { tag?: string }[];
 		category?: number;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateCourseArgs {
-	payload: Payload;
+export type UpdateCourseArgs = BaseInternalFunctionArgs & {
 	courseId: number;
 	data: {
 		title?: string;
@@ -55,21 +55,13 @@ export interface UpdateCourseArgs {
 		tags?: { tag?: string }[];
 		category?: number | null;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindCourseByIdArgs {
-	payload: Payload;
+export type FindCourseByIdArgs = BaseInternalFunctionArgs & {
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface SearchCoursesArgs {
-	payload: Payload;
+export type SearchCoursesArgs = BaseInternalFunctionArgs & {
 	filters?: {
 		title?: string;
 		createdBy?: number;
@@ -77,36 +69,21 @@ export interface SearchCoursesArgs {
 		limit?: number;
 		page?: number;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteCourseArgs {
-	payload: Payload;
+export type DeleteCourseArgs = BaseInternalFunctionArgs & {
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindCoursesByInstructorArgs {
-	payload: Payload;
+export type FindCoursesByInstructorArgs = BaseInternalFunctionArgs & {
 	instructorId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindPublishedCoursesArgs {
-	payload: Payload;
+export type FindPublishedCoursesArgs = BaseInternalFunctionArgs & {
 	limit?: number;
 	page?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Creates a new course using Payload local API
@@ -132,19 +109,7 @@ export const tryCreateCourse = Result.wrap(
 			overrideAccess = false,
 		} = args;
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Parse media from description HTML content
@@ -171,7 +136,7 @@ export const tryCreateCourse = Result.wrap(
 						depth: 0,
 						pagination: false,
 						overrideAccess: true,
-						req: reqWithTransaction,
+						req: transactionInfo.reqWithTransaction,
 					});
 
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);
@@ -199,7 +164,7 @@ export const tryCreateCourse = Result.wrap(
 				},
 				depth: 1,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -212,7 +177,7 @@ export const tryCreateCourse = Result.wrap(
 					},
 					depth: 0,
 					user,
-					req: reqWithTransaction,
+					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then((g) => {
@@ -245,7 +210,7 @@ export const tryCreateCourse = Result.wrap(
 				},
 				depth: 0,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -278,10 +243,7 @@ export const tryCreateCourse = Result.wrap(
 					.nullish(),
 			);
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			const result = {
 				...newCourse,
@@ -293,10 +255,7 @@ export const tryCreateCourse = Result.wrap(
 			};
 			return result;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -613,11 +572,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-								...category,
-								parent,
-								courses: categoryCourses,
-								subcategories: categorySubcategories,
-							}
+							...category,
+							parent,
+							courses: categoryCourses,
+							subcategories: categorySubcategories,
+						}
 						: null,
 					sections,
 				};
@@ -700,19 +659,7 @@ export const tryDeleteCourse = Result.wrap(
 	async (args: DeleteCourseArgs) => {
 		const { payload, courseId, user, req, overrideAccess = false } = args;
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// first we need to delete the gradebook
@@ -722,7 +669,7 @@ export const tryDeleteCourse = Result.wrap(
 					course: { equals: courseId },
 				},
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -730,21 +677,15 @@ export const tryDeleteCourse = Result.wrap(
 				collection: Courses.slug,
 				id: courseId,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return deletedCourse;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -842,16 +783,12 @@ export const tryFindPublishedCourses = Result.wrap(
 		}),
 );
 
-export interface FindAllCoursesArgs {
-	payload: Payload;
+export type FindAllCoursesArgs = BaseInternalFunctionArgs & {
 	limit?: number;
 	page?: number;
 	sort?: string;
 	query?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Finds all courses with pagination and search
@@ -1050,8 +987,7 @@ export const tryFindAllCourses = Result.wrap(
 // Group Management Functions
 // ============================================================================
 
-export interface CreateGroupArgs {
-	payload: Payload;
+export type CreateGroupArgs = BaseInternalFunctionArgs & {
 	name: string;
 	course: number; // Course ID
 	parent?: number; // Optional parent group ID
@@ -1060,13 +996,9 @@ export interface CreateGroupArgs {
 	maxMembers?: number;
 	isActive?: boolean;
 	metadata?: Record<string, unknown>;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateGroupArgs {
-	payload: Payload;
+export type UpdateGroupArgs = BaseInternalFunctionArgs & {
 	groupId: number;
 	name?: string;
 	parent?: number;
@@ -1075,62 +1007,35 @@ export interface UpdateGroupArgs {
 	maxMembers?: number;
 	isActive?: boolean;
 	metadata?: Record<string, unknown>;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteGroupArgs {
-	payload: Payload;
+export type DeleteGroupArgs = BaseInternalFunctionArgs & {
 	groupId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindGroupByIdArgs {
-	payload: Payload;
+export type FindGroupByIdArgs = BaseInternalFunctionArgs & {
 	groupId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindGroupsByCourseArgs {
-	payload: Payload;
+export type FindGroupsByCourseArgs = BaseInternalFunctionArgs & {
 	courseId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindGroupByPathArgs {
-	payload: Payload;
+export type FindGroupByPathArgs = BaseInternalFunctionArgs & {
 	courseId: number;
 	path: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindChildGroupsArgs {
-	payload: Payload;
+export type FindChildGroupsArgs = BaseInternalFunctionArgs & {
 	parentGroupId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindRootGroupsArgs {
-	payload: Payload;
+export type FindRootGroupsArgs = BaseInternalFunctionArgs & {
 	courseId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Creates a new group in a course
@@ -1160,19 +1065,7 @@ export const tryCreateGroup = Result.wrap(
 			throw new InvalidArgumentError("Course ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Verify course exists
@@ -1180,7 +1073,7 @@ export const tryCreateGroup = Result.wrap(
 				collection: Courses.slug,
 				id: course,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1190,7 +1083,7 @@ export const tryCreateGroup = Result.wrap(
 					collection: Groups.slug,
 					id: parent,
 					user,
-					req: reqWithTransaction,
+					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				});
 
@@ -1221,21 +1114,15 @@ export const tryCreateGroup = Result.wrap(
 					path: "", // Will be auto-generated by beforeValidate hook
 				},
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return newGroup as Group;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -1268,19 +1155,7 @@ export const tryUpdateGroup = Result.wrap(
 			throw new InvalidArgumentError("Group ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Get existing group
@@ -1288,7 +1163,7 @@ export const tryUpdateGroup = Result.wrap(
 				collection: Groups.slug,
 				id: groupId,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1298,7 +1173,7 @@ export const tryUpdateGroup = Result.wrap(
 					collection: Groups.slug,
 					id: parent,
 					user,
-					req: reqWithTransaction,
+					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				});
 
@@ -1338,21 +1213,15 @@ export const tryUpdateGroup = Result.wrap(
 				id: groupId,
 				data: updateData,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return updatedGroup as Group;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -1372,19 +1241,7 @@ export const tryDeleteGroup = Result.wrap(
 			throw new InvalidArgumentError("Group ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Check if group has children
@@ -1397,7 +1254,7 @@ export const tryDeleteGroup = Result.wrap(
 				},
 				limit: 1,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1411,21 +1268,15 @@ export const tryDeleteGroup = Result.wrap(
 				collection: Groups.slug,
 				id: groupId,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return deletedGroup;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -1641,13 +1492,9 @@ export const tryFindRootGroups = Result.wrap(
 // User Course Access Functions
 // ============================================================================
 
-export interface GetUserAccessibleCoursesArgs {
-	payload: Payload;
+export type GetUserAccessibleCoursesArgs = BaseInternalFunctionArgs & {
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface UserAccessibleCourse {
 	id: number;

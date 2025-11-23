@@ -1,31 +1,18 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
+
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface GetAnalyticsSettingsArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
+export type GetAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
 }
 
-export interface UpdateAnalyticsSettingsArgs {
-	payload: Payload;
-	user: User;
+export type UpdateAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
 	data: {
 		additionalJsScripts?: Array<{
 			src: string;
 			defer?: boolean;
-			async?: boolean;
-			dataWebsiteId?: string;
-			dataDomain?: string;
-			dataSite?: string;
-			dataMeasurementId?: string;
 		}>;
 	};
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 /**

@@ -58,8 +58,11 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should create a root category", async () => {
-		const result = await tryCreateCategory(payload, mockRequest, {
+		const result = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Mathematics",
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -70,16 +73,22 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should create a nested category with valid parent", async () => {
-		const parentResult = await tryCreateCategory(payload, mockRequest, {
+		const parentResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Science",
+			overrideAccess: true,
 		});
 
 		expect(parentResult.ok).toBe(true);
 		if (!parentResult.ok) return;
 
-		const childResult = await tryCreateCategory(payload, mockRequest, {
+		const childResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Physics",
 			parent: parentResult.value.id,
+			overrideAccess: true,
 		});
 
 		expect(childResult.ok).toBe(true);
@@ -94,22 +103,24 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should prevent circular reference when creating category", async () => {
-		const result = await tryCreateCategory(payload, mockRequest, {
+		const result = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Self Reference Test",
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
 
 		// Try to update the category to be its own parent
-		const updateResult = await tryUpdateCategory(
+		const updateResult = await tryUpdateCategory({
 			payload,
-			mockRequest,
-			result.value.id,
-			{
-				parent: result.value.id,
-			},
-		);
+			req: mockRequest,
+			categoryId: result.value.id,
+			parent: result.value.id,
+			overrideAccess: true,
+		});
 
 		expect(updateResult.ok).toBe(false);
 		if (!updateResult.ok) {
@@ -120,35 +131,43 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should prevent circular reference when updating parent", async () => {
-		const grandparentResult = await tryCreateCategory(payload, mockRequest, {
+		const grandparentResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Grandparent",
+			overrideAccess: true,
 		});
 		expect(grandparentResult.ok).toBe(true);
 		if (!grandparentResult.ok) return;
 
-		const parentResult = await tryCreateCategory(payload, mockRequest, {
+		const parentResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Parent",
 			parent: grandparentResult.value.id,
+			overrideAccess: true,
 		});
 		expect(parentResult.ok).toBe(true);
 		if (!parentResult.ok) return;
 
-		const childResult = await tryCreateCategory(payload, mockRequest, {
+		const childResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Child",
 			parent: parentResult.value.id,
+			overrideAccess: true,
 		});
 		expect(childResult.ok).toBe(true);
 		if (!childResult.ok) return;
 
 		// Try to make grandparent a child of child (circular)
-		const updateResult = await tryUpdateCategory(
+		const updateResult = await tryUpdateCategory({
 			payload,
-			mockRequest,
-			grandparentResult.value.id,
-			{
-				parent: childResult.value.id,
-			},
-		);
+			req: mockRequest,
+			categoryId: grandparentResult.value.id,
+			parent: childResult.value.id,
+			overrideAccess: true,
+		});
 
 		expect(updateResult.ok).toBe(false);
 		if (!updateResult.ok) {
@@ -167,23 +186,32 @@ describe("Course Category Management Functions", () => {
 			},
 		});
 
-		const level1Result = await tryCreateCategory(payload, mockRequest, {
+		const level1Result = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Level 1",
+			overrideAccess: true,
 		});
 		expect(level1Result.ok).toBe(true);
 		if (!level1Result.ok) return;
 
-		const level2Result = await tryCreateCategory(payload, mockRequest, {
+		const level2Result = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Level 2",
 			parent: level1Result.value.id,
+			overrideAccess: true,
 		});
 		expect(level2Result.ok).toBe(true);
 		if (!level2Result.ok) return;
 
 		// This should fail because it would be level 3
-		const level3Result = await tryCreateCategory(payload, mockRequest, {
+		const level3Result = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Level 3",
 			parent: level2Result.value.id,
+			overrideAccess: true,
 		});
 
 		expect(level3Result.ok).toBe(false);
@@ -203,21 +231,23 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should update category name", async () => {
-		const createResult = await tryCreateCategory(payload, mockRequest, {
+		const createResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Old Name",
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
-		const updateResult = await tryUpdateCategory(
+		const updateResult = await tryUpdateCategory({
 			payload,
-			mockRequest,
-			createResult.value.id,
-			{
-				name: "New Name",
-			},
-		);
+			req: mockRequest,
+			categoryId: createResult.value.id,
+			name: "New Name",
+			overrideAccess: true,
+		});
 
 		expect(updateResult.ok).toBe(true);
 		if (updateResult.ok) {
@@ -226,28 +256,36 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should change category parent", async () => {
-		const parent1Result = await tryCreateCategory(payload, mockRequest, {
+		const parent1Result = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Parent 1",
+			overrideAccess: true,
 		});
-		const parent2Result = await tryCreateCategory(payload, mockRequest, {
+		const parent2Result = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Parent 2",
+			overrideAccess: true,
 		});
-		const childResult = await tryCreateCategory(payload, mockRequest, {
+		const childResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Movable Child",
 			parent: parent1Result.ok ? parent1Result.value.id : undefined,
+			overrideAccess: true,
 		});
 
 		expect(parent1Result.ok && parent2Result.ok && childResult.ok).toBe(true);
 		if (!parent1Result.ok || !parent2Result.ok || !childResult.ok) return;
 
-		const updateResult = await tryUpdateCategory(
+		const updateResult = await tryUpdateCategory({
 			payload,
-			mockRequest,
-			childResult.value.id,
-			{
-				parent: parent2Result.value.id,
-			},
-		);
+			req: mockRequest,
+			categoryId: childResult.value.id,
+			parent: parent2Result.value.id,
+			overrideAccess: true,
+		});
 
 		expect(updateResult.ok).toBe(true);
 		if (updateResult.ok) {
@@ -260,40 +298,51 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should delete empty category", async () => {
-		const createResult = await tryCreateCategory(payload, mockRequest, {
+		const createResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "To Delete",
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
-		const deleteResult = await tryDeleteCategory(
+		const deleteResult = await tryDeleteCategory({
 			payload,
-			mockRequest,
-			createResult.value.id,
-		);
+			req: mockRequest,
+			categoryId: createResult.value.id,
+			overrideAccess: true,
+		});
 
 		expect(deleteResult.ok).toBe(true);
 	});
 
 	test("should fail to delete category with subcategories", async () => {
-		const parentResult = await tryCreateCategory(payload, mockRequest, {
+		const parentResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Parent with Children",
+			overrideAccess: true,
 		});
 		expect(parentResult.ok).toBe(true);
 		if (!parentResult.ok) return;
 
-		const childResult = await tryCreateCategory(payload, mockRequest, {
+		const childResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Child Category",
 			parent: parentResult.value.id,
+			overrideAccess: true,
 		});
 		expect(childResult.ok).toBe(true);
 
-		const deleteResult = await tryDeleteCategory(
+		const deleteResult = await tryDeleteCategory({
 			payload,
-			mockRequest,
-			parentResult.value.id,
-		);
+			req: mockRequest,
+			categoryId: parentResult.value.id,
+			overrideAccess: true,
+		});
 
 		expect(deleteResult.ok).toBe(false);
 		if (!deleteResult.ok) {
@@ -302,8 +351,11 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should fail to delete category with courses", async () => {
-		const categoryResult = await tryCreateCategory(payload, mockRequest, {
+		const categoryResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Category with Courses",
+			overrideAccess: true,
 		});
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) return;
@@ -321,11 +373,12 @@ describe("Course Category Management Functions", () => {
 		});
 		expect(courseResult.ok).toBe(true);
 
-		const deleteResult = await tryDeleteCategory(
+		const deleteResult = await tryDeleteCategory({
 			payload,
-			mockRequest,
-			categoryResult.value.id,
-		);
+			req: mockRequest,
+			categoryId: categoryResult.value.id,
+			overrideAccess: true,
+		});
 
 		expect(deleteResult.ok).toBe(false);
 		if (!deleteResult.ok) {
@@ -336,17 +389,21 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should find category by ID", async () => {
-		const createResult = await tryCreateCategory(payload, mockRequest, {
+		const createResult = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Find Me",
+			overrideAccess: true,
 		});
 
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
-		const findResult = await tryFindCategoryById(
+		const findResult = await tryFindCategoryById({
 			payload,
-			createResult.value.id,
-		);
+			categoryId: createResult.value.id,
+			overrideAccess: true,
+		});
 
 		expect(findResult.ok).toBe(true);
 		if (findResult.ok) {
@@ -356,27 +413,42 @@ describe("Course Category Management Functions", () => {
 
 	test("should get category tree structure", async () => {
 		// Create a tree structure
-		const root1 = await tryCreateCategory(payload, mockRequest, {
+		const root1 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Root 1",
+			overrideAccess: true,
 		});
-		const root2 = await tryCreateCategory(payload, mockRequest, {
+		const root2 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Root 2",
+			overrideAccess: true,
 		});
 
 		if (!root1.ok || !root2.ok) return;
 
-		const child1 = await tryCreateCategory(payload, mockRequest, {
+		const child1 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Child 1",
 			parent: root1.value.id,
+			overrideAccess: true,
 		});
-		const child2 = await tryCreateCategory(payload, mockRequest, {
+		const child2 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Child 2",
 			parent: root1.value.id,
+			overrideAccess: true,
 		});
 
 		expect(child1.ok && child2.ok).toBe(true);
 
-		const treeResult = await tryGetCategoryTree(payload);
+		const treeResult = await tryGetCategoryTree({
+			payload,
+			overrideAccess: true,
+		});
 
 		expect(treeResult.ok).toBe(true);
 		if (treeResult.ok) {
@@ -392,27 +464,37 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should get category ancestors", async () => {
-		const level1 = await tryCreateCategory(payload, mockRequest, {
+		const level1 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Ancestor Level 1",
+			overrideAccess: true,
 		});
 		if (!level1.ok) return;
 
-		const level2 = await tryCreateCategory(payload, mockRequest, {
+		const level2 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Ancestor Level 2",
 			parent: level1.value.id,
+			overrideAccess: true,
 		});
 		if (!level2.ok) return;
 
-		const level3 = await tryCreateCategory(payload, mockRequest, {
+		const level3 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Ancestor Level 3",
 			parent: level2.value.id,
+			overrideAccess: true,
 		});
 		if (!level3.ok) return;
 
-		const ancestorsResult = await tryGetCategoryAncestors(
+		const ancestorsResult = await tryGetCategoryAncestors({
 			payload,
-			level3.value.id,
-		);
+			categoryId: level3.value.id,
+			overrideAccess: true,
+		});
 
 		expect(ancestorsResult.ok).toBe(true);
 		if (ancestorsResult.ok) {
@@ -424,39 +506,57 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should calculate category depth correctly", async () => {
-		const root = await tryCreateCategory(payload, mockRequest, {
+		const root = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Depth Root",
+			overrideAccess: true,
 		});
 		if (!root.ok) return;
 
-		const child = await tryCreateCategory(payload, mockRequest, {
+		const child = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Depth Child",
 			parent: root.value.id,
+			overrideAccess: true,
 		});
 		if (!child.ok) return;
 
-		const grandchild = await tryCreateCategory(payload, mockRequest, {
+		const grandchild = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Depth Grandchild",
 			parent: child.value.id,
+			overrideAccess: true,
 		});
 		if (!grandchild.ok) return;
 
-		const rootDepth = await tryGetCategoryDepth(payload, root.value.id);
+		const rootDepth = await tryGetCategoryDepth({
+			payload,
+			categoryId: root.value.id,
+			overrideAccess: true,
+		});
 		expect(rootDepth.ok).toBe(true);
 		if (rootDepth.ok) {
 			expect(rootDepth.value).toBe(0);
 		}
 
-		const childDepth = await tryGetCategoryDepth(payload, child.value.id);
+		const childDepth = await tryGetCategoryDepth({
+			payload,
+			categoryId: child.value.id,
+			overrideAccess: true,
+		});
 		expect(childDepth.ok).toBe(true);
 		if (childDepth.ok) {
 			expect(childDepth.value).toBe(1);
 		}
 
-		const grandchildDepth = await tryGetCategoryDepth(
+		const grandchildDepth = await tryGetCategoryDepth({
 			payload,
-			grandchild.value.id,
-		);
+			categoryId: grandchild.value.id,
+			overrideAccess: true,
+		});
 		expect(grandchildDepth.ok).toBe(true);
 		if (grandchildDepth.ok) {
 			expect(grandchildDepth.value).toBe(2);
@@ -464,18 +564,27 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should count total nested courses correctly", async () => {
-		const parent = await tryCreateCategory(payload, mockRequest, {
+		const parent = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Count Parent",
+			overrideAccess: true,
 		});
 		if (!parent.ok) return;
 
-		const child1 = await tryCreateCategory(payload, mockRequest, {
+		const child1 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Count Child 1",
 			parent: parent.value.id,
+			overrideAccess: true,
 		});
-		const child2 = await tryCreateCategory(payload, mockRequest, {
+		const child2 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Count Child 2",
 			parent: parent.value.id,
+			overrideAccess: true,
 		});
 
 		if (!child1.ok || !child2.ok) return;
@@ -517,10 +626,11 @@ describe("Course Category Management Functions", () => {
 			overrideAccess: true,
 		});
 
-		const countResult = await tryGetTotalNestedCoursesCount(
+		const countResult = await tryGetTotalNestedCoursesCount({
 			payload,
-			parent.value.id,
-		);
+			categoryId: parent.value.id,
+			overrideAccess: true,
+		});
 
 		expect(countResult.ok).toBe(true);
 		if (countResult.ok) {
@@ -529,11 +639,17 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should find root categories", async () => {
-		await tryCreateCategory(payload, mockRequest, {
+		await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Another Root",
+			overrideAccess: true,
 		});
 
-		const rootsResult = await tryFindRootCategories(payload);
+		const rootsResult = await tryFindRootCategories({
+			payload,
+			overrideAccess: true,
+		});
 
 		expect(rootsResult.ok).toBe(true);
 		if (rootsResult.ok) {
@@ -545,21 +661,34 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should find subcategories", async () => {
-		const parent = await tryCreateCategory(payload, mockRequest, {
+		const parent = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Parent for Subs",
+			overrideAccess: true,
 		});
 		if (!parent.ok) return;
 
-		await tryCreateCategory(payload, mockRequest, {
+		await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Sub 1",
 			parent: parent.value.id,
+			overrideAccess: true,
 		});
-		await tryCreateCategory(payload, mockRequest, {
+		await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Sub 2",
 			parent: parent.value.id,
+			overrideAccess: true,
 		});
 
-		const subsResult = await tryFindSubcategories(payload, parent.value.id);
+		const subsResult = await tryFindSubcategories({
+			payload,
+			parentId: parent.value.id,
+			overrideAccess: true,
+		});
 
 		expect(subsResult.ok).toBe(true);
 		if (subsResult.ok) {
@@ -568,8 +697,11 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should assign course to category", async () => {
-		const category = await tryCreateCategory(payload, mockRequest, {
+		const category = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Course Category",
+			overrideAccess: true,
 		});
 		if (!category.ok) return;
 
@@ -596,11 +728,17 @@ describe("Course Category Management Functions", () => {
 	});
 
 	test("should move course between categories", async () => {
-		const cat1 = await tryCreateCategory(payload, mockRequest, {
+		const cat1 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Category 1",
+			overrideAccess: true,
 		});
-		const cat2 = await tryCreateCategory(payload, mockRequest, {
+		const cat2 = await tryCreateCategory({
+			payload,
+			req: mockRequest,
 			name: "Category 2",
+			overrideAccess: true,
 		});
 
 		if (!cat1.ok || !cat2.ok) return;

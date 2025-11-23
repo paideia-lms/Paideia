@@ -988,7 +988,8 @@ describe("User Grade Management", () => {
 
 	it("should show grade in JSON representation after grading assignment submission", async () => {
 		// Create an assignment activity module
-		const activityModuleResult = await tryCreateActivityModule(payload, {
+		const activityModuleResult = await tryCreateActivityModule({
+			payload,
 			title: "Programming Exercise: Calculator",
 			description: "Build a calculator application",
 			type: "assignment",
@@ -1030,22 +1031,19 @@ describe("User Grade Management", () => {
 		}
 		const section = sectionResult.value;
 
-		// Create course-activity-module-link (this automatically creates a gradebook item)
-		const courseActivityModuleLinkArgs = {
-			course: testCourse.id,
-			activityModule: activityModule.id,
-			section: section.id,
-			contentOrder: 0,
-			user: admin as typeof admin & { collection: "users" },
-			req: mockRequest,
-			overrideAccess: false,
-		};
 
 		const courseActivityModuleLinkResult =
 			await tryCreateCourseActivityModuleLink(
-				payload,
-				mockRequest,
-				courseActivityModuleLinkArgs,
+				{
+					payload,
+					course: testCourse.id,
+					activityModule: activityModule.id,
+					section: section.id,
+					contentOrder: 0,
+					user: admin as typeof admin & { collection: "users" },
+					req: mockRequest,
+					overrideAccess: false,
+				},
 			);
 
 		expect(courseActivityModuleLinkResult.ok).toBe(true);
@@ -1103,7 +1101,7 @@ describe("User Grade Management", () => {
 		// Grade the assignment submission (only updates submission, doesn't create user-grade)
 		const gradeResult = await tryGradeAssignmentSubmission({
 			payload,
-			request: mockRequest,
+			req: mockRequest,
 			id: submission.id,
 			grade: 85,
 			feedback: "Great work! Your calculator implementation is excellent.",
@@ -1179,8 +1177,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-						userGrade.submission !== null &&
-						"value" in userGrade.submission
+					userGrade.submission !== null &&
+					"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id
@@ -1233,7 +1231,8 @@ describe("User Grade Management", () => {
 
 	it("should release discussion grade from submissions to user-grade", async () => {
 		// Create a discussion activity module
-		const activityModuleResult = await tryCreateActivityModule(payload, {
+		const activityModuleResult = await tryCreateActivityModule({
+			payload,
 			title: "Class Discussion: Design Patterns",
 			description: "Discuss various design patterns",
 			type: "discussion",
@@ -1286,19 +1285,19 @@ describe("User Grade Management", () => {
 		}
 		const section = sectionResult.value;
 
-		// Create course-activity-module-link (this automatically creates a gradebook item)
-		const courseActivityModuleLinkArgs = {
-			course: testCourse.id,
-			activityModule: activityModule.id,
-			section: section.id,
-			contentOrder: 0,
-		};
+
 
 		const courseActivityModuleLinkResult =
 			await tryCreateCourseActivityModuleLink(
-				payload,
-				mockRequest,
-				courseActivityModuleLinkArgs,
+				{
+					payload,
+					req: mockRequest,
+					overrideAccess: false,
+					course: testCourse.id,
+					activityModule: activityModule.id,
+					section: section.id,
+					contentOrder: 0,
+				},
 			);
 
 		expect(courseActivityModuleLinkResult.ok).toBe(true);

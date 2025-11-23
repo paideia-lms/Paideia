@@ -21,12 +21,12 @@ export type UserModuleUser = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-		| number
-		| {
-				id: number;
-				filename?: string;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string;
+	}
+	| null;
 };
 
 export type UserModulePageData = {
@@ -113,12 +113,12 @@ export type Instructor = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-		| number
-		| {
-				id: number;
-				filename?: string;
-		  }
-		| null;
+	| number
+	| {
+		id: number;
+		filename?: string;
+	}
+	| null;
 	enrollments: {
 		courseId: number;
 		role: "teacher" | "ta";
@@ -236,73 +236,73 @@ export const tryGetUserModuleContext = Result.wrap(
 			page:
 				module.type === "page"
 					? {
-							id: module.id,
-							content: module.content || null,
-						}
+						id: module.id,
+						content: module.content || null,
+					}
 					: null,
 			whiteboard:
 				module.type === "whiteboard"
 					? {
-							id: module.id,
-							content: module.content || null,
-						}
+						id: module.id,
+						content: module.content || null,
+					}
 					: null,
 			file:
 				module.type === "file"
 					? {
-							id: module.id,
-							media: enrichedMedia,
-						}
+						id: module.id,
+						media: enrichedMedia,
+					}
 					: null,
 			assignment:
 				module.type === "assignment"
 					? {
-							id: module.id,
-							instructions: module.instructions || null,
-							dueDate: module.dueDate || null,
-							maxAttempts: module.maxAttempts || null,
-							allowLateSubmissions: module.allowLateSubmissions || null,
-							requireTextSubmission: module.requireTextSubmission || null,
-							requireFileSubmission: module.requireFileSubmission || null,
-							allowedFileTypes: module.allowedFileTypes || null,
-							maxFileSize: module.maxFileSize || null,
-							maxFiles: module.maxFiles || null,
-						}
+						id: module.id,
+						instructions: module.instructions || null,
+						dueDate: module.dueDate || null,
+						maxAttempts: module.maxAttempts || null,
+						allowLateSubmissions: module.allowLateSubmissions || null,
+						requireTextSubmission: module.requireTextSubmission || null,
+						requireFileSubmission: module.requireFileSubmission || null,
+						allowedFileTypes: module.allowedFileTypes || null,
+						maxFileSize: module.maxFileSize || null,
+						maxFiles: module.maxFiles || null,
+					}
 					: null,
 			quiz:
 				module.type === "quiz"
 					? (() => {
-							// Get rawQuizConfig to check for globalTimer
-							const rawConfig =
-								module.rawQuizConfig as unknown as QuizConfig | null;
+						// Get rawQuizConfig to check for globalTimer
+						const rawConfig =
+							module.rawQuizConfig as unknown as QuizConfig | null;
 
-							// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
-							const timeLimit = rawConfig?.globalTimer
-								? rawConfig.globalTimer / 60
-								: null;
+						// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
+						const timeLimit = rawConfig?.globalTimer
+							? rawConfig.globalTimer / 60
+							: null;
 
-							return {
-								id: module.id,
-								instructions: module.instructions || null,
-								dueDate: module.dueDate || null,
-								maxAttempts: module.maxAttempts || null,
-								points: module.points || null,
-								timeLimit,
-								gradingType: module.gradingType || null,
-								rawQuizConfig: rawConfig,
-							};
-						})()
+						return {
+							id: module.id,
+							instructions: module.instructions || null,
+							dueDate: module.dueDate || null,
+							maxAttempts: module.maxAttempts || null,
+							points: module.points || null,
+							timeLimit,
+							gradingType: module.gradingType || null,
+							rawQuizConfig: rawConfig,
+						};
+					})()
 					: null,
 			discussion:
 				module.type === "discussion"
 					? {
-							id: module.id,
-							instructions: module.instructions || null,
-							dueDate: module.dueDate || null,
-							requireThread: module.requireThread || null,
-							requireReplies: module.requireReplies || null,
-							minReplies: module.minReplies || null,
-						}
+						id: module.id,
+						instructions: module.instructions || null,
+						dueDate: module.dueDate || null,
+						requireThread: module.requireThread || null,
+						requireReplies: module.requireReplies || null,
+						minReplies: module.minReplies || null,
+					}
 					: null,
 			createdAt: module.createdAt,
 			updatedAt: module.updatedAt,
@@ -310,7 +310,10 @@ export const tryGetUserModuleContext = Result.wrap(
 
 		// Fetch linked courses with enrollments
 
-		const linksResult = await tryFindLinksByActivityModule(payload, module.id);
+		const linksResult = await tryFindLinksByActivityModule({
+			payload,
+			activityModuleId: module.id
+		});
 
 		if (!linksResult.ok) throw linksResult.error;
 
@@ -321,23 +324,23 @@ export const tryGetUserModuleContext = Result.wrap(
 		});
 		const grants: UserModuleGrant[] = grantsResult.ok
 			? grantsResult.value.map((grant) => ({
-					id: grant.id,
-					grantedTo: {
-						id: grant.grantedTo.id,
-						email: grant.grantedTo.email,
-						firstName: grant.grantedTo.firstName ?? "",
-						lastName: grant.grantedTo.lastName ?? "",
-						avatar: grant.grantedTo.avatar ?? null,
-					},
-					grantedBy: {
-						id: grant.grantedBy.id,
-						email: grant.grantedBy.email,
-						firstName: grant.grantedBy.firstName ?? "",
-						lastName: grant.grantedBy.lastName ?? "",
-						avatar: grant.grantedBy.avatar ?? null,
-					},
-					grantedAt: grant.grantedAt,
-				}))
+				id: grant.id,
+				grantedTo: {
+					id: grant.grantedTo.id,
+					email: grant.grantedTo.email,
+					firstName: grant.grantedTo.firstName ?? "",
+					lastName: grant.grantedTo.lastName ?? "",
+					avatar: grant.grantedTo.avatar ?? null,
+				},
+				grantedBy: {
+					id: grant.grantedBy.id,
+					email: grant.grantedBy.email,
+					firstName: grant.grantedBy.firstName ?? "",
+					lastName: grant.grantedBy.lastName ?? "",
+					avatar: grant.grantedBy.avatar ?? null,
+				},
+				grantedAt: grant.grantedAt,
+			}))
 			: [];
 
 		const instructorsResult = await tryFindInstructorsForActivityModule({

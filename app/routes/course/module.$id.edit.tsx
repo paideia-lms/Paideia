@@ -173,10 +173,12 @@ export const action = async ({
 
 	// Update the settings
 	const result = await tryUpdateCourseModuleSettings(
-		payload,
-		request,
-		Number(moduleLinkId),
-		settings,
+		{
+			payload,
+			linkId: Number(moduleLinkId),
+			settings,
+			req: request,
+		},
 	);
 
 	if (!result.ok) {
@@ -291,7 +293,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 			// Assignment fields
 			allowSubmissionsFrom:
 				existingSettings?.type === "assignment" &&
-				existingSettings.allowSubmissionsFrom
+					existingSettings.allowSubmissionsFrom
 					? new Date(existingSettings.allowSubmissionsFrom)
 					: null,
 			assignmentDueDate:

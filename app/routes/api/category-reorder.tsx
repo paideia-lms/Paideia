@@ -53,8 +53,12 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		return ok({ success: true, message: "Category moved to top level" });
 	}
 
-	const result = await tryUpdateCategory(payload, request, sourceId, {
+	const result = await tryUpdateCategory({
+		payload,
+		categoryId: sourceId,
 		parent: newParentId,
+		req: request,
+		user: currentUser,
 	});
 	if (!result.ok) {
 		return badRequest({ error: result.error.message });

@@ -75,7 +75,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 		}
 
-		const createResult = await tryCreateCategory(payload, request, {
+		const createResult = await tryCreateCategory({
+			payload,
+			req: request,
 			name: parsed.data.name,
 			parent: parsed.data.parent ?? undefined,
 		});

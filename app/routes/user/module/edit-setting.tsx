@@ -149,6 +149,7 @@ const updatePageAction = async ({
 	}
 
 	const updateArgs: UpdateActivityModuleArgs = {
+		payload,
 		id: Number(moduleId),
 		title: parsedData.title,
 		description: parsedData.description,
@@ -159,7 +160,7 @@ const updatePageAction = async ({
 		user: currentUser,
 	};
 
-	const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+	const updateResult = await tryUpdateActivityModule(updateArgs);
 
 	if (!updateResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -236,6 +237,7 @@ const updateWhiteboardAction = async ({
 	}
 
 	const updateArgs: UpdateActivityModuleArgs = {
+		payload,
 		id: Number(moduleId),
 		title: parsedData.title,
 		description: parsedData.description,
@@ -246,7 +248,7 @@ const updateWhiteboardAction = async ({
 		user: currentUser,
 	};
 
-	const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+	const updateResult = await tryUpdateActivityModule(updateArgs);
 
 	if (!updateResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -373,6 +375,7 @@ const updateFileAction = async ({
 	}
 
 	const updateArgs: UpdateActivityModuleArgs = {
+		payload,
 		id: Number(moduleId),
 		title: parsedData.title,
 		description: parsedData.description,
@@ -383,7 +386,7 @@ const updateFileAction = async ({
 		user: currentUser,
 	};
 
-	const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+	const updateResult = await tryUpdateActivityModule(updateArgs);
 
 	if (!updateResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -460,6 +463,7 @@ const updateAssignmentAction = async ({
 	}
 
 	const updateArgs: UpdateActivityModuleArgs = {
+		payload,
 		id: Number(moduleId),
 		title: parsedData.title,
 		description: parsedData.description,
@@ -470,7 +474,7 @@ const updateAssignmentAction = async ({
 		user: currentUser,
 	};
 
-	const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+	const updateResult = await tryUpdateActivityModule(updateArgs);
 
 	if (!updateResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -547,6 +551,7 @@ const updateQuizAction = async ({
 	}
 
 	const updateArgs: UpdateActivityModuleArgs = {
+		payload,
 		id: Number(moduleId),
 		title: parsedData.title,
 		description: parsedData.description,
@@ -557,7 +562,7 @@ const updateQuizAction = async ({
 		user: currentUser,
 	};
 
-	const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+	const updateResult = await tryUpdateActivityModule(updateArgs);
 
 	if (!updateResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -634,6 +639,7 @@ const updateDiscussionAction = async ({
 	}
 
 	const updateArgs: UpdateActivityModuleArgs = {
+		payload,
 		id: Number(moduleId),
 		title: parsedData.title,
 		description: parsedData.description,
@@ -644,7 +650,7 @@ const updateDiscussionAction = async ({
 		user: currentUser,
 	};
 
-	const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+	const updateResult = await tryUpdateActivityModule(updateArgs);
 
 	if (!updateResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);

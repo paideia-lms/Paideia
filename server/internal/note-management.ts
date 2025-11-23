@@ -1,73 +1,49 @@
 import dayjs from "dayjs";
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Notes } from "server/collections";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateNoteArgs {
-	payload: Payload;
+export type CreateNoteArgs = BaseInternalFunctionArgs & {
 	data: {
 		content: string;
 		createdBy: number;
 		isPublic?: boolean;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateNoteArgs {
-	payload: Payload;
+export type UpdateNoteArgs = BaseInternalFunctionArgs & {
 	noteId: number;
 	data: {
 		content?: string;
 		isPublic?: boolean;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindNoteByIdArgs {
-	payload: Payload;
+export type FindNoteByIdArgs = BaseInternalFunctionArgs & {
 	noteId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface SearchNotesArgs {
-	payload: Payload;
+export type SearchNotesArgs = BaseInternalFunctionArgs & {
 	filters?: {
 		createdBy?: number;
 		content?: string;
 		limit?: number;
 		page?: number;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteNoteArgs {
-	payload: Payload;
+export type DeleteNoteArgs = BaseInternalFunctionArgs & {
 	noteId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindNotesByUserArgs {
-	payload: Payload;
+export type FindNotesByUserArgs = BaseInternalFunctionArgs & {
 	userId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Creates a new note using Payload local API
@@ -438,13 +414,9 @@ export const tryFindNotesByUser = Result.wrap(
 		}),
 );
 
-export interface GenerateNoteHeatmapArgs {
-	payload: Payload;
+export type GenerateNoteHeatmapArgs = BaseInternalFunctionArgs & {
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Generates heatmap data for user's note activity

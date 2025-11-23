@@ -8,7 +8,6 @@
  * Note: This is different from user-access-context which is for the authenticated user
  * This context is for the user whose profile is being viewed (could be self or another user)
  */
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { createContext, href } from "react-router";
 import type { UserAccessContext } from "server/contexts/user-access-context";
 import type { User } from "server/contexts/user-context";
@@ -17,6 +16,7 @@ import { tryGetUserActivityModules } from "server/internal/activity-module-manag
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
 import { tryFindUserById } from "server/internal/user-management";
+import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import type {
 	Note,
 	ActivityModule as PayloadActivityModule,
@@ -76,11 +76,11 @@ export interface UserProfileContext {
 		bio: string;
 		email: string;
 		role:
-			| "student"
-			| "instructor"
-			| "admin"
-			| "content-manager"
-			| "analytics-viewer";
+		| "student"
+		| "instructor"
+		| "admin"
+		| "content-manager"
+		| "analytics-viewer";
 		avatarUrl: string | null;
 	};
 	/** Activity modules accessible by the profile user */
@@ -136,24 +136,21 @@ export const convertUserAccessContextToUserProfileContext = (
 	};
 };
 
+type GetUserProfileContextArgs = BaseInternalFunctionArgs & {
+	profileUserId: number;
+}
+
 export const getUserProfileContext = async (
-	payload: Payload,
-	/**
-	 * the profile user id (the user being viewed)
-	 */
-	profileUserId: number,
-	/**
-	 * the current user, need to verify the access
-	 */
-	currentUser: TypedUser,
-	req?: Partial<PayloadRequest>,
+	args: GetUserProfileContextArgs,
 ): Promise<UserProfileContext | null> => {
+	const { payload, profileUserId, user, req, overrideAccess } = args;
 	// Fetch the profile user data
 	const userResult = await tryFindUserById({
 		payload,
 		userId: profileUserId,
-		user: currentUser,
-		overrideAccess: false,
+		user,
+		req,
+		overrideAccess,
 	});
 
 	if (!userResult.ok) throw new Error("Failed to get user profile");
@@ -170,15 +167,12 @@ export const getUserProfileContext = async (
 		}
 	}
 
-	const result = await tryGetUserActivityModules(payload, {
+	const result = await tryGetUserActivityModules({
+		payload,
 		userId: profileUserId,
-		user: currentUser
-			? {
-					...currentUser,
-					collection: "users",
-				}
-			: null,
-		overrideAccess: true,
+		user,
+		req,
+		overrideAccess,
 	});
 
 	if (!result.ok) throw new Error("Failed to get user activity modules");
@@ -188,9 +182,9 @@ export const getUserProfileContext = async (
 	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
 		userId: profileUserId,
-		user: currentUser,
-		req: req,
-		overrideAccess: false,
+		user,
+		req,
+		overrideAccess,
 	});
 
 	if (!enrollments.ok) throw new Error("Failed to get user enrollments");
@@ -246,9 +240,9 @@ export const getUserProfileContext = async (
 	const heatmapResult = await tryGenerateNoteHeatmap({
 		payload,
 		userId: profileUserId,
-		user: currentUser,
-		req: req,
-		overrideAccess: false,
+		user,
+		req,
+		overrideAccess,
 	});
 
 	const { notes, heatmapData, availableYears } = heatmapResult.ok

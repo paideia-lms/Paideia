@@ -1,4 +1,4 @@
-import type { Payload, TypedUser, User } from "payload";
+
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -12,49 +12,35 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface GrantAccessArgs {
-	payload: Payload;
+export type GrantAccessArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	grantedToUserId: number;
 	grantedByUserId: number;
-	user?: TypedUser | null;
-	req?: Request;
-	overrideAccess?: boolean;
 }
 
-export interface RevokeAccessArgs {
-	payload: Payload;
+export type RevokeAccessArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	userId: number;
-	user?: TypedUser | null;
-	req?: Request;
-	overrideAccess?: boolean;
 }
 
-export interface TransferOwnershipArgs {
-	payload: Payload;
+export type TransferOwnershipArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	newOwnerId: number;
 	currentOwnerId: number;
-	user?: TypedUser | null;
-	req?: Request;
-	overrideAccess?: boolean;
 }
 
-export interface CheckAccessArgs {
-	payload: Payload;
+export type CheckAccessArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	userId: number;
 }
 
-export interface FindGrantsByActivityModuleArgs {
-	payload: Payload;
+export type FindGrantsByActivityModuleArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 }
 
-export interface FindInstructorsForActivityModuleArgs {
-	payload: Payload;
+export type FindInstructorsForActivityModuleArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 }
 
@@ -599,12 +585,12 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				firstName: string | null;
 				lastName: string | null;
 				avatar?:
-					| number
-					| {
-							id: number;
-							filename?: string;
-					  }
-					| null;
+				| number
+				| {
+					id: number;
+					filename?: string;
+				}
+				| null;
 				enrollments: {
 					courseId: number;
 					role: "teacher" | "ta";
@@ -667,11 +653,8 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 		}),
 );
 
-type FindAutoGrantedModulesForInstructorArgs = {
-	payload: Payload;
+type FindAutoGrantedModulesForInstructorArgs = BaseInternalFunctionArgs & {
 	userId: number;
-	user?: TypedUser | null;
-	overrideAccess?: boolean;
 };
 
 export const tryFindAutoGrantedModulesForInstructor = Result.wrap(

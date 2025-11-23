@@ -100,6 +100,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		// Create test activity module first
 		const activityModuleArgs: CreateActivityModuleArgs = {
+			payload,
+			req: mockRequest,
 			title: "Test Activity Module",
 			description: "A test activity module for link management",
 			type: "page",
@@ -108,12 +110,10 @@ describe("Course Activity Module Link Management Functions", () => {
 			pageData: {
 				content: "<p>Test content</p>",
 			},
+			overrideAccess: true,
 		};
 
-		const activityModuleResult = await tryCreateActivityModule(
-			payload,
-			activityModuleArgs,
-		);
+		const activityModuleResult = await tryCreateActivityModule(activityModuleArgs);
 		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok)
 			throw new Error("Test Error: Activity module creation failed");
@@ -132,17 +132,16 @@ describe("Course Activity Module Link Management Functions", () => {
 	describe("tryCreateCourseActivityModuleLink", () => {
 		test("should create a new link successfully", async () => {
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
+				payload,
+				req: mockRequest,
 				course: testCourse.id,
 				activityModule: testActivityModule.id,
 				section: testSection.id,
 				order: 0,
+				overrideAccess: true,
 			};
 
-			const result = await tryCreateCourseActivityModuleLink(
-				payload,
-				mockRequest,
-				linkArgs,
-			);
+			const result = await tryCreateCourseActivityModuleLink(linkArgs);
 
 			expect(result.ok).toBe(true);
 			if (!result.ok)
@@ -163,6 +162,8 @@ describe("Course Activity Module Link Management Functions", () => {
 		test("should create multiple links for the same course", async () => {
 			// Create another activity module for testing
 			const activityModuleArgs2: CreateActivityModuleArgs = {
+				payload,
+				req: mockRequest,
 				title: "Second Test Activity Module",
 				description: "A second test activity module for link management",
 				type: "assignment",
@@ -176,27 +177,24 @@ describe("Course Activity Module Link Management Functions", () => {
 					requireTextSubmission: true,
 					requireFileSubmission: false,
 				},
+				overrideAccess: true,
 			};
 
-			const activityModuleResult2 = await tryCreateActivityModule(
-				payload,
-				activityModuleArgs2,
-			);
+			const activityModuleResult2 = await tryCreateActivityModule(activityModuleArgs2);
 			expect(activityModuleResult2.ok).toBe(true);
 			if (!activityModuleResult2.ok) return;
 
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
+				payload,
+				req: mockRequest,
 				course: testCourse.id,
 				activityModule: activityModuleResult2.value.id,
 				section: testSection.id,
 				order: 1,
+				overrideAccess: true,
 			};
 
-			const result = await tryCreateCourseActivityModuleLink(
-				payload,
-				mockRequest,
-				linkArgs,
-			);
+			const result = await tryCreateCourseActivityModuleLink(linkArgs);
 
 			expect(result.ok).toBe(true);
 			if (!result.ok)
@@ -211,7 +209,11 @@ describe("Course Activity Module Link Management Functions", () => {
 
 	describe("tryFindLinksByCourse", () => {
 		test("should find links by course ID", async () => {
-			const result = await tryFindLinksByCourse(payload, testCourse.id);
+			const result = await tryFindLinksByCourse({
+				payload,
+				courseId: testCourse.id,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -239,10 +241,11 @@ describe("Course Activity Module Link Management Functions", () => {
 
 			const courseResult = await tryCreateCourse(courseArgs);
 			if (courseResult.ok) {
-				const result = await tryFindLinksByCourse(
+				const result = await tryFindLinksByCourse({
 					payload,
-					courseResult.value.id,
-				);
+					courseId: courseResult.value.id,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -254,10 +257,11 @@ describe("Course Activity Module Link Management Functions", () => {
 
 	describe("tryFindLinksByActivityModule", () => {
 		test("should find links by activity module ID", async () => {
-			const result = await tryFindLinksByActivityModule(
+			const result = await tryFindLinksByActivityModule({
 				payload,
-				testActivityModule.id,
-			);
+				activityModuleId: testActivityModule.id,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (result.ok) {
@@ -272,9 +276,11 @@ describe("Course Activity Module Link Management Functions", () => {
 
 	describe("trySearchCourseActivityModuleLinks", () => {
 		test("should search links by course", async () => {
-			const result = await trySearchCourseActivityModuleLinks(payload, {
+			const result = await trySearchCourseActivityModuleLinks({
+				payload,
 				course: testCourse.id,
 				limit: 10,
+				overrideAccess: true,
 			});
 
 			expect(result.ok).toBe(true);
@@ -292,9 +298,11 @@ describe("Course Activity Module Link Management Functions", () => {
 		});
 
 		test("should search links by activity module", async () => {
-			const result = await trySearchCourseActivityModuleLinks(payload, {
+			const result = await trySearchCourseActivityModuleLinks({
+				payload,
 				activityModule: testActivityModule.id,
 				limit: 10,
+				overrideAccess: true,
 			});
 
 			expect(result.ok).toBe(true);
@@ -312,9 +320,11 @@ describe("Course Activity Module Link Management Functions", () => {
 		});
 
 		test("should return paginated results", async () => {
-			const result = await trySearchCourseActivityModuleLinks(payload, {
+			const result = await trySearchCourseActivityModuleLinks({
+				payload,
 				limit: 2,
 				page: 1,
+				overrideAccess: true,
 			});
 
 			expect(result.ok).toBe(true);
@@ -328,9 +338,11 @@ describe("Course Activity Module Link Management Functions", () => {
 		});
 
 		test("should return empty results for non-matching search", async () => {
-			const result = await trySearchCourseActivityModuleLinks(payload, {
+			const result = await trySearchCourseActivityModuleLinks({
+				payload,
 				course: 99999, // Non-existent course
 				limit: 10,
+				overrideAccess: true,
 			});
 
 			expect(result.ok).toBe(true);
@@ -346,27 +358,27 @@ describe("Course Activity Module Link Management Functions", () => {
 		beforeAll(async () => {
 			// Create a test link for find tests
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
+				payload,
+				req: mockRequest,
 				course: testCourse.id,
 				activityModule: testActivityModule.id,
 				section: testSection.id,
 				order: 0,
+				overrideAccess: true,
 			};
 
-			const result = await tryCreateCourseActivityModuleLink(
-				payload,
-				mockRequest,
-				linkArgs,
-			);
+			const result = await tryCreateCourseActivityModuleLink(linkArgs);
 			if (result.ok) {
 				testLink = result.value;
 			}
 		});
 
 		test("should find link by ID successfully", async () => {
-			const result = await tryFindCourseActivityModuleLinkById(
+			const result = await tryFindCourseActivityModuleLinkById({
 				payload,
-				testLink.id,
-			);
+				linkId: testLink.id,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (!result.ok)
@@ -380,7 +392,11 @@ describe("Course Activity Module Link Management Functions", () => {
 		});
 
 		test("should fail with non-existent link", async () => {
-			const result = await tryFindCourseActivityModuleLinkById(payload, 99999);
+			const result = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: 99999,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(false);
 			if (result.ok)
@@ -392,11 +408,12 @@ describe("Course Activity Module Link Management Functions", () => {
 
 	describe("tryCheckCourseActivityModuleLinkExists", () => {
 		test("should return true for existing link", async () => {
-			const result = await tryCheckCourseActivityModuleLinkExists(
+			const result = await tryCheckCourseActivityModuleLinkExists({
 				payload,
-				testCourse.id,
-				testActivityModule.id,
-			);
+				courseId: testCourse.id,
+				activityModuleId: testActivityModule.id,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(true);
 			if (!result.ok)
@@ -435,6 +452,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				if (!sectionResult.ok) return;
 
 				const activityModuleArgs: CreateActivityModuleArgs = {
+					payload,
+					req: mockRequest,
 					title: "Unlinked Activity Module",
 					description: "An activity module with no links",
 					type: "page",
@@ -443,21 +462,20 @@ describe("Course Activity Module Link Management Functions", () => {
 					pageData: {
 						content: "<p>Unlinked module content</p>",
 					},
+					overrideAccess: true,
 				};
 
-				const activityModuleResult = await tryCreateActivityModule(
-					payload,
-					activityModuleArgs,
-				);
+				const activityModuleResult = await tryCreateActivityModule(activityModuleArgs);
 
 				if (!activityModuleResult.ok)
 					throw new Error("Test Error: Failed to create activity module");
 
-				const result = await tryCheckCourseActivityModuleLinkExists(
+				const result = await tryCheckCourseActivityModuleLinkExists({
 					payload,
-					courseResult.value.id,
-					activityModuleResult.value.id,
-				);
+					courseId: courseResult.value.id,
+					activityModuleId: activityModuleResult.value.id,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (!result.ok)
@@ -473,25 +491,25 @@ describe("Course Activity Module Link Management Functions", () => {
 		test("should delete link successfully", async () => {
 			// Create a link to delete
 			const linkArgs: CreateCourseActivityModuleLinkArgs = {
+				payload,
+				req: mockRequest,
 				course: testCourse.id,
 				activityModule: testActivityModule.id,
 				section: testSection.id,
 				order: 0,
+				overrideAccess: true,
 			};
 
-			const createResult = await tryCreateCourseActivityModuleLink(
-				payload,
-				mockRequest,
-				linkArgs,
-			);
+			const createResult = await tryCreateCourseActivityModuleLink(linkArgs);
 			expect(createResult.ok).toBe(true);
 
 			if (createResult.ok) {
-				const deleteResult = await tryDeleteCourseActivityModuleLink(
+				const deleteResult = await tryDeleteCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					createResult.value.id,
-				);
+					req: mockRequest,
+					linkId: createResult.value.id,
+					overrideAccess: true,
+				});
 
 				expect(deleteResult.ok).toBe(true);
 				if (deleteResult.ok) {
@@ -499,20 +517,22 @@ describe("Course Activity Module Link Management Functions", () => {
 				}
 
 				// Verify link is actually deleted
-				const findResult = await tryFindCourseActivityModuleLinkById(
+				const findResult = await tryFindCourseActivityModuleLinkById({
 					payload,
-					createResult.value.id,
-				);
+					linkId: createResult.value.id,
+					overrideAccess: true,
+				});
 				expect(findResult.ok).toBe(false);
 			}
 		});
 
 		test("should fail with non-existent link", async () => {
-			const result = await tryDeleteCourseActivityModuleLink(
+			const result = await tryDeleteCourseActivityModuleLink({
 				payload,
-				mockRequest,
-				99999,
-			);
+				req: mockRequest,
+				linkId: 99999,
+				overrideAccess: true,
+			});
 
 			expect(result.ok).toBe(false);
 			if (!result.ok) {
@@ -534,6 +554,8 @@ describe("Course Activity Module Link Management Functions", () => {
 		beforeAll(async () => {
 			// Create assignment module
 			const assignmentArgs: CreateActivityModuleArgs = {
+				payload,
+				req: mockRequest,
 				title: "Test Assignment for Settings",
 				description: "Assignment module to test settings",
 				type: "assignment",
@@ -547,12 +569,10 @@ describe("Course Activity Module Link Management Functions", () => {
 					requireTextSubmission: true,
 					requireFileSubmission: false,
 				},
+				overrideAccess: true,
 			};
 
-			const assignmentResult = await tryCreateActivityModule(
-				payload,
-				assignmentArgs,
-			);
+			const assignmentResult = await tryCreateActivityModule(assignmentArgs);
 			expect(assignmentResult.ok).toBe(true);
 			if (assignmentResult.ok) {
 				assignmentModule = assignmentResult.value;
@@ -560,6 +580,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 			// Create quiz module
 			const quizArgs: CreateActivityModuleArgs = {
+				payload,
+				req: mockRequest,
 				title: "Test Quiz for Settings",
 				description: "Quiz module to test settings",
 				type: "quiz",
@@ -571,9 +593,10 @@ describe("Course Activity Module Link Management Functions", () => {
 					timeLimit: 60,
 					maxAttempts: 2,
 				},
+				overrideAccess: true,
 			};
 
-			const quizResult = await tryCreateActivityModule(payload, quizArgs);
+			const quizResult = await tryCreateActivityModule(quizArgs);
 			expect(quizResult.ok).toBe(true);
 			if (quizResult.ok) {
 				quizModule = quizResult.value;
@@ -581,6 +604,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 			// Create discussion module
 			const discussionArgs: CreateActivityModuleArgs = {
+				payload,
+				req: mockRequest,
 				title: "Test Discussion for Settings",
 				description: "Discussion module to test settings",
 				type: "discussion",
@@ -593,53 +618,48 @@ describe("Course Activity Module Link Management Functions", () => {
 					requireReplies: true,
 					minReplies: 2,
 				},
+				overrideAccess: true,
 			};
 
-			const discussionResult = await tryCreateActivityModule(
-				payload,
-				discussionArgs,
-			);
+			const discussionResult = await tryCreateActivityModule(discussionArgs);
 			expect(discussionResult.ok).toBe(true);
 			if (discussionResult.ok) {
 				discussionModule = discussionResult.value;
 			}
 
 			// Create links for testing
-			const assignmentLinkResult = await tryCreateCourseActivityModuleLink(
+			const assignmentLinkResult = await tryCreateCourseActivityModuleLink({
 				payload,
-				mockRequest,
-				{
-					course: testCourse.id,
-					activityModule: assignmentModule.id,
-					section: testSection.id,
-				},
-			);
+				req: mockRequest,
+				course: testCourse.id,
+				activityModule: assignmentModule.id,
+				section: testSection.id,
+				overrideAccess: true,
+			});
 			if (assignmentLinkResult.ok) {
 				assignmentLink = assignmentLinkResult.value;
 			}
 
-			const quizLinkResult = await tryCreateCourseActivityModuleLink(
+			const quizLinkResult = await tryCreateCourseActivityModuleLink({
 				payload,
-				mockRequest,
-				{
-					course: testCourse.id,
-					activityModule: quizModule.id,
-					section: testSection.id,
-				},
-			);
+				req: mockRequest,
+				course: testCourse.id,
+				activityModule: quizModule.id,
+				section: testSection.id,
+				overrideAccess: true,
+			});
 			if (quizLinkResult.ok) {
 				quizLink = quizLinkResult.value;
 			}
 
-			const discussionLinkResult = await tryCreateCourseActivityModuleLink(
+			const discussionLinkResult = await tryCreateCourseActivityModuleLink({
 				payload,
-				mockRequest,
-				{
-					course: testCourse.id,
-					activityModule: discussionModule.id,
-					section: testSection.id,
-				},
-			);
+				req: mockRequest,
+				course: testCourse.id,
+				activityModule: discussionModule.id,
+				section: testSection.id,
+				overrideAccess: true,
+			});
 			if (discussionLinkResult.ok) {
 				discussionLink = discussionLinkResult.value;
 			}
@@ -658,16 +678,15 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryCreateCourseActivityModuleLink(
+				const result = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: assignmentModule.id,
-						section: testSection.id,
-						settings,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: assignmentModule.id,
+					section: testSection.id,
+					settings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -686,16 +705,15 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryCreateCourseActivityModuleLink(
+				const result = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: quizModule.id,
-						section: testSection.id,
-						settings,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: quizModule.id,
+					section: testSection.id,
+					settings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -714,16 +732,15 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryCreateCourseActivityModuleLink(
+				const result = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: discussionModule.id,
-						section: testSection.id,
-						settings,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: discussionModule.id,
+					section: testSection.id,
+					settings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -732,13 +749,16 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should create link with page settings (name only)", async () => {
-				const pageModule = await tryCreateActivityModule(payload, {
+				const pageModule = await tryCreateActivityModule({
+					payload,
+					req: mockRequest,
 					title: "Test Page",
 					description: "Page module",
 					type: "page",
 					status: "draft",
 					userId: testUser.id,
 					pageData: { content: "<p>Page content</p>" },
+					overrideAccess: true,
 				});
 
 				if (!pageModule.ok) return;
@@ -751,16 +771,15 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryCreateCourseActivityModuleLink(
+				const result = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: pageModule.value.id,
-						section: testSection.id,
-						settings,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: pageModule.value.id,
+					section: testSection.id,
+					settings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -769,13 +788,16 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should create link with whiteboard settings (name only)", async () => {
-				const whiteboardModule = await tryCreateActivityModule(payload, {
+				const whiteboardModule = await tryCreateActivityModule({
+					payload,
+					req: mockRequest,
 					title: "Test Whiteboard",
 					description: "Whiteboard module",
 					type: "whiteboard",
 					status: "draft",
 					userId: testUser.id,
 					whiteboardData: { content: "" },
+					overrideAccess: true,
 				});
 
 				if (!whiteboardModule.ok) return;
@@ -788,16 +810,15 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryCreateCourseActivityModuleLink(
+				const result = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: whiteboardModule.value.id,
-						section: testSection.id,
-						settings,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: whiteboardModule.value.id,
+					section: testSection.id,
+					settings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -819,12 +840,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					assignmentLink.id,
-					newSettings,
-				);
+					req: mockRequest,
+					linkId: assignmentLink.id,
+					settings: newSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -843,12 +865,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					quizLink.id,
-					newSettings,
-				);
+					req: mockRequest,
+					linkId: quizLink.id,
+					settings: newSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -867,12 +890,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					discussionLink.id,
-					newSettings,
-				);
+					req: mockRequest,
+					linkId: discussionLink.id,
+					settings: newSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -894,18 +918,20 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				await tryUpdateCourseModuleSettings(
+				await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					assignmentLink.id,
+					req: mockRequest,
+					linkId: assignmentLink.id,
 					settings,
-				);
+					overrideAccess: true,
+				});
 
 				// Now retrieve
-				const result = await tryGetCourseModuleSettings(
+				const result = await tryGetCourseModuleSettings({
 					payload,
-					assignmentLink.id,
-				);
+					linkId: assignmentLink.id,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
@@ -920,22 +946,22 @@ describe("Course Activity Module Link Management Functions", () => {
 
 			test("should handle link without settings", async () => {
 				// Create a link without settings
-				const newLinkResult = await tryCreateCourseActivityModuleLink(
+				const newLinkResult = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: assignmentModule.id,
-						section: testSection.id,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: assignmentModule.id,
+					section: testSection.id,
+					overrideAccess: true,
+				});
 
 				if (!newLinkResult.ok) return;
 
-				const result = await tryGetCourseModuleSettings(
+				const result = await tryGetCourseModuleSettings({
 					payload,
-					newLinkResult.value.id,
-				);
+					linkId: newLinkResult.value.id,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 				// Settings should be null or undefined for links without settings
@@ -954,12 +980,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					assignmentLink.id,
-					invalidSettings,
-				);
+					req: mockRequest,
+					linkId: assignmentLink.id,
+					settings: invalidSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 				if (!result.ok) {
@@ -980,12 +1007,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					assignmentLink.id,
-					invalidSettings,
-				);
+					req: mockRequest,
+					linkId: assignmentLink.id,
+					settings: invalidSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 				if (!result.ok) {
@@ -1006,12 +1034,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					assignmentLink.id,
-					invalidSettings,
-				);
+					req: mockRequest,
+					linkId: assignmentLink.id,
+					settings: invalidSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 				if (!result.ok) {
@@ -1032,12 +1061,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					quizLink.id,
-					invalidSettings,
-				);
+					req: mockRequest,
+					linkId: quizLink.id,
+					settings: invalidSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 				if (!result.ok) {
@@ -1058,12 +1088,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					discussionLink.id,
-					invalidSettings,
-				);
+					req: mockRequest,
+					linkId: discussionLink.id,
+					settings: invalidSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(false);
 				if (!result.ok) {
@@ -1085,12 +1116,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					assignmentLink.id,
-					validSettings,
-				);
+					req: mockRequest,
+					linkId: assignmentLink.id,
+					settings: validSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 			});
@@ -1106,12 +1138,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					quizLink.id,
-					validSettings,
-				);
+					req: mockRequest,
+					linkId: quizLink.id,
+					settings: validSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 			});
@@ -1127,12 +1160,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const result = await tryUpdateCourseModuleSettings(
+				const result = await tryUpdateCourseModuleSettings({
 					payload,
-					mockRequest,
-					discussionLink.id,
-					validSettings,
-				);
+					req: mockRequest,
+					linkId: discussionLink.id,
+					settings: validSettings,
+					overrideAccess: true,
+				});
 
 				expect(result.ok).toBe(true);
 			});
@@ -1151,16 +1185,15 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const link1 = await tryCreateCourseActivityModuleLink(
+				const link1 = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: assignmentModule.id,
-						section: testSection.id,
-						settings: settings1,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: assignmentModule.id,
+					section: testSection.id,
+					settings: settings1,
+					overrideAccess: true,
+				});
 
 				expect(link1.ok).toBe(true);
 
@@ -1175,29 +1208,30 @@ describe("Course Activity Module Link Management Functions", () => {
 					},
 				};
 
-				const link2 = await tryCreateCourseActivityModuleLink(
+				const link2 = await tryCreateCourseActivityModuleLink({
 					payload,
-					mockRequest,
-					{
-						course: testCourse.id,
-						activityModule: assignmentModule.id,
-						section: testSection.id,
-						settings: settings2,
-					},
-				);
+					req: mockRequest,
+					course: testCourse.id,
+					activityModule: assignmentModule.id,
+					section: testSection.id,
+					settings: settings2,
+					overrideAccess: true,
+				});
 
 				expect(link2.ok).toBe(true);
 
 				// Verify both links exist with different settings
 				if (link1.ok && link2.ok) {
-					const retrievedLink1 = await tryGetCourseModuleSettings(
+					const retrievedLink1 = await tryGetCourseModuleSettings({
 						payload,
-						link1.value.id,
-					);
-					const retrievedLink2 = await tryGetCourseModuleSettings(
+						linkId: link1.value.id,
+						overrideAccess: true,
+					});
+					const retrievedLink2 = await tryGetCourseModuleSettings({
 						payload,
-						link2.value.id,
-					);
+						linkId: link2.value.id,
+						overrideAccess: true,
+					});
 
 					expect(retrievedLink1.ok).toBe(true);
 					expect(retrievedLink2.ok).toBe(true);

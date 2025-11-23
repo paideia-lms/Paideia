@@ -89,7 +89,8 @@ describe("Course Section Management Functions", () => {
 		testCourse = courseResult.value;
 
 		// Create test activity module
-		const activityModuleResult = await tryCreateActivityModule(payload, {
+		const activityModuleResult = await tryCreateActivityModule({
+			payload,
 			title: "Test Activity Module",
 			description: "A test activity module",
 			type: "assignment",
@@ -97,6 +98,7 @@ describe("Course Section Management Functions", () => {
 			assignmentData: {
 				instructions: "Test assignment instructions",
 			},
+			overrideAccess: true,
 		});
 
 		if (!activityModuleResult.ok) {
@@ -976,7 +978,8 @@ describe("Course Section Management Functions", () => {
 		if (!sectionResult.ok) return;
 
 		// Create another activity module
-		const activityModule2Result = await tryCreateActivityModule(payload, {
+		const activityModule2Result = await tryCreateActivityModule({
+			payload,
 			title: "Test Activity Module 2",
 			description: "Second test activity module",
 			type: "quiz",
@@ -984,6 +987,7 @@ describe("Course Section Management Functions", () => {
 			quizData: {
 				instructions: "Test quiz instructions",
 			},
+			overrideAccess: true,
 		});
 
 		expect(activityModule2Result.ok).toBe(true);
@@ -1285,7 +1289,8 @@ describe("Course Section Management Functions", () => {
 		if (!section11Result.ok) return;
 
 		// Create additional activity modules
-		const activityModule2Result = await tryCreateActivityModule(payload, {
+		const activityModule2Result = await tryCreateActivityModule({
+			payload,
 			title: "Test Activity Module 2",
 			description: "Second test activity module",
 			type: "quiz",
@@ -1293,9 +1298,11 @@ describe("Course Section Management Functions", () => {
 			quizData: {
 				instructions: "Test quiz instructions",
 			},
+			overrideAccess: true,
 		});
 
-		const activityModule3Result = await tryCreateActivityModule(payload, {
+		const activityModule3Result = await tryCreateActivityModule({
+			payload,
 			title: "Test Activity Module 3",
 			description: "Third test activity module",
 			type: "discussion",
@@ -1303,6 +1310,7 @@ describe("Course Section Management Functions", () => {
 			discussionData: {
 				instructions: "Test discussion instructions",
 			},
+			overrideAccess: true,
 		});
 
 		expect(activityModule2Result.ok).toBe(true);
@@ -1870,7 +1878,8 @@ describe("Course Section Management Functions", () => {
 		// Create additional activity modules for this complex structure
 		const activityModules = [];
 		for (let i = 1; i <= 12; i++) {
-			const moduleResult = await tryCreateActivityModule(payload, {
+			const moduleResult = await tryCreateActivityModule({
+				payload,
 				title: `Activity Module ${i}`,
 				description: `Test activity module ${i}`,
 				type: "assignment",
@@ -1878,6 +1887,7 @@ describe("Course Section Management Functions", () => {
 				assignmentData: {
 					instructions: `Instructions for activity module ${i}`,
 				},
+				overrideAccess: true,
 			});
 
 			expect(moduleResult.ok).toBe(true);
@@ -2467,7 +2477,8 @@ describe("Course Section Management Functions", () => {
 		const childSection2 = childSection2Result.value;
 
 		// Create activity modules
-		const activityModule1Result = await tryCreateActivityModule(payload, {
+		const activityModule1Result = await tryCreateActivityModule({
+			payload,
 			title: "Activity Module 1",
 			description: "First activity module",
 			type: "assignment",
@@ -2475,9 +2486,11 @@ describe("Course Section Management Functions", () => {
 			assignmentData: {
 				instructions: "Test assignment 1",
 			},
+			overrideAccess: true,
 		});
 
-		const activityModule2Result = await tryCreateActivityModule(payload, {
+		const activityModule2Result = await tryCreateActivityModule({
+			payload,
 			title: "Activity Module 2",
 			description: "Second activity module",
 			type: "quiz",
@@ -2485,6 +2498,7 @@ describe("Course Section Management Functions", () => {
 			quizData: {
 				instructions: "Test quiz 1",
 			},
+			overrideAccess: true,
 		});
 
 		if (!activityModule1Result.ok || !activityModule2Result.ok) {
@@ -2869,7 +2883,8 @@ describe("Course Section Management Functions", () => {
 		if (!sectionResult.ok) return;
 
 		// create a module in section 1
-		const module1Result = await tryCreateActivityModule(payload, {
+		const module1Result = await tryCreateActivityModule({
+			payload,
 			title: "Module 1",
 			description: "First module",
 			type: "discussion",
@@ -2877,13 +2892,15 @@ describe("Course Section Management Functions", () => {
 			discussionData: {
 				instructions: "Test discussion 1",
 			},
+			overrideAccess: true,
 		});
 
 		expect(module1Result.ok).toBe(true);
 		if (!module1Result.ok) return;
 
 		// create a module in section 2
-		const module2Result = await tryCreateActivityModule(payload, {
+		const module2Result = await tryCreateActivityModule({
+			payload,
 			title: "Module 2",
 			description: "Second module",
 			type: "discussion",
@@ -2891,13 +2908,15 @@ describe("Course Section Management Functions", () => {
 			discussionData: {
 				instructions: "Test discussion 2",
 			},
+			overrideAccess: true,
 		});
 
 		expect(module2Result.ok).toBe(true);
 		if (!module2Result.ok) return;
 
 		// Create activity modules
-		const activityModule3Result = await tryCreateActivityModule(payload, {
+		const activityModule3Result = await tryCreateActivityModule({
+			payload,
 			title: "Activity Module 3",
 			description: "Third activity module",
 			type: "discussion",
@@ -2905,9 +2924,11 @@ describe("Course Section Management Functions", () => {
 			discussionData: {
 				instructions: "Test discussion 3",
 			},
+			overrideAccess: true,
 		});
 
-		const activityModule4Result = await tryCreateActivityModule(payload, {
+		const activityModule4Result = await tryCreateActivityModule({
+			payload,
 			title: "Activity Module 4",
 			description: "Fourth activity module",
 			type: "discussion",
@@ -2915,6 +2936,7 @@ describe("Course Section Management Functions", () => {
 			discussionData: {
 				instructions: "Test discussion 4",
 			},
+			overrideAccess: true,
 		});
 
 		expect(activityModule3Result.ok).toBe(true);
@@ -3084,7 +3106,8 @@ describe("Course Section Management Functions", () => {
 		if (!sectionResult.ok) return;
 
 		// Create activity modules
-		const assignmentResult = await tryCreateActivityModule(payload, {
+		const assignmentResult = await tryCreateActivityModule({
+			payload,
 			title: "Generic Assignment Title",
 			description: "A reusable assignment",
 			type: "assignment",
@@ -3092,9 +3115,11 @@ describe("Course Section Management Functions", () => {
 			assignmentData: {
 				instructions: "Complete the assignment",
 			},
+			overrideAccess: true,
 		});
 
-		const quizResult = await tryCreateActivityModule(payload, {
+		const quizResult = await tryCreateActivityModule({
+			payload,
 			title: "Generic Quiz Title",
 			description: "A reusable quiz",
 			type: "quiz",
@@ -3102,6 +3127,7 @@ describe("Course Section Management Functions", () => {
 			quizData: {
 				instructions: "Complete the quiz",
 			},
+			overrideAccess: true,
 		});
 
 		expect(assignmentResult.ok).toBe(true);

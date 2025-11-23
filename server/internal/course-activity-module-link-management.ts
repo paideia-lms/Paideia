@@ -1,4 +1,4 @@
-import type { Payload, Where } from "payload";
+import type { Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import { assertZodInternal } from "server/utils/type-narrowing";
@@ -15,44 +15,42 @@ import {
 	tryGetNextItemSortOrder,
 } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateCourseActivityModuleLinkArgs {
+export type CreateCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
 	course: number;
 	activityModule: number;
 	section: number;
 	order?: number;
 	contentOrder?: number;
 	settings?: CourseModuleSettingsV1;
-	transactionID?: string | number;
-	overrideAccess?: boolean;
-}
+};
 
-export interface SearchCourseActivityModuleLinksArgs {
+export type SearchCourseActivityModuleLinksArgs = BaseInternalFunctionArgs & {
 	course?: number;
 	activityModule?: number;
 	limit?: number;
 	page?: number;
-}
+};
 
 /**
  * Creates a new course-activity-module-link using Payload local API
  * and automatically creates a gradebook item if the module is gradeable
  */
 export const tryCreateCourseActivityModuleLink = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		args: CreateCourseActivityModuleLinkArgs,
-	) => {
+	async (args: CreateCourseActivityModuleLinkArgs) => {
 		const {
+			payload,
 			course,
 			activityModule,
 			section,
 			contentOrder = 0,
 			settings,
-			transactionID,
+			req,
 			overrideAccess = false,
+			user,
 		} = args;
+
 
 		const newLink = await payload.create({
 			collection: CourseActivityModuleLinks.slug,
@@ -63,10 +61,8 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				contentOrder,
 				settings: settings as unknown as { [key: string]: unknown },
 			},
-			req: {
-				...request,
-				transactionID,
-			},
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -97,10 +93,8 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		const activityModuleDoc = await payload.findByID({
 			collection: "activity-modules",
 			id: activityModule,
-			req: {
-				...request,
-				transactionID,
-			},
+			user,
+			req,
 			overrideAccess,
 		});
 
@@ -112,9 +106,9 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			const gradebookResult = await tryGetGradebookByCourseWithDetails({
 				payload,
 				courseId: course,
-				user: null,
-				req: undefined,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			});
 
 			if (gradebookResult.ok) {
@@ -144,12 +138,9 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 					weight: null, // Auto weighted by default
 					extraCredit: false,
 					sortOrder,
-					user: null,
-					req: {
-						...request,
-						transactionID,
-					},
-					overrideAccess: true,
+					user,
+					req,
+					overrideAccess,
 				});
 
 				// If gradebook item creation fails, we should still return the link
@@ -176,11 +167,16 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		}),
 );
 
+export type FindLinksByCourseArgs = BaseInternalFunctionArgs & {
+	courseId: number;
+};
+
 /**
  * Finds course-activity-module-links by course ID
  */
 export const tryFindLinksByCourse = Result.wrap(
-	async (payload: Payload, courseId: number) => {
+	async (args: FindLinksByCourseArgs) => {
+		const { payload, courseId, overrideAccess = false, user, req } = args;
 		const links = await payload
 			.find({
 				collection: CourseActivityModuleLinks.slug,
@@ -192,6 +188,9 @@ export const tryFindLinksByCourse = Result.wrap(
 				depth: 2,
 				pagination: false,
 				sort: "-createdAt",
+				overrideAccess,
+				user,
+				req,
 			})
 			.then((result) => {
 				return result.docs.map((link) => {
@@ -245,11 +244,16 @@ export const tryFindLinksByCourse = Result.wrap(
 		}),
 );
 
+export type FindLinksByActivityModuleArgs = BaseInternalFunctionArgs & {
+	activityModuleId: number;
+};
+
 /**
  * Finds course-activity-module-links by activity module ID
  */
 export const tryFindLinksByActivityModule = Result.wrap(
-	async (payload: Payload, activityModuleId: number) => {
+	async (args: FindLinksByActivityModuleArgs) => {
+		const { payload, activityModuleId, overrideAccess = false, user, req } = args;
 		const links = await payload
 			.find({
 				collection: CourseActivityModuleLinks.slug,
@@ -260,6 +264,9 @@ export const tryFindLinksByActivityModule = Result.wrap(
 				},
 				pagination: false,
 				sort: "-createdAt",
+				overrideAccess,
+				user,
+				req,
 			})
 			.then((result) => {
 				return result.docs.map((doc) => {
@@ -308,9 +315,8 @@ export const tryFindLinksByActivityModule = Result.wrap(
  * Searches course-activity-module-links with various filters
  */
 export const trySearchCourseActivityModuleLinks = Result.wrap(
-	async (payload: Payload, args: SearchCourseActivityModuleLinksArgs = {}) => {
-		const { course, activityModule, limit = 10, page = 1 } = args;
-
+	async (args: SearchCourseActivityModuleLinksArgs) => {
+		const { payload, course, activityModule, limit = 10, page = 1, overrideAccess = false, user, req } = args;
 		const where: Where = {};
 
 		if (course) {
@@ -331,6 +337,9 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
+			overrideAccess,
+			user,
+			req,
 		});
 
 		return {
@@ -350,17 +359,17 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 		}),
 );
 
+export type DeleteCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+};
+
 /**
  * Deletes a course-activity-module-link by ID
  * and automatically deletes any associated gradebook items
  */
 export const tryDeleteCourseActivityModuleLink = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		linkId: number,
-		transactionID?: string | number,
-	) => {
+	async (args: DeleteCourseActivityModuleLinkArgs) => {
+		const { payload, linkId, req, overrideAccess = false, user } = args;
 		////////////////////////////////////////////////////
 		// Delete associated gradebook items
 		////////////////////////////////////////////////////
@@ -374,22 +383,18 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 				},
 			},
 			pagination: false,
-			req: {
-				...request,
-				transactionID,
-			},
+			req,
+			overrideAccess,
+			user,
 		});
 
 		for (const item of gradebookItems.docs) {
 			const deleteResult = await tryDeleteGradebookItem({
 				payload,
 				itemId: item.id,
-				user: null,
-				req: {
-					...request,
-					transactionID,
-				},
-				overrideAccess: true,
+				req,
+				overrideAccess,
+				user,
 			});
 
 			if (!deleteResult.ok) {
@@ -404,10 +409,7 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 		const deletedLink = await payload.delete({
 			collection: CourseActivityModuleLinks.slug,
 			id: linkId,
-			req: {
-				...request,
-				transactionID,
-			},
+			req,
 		});
 
 		return deletedLink;
@@ -419,14 +421,22 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 		}),
 );
 
+export type FindCourseActivityModuleLinkByIdArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+};
+
 /**
  * Finds a course-activity-module-link by ID
  */
 export const tryFindCourseActivityModuleLinkById = Result.wrap(
-	async (payload: Payload, linkId: number) => {
+	async (args: FindCourseActivityModuleLinkByIdArgs) => {
+		const { payload, linkId, overrideAccess = false, user, req } = args;
 		const link = await payload.findByID({
 			collection: CourseActivityModuleLinks.slug,
 			id: linkId,
+			overrideAccess,
+			user,
+			req,
 		});
 
 		////////////////////////////////////////////////////
@@ -464,17 +474,17 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 		}),
 );
 
+export type UpdateCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+	settings?: CourseModuleSettingsV1;
+};
+
 /**
  * Updates course module settings for a specific link
  */
 export const tryUpdateCourseModuleSettings = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		linkId: number,
-		settings?: CourseModuleSettingsV1,
-		transactionID?: string | number,
-	) => {
+	async (args: UpdateCourseModuleSettingsArgs) => {
+		const { payload, linkId, settings, req, overrideAccess = false, user } = args;
 		// Validate date logic based on module type
 		if (settings?.settings.type === "assignment") {
 			const { allowSubmissionsFrom, dueDate, cutoffDate } = settings.settings;
@@ -530,10 +540,9 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 			data: {
 				settings: settings as unknown as { [key: string]: unknown },
 			},
-			req: {
-				...request,
-				transactionID,
-			},
+			req,
+			overrideAccess,
+			user,
 		});
 
 		////////////////////////////////////////////////////
@@ -571,14 +580,22 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 		}),
 );
 
+export type GetCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+};
+
 /**
  * Retrieves course module settings for a specific link
  */
 export const tryGetCourseModuleSettings = Result.wrap(
-	async (payload: Payload, linkId: number) => {
+	async (args: GetCourseModuleSettingsArgs) => {
+		const { payload, linkId, overrideAccess = false, user, req } = args;
 		const link = await payload.findByID({
 			collection: CourseActivityModuleLinks.slug,
 			id: linkId,
+			overrideAccess,
+			user,
+			req,
 		});
 
 		////////////////////////////////////////////////////
@@ -620,11 +637,17 @@ export const tryGetCourseModuleSettings = Result.wrap(
 		}),
 );
 
+export type CheckCourseActivityModuleLinkExistsArgs = BaseInternalFunctionArgs & {
+	courseId: number;
+	activityModuleId: number;
+};
+
 /**
  * Checks if a course-activity-module link already exists
  */
 export const tryCheckCourseActivityModuleLinkExists = Result.wrap(
-	async (payload: Payload, courseId: number, activityModuleId: number) => {
+	async (args: CheckCourseActivityModuleLinkExistsArgs) => {
+		const { payload, courseId, activityModuleId, overrideAccess = false, user, req } = args;
 		const links = await payload.find({
 			collection: CourseActivityModuleLinks.slug,
 			where: {
@@ -642,6 +665,9 @@ export const tryCheckCourseActivityModuleLinkExists = Result.wrap(
 				],
 			},
 			limit: 1,
+			overrideAccess,
+			user,
+			req,
 		});
 
 		return links.docs.length > 0;

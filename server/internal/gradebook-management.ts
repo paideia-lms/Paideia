@@ -1,4 +1,3 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Gradebooks } from "server/payload.config";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -6,7 +5,6 @@ import { z } from "zod";
 import {
 	DuplicateGradebookError,
 	GradebookNotFoundError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
@@ -17,25 +15,23 @@ import {
 	calculateAdjustedWeights,
 	calculateOverallWeights,
 } from "./utils/gradebook-weight-calculations";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 
-export interface CreateGradebookArgs {
-	payload: Payload;
+export type CreateGradebookArgs = BaseInternalFunctionArgs & {
 	courseId: number;
 	enabled?: boolean;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateGradebookArgs {
-	payload: Payload;
+export type UpdateGradebookArgs = BaseInternalFunctionArgs & {
 	gradebookId: number;
 	enabled?: boolean;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface SearchGradebooksArgs {
 	courseId?: number;
@@ -50,13 +46,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-		| "manual_item"
-		| "category"
-		| "page"
-		| "whiteboard"
-		| "assignment"
-		| "quiz"
-		| "discussion";
+	| "manual_item"
+	| "category"
+	| "page"
+	| "whiteboard"
+	| "assignment"
+	| "quiz"
+	| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
@@ -151,11 +147,7 @@ export const tryCreateGradebook = Result.wrap(
 			);
 		}
 
-		const transactionID = await payload.db.beginTransaction();
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			const newGradebook = await payload.create({
@@ -165,12 +157,11 @@ export const tryCreateGradebook = Result.wrap(
 					enabled,
 				},
 				user,
-				req: req ? { ...req, transactionID } : { transactionID },
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -191,8 +182,7 @@ export const tryCreateGradebook = Result.wrap(
 			};
 			return result;
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -251,13 +241,9 @@ export const tryUpdateGradebook = Result.wrap(
 );
 
 // ! we should not delete gradebooks so we don't have the delete function here
-export interface GetGradebookByCourseWithDetailsArgs {
-	payload: Payload;
+export type GetGradebookByCourseWithDetailsArgs = BaseInternalFunctionArgs & {
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Gets gradebook by course ID with all details
@@ -566,13 +552,9 @@ function buildFullBreakdownRows(
 	return rows;
 }
 
-export interface GetGradebookAllRepresentationsArgs {
-	payload: Payload;
+export type GetGradebookAllRepresentationsArgs = BaseInternalFunctionArgs & {
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface GradebookAllRepresentations {
 	json: GradebookJsonRepresentation;

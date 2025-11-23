@@ -1,20 +1,12 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface GetAppearanceSettingsArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+export type GetAppearanceSettingsArgs = BaseInternalFunctionArgs & {};
 
-export interface UpdateAppearanceSettingsArgs {
-	payload: Payload;
-	user: User;
+export type UpdateAppearanceSettingsArgs = BaseInternalFunctionArgs & {
 	data: {
 		additionalCssStylesheets?: Array<{ url: string }>;
 		color?: string;
@@ -26,9 +18,7 @@ export interface UpdateAppearanceSettingsArgs {
 		faviconLight?: number | null;
 		faviconDark?: number | null;
 	};
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export type AppearanceSettings = {
 	additionalCssStylesheets: { url: string; id?: string | null }[];
@@ -142,14 +132,12 @@ export const tryGetAppearanceSettings = Result.wrap(
 /**
  * Clear a logo field in appearance settings (set to null).
  */
+export type ClearLogoArgs = BaseInternalFunctionArgs & {
+	field: LogoField;
+};
+
 export const tryClearLogo = Result.wrap(
-	async (args: {
-		payload: Payload;
-		user: User;
-		field: LogoField;
-		req?: Partial<PayloadRequest>;
-		overrideAccess?: boolean;
-	}) => {
+	async (args: ClearLogoArgs) => {
 		const { payload, user, field, req, overrideAccess = false } = args;
 
 		const updateData: {

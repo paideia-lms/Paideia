@@ -71,7 +71,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can manage categories");
 	}
 
-	const treeResult = await tryGetCategoryTree(payload);
+	const treeResult = await tryGetCategoryTree({ payload });
 	if (!treeResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
 	}
@@ -98,16 +98,16 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	if (categoryIdParam) {
 		const idNum = Number(categoryIdParam);
 		if (!Number.isNaN(idNum)) {
-			const catRes = await tryFindCategoryById(payload, idNum);
+			const catRes = await tryFindCategoryById({ payload, categoryId: idNum });
 			if (catRes.ok) {
 				const directCoursesCountRes = await payload.count({
 					collection: "courses",
 					where: { category: { equals: idNum } },
 				});
 				const [subRes, totalRes, ancestorsRes] = await Promise.all([
-					tryFindSubcategories(payload, idNum),
-					tryGetTotalNestedCoursesCount(payload, idNum),
-					tryGetCategoryAncestors(payload, idNum),
+					tryFindSubcategories({ payload, parentId: idNum }),
+					tryGetTotalNestedCoursesCount({ payload, categoryId: idNum }),
+					tryGetCategoryAncestors({ payload, categoryId: idNum }),
 				]);
 				const parentField = catRes.value.parent;
 				selectedCategory = {
@@ -162,10 +162,7 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			const parentRaw = form.get("parent");
 			const parent = parentRaw ? Number(parentRaw) : undefined;
 
-			const updateRes = await tryUpdateCategory(payload, request, categoryId, {
-				name: name ? String(name) : undefined,
-				parent: Number.isFinite(parent) ? (parent as number) : undefined,
-			});
+			const updateRes = await tryUpdateCategory({ payload, categoryId, req: request, name: name ? String(name) : undefined, parent: parent ? Number(parent) : undefined });
 
 			if (!updateRes.ok) {
 				await payload.db.rollbackTransaction(transactionID);
@@ -189,7 +186,7 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 				});
 			}
 
-			const delRes = await tryDeleteCategory(payload, request, categoryId);
+			const delRes = await tryDeleteCategory({ payload, categoryId, req: request });
 			if (!delRes.ok) {
 				await payload.db.rollbackTransaction(transactionID);
 				return badRequest({ error: delRes.error.message });
@@ -433,11 +430,11 @@ export default function AdminCategoriesPage({
 					const viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent("category:none")
+							"?query=" +
+							encodeURIComponent("category:none")
 							: href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent(`category:"${d.name}"`);
+							"?query=" +
+							encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">

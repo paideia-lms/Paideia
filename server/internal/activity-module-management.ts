@@ -12,16 +12,14 @@ import {
 } from "~/utils/error";
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 import { handleTransactionId } from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
 // Base args that are common to all module types
-type BaseCreateActivityModuleArgs = {
+type BaseCreateActivityModuleArgs = BaseInternalFunctionArgs & {
 	title: string;
 	description?: string;
 	status?: "draft" | "published" | "archived";
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 };
 
 // Discriminated union for create args
@@ -74,13 +72,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -132,14 +130,11 @@ export type CreateActivityModuleArgs =
 	| CreateDiscussionModuleArgs;
 
 // Base args for update
-type BaseUpdateActivityModuleArgs = {
+type BaseUpdateActivityModuleArgs = BaseInternalFunctionArgs & {
 	id: number;
 	title?: string;
 	description?: string;
 	status?: "draft" | "published" | "archived";
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 };
 
 // Discriminated union for update args
@@ -192,13 +187,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -249,13 +244,9 @@ export type UpdateActivityModuleArgs =
 	| UpdateQuizModuleArgs
 	| UpdateDiscussionModuleArgs;
 
-export interface GetActivityModuleByIdArgs {
-	payload: Payload;
+export type GetActivityModuleByIdArgs = BaseInternalFunctionArgs & {
 	id: number | string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Page type - excludes createdBy as it's handled by BaseActivityModuleResult
@@ -303,12 +294,12 @@ type Assignment = {
 	maxAttempts?: number | null;
 	allowLateSubmissions?: boolean | null;
 	allowedFileTypes?:
-		| {
-				extension: string;
-				mimeType: string;
-				id?: string | null;
-		  }[]
-		| null;
+	| {
+		extension: string;
+		mimeType: string;
+		id?: string | null;
+	}[]
+	| null;
 	maxFileSize?: number | null;
 	maxFiles?: number | null;
 	requireTextSubmission?: boolean | null;
@@ -336,45 +327,45 @@ type Quiz = {
 	shuffleAnswers?: boolean | null;
 	showOneQuestionAtATime?: boolean | null;
 	rawQuizConfig?:
-		| {
-				[k: string]: unknown;
-		  }
-		| unknown[]
-		| string
-		| number
-		| boolean
-		| null;
+	| {
+		[k: string]: unknown;
+	}
+	| unknown[]
+	| string
+	| number
+	| boolean
+	| null;
 	questions?:
+	| {
+		questionText: string;
+		questionType:
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank"
+		| "matching"
+		| "ordering";
+		points: number;
+		options?:
 		| {
-				questionText: string;
-				questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank"
-					| "matching"
-					| "ordering";
-				points: number;
-				options?:
-					| {
-							text: string;
-							isCorrect?: boolean | null;
-							feedback?: string | null;
-							id?: string | null;
-					  }[]
-					| null;
-				correctAnswer?: string | null;
-				explanation?: string | null;
-				hints?:
-					| {
-							hint: string;
-							id?: string | null;
-					  }[]
-					| null;
-				id?: string | null;
-		  }[]
+			text: string;
+			isCorrect?: boolean | null;
+			feedback?: string | null;
+			id?: string | null;
+		}[]
 		| null;
+		correctAnswer?: string | null;
+		explanation?: string | null;
+		hints?:
+		| {
+			hint: string;
+			id?: string | null;
+		}[]
+		| null;
+		id?: string | null;
+	}[]
+	| null;
 	updatedAt: string;
 	createdAt: string;
 };
@@ -402,13 +393,13 @@ type Discussion = {
 	maxGroupSize?: number | null;
 	threadSorting?: ("recent" | "upvoted" | "active" | "alphabetical") | null;
 	pinnedThreads?:
-		| {
-				thread: number | { id: number };
-				pinnedAt: string;
-				pinnedBy: number | { id: number };
-				id?: string | null;
-		  }[]
-		| null;
+	| {
+		thread: number | { id: number };
+		pinnedAt: string;
+		pinnedBy: number | { id: number };
+		id?: string | null;
+	}[]
+	| null;
 	updatedAt: string;
 	createdAt: string;
 };
@@ -632,8 +623,9 @@ function buildDiscriminatedUnionResult(
  * Creates a new activity module using Payload local API
  */
 export const tryCreateActivityModule = Result.wrap(
-	async (payload: Payload, args: CreateActivityModuleArgs) => {
+	async (args: CreateActivityModuleArgs) => {
 		const {
+			payload,
 			title,
 			description,
 			type,
@@ -1166,18 +1158,18 @@ export const tryGetActivityModuleById = Result.wrap(
 					},
 					page: page
 						? {
-								...page,
-								media: pageMedia ?? null,
-							}
+							...page,
+							media: pageMedia ?? null,
+						}
 						: null,
 					whiteboard,
 					file: file
 						? {
-								id: file.id,
-								media: fileMedia ?? null,
-								updatedAt: file.updatedAt,
-								createdAt: file.createdAt,
-							}
+							id: file.id,
+							media: fileMedia ?? null,
+							updatedAt: file.updatedAt,
+							createdAt: file.createdAt,
+						}
 						: null,
 					assignment,
 					quiz,
@@ -1247,8 +1239,9 @@ export const tryGetActivityModuleById = Result.wrap(
  * Updates an activity module
  */
 export const tryUpdateActivityModule = Result.wrap(
-	async (payload: Payload, args: UpdateActivityModuleArgs) => {
+	async (args: UpdateActivityModuleArgs) => {
 		const {
+			payload,
 			id,
 			title,
 			description,
@@ -1739,20 +1732,17 @@ export const tryListActivityModules = Result.wrap(
 		}),
 );
 
+type GetUserActivityModulesArgs = BaseInternalFunctionArgs & {
+	userId: number;
+};
+
 /**
  * Gets all activity modules that a user owns or has access to
  * Includes modules where user is owner, creator, or has been granted access
  */
 export const tryGetUserActivityModules = Result.wrap(
-	async (
-		payload: Payload,
-		args: {
-			userId: number;
-			user?: TypedUser | null;
-			overrideAccess?: boolean;
-		},
-	) => {
-		const { userId, user, overrideAccess = false } = args;
+	async (args: GetUserActivityModulesArgs) => {
+		const { payload, userId, user = null, req, overrideAccess = false } = args;
 
 		// Validate user ID
 		if (!userId) {
@@ -1782,6 +1772,7 @@ export const tryGetUserActivityModules = Result.wrap(
 				pagination: false,
 				overrideAccess,
 				user,
+				req,
 			})
 			.then((result) => {
 				const docs = result.docs.map((doc) => {
@@ -1867,6 +1858,7 @@ export const tryGetUserActivityModules = Result.wrap(
 			payload,
 			userId,
 			user,
+			req,
 			overrideAccess,
 		});
 

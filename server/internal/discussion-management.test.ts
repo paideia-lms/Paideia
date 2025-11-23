@@ -140,6 +140,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create activity module with discussion
 		const activityModuleArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Test Discussion",
 			description: "A test discussion for submission workflow",
 			type: "discussion",
@@ -162,10 +163,10 @@ describe("Discussion Management - Full Workflow", () => {
 				groupDiscussion: false,
 				threadSorting: "recent" as const,
 			},
+			overrideAccess: true,
 		};
 
 		const activityModuleResult = await tryCreateActivityModule(
-			payload,
 			activityModuleArgs,
 		);
 		if (!activityModuleResult.ok) {
@@ -213,15 +214,16 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create course-activity-module-link
 		const linkArgs: CreateCourseActivityModuleLinkArgs = {
+			payload,
+			req: mockRequest,
 			course: courseId,
 			activityModule: activityModuleId,
 			section: sectionResult.value.id,
 			order: 0,
+			overrideAccess: true,
 		};
 
 		const linkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
 			linkArgs,
 		);
 		expect(linkResult.ok).toBe(true);
@@ -517,7 +519,9 @@ describe("Discussion Management - Full Workflow", () => {
 		console.log("Created reply 2 (nested) with ID:", reply2Id);
 
 		// Get all threads with all replies
-		const result = await tryGetDiscussionThreadsWithAllReplies(payload, {
+		const result = await tryGetDiscussionThreadsWithAllReplies({
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			overrideAccess: true,
 		});
@@ -632,7 +636,9 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(comment1Result.ok).toBe(true);
 
 		// Get all threads with all replies and comments for this course module link
-		const result = await tryGetDiscussionThreadsWithAllReplies(payload, {
+		const result = await tryGetDiscussionThreadsWithAllReplies({
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			overrideAccess: true,
 		});
@@ -900,8 +906,8 @@ describe("Discussion Management - Full Workflow", () => {
 		// Verify gradedBy is the teacher
 		const gradedById =
 			typeof submissionWithGrade.gradedBy === "object" &&
-			submissionWithGrade.gradedBy !== null &&
-			"id" in submissionWithGrade.gradedBy
+				submissionWithGrade.gradedBy !== null &&
+				"id" in submissionWithGrade.gradedBy
 				? submissionWithGrade.gradedBy.id
 				: submissionWithGrade.gradedBy;
 		expect(gradedById).toBe(teacherId);

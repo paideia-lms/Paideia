@@ -74,6 +74,7 @@ describe("Activity Module Management", () => {
 
 	test("should create a page activity module", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Test Page Module",
 			description: "This is a test page module",
 			type: "page",
@@ -85,7 +86,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result = await tryCreateActivityModule(payload, args);
+		const result = await tryCreateActivityModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -104,6 +105,7 @@ describe("Activity Module Management", () => {
 
 	test("should create an assignment activity module", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Test Assignment",
 			description: "This is a test assignment",
 			type: "assignment",
@@ -130,7 +132,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result = await tryCreateActivityModule(payload, args);
+		const result = await tryCreateActivityModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -155,6 +157,7 @@ describe("Activity Module Management", () => {
 
 	test("should create a quiz activity module", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Test Quiz",
 			description: "This is a test quiz",
 			type: "quiz",
@@ -191,7 +194,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result = await tryCreateActivityModule(payload, args);
+		const result = await tryCreateActivityModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -215,6 +218,7 @@ describe("Activity Module Management", () => {
 
 	test("should create a file activity module", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Test File Module",
 			description: "This is a test file module",
 			type: "file",
@@ -226,7 +230,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result = await tryCreateActivityModule(payload, args);
+		const result = await tryCreateActivityModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -248,6 +252,7 @@ describe("Activity Module Management", () => {
 
 	test("should create a discussion activity module", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Test Discussion",
 			description: "This is a test discussion",
 			type: "discussion",
@@ -273,7 +278,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result = await tryCreateActivityModule(payload, args);
+		const result = await tryCreateActivityModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -300,6 +305,7 @@ describe("Activity Module Management", () => {
 
 	test("should create activity module with default status", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Test Activity Module 2",
 			type: "whiteboard",
 			userId: testUserId,
@@ -309,7 +315,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result = await tryCreateActivityModule(payload, args);
+		const result = await tryCreateActivityModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -400,7 +406,10 @@ describe("Activity Module Management", () => {
 		];
 
 		for (const testCase of testCases) {
-			const result = await tryCreateActivityModule(payload, testCase.args);
+			const result = await tryCreateActivityModule({
+				payload,
+				...testCase.args,
+			});
 
 			expect(result.ok).toBe(true);
 			if (!result.ok) continue;
@@ -411,6 +420,7 @@ describe("Activity Module Management", () => {
 
 	test("should get activity module by ID", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Get Test Module",
 			type: "page",
 			userId: testUserId,
@@ -420,7 +430,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, args);
+		const createResult = await tryCreateActivityModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -445,6 +455,7 @@ describe("Activity Module Management", () => {
 
 	test("should update page activity module", async () => {
 		const createArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Update Test Page Module",
 			type: "page",
 			status: "draft",
@@ -455,13 +466,14 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, createArgs);
+		const createResult = await tryCreateActivityModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
 		const updateArgs: UpdateActivityModuleArgs = {
+			payload,
 			id: createdModule.id,
 			type: "page",
 			title: "Updated Page Title",
@@ -473,7 +485,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+		const updateResult = await tryUpdateActivityModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -486,6 +498,7 @@ describe("Activity Module Management", () => {
 
 	test("should update assignment activity module", async () => {
 		const createArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Update Test Assignment",
 			type: "assignment",
 			status: "draft",
@@ -498,13 +511,14 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, createArgs);
+		const createResult = await tryCreateActivityModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
 		const updateArgs: UpdateActivityModuleArgs = {
+			payload,
 			id: createdModule.id,
 			type: "assignment",
 			title: "Updated Assignment Title",
@@ -519,7 +533,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+		const updateResult = await tryUpdateActivityModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -528,7 +542,7 @@ describe("Activity Module Management", () => {
 		// For assignments, description uses instructions if provided
 		expect(updatedModule.description).toBe(
 			updateArgs.assignmentData.instructions ||
-				"Updated assignment description",
+			"Updated assignment description",
 		);
 		expect(updatedModule.status).toBe("published");
 		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
@@ -536,6 +550,7 @@ describe("Activity Module Management", () => {
 
 	test("should update quiz activity module", async () => {
 		const createArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Update Test Quiz",
 			type: "quiz",
 			status: "draft",
@@ -548,13 +563,14 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, createArgs);
+		const createResult = await tryCreateActivityModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
 		const updateArgs: UpdateActivityModuleArgs = {
+			payload,
 			id: createdModule.id,
 			type: "quiz",
 			title: "Updated Quiz Title",
@@ -570,7 +586,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+		const updateResult = await tryUpdateActivityModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -583,6 +599,7 @@ describe("Activity Module Management", () => {
 
 	test("should update file activity module", async () => {
 		const createArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Update Test File Module",
 			type: "file",
 			status: "draft",
@@ -593,13 +610,14 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, createArgs);
+		const createResult = await tryCreateActivityModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
 		const updateArgs: UpdateActivityModuleArgs = {
+			payload,
 			id: createdModule.id,
 			type: "file",
 			title: "Updated File Title",
@@ -611,7 +629,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+		const updateResult = await tryUpdateActivityModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -624,6 +642,7 @@ describe("Activity Module Management", () => {
 
 	test("should update discussion activity module", async () => {
 		const createArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Update Test Discussion",
 			type: "discussion",
 			status: "draft",
@@ -637,13 +656,14 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, createArgs);
+		const createResult = await tryCreateActivityModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
 		const updateArgs: UpdateActivityModuleArgs = {
+			payload,
 			id: createdModule.id,
 			type: "discussion",
 			title: "Updated Discussion Title",
@@ -660,7 +680,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const updateResult = await tryUpdateActivityModule(payload, updateArgs);
+		const updateResult = await tryUpdateActivityModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -676,6 +696,7 @@ describe("Activity Module Management", () => {
 
 	test("should delete page activity module", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Delete Test Page Module",
 			type: "page",
 			userId: testUserId,
@@ -685,7 +706,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, args);
+		const createResult = await tryCreateActivityModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -709,6 +730,7 @@ describe("Activity Module Management", () => {
 
 	test("should delete assignment activity module with cascading delete", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Delete Test Assignment",
 			type: "assignment",
 			userId: testUserId,
@@ -720,7 +742,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, args);
+		const createResult = await tryCreateActivityModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -747,6 +769,7 @@ describe("Activity Module Management", () => {
 
 	test("should delete quiz activity module with cascading delete", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Delete Test Quiz",
 			type: "quiz",
 			userId: testUserId,
@@ -768,7 +791,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, args);
+		const createResult = await tryCreateActivityModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -795,6 +818,7 @@ describe("Activity Module Management", () => {
 
 	test("should delete file activity module with cascading delete", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Delete Test File Module",
 			type: "file",
 			userId: testUserId,
@@ -804,7 +828,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, args);
+		const createResult = await tryCreateActivityModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -831,6 +855,7 @@ describe("Activity Module Management", () => {
 
 	test("should delete discussion activity module with cascading delete", async () => {
 		const args: CreateActivityModuleArgs = {
+			payload,
 			title: "Delete Test Discussion",
 			type: "discussion",
 			userId: testUserId,
@@ -843,7 +868,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const createResult = await tryCreateActivityModule(payload, args);
+		const createResult = await tryCreateActivityModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -907,7 +932,10 @@ describe("Activity Module Management", () => {
 		];
 
 		for (const module of modules) {
-			const result = await tryCreateActivityModule(payload, module);
+			const result = await tryCreateActivityModule({
+				payload,
+				...module,
+			});
 			expect(result.ok).toBe(true);
 		}
 
@@ -970,6 +998,7 @@ describe("Activity Module Management", () => {
 		// Create multiple modules for pagination testing
 		for (let i = 0; i < 5; i++) {
 			const args: CreateActivityModuleArgs = {
+				payload,
 				title: `Pagination Test Module ${i + 1}`,
 				type: "page",
 				userId: testUserId,
@@ -979,7 +1008,7 @@ describe("Activity Module Management", () => {
 				},
 			};
 
-			const result = await tryCreateActivityModule(payload, args);
+			const result = await tryCreateActivityModule(args);
 			expect(result.ok).toBe(true);
 		}
 
@@ -1004,6 +1033,7 @@ describe("Activity Module Management", () => {
 	test("should fail with invalid arguments", async () => {
 		// Test missing title
 		const invalidArgs1: CreateActivityModuleArgs = {
+			payload,
 			title: "",
 			type: "page",
 			userId: testUserId,
@@ -1012,11 +1042,12 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result1 = await tryCreateActivityModule(payload, invalidArgs1);
+		const result1 = await tryCreateActivityModule(invalidArgs1);
 		expect(result1.ok).toBe(false);
 
 		// Test missing userId
 		const invalidArgs3: CreateActivityModuleArgs = {
+			payload,
 			title: "Test",
 			type: "page",
 			userId: undefined as never,
@@ -1025,7 +1056,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result3 = await tryCreateActivityModule(payload, invalidArgs3);
+		const result3 = await tryCreateActivityModule(invalidArgs3);
 		expect(result3.ok).toBe(false);
 	});
 
@@ -1043,6 +1074,7 @@ describe("Activity Module Management", () => {
 
 	test("should fail to update non-existent activity module", async () => {
 		const updateArgs: UpdateActivityModuleArgs = {
+			payload,
 			id: 99999,
 			type: "page",
 			title: "Updated Title",
@@ -1051,7 +1083,7 @@ describe("Activity Module Management", () => {
 			},
 		};
 
-		const result = await tryUpdateActivityModule(payload, updateArgs);
+		const result = await tryUpdateActivityModule(updateArgs);
 		expect(result.ok).toBe(false);
 	});
 

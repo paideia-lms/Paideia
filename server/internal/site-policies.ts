@@ -1,25 +1,16 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface GetSitePoliciesArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+export type GetSitePoliciesArgs = BaseInternalFunctionArgs & {};
 
-export interface UpdateSitePoliciesArgs {
-	payload: Payload;
-	user: User;
+export type UpdateSitePoliciesArgs = BaseInternalFunctionArgs & {
 	data: {
 		userMediaStorageTotal?: number | null;
 		siteUploadLimit?: number | null;
 	};
-	overrideAccess?: boolean;
-}
+};
 
 export type SitePolicies = {
 	userMediaStorageTotal: number | null;

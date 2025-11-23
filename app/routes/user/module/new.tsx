@@ -135,6 +135,7 @@ const createPageAction = async ({
 	}
 
 	const createArgs: CreateActivityModuleArgs = {
+		payload,
 		title: parsedData.title,
 		description: parsedData.description,
 		status: parsedData.status || ("draft" as const),
@@ -145,7 +146,7 @@ const createPageAction = async ({
 		pageData,
 	};
 
-	const createResult = await tryCreateActivityModule(payload, createArgs);
+	const createResult = await tryCreateActivityModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -210,6 +211,7 @@ const createWhiteboardAction = async ({
 	}
 
 	const createArgs: CreateActivityModuleArgs = {
+		payload,
 		title: parsedData.title,
 		description: parsedData.description,
 		status: parsedData.status || ("draft" as const),
@@ -220,7 +222,7 @@ const createWhiteboardAction = async ({
 		whiteboardData,
 	};
 
-	const createResult = await tryCreateActivityModule(payload, createArgs);
+	const createResult = await tryCreateActivityModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -333,6 +335,7 @@ const createFileAction = async ({
 	}
 
 	const createArgs: CreateActivityModuleArgs = {
+		payload,
 		title: parsedData.title,
 		description: parsedData.description,
 		status: parsedData.status || ("draft" as const),
@@ -343,7 +346,7 @@ const createFileAction = async ({
 		fileData: finalFileData,
 	};
 
-	const createResult = await tryCreateActivityModule(payload, createArgs);
+	const createResult = await tryCreateActivityModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -408,6 +411,7 @@ const createAssignmentAction = async ({
 	}
 
 	const createArgs: CreateActivityModuleArgs = {
+		payload,
 		title: parsedData.title,
 		description: parsedData.description,
 		status: parsedData.status || ("draft" as const),
@@ -418,7 +422,7 @@ const createAssignmentAction = async ({
 		assignmentData,
 	};
 
-	const createResult = await tryCreateActivityModule(payload, createArgs);
+	const createResult = await tryCreateActivityModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -483,6 +487,7 @@ const createQuizAction = async ({
 	}
 
 	const createArgs: CreateActivityModuleArgs = {
+		payload,
 		title: parsedData.title,
 		description: parsedData.description,
 		status: parsedData.status || ("draft" as const),
@@ -493,7 +498,7 @@ const createQuizAction = async ({
 		quizData,
 	};
 
-	const createResult = await tryCreateActivityModule(payload, createArgs);
+	const createResult = await tryCreateActivityModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -558,6 +563,7 @@ const createDiscussionAction = async ({
 	}
 
 	const createArgs: CreateActivityModuleArgs = {
+		payload,
 		title: parsedData.title,
 		description: parsedData.description,
 		status: parsedData.status || ("draft" as const),
@@ -568,7 +574,7 @@ const createDiscussionAction = async ({
 		discussionData,
 	};
 
-	const createResult = await tryCreateActivityModule(payload, createArgs);
+	const createResult = await tryCreateActivityModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);

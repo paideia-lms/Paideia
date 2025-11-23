@@ -7,32 +7,31 @@ import {
 	GetObjectCommand,
 	ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
 	MediaInUseError,
 	NonExistingMediaError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
 import { envVars } from "../env";
 import type { Media } from "../payload-types";
-import { handleTransactionId } from "./utils/handle-transaction-id";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateMediaArgs {
-	payload: Payload;
+export type CreateMediaArgs = BaseInternalFunctionArgs & {
 	file: Buffer;
 	filename: string;
 	mimeType: string;
 	alt?: string;
 	caption?: string;
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface CreateMediaResult {
 	media: Media;
@@ -78,19 +77,7 @@ export const tryCreateMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Create media record using Payload's upload functionality
@@ -108,23 +95,17 @@ export const tryCreateMedia = Result.wrap(
 					mimetype: mimeType,
 				},
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return {
 				media,
 			};
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -135,33 +116,21 @@ export const tryCreateMedia = Result.wrap(
 		}),
 );
 
-export interface GetMediaByIdArgs {
-	payload: Payload;
+export type GetMediaByIdArgs = BaseInternalFunctionArgs & {
 	id: number | string;
 	depth?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetMediaByFilenameArgs {
-	payload: Payload;
+export type GetMediaByFilenameArgs = BaseInternalFunctionArgs & {
 	filename: string;
 	depth?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetMediaBufferFromFilenameArgs {
-	payload: Payload;
+export type GetMediaBufferFromFilenameArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	filename: string;
 	depth?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface GetMediaBufferFromFilenameResult {
 	media: Media;
@@ -348,31 +317,23 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 		}),
 );
 
-export interface GetMediaBufferFromIdArgs {
-	payload: Payload;
+export type GetMediaBufferFromIdArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	id: number | string;
 	depth?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface GetMediaBufferFromIdResult {
 	media: Media;
 	buffer: Buffer;
 }
 
-export interface GetMediaStreamFromFilenameArgs {
-	payload: Payload;
+export type GetMediaStreamFromFilenameArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	filename: string;
 	depth?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
 	range?: { start: number; end?: number };
-	overrideAccess?: boolean;
-}
+};
 
 export interface GetMediaStreamFromFilenameResult {
 	media: Media;
@@ -381,16 +342,12 @@ export interface GetMediaStreamFromFilenameResult {
 	contentRange?: string;
 }
 
-export interface GetMediaStreamFromIdArgs {
-	payload: Payload;
+export type GetMediaStreamFromIdArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	id: number | string;
 	depth?: number;
 	range?: { start: number; end?: number };
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface GetMediaStreamFromIdResult {
 	media: Media;
@@ -696,17 +653,13 @@ export const tryGetMediaStreamFromId = Result.wrap(
 		}),
 );
 
-export interface GetAllMediaArgs {
-	payload: Payload;
+export type GetAllMediaArgs = BaseInternalFunctionArgs & {
 	limit?: number;
 	page?: number;
 	depth?: number;
 	sort?: string;
 	where?: Record<string, unknown>;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Gets all media records with pagination and filtering
@@ -770,16 +723,12 @@ export const tryGetAllMedia = Result.wrap(
 		}),
 );
 
-export interface UpdateMediaArgs {
-	payload: Payload;
+export type UpdateMediaArgs = BaseInternalFunctionArgs & {
 	id: number;
 	alt?: string;
 	caption?: string;
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Updates a media record's metadata
@@ -811,26 +760,14 @@ export const tryUpdateMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Verify user exists
 			const userRecord = await payload.findByID({
 				collection: "users",
 				id: userId,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			if (!userRecord) {
@@ -842,7 +779,7 @@ export const tryUpdateMedia = Result.wrap(
 				collection: "media",
 				id,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -867,21 +804,15 @@ export const tryUpdateMedia = Result.wrap(
 				id,
 				data: updateData,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return updatedMedia;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -892,15 +823,11 @@ export const tryUpdateMedia = Result.wrap(
 		}),
 );
 
-export interface DeleteMediaArgs {
-	payload: Payload;
+export type DeleteMediaArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	id: number | number[];
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface DeleteMediaResult {
 	deletedMedia: Media[];
@@ -943,19 +870,7 @@ export const tryDeleteMedia = Result.wrap(
 		// Normalize to array
 		const ids = Array.isArray(id) ? id : [id];
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Get the media records before deletion
@@ -968,7 +883,7 @@ export const tryDeleteMedia = Result.wrap(
 				},
 				limit: ids.length,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -995,7 +910,7 @@ export const tryDeleteMedia = Result.wrap(
 					payload,
 					mediaId: media.id,
 					user,
-					req: reqWithTransaction,
+					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				});
 
@@ -1036,24 +951,18 @@ export const tryDeleteMedia = Result.wrap(
 					collection: "media",
 					id: mediaId,
 					user,
-					req: reqWithTransaction,
+					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				});
 			}
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return {
 				deletedMedia: foundMedia,
 			};
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -1064,16 +973,12 @@ export const tryDeleteMedia = Result.wrap(
 		}),
 );
 
-export interface GetMediaByMimeTypeArgs {
-	payload: Payload;
+export type GetMediaByMimeTypeArgs = BaseInternalFunctionArgs & {
 	mimeType: string;
 	limit?: number;
 	page?: number;
 	depth?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Gets media records filtered by MIME type
@@ -1155,17 +1060,13 @@ export const tryGetMediaByMimeType = Result.wrap(
 		}),
 );
 
-export interface FindMediaByUserArgs {
-	payload: Payload;
+export type FindMediaByUserArgs = BaseInternalFunctionArgs & {
 	userId: number;
 	limit?: number;
 	page?: number;
 	depth?: number;
 	sort?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Finds media by user ID
@@ -1245,16 +1146,12 @@ export const tryFindMediaByUser = Result.wrap(
 		}),
 );
 
-export interface RenameMediaArgs {
-	payload: Payload;
+export type RenameMediaArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	id: number | string;
 	newFilename: string;
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface RenameMediaResult {
 	media: Media;
@@ -1296,8 +1193,7 @@ export const tryRenameMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Get the media record
@@ -1318,7 +1214,7 @@ export const tryRenameMedia = Result.wrap(
 			const userRecord = await payload.findByID({
 				collection: "users",
 				id: userId,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			if (!userRecord) {
@@ -1336,10 +1232,7 @@ export const tryRenameMedia = Result.wrap(
 
 			// If the new filename is the same as the old one, just return the media
 			if (oldFilename === newFilename) {
-				// Commit transaction only if we created it
-				if (isTransactionCreated) {
-					await payload.db.commitTransaction(transactionID);
-				}
+				await commitTransactionIfCreated(payload, transactionInfo);
 				return { media };
 			}
 
@@ -1349,7 +1242,7 @@ export const tryRenameMedia = Result.wrap(
 				filename: newFilename,
 				depth: 0,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1384,23 +1277,17 @@ export const tryRenameMedia = Result.wrap(
 					filename: newFilename,
 				},
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (isTransactionCreated) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return {
 				media: updatedMedia,
 			};
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (isTransactionCreated) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -1411,13 +1298,9 @@ export const tryRenameMedia = Result.wrap(
 		}),
 );
 
-export interface GetUserMediaStatsArgs {
-	payload: Payload;
+export type GetUserMediaStatsArgs = BaseInternalFunctionArgs & {
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Gets media drive statistics for a user
@@ -1528,12 +1411,7 @@ export const tryGetUserMediaStats = Result.wrap(
 		}),
 );
 
-export interface GetSystemMediaStatsArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+export type GetSystemMediaStatsArgs = BaseInternalFunctionArgs;
 
 /**
  * Gets media drive statistics for the entire system
@@ -1645,15 +1523,11 @@ export interface OrphanedMediaFile {
 	lastModified?: Date;
 }
 
-export interface GetOrphanedMediaArgs {
-	payload: Payload;
+export type GetOrphanedMediaArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	limit?: number;
 	page?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface GetOrphanedMediaResult {
 	files: OrphanedMediaFile[];
@@ -1785,13 +1659,9 @@ export const tryGetOrphanedMedia = Result.wrap(
 		}),
 );
 
-export interface GetAllOrphanedFilenamesArgs {
-	payload: Payload;
+export type GetAllOrphanedFilenamesArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface GetAllOrphanedFilenamesResult {
 	filenames: string[];
@@ -1891,13 +1761,9 @@ export interface PruneAllOrphanedMediaResult {
  * 4. Deletes all orphaned files from S3 in batches
  * 5. Returns results with any errors
  */
-export interface PruneAllOrphanedMediaArgs {
-	payload: Payload;
+export type PruneAllOrphanedMediaArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export const tryPruneAllOrphanedMedia = Result.wrap(
 	async (
@@ -2038,14 +1904,10 @@ export const tryPruneAllOrphanedMedia = Result.wrap(
 		}),
 );
 
-export interface DeleteOrphanedMediaArgs {
-	payload: Payload;
+export type DeleteOrphanedMediaArgs = BaseInternalFunctionArgs & {
 	s3Client: S3Client;
 	filenames: string[];
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface DeleteOrphanedMediaResult {
 	deletedCount: number;
@@ -2189,13 +2051,9 @@ export interface MediaUsage {
 	fieldPath: string; // e.g., "avatar", "thumbnail", "attachments.0.file"
 }
 
-export interface FindMediaUsagesArgs {
-	payload: Payload;
+export type FindMediaUsagesArgs = BaseInternalFunctionArgs & {
 	mediaId: number | string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface FindMediaUsagesResult {
 	usages: MediaUsage[];

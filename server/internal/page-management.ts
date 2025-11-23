@@ -1,4 +1,3 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -9,40 +8,25 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreatePageArgs {
-	payload: Payload;
+export type CreatePageArgs = BaseInternalFunctionArgs & {
 	content?: string;
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdatePageArgs {
-	payload: Payload;
+export type UpdatePageArgs = BaseInternalFunctionArgs & {
 	id: number;
 	content?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeletePageArgs {
-	payload: Payload;
+export type DeletePageArgs = BaseInternalFunctionArgs & {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetPageByIdArgs {
-	payload: Payload;
+export type GetPageByIdArgs = BaseInternalFunctionArgs & {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export const tryCreatePage = Result.wrap(
 	async (args: CreatePageArgs) => {

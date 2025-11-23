@@ -16,6 +16,21 @@ export interface HandleTransactionIdResult {
  * If req.transactionID exists (and is not a Promise), uses it.
  * If req.transactionID is a Promise, awaits it.
  * Otherwise, creates a new transaction.
+ * 
+ * when you use this function, you should always use `commitTransactionIfCreated` and `rollbackTransactionIfCreated` to commit and rollback the transaction **at the same level** as the transaction creation.
+ * 
+ * ```typescript
+ * const transactionInfo = await handleTransactionId(payload, req);
+ * 
+ * const result = await someFunction(payload, transactionInfo.reqWithTransaction);
+ * 
+ * if (!result.ok) {
+ *   await rollbackTransactionIfCreated(payload, transactionInfo);
+ *   return; 
+ * } 
+ * await commitTransactionIfCreated(payload, transactionInfo);
+ * 
+ * ```
  *
  * @param payload - Payload instance
  * @param req - Optional request object that may contain a transactionID

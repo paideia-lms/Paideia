@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
+import type { Payload } from "payload";
 import { DiscussionSubmissions } from "server/collections";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -6,10 +6,15 @@ import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingDiscussionSubmissionError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 
 export interface CreateDiscussionSubmissionArgs {
@@ -30,23 +35,18 @@ export interface UpdateDiscussionSubmissionArgs {
 	isLocked?: boolean;
 }
 
-export interface GradeDiscussionSubmissionArgs {
-	payload: Payload;
+export type GradeDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
 	id: number;
 	grade: number;
 	feedback?: string;
 	gradedBy: number;
-	user?: TypedUser | null;
-	req: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface GetDiscussionSubmissionByIdArgs {
 	id: number | string;
 }
 
-export interface ListDiscussionSubmissionsArgs {
-	payload: Payload;
+export type ListDiscussionSubmissionsArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
@@ -56,17 +56,11 @@ export interface ListDiscussionSubmissionsArgs {
 	limit?: number;
 	page?: number;
 	sortBy?: "recent" | "upvoted" | "active" | "alphabetical";
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetDiscussionThreadsWithAllRepliesArgs {
+export type GetDiscussionThreadsWithAllRepliesArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export interface UpvoteDiscussionSubmissionArgs {
 	submissionId: number;
@@ -384,8 +378,9 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
  * This is more efficient than fetching thread-by-thread
  */
 export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
-	async (payload: Payload, args: GetDiscussionThreadsWithAllRepliesArgs) => {
+	async (args: GetDiscussionThreadsWithAllRepliesArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			user = null,
 			req,
@@ -444,8 +439,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Handle courseModuleLink - can be object or number
 				const courseModuleLinkId =
 					typeof item.courseModuleLink === "object" &&
-					item.courseModuleLink !== null &&
-					"id" in item.courseModuleLink
+						item.courseModuleLink !== null &&
+						"id" in item.courseModuleLink
 						? item.courseModuleLink.id
 						: typeof item.courseModuleLink === "number"
 							? item.courseModuleLink
@@ -478,8 +473,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Get parentThread ID
 				const parentThreadId =
 					typeof item.parentThread === "object" &&
-					item.parentThread !== null &&
-					"id" in item.parentThread
+						item.parentThread !== null &&
+						"id" in item.parentThread
 						? item.parentThread.id
 						: typeof item.parentThread === "number"
 							? item.parentThread
@@ -1018,28 +1013,16 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			throw new InvalidArgumentError("Grade cannot be negative");
 		}
 
-		// Start transaction
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
-			// Construct req with transactionID
-			const reqWithTransaction = {
-				...req,
-				transactionID,
-			};
-
 			// Get the current submission with depth to access course module link
 			const currentSubmission = await payload.findByID({
 				collection: DiscussionSubmissions.slug,
 				id,
 				depth: 1,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1064,7 +1047,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 				payload,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 				courseModuleLinkId,
 			});
@@ -1092,12 +1075,11 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 					gradedAt: now,
 				} as Record<string, unknown>,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			// Fetch the updated submission with depth for return value
 			const updatedSubmission = await payload.findByID({
@@ -1105,7 +1087,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 				id,
 				depth: 1,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1153,8 +1135,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 				enrollment,
 			};
 		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},

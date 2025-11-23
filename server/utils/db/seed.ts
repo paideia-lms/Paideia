@@ -3,10 +3,7 @@ import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { Result } from "typescript-result";
-import {
-	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
-} from "../../internal/activity-module-management";
+import { tryCreateActivityModule } from "../../internal/activity-module-management";
 import { tryCheckFirstUser } from "../../internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "../../internal/course-activity-module-link-management";
 import { tryCreateCategory } from "../../internal/course-category-management";
@@ -215,26 +212,40 @@ async function createCategories(
 ): Promise<{ name: string; id: number }[]> {
 	const categories: { name: string; id: number }[] = [];
 
-	const stemCategory = await tryCreateCategory(payload, req, { name: "STEM" });
+	const stemCategory = await tryCreateCategory({
+		payload,
+		req,
+		name: "STEM",
+		overrideAccess: true,
+	});
 	assertResultOk(stemCategory, "Failed to create STEM category");
 	categories.push({ name: "STEM", id: stemCategory.value.id });
 
-	const humanitiesCategory = await tryCreateCategory(payload, req, {
+	const humanitiesCategory = await tryCreateCategory({
+		payload,
+		req,
 		name: "Humanities",
+		overrideAccess: true,
 	});
 	assertResultOk(humanitiesCategory, "Failed to create Humanities category");
 	categories.push({ name: "Humanities", id: humanitiesCategory.value.id });
 
-	const csSubcat = await tryCreateCategory(payload, req, {
+	const csSubcat = await tryCreateCategory({
+		payload,
+		req,
 		name: "Computer Science",
 		parent: stemCategory.value.id,
+		overrideAccess: true,
 	});
 	assertResultOk(csSubcat, "Failed to create Computer Science subcategory");
 	categories.push({ name: "Computer Science", id: csSubcat.value.id });
 
-	const mathSubcat = await tryCreateCategory(payload, req, {
+	const mathSubcat = await tryCreateCategory({
+		payload,
+		req,
 		name: "Mathematics",
 		parent: stemCategory.value.id,
+		overrideAccess: true,
 	});
 	assertResultOk(mathSubcat, "Failed to create Mathematics subcategory");
 	categories.push({ name: "Mathematics", id: mathSubcat.value.id });
@@ -333,11 +344,13 @@ async function createEnrollment(
  * Build activity module args from module data
  */
 async function buildActivityModuleArgs(
+	payload: Payload,
 	moduleData: SeedData["modules"]["additional"][number],
 	adminUserId: number,
 	whiteboardFixtureLoader: () => Promise<string>,
-): Promise<CreateActivityModuleArgs> {
+) {
 	const baseArgs = {
+		payload,
 		title: moduleData.title,
 		description: moduleData.description,
 		status: moduleData.status,
@@ -463,7 +476,8 @@ async function createActivityModules(
 	>["value"][];
 }> {
 	// Create page module
-	const pageModuleResult = await tryCreateActivityModule(payload, {
+	const pageModuleResult = await tryCreateActivityModule({
+		payload,
 		title: modulesData.page.title,
 		description: modulesData.page.description,
 		type: "page",
@@ -483,12 +497,13 @@ async function createActivityModules(
 
 	for (const moduleData of modulesData.additional) {
 		const moduleArgs = await buildActivityModuleArgs(
+			payload,
 			moduleData,
 			adminUserId,
 			whiteboardLoader,
 		);
 
-		const moduleResult = await tryCreateActivityModule(payload, moduleArgs);
+		const moduleResult = await tryCreateActivityModule(moduleArgs);
 		assertResultOk(
 			moduleResult,
 			`Failed to create additional module "${moduleData.title}"`,
@@ -565,7 +580,9 @@ async function linkModulesToSections(
 		const section = sections[sectionIndex];
 		if (!section) continue;
 
-		const linkResult = await tryCreateCourseActivityModuleLink(payload, req, {
+		const linkResult = await tryCreateCourseActivityModuleLink({
+			payload,
+			req,
 			course: courseId,
 			activityModule: module.id,
 			section: section.id,

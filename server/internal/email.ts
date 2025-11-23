@@ -1,15 +1,11 @@
-import type { BasePayload, TypedUser } from "payload";
 import { Result } from "typescript-result";
 import { EmailSendError } from "~/utils/error";
-import type { User } from "../payload-types";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export type TrySendEmailArgs = {
-	payload: BasePayload;
+export type TrySendEmailArgs = BaseInternalFunctionArgs & {
 	to: string;
 	subject: string;
 	html: string;
-	user?: Omit<TypedUser, "avatar" | "direction" | "theme">;
-	overrideAccess: boolean;
 };
 
 /**

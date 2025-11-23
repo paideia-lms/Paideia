@@ -112,7 +112,7 @@ describe("Media Management", () => {
 			// createdBy could be an object or ID, so check if it's a number or has an id property
 			const createdBy =
 				typeof result.value.media.createdBy === "object" &&
-				result.value.media.createdBy !== null
+					result.value.media.createdBy !== null
 					? result.value.media.createdBy.id
 					: result.value.media.createdBy;
 			expect(createdBy).toBe(testUserId);
@@ -1207,7 +1207,8 @@ describe("Media Management", () => {
 		const sectionId = sectionResult.value.id;
 
 		// 5. Create activity module with assignment
-		const activityModuleResult = await tryCreateActivityModule(payload, {
+		const activityModuleResult = await tryCreateActivityModule({
+			payload,
 			title: "Test Assignment",
 			description: "A test assignment",
 			type: "assignment",
@@ -1229,9 +1230,9 @@ describe("Media Management", () => {
 		// 6. Create course activity module link
 		const mockRequest = new Request("http://localhost:3000/test");
 		const linkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
 			{
+				payload,
+				req: mockRequest,
 				course: courseId,
 				activityModule: activityModuleId,
 				section: sectionId,
@@ -1273,8 +1274,8 @@ describe("Media Management", () => {
 
 		// 8. Create activity module with discussion
 		const discussionActivityModuleResult = await tryCreateActivityModule(
-			payload,
 			{
+				payload,
 				title: "Test Discussion",
 				description: "A test discussion",
 				type: "discussion",
@@ -1295,9 +1296,9 @@ describe("Media Management", () => {
 
 		// 9. Create course activity module link for discussion
 		const discussionLinkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
 			{
+				payload,
+				req: mockRequest,
 				course: courseId,
 				activityModule: discussionActivityModuleId,
 				section: sectionId,

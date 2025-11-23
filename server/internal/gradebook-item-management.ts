@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
+import type { Payload } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -15,23 +15,23 @@ import {
 import type {
 	Enrollment,
 	GradebookItem,
-	User,
 	UserGrade,
 } from "../payload-types";
 import { tryGetGradebookAllRepresentations } from "./gradebook-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { validateGradebookWeights } from "./utils/validate-gradebook-weights";
 
-export interface ValidateOverallWeightTotalArgs {
-	payload: Payload;
+export type ValidateOverallWeightTotalArgs = BaseInternalFunctionArgs & {
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 	errorMessagePrefix?: string;
-}
+};
 
-export interface CreateGradebookItemArgs {
-	payload: Payload;
+export type CreateGradebookItemArgs = BaseInternalFunctionArgs & {
 	courseId: number;
 	categoryId?: number | null;
 	name: string;
@@ -42,13 +42,9 @@ export interface CreateGradebookItemArgs {
 	weight?: number | null;
 	extraCredit?: boolean;
 	sortOrder: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateGradebookItemArgs {
-	payload: Payload;
+export type UpdateGradebookItemArgs = BaseInternalFunctionArgs & {
 	itemId: number;
 	name?: string;
 	description?: string;
@@ -59,18 +55,11 @@ export interface UpdateGradebookItemArgs {
 	weight?: number | null;
 	extraCredit?: boolean;
 	sortOrder?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteGradebookItemArgs {
-	payload: Payload;
+export type DeleteGradebookItemArgs = BaseInternalFunctionArgs & {
 	itemId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 /**
  * Creates a new gradebook item using Payload local API
@@ -126,18 +115,7 @@ export const tryCreateGradebookItem = Result.wrap(
 			throw new InvalidSortOrderError("Sort order must be non-negative");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			const newItem = await payload.create({
@@ -155,7 +133,7 @@ export const tryCreateGradebookItem = Result.wrap(
 					sortOrder,
 				},
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -163,8 +141,8 @@ export const tryCreateGradebookItem = Result.wrap(
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
 				courseId,
-				user,
-				req: reqWithTransaction,
+				user: user ?? null,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Item creation",
 			});
@@ -173,10 +151,7 @@ export const tryCreateGradebookItem = Result.wrap(
 				throw validateResult.error;
 			}
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -221,10 +196,7 @@ export const tryCreateGradebookItem = Result.wrap(
 			};
 			return result;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -256,7 +228,7 @@ export const tryValidateOverallWeightTotal = Result.wrap(
 		const allRepsResult = await tryGetGradebookAllRepresentations({
 			payload,
 			courseId,
-			user,
+			user: user,
 			req,
 			overrideAccess,
 		});
@@ -416,18 +388,7 @@ export const tryUpdateGradebookItem = Result.wrap(
 			updateData.sortOrder = sortOrder;
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Update the item
@@ -436,15 +397,15 @@ export const tryUpdateGradebookItem = Result.wrap(
 				id: itemId,
 				data: updateData,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
 				courseId: gradebookId,
-				user,
-				req: reqWithTransaction,
+				user: user ?? null,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Weight update",
 			});
@@ -453,17 +414,11 @@ export const tryUpdateGradebookItem = Result.wrap(
 				throw validateResult.error;
 			}
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return updatedItem as GradebookItem;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -523,18 +478,7 @@ export const tryDeleteGradebookItem = Result.wrap(
 				? existingItem.gradebook
 				: existingItem.gradebook.id;
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Delete the item
@@ -542,7 +486,7 @@ export const tryDeleteGradebookItem = Result.wrap(
 				collection: GradebookItems.slug,
 				id: itemId,
 				user,
-				req: reqWithTransaction,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -550,8 +494,8 @@ export const tryDeleteGradebookItem = Result.wrap(
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
 				courseId: gradebookId,
-				user,
-				req: reqWithTransaction,
+				user: user ?? null,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Deletion",
 			});
@@ -560,17 +504,11 @@ export const tryDeleteGradebookItem = Result.wrap(
 				throw validateResult.error;
 			}
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return deletedItem as GradebookItem;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -792,13 +730,9 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 		),
 );
 
-export interface FindGradebookItemByCourseModuleLinkArgs {
-	payload: Payload;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
+export type FindGradebookItemByCourseModuleLinkArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
-}
+};
 
 /**
  * Finds a gradebook item by course module link (course-activity-module-link)

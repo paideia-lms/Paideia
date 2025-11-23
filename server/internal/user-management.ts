@@ -1,4 +1,4 @@
-import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
+import type { PayloadRequest, Where } from "payload";
 import { getAccessResults } from "payload";
 import searchQueryParser from "search-query-parser";
 import { assertZodInternal } from "server/utils/type-narrowing";
@@ -6,9 +6,14 @@ import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 import type { Media, User } from "../payload-types";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateUserArgs {
-	payload: Payload;
+export type CreateUserArgs = BaseInternalFunctionArgs & {
 	data: {
 		email: string;
 		password: string;
@@ -20,13 +25,9 @@ export interface CreateUserArgs {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateUserArgs {
-	payload: Payload;
+export type UpdateUserArgs = BaseInternalFunctionArgs & {
 	userId: number;
 	data: {
 		firstName?: string;
@@ -38,81 +39,51 @@ export interface UpdateUserArgs {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-	transactionID?: string | number;
-}
+};
 
-export interface FindUserByEmailArgs {
-	payload: Payload;
+export type FindUserByEmailArgs = BaseInternalFunctionArgs & {
 	email: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindUserByIdArgs {
-	payload: Payload;
+export type FindUserByIdArgs = BaseInternalFunctionArgs & {
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteUserArgs {
-	payload: Payload;
+export type DeleteUserArgs = BaseInternalFunctionArgs & {
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface FindAllUsersArgs {
-	payload: Payload;
+export type FindAllUsersArgs = BaseInternalFunctionArgs & {
 	limit?: number;
 	page?: number;
 	sort?: string;
 	query?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface LoginArgs {
-	payload: Payload;
+export type LoginArgs = BaseInternalFunctionArgs & {
 	email: string;
 	password: string;
-	req?: Partial<PayloadRequest>;
-}
+};
 
-export interface RegisterFirstUserArgs {
-	payload: Payload;
+export type RegisterFirstUserArgs = BaseInternalFunctionArgs & {
 	email: string;
 	password: string;
 	firstName: string;
 	lastName: string;
-	req?: Partial<PayloadRequest>;
-}
+};
 
-export interface RegisterUserArgs {
-	payload: Payload;
+export type RegisterUserArgs = BaseInternalFunctionArgs & {
 	email: string;
 	password: string;
 	firstName: string;
 	lastName: string;
 	role?: User["role"];
-	req?: Partial<PayloadRequest>;
-	user?: TypedUser | null;
-}
+};
 
-export interface HandleImpersonationArgs {
-	payload: Payload;
+export type HandleImpersonationArgs = BaseInternalFunctionArgs & {
 	impersonateUserId: string;
-	authenticatedUser: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+	authenticatedUser: BaseInternalFunctionArgs["user"] | null;
+};
 
 /**
  * Creates a new user using Payload local API
@@ -214,7 +185,6 @@ export const tryUpdateUser = Result.wrap(
 			user = null,
 			req,
 			overrideAccess = false,
-			transactionID,
 		} = args;
 
 		const updatedUser = await payload
@@ -223,7 +193,7 @@ export const tryUpdateUser = Result.wrap(
 				id: userId,
 				data,
 				user,
-				req: transactionID ? { transactionID, ...req } : req,
+				req,
 				overrideAccess,
 			})
 			.then((u) => {
@@ -567,8 +537,7 @@ export const tryRegisterFirstUser = Result.wrap(
 			throw new Error("Users already exist in the system");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Create the first user as admin
@@ -585,7 +554,7 @@ export const tryRegisterFirstUser = Result.wrap(
 				},
 				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
-				req: transactionID ? { transactionID, ...req } : req,
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			// Auto-verify the first user
@@ -597,13 +566,10 @@ export const tryRegisterFirstUser = Result.wrap(
 				},
 				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
-				req: transactionID ? { transactionID, ...req } : req,
+				req: transactionInfo.reqWithTransaction,
 			});
 
-			// Commit the transaction if it exists
-			if (transactionID) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			// Log in the new user (outside transaction)
 			const loginResult = await payload
@@ -641,10 +607,7 @@ export const tryRegisterFirstUser = Result.wrap(
 				user,
 			};
 		} catch (error) {
-			// Rollback transaction on error if it exists
-			if (transactionID) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -686,8 +649,7 @@ export const tryRegisterUser = Result.wrap(
 			throw new Error(`User with email ${email} already exists`);
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Create the user within transaction
@@ -705,15 +667,12 @@ export const tryRegisterUser = Result.wrap(
 					_verified: true,
 				},
 				user,
-				req: transactionID ? { transactionID, ...req } : req,
+				req: transactionInfo.reqWithTransaction,
 				// ! this has override access because it is a system request, we don't care about access control
 				overrideAccess: true,
 			});
 
-			// Commit the transaction if it exists
-			if (transactionID) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			// Login new user (outside transaction)
 			const loginResult = await payload
@@ -742,10 +701,7 @@ export const tryRegisterUser = Result.wrap(
 
 			return { token, exp, user: loggedInUser };
 		} catch (error) {
-			// Rollback transaction on error if it exists
-			if (transactionID) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},

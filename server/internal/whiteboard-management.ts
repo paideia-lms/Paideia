@@ -1,4 +1,3 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -8,41 +7,25 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { User } from "../payload-types";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateWhiteboardArgs {
-	payload: Payload;
+export type CreateWhiteboardArgs = BaseInternalFunctionArgs & {
 	content?: string;
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface UpdateWhiteboardArgs {
-	payload: Payload;
+export type UpdateWhiteboardArgs = BaseInternalFunctionArgs & {
 	id: number;
 	content?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface DeleteWhiteboardArgs {
-	payload: Payload;
+export type DeleteWhiteboardArgs = BaseInternalFunctionArgs & {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
-export interface GetWhiteboardByIdArgs {
-	payload: Payload;
+export type GetWhiteboardByIdArgs = BaseInternalFunctionArgs & {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+};
 
 export const tryCreateWhiteboard = Result.wrap(
 	async (args: CreateWhiteboardArgs) => {

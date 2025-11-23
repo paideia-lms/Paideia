@@ -133,7 +133,8 @@ describe("Search Management Functions", () => {
 
 	describe("tryGlobalSearch", () => {
 		test("should return courses and users", async () => {
-			const result = await tryGlobalSearch(payload, {
+			const result = await tryGlobalSearch({
+				payload,
 				query: "",
 			});
 
@@ -146,7 +147,8 @@ describe("Search Management Functions", () => {
 		});
 
 		test("should users by name", async () => {
-			const result = await tryGlobalSearch(payload, {
+			const result = await tryGlobalSearch({
+				payload,
 				query: "John in:users",
 			});
 
@@ -159,7 +161,8 @@ describe("Search Management Functions", () => {
 		});
 
 		test("should search users by in", async () => {
-			const result = await tryGlobalSearch(payload, {
+			const result = await tryGlobalSearch({
+				payload,
 				query: "in:users",
 			});
 
@@ -172,7 +175,8 @@ describe("Search Management Functions", () => {
 		});
 
 		test("should search courses by in", async () => {
-			const result = await tryGlobalSearch(payload, {
+			const result = await tryGlobalSearch({
+				payload,
 				query: "in:courses",
 			});
 
@@ -180,7 +184,8 @@ describe("Search Management Functions", () => {
 		});
 
 		test("should search courses by name", async () => {
-			const result = await tryGlobalSearch(payload, {
+			const result = await tryGlobalSearch({
+				payload,
 				query: "Pattern in:courses",
 			});
 
@@ -225,7 +230,8 @@ describe("Search Management Functions", () => {
 			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			// Verify course appears in search
-			const searchBefore = await tryGlobalSearch(payload, {
+			const searchBefore = await tryGlobalSearch({
+				payload,
 				query: `Temporary in:courses`,
 			});
 			expect(searchBefore.ok).toBe(true);
@@ -253,7 +259,8 @@ describe("Search Management Functions", () => {
 			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			// Verify course no longer appears in search
-			const searchAfter = await tryGlobalSearch(payload, {
+			const searchAfter = await tryGlobalSearch({
+				payload,
 				query: `Temporary in:courses`,
 			});
 			expect(searchAfter.ok).toBe(true);
@@ -297,7 +304,8 @@ describe("Search Management Functions", () => {
 			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			// Verify user appears in search
-			const searchBefore = await tryGlobalSearch(payload, {
+			const searchBefore = await tryGlobalSearch({
+				payload,
 				query: `TempUser in:users`,
 			});
 			expect(searchBefore.ok).toBe(true);
@@ -324,7 +332,8 @@ describe("Search Management Functions", () => {
 			await new Promise((resolve) => setTimeout(resolve, 500));
 
 			// Verify user no longer appears in search
-			const searchAfter = await tryGlobalSearch(payload, {
+			const searchAfter = await tryGlobalSearch({
+				payload,
 				query: `TempUser in:users`,
 			});
 			expect(searchAfter.ok).toBe(true);
@@ -400,15 +409,14 @@ describe("Search Management Functions", () => {
 			await new Promise((resolve) => setTimeout(resolve, 1000));
 
 			// Search for updated title
-			const searchAfterUpdate = await tryGlobalSearch(payload, {
+			const searchAfterUpdate = await tryGlobalSearch({
+				payload,
 				query: `Updated in:courses`,
 			});
 			expect(searchAfterUpdate.ok).toBe(true);
 			if (!searchAfterUpdate.ok) {
 				throw new Error("Failed to search after update");
 			}
-
-			console.log(searchAfterUpdate.value.docs);
 
 			const foundUpdated = searchAfterUpdate.value.docs.find(
 				(doc) =>
@@ -422,7 +430,8 @@ describe("Search Management Functions", () => {
 			}
 
 			// Old title should not appear in search results for this course
-			const searchForOld = await tryGlobalSearch(payload, {
+			const searchForOld = await tryGlobalSearch({
+				payload,
 				query: `Original in:courses`,
 			});
 			expect(searchForOld.ok).toBe(true);

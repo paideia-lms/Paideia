@@ -1,23 +1,28 @@
-import type { Payload } from "payload";
 import { CourseCategories, Courses } from "server/payload.config";
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
 import type { CourseCategory } from "../payload-types";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface CreateCategoryArgs {
+export type CreateCategoryArgs = BaseInternalFunctionArgs & {
 	name: string;
 	parent?: number;
-}
+};
 
-export interface UpdateCategoryArgs {
+export type UpdateCategoryArgs = BaseInternalFunctionArgs & {
+	categoryId: number;
 	name?: string;
 	parent?: number;
-}
+};
 
 export interface CategoryTreeNode {
 	id: number;
@@ -33,17 +38,14 @@ export interface CategoryTreeNode {
  * Creates a new course category
  */
 export const tryCreateCategory = Result.wrap(
-	async (payload: Payload, request: Request, args: CreateCategoryArgs) => {
-		const { name, parent } = args;
+	async (args: CreateCategoryArgs) => {
+		const { payload, name, parent, req } = args;
 
 		if (!name) {
 			throw new InvalidArgumentError("Category name is required");
 		}
 
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			const newCategory = await payload.create({
@@ -52,14 +54,14 @@ export const tryCreateCategory = Result.wrap(
 					name,
 					parent,
 				},
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return newCategory as CourseCategory;
 		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -72,34 +74,32 @@ export const tryCreateCategory = Result.wrap(
  * Updates an existing course category
  */
 export const tryUpdateCategory = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		categoryId: number,
-		args: UpdateCategoryArgs,
-	) => {
+	async (args: UpdateCategoryArgs) => {
+		const { payload, categoryId, name, parent, req } = args;
+
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
 		}
 
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
+			const updateData: { name?: string; parent?: number } = {};
+			if (name !== undefined) updateData.name = name;
+			if (parent !== undefined) updateData.parent = parent;
+
 			const updatedCategory = await payload.update({
 				collection: CourseCategories.slug,
 				id: categoryId,
-				data: args,
-				req: { ...request, transactionID },
+				data: updateData,
+				req: transactionInfo.reqWithTransaction,
 			});
 
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return updatedCategory as CourseCategory;
 		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -108,20 +108,23 @@ export const tryUpdateCategory = Result.wrap(
 		new UnknownError("Failed to update category", { cause: error }),
 );
 
+export type DeleteCategoryArgs = BaseInternalFunctionArgs & {
+	categoryId: number;
+};
+
 /**
  * Deletes a course category
  * Will fail if category has subcategories or courses
  */
 export const tryDeleteCategory = Result.wrap(
-	async (payload: Payload, request: Request, categoryId: number) => {
+	async (args: DeleteCategoryArgs) => {
+		const { payload, categoryId, req } = args;
+
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
 		}
 
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Check for subcategories
@@ -133,7 +136,7 @@ export const tryDeleteCategory = Result.wrap(
 					},
 				},
 				limit: 1,
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			if (subcategories.docs.length > 0) {
@@ -151,7 +154,7 @@ export const tryDeleteCategory = Result.wrap(
 					},
 				},
 				limit: 1,
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			if (courses.docs.length > 0) {
@@ -163,14 +166,14 @@ export const tryDeleteCategory = Result.wrap(
 			const deletedCategory = await payload.delete({
 				collection: CourseCategories.slug,
 				id: categoryId,
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return deletedCategory;
 		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -179,11 +182,17 @@ export const tryDeleteCategory = Result.wrap(
 		new UnknownError("Failed to delete category", { cause: error }),
 );
 
+export type FindCategoryByIdArgs = BaseInternalFunctionArgs & {
+	categoryId: number;
+};
+
 /**
  * Finds a category by ID
  */
 export const tryFindCategoryById = Result.wrap(
-	async (payload: Payload, categoryId: number) => {
+	async (args: FindCategoryByIdArgs) => {
+		const { payload, categoryId, user, req, overrideAccess = false } = args;
+
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
 		}
@@ -192,6 +201,9 @@ export const tryFindCategoryById = Result.wrap(
 			collection: CourseCategories.slug,
 			id: categoryId,
 			depth: 1,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return category as CourseCategory;
@@ -201,15 +213,22 @@ export const tryFindCategoryById = Result.wrap(
 		new UnknownError("Failed to find category by ID", { cause: error }),
 );
 
+export type GetCategoryTreeArgs = BaseInternalFunctionArgs & {};
+
 /**
  * Gets all categories as a tree structure
  */
 export const tryGetCategoryTree = Result.wrap(
-	async (payload: Payload) => {
+	async (args: GetCategoryTreeArgs) => {
+		const { payload, user, req, overrideAccess = false } = args;
+
 		const allCategories = await payload.find({
 			collection: CourseCategories.slug,
 			pagination: false,
 			depth: 0,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		// Build tree structure
@@ -225,6 +244,9 @@ export const tryGetCategoryTree = Result.wrap(
 						equals: cat.id,
 					},
 				},
+				user,
+				req,
+				overrideAccess,
 			});
 
 			const directSubcategoriesCountResult = await payload.count({
@@ -234,12 +256,24 @@ export const tryGetCategoryTree = Result.wrap(
 						equals: cat.id,
 					},
 				},
+				user,
+				req,
+				overrideAccess,
 			});
 
-			const totalNestedCoursesCount = await getTotalNestedCoursesCount(
+			const totalNestedCoursesCountResult = await tryGetTotalNestedCoursesCount({
 				payload,
-				cat.id,
-			);
+				categoryId: cat.id,
+				user,
+				req,
+				overrideAccess,
+			});
+
+			if (!totalNestedCoursesCountResult.ok) {
+				throw totalNestedCoursesCountResult.error;
+			}
+
+			const totalNestedCoursesCount = totalNestedCoursesCountResult.value;
 
 			const directCoursesCount = directCoursesCountResult.totalDocs;
 			const directSubcategoriesCount = directSubcategoriesCountResult.totalDocs;
@@ -279,11 +313,17 @@ export const tryGetCategoryTree = Result.wrap(
 		new UnknownError("Failed to get category tree", { cause: error }),
 );
 
+export type GetCategoryAncestorsArgs = BaseInternalFunctionArgs & {
+	categoryId: number;
+};
+
 /**
  * Gets all ancestors of a category from root to the category
  */
 export const tryGetCategoryAncestors = Result.wrap(
-	async (payload: Payload, categoryId: number) => {
+	async (args: GetCategoryAncestorsArgs) => {
+		const { payload, categoryId, user, req, overrideAccess = false } = args;
+
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
 		}
@@ -296,6 +336,9 @@ export const tryGetCategoryAncestors = Result.wrap(
 				collection: CourseCategories.slug,
 				id: currentId,
 				depth: 0,
+				user,
+				req,
+				overrideAccess,
 			});
 
 			ancestors.unshift(category as CourseCategory);
@@ -313,11 +356,17 @@ export const tryGetCategoryAncestors = Result.wrap(
 		new UnknownError("Failed to get category ancestors", { cause: error }),
 );
 
+export type GetCategoryDepthArgs = BaseInternalFunctionArgs & {
+	categoryId: number;
+};
+
 /**
  * Calculates the depth of a category (0 for root, 1 for first level, etc.)
  */
 export const tryGetCategoryDepth = Result.wrap(
-	async (payload: Payload, categoryId: number) => {
+	async (args: GetCategoryDepthArgs) => {
+		const { payload, categoryId, user, req, overrideAccess = false } = args;
+
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
 		}
@@ -330,6 +379,9 @@ export const tryGetCategoryDepth = Result.wrap(
 				collection: CourseCategories.slug,
 				id: currentId,
 				depth: 0,
+				user,
+				req,
+				overrideAccess,
 			});
 
 			currentId =
@@ -349,68 +401,86 @@ export const tryGetCategoryDepth = Result.wrap(
 		new UnknownError("Failed to calculate category depth", { cause: error }),
 );
 
+export type GetTotalNestedCoursesCountArgs = BaseInternalFunctionArgs & {
+	categoryId: number;
+};
+
 /**
  * Gets total count of courses in a category and all its subcategories recursively
  */
 export const tryGetTotalNestedCoursesCount = Result.wrap(
-	async (payload: Payload, categoryId: number) => {
-		if (!categoryId) {
-			throw new InvalidArgumentError("Category ID is required");
+	async (args: GetTotalNestedCoursesCountArgs) => {
+
+		const { payload, categoryId, user, req, overrideAccess = false } = args;
+
+		// Count direct courses
+		const directCountResult = await payload.count({
+			collection: Courses.slug,
+			where: {
+				category: {
+					equals: categoryId,
+				},
+			},
+			user,
+			req,
+			overrideAccess,
+		});
+
+		const directCount = directCountResult.totalDocs;
+
+		// Get subcategories
+		const subcategories = await payload.find({
+			collection: CourseCategories.slug,
+			where: {
+				parent: {
+					equals: categoryId,
+				},
+			},
+			pagination: false,
+			depth: 0,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		// Recursively count courses in subcategories
+		let nestedCount = 0;
+		for (const subcat of subcategories.docs) {
+			const result = await tryGetTotalNestedCoursesCount({
+				payload,
+				categoryId: subcat.id,
+				user,
+				req,
+				overrideAccess,
+			});
+
+			if (!result.ok) {
+				throw result.error;
+			}
+
+			nestedCount += result.value;
 		}
 
-		const count = await getTotalNestedCoursesCount(payload, categoryId);
-		return count;
+		return directCount + nestedCount;
 	},
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to count nested courses", { cause: error }),
 );
 
-/**
- * Helper function to recursively count courses
- */
-async function getTotalNestedCoursesCount(
-	payload: Payload,
-	categoryId: number,
-): Promise<number> {
-	// Count direct courses
-	const directCountResult = await payload.count({
-		collection: Courses.slug,
-		where: {
-			category: {
-				equals: categoryId,
-			},
-		},
-	});
 
-	const directCount = directCountResult.totalDocs;
 
-	// Get subcategories
-	const subcategories = await payload.find({
-		collection: CourseCategories.slug,
-		where: {
-			parent: {
-				equals: categoryId,
-			},
-		},
-		pagination: false,
-		depth: 0,
-	});
-
-	// Recursively count courses in subcategories
-	let nestedCount = 0;
-	for (const subcat of subcategories.docs) {
-		nestedCount += await getTotalNestedCoursesCount(payload, subcat.id);
-	}
-
-	return directCount + nestedCount;
-}
+export type FindRootCategoriesArgs = BaseInternalFunctionArgs & {
+	limit?: number;
+};
 
 /**
  * Finds root-level categories (categories without parents)
  */
 export const tryFindRootCategories = Result.wrap(
-	async (payload: Payload, limit: number = 100) => {
+	async (args: FindRootCategoriesArgs) => {
+		const { payload, limit = 100, user, req, overrideAccess = false } = args;
+
 		const categories = await payload.find({
 			collection: CourseCategories.slug,
 			where: {
@@ -420,6 +490,9 @@ export const tryFindRootCategories = Result.wrap(
 			},
 			limit,
 			sort: "name",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return categories.docs as CourseCategory[];
@@ -429,11 +502,18 @@ export const tryFindRootCategories = Result.wrap(
 		new UnknownError("Failed to find root categories", { cause: error }),
 );
 
+export type FindSubcategoriesArgs = BaseInternalFunctionArgs & {
+	parentId: number;
+	limit?: number;
+};
+
 /**
  * Finds direct subcategories of a parent category
  */
 export const tryFindSubcategories = Result.wrap(
-	async (payload: Payload, parentId: number, limit: number = 100) => {
+	async (args: FindSubcategoriesArgs) => {
+		const { payload, parentId, limit = 100, user, req, overrideAccess = false } = args;
+
 		if (!parentId) {
 			throw new InvalidArgumentError("Parent ID is required");
 		}
@@ -447,6 +527,9 @@ export const tryFindSubcategories = Result.wrap(
 			},
 			limit,
 			sort: "name",
+			user,
+			req,
+			overrideAccess,
 		});
 
 		return categories.docs as CourseCategory[];
@@ -484,7 +567,9 @@ export function flattenCategories(
 		};
 		for (const child of node.subcategories) {
 			const childId = `c${child.id}`;
-			flat[id].children!.push(childId);
+			if (flat[id].children) {
+				flat[id].children.push(childId);
+			}
 			visit(child, id);
 		}
 	};
