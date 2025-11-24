@@ -2062,7 +2062,7 @@ export interface FindMediaUsagesResult {
  */
 export const tryFindMediaUsages = Result.wrap(
 	async (args: FindMediaUsagesArgs): Promise<FindMediaUsagesResult> => {
-		const { payload, mediaId } = args;
+		const { payload, mediaId, user, req, overrideAccess = false } = args;
 
 		// Validate media ID
 		if (!mediaId) {
@@ -2082,9 +2082,9 @@ export const tryFindMediaUsages = Result.wrap(
 			payload,
 			id: mediaId,
 			depth: 0,
-			user: args.user,
-			req: args.req,
-			overrideAccess: args.overrideAccess ?? false,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!mediaResult.ok) {
@@ -2110,6 +2110,7 @@ export const tryFindMediaUsages = Result.wrap(
 			notesResult,
 			pagesResult,
 			coursesMediaResult,
+			filesResult,
 			appearanceSettings,
 		] = await Promise.all([
 			// Search users collection for avatar field
@@ -2122,9 +2123,9 @@ export const tryFindMediaUsages = Result.wrap(
 				},
 				depth: 0,
 				limit: 10000,
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			}),
 			// Search courses collection for thumbnail field
 			payload.find({
@@ -2136,61 +2137,70 @@ export const tryFindMediaUsages = Result.wrap(
 				},
 				depth: 0,
 				limit: 10000,
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			}),
 			// Search assignment-submissions collection for attachments array
 			payload.find({
 				collection: "assignment-submissions",
 				depth: 0,
 				limit: 10000,
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			}),
 			// Search discussion-submissions collection for attachments array
 			payload.find({
 				collection: "discussion-submissions",
 				depth: 0,
 				limit: 10000,
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			}),
 			// Search notes collection for media array
 			payload.find({
 				collection: "notes",
 				depth: 0,
 				limit: 10000,
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			}),
 			// Search pages collection for media array
 			payload.find({
 				collection: "pages",
 				depth: 0,
 				limit: 10000,
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			}),
 			// Search courses collection for media array
 			payload.find({
 				collection: "courses",
 				depth: 0,
 				limit: 10000,
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
+			}),
+			// Search files collection for media array (file modules)
+			payload.find({
+				collection: "files",
+				depth: 0,
+				limit: 10000,
+				user,
+				req,
+				overrideAccess,
 			}),
 			// Search appearance-settings global for logo fields
 			payload.findGlobal({
 				slug: "appearance-settings",
-				user: args.user,
-				req: args.req,
-				overrideAccess: true,
+				user,
+				req,
+				overrideAccess,
 			}),
 		]);
 
@@ -2313,6 +2323,24 @@ export const tryFindMediaUsages = Result.wrap(
 						usages.push({
 							collection: "courses",
 							documentId: course.id,
+							fieldPath: `media.${i}`,
+						});
+					}
+				}
+			}
+		}
+
+		// Process files collection results (file modules)
+		for (const file of filesResult.docs) {
+			if (file.media && Array.isArray(file.media)) {
+				for (let i = 0; i < file.media.length; i++) {
+					const mediaItem = file.media[i];
+					const mediaId =
+						typeof mediaItem === "number" ? mediaItem : mediaItem?.id;
+					if (mediaId === normalizedMediaId) {
+						usages.push({
+							collection: "files",
+							documentId: file.id,
 							fieldPath: `media.${i}`,
 						});
 					}
