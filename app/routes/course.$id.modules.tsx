@@ -248,6 +248,7 @@ export const action = async ({
 			activityModule: parsedData.data.activityModuleId,
 			section: targetSectionId,
 			order: 0,
+			user: currentUser,
 		});
 
 		if (!createResult.ok) {

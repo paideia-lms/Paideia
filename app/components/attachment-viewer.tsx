@@ -16,11 +16,11 @@ import { IconAlertCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { href } from "react-router";
 import {
-	type FileType,
+	type FileTypeCategory,
 	formatFileSize,
 	getFileIcon,
 	getFileType,
-} from "~/routes/course/module.$id/utils";
+} from "~/utils/file-types";
 
 // ============================================================================
 // Constants
@@ -170,7 +170,7 @@ function FileDownloadLink({
 }: {
 	fileUrl: string;
 	filename: string;
-	fileType: FileType;
+	fileType: FileTypeCategory;
 	filesize?: number | null;
 }) {
 	const FileIcon = getFileIcon(fileType);

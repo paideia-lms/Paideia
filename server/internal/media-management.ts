@@ -1201,6 +1201,8 @@ export const tryRenameMedia = Result.wrap(
 				payload,
 				id,
 				depth: 0,
+				user,
+				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1209,17 +1211,6 @@ export const tryRenameMedia = Result.wrap(
 			}
 
 			const media = mediaResult.value;
-
-			// Verify user exists
-			const userRecord = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: transactionInfo.reqWithTransaction,
-			});
-
-			if (!userRecord) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
 
 			// Check if media has a filename
 			if (!media.filename) {

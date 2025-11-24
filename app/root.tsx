@@ -658,10 +658,12 @@ export const middleware = [
 
 			if (moduleId && !Number.isNaN(moduleId)) {
 				const userModuleContextResult = await tryGetUserModuleContext(
-					payload,
-					moduleId,
-					currentUser,
-					request,
+					{
+						payload,
+						moduleId,
+						user: currentUser,
+						req: request,
+					},
 				);
 
 				if (userModuleContextResult.ok) {

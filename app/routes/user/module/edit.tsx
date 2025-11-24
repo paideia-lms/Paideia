@@ -9,6 +9,7 @@ import type {
 import { StatefulDiscussionPreview } from "~/components/activity-modules-preview/discussion-preview";
 import {
 	AssignmentPreview,
+	FileModulePreview,
 	PagePreview,
 	QuizPreview,
 	WhiteboardPreview,
@@ -160,6 +161,10 @@ export default function EditModulePage() {
 					replies={mockReplies}
 					courseId={null}
 				/>
+			)}
+
+			{module.type === "file" && (
+				<FileModulePreview fileModule={module.file} />
 			)}
 		</Container>
 	);

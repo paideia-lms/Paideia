@@ -977,10 +977,17 @@ function FileFormWrapper({
 	moduleId,
 	initialValues,
 	uploadLimit,
+	existingMedia,
 }: {
 	moduleId: number;
 	initialValues: Extract<ActivityModuleFormValues, { type: "file" }>;
 	uploadLimit?: number;
+	existingMedia?: Array<{
+		id: number;
+		filename?: string | null;
+		mimeType?: string | null;
+		filesize?: number | null;
+	}>;
 }) {
 	const { updateFile, isLoading } = useUpdateFile();
 	return (
@@ -988,7 +995,7 @@ function FileFormWrapper({
 			initialValues={initialValues}
 			onSubmit={(values) => updateFile(String(moduleId), values)}
 			uploadLimit={uploadLimit}
-			existingMedia={[]}
+			existingMedia={existingMedia || []}
 			isLoading={isLoading}
 		/>
 	);
@@ -1207,6 +1214,7 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 									>
 								}
 								uploadLimit={uploadLimit}
+								existingMedia={fileData?.media || []}
 							/>
 						)}
 						{module.type === "assignment" && (

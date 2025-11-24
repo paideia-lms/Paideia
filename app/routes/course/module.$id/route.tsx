@@ -44,7 +44,7 @@ import {
 import z from "zod";
 import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
 import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
-import { FilePreview } from "~/components/activity-modules-preview/file-preview";
+import { FileModulePreview } from "~/components/activity-modules-preview/file-module-preview";
 import { PagePreview } from "~/components/activity-modules-preview/page-preview";
 import { QuizInstructionsView } from "~/components/activity-modules-preview/quiz-instructions-view";
 import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
@@ -1639,11 +1639,10 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				);
 			}
 			case "file": {
-				const fileData = module.file;
 				return (
 					<>
 						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<FilePreview files={fileData?.media || []} />
+						<FileModulePreview fileModule={module.file} />
 					</>
 				);
 			}

@@ -1,7 +1,5 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import type { CustomTFunction } from "server/utils/db/custom-translations";
 import { match, P } from "ts-pattern";
-import { CustomForbidden } from "./utils/custom-forbidden";
 
 const slug = "activity-modules" as const;
 
@@ -25,12 +23,8 @@ export const ActivityModules = {
 						},
 					),
 					(user) => {
-						throw new CustomForbidden(
-							"create",
-							user?.role ?? "unauthenticated",
-							slug,
-							req.t as CustomTFunction,
-						);
+						req.payload.logger.error(`Failed to create activity module: user ${user?.role ?? "unauthenticated"} is not allowed to create activity modules`);
+						return false
 					},
 				)
 				.otherwise(() => {
@@ -43,12 +37,8 @@ export const ActivityModules = {
 					// must be logged in to update activity modules
 					P.nullish,
 					() => {
-						throw new CustomForbidden(
-							"update",
-							"unauthenticated",
-							slug,
-							req.t as CustomTFunction,
-						);
+						req.payload.logger.error(`Failed to update activity module: unauthenticated user is not allowed to update activity modules`);
+						return false
 					},
 				)
 				.with(
@@ -75,12 +65,8 @@ export const ActivityModules = {
 					// must be logged in to delete activity modules
 					P.nullish,
 					() => {
-						throw new CustomForbidden(
-							"delete",
-							"unauthenticated",
-							slug,
-							req.t as CustomTFunction,
-						);
+						req.payload.logger.error(`Failed to delete activity module: unauthenticated user is not allowed to delete activity modules`);
+						return false
 					},
 				)
 				.with(

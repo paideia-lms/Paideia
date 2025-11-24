@@ -14,6 +14,7 @@ import {
 import { tryGetActivityModuleById } from "../internal/activity-module-management";
 import { tryFindLinksByActivityModule } from "../internal/course-activity-module-link-management";
 import type { ActivityModule, Course, Quiz, User } from "../payload-types";
+import { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 
 export type UserModuleUser = {
 	id: number;
@@ -147,23 +148,27 @@ export const userModuleContext = createContext<UserModuleContext | null>();
 export const userModuleContextKey =
 	"userModuleContext" as unknown as typeof userModuleContext;
 
+
+type TryGetUserModuleContextArgs = BaseInternalFunctionArgs & {
+	moduleId: number;
+};
 /**
  * Get user module context for a given module ID
  * This includes the module data, linked courses, grants, and instructors
  */
 export const tryGetUserModuleContext = Result.wrap(
 	async (
-		payload: BasePayload,
-		moduleId: number,
-		currentUser: TypedUser | null,
-		req?: Partial<PayloadRequest>,
+		args: TryGetUserModuleContextArgs,
 	) => {
+		const { payload, moduleId, user: currentUser, req, overrideAccess = false } = args;
+
 		// Fetch the activity module
 		const moduleResult = await tryGetActivityModuleById({
 			payload,
 			id: moduleId,
 			user: currentUser,
 			req,
+			overrideAccess,
 		});
 
 		if (!moduleResult.ok) {
@@ -312,7 +317,10 @@ export const tryGetUserModuleContext = Result.wrap(
 
 		const linksResult = await tryFindLinksByActivityModule({
 			payload,
-			activityModuleId: module.id
+			activityModuleId: module.id,
+			user: currentUser,
+			req,
+			overrideAccess,
 		});
 
 		if (!linksResult.ok) throw linksResult.error;
@@ -321,6 +329,9 @@ export const tryGetUserModuleContext = Result.wrap(
 		const grantsResult = await tryFindGrantsByActivityModule({
 			payload,
 			activityModuleId: module.id,
+			user: currentUser,
+			req,
+			overrideAccess,
 		});
 		const grants: UserModuleGrant[] = grantsResult.ok
 			? grantsResult.value.map((grant) => ({
@@ -346,6 +357,9 @@ export const tryGetUserModuleContext = Result.wrap(
 		const instructorsResult = await tryFindInstructorsForActivityModule({
 			payload,
 			activityModuleId: module.id,
+			user: currentUser,
+			req,
+			overrideAccess,
 		});
 
 		if (!instructorsResult.ok) throw instructorsResult.error;

@@ -5,17 +5,17 @@ import {
 	getFileIcon,
 	getFileType,
 	getFileTypeLabel,
-} from "~/routes/course/module.$id/utils";
+} from "~/utils/file-types";
 
 interface FilePreviewProps {
 	files: Array<
 		| number
 		| {
-				id: number;
-				filename?: string | null;
-				mimeType?: string | null;
-				filesize?: number | null;
-		  }
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		}
 	>;
 }
 
@@ -45,14 +45,14 @@ export function FilePreview({ files }: FilePreviewProps) {
 					const mimeType = typeof file === "object" ? file.mimeType : null;
 					const filesize = typeof file === "object" ? file.filesize : null;
 					const fileType = getFileType(filename, mimeType);
-					const FileIcon = getFileIcon(fileType);
+					const FileIcon = getFileIcon(fileType, filename, mimeType);
 
 					return (
 						<Paper key={fileId} withBorder p="xs">
 							<Group gap="xs" wrap="nowrap">
 								<Tooltip label={getFileTypeLabel(fileType)}>
 									<div>
-										<FileIcon size={16} />
+										<FileIcon size={20} />
 									</div>
 								</Tooltip>
 								<div style={{ flex: 1, minWidth: 0 }}>

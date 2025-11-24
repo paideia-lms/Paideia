@@ -86,6 +86,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const categoriesResult = await tryGetCategoryTree({
 		payload,
 		req: request,
+		user: currentUser,
 	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");

@@ -63,6 +63,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			},
 			req,
 			overrideAccess,
+			user,
 		});
 
 		////////////////////////////////////////////////////
