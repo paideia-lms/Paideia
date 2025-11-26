@@ -363,7 +363,7 @@ export type FileTypeCategory = "image" | "pdf" | "text" | "other";
  */
 export function getFileExtension(filename: string): string {
 	const parts = filename.split(".");
-	return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
+	return parts.length > 1 ? parts[parts.length - 1]!.toLowerCase() : "";
 }
 
 /**
@@ -482,7 +482,10 @@ export function getFileIcon(
 			return IconPhoto;
 		}
 		if (mimeType === "application/pdf") return IconFileTypePdf;
-		if (mimeType === "application/zip" || mimeType === "application/x-zip-compressed")
+		if (
+			mimeType === "application/zip" ||
+			mimeType === "application/x-zip-compressed"
+		)
 			return IconFileZip;
 		if (
 			mimeType.startsWith("text/") ||

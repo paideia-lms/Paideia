@@ -10,14 +10,14 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
 import {
-	tryUpdateActivityModule,
-	type UpdateActivityModuleArgs,
+	tryUpdatePageModule,
+	tryUpdateWhiteboardModule,
+	tryUpdateFileModule,
+	tryUpdateAssignmentModule,
+	tryUpdateQuizModule,
+	tryUpdateDiscussionModule,
 } from "server/internal/activity-module-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -48,6 +48,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/edit-setting";
+import { serverOnly$ } from "vite-env-only/macros"
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -90,7 +91,7 @@ export const moduleUpdateSearchParams = {
 
 export const loadSearchParams = createLoader(moduleUpdateSearchParams);
 
-const updatePageAction = async ({
+const updatePageAction = serverOnly$(async ({
 	request,
 	context,
 	params,
@@ -126,59 +127,54 @@ const updatePageAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "page") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for page action",
+		if (parsedData.type !== "page") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for page action",
+			});
+		}
+
+		const { pageData } = transformToActivityData(parsedData);
+
+		if (!pageData) {
+			return badRequest({
+				success: false,
+				error: "Missing page data",
+			});
+		}
+
+		const updateResult = await tryUpdatePageModule({
+			payload,
+			id: Number(moduleId),
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status,
+			content: pageData.content,
+			req: reqWithTransaction,
+			user: currentUser,
+			overrideAccess: false,
 		});
-	}
 
-	const { pageData } = transformToActivityData(parsedData);
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-	if (!pageData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing page data",
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
-
-	const updateArgs: UpdateActivityModuleArgs = {
-		payload,
-		id: Number(moduleId),
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status,
-		type: "page" as const,
-		pageData,
-		req: transactionInfo.reqWithTransaction,
-		user: currentUser,
-	};
-
-	const updateResult = await tryUpdateActivityModule(updateArgs);
-
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
-		});
-	}
-
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		success: true,
-		message: "Module updated successfully",
 	});
-};
+})!;
 
-const updateWhiteboardAction = async ({
+const updateWhiteboardAction = serverOnly$(async ({
 	request,
 	context,
 	params,
@@ -214,59 +210,54 @@ const updateWhiteboardAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "whiteboard") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for whiteboard action",
+		if (parsedData.type !== "whiteboard") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for whiteboard action",
+			});
+		}
+
+		const { whiteboardData } = transformToActivityData(parsedData);
+
+		if (!whiteboardData) {
+			return badRequest({
+				success: false,
+				error: "Missing whiteboard data",
+			});
+		}
+
+		const updateResult = await tryUpdateWhiteboardModule({
+			payload,
+			id: Number(moduleId),
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status,
+			content: whiteboardData.content,
+			req: reqWithTransaction,
+			user: currentUser,
+			overrideAccess: false,
 		});
-	}
 
-	const { whiteboardData } = transformToActivityData(parsedData);
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-	if (!whiteboardData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing whiteboard data",
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
-
-	const updateArgs: UpdateActivityModuleArgs = {
-		payload,
-		id: Number(moduleId),
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status,
-		type: "whiteboard" as const,
-		whiteboardData,
-		req: transactionInfo.reqWithTransaction,
-		user: currentUser,
-	};
-
-	const updateResult = await tryUpdateActivityModule(updateArgs);
-
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
-		});
-	}
-
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		success: true,
-		message: "Module updated successfully",
 	});
-};
+})!;
 
-const updateFileAction = async ({
+const updateFileAction = serverOnly$(async ({
 	request,
 	context,
 	params,
@@ -304,107 +295,90 @@ const updateFileAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
-		payload,
-		request,
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		fields: [
-			{
-				fieldName: "files",
-			},
-		],
-	});
-
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
 			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
+			fields: [
+				{
+					fieldName: "files",
+				},
+			],
+		});
 
-	const { formData, uploadedMedia } = parseResult.value;
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
 
-	const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
+		const { formData, uploadedMedia } = parseResult.value;
 
-	// Extract form data (excluding files) and parse values
-	const formDataObj: Record<string, unknown> = {};
-	for (const [key, value] of formData.entries()) {
-		if (key !== "files") {
-			const stringValue = value.toString();
-			// Try to parse JSON values (arrays, objects, booleans, numbers)
-			try {
-				formDataObj[key] = JSON.parse(stringValue);
-			} catch {
-				// If not JSON, keep as string
-				formDataObj[key] = stringValue;
+		const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
+
+		// Extract form data (excluding files) and parse values
+		const formDataObj: Record<string, unknown> = {};
+		for (const [key, value] of formData.entries()) {
+			if (key !== "files") {
+				const stringValue = value.toString();
+				// Try to parse JSON values (arrays, objects, booleans, numbers)
+				try {
+					formDataObj[key] = JSON.parse(stringValue);
+				} catch {
+					// If not JSON, keep as string
+					formDataObj[key] = stringValue;
+				}
 			}
 		}
-	}
 
-	// Parse the form data
-	const parsedData = activityModuleSchema.parse(formDataObj);
+		// Parse the form data
+		const parsedData = activityModuleSchema.parse(formDataObj);
 
-	if (parsedData.type !== "file") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for file action",
+		if (parsedData.type !== "file") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for file action",
+			});
+		}
+
+		// For file type, combine existing media IDs with newly uploaded media IDs
+		const existingMediaIds = parsedData.fileMedia ?? [];
+		const allMediaIds = [...existingMediaIds, ...uploadedMediaIds];
+
+		const updateResult = await tryUpdateFileModule({
+			payload,
+			id: Number(moduleId),
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status,
+			media: allMediaIds.length > 0 ? allMediaIds : undefined,
+			req: reqWithTransaction,
+			user: currentUser,
+			overrideAccess: false,
 		});
-	}
 
-	const { fileData } = transformToActivityData(parsedData);
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-	// For file type, combine existing media IDs with newly uploaded media IDs
-	const existingMediaIds = parsedData.fileMedia ?? [];
-	const allMediaIds = [...existingMediaIds, ...uploadedMediaIds];
-	const finalFileData =
-		allMediaIds.length > 0 ? { media: allMediaIds } : fileData;
-
-	if (!finalFileData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing file data",
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
-
-	const updateArgs: UpdateActivityModuleArgs = {
-		payload,
-		id: Number(moduleId),
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status,
-		type: "file" as const,
-		fileData: finalFileData,
-		req: transactionInfo.reqWithTransaction,
-		user: currentUser,
-	};
-
-	const updateResult = await tryUpdateActivityModule(updateArgs);
-
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
-		});
-	}
-
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		success: true,
-		message: "Module updated successfully",
 	});
-};
+})!;
 
-const updateAssignmentAction = async ({
+const updateAssignmentAction = serverOnly$(async ({
 	request,
 	context,
 	params,
@@ -440,59 +414,62 @@ const updateAssignmentAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "assignment") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for assignment action",
+		if (parsedData.type !== "assignment") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for assignment action",
+			});
+		}
+
+		const { assignmentData } = transformToActivityData(parsedData);
+
+		if (!assignmentData) {
+			return badRequest({
+				success: false,
+				error: "Missing assignment data",
+			});
+		}
+
+		const updateResult = await tryUpdateAssignmentModule({
+			payload,
+			id: Number(moduleId),
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status,
+			instructions: assignmentData.instructions,
+			dueDate: assignmentData.dueDate,
+			maxAttempts: assignmentData.maxAttempts,
+			allowLateSubmissions: assignmentData.allowLateSubmissions,
+			requireTextSubmission: assignmentData.requireTextSubmission,
+			requireFileSubmission: assignmentData.requireFileSubmission,
+			allowedFileTypes: assignmentData.allowedFileTypes,
+			maxFileSize: assignmentData.maxFileSize,
+			maxFiles: assignmentData.maxFiles,
+			req: reqWithTransaction,
+			user: currentUser,
+			overrideAccess: false,
 		});
-	}
 
-	const { assignmentData } = transformToActivityData(parsedData);
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-	if (!assignmentData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing assignment data",
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
-
-	const updateArgs: UpdateActivityModuleArgs = {
-		payload,
-		id: Number(moduleId),
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status,
-		type: "assignment" as const,
-		assignmentData,
-		req: transactionInfo.reqWithTransaction,
-		user: currentUser,
-	};
-
-	const updateResult = await tryUpdateActivityModule(updateArgs);
-
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
-		});
-	}
-
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		success: true,
-		message: "Module updated successfully",
 	});
-};
+})!;
 
-const updateQuizAction = async ({
+const updateQuizAction = serverOnly$(async ({
 	request,
 	context,
 	params,
@@ -528,59 +505,60 @@ const updateQuizAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "quiz") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for quiz action",
+		if (parsedData.type !== "quiz") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for quiz action",
+			});
+		}
+
+		const { quizData } = transformToActivityData(parsedData);
+
+		if (!quizData) {
+			return badRequest({
+				success: false,
+				error: "Missing quiz data",
+			});
+		}
+
+		const updateResult = await tryUpdateQuizModule({
+			payload,
+			id: Number(moduleId),
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status,
+			instructions: quizData.instructions,
+			dueDate: quizData.dueDate,
+			maxAttempts: quizData.maxAttempts,
+			points: quizData.points,
+			timeLimit: quizData.timeLimit,
+			gradingType: quizData.gradingType,
+			rawQuizConfig: quizData.rawQuizConfig,
+			req: reqWithTransaction,
+			user: currentUser,
+			overrideAccess: false,
 		});
-	}
 
-	const { quizData } = transformToActivityData(parsedData);
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-	if (!quizData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing quiz data",
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
-
-	const updateArgs: UpdateActivityModuleArgs = {
-		payload,
-		id: Number(moduleId),
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status,
-		type: "quiz" as const,
-		quizData,
-		req: transactionInfo.reqWithTransaction,
-		user: currentUser,
-	};
-
-	const updateResult = await tryUpdateActivityModule(updateArgs);
-
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
-		});
-	}
-
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		success: true,
-		message: "Module updated successfully",
 	});
-};
+})!;
 
-const updateDiscussionAction = async ({
+const updateDiscussionAction = serverOnly$(async ({
 	request,
 	context,
 	params,
@@ -616,57 +594,56 @@ const updateDiscussionAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "discussion") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for discussion action",
+		if (parsedData.type !== "discussion") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for discussion action",
+			});
+		}
+
+		const { discussionData } = transformToActivityData(parsedData);
+
+		if (!discussionData) {
+			return badRequest({
+				success: false,
+				error: "Missing discussion data",
+			});
+		}
+
+		const updateResult = await tryUpdateDiscussionModule({
+			payload,
+			id: Number(moduleId),
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status,
+			instructions: discussionData.instructions,
+			dueDate: discussionData.dueDate,
+			requireThread: discussionData.requireThread,
+			requireReplies: discussionData.requireReplies,
+			minReplies: discussionData.minReplies,
+			req: reqWithTransaction,
+			user: currentUser,
+			overrideAccess: false,
 		});
-	}
 
-	const { discussionData } = transformToActivityData(parsedData);
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-	if (!discussionData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing discussion data",
+		return ok({
+			success: true,
+			message: "Module updated successfully",
 		});
-	}
-
-	const updateArgs: UpdateActivityModuleArgs = {
-		payload,
-		id: Number(moduleId),
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status,
-		type: "discussion" as const,
-		discussionData,
-		req: transactionInfo.reqWithTransaction,
-		user: currentUser,
-	};
-
-	const updateResult = await tryUpdateActivityModule(updateArgs);
-
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
-		});
-	}
-
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		success: true,
-		message: "Module updated successfully",
 	});
-};
+})!;
 
 const getActionUrl = (action: Action, moduleId: string) => {
 	return (

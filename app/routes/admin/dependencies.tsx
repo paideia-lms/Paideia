@@ -1,5 +1,4 @@
 import { Alert, Badge, Box, Paper, Stack, Table, Title } from "@mantine/core";
-import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { isD2Available } from "server/utils/cli-dependencies-check";
 import { ForbiddenResponse } from "~/utils/responses";

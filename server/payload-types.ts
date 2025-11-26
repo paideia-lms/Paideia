@@ -179,6 +179,7 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
+  fallbackLocale: null;
   globals: {
     'system-grade-table': SystemGradeTable;
     'registration-settings': RegistrationSetting;

@@ -16,7 +16,6 @@ import {
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	type CreateActivityModuleArgs,
 	tryCreatePageModule,
 	tryCreateWhiteboardModule,
 	tryCreateFileModule,
@@ -24,17 +23,13 @@ import {
 	tryCreateQuizModule,
 	tryCreateDiscussionModule,
 	type CreateWhiteboardModuleArgs,
-	CreatePageModuleArgs,
-	CreateFileModuleArgs,
-	CreateAssignmentModuleArgs,
-	CreateQuizModuleArgs,
-	CreateDiscussionModuleArgs,
+	type CreatePageModuleArgs,
+	type CreateFileModuleArgs,
+	type CreateAssignmentModuleArgs,
+	type CreateQuizModuleArgs,
+	type CreateDiscussionModuleArgs,
 } from "server/internal/activity-module-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -62,7 +57,6 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
-import { tryCreatePage } from "server/internal/page-management";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -124,52 +118,49 @@ const createPageAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "page") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for page action",
-		});
-	}
+		if (parsedData.type !== "page") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for page action",
+			});
+		}
 
-	const { pageData } = transformToActivityData(parsedData);
+		const { pageData } = transformToActivityData(parsedData);
 
-	if (!pageData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing page data",
-		});
-	}
+		if (!pageData) {
+			return badRequest({
+				success: false,
+				error: "Missing page data",
+			});
+		}
 
-	const createArgs = {
-		payload,
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status || ("draft" as const),
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		...pageData
-	} satisfies CreatePageModuleArgs;
+		const createArgs = {
+			payload,
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status || ("draft" as const),
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
+			...pageData
+		} satisfies CreatePageModuleArgs;
 
-	const createResult = await tryCreatePageModule(createArgs);
+		const createResult = await tryCreatePageModule(createArgs);
 
-	if (!createResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
-		});
-	}
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	throw redirect("/user/profile");
+		throw redirect("/user/profile");
+	});
 };
 
 const createWhiteboardAction = async ({
@@ -199,52 +190,49 @@ const createWhiteboardAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "whiteboard") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for whiteboard action",
-		});
-	}
+		if (parsedData.type !== "whiteboard") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for whiteboard action",
+			});
+		}
 
-	const { whiteboardData } = transformToActivityData(parsedData);
+		const { whiteboardData } = transformToActivityData(parsedData);
 
-	if (!whiteboardData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing whiteboard data",
-		});
-	}
+		if (!whiteboardData) {
+			return badRequest({
+				success: false,
+				error: "Missing whiteboard data",
+			});
+		}
 
-	const createArgs = {
-		payload,
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status || ("draft" as const),
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		...whiteboardData
-	} satisfies CreateWhiteboardModuleArgs;
+		const createArgs = {
+			payload,
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status || ("draft" as const),
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
+			...whiteboardData
+		} satisfies CreateWhiteboardModuleArgs;
 
-	const createResult = await tryCreateWhiteboardModule(createArgs);
+		const createResult = await tryCreateWhiteboardModule(createArgs);
 
-	if (!createResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
-		});
-	}
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	throw redirect("/user/profile");
+		throw redirect("/user/profile");
+	});
 };
 
 const createFileAction = async ({
@@ -276,98 +264,94 @@ const createFileAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
-		payload,
-		request,
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		fields: [
-			{
-				fieldName: "files",
-			},
-		],
-	});
-
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
 			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
+			fields: [
+				{
+					fieldName: "files",
+				},
+			],
+		});
 
-	const { formData, uploadedMedia } = parseResult.value;
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
 
-	const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
+		const { formData, uploadedMedia } = parseResult.value;
 
-	// Extract form data (excluding files) and parse values
-	const formDataObj: Record<string, unknown> = {};
-	for (const [key, value] of formData.entries()) {
-		if (key !== "files") {
-			const stringValue = value.toString();
-			// Try to parse JSON values (arrays, objects, booleans, numbers)
-			try {
-				formDataObj[key] = JSON.parse(stringValue);
-			} catch {
-				// If not JSON, keep as string
-				formDataObj[key] = stringValue;
+		const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
+
+		// Extract form data (excluding files) and parse values
+		const formDataObj: Record<string, unknown> = {};
+		for (const [key, value] of formData.entries()) {
+			if (key !== "files") {
+				const stringValue = value.toString();
+				// Try to parse JSON values (arrays, objects, booleans, numbers)
+				try {
+					formDataObj[key] = JSON.parse(stringValue);
+				} catch {
+					// If not JSON, keep as string
+					formDataObj[key] = stringValue;
+				}
 			}
 		}
-	}
 
-	// Parse the form data
-	const parsedData = activityModuleSchema.parse(formDataObj);
+		// Parse the form data
+		const parsedData = activityModuleSchema.parse(formDataObj);
 
-	if (parsedData.type !== "file") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for file action",
-		});
-	}
+		if (parsedData.type !== "file") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for file action",
+			});
+		}
 
-	const { fileData } = transformToActivityData(parsedData);
+		const { fileData } = transformToActivityData(parsedData);
 
-	// For file type, use uploaded media IDs
-	const finalFileData =
-		uploadedMediaIds.length > 0 ? { media: uploadedMediaIds } : fileData;
+		// For file type, use uploaded media IDs
+		const finalFileData =
+			uploadedMediaIds.length > 0 ? { media: uploadedMediaIds } : fileData;
 
-	if (!finalFileData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing file data",
-		});
-	}
+		if (!finalFileData) {
+			return badRequest({
+				success: false,
+				error: "Missing file data",
+			});
+		}
 
-	const createArgs = {
-		payload,
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status || ("draft" as const),
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		...finalFileData
-	} satisfies CreateFileModuleArgs;
+		const createArgs = {
+			payload,
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status || ("draft" as const),
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
+			...finalFileData
+		} satisfies CreateFileModuleArgs;
 
-	const createResult = await tryCreateFileModule(createArgs);
+		const createResult = await tryCreateFileModule(createArgs);
 
-	if (!createResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
-		});
-	}
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	throw redirect("/user/profile");
+		throw redirect("/user/profile");
+	});
 };
 
 const createAssignmentAction = async ({
@@ -397,52 +381,49 @@ const createAssignmentAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "assignment") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for assignment action",
-		});
-	}
+		if (parsedData.type !== "assignment") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for assignment action",
+			});
+		}
 
-	const { assignmentData } = transformToActivityData(parsedData);
+		const { assignmentData } = transformToActivityData(parsedData);
 
-	if (!assignmentData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing assignment data",
-		});
-	}
+		if (!assignmentData) {
+			return badRequest({
+				success: false,
+				error: "Missing assignment data",
+			});
+		}
 
-	const createArgs = {
-		payload,
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status || ("draft" as const),
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		...assignmentData
-	} satisfies CreateAssignmentModuleArgs;
+		const createArgs = {
+			payload,
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status || ("draft" as const),
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
+			...assignmentData
+		} satisfies CreateAssignmentModuleArgs;
 
-	const createResult = await tryCreateAssignmentModule(createArgs);
+		const createResult = await tryCreateAssignmentModule(createArgs);
 
-	if (!createResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
-		});
-	}
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	throw redirect("/user/profile");
+		throw redirect("/user/profile");
+	});
 };
 
 const createQuizAction = async ({
@@ -472,52 +453,49 @@ const createQuizAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "quiz") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for quiz action",
-		});
-	}
+		if (parsedData.type !== "quiz") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for quiz action",
+			});
+		}
 
-	const { quizData } = transformToActivityData(parsedData);
+		const { quizData } = transformToActivityData(parsedData);
 
-	if (!quizData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing quiz data",
-		});
-	}
+		if (!quizData) {
+			return badRequest({
+				success: false,
+				error: "Missing quiz data",
+			});
+		}
 
-	const createArgs = {
-		payload,
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status || ("draft" as const),
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		...quizData
-	} satisfies CreateQuizModuleArgs;
+		const createArgs = {
+			payload,
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status || ("draft" as const),
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
+			...quizData
+		} satisfies CreateQuizModuleArgs;
 
-	const createResult = await tryCreateQuizModule(createArgs);
+		const createResult = await tryCreateQuizModule(createArgs);
 
-	if (!createResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
-		});
-	}
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	throw redirect("/user/profile");
+		throw redirect("/user/profile");
+	});
 };
 
 const createDiscussionAction = async ({
@@ -547,52 +525,49 @@ const createDiscussionAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Handle JSON request
-	const { data } = await getDataAndContentTypeFromRequest(request);
-	const parsedData = activityModuleSchema.parse(data);
+	return transactionInfo.tx(async ({ reqWithTransaction }) => {
+		// Handle JSON request
+		const { data } = await getDataAndContentTypeFromRequest(request);
+		const parsedData = activityModuleSchema.parse(data);
 
-	if (parsedData.type !== "discussion") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Invalid module type for discussion action",
-		});
-	}
+		if (parsedData.type !== "discussion") {
+			return badRequest({
+				success: false,
+				error: "Invalid module type for discussion action",
+			});
+		}
 
-	const { discussionData } = transformToActivityData(parsedData);
+		const { discussionData } = transformToActivityData(parsedData);
 
-	if (!discussionData) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "Missing discussion data",
-		});
-	}
+		if (!discussionData) {
+			return badRequest({
+				success: false,
+				error: "Missing discussion data",
+			});
+		}
 
-	const createArgs = {
-		payload,
-		title: parsedData.title,
-		description: parsedData.description,
-		status: parsedData.status || ("draft" as const),
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		...discussionData
-	} satisfies CreateDiscussionModuleArgs;
+		const createArgs = {
+			payload,
+			title: parsedData.title,
+			description: parsedData.description,
+			status: parsedData.status || ("draft" as const),
+			userId: currentUser.id,
+			user: currentUser,
+			req: reqWithTransaction,
+			...discussionData
+		} satisfies CreateDiscussionModuleArgs;
 
-	const createResult = await tryCreateDiscussionModule(createArgs);
+		const createResult = await tryCreateDiscussionModule(createArgs);
 
-	if (!createResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
-		});
-	}
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	throw redirect("/user/profile");
+		throw redirect("/user/profile");
+	});
 };
 
 const getActionUrl = (action: Action) => {

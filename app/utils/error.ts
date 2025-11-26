@@ -1,5 +1,3 @@
-import { Forbidden } from "payload";
-
 export class ContextNotFoundError extends Error {
 	static readonly type = "ContextNotFoundError";
 	get type() {
@@ -330,7 +328,7 @@ export class NotImplementedError extends Error {
 }
 
 export function transformError(error: unknown) {
-	/** 
+	/**
 	 * list of our system error
 	 */
 	if (error instanceof NonExistingSourceError) return error;
@@ -378,11 +376,6 @@ export function transformError(error: unknown) {
 	else if (error instanceof FailedToCreateUserGradeError) return error;
 	else if (error instanceof NotImplementedError) return error;
 	else if (error instanceof UnknownError) return error;
-
-	/** 
-	 * list of dependent library errors
-	 */
-	else if (error instanceof Forbidden) return error;
 	// ! we let user handle the unknown error
 	else return undefined;
 }

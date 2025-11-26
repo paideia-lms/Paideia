@@ -25,7 +25,6 @@ import {
 	tryGetAnalyticsSettings,
 	tryUpdateAnalyticsSettings,
 } from "server/internal/analytics-settings";
-import { tryValidateScriptTag } from "server/internal/utils/validate-script-tag";
 import { z } from "zod";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
@@ -262,7 +261,7 @@ function AnalyticsScriptCard({
 				required
 				error={
 					form.getValues().scripts[index]?.src &&
-					!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
+						!form.getValues().scripts[index]?.src.match(/^https?:\/\/.+/)
 						? "Must be a valid HTTP or HTTPS URL"
 						: undefined
 				}
@@ -394,11 +393,11 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 
 	const moveScript = (index: number, direction: "up" | "down") => {
 		if (direction === "up" && index > 0) {
-			const item = scripts[index];
+			const item = scripts[index]!;
 			form.removeListItem("scripts", index);
 			form.insertListItem("scripts", item, index - 1);
 		} else if (direction === "down" && index < scripts.length - 1) {
-			const item = scripts[index];
+			const item = scripts[index]!;
 			form.removeListItem("scripts", index);
 			form.insertListItem("scripts", item, index + 1);
 		}
@@ -469,7 +468,7 @@ export default function AdminAnalytics({ loaderData }: Route.ComponentProps) {
 										: undefined,
 								dataMeasurementId:
 									script.dataMeasurementId &&
-									script.dataMeasurementId.trim() !== ""
+										script.dataMeasurementId.trim() !== ""
 										? script.dataMeasurementId
 										: undefined,
 							}),
