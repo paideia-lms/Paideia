@@ -1,6 +1,7 @@
-import type { BasePayload, PayloadRequest, TypedUser} from "payload";
+import type { BasePayload, PayloadRequest, TypedUser } from "payload";
 import { Forbidden } from "payload";
-import type { Subtract, Sum } from "type-fest";
+import { ActivityModule } from "server/payload-types";
+import type { Simplify, Subtract, Sum, Tagged } from "type-fest";
 
 export type BaseInternalFunctionArgs = {
 	payload: BasePayload;
@@ -212,62 +213,103 @@ type StripObject<T> = IsDocRelation<T> extends true
 			? StripNormalObject<T>
 			: T;
 
-export type Depth<T, D extends number = 2> = FollowNullable<
-	IsNullable<T>,
-	D extends 0
-		? T extends (infer U)[]
-			? (U extends object
-					? {
-							[K in keyof U]: FollowNullable<
-								IsNullable<U[K]>,
-								NonNullable<StripObject<U[K]>>
-							>;
-						}
-					: U)[]
-			: T extends object
-				? {
-						[K in keyof T]: NonNullable<StripObject<T[K]>>;
-					}
-				: StripObject<T>
-		: IsNormalRelation<T> extends true
-			? Depth<NonNullable<StripID<T>>, Subtract<D, 1>> // ! <---- unwrap the object, end 1
-			: IsPolymorphicRelation<T> extends true
-				? NonNullable<T> extends (infer U)[]
-					? Depth<NonNullable<StripID<U>>, Subtract<D, 1>>[] // !  <----- end 2
-					: {
-							[K in keyof T]: K extends "value"
-								? Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>> // ! <----- end 3
-								: T[K]; // ! <----- end 5
-						}
-				: IsDocRelation<T> extends true
-					? {
-							[K in keyof T]: K extends "docs"
-								? Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>> // ! <----- end 6
-								: T[K]; // ! <----- end 7
-						}
-					: T extends (infer U)[]
-						? (U extends object
-								? {
-										[K in keyof U]: FollowNullable<
-											IsNullable<U[K]>,
-											Depth<NonNullable<StripID<U[K]>>, Subtract<D, 1>>
-										>; // ! <----- end 8
-									}
-								: U)[]
-						: T extends object
-							? {
-									[K in keyof T]: FollowNullable<
-										IsNullable<T[K]>,
-										Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>>
-									>; // ! <----- end 9
-								}
-							: T // ! <----- end 10
+// Extract depth-0 array handling
+type DepthZeroArrayItem<U> = U extends object
+	? {
+			[K in keyof U]: FollowNullable<
+				IsNullable<U[K]>,
+				NonNullable<StripObject<U[K]>>
+			>;
+		}
+	: U;
+
+// Extract depth-0 object handling
+type DepthZeroObject<T> = {
+	[K in keyof T]: NonNullable<T[K]> extends object
+		? NonNullable<T[K]> extends (infer U extends object)[]
+			? DepthZeroArrayItem<U>[]
+			: NonNullable<StripObject<T[K]>>
+		: NonNullable<StripObject<T[K]>>;
+};
+
+// Extract depth-0 case
+type DepthZero<T> = T extends (infer U)[]
+	? DepthZeroArrayItem<U>[]
+	: T extends object
+		? DepthZeroObject<T>
+		: StripObject<T>;
+
+// Extract normal relation handling
+type DepthNormalRelation<T, D extends number> = Depth<
+	NonNullable<StripID<T>>,
+	Subtract<D, 1>
 >;
 
-export function stripDepth<D extends number, f extends "find" | "findByID" | "create" | "update" | "delete"  = 'findByID'>() {
-	return function <T>(
-		data: T,
-	): Depth<T, f extends "find" ?  Sum<D, 1> : D> {
+// Extract polymorphic relation handling
+type DepthPolymorphicRelation<
+	T,
+	D extends number,
+> = NonNullable<T> extends (infer U extends object)[]
+	? Depth<NonNullable<StripID<U>>, Subtract<D, 1>>[]
+	: {
+			[K in keyof T]: K extends "value"
+				? Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>>
+				: T[K];
+		};
+
+// Extract doc relation handling
+type DepthDocRelation<T, D extends number> = {
+	[K in keyof T]: K extends "docs"
+		? Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>>
+		: T[K];
+};
+
+// Extract array handling for depth > 0
+type DepthArrayItem<U, D extends number> = U extends object
+	? {
+			[K in keyof U]: FollowNullable<
+				IsNullable<U[K]>,
+				Depth<NonNullable<StripID<U[K]>>, Subtract<D, 1>>
+			>;
+		}
+	: U;
+
+// Extract object handling for depth > 0
+type DepthObject<T, D extends number> = {
+	[K in keyof T]: FollowNullable<
+		IsNullable<T[K]>,
+		Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>>
+	>;
+};
+
+// Extract fallback handling for depth > 0
+type DepthFallback<T, D extends number> = T extends (infer U extends object)[]
+	? DepthArrayItem<U, D>[]
+	: T extends object
+		? DepthObject<T, D>
+		: T;
+
+// Main Depth type with reduced nesting
+export type Depth<T, D extends number = 2> = Simplify<
+	FollowNullable<
+		IsNullable<T>,
+		D extends 0
+			? DepthZero<T>
+			: IsNormalRelation<T> extends true
+				? DepthNormalRelation<T, D>
+				: IsPolymorphicRelation<T> extends true
+					? DepthPolymorphicRelation<T, D>
+					: IsDocRelation<T> extends true
+						? DepthDocRelation<T, D>
+						: DepthFallback<T, D>
+	>
+>;
+
+export function stripDepth<
+	D extends number,
+	f extends "find" | "findByID" | "create" | "update" | "delete" = "findByID",
+>() {
+	return function <T>(data: T): Depth<T, f extends "find" ? Sum<D, 1> : D> {
 		return data as any;
 	};
 }

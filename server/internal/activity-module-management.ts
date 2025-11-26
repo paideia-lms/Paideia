@@ -12,7 +12,10 @@ import {
 } from "~/utils/error";
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 import { handleTransactionId } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
 // Base args that are common to all module types
 type BaseCreateActivityModuleArgs = BaseInternalFunctionArgs & {
@@ -72,13 +75,13 @@ type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -187,13 +190,13 @@ type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		questions?: Array<{
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank"
-			| "matching"
-			| "ordering";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank"
+				| "matching"
+				| "ordering";
 			points: number;
 			options?: Array<{
 				text: string;
@@ -294,12 +297,12 @@ type Assignment = {
 	maxAttempts?: number | null;
 	allowLateSubmissions?: boolean | null;
 	allowedFileTypes?:
-	| {
-		extension: string;
-		mimeType: string;
-		id?: string | null;
-	}[]
-	| null;
+		| {
+				extension: string;
+				mimeType: string;
+				id?: string | null;
+		  }[]
+		| null;
 	maxFileSize?: number | null;
 	maxFiles?: number | null;
 	requireTextSubmission?: boolean | null;
@@ -327,45 +330,45 @@ type Quiz = {
 	shuffleAnswers?: boolean | null;
 	showOneQuestionAtATime?: boolean | null;
 	rawQuizConfig?:
-	| {
-		[k: string]: unknown;
-	}
-	| unknown[]
-	| string
-	| number
-	| boolean
-	| null;
+		| {
+				[k: string]: unknown;
+		  }
+		| unknown[]
+		| string
+		| number
+		| boolean
+		| null;
 	questions?:
-	| {
-		questionText: string;
-		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
-		points: number;
-		options?:
 		| {
-			text: string;
-			isCorrect?: boolean | null;
-			feedback?: string | null;
-			id?: string | null;
-		}[]
+				questionText: string;
+				questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank"
+					| "matching"
+					| "ordering";
+				points: number;
+				options?:
+					| {
+							text: string;
+							isCorrect?: boolean | null;
+							feedback?: string | null;
+							id?: string | null;
+					  }[]
+					| null;
+				correctAnswer?: string | null;
+				explanation?: string | null;
+				hints?:
+					| {
+							hint: string;
+							id?: string | null;
+					  }[]
+					| null;
+				id?: string | null;
+		  }[]
 		| null;
-		correctAnswer?: string | null;
-		explanation?: string | null;
-		hints?:
-		| {
-			hint: string;
-			id?: string | null;
-		}[]
-		| null;
-		id?: string | null;
-	}[]
-	| null;
 	updatedAt: string;
 	createdAt: string;
 };
@@ -393,13 +396,13 @@ type Discussion = {
 	maxGroupSize?: number | null;
 	threadSorting?: ("recent" | "upvoted" | "active" | "alphabetical") | null;
 	pinnedThreads?:
-	| {
-		thread: number | { id: number };
-		pinnedAt: string;
-		pinnedBy: number | { id: number };
-		id?: string | null;
-	}[]
-	| null;
+		| {
+				thread: number | { id: number };
+				pinnedAt: string;
+				pinnedBy: number | { id: number };
+				id?: string | null;
+		  }[]
+		| null;
 	updatedAt: string;
 	createdAt: string;
 };
@@ -1022,11 +1025,12 @@ export const tryGetActivityModuleById = Result.wrap(
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<1, "find">())
 			.then((r) => {
-				if (r.docs.length === 0) {
+				const am = r.docs[0];
+				if (!am) {
 					return null;
 				}
-				const am = r.docs[0];
 				const createdBy = am.createdBy;
 				const owner = am.owner;
 				const page = am.page;
@@ -1035,117 +1039,21 @@ export const tryGetActivityModuleById = Result.wrap(
 				const assignment = am.assignment;
 				const quiz = am.quiz;
 				const discussion = am.discussion;
-				assertZodInternal(
-					"tryGetActivityModuleById: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
 				const createdByAvatar = createdBy.avatar;
-				assertZodInternal(
-					"tryGetActivityModuleById: Created by avatar is required",
-					createdByAvatar,
-					z.number().nullish(),
-				);
-
-				assertZodInternal(
-					"tryGetActivityModuleById: Owner is required",
-					owner,
-					z.object({ id: z.number() }),
-				);
 				const ownerAvatar = owner.avatar;
-				assertZodInternal(
-					"tryGetActivityModuleById: Owner avatar is required",
-					ownerAvatar,
-					z.number().nullish(),
-				);
-				// ! page, whiteboard, assignment, quiz, discussion can be null
-				assertZodInternal(
-					"tryGetActivityModuleById: Page is required",
-					page,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetActivityModuleById: Whiteboard is required",
-					whiteboard,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetActivityModuleById: Assignment is required",
-					assignment,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetActivityModuleById: Quiz is required",
-					quiz,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetActivityModuleById: Discussion is required",
-					discussion,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetActivityModuleById: File is required",
-					file,
-					z.object({ id: z.number() }).nullish(),
-				);
-
 				// NOTE: Submissions are no longer joined on activity-modules.
 				// They now link to course-activity-module-links instead.
 
-				const grants = am.grants?.docs?.map((g) => {
-					assertZodInternal(
-						"tryGetActivityModuleById: Grants is required",
-						g,
-						z.object({ id: z.number() }),
-					);
-					const grantedTo = g.grantedTo;
-					assertZodInternal(
-						"tryGetActivityModuleById: Granted to is required",
-						grantedTo,
-						z.number(),
-					);
-					const grantedBy = g.grantedBy;
-					assertZodInternal(
-						"tryGetActivityModuleById: Granted by is required",
-						grantedBy,
-						z.number(),
-					);
-					return {
-						...g,
-						grantedTo,
-						grantedBy,
-					};
-				});
+				const grants = am.grants?.docs ?? [];
 
 				// type narrowing file
 				const fileMedia = file?.media?.map((m) => {
-					assertZodInternal(
-						"tryGetActivityModuleById: Media should be number[]",
-						m,
-						z.number(),
-					);
 					return m;
 				});
 
 				const fileCreatedBy = file?.createdBy;
-				if (fileCreatedBy) {
-					assertZodInternal(
-						"tryGetActivityModuleById: File created by should be number",
-						fileCreatedBy,
-						z.number(),
-					);
-				}
 
-				const pageMedia = page?.media?.map((m) => {
-					assertZodInternal(
-						"tryGetActivityModuleById: Media should be number[]",
-						m,
-						z.number(),
-					);
-					return m;
-				});
-
+				const pageMedia = page?.media;
 				return {
 					...am,
 					createdBy: {
@@ -1158,18 +1066,18 @@ export const tryGetActivityModuleById = Result.wrap(
 					},
 					page: page
 						? {
-							...page,
-							media: pageMedia ?? null,
-						}
+								...page,
+								media: pageMedia ?? null,
+							}
 						: null,
 					whiteboard,
 					file: file
 						? {
-							id: file.id,
-							media: fileMedia ?? null,
-							updatedAt: file.updatedAt,
-							createdAt: file.createdAt,
-						}
+								id: file.id,
+								media: fileMedia ?? null,
+								updatedAt: file.updatedAt,
+								createdAt: file.createdAt,
+							}
 						: null,
 					assignment,
 					quiz,
