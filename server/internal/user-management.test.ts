@@ -305,7 +305,6 @@ describe("User Management Functions", () => {
 			expect(result.ok).toBe(false);
 		});
 
-
 		test("unauthenticated request should fail to update user", async () => {
 			const updateArgs: UpdateUserArgs = {
 				payload,
@@ -996,7 +995,6 @@ describe("User Management Functions", () => {
 				});
 			}
 		});
-
 
 		test("should not allow admin to impersonate another admin", async () => {
 			// Create another admin user

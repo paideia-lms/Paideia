@@ -9,6 +9,10 @@ import { getPayload } from "payload";
 import { envVars } from "../env";
 import config from "../payload.config";
 import { s3Client } from "../utils/s3-client";
+import {
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+} from "./activity-module-management";
 import { tryCreateAssignmentSubmission } from "./assignment-submission-management";
 import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
@@ -33,10 +37,6 @@ import {
 import { tryCreateNote } from "./note-management";
 import { tryCreatePage } from "./page-management";
 import { tryCreateUser } from "./user-management";
-import {
-	tryCreateAssignmentModule,
-	tryCreateDiscussionModule,
-} from "./activity-module-management";
 
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

@@ -60,16 +60,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const targetUser = userResult.value;
 
 	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (targetUser.avatar) {
-		if (typeof targetUser.avatar === "object") {
-			avatarUrl = targetUser.avatar.filename
-				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: targetUser.avatar.filename,
-					})
-				: null;
-		}
-	}
+	const avatarUrl = targetUser.avatar
+		? href(`/api/media/file/:filenameOrId`, {
+				filenameOrId: targetUser.avatar.toString(),
+			})
+		: null;
 
 	const canSeeModules = canSeeUserModules(currentUser);
 

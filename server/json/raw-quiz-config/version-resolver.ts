@@ -3,14 +3,16 @@ import type {
 	Question as QuestionV1,
 	QuizConfig as QuizConfigV1,
 	QuizPage as QuizPageV1,
-} from "./raw-quiz-config.types";
+} from "./types";
 import type {
 	FillInTheBlankQuestion as FillInTheBlankQuestionV2,
 	NestedQuizConfig,
 	Question as QuestionV2,
 	QuizConfig as QuizConfigV2,
 	QuizPage as QuizPageV2,
-} from "./raw-quiz-config.types.v2";
+} from "./types.v2";
+
+export type LatestQuizConfig = QuizConfigV2;
 
 /**
  * Type guard to check if a config is already v2
@@ -45,7 +47,7 @@ function convertFillInTheBlankQuestion(
 	// Convert array to record by mapping indices to blank IDs
 	const correctAnswers: Record<string, string> = {};
 	for (let i = 0; i < uniqueBlankIds.length && i < v1Answers.length; i++) {
-		correctAnswers[uniqueBlankIds[i]] = v1Answers[i];
+		correctAnswers[uniqueBlankIds[i]!] = v1Answers[i]!;
 	}
 
 	return {
@@ -223,7 +225,7 @@ export function isValidQuizConfig(
  */
 export function tryResolveQuizConfigToLatest(
 	config: unknown,
-): QuizConfigV2 | null {
+): LatestQuizConfig | null {
 	try {
 		if (!isValidQuizConfig(config)) {
 			return null;

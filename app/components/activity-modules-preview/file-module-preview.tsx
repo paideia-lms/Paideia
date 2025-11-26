@@ -36,4 +36,3 @@ export function FileModulePreview({ fileModule }: FileModulePreviewProps) {
 
 	return <FilePreview files={files} />;
 }
-

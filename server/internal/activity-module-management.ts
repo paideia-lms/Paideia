@@ -1,6 +1,6 @@
 import { omit } from "es-toolkit";
 import type { Payload, PayloadRequest, TypedUser } from "payload";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -13,9 +13,9 @@ import {
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
+	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
-	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 
 // Base args that are common to all module types
@@ -37,9 +37,6 @@ export type CreateWhiteboardModuleArgs = BaseCreateActivityModuleArgs & {
 
 export type CreateAssignmentModuleArgs = BaseCreateActivityModuleArgs & {
 	instructions?: string;
-	dueDate?: string;
-	maxAttempts?: number;
-	allowLateSubmissions?: boolean;
 	requireTextSubmission?: boolean;
 	requireFileSubmission?: boolean;
 	allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
@@ -50,9 +47,6 @@ export type CreateAssignmentModuleArgs = BaseCreateActivityModuleArgs & {
 export type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 	description?: string;
 	instructions?: string;
-	dueDate?: string;
-	maxAttempts?: number;
-	allowLateSubmissions?: boolean;
 	points?: number;
 	gradingType?: "automatic" | "manual";
 	timeLimit?: number;
@@ -134,9 +128,6 @@ export type UpdateWhiteboardModuleArgs = BaseUpdateActivityModuleArgs & {
 
 export type UpdateAssignmentModuleArgs = BaseUpdateActivityModuleArgs & {
 	instructions?: string;
-	dueDate?: string;
-	maxAttempts?: number;
-	allowLateSubmissions?: boolean;
 	requireTextSubmission?: boolean;
 	requireFileSubmission?: boolean;
 	allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
@@ -147,9 +138,6 @@ export type UpdateAssignmentModuleArgs = BaseUpdateActivityModuleArgs & {
 export type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 	description?: string;
 	instructions?: string;
-	dueDate?: string;
-	maxAttempts?: number;
-	allowLateSubmissions?: boolean;
 	points?: number;
 	gradingType?: "automatic" | "manual";
 	timeLimit?: number;
@@ -238,14 +226,28 @@ type Whiteboard = {
 };
 
 /**
- * File type - excludes createdBy as it's handled by BaseActivityModuleResult
+ * Raw File type from Payload - excludes createdBy as it's handled by BaseActivityModuleResult
+ * Media is stored as IDs (number[])
  */
+type FileRaw = {
+	id: number;
+	media?: number[] | null;
+	updatedAt: string;
+	createdAt: string;
+};
+
 /**
- * File type - excludes createdBy as it's handled by BaseActivityModuleResult
+ * File type for ActivityModuleResult - excludes createdBy as it's handled by BaseActivityModuleResult
+ * Media is enriched with full media objects (id, filename, mimeType, filesize)
  */
 type File = {
 	id: number;
-	media?: number[] | null;
+	media?: Array<{
+		id: number;
+		filename?: string | null;
+		mimeType?: string | null;
+		filesize?: number | null;
+	}> | null;
 	updatedAt: string;
 	createdAt: string;
 };
@@ -258,9 +260,6 @@ type Assignment = {
 	title: string;
 	description?: string | null;
 	instructions?: string | null;
-	dueDate?: string | null;
-	maxAttempts?: number | null;
-	allowLateSubmissions?: boolean | null;
 	allowedFileTypes?:
 		| {
 				extension: string;
@@ -284,10 +283,8 @@ type Quiz = {
 	title: string;
 	description?: string | null;
 	instructions?: string | null;
-	dueDate?: string | null;
-	maxAttempts?: number | null;
-	allowLateSubmissions?: boolean | null;
 	points?: number | null;
+	timeLimit?: number | null; // Calculated from rawQuizConfig.globalTimer (in minutes)
 	gradingType?: ("automatic" | "manual") | null;
 	showCorrectAnswers?: boolean | null;
 	allowMultipleAttempts?: boolean | null;
@@ -488,7 +485,7 @@ type ActivityModuleData = {
 	whiteboard?:
 		| (Whiteboard & { createdBy?: number | TypedUser | unknown })
 		| null;
-	file?: (File & { createdBy?: number | TypedUser | unknown }) | null;
+	file?: (FileRaw & { createdBy?: number | TypedUser | unknown }) | null;
 	assignment?:
 		| (Assignment & { createdBy?: number | TypedUser | unknown })
 		| null;
@@ -499,13 +496,64 @@ type ActivityModuleData = {
 };
 
 /**
+ * Enriches media IDs to full media objects
+ */
+async function enrichMedia(
+	mediaIds: number[] | null | undefined,
+	payload: Payload,
+	user: TypedUser | null | undefined,
+	req: Partial<PayloadRequest> | undefined,
+	overrideAccess: boolean,
+): Promise<Array<{
+	id: number;
+	filename?: string | null;
+	mimeType?: string | null;
+	filesize?: number | null;
+}> | null> {
+	if (!mediaIds || mediaIds.length === 0) {
+		return null;
+	}
+
+	try {
+		const mediaResult = await payload.find({
+			collection: "media",
+			where: {
+				id: {
+					in: mediaIds,
+				},
+			},
+			limit: mediaIds.length,
+			user: user ?? null,
+			req,
+			depth: 0,
+			overrideAccess,
+		});
+
+		return mediaResult.docs.map((media) => ({
+			id: media.id,
+			filename: media.filename ?? null,
+			mimeType: media.mimeType ?? null,
+			filesize: media.filesize ?? null,
+		}));
+	} catch (error) {
+		console.error("Failed to fetch media data:", error);
+		return null;
+	}
+}
+
+/**
  * Builds a discriminated union result from base result and activity module data
  * Excludes createdBy from payload types since it's in BaseActivityModuleResult
+ * Enriches media for file modules and calculates timeLimit for quiz modules
  */
-function buildDiscriminatedUnionResult(
+async function buildDiscriminatedUnionResult(
 	baseResult: BaseActivityModuleResult,
 	data: ActivityModuleData,
-): ActivityModuleResult {
+	payload: Payload,
+	user: TypedUser | null,
+	req: Partial<PayloadRequest> | undefined,
+	overrideAccess: boolean,
+): Promise<ActivityModuleResult> {
 	const { type } = data;
 
 	if (type === "page") {
@@ -542,11 +590,21 @@ function buildDiscriminatedUnionResult(
 				`File data not found for activity module with id '${data.id}'`,
 			);
 		}
-		// File type has createdBy, but we exclude it since it's in baseResult
-		const result = {
+
+		// Enrich media: convert media IDs to full media objects
+		const enrichedMedia = await enrichMedia(
+			fileData.media ?? null,
+			payload,
+			user,
+			req,
+			overrideAccess,
+		);
+
+		const result: FileModuleResult = {
 			...baseResult,
 			type: "file" as const,
-			...omit(fileData, ["createdBy", "id"]),
+			...omit(fileData, ["createdBy", "id", "media"]),
+			media: enrichedMedia,
 		};
 		return result;
 	} else if (type === "assignment") {
@@ -569,10 +627,21 @@ function buildDiscriminatedUnionResult(
 				`Quiz data not found for activity module with id '${data.id}'`,
 			);
 		}
+
+		// Calculate timeLimit from rawQuizConfig.globalTimer (convert seconds to minutes)
+		let timeLimit: number | null = null;
+		if (quizData.rawQuizConfig && typeof quizData.rawQuizConfig === "object") {
+			const rawConfig = quizData.rawQuizConfig as { globalTimer?: number };
+			if (rawConfig.globalTimer) {
+				timeLimit = rawConfig.globalTimer / 60;
+			}
+		}
+
 		const result: QuizModuleResult = {
 			...baseResult,
 			type: "quiz",
 			...omit(quizData, ["createdBy", "id"]),
+			timeLimit,
 		};
 		return result;
 	} else {
@@ -870,7 +939,16 @@ export const tryCreateFileModule = Result.wrap(
 			// Build result directly since we know the type
 			const createdBy = activityModule.createdBy;
 			const owner = activityModule.owner;
-			const fileMedia = file.media ?? null;
+			const fileMediaIds = file.media ?? null;
+
+			// Enrich media
+			const enrichedMedia = await enrichMedia(
+				fileMediaIds,
+				payload,
+				(user as TypedUser | null) ?? null,
+				reqWithTransaction,
+				overrideAccess,
+			);
 
 			const result = {
 				id: activityModule.id,
@@ -892,7 +970,7 @@ export const tryCreateFileModule = Result.wrap(
 					firstName: owner.firstName ?? "",
 					lastName: owner.lastName ?? "",
 				},
-				media: fileMedia,
+				media: enrichedMedia,
 				updatedAt: activityModule.updatedAt,
 				createdAt: activityModule.createdAt,
 			} satisfies FileModuleResult;
@@ -922,9 +1000,6 @@ export const tryCreateAssignmentModule = Result.wrap(
 			req,
 			overrideAccess = false,
 			instructions,
-			dueDate,
-			maxAttempts,
-			allowLateSubmissions,
 			requireTextSubmission,
 			requireFileSubmission,
 			allowedFileTypes,
@@ -953,9 +1028,6 @@ export const tryCreateAssignmentModule = Result.wrap(
 						title,
 						description: description,
 						instructions: instructions,
-						dueDate: dueDate,
-						maxAttempts: maxAttempts,
-						allowLateSubmissions: allowLateSubmissions,
 						requireTextSubmission: requireTextSubmission,
 						requireFileSubmission: requireFileSubmission,
 						allowedFileTypes: allowedFileTypes,
@@ -1033,9 +1105,6 @@ export const tryCreateAssignmentModule = Result.wrap(
 					lastName: owner.lastName ?? "",
 				},
 				instructions: assignment.instructions ?? null,
-				dueDate: assignment.dueDate ?? null,
-				maxAttempts: assignment.maxAttempts ?? null,
-				allowLateSubmissions: assignment.allowLateSubmissions ?? null,
 				allowedFileTypes: assignment.allowedFileTypes ?? null,
 				maxFileSize: assignment.maxFileSize ?? null,
 				maxFiles: assignment.maxFiles ?? null,
@@ -1070,9 +1139,6 @@ export const tryCreateQuizModule = Result.wrap(
 			req,
 			overrideAccess = false,
 			instructions,
-			dueDate,
-			maxAttempts,
-			allowLateSubmissions,
 			points,
 			gradingType,
 			showCorrectAnswers,
@@ -1105,9 +1171,6 @@ export const tryCreateQuizModule = Result.wrap(
 						title,
 						description: description,
 						instructions: instructions,
-						dueDate: dueDate,
-						maxAttempts: maxAttempts,
-						allowLateSubmissions: allowLateSubmissions,
 						points: points,
 						gradingType: gradingType,
 						showCorrectAnswers: showCorrectAnswers,
@@ -1173,9 +1236,6 @@ export const tryCreateQuizModule = Result.wrap(
 					lastName: owner.lastName ?? "",
 				},
 				instructions: quiz.instructions ?? null,
-				dueDate: quiz.dueDate ?? null,
-				maxAttempts: quiz.maxAttempts ?? null,
-				allowLateSubmissions: quiz.allowLateSubmissions ?? null,
 				points: quiz.points ?? null,
 				gradingType: quiz.gradingType ?? null,
 				showCorrectAnswers: quiz.showCorrectAnswers ?? null,
@@ -1536,7 +1596,14 @@ export const tryGetActivityModuleById = Result.wrap(
 			discussion: activityModuleResult.discussion,
 		};
 
-		return buildDiscriminatedUnionResult(baseResult, moduleData);
+		return buildDiscriminatedUnionResult(
+			baseResult,
+			moduleData,
+			payload,
+			user as TypedUser | null,
+			req,
+			overrideAccess,
+		);
 	},
 	(error) =>
 		transformError(error) ??
@@ -1963,6 +2030,16 @@ export const tryUpdateFileModule = Result.wrap(
 			const createdBy = updatedModule.createdBy;
 			const owner = updatedModule.owner;
 			const fileRelation = updatedModule.file;
+			const fileMediaIds = fileRelation?.media ?? null;
+
+			// Enrich media
+			const enrichedMedia = await enrichMedia(
+				fileMediaIds,
+				payload,
+				(user as TypedUser | null) ?? null,
+				reqWithTransaction,
+				overrideAccess,
+			);
 
 			const result = {
 				id: updatedModule.id,
@@ -1984,7 +2061,7 @@ export const tryUpdateFileModule = Result.wrap(
 					firstName: owner.firstName ?? "",
 					lastName: owner.lastName ?? "",
 				},
-				media: fileRelation?.media ?? null,
+				media: enrichedMedia,
 				updatedAt: updatedModule.updatedAt,
 				createdAt: updatedModule.createdAt,
 			} satisfies FileModuleResult;
@@ -2014,9 +2091,6 @@ export const tryUpdateAssignmentModule = Result.wrap(
 			req,
 			overrideAccess = false,
 			instructions,
-			dueDate,
-			maxAttempts,
-			allowLateSubmissions,
 			requireTextSubmission,
 			requireFileSubmission,
 			allowedFileTypes,
@@ -2076,9 +2150,6 @@ export const tryUpdateAssignmentModule = Result.wrap(
 						description:
 							instructions || description || existingModule.description,
 						instructions: instructions,
-						dueDate: dueDate,
-						maxAttempts: maxAttempts,
-						allowLateSubmissions: allowLateSubmissions,
 						requireTextSubmission: requireTextSubmission,
 						requireFileSubmission: requireFileSubmission,
 						allowedFileTypes: allowedFileTypes,
@@ -2155,9 +2226,6 @@ export const tryUpdateAssignmentModule = Result.wrap(
 					lastName: owner.lastName ?? "",
 				},
 				instructions: assignmentRelation?.instructions ?? null,
-				dueDate: assignmentRelation?.dueDate ?? null,
-				maxAttempts: assignmentRelation?.maxAttempts ?? null,
-				allowLateSubmissions: assignmentRelation?.allowLateSubmissions ?? null,
 				allowedFileTypes: assignmentRelation?.allowedFileTypes ?? null,
 				maxFileSize: assignmentRelation?.maxFileSize ?? null,
 				maxFiles: assignmentRelation?.maxFiles ?? null,
@@ -2194,9 +2262,6 @@ export const tryUpdateQuizModule = Result.wrap(
 			req,
 			overrideAccess = false,
 			instructions,
-			dueDate,
-			maxAttempts,
-			allowLateSubmissions,
 			points,
 			gradingType,
 			showCorrectAnswers,
@@ -2259,9 +2324,6 @@ export const tryUpdateQuizModule = Result.wrap(
 						title: title ?? undefined,
 						description: description ?? undefined,
 						instructions: instructions,
-						dueDate: dueDate,
-						maxAttempts: maxAttempts,
-						allowLateSubmissions: allowLateSubmissions,
 						points: points,
 						gradingType: gradingType,
 						showCorrectAnswers: showCorrectAnswers,
@@ -2344,9 +2406,6 @@ export const tryUpdateQuizModule = Result.wrap(
 					lastName: owner.lastName ?? "",
 				},
 				instructions: quizRelation?.instructions ?? null,
-				dueDate: quizRelation?.dueDate ?? null,
-				maxAttempts: quizRelation?.maxAttempts ?? null,
-				allowLateSubmissions: quizRelation?.allowLateSubmissions ?? null,
 				points: quizRelation?.points ?? null,
 				gradingType: quizRelation?.gradingType ?? null,
 				showCorrectAnswers: quizRelation?.showCorrectAnswers ?? null,

@@ -43,7 +43,7 @@ export const tryParseMediaFromHtml = Result.wrap(
 				continue;
 			}
 
-			const filenameOrId = mediaFileMatch[1];
+			const filenameOrId = mediaFileMatch[1]!;
 
 			// Try to parse as number (media ID)
 			const parsedId = Number.parseInt(filenameOrId, 10);

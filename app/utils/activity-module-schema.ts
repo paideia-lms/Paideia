@@ -1,5 +1,5 @@
 import type { Simplify } from "node_modules/type-fest";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
 import { presetValuesToFileTypes } from "./file-types";
@@ -43,9 +43,6 @@ const fileModuleSchema = baseActivityModuleSchema.extend({
 const assignmentModuleSchema = baseActivityModuleSchema.extend({
 	type: z.literal("assignment"),
 	assignmentInstructions: z.string().optional(),
-	assignmentDueDate: z.string().optional(),
-	assignmentMaxAttempts: z.number().optional(),
-	assignmentAllowLateSubmissions: z.boolean().optional(),
 	assignmentRequireTextSubmission: z.boolean().optional(),
 	assignmentRequireFileSubmission: z.boolean().optional(),
 	assignmentAllowedFileTypes: z.array(z.string()).optional(),
@@ -59,8 +56,6 @@ const assignmentModuleSchema = baseActivityModuleSchema.extend({
 const quizModuleSchema = baseActivityModuleSchema.extend({
 	type: z.literal("quiz"),
 	quizInstructions: z.string().optional(),
-	quizDueDate: z.string().optional(),
-	quizMaxAttempts: z.number().optional(),
 	quizPoints: z.number().optional(),
 	quizTimeLimit: z.number().optional(),
 	quizGradingType: z.enum(["automatic", "manual"]).optional(),
@@ -139,9 +134,6 @@ export type AssignmentModuleFormValues = Simplify<
 	BaseActivityModuleFormValues & {
 		type: "assignment";
 		assignmentInstructions: string;
-		assignmentDueDate: Date | null;
-		assignmentMaxAttempts: number;
-		assignmentAllowLateSubmissions: boolean;
 		assignmentRequireTextSubmission: boolean;
 		assignmentRequireFileSubmission: boolean;
 		assignmentAllowedFileTypes: string[];
@@ -157,8 +149,6 @@ export type QuizModuleFormValues = Simplify<
 	BaseActivityModuleFormValues & {
 		type: "quiz";
 		quizInstructions: string;
-		quizDueDate: Date | null;
-		quizMaxAttempts: number;
 		quizPoints: number;
 		quizTimeLimit: number;
 		quizGradingType: "automatic" | "manual";
@@ -259,9 +249,6 @@ export function getInitialFormValuesForType(
 				type: "assignment",
 				status: "draft",
 				assignmentInstructions: "",
-				assignmentDueDate: null,
-				assignmentMaxAttempts: 1,
-				assignmentAllowLateSubmissions: false,
 				assignmentRequireTextSubmission: false,
 				assignmentRequireFileSubmission: false,
 				assignmentAllowedFileTypes: [],
@@ -276,8 +263,6 @@ export function getInitialFormValuesForType(
 				type: "quiz",
 				status: "draft",
 				quizInstructions: "",
-				quizDueDate: null,
-				quizMaxAttempts: 1,
 				quizPoints: 100,
 				quizTimeLimit: 60,
 				quizGradingType: "automatic",
@@ -350,15 +335,6 @@ export function transformFormValues(
 			...(values.assignmentInstructions && {
 				assignmentInstructions: values.assignmentInstructions,
 			}),
-			...(values.assignmentDueDate && {
-				assignmentDueDate: values.assignmentDueDate.toISOString(),
-			}),
-			...(values.assignmentMaxAttempts !== undefined && {
-				assignmentMaxAttempts: values.assignmentMaxAttempts,
-			}),
-			...(values.assignmentAllowLateSubmissions !== undefined && {
-				assignmentAllowLateSubmissions: values.assignmentAllowLateSubmissions,
-			}),
 			...(values.assignmentRequireTextSubmission !== undefined && {
 				assignmentRequireTextSubmission: values.assignmentRequireTextSubmission,
 			}),
@@ -384,12 +360,6 @@ export function transformFormValues(
 			...(values.status && { status: values.status }),
 			...(values.quizInstructions && {
 				quizInstructions: values.quizInstructions,
-			}),
-			...(values.quizDueDate && {
-				quizDueDate: values.quizDueDate.toISOString(),
-			}),
-			...(values.quizMaxAttempts !== undefined && {
-				quizMaxAttempts: values.quizMaxAttempts,
 			}),
 			...(values.quizPoints !== undefined && {
 				quizPoints: values.quizPoints,
@@ -451,9 +421,6 @@ export function transformToActivityData(
 	let assignmentData:
 		| {
 				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
-				allowLateSubmissions?: boolean;
 				requireTextSubmission?: boolean;
 				requireFileSubmission?: boolean;
 				allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
@@ -464,8 +431,6 @@ export function transformToActivityData(
 	let quizData:
 		| {
 				instructions?: string;
-				dueDate?: string;
-				maxAttempts?: number;
 				points?: number;
 				timeLimit?: number;
 				gradingType?: "automatic" | "manual";
@@ -505,9 +470,6 @@ export function transformToActivityData(
 
 		assignmentData = {
 			instructions: parsedData.assignmentInstructions,
-			dueDate: parsedData.assignmentDueDate,
-			maxAttempts: parsedData.assignmentMaxAttempts,
-			allowLateSubmissions: parsedData.assignmentAllowLateSubmissions,
 			requireTextSubmission: parsedData.assignmentRequireTextSubmission,
 			requireFileSubmission: parsedData.assignmentRequireFileSubmission,
 			allowedFileTypes,
@@ -517,8 +479,6 @@ export function transformToActivityData(
 	} else if (parsedData.type === "quiz") {
 		quizData = {
 			instructions: parsedData.quizInstructions,
-			dueDate: parsedData.quizDueDate,
-			maxAttempts: parsedData.quizMaxAttempts,
 			points: parsedData.quizPoints,
 			timeLimit: parsedData.quizTimeLimit,
 			gradingType: parsedData.quizGradingType,

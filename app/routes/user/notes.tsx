@@ -91,25 +91,21 @@ export const loader = async ({
 			);
 		} else {
 			// Fallback to fetching directly
-			userProfileContext = await getUserProfileContext(
-				{
-					payload,
-					profileUserId: userId,
-					user: currentUser,
-					req: request,
-				},
-			);
-		}
-	} else {
-		// Viewing another user's profile
-		userProfileContext = await getUserProfileContext(
-			{
+			userProfileContext = await getUserProfileContext({
 				payload,
 				profileUserId: userId,
 				user: currentUser,
 				req: request,
-			},
-		);
+			});
+		}
+	} else {
+		// Viewing another user's profile
+		userProfileContext = await getUserProfileContext({
+			payload,
+			profileUserId: userId,
+			user: currentUser,
+			req: request,
+		});
 	}
 
 	if (!userProfileContext) {
@@ -268,9 +264,10 @@ function HeatmapSection({
 					withWeekdayLabels
 					withMonthLabels
 					getTooltipLabel={({ date, value }) =>
-						`${dayjs(date).format("DD MMM, YYYY")} – ${value === null || value === 0
-							? "No notes"
-							: `${value} note${value > 1 ? "s" : ""}`
+						`${dayjs(date).format("DD MMM, YYYY")} – ${
+							value === null || value === 0
+								? "No notes"
+								: `${value} note${value > 1 ? "s" : ""}`
 						}`
 					}
 					rectSize={16}

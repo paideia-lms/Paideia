@@ -1,7 +1,7 @@
 import { Button, Select, Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
 import type {
 	ActivityModuleFormValues,
 	QuizModuleFormValues,
@@ -30,8 +30,6 @@ export function QuizForm({
 			type: "quiz" as const,
 			status: initialValues?.status || "draft",
 			quizInstructions: initialValues?.quizInstructions || "",
-			quizDueDate: initialValues?.quizDueDate || null,
-			quizMaxAttempts: initialValues?.quizMaxAttempts || 1,
 			quizPoints: initialValues?.quizPoints || 100,
 			quizTimeLimit: initialValues?.quizTimeLimit || 60,
 			quizGradingType: initialValues?.quizGradingType || "automatic",

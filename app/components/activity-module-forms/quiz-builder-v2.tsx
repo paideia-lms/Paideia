@@ -16,7 +16,7 @@ import {
 import type { UseFormReturnType } from "@mantine/form";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
-import type { NestedQuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { NestedQuizConfig } from "server/json/raw-quiz-config/types.v2";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import z from "zod";
 import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
@@ -268,11 +268,11 @@ export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {
 			value.filter((_, i) => i !== index),
 			{ forceUpdate: false },
 		);
-		if (activeTab === nestedQuizzes[index].id && nestedQuizzes.length > 1) {
+		if (activeTab === nestedQuizzes[index]!.id && nestedQuizzes.length > 1) {
 			setActiveTab(
-				nestedQuizzes[0].id === nestedQuizzes[index].id
-					? nestedQuizzes[1].id
-					: nestedQuizzes[0].id,
+				nestedQuizzes[0]!.id === nestedQuizzes[index]!.id
+					? nestedQuizzes[1]!.id
+					: nestedQuizzes[0]!.id,
 			);
 		}
 	};

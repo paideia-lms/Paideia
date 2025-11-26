@@ -3,9 +3,9 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
-	CreateDiscussionModuleArgs,
-	tryCreateDiscussionModule,
 	type CreateActivityModuleArgs,
+	type CreateDiscussionModuleArgs,
+	tryCreateDiscussionModule,
 } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,

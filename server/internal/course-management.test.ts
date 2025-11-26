@@ -973,7 +973,7 @@ describe("Course Management Functions", () => {
 			if (enrollments.docs.length > 0) {
 				await payload.update({
 					collection: "enrollments",
-					id: enrollments.docs[0].id,
+					id: enrollments.docs[0]!.id,
 					data: { status: "completed" },
 				});
 
@@ -1167,13 +1167,13 @@ describe("Course Management Functions", () => {
 				userId: testUserId,
 				user: testUser
 					? {
-						...testUser,
-						collection: "users",
-						avatar:
-							typeof testUser.avatar === "number"
-								? testUser.avatar
-								: (testUser.avatar?.id ?? undefined),
-					}
+							...testUser,
+							collection: "users",
+							avatar:
+								typeof testUser.avatar === "number"
+									? testUser.avatar
+									: (testUser.avatar?.id ?? undefined),
+						}
 					: null,
 				overrideAccess: false,
 			});
@@ -1219,13 +1219,13 @@ describe("Course Management Functions", () => {
 				userId: otherUserId,
 				user: testUser
 					? {
-						...testUser,
-						collection: "users",
-						avatar:
-							typeof testUser.avatar === "number"
-								? testUser.avatar
-								: (testUser.avatar?.id ?? undefined),
-					}
+							...testUser,
+							collection: "users",
+							avatar:
+								typeof testUser.avatar === "number"
+									? testUser.avatar
+									: (testUser.avatar?.id ?? undefined),
+						}
 					: null,
 				overrideAccess: true,
 			});
@@ -1274,13 +1274,13 @@ describe("Course Management Functions", () => {
 					userId: noCoursesUserResult.value.id,
 					user: noCoursesUser
 						? {
-							...noCoursesUser,
-							collection: "users",
-							avatar:
-								typeof noCoursesUser.avatar === "number"
-									? noCoursesUser.avatar
-									: (noCoursesUser.avatar?.id ?? undefined),
-						}
+								...noCoursesUser,
+								collection: "users",
+								avatar:
+									typeof noCoursesUser.avatar === "number"
+										? noCoursesUser.avatar
+										: (noCoursesUser.avatar?.id ?? undefined),
+							}
 						: null,
 					overrideAccess: false,
 				});
@@ -1337,13 +1337,13 @@ describe("Course Management Functions", () => {
 				userId: testUserId,
 				user: testUser
 					? {
-						...testUser,
-						collection: "users",
-						avatar:
-							typeof testUser.avatar === "number"
-								? testUser.avatar
-								: (testUser.avatar?.id ?? undefined),
-					}
+							...testUser,
+							collection: "users",
+							avatar:
+								typeof testUser.avatar === "number"
+									? testUser.avatar
+									: (testUser.avatar?.id ?? undefined),
+						}
 					: null,
 				overrideAccess: false,
 			});

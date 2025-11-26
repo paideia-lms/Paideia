@@ -261,13 +261,15 @@ export const tryGetCategoryTree = Result.wrap(
 				overrideAccess,
 			});
 
-			const totalNestedCoursesCountResult = await tryGetTotalNestedCoursesCount({
-				payload,
-				categoryId: cat.id,
-				user,
-				req,
-				overrideAccess,
-			});
+			const totalNestedCoursesCountResult = await tryGetTotalNestedCoursesCount(
+				{
+					payload,
+					categoryId: cat.id,
+					user,
+					req,
+					overrideAccess,
+				},
+			);
 
 			if (!totalNestedCoursesCountResult.ok) {
 				throw totalNestedCoursesCountResult.error;
@@ -410,7 +412,6 @@ export type GetTotalNestedCoursesCountArgs = BaseInternalFunctionArgs & {
  */
 export const tryGetTotalNestedCoursesCount = Result.wrap(
 	async (args: GetTotalNestedCoursesCountArgs) => {
-
 		const { payload, categoryId, user, req, overrideAccess = false } = args;
 
 		// Count direct courses
@@ -468,8 +469,6 @@ export const tryGetTotalNestedCoursesCount = Result.wrap(
 		new UnknownError("Failed to count nested courses", { cause: error }),
 );
 
-
-
 export type FindRootCategoriesArgs = BaseInternalFunctionArgs & {
 	limit?: number;
 };
@@ -512,7 +511,14 @@ export type FindSubcategoriesArgs = BaseInternalFunctionArgs & {
  */
 export const tryFindSubcategories = Result.wrap(
 	async (args: FindSubcategoriesArgs) => {
-		const { payload, parentId, limit = 100, user, req, overrideAccess = false } = args;
+		const {
+			payload,
+			parentId,
+			limit = 100,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!parentId) {
 			throw new InvalidArgumentError("Parent ID is required");

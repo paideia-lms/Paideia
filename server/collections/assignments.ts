@@ -105,24 +105,6 @@ export const Assignments = {
 			label: "Instructions for Students",
 		},
 		{
-			name: "dueDate",
-			type: "date",
-			label: "Due Date",
-		},
-		{
-			name: "maxAttempts",
-			type: "number",
-			label: "Maximum Attempts",
-			defaultValue: 1,
-			min: 1,
-		},
-		{
-			name: "allowLateSubmissions",
-			type: "checkbox",
-			label: "Allow Late Submissions",
-			defaultValue: false,
-		},
-		{
 			name: "allowedFileTypes",
 			type: "array",
 			fields: [
@@ -178,9 +160,6 @@ export const Assignments = {
 	indexes: [
 		{
 			fields: ["createdBy"],
-		},
-		{
-			fields: ["dueDate"],
 		},
 	],
 } as const satisfies CollectionConfig;

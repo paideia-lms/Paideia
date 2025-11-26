@@ -143,7 +143,7 @@ export const tryAssignCategoryRole = Result.wrap(
 				// Update existing assignment
 				assignment = (await payload.update({
 					collection: CategoryRoleAssignments.slug,
-					id: existing.docs[0].id,
+					id: existing.docs[0]!.id,
 					data: {
 						role,
 						assignedBy,
@@ -219,7 +219,7 @@ export const tryRevokeCategoryRole = Result.wrap(
 
 			const deleted = await payload.delete({
 				collection: CategoryRoleAssignments.slug,
-				id: assignments.docs[0].id,
+				id: assignments.docs[0]!.id,
 				req: transactionInfo.reqWithTransaction,
 			});
 
@@ -343,7 +343,14 @@ export const tryGetCategoryRoleAssignments = Result.wrap(
  */
 export const tryFindCategoryRoleAssignment = Result.wrap(
 	async (args: FindCategoryRoleAssignmentArgs) => {
-		const { payload, userId, categoryId, user, req, overrideAccess = false } = args;
+		const {
+			payload,
+			userId,
+			categoryId,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -383,7 +390,15 @@ export const tryFindCategoryRoleAssignment = Result.wrap(
  */
 export const tryCheckUserCategoryRole = Result.wrap(
 	async (args: CheckUserCategoryRoleArgs) => {
-		const { payload, userId, categoryId, requiredRole, user, req, overrideAccess = false } = args;
+		const {
+			payload,
+			userId,
+			categoryId,
+			requiredRole,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -425,7 +440,14 @@ export const tryCheckUserCategoryRole = Result.wrap(
  */
 export const tryGetEffectiveCategoryRole = Result.wrap(
 	async (args: GetEffectiveCategoryRoleArgs) => {
-		const { payload, userId, categoryId, user, req, overrideAccess = false } = args;
+		const {
+			payload,
+			userId,
+			categoryId,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -462,7 +484,7 @@ export const tryGetEffectiveCategoryRole = Result.wrap(
 			});
 
 			if (assignments.docs.length > 0) {
-				const role = assignments.docs[0].role as CategoryRole;
+				const role = assignments.docs[0]!.role as CategoryRole;
 				const priority = rolePriority[role] || 0;
 
 				if (priority > highestPriority) {
@@ -559,7 +581,14 @@ export const tryGetUserCoursesFromCategories = Result.wrap(
  */
 export const tryCheckUserCourseAccessViaCategory = Result.wrap(
 	async (args: CheckUserCourseAccessViaCategoryArgs) => {
-		const { payload, userId, courseId, user, req, overrideAccess = false } = args;
+		const {
+			payload,
+			userId,
+			courseId,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");

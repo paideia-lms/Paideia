@@ -1,16 +1,15 @@
 import { SeedDataLoadError, transformError } from "app/utils/error";
 import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { LatestQuizConfig } from "server/json";
 import { Result } from "typescript-result";
 import {
+	type ActivityModuleResult,
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
-	tryCreateFileModule,
 	tryCreatePageModule,
 	tryCreateQuizModule,
 	tryCreateWhiteboardModule,
-	type ActivityModuleResult,
 } from "../../internal/activity-module-management";
 import { tryCheckFirstUser } from "../../internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "../../internal/course-activity-module-link-management";
@@ -457,8 +456,6 @@ async function createActivityModules(
 					description: moduleData.description,
 					status: moduleData.status,
 					instructions: moduleData.instructions,
-					dueDate: moduleData.dueDate,
-					maxAttempts: moduleData.maxAttempts,
 				});
 				break;
 			}
@@ -473,7 +470,7 @@ async function createActivityModules(
 					timeLimit: moduleData.timeLimit,
 				};
 				if (moduleData.rawQuizConfig) {
-					quizArgs.rawQuizConfig = moduleData.rawQuizConfig as QuizConfig;
+					quizArgs.rawQuizConfig = moduleData.rawQuizConfig as LatestQuizConfig;
 				}
 				moduleResult = await tryCreateQuizModule(quizArgs);
 				break;

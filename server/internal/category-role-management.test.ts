@@ -247,12 +247,10 @@ describe("Category Role Management Functions", () => {
 		}
 
 		// Verify only one assignment exists
-		const assignments = await tryGetCategoryRoleAssignments(
-			{
-				payload,
-				categoryId: categoryResult.value.id,
-			}
-		);
+		const assignments = await tryGetCategoryRoleAssignments({
+			payload,
+			categoryId: categoryResult.value.id,
+		});
 		expect(assignments.ok).toBe(true);
 		if (assignments.ok) {
 			const userAssignments = assignments.value.filter((a) => {
@@ -340,12 +338,10 @@ describe("Category Role Management Functions", () => {
 			overrideAccess: true,
 		});
 
-		const assignments = await tryGetCategoryRoleAssignments(
-			{
-				payload,
-				categoryId: categoryResult.value.id,
-			}
-		);
+		const assignments = await tryGetCategoryRoleAssignments({
+			payload,
+			categoryId: categoryResult.value.id,
+		});
 
 		expect(assignments.ok).toBe(true);
 		if (assignments.ok) {
@@ -373,13 +369,11 @@ describe("Category Role Management Functions", () => {
 			overrideAccess: true,
 		});
 
-		const found = await tryFindCategoryRoleAssignment(
-			{
-				payload,
-				userId: user1.id,
-				categoryId: categoryResult.value.id,
-			}
-		);
+		const found = await tryFindCategoryRoleAssignment({
+			payload,
+			userId: user1.id,
+			categoryId: categoryResult.value.id,
+		});
 
 		expect(found.ok).toBe(true);
 		if (found.ok && found.value) {
@@ -407,13 +401,11 @@ describe("Category Role Management Functions", () => {
 			overrideAccess: true,
 		});
 
-		const checkResult = await tryCheckUserCategoryRole(
-			{
-				payload,
-				userId: user1.id,
-				categoryId: categoryResult.value.id,
-			}
-		);
+		const checkResult = await tryCheckUserCategoryRole({
+			payload,
+			userId: user1.id,
+			categoryId: categoryResult.value.id,
+		});
 
 		expect(checkResult.ok).toBe(true);
 		if (checkResult.ok) {
@@ -453,13 +445,11 @@ describe("Category Role Management Functions", () => {
 		});
 
 		// Check effective role on child (should inherit from parent)
-		const effectiveRole = await tryGetEffectiveCategoryRole(
-			{
-				payload,
-				userId: user1.id,
-				categoryId: childCat.value.id,
-			}
-		);
+		const effectiveRole = await tryGetEffectiveCategoryRole({
+			payload,
+			userId: user1.id,
+			categoryId: childCat.value.id,
+		});
 
 		expect(effectiveRole.ok).toBe(true);
 		if (effectiveRole.ok) {
@@ -520,13 +510,11 @@ describe("Category Role Management Functions", () => {
 		});
 
 		// Check effective role on child (should be admin, not reviewer)
-		const effectiveRole = await tryGetEffectiveCategoryRole(
-			{
-				payload,
-				userId: user1.id,
-				categoryId: child.value.id,
-			}
-		);
+		const effectiveRole = await tryGetEffectiveCategoryRole({
+			payload,
+			userId: user1.id,
+			categoryId: child.value.id,
+		});
 
 		expect(effectiveRole.ok).toBe(true);
 		if (effectiveRole.ok) {
@@ -590,12 +578,10 @@ describe("Category Role Management Functions", () => {
 			overrideAccess: true,
 		});
 
-		const userCourses = await tryGetUserCoursesFromCategories(
-			{
-				payload,
-				userId: user1.id,
-			}
-		);
+		const userCourses = await tryGetUserCoursesFromCategories({
+			payload,
+			userId: user1.id,
+		});
 
 		expect(userCourses.ok).toBe(true);
 		if (userCourses.ok) {
@@ -637,13 +623,11 @@ describe("Category Role Management Functions", () => {
 			overrideAccess: true,
 		});
 
-		const access = await tryCheckUserCourseAccessViaCategory(
-			{
-				payload,
-				userId: user1.id,
-				courseId: course.value.id,
-			}
-		);
+		const access = await tryCheckUserCourseAccessViaCategory({
+			payload,
+			userId: user1.id,
+			courseId: course.value.id,
+		});
 
 		expect(access.ok).toBe(true);
 		if (access.ok) {
@@ -696,13 +680,11 @@ describe("Category Role Management Functions", () => {
 			overrideAccess: true,
 		});
 
-		const access = await tryCheckUserCourseAccessViaCategory(
-			{
-				payload,
-				userId: user1.id,
-				courseId: course.value.id,
-			}
-		);
+		const access = await tryCheckUserCourseAccessViaCategory({
+			payload,
+			userId: user1.id,
+			courseId: course.value.id,
+		});
 
 		expect(access.ok).toBe(true);
 		if (access.ok) {

@@ -112,16 +112,11 @@ export const loader = async ({
 	const profileUser = userResult.value;
 
 	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (profileUser.avatar) {
-		if (typeof profileUser.avatar === "object") {
-			avatarUrl = profileUser.avatar.filename
-				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: profileUser.avatar.filename,
-					})
-				: null;
-		}
-	}
+	const avatarUrl = profileUser.avatar
+		? href(`/api/media/file/:filenameOrId`, {
+				filenameOrId: profileUser.avatar.toString(),
+			})
+		: null;
 
 	// Check if user can impersonate (admin viewing someone else's profile, not an admin, and not already impersonating)
 	const canImpersonate =

@@ -499,9 +499,9 @@ describe("Course Category Management Functions", () => {
 		expect(ancestorsResult.ok).toBe(true);
 		if (ancestorsResult.ok) {
 			expect(ancestorsResult.value.length).toBe(3);
-			expect(ancestorsResult.value[0].name).toBe("Ancestor Level 1");
-			expect(ancestorsResult.value[1].name).toBe("Ancestor Level 2");
-			expect(ancestorsResult.value[2].name).toBe("Ancestor Level 3");
+			expect(ancestorsResult.value[0]!.name).toBe("Ancestor Level 1");
+			expect(ancestorsResult.value[1]!.name).toBe("Ancestor Level 2");
+			expect(ancestorsResult.value[2]!.name).toBe("Ancestor Level 3");
 		}
 	});
 

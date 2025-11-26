@@ -36,7 +36,7 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import type { QuizAnswers } from "server/json/raw-quiz-config.types.v2";
+import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
 import {
 	canParticipateInDiscussion,
 	canSubmitAssignment,
@@ -164,15 +164,13 @@ export const loader = async ({
 				discussionThread = foundThread;
 
 				// Get the thread with all nested replies using the course module context function
-				const threadResult = await tryGetDiscussionThreadWithReplies(
-					{
-						payload,
-						threadId: threadIdNum,
-						courseModuleLinkId: Number(moduleLinkId),
-						user: currentUser,
-						req: request,
-					}
-				);
+				const threadResult = await tryGetDiscussionThreadWithReplies({
+					payload,
+					threadId: threadIdNum,
+					courseModuleLinkId: Number(moduleLinkId),
+					user: currentUser,
+					req: request,
+				});
 
 				if (threadResult.ok) {
 					discussionReplies = threadResult.value.replies;
@@ -184,13 +182,13 @@ export const loader = async ({
 	// Extract values from discriminated union based on module type
 	const userSubmission =
 		moduleSpecificData.type === "assignment" ||
-			moduleSpecificData.type === "quiz"
+		moduleSpecificData.type === "quiz"
 			? moduleSpecificData.userSubmission
 			: null;
 	const userSubmissions =
 		moduleSpecificData.type === "assignment" ||
-			moduleSpecificData.type === "quiz" ||
-			moduleSpecificData.type === "discussion"
+		moduleSpecificData.type === "quiz" ||
+		moduleSpecificData.type === "discussion"
 			? moduleSpecificData.userSubmissions
 			: [];
 	const discussionThreads =
@@ -303,7 +301,8 @@ const createThreadAction = async ({
 		throw new ForbiddenResponse(canParticipate.reason);
 	}
 
-	const createResult = await tryCreateDiscussionSubmission(payload, {
+	const createResult = await tryCreateDiscussionSubmission({
+		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
 		enrollmentId: enrolmentContext.enrolment.id,
@@ -357,9 +356,12 @@ const upvoteThreadAction = async ({
 		return badRequest({ error: "Invalid submission ID" });
 	}
 
-	const upvoteResult = await tryUpvoteDiscussionSubmission(payload, {
+	const upvoteResult = await tryUpvoteDiscussionSubmission({
+		payload,
 		submissionId,
 		userId: currentUser.id,
+		user: currentUser,
+		req: request,
 	});
 
 	if (!upvoteResult.ok) {
@@ -402,13 +404,13 @@ const removeUpvoteThreadAction = async ({
 		return badRequest({ error: "Invalid submission ID" });
 	}
 
-	const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(
+	const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
 		payload,
-		{
-			submissionId,
-			userId: currentUser.id,
-		},
-	);
+		submissionId,
+		userId: currentUser.id,
+		user: currentUser,
+		req: request,
+	});
 
 	if (!removeUpvoteResult.ok) {
 		return badRequest({ error: removeUpvoteResult.error.message });
@@ -450,9 +452,12 @@ const upvoteReplyAction = async ({
 		return badRequest({ error: "Invalid submission ID" });
 	}
 
-	const upvoteResult = await tryUpvoteDiscussionSubmission(payload, {
+	const upvoteResult = await tryUpvoteDiscussionSubmission({
+		payload,
 		submissionId,
 		userId: currentUser.id,
+		user: currentUser,
+		req: request,
 	});
 
 	if (!upvoteResult.ok) {
@@ -495,13 +500,13 @@ const removeUpvoteReplyAction = async ({
 		return badRequest({ error: "Invalid submission ID" });
 	}
 
-	const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission(
+	const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
 		payload,
-		{
-			submissionId,
-			userId: currentUser.id,
-		},
-	);
+		user: currentUser,
+		req: request,
+		submissionId,
+		userId: currentUser.id,
+	});
 
 	if (!removeUpvoteResult.ok) {
 		return badRequest({ error: removeUpvoteResult.error.message });
@@ -588,7 +593,8 @@ const createReplyAction = async ({
 		return badRequest({ error: "Invalid parent thread ID" });
 	}
 
-	const createResult = await tryCreateDiscussionSubmission(payload, {
+	const createResult = await tryCreateDiscussionSubmission({
+		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
 		enrollmentId: enrolmentContext.enrolment.id,
@@ -662,20 +668,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}>
+				questionId: string;
+				questionText: string;
+				questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank";
+				selectedAnswer?: string;
+				multipleChoiceAnswers?: Array<{
+					option: string;
+					isSelected: boolean;
+				}>;
+		  }>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -1184,11 +1190,11 @@ export const useSubmitQuiz = (moduleLinkId: number) => {
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;
@@ -1446,34 +1452,34 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 				// Type guard to ensure we have an assignment submission
 				const assignmentSubmission =
 					userSubmission &&
-						"content" in userSubmission &&
-						"attachments" in userSubmission
+					"content" in userSubmission &&
+					"attachments" in userSubmission
 						? {
-							id: userSubmission.id,
-							status: userSubmission.status as
-								| "draft"
-								| "submitted"
-								| "graded"
-								| "returned",
-							content: (userSubmission.content as string) || null,
-							attachments: userSubmission.attachments
-								? userSubmission.attachments.map((att) => ({
-									file:
-										typeof att.file === "object" &&
-											att.file !== null &&
-											"id" in att.file
-											? att.file.id
-											: Number(att.file),
-									description: att.description as string | undefined,
-								}))
-								: null,
-							submittedAt: ("submittedAt" in userSubmission
-								? userSubmission.submittedAt
-								: null) as string | null,
-							attemptNumber: ("attemptNumber" in userSubmission
-								? userSubmission.attemptNumber
-								: 1) as number,
-						}
+								id: userSubmission.id,
+								status: userSubmission.status as
+									| "draft"
+									| "submitted"
+									| "graded"
+									| "returned",
+								content: (userSubmission.content as string) || null,
+								attachments: userSubmission.attachments
+									? userSubmission.attachments.map((att) => ({
+											file:
+												typeof att.file === "object" &&
+												att.file !== null &&
+												"id" in att.file
+													? att.file.id
+													: Number(att.file),
+											description: att.description as string | undefined,
+										}))
+									: null,
+								submittedAt: ("submittedAt" in userSubmission
+									? userSubmission.submittedAt
+									: null) as string | null,
+								attemptNumber: ("attemptNumber" in userSubmission
+									? userSubmission.attemptNumber
+									: 1) as number,
+							}
 						: null;
 
 				// Map all submissions for display - filter assignment submissions only
@@ -1497,9 +1503,9 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 						attachments:
 							"attachments" in sub && sub.attachments
 								? (sub.attachments as Array<{
-									file: number | { id: number; filename: string };
-									description?: string;
-								}>)
+										file: number | { id: number; filename: string };
+										description?: string;
+									}>)
 								: null,
 					}));
 
@@ -1539,8 +1545,8 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 					// Use userSubmission which is already the active in_progress submission
 					const activeSubmission =
 						userSubmission &&
-							"status" in userSubmission &&
-							userSubmission.status === "in_progress"
+						"status" in userSubmission &&
+						userSubmission.status === "in_progress"
 							? userSubmission
 							: null;
 

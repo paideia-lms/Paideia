@@ -1,5 +1,5 @@
 import type { CollectionConfig } from "payload";
-import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-module-settings-version-resolver";
+import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-module-settings/version-resolver";
 
 /**
  * we need a new collection rather than just a relationship field on the course and activity module

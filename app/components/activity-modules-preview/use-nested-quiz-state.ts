@@ -3,8 +3,8 @@ import type {
 	NestedQuizConfig,
 	QuizAnswers,
 	QuizConfig,
-} from "server/json/raw-quiz-config.types.v2";
-import { isContainerQuiz } from "server/json/raw-quiz-config.types.v2";
+} from "server/json/raw-quiz-config/types.v2";
+import { isContainerQuiz } from "server/json/raw-quiz-config/types.v2";
 
 interface UseNestedQuizStateOptions {
 	quizConfig: QuizConfig;
@@ -118,7 +118,7 @@ export function useNestedQuizState({
 
 			// Check if all previous quizzes are completed
 			for (let i = 0; i < quizIndex; i++) {
-				if (!completedQuizIds.has(nestedQuizzes[i].id)) {
+				if (!completedQuizIds.has(nestedQuizzes[i]!.id)) {
 					return false;
 				}
 			}

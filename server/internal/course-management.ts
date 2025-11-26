@@ -19,13 +19,13 @@ import {
 } from "~/utils/error";
 import type { Course, Group } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
-import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
 import {
 	commitTransactionIfCreated,
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
 
 // e.g. Replace<Enrollment, "groups", number[]>
 // Omit and add a new property
@@ -572,11 +572,11 @@ export const tryFindCourseById = Result.wrap(
 					enrollments: courseEnrollments,
 					category: category
 						? {
-							...category,
-							parent,
-							courses: categoryCourses,
-							subcategories: categorySubcategories,
-						}
+								...category,
+								parent,
+								courses: categoryCourses,
+								subcategories: categorySubcategories,
+							}
 						: null,
 					sections,
 				};

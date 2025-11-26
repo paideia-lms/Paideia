@@ -16,18 +16,18 @@ import {
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	tryCreatePageModule,
-	tryCreateWhiteboardModule,
-	tryCreateFileModule,
-	tryCreateAssignmentModule,
-	tryCreateQuizModule,
-	tryCreateDiscussionModule,
-	type CreateWhiteboardModuleArgs,
-	type CreatePageModuleArgs,
-	type CreateFileModuleArgs,
 	type CreateAssignmentModuleArgs,
-	type CreateQuizModuleArgs,
 	type CreateDiscussionModuleArgs,
+	type CreateFileModuleArgs,
+	type CreatePageModuleArgs,
+	type CreateQuizModuleArgs,
+	type CreateWhiteboardModuleArgs,
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+	tryCreateFileModule,
+	tryCreatePageModule,
+	tryCreateQuizModule,
+	tryCreateWhiteboardModule,
 } from "server/internal/activity-module-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
@@ -147,7 +147,7 @@ const createPageAction = async ({
 			userId: currentUser.id,
 			user: currentUser,
 			req: reqWithTransaction,
-			...pageData
+			...pageData,
 		} satisfies CreatePageModuleArgs;
 
 		const createResult = await tryCreatePageModule(createArgs);
@@ -219,7 +219,7 @@ const createWhiteboardAction = async ({
 			userId: currentUser.id,
 			user: currentUser,
 			req: reqWithTransaction,
-			...whiteboardData
+			...whiteboardData,
 		} satisfies CreateWhiteboardModuleArgs;
 
 		const createResult = await tryCreateWhiteboardModule(createArgs);
@@ -338,7 +338,7 @@ const createFileAction = async ({
 			userId: currentUser.id,
 			user: currentUser,
 			req: reqWithTransaction,
-			...finalFileData
+			...finalFileData,
 		} satisfies CreateFileModuleArgs;
 
 		const createResult = await tryCreateFileModule(createArgs);
@@ -410,7 +410,7 @@ const createAssignmentAction = async ({
 			userId: currentUser.id,
 			user: currentUser,
 			req: reqWithTransaction,
-			...assignmentData
+			...assignmentData,
 		} satisfies CreateAssignmentModuleArgs;
 
 		const createResult = await tryCreateAssignmentModule(createArgs);
@@ -482,7 +482,7 @@ const createQuizAction = async ({
 			userId: currentUser.id,
 			user: currentUser,
 			req: reqWithTransaction,
-			...quizData
+			...quizData,
 		} satisfies CreateQuizModuleArgs;
 
 		const createResult = await tryCreateQuizModule(createArgs);
@@ -554,7 +554,7 @@ const createDiscussionAction = async ({
 			userId: currentUser.id,
 			user: currentUser,
 			req: reqWithTransaction,
-			...discussionData
+			...discussionData,
 		} satisfies CreateDiscussionModuleArgs;
 
 		const createResult = await tryCreateDiscussionModule(createArgs);

@@ -1,5 +1,5 @@
 import { isUndefined, omitBy } from "es-toolkit";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
 import type { ActivityModule } from "server/payload-types";
 import { z } from "zod";
 import { presetValuesToFileTypes } from "~/utils/file-types";

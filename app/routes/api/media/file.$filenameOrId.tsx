@@ -25,7 +25,7 @@ function parseRangeHeader(
 		return null;
 	}
 
-	const startStr = parts[0];
+	const startStr = parts[0]!;
 	const endStr = parts[1];
 
 	// Handle suffix range: "bytes=-suffix"
@@ -108,7 +108,6 @@ export const loader = async ({
 				payload,
 				s3Client,
 				id: filenameOrId,
-				depth: 0,
 				user,
 				req: request,
 			})
@@ -116,7 +115,6 @@ export const loader = async ({
 				payload,
 				s3Client,
 				filename: filenameOrId,
-				depth: 0,
 				user,
 				req: request,
 			});
@@ -139,7 +137,6 @@ export const loader = async ({
 					payload,
 					s3Client,
 					id: filenameOrId,
-					depth: 0,
 					range,
 					user,
 					req: request,
@@ -148,7 +145,6 @@ export const loader = async ({
 					payload,
 					s3Client,
 					filename: filenameOrId,
-					depth: 0,
 					range,
 					user,
 					req: request,

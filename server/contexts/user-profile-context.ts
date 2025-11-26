@@ -76,11 +76,11 @@ export interface UserProfileContext {
 		bio: string;
 		email: string;
 		role:
-		| "student"
-		| "instructor"
-		| "admin"
-		| "content-manager"
-		| "analytics-viewer";
+			| "student"
+			| "instructor"
+			| "admin"
+			| "content-manager"
+			| "analytics-viewer";
 		avatarUrl: string | null;
 	};
 	/** Activity modules accessible by the profile user */
@@ -138,7 +138,7 @@ export const convertUserAccessContextToUserProfileContext = (
 
 type GetUserProfileContextArgs = BaseInternalFunctionArgs & {
 	profileUserId: number;
-}
+};
 
 export const getUserProfileContext = async (
 	args: GetUserProfileContextArgs,
@@ -158,14 +158,11 @@ export const getUserProfileContext = async (
 	const profileUser = userResult.value;
 
 	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (profileUser.avatar) {
-		if (typeof profileUser.avatar === "object" && profileUser.avatar.filename) {
-			avatarUrl = href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: profileUser.avatar.filename,
-			});
-		}
-	}
+	const avatarUrl = profileUser.avatar
+		? href(`/api/media/file/:filenameOrId`, {
+				filenameOrId: profileUser.avatar.toString(),
+			})
+		: null;
 
 	const result = await tryGetUserActivityModules({
 		payload,

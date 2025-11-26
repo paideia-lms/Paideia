@@ -1,6 +1,5 @@
-import type { BasePayload, PayloadRequest, TypedUser } from "payload";
 import { createContext } from "react-router";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import { Result } from "typescript-result";
 import {
 	NonExistingActivityModuleError,
@@ -11,94 +10,25 @@ import {
 	tryFindGrantsByActivityModule,
 	tryFindInstructorsForActivityModule,
 } from "../internal/activity-module-access";
-import { tryGetActivityModuleById } from "../internal/activity-module-management";
+import {
+	type ActivityModuleResult,
+	tryGetActivityModuleById,
+} from "../internal/activity-module-management";
 import { tryFindLinksByActivityModule } from "../internal/course-activity-module-link-management";
-import type { ActivityModule, Course, Quiz, User } from "../payload-types";
-import { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+import type { Course } from "../payload-types";
 
 export type UserModuleUser = {
 	id: number;
 	email: string;
-	firstName: string | null;
-	lastName: string | null;
+	firstName?: string | null;
+	lastName?: string | null;
 	avatar?:
-	| number
-	| {
-		id: number;
-		filename?: string;
-	}
-	| null;
-};
-
-export type UserModulePageData = {
-	id: number;
-	content: string | null;
-};
-
-export type UserModuleWhiteboardData = {
-	id: number;
-	content: string | null;
-};
-
-export type UserModuleAssignmentData = {
-	id: number;
-	instructions: string | null;
-	dueDate: string | null;
-	maxAttempts: number | null;
-	allowLateSubmissions: boolean | null;
-	requireTextSubmission: boolean | null;
-	requireFileSubmission: boolean | null;
-	allowedFileTypes: Array<{ extension: string; mimeType: string }> | null;
-	maxFileSize: number | null;
-	maxFiles: number | null;
-};
-
-export type UserModuleQuizData = {
-	id: number;
-	instructions: string | null;
-	dueDate: string | null;
-	maxAttempts: number | null;
-	points: number | null;
-	timeLimit: number | null;
-	gradingType: Quiz["gradingType"] | null;
-	rawQuizConfig: QuizConfig | null;
-};
-
-export type UserModuleDiscussionData = {
-	id: number;
-	instructions: string | null;
-	dueDate: string | null;
-	requireThread: boolean | null;
-	requireReplies: boolean | null;
-	minReplies: number | null;
-};
-
-export type UserModuleFileData = {
-	id: number;
-	media: Array<{
-		id: number;
-		filename?: string | null;
-		mimeType?: string | null;
-		filesize?: number | null;
-	}> | null;
-};
-
-export type UserModule = {
-	id: number;
-	title: string;
-	description: string | null;
-	type: ActivityModule["type"];
-	status: ActivityModule["status"];
-	createdBy: UserModuleUser;
-	owner: UserModuleUser;
-	page: UserModulePageData | null;
-	whiteboard: UserModuleWhiteboardData | null;
-	file: UserModuleFileData | null;
-	assignment: UserModuleAssignmentData | null;
-	quiz: UserModuleQuizData | null;
-	discussion: UserModuleDiscussionData | null;
-	createdAt: string;
-	updatedAt: string;
+		| number
+		| {
+				id: number;
+				filename?: string;
+		  }
+		| null;
 };
 
 export type UserModuleGrant = {
@@ -114,12 +44,12 @@ export type Instructor = {
 	firstName: string | null;
 	lastName: string | null;
 	avatar?:
-	| number
-	| {
-		id: number;
-		filename?: string;
-	}
-	| null;
+		| number
+		| {
+				id: number;
+				filename?: string;
+		  }
+		| null;
 	enrollments: {
 		courseId: number;
 		role: "teacher" | "ta";
@@ -127,7 +57,7 @@ export type Instructor = {
 };
 
 export type UserModuleContext = {
-	module: UserModule;
+	module: ActivityModuleResult;
 	accessType: "owned" | "granted" | "readonly";
 	linkedCourses: {
 		id: number;
@@ -148,7 +78,6 @@ export const userModuleContext = createContext<UserModuleContext | null>();
 export const userModuleContextKey =
 	"userModuleContext" as unknown as typeof userModuleContext;
 
-
 type TryGetUserModuleContextArgs = BaseInternalFunctionArgs & {
 	moduleId: number;
 };
@@ -157,10 +86,14 @@ type TryGetUserModuleContextArgs = BaseInternalFunctionArgs & {
  * This includes the module data, linked courses, grants, and instructors
  */
 export const tryGetUserModuleContext = Result.wrap(
-	async (
-		args: TryGetUserModuleContextArgs,
-	) => {
-		const { payload, moduleId, user: currentUser, req, overrideAccess = false } = args;
+	async (args: TryGetUserModuleContextArgs) => {
+		const {
+			payload,
+			moduleId,
+			user: currentUser,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Fetch the activity module
 		const moduleResult = await tryGetActivityModuleById({
@@ -176,142 +109,6 @@ export const tryGetUserModuleContext = Result.wrap(
 		}
 
 		const module = moduleResult.value;
-
-		// Fetch media data if this is a file module
-		let enrichedMedia: Array<{
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		}> | null = null;
-
-		if (
-			module.type === "file" &&
-			module.media &&
-			Array.isArray(module.media) &&
-			module.media.length > 0
-		) {
-			try {
-				const mediaResult = await payload.find({
-					collection: "media",
-					where: {
-						id: {
-							in: module.media,
-						},
-					},
-					limit: module.media.length,
-					user: currentUser,
-					req,
-					depth: 0,
-					overrideAccess: false,
-				});
-
-				enrichedMedia = mediaResult.docs.map((media) => ({
-					id: media.id,
-					filename: media.filename ?? null,
-					mimeType: media.mimeType ?? null,
-					filesize: media.filesize ?? null,
-				}));
-			} catch (error) {
-				console.error("Failed to fetch media data:", error);
-				// Continue with null if fetch fails
-			}
-		}
-
-		const transformedModule = {
-			id: module.id,
-			title: module.title || "",
-			description: module.description || null,
-			type: module.type,
-			status: module.status,
-			createdBy: {
-				id: module.createdBy.id,
-				email: module.createdBy.email,
-				firstName: module.createdBy.firstName ?? "",
-				lastName: module.createdBy.lastName ?? "",
-				avatar: module.createdBy.avatar ?? null,
-			},
-			owner: {
-				id: module.owner.id,
-				email: module.owner.email,
-				firstName: module.owner.firstName ?? "",
-				lastName: module.owner.lastName ?? "",
-				avatar: module.owner.avatar ?? null,
-			},
-			page:
-				module.type === "page"
-					? {
-						id: module.id,
-						content: module.content || null,
-					}
-					: null,
-			whiteboard:
-				module.type === "whiteboard"
-					? {
-						id: module.id,
-						content: module.content || null,
-					}
-					: null,
-			file:
-				module.type === "file"
-					? {
-						id: module.id,
-						media: enrichedMedia,
-					}
-					: null,
-			assignment:
-				module.type === "assignment"
-					? {
-						id: module.id,
-						instructions: module.instructions || null,
-						dueDate: module.dueDate || null,
-						maxAttempts: module.maxAttempts || null,
-						allowLateSubmissions: module.allowLateSubmissions || null,
-						requireTextSubmission: module.requireTextSubmission || null,
-						requireFileSubmission: module.requireFileSubmission || null,
-						allowedFileTypes: module.allowedFileTypes || null,
-						maxFileSize: module.maxFileSize || null,
-						maxFiles: module.maxFiles || null,
-					}
-					: null,
-			quiz:
-				module.type === "quiz"
-					? (() => {
-						// Get rawQuizConfig to check for globalTimer
-						const rawConfig =
-							module.rawQuizConfig as unknown as QuizConfig | null;
-
-						// Calculate timeLimit from globalTimer in config (convert seconds to minutes)
-						const timeLimit = rawConfig?.globalTimer
-							? rawConfig.globalTimer / 60
-							: null;
-
-						return {
-							id: module.id,
-							instructions: module.instructions || null,
-							dueDate: module.dueDate || null,
-							maxAttempts: module.maxAttempts || null,
-							points: module.points || null,
-							timeLimit,
-							gradingType: module.gradingType || null,
-							rawQuizConfig: rawConfig,
-						};
-					})()
-					: null,
-			discussion:
-				module.type === "discussion"
-					? {
-						id: module.id,
-						instructions: module.instructions || null,
-						dueDate: module.dueDate || null,
-						requireThread: module.requireThread || null,
-						requireReplies: module.requireReplies || null,
-						minReplies: module.minReplies || null,
-					}
-					: null,
-			createdAt: module.createdAt,
-			updatedAt: module.updatedAt,
-		} satisfies UserModule;
 
 		// Fetch linked courses with enrollments
 
@@ -333,26 +130,7 @@ export const tryGetUserModuleContext = Result.wrap(
 			req,
 			overrideAccess,
 		});
-		const grants: UserModuleGrant[] = grantsResult.ok
-			? grantsResult.value.map((grant) => ({
-				id: grant.id,
-				grantedTo: {
-					id: grant.grantedTo.id,
-					email: grant.grantedTo.email,
-					firstName: grant.grantedTo.firstName ?? "",
-					lastName: grant.grantedTo.lastName ?? "",
-					avatar: grant.grantedTo.avatar ?? null,
-				},
-				grantedBy: {
-					id: grant.grantedBy.id,
-					email: grant.grantedBy.email,
-					firstName: grant.grantedBy.firstName ?? "",
-					lastName: grant.grantedBy.lastName ?? "",
-					avatar: grant.grantedBy.avatar ?? null,
-				},
-				grantedAt: grant.grantedAt,
-			}))
-			: [];
+		const grants: UserModuleGrant[] = grantsResult.ok ? grantsResult.value : [];
 
 		const instructorsResult = await tryFindInstructorsForActivityModule({
 			payload,
@@ -403,7 +181,7 @@ export const tryGetUserModuleContext = Result.wrap(
 		}
 
 		return {
-			module: transformedModule,
+			module,
 			accessType,
 			linkedCourses: uniqueCourses,
 			grants,

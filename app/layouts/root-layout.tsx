@@ -253,7 +253,7 @@ export function HeaderTabs({
 							<Menu.Target>
 								<UnstyledButton
 									className={cx(classes.user, {
-										[classes.userActive]: userMenuOpened,
+										[classes.userActive!]: userMenuOpened,
 									})}
 								>
 									<Group gap={7}>

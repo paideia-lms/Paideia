@@ -1,23 +1,118 @@
-import { Data, type Where } from "payload";
+import type { Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
-import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
+import type { LatestCourseModuleSettings } from "server/json";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
+	DevelopmentError,
 	InvalidArgumentError,
+	NonExistingActivityModuleError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import {
+	type ActivityModuleResult,
+	tryGetActivityModuleById,
+} from "./activity-module-management";
 import {
 	tryCreateGradebookItem,
 	tryDeleteGradebookItem,
 	tryGetNextItemSortOrder,
 } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
-import { interceptPayloadError, type BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	type BaseInternalFunctionArgs,
+	interceptPayloadError,
+	stripDepth,
+} from "./utils/internal-function-utils";
 
+/**
+ * Course data that can be included in link results
+ */
+type CourseLinkData = {
+	id: number;
+	title: string;
+	slug: string;
+	description: string | null;
+	status: "draft" | "published" | "archived";
+	createdAt: string;
+	updatedAt: string;
+};
 
+/**
+ * Base type for course activity module link result with common fields
+ */
+type BaseCourseActivityModuleLinkResult = {
+	id: number;
+	course: {
+		id: number;
+		title: string;
+		slug: string;
+		description: string | null;
+		status: "draft" | "published" | "archived";
+		createdAt: string;
+		updatedAt: string;
+	};
+	section: { id: number };
+	contentOrder: number;
+	settings: LatestCourseModuleSettings | null;
+	createdAt: string;
+	updatedAt: string;
+};
+
+/**
+ * Page module link result
+ */
+type PageModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	activityModule: Extract<ActivityModuleResult, { type: "page" }>;
+};
+
+/**
+ * Whiteboard module link result
+ */
+type WhiteboardModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	activityModule: Extract<ActivityModuleResult, { type: "whiteboard" }>;
+};
+
+/**
+ * File module link result
+ */
+type FileModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	activityModule: Extract<ActivityModuleResult, { type: "file" }>;
+};
+
+/**
+ * Assignment module link result
+ */
+type AssignmentModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	activityModule: Extract<ActivityModuleResult, { type: "assignment" }>;
+};
+
+/**
+ * Quiz module link result
+ */
+type QuizModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	activityModule: Extract<ActivityModuleResult, { type: "quiz" }>;
+};
+
+/**
+ * Discussion module link result
+ */
+type DiscussionModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	activityModule: Extract<ActivityModuleResult, { type: "discussion" }>;
+};
+
+/**
+ * Discriminated union of all course activity module link result types
+ */
+export type CourseActivityModuleLinkResult =
+	| PageModuleLinkResult
+	| WhiteboardModuleLinkResult
+	| FileModuleLinkResult
+	| AssignmentModuleLinkResult
+	| QuizModuleLinkResult
+	| DiscussionModuleLinkResult;
 
 export type CreateCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
 	course: number;
@@ -25,7 +120,7 @@ export type CreateCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
 	section: number;
 	order?: number;
 	contentOrder?: number;
-	settings?: CourseModuleSettingsV1;
+	settings?: LatestCourseModuleSettings;
 };
 
 export type SearchCourseActivityModuleLinksArgs = BaseInternalFunctionArgs & {
@@ -53,25 +148,29 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			user,
 		} = args;
 
-
-		const newLink = await payload.create({
-			collection: CourseActivityModuleLinks.slug,
-			data: {
-				course,
-				activityModule,
-				section,
-				contentOrder,
-				settings: settings as unknown as { [key: string]: unknown },
-			},
-			req,
-			overrideAccess,
-			user,
-		}).catch((error) => {
-			interceptPayloadError(error, "tryCreateCourseActivityModuleLink", `to create course activity module link`, { payload, user, req, overrideAccess });
-			throw error
-		})
-
-
+		const newLink = await payload
+			.create({
+				collection: CourseActivityModuleLinks.slug,
+				data: {
+					course,
+					activityModule,
+					section,
+					contentOrder,
+					settings: settings as unknown as { [key: string]: unknown },
+				},
+				req,
+				overrideAccess,
+				user,
+			})
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryCreateCourseActivityModuleLink",
+					`to create course activity module link`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
 
 		////////////////////////////////////////////////////
 		// type narrowing
@@ -98,16 +197,23 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		////////////////////////////////////////////////////
 
 		// Get the full activity module to check its type
-		const activityModuleDoc = await payload.findByID({
-			collection: "activity-modules",
-			id: activityModule,
-			user,
-			req,
-			overrideAccess,
-		}).catch((error) => {
-			interceptPayloadError(error, "tryCreateCourseActivityModuleLink", `to get activity module by id ${activityModule}`, { payload, user, req, overrideAccess });
-			throw error
-		})
+		const activityModuleDoc = await payload
+			.findByID({
+				collection: "activity-modules",
+				id: activityModule,
+				user,
+				req,
+				overrideAccess,
+			})
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryCreateCourseActivityModuleLink",
+					`to get activity module by id ${activityModule}`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
 
 		const moduleType = activityModuleDoc.type;
 		const gradeableTypes = ["assignment", "quiz", "discussion"] as const;
@@ -184,11 +290,12 @@ export type FindLinksByCourseArgs = BaseInternalFunctionArgs & {
 
 /**
  * Finds course-activity-module-links by course ID
+ * Returns array of discriminated unions based on activity module type
  */
 export const tryFindLinksByCourse = Result.wrap(
 	async (args: FindLinksByCourseArgs) => {
 		const { payload, courseId, overrideAccess = false, user, req } = args;
-		const links = await payload
+		const linksResult = await payload
 			.find({
 				collection: CourseActivityModuleLinks.slug,
 				where: {
@@ -203,50 +310,73 @@ export const tryFindLinksByCourse = Result.wrap(
 				user,
 				req,
 			})
-			.then((result) => {
-				return result.docs.map((link) => {
-					const linkCourse = link.course;
-					assertZodInternal(
-						"tryFindLinksByCourse: Course is required",
-						linkCourse,
-						z.object({ id: z.number() }),
-					);
+			.then(stripDepth<2, "find">());
 
-					const linkActivityModule = link.activityModule;
-					assertZodInternal(
-						"tryFindLinksByCourse: Activity module is required",
-						linkActivityModule,
-						z.object({ id: z.number() }),
-					);
+		// Extract course data before stripping depth
+		const courseDataMap = new Map<
+			number,
+			{
+				id: number;
+				title: string;
+				slug: string;
+				description: string | null;
+				status: "draft" | "published" | "archived";
+				createdAt: string;
+				updatedAt: string;
+			}
+		>();
 
-					const moduleCreatedBy = linkActivityModule.createdBy;
-					assertZodInternal(
-						"tryFindLinksByCourse: Module created by is required",
-						moduleCreatedBy,
-						z.object({ id: z.number() }),
-					);
-
-					const moduleCreatedByAvatar = moduleCreatedBy.avatar;
-					assertZodInternal(
-						"tryFindLinksByCourse: Module created by avatar is required",
-						moduleCreatedByAvatar,
-						z.number().nullish(),
-					);
-
-					return {
-						...link,
-						course: linkCourse,
-						activityModule: {
-							...linkActivityModule,
-							createdBy: {
-								...moduleCreatedBy,
-								avatar: moduleCreatedByAvatar,
-							},
-						},
-					};
-				});
+		for (const link of linksResult.docs) {
+			courseDataMap.set(link.id, {
+				id: link.course.id,
+				title: link.course.title,
+				slug: link.course.slug,
+				description: link.course.description ?? null,
+				status: link.course.status,
+				createdAt: link.course.createdAt,
+				updatedAt: link.course.updatedAt,
 			});
-		return links;
+		}
+
+		// Strip depth for other fields
+		const links = await stripDepth<1, "find">()(linksResult);
+
+		// Transform each link to discriminated union
+		const results: CourseActivityModuleLinkResult[] = [];
+		for (const link of links.docs) {
+			const activityModuleId = link.activityModule.id;
+			const courseData = courseDataMap.get(link.id);
+
+			if (!courseData) {
+				throw new DevelopmentError(
+					`tryFindLinksByCourse: Course data not found for link ${link.id}`,
+				);
+			}
+
+			const activityModuleResult = await tryGetActivityModuleById({
+				payload,
+				id: activityModuleId,
+				user,
+				req,
+				overrideAccess,
+			});
+
+			if (!activityModuleResult.ok) {
+				// Skip links with missing activity modules
+				continue;
+			}
+
+			const result = await buildCourseActivityModuleLinkResult(
+				{
+					...link,
+					course: courseData,
+				},
+				activityModuleResult.value,
+			);
+			results.push(result);
+		}
+
+		return results;
 	},
 	(error) =>
 		transformError(error) ??
@@ -261,11 +391,34 @@ export type FindLinksByActivityModuleArgs = BaseInternalFunctionArgs & {
 
 /**
  * Finds course-activity-module-links by activity module ID
+ * Returns array of discriminated unions based on activity module type
  */
 export const tryFindLinksByActivityModule = Result.wrap(
 	async (args: FindLinksByActivityModuleArgs) => {
-		const { payload, activityModuleId, overrideAccess = false, user, req } = args;
-		const links = await payload
+		const {
+			payload,
+			activityModuleId,
+			overrideAccess = false,
+			user,
+			req,
+		} = args;
+
+		// Get activity module once (all links share the same activity module)
+		const activityModuleResult = await tryGetActivityModuleById({
+			payload,
+			id: activityModuleId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!activityModuleResult.ok) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${activityModuleId}' not found`,
+			);
+		}
+
+		const linksResult = await payload
 			.find({
 				collection: CourseActivityModuleLinks.slug,
 				where: {
@@ -273,47 +426,64 @@ export const tryFindLinksByActivityModule = Result.wrap(
 						equals: activityModuleId,
 					},
 				},
+				depth: 1,
 				pagination: false,
 				sort: "-createdAt",
 				overrideAccess,
 				user,
 				req,
 			})
-			.then((result) => {
-				return result.docs.map((doc) => {
-					const course = doc.course;
-					assertZodInternal(
-						"tryFindLinksByActivityModule: Course is required",
-						course,
-						z.object({ id: z.number() }),
-					);
-					const activityModule = doc.activityModule;
-					assertZodInternal(
-						"tryFindLinksByActivityModule: Activity module is required",
-						activityModule,
-						z.object({ id: z.number() }),
-					);
-					assertZodInternal(
-						"tryFindLinksByActivityModule: Activity module is required",
-						activityModule,
-						z.object({ id: z.number() }),
-					);
-					const section = doc.section;
-					assertZodInternal(
-						"tryFindLinksByActivityModule: Section is required",
-						section,
-						z.object({ id: z.number() }),
-					);
-					return {
-						...doc,
-						course,
-						activityModule,
-						section,
-					};
-				});
-			});
+			.then(stripDepth<1, "find">());
 
-		return links;
+		// Extract course data before stripping depth
+		const courseDataMap = new Map<
+			number,
+			{
+				id: number;
+				title: string;
+				slug: string;
+				description: string | null;
+				status: "draft" | "published" | "archived";
+				createdAt: string;
+				updatedAt: string;
+			}
+		>();
+
+		for (const link of linksResult.docs) {
+			courseDataMap.set(link.id, {
+				id: link.course.id,
+				title: link.course.title,
+				slug: link.course.slug,
+				description: link.course.description ?? null,
+				status: link.course.status,
+				createdAt: link.course.createdAt,
+				updatedAt: link.course.updatedAt,
+			});
+		}
+
+		// Strip depth for other fields
+		const links = await stripDepth<1, "find">()(linksResult);
+
+		// Transform each link to discriminated union
+		const results: CourseActivityModuleLinkResult[] = [];
+		for (const link of links.docs) {
+			const courseData = courseDataMap.get(link.id);
+			if (!courseData) {
+				throw new DevelopmentError(
+					`tryFindLinksByActivityModule: Course data not found for link ${link.id}`,
+				);
+			}
+			const result = await buildCourseActivityModuleLinkResult(
+				{
+					...link,
+					course: courseData,
+				},
+				activityModuleResult.value,
+			);
+			results.push(result);
+		}
+
+		return results;
 	},
 	(error) =>
 		transformError(error) ??
@@ -324,10 +494,20 @@ export const tryFindLinksByActivityModule = Result.wrap(
 
 /**
  * Searches course-activity-module-links with various filters
+ * Returns paginated discriminated unions based on activity module type
  */
 export const trySearchCourseActivityModuleLinks = Result.wrap(
 	async (args: SearchCourseActivityModuleLinksArgs) => {
-		const { payload, course, activityModule, limit = 10, page = 1, overrideAccess = false, user, req } = args;
+		const {
+			payload,
+			course,
+			activityModule,
+			limit = 10,
+			page = 1,
+			overrideAccess = false,
+			user,
+			req,
+		} = args;
 		const where: Where = {};
 
 		if (course) {
@@ -342,19 +522,48 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 			};
 		}
 
-		const links = await payload.find({
-			collection: CourseActivityModuleLinks.slug,
-			where,
-			limit,
-			page,
-			sort: "-createdAt",
-			overrideAccess,
-			user,
-			req,
-		});
+		const links = await payload
+			.find({
+				collection: CourseActivityModuleLinks.slug,
+				where,
+				limit,
+				page,
+				sort: "-createdAt",
+				depth: 1,
+				overrideAccess,
+				user,
+				req,
+			})
+			.then(stripDepth<1, "find">());
+
+		// Transform each link to discriminated union
+		const results: CourseActivityModuleLinkResult[] = [];
+		for (const link of links.docs) {
+			const activityModuleRef = link.activityModule;
+			const activityModuleId = activityModuleRef.id;
+
+			const activityModuleResult = await tryGetActivityModuleById({
+				payload,
+				id: activityModuleId,
+				user,
+				req,
+				overrideAccess,
+			});
+
+			if (!activityModuleResult.ok) {
+				// Skip links with missing activity modules
+				continue;
+			}
+
+			const result = await buildCourseActivityModuleLinkResult(
+				link,
+				activityModuleResult.value,
+			);
+			results.push(result);
+		}
 
 		return {
-			docs: links.docs,
+			docs: results,
 			totalDocs: links.totalDocs,
 			totalPages: links.totalPages,
 			page: links.page,
@@ -432,51 +641,128 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 		}),
 );
 
+/**
+ * Builds a discriminated union result from link data and activity module result
+ */
+async function buildCourseActivityModuleLinkResult(
+	link: {
+		id: number;
+		course: {
+			id: number;
+			title: string;
+			slug: string;
+			description: string | null;
+			status: "draft" | "published" | "archived";
+			createdAt: string;
+			updatedAt: string;
+		};
+		section: number | { id: number };
+		contentOrder: number;
+		settings?: unknown;
+		createdAt: string;
+		updatedAt: string;
+	},
+	activityModule: ActivityModuleResult,
+): Promise<CourseActivityModuleLinkResult> {
+	// Extract course, preserving full object if available
+	const course: CourseLinkData = link.course;
+
+	const section =
+		typeof link.section === "number" ? { id: link.section } : link.section;
+	const settings = (link.settings as LatestCourseModuleSettings | null) ?? null;
+
+	const baseResult: BaseCourseActivityModuleLinkResult = {
+		id: link.id,
+		course,
+		section,
+		contentOrder: link.contentOrder,
+		settings,
+		createdAt: link.createdAt,
+		updatedAt: link.updatedAt,
+	};
+
+	const { type } = activityModule;
+
+	if (type === "page") {
+		return {
+			...baseResult,
+			activityModule,
+		} satisfies PageModuleLinkResult;
+	} else if (type === "whiteboard") {
+		return {
+			...baseResult,
+			activityModule,
+		} satisfies WhiteboardModuleLinkResult;
+	} else if (type === "file") {
+		return {
+			...baseResult,
+			activityModule,
+		} satisfies FileModuleLinkResult;
+	} else if (type === "assignment") {
+		return {
+			...baseResult,
+			activityModule,
+		} satisfies AssignmentModuleLinkResult;
+	} else if (type === "quiz") {
+		return {
+			...baseResult,
+			activityModule,
+		} satisfies QuizModuleLinkResult;
+	} else {
+		// discussion
+		return {
+			...baseResult,
+			activityModule,
+		} satisfies DiscussionModuleLinkResult;
+	}
+}
+
 export type FindCourseActivityModuleLinkByIdArgs = BaseInternalFunctionArgs & {
 	linkId: number;
 };
 
 /**
  * Finds a course-activity-module-link by ID
+ * Returns a discriminated union based on the activity module type
  */
 export const tryFindCourseActivityModuleLinkById = Result.wrap(
 	async (args: FindCourseActivityModuleLinkByIdArgs) => {
 		const { payload, linkId, overrideAccess = false, user, req } = args;
-		const link = await payload.findByID({
-			collection: CourseActivityModuleLinks.slug,
-			id: linkId,
-			overrideAccess,
+		const link = await payload
+			.findByID({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				depth: 1,
+				overrideAccess,
+				user,
+				req,
+			})
+			.then(stripDepth<1, "findByID">());
+
+		// Get activity module ID
+		const activityModuleRef = link.activityModule;
+		const activityModuleId = activityModuleRef.id;
+
+		// Fetch activity module using tryGetActivityModuleById which returns discriminated union
+		const activityModuleResult = await tryGetActivityModuleById({
+			payload,
+			id: activityModuleId,
 			user,
 			req,
-		})
+			overrideAccess,
+		});
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
+		if (!activityModuleResult.ok) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${activityModuleId}' not found`,
+			);
+		}
 
-		const linkCourse = link.course;
-		assertZodInternal(
-			"tryFindCourseActivityModuleLinkById: Course is required",
-			linkCourse,
-			z.object({
-				id: z.number(),
-			}),
+		// Build discriminated union result
+		return buildCourseActivityModuleLinkResult(
+			link,
+			activityModuleResult.value,
 		);
-
-		const linkActivityModule = link.activityModule;
-		assertZodInternal(
-			"tryFindCourseActivityModuleLinkById: Activity module is required",
-			linkActivityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
-			...link,
-			course: linkCourse,
-			activityModule: linkActivityModule,
-		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -487,7 +773,7 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 
 export type UpdateCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
 	linkId: number;
-	settings?: CourseModuleSettingsV1;
+	settings?: LatestCourseModuleSettings;
 };
 
 /**
@@ -495,10 +781,18 @@ export type UpdateCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
  */
 export const tryUpdateCourseModuleSettings = Result.wrap(
 	async (args: UpdateCourseModuleSettingsArgs) => {
-		const { payload, linkId, settings, req, overrideAccess = false, user } = args;
-		// Validate date logic based on module type
+		const {
+			payload,
+			linkId,
+			settings,
+			req,
+			overrideAccess = false,
+			user,
+		} = args;
+		// Validate date logic and maxAttempts based on module type
 		if (settings?.settings.type === "assignment") {
-			const { allowSubmissionsFrom, dueDate, cutoffDate } = settings.settings;
+			const { allowSubmissionsFrom, dueDate, cutoffDate, maxAttempts } =
+				settings.settings;
 
 			if (allowSubmissionsFrom && dueDate) {
 				if (new Date(allowSubmissionsFrom) > new Date(dueDate)) {
@@ -521,10 +815,16 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 					);
 				}
 			}
+
+			if (maxAttempts !== undefined && maxAttempts < 1) {
+				throw new InvalidArgumentError(
+					"maxAttempts must be greater than or equal to 1",
+				);
+			}
 		}
 
 		if (settings?.settings.type === "quiz") {
-			const { openingTime, closingTime } = settings.settings;
+			const { openingTime, closingTime, maxAttempts } = settings.settings;
 
 			if (openingTime && closingTime) {
 				if (new Date(openingTime) > new Date(closingTime)) {
@@ -532,6 +832,12 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 						"Opening time must be before closing time",
 					);
 				}
+			}
+
+			if (maxAttempts !== undefined && maxAttempts < 1) {
+				throw new InvalidArgumentError(
+					"maxAttempts must be greater than or equal to 1",
+				);
 			}
 		}
 
@@ -545,47 +851,30 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 			}
 		}
 
-		const updatedLink = await payload.update({
-			collection: CourseActivityModuleLinks.slug,
-			id: linkId,
-			data: {
-				settings: settings as unknown as { [key: string]: unknown },
-			},
-			req,
-			overrideAccess,
-			user,
-		}).catch((error) => {
-			interceptPayloadError(error, "tryUpdateCourseModuleSettings", `to update course module settings for link ${linkId}`, { payload, user, req, overrideAccess });
-			throw error
-		})
+		const updatedLink = await payload
+			.update({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				data: {
+					settings: settings as unknown as { [key: string]: unknown },
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+				user,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryUpdateCourseModuleSettings",
+					`to update course module settings for link ${linkId}`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const linkCourse = updatedLink.course;
-		assertZodInternal(
-			"tryUpdateCourseModuleSettings: Course is required",
-			linkCourse,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const linkActivityModule = updatedLink.activityModule;
-		assertZodInternal(
-			"tryUpdateCourseModuleSettings: Activity module is required",
-			linkActivityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
-			...updatedLink,
-			course: linkCourse,
-			activityModule: linkActivityModule,
-		};
+		return updatedLink;
 	},
 	(error) =>
 		transformError(error) ??
@@ -600,49 +889,46 @@ export type GetCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
 
 /**
  * Retrieves course module settings for a specific link
+ * Returns discriminated union for consistency
  */
 export const tryGetCourseModuleSettings = Result.wrap(
 	async (args: GetCourseModuleSettingsArgs) => {
 		const { payload, linkId, overrideAccess = false, user, req } = args;
-		const link = await payload.findByID({
-			collection: CourseActivityModuleLinks.slug,
-			id: linkId,
-			overrideAccess,
+		const link = await payload
+			.findByID({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				depth: 1,
+				overrideAccess,
+				user,
+				req,
+			})
+			.then(stripDepth<1, "findByID">());
+
+		// Get activity module ID
+		const activityModuleRef = link.activityModule;
+		const activityModuleId = activityModuleRef.id;
+
+		// Fetch activity module using tryGetActivityModuleById which returns discriminated union
+		const activityModuleResult = await tryGetActivityModuleById({
+			payload,
+			id: activityModuleId,
 			user,
 			req,
+			overrideAccess,
 		});
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
+		if (!activityModuleResult.ok) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${activityModuleId}' not found`,
+			);
+		}
 
-		const linkCourse = link.course;
-		assertZodInternal(
-			"tryGetCourseModuleSettings: Course is required",
-			linkCourse,
-			z.object({
-				id: z.number(),
-			}),
+		// Build discriminated union result
+		return buildCourseActivityModuleLinkResult(
+			link,
+			activityModuleResult.value,
 		);
-
-		const linkActivityModule = link.activityModule;
-		assertZodInternal(
-			"tryGetCourseModuleSettings: Activity module is required",
-			linkActivityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		// Settings can be null if not configured
-		const settings = link.settings as CourseModuleSettingsV1 | null;
-
-		return {
-			...link,
-			course: linkCourse,
-			activityModule: linkActivityModule,
-			settings,
-		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -651,40 +937,56 @@ export const tryGetCourseModuleSettings = Result.wrap(
 		}),
 );
 
-export type CheckCourseActivityModuleLinkExistsArgs = BaseInternalFunctionArgs & {
-	courseId: number;
-	activityModuleId: number;
-};
+export type CheckCourseActivityModuleLinkExistsArgs =
+	BaseInternalFunctionArgs & {
+		courseId: number;
+		activityModuleId: number;
+	};
 
 /**
  * Checks if a course-activity-module link already exists
  */
 export const tryCheckCourseActivityModuleLinkExists = Result.wrap(
 	async (args: CheckCourseActivityModuleLinkExistsArgs) => {
-		const { payload, courseId, activityModuleId, overrideAccess = false, user, req } = args;
-		const links = await payload.find({
-			collection: CourseActivityModuleLinks.slug,
-			where: {
-				and: [
-					{
-						course: {
-							equals: courseId,
-						},
-					},
-					{
-						activityModule: {
-							equals: activityModuleId,
-						},
-					},
-				],
-			},
-			limit: 1,
-			overrideAccess,
+		const {
+			payload,
+			courseId,
+			activityModuleId,
+			overrideAccess = false,
 			user,
 			req,
-		});
-
-		return links.docs.length > 0;
+		} = args;
+		const links = await payload
+			.count({
+				collection: CourseActivityModuleLinks.slug,
+				where: {
+					and: [
+						{
+							course: {
+								equals: courseId,
+							},
+						},
+						{
+							activityModule: {
+								equals: activityModuleId,
+							},
+						},
+					],
+				},
+				overrideAccess,
+				user,
+				req,
+			})
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryCheckCourseActivityModuleLinkExists",
+					"count course activity module link",
+					args,
+				);
+				throw error;
+			});
+		return links.totalDocs > 0;
 	},
 	(error) =>
 		transformError(error) ??

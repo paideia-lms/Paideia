@@ -1,11 +1,11 @@
 import { createLoader, parseAsString, parseAsStringEnum } from "nuqs/server";
 import type { CourseModuleContext } from "server/contexts/course-module-context";
-import type {
-	Question,
-	QuizAnswers,
-	QuizConfig,
-} from "server/json/raw-quiz-config.types.v2";
-import { isRegularQuiz } from "server/json/raw-quiz-config.types.v2";
+import {
+	isRegularQuiz,
+	type Question,
+	type QuizAnswers,
+} from "server/json/raw-quiz-config/types.v2";
+import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import {
 	AssignmentActions,
 	DiscussionActions,
@@ -120,17 +120,17 @@ export const formatModuleSettingsForDisplay = (
  * Transform QuizAnswers from quiz preview format to submission format
  */
 export function transformQuizAnswersToSubmissionFormat(
-	quizConfig: QuizConfig,
+	quizConfig: LatestQuizConfig,
 	answers: QuizAnswers,
 ): Array<{
 	questionId: string;
 	questionText: string;
 	questionType:
-	| "multiple_choice"
-	| "true_false"
-	| "short_answer"
-	| "essay"
-	| "fill_blank";
+		| "multiple_choice"
+		| "true_false"
+		| "short_answer"
+		| "essay"
+		| "fill_blank";
 	selectedAnswer?: string;
 	multipleChoiceAnswers?: Array<{
 		option: string;
@@ -141,11 +141,11 @@ export function transformQuizAnswersToSubmissionFormat(
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -206,11 +206,11 @@ export function transformQuizAnswersToSubmissionFormat(
 			questionId: string;
 			questionText: string;
 			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
+				| "multiple_choice"
+				| "true_false"
+				| "short_answer"
+				| "essay"
+				| "fill_blank";
 			selectedAnswer?: string;
 			multipleChoiceAnswers?: Array<{
 				option: string;

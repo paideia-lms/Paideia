@@ -3,7 +3,7 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
-import { type CreateActivityModuleArgs } from "./activity-module-management";
+import type { CreateActivityModuleArgs } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,

@@ -722,7 +722,7 @@ export const tryReorderCategories = Result.wrap(
 			for (let i = 0; i < categoryIds.length; i++) {
 				await payload.update({
 					collection: GradebookCategories.slug,
-					id: categoryIds[i],
+					id: categoryIds[i]!,
 					data: {
 						sortOrder: i,
 					},

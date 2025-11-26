@@ -20,8 +20,8 @@ import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {
 	type CreateQuizArgs,
 	type CreateQuizSubmissionArgs,
-	tryCalculateQuizGrade,
 	type StartQuizAttemptArgs,
+	tryCalculateQuizGrade,
 	tryCreateQuiz,
 	tryCreateQuizSubmission,
 	tryDeleteQuizSubmission,
@@ -152,9 +152,6 @@ describe("Quiz Management - Full Workflow", () => {
 			status: "published",
 			userId: teacherId,
 			instructions: "Complete this quiz by answering all questions",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 3,
-			allowLateSubmissions: true,
 			points: 100,
 			gradingType: "automatic",
 			timeLimit: 30,
@@ -329,9 +326,6 @@ describe("Quiz Management - Full Workflow", () => {
 			title: "Math Quiz",
 			description: "A basic math quiz",
 			instructions: "Answer all questions carefully",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 3,
-			allowLateSubmissions: true,
 			points: 100,
 			gradingType: "automatic",
 			showCorrectAnswers: true,
@@ -387,8 +381,6 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(quiz.title).toBe("Math Quiz");
 		expect(quiz.description).toBe("A basic math quiz");
 		expect(quiz.instructions).toBe("Answer all questions carefully");
-		expect(quiz.maxAttempts).toBe(3);
-		expect(quiz.allowLateSubmissions).toBe(true);
 		expect(quiz.points).toBe(100);
 		expect(quiz.gradingType).toBe("automatic");
 		expect(quiz.showCorrectAnswers).toBe(true);
@@ -522,7 +514,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		const updatedSubmission = updateResult.value;
 		expect(
-			updatedSubmission.answers?.[0].multipleChoiceAnswers?.[1].isSelected,
+			updatedSubmission.answers?.[0]!.multipleChoiceAnswers?.[1]!.isSelected,
 		).toBe(true);
 		expect(updatedSubmission.timeSpent).toBe(20);
 		expect(updatedSubmission.status).toBe("in_progress"); // Should remain in progress
@@ -1132,8 +1124,6 @@ describe("Quiz Management - Full Workflow", () => {
 			title: "Quiz with Raw Config",
 			description: "Testing rawQuizConfig storage",
 			instructions: "Complete the quiz",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig,
@@ -1182,8 +1172,6 @@ describe("Quiz Management - Full Workflow", () => {
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
 			instructions: "Complete quickly",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig: {
@@ -1242,53 +1230,49 @@ describe("Quiz Management - Full Workflow", () => {
 			type: "quiz",
 			status: "published",
 			userId: teacherId,
-			quizData: {
-				instructions: "Complete quickly",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 1,
-				points: 100,
-				gradingType: "automatic",
-				rawQuizConfig: {
-					version: "v2",
-					type: "regular",
-					id: `quiz-${Date.now()}`,
-					title: "Quick Quiz",
-					globalTimer: 60, // 1 minute in seconds
-					pages: [
-						{
-							id: `page-${Date.now()}`,
-							title: "Page 1",
-							questions: [
-								{
-									id: `q-${Date.now()}`,
-									type: "multiple-choice",
-									prompt: "What is 2 + 2?",
-									options: {
-										a: "3",
-										b: "4",
-									},
-									correctAnswer: "b",
-									scoring: {
-										type: "simple",
-										points: 100,
-									},
-								},
-							],
-						},
-					],
-				},
-				questions: [
+			instructions: "Complete quickly",
+			points: 100,
+			gradingType: "automatic",
+			rawQuizConfig: {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: "Quick Quiz",
+				globalTimer: 60, // 1 minute in seconds
+				pages: [
 					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 100,
-						options: [
-							{ text: "3", isCorrect: false },
-							{ text: "4", isCorrect: true },
+						id: `page-${Date.now()}`,
+						title: "Page 1",
+						questions: [
+							{
+								id: `q-${Date.now()}`,
+								type: "multiple-choice",
+								prompt: "What is 2 + 2?",
+								options: {
+									a: "3",
+									b: "4",
+								},
+								correctAnswer: "b",
+								scoring: {
+									type: "simple",
+									points: 100,
+								},
+							},
 						],
 					},
 				],
 			},
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 100,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+					],
+				},
+			],
 		};
 
 		const quickActivityModuleResult = await tryCreateQuizModule(
@@ -1360,8 +1344,6 @@ describe("Quiz Management - Full Workflow", () => {
 			title: "Auto Submit Quiz",
 			description: "A quiz with 2 second time limit",
 			instructions: "Will auto-submit",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig: {
@@ -1421,8 +1403,6 @@ describe("Quiz Management - Full Workflow", () => {
 			status: "published",
 			userId: teacherId,
 			instructions: "Will auto-submit",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig: {
@@ -1533,7 +1513,7 @@ describe("Quiz Management - Full Workflow", () => {
 			overrideAccess: true,
 		});
 		expect(jobsResult.docs.length).toBeGreaterThan(0);
-		const scheduledJob = jobsResult.docs[0];
+		const scheduledJob = jobsResult.docs[0]!;
 		expect(scheduledJob.waitUntil).toBeDefined();
 
 		// Wait 3 seconds (longer than the 2 second timer)

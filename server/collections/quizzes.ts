@@ -1,5 +1,5 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import { tryResolveQuizConfigToLatest } from "server/json/raw-quiz-config-version-resolver";
+import { tryResolveQuizConfigToLatest } from "server/json/raw-quiz-config/version-resolver";
 
 // Quizzes collection - quiz-specific configuration
 export const Quizzes = {
@@ -96,24 +96,6 @@ export const Quizzes = {
 			name: "instructions",
 			type: "textarea",
 			label: "Instructions for Students",
-		},
-		{
-			name: "dueDate",
-			type: "date",
-			label: "Due Date",
-		},
-		{
-			name: "maxAttempts",
-			type: "number",
-			label: "Maximum Attempts",
-			defaultValue: 1,
-			min: 1,
-		},
-		{
-			name: "allowLateSubmissions",
-			type: "checkbox",
-			label: "Allow Late Submissions",
-			defaultValue: false,
 		},
 		{
 			name: "points",
@@ -267,9 +249,6 @@ export const Quizzes = {
 	indexes: [
 		{
 			fields: ["createdBy"],
-		},
-		{
-			fields: ["dueDate"],
 		},
 	],
 } as const satisfies CollectionConfig;

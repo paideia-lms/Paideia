@@ -389,7 +389,7 @@ describe("User Grade Management", () => {
 			payload,
 			user: instructor as typeof instructor & { collection: "users" },
 			req: undefined,
-			overrideAccess: false,
+			overrideAccess: true,
 			enrollmentId: testEnrollment.id,
 			gradebookId: testGradebook.id,
 		});
@@ -977,7 +977,6 @@ describe("User Grade Management", () => {
 			req: mockRequest,
 			overrideAccess: false,
 			instructions: "Create a calculator that can perform basic operations",
-			dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
 			requireTextSubmission: true,
 			requireFileSubmission: false,
 		});
@@ -1286,6 +1285,8 @@ describe("User Grade Management", () => {
 
 		// Create discussion submissions (thread, reply, comment)
 		const threadArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,
@@ -1295,10 +1296,7 @@ describe("User Grade Management", () => {
 				"I think the singleton pattern is very useful for managing global state.",
 		};
 
-		const threadResult = await tryCreateDiscussionSubmission(
-			payload,
-			threadArgs,
-		);
+		const threadResult = await tryCreateDiscussionSubmission(threadArgs);
 		expect(threadResult.ok).toBe(true);
 		if (!threadResult.ok) {
 			throw new Error("Failed to create thread");
@@ -1306,6 +1304,8 @@ describe("User Grade Management", () => {
 		const thread = threadResult.value;
 
 		const replyArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,
@@ -1314,7 +1314,7 @@ describe("User Grade Management", () => {
 			parentThread: thread.id,
 		};
 
-		const replyResult = await tryCreateDiscussionSubmission(payload, replyArgs);
+		const replyResult = await tryCreateDiscussionSubmission(replyArgs);
 		expect(replyResult.ok).toBe(true);
 		if (!replyResult.ok) {
 			throw new Error("Failed to create reply");
@@ -1322,6 +1322,8 @@ describe("User Grade Management", () => {
 		const reply = replyResult.value;
 
 		const commentArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseModuleLink.id,
 			studentId: student.id,
 			enrollmentId: testEnrollment.id,
@@ -1330,10 +1332,7 @@ describe("User Grade Management", () => {
 			parentThread: thread.id,
 		};
 
-		const commentResult = await tryCreateDiscussionSubmission(
-			payload,
-			commentArgs,
-		);
+		const commentResult = await tryCreateDiscussionSubmission(commentArgs);
 		expect(commentResult.ok).toBe(true);
 		if (!commentResult.ok) {
 			throw new Error("Failed to create comment");

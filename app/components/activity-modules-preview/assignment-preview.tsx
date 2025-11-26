@@ -36,9 +36,9 @@ import type { SubmissionData } from "../submission-history";
 interface AssignmentData {
 	id: number;
 	instructions: string | null;
-	dueDate: string | null;
-	maxAttempts: number | null;
-	allowLateSubmissions: boolean | null;
+	dueDate?: string | null;
+	maxAttempts?: number | null;
+	allowLateSubmissions?: boolean | null;
 	requireTextSubmission: boolean | null;
 	requireFileSubmission: boolean | null;
 	maxFileSize?: number | null;

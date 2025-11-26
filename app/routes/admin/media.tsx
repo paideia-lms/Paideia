@@ -150,7 +150,6 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			payload,
 			limit,
 			page,
-			depth: 1, // Include createdBy user info
 			user: currentUser,
 			req: request,
 		});
@@ -374,7 +373,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			const result = await tryDeleteMedia({
 				payload,
 				s3Client,
-				id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
+				id: mediaIds,
 				userId: currentUser.id,
 				user: currentUser,
 				req: { transactionID },

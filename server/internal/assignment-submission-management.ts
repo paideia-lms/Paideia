@@ -1,4 +1,5 @@
 import { AssignmentSubmissions } from "server/collections";
+import type { LatestCourseModuleSettings } from "server/json";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -9,13 +10,22 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { DEFAULT_ALLOWED_FILE_TYPES } from "~/utils/file-types";
+import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 import {
 	commitTransactionIfCreated,
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	type BaseInternalFunctionArgs,
+	stripDepth,
+} from "./utils/internal-function-utils";
+
+type AssignmentSettings = Extract<
+	LatestCourseModuleSettings["settings"],
+	{ type: "assignment" }
+>;
 
 export type CreateAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
@@ -37,9 +47,9 @@ export type UpdateAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
 	attachments?: Array<
 		| number
 		| {
-			file: number;
-			description?: string;
-		}
+				file: number;
+				description?: string;
+		  }
 	>;
 	timeSpent?: number;
 };
@@ -189,27 +199,31 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			}
 
 			// Get course module link to access assignment
-			const courseModuleLink = await payload.findByID({
-				collection: "course-activity-module-links",
-				id: courseModuleLinkId,
-				depth: 2, // Need to get activity module and assignment
+			const courseModuleLinkResult = await tryFindCourseActivityModuleLinkById({
+				payload,
+				linkId: courseModuleLinkId,
 				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			if (!courseModuleLink) {
+			if (!courseModuleLinkResult.ok) {
 				throw new InvalidArgumentError("Course module link not found");
 			}
 
-			// Get assignment from activity module
-			const activityModule =
-				typeof courseModuleLink.activityModule === "object"
-					? courseModuleLink.activityModule
-					: null;
-			const assignment =
-				activityModule && typeof activityModule.assignment === "object"
-					? activityModule.assignment
+			const courseModuleLink = courseModuleLinkResult.value;
+
+			// Get assignment from activity module (discriminated union)
+			const activityModule = courseModuleLink.activityModule;
+
+			// Extract assignment data for validation (only available for assignment type)
+			const assignmentForValidation =
+				activityModule.type === "assignment"
+					? {
+							allowedFileTypes: activityModule.allowedFileTypes ?? null,
+							maxFileSize: activityModule.maxFileSize ?? null,
+							maxFiles: activityModule.maxFiles ?? null,
+						}
 					: null;
 
 			// Validate file attachments if provided
@@ -225,11 +239,18 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 					overrideAccess,
 				});
 
-				validateFileAttachments(attachments, assignment, mediaFiles.docs);
+				validateFileAttachments(
+					attachments,
+					assignmentForValidation,
+					mediaFiles.docs,
+				);
 			}
 
-			const isLate = assignment?.dueDate
-				? new Date() > new Date(assignment.dueDate)
+			const assignmentSettings =
+				courseModuleLink?.settings as unknown as AssignmentSettings;
+
+			const isLate = assignmentSettings?.dueDate
+				? new Date() > new Date(assignmentSettings.dueDate)
 				: false;
 
 			const submission = await payload.create({
@@ -421,22 +442,30 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 						? existingSubmission.courseModuleLink.id
 						: existingSubmission.courseModuleLink;
 
-				const courseModuleLink = await payload.findByID({
-					collection: "course-activity-module-links",
-					id: courseModuleLinkId,
-					depth: 2,
-					user,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				});
+				const courseModuleLinkResult =
+					await tryFindCourseActivityModuleLinkById({
+						payload,
+						linkId: courseModuleLinkId,
+						user,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+					});
 
-				const activityModule =
-					typeof courseModuleLink.activityModule === "object"
-						? courseModuleLink.activityModule
-						: null;
-				const assignment =
-					activityModule && typeof activityModule.assignment === "object"
-						? activityModule.assignment
+				if (!courseModuleLinkResult.ok) {
+					throw new InvalidArgumentError("Course module link not found");
+				}
+
+				const courseModuleLink = courseModuleLinkResult.value;
+				const activityModule = courseModuleLink.activityModule;
+
+				// Extract assignment data for validation (only available for assignment type)
+				const assignmentForValidation =
+					activityModule.type === "assignment"
+						? {
+								allowedFileTypes: activityModule.allowedFileTypes ?? null,
+								maxFileSize: activityModule.maxFileSize ?? null,
+								maxFiles: activityModule.maxFiles ?? null,
+							}
 						: null;
 
 				// Extract file IDs from attachments (could be numbers or objects)
@@ -462,7 +491,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 
 					validateFileAttachments(
 						attachmentsForValidation,
-						assignment,
+						assignmentForValidation,
 						mediaFiles.docs,
 					);
 				}

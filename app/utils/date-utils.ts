@@ -51,6 +51,6 @@ export function parseDateString(dateStr: string): {
 	} else {
 		// Date string like "2025-10-31" - parse directly to avoid UTC interpretation
 		const [year, month, day] = dateStr.split("-").map(Number);
-		return { year, month, day };
+		return { year: year!, month: month!, day: day! };
 	}
 }

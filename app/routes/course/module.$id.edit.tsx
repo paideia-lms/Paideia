@@ -4,6 +4,7 @@ import {
 	Container,
 	Divider,
 	Group,
+	NumberInput,
 	Paper,
 	Stack,
 	Text,
@@ -15,13 +16,18 @@ import { useForm } from "@mantine/form";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import { IconTrash } from "@tabler/icons-react";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryUpdateCourseModuleSettings } from "server/internal/course-activity-module-link-management";
-import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
+import type { LatestCourseModuleSettings } from "server/json";
 import { useDeleteModuleLink } from "~/routes/course.$id.modules";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
@@ -36,11 +42,10 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/module.$id.edit";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
-	const { moduleLinkId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -80,11 +85,27 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({
+enum Action {
+	UpdatePage = "updatePage",
+	UpdateWhiteboard = "updateWhiteboard",
+	UpdateFile = "updateFile",
+	UpdateAssignment = "updateAssignment",
+	UpdateQuiz = "updateQuiz",
+	UpdateDiscussion = "updateDiscussion",
+}
+
+// Define search params for module settings update
+export const moduleSettingsSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(moduleSettingsSearchParams);
+
+const updatePageSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs) => {
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
 	assertRequestMethod(request.method, "POST");
 
 	const { payload } = context.get(globalContextKey);
@@ -95,108 +116,362 @@ export const action = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-
-
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
-		moduleType: string;
 		name?: string | null;
-		allowSubmissionsFrom?: string | null;
-		dueDate?: string | null;
-		cutoffDate?: string | null;
-		openingTime?: string | null;
-		closingTime?: string | null;
 	};
 
-	if (!requestData.moduleType) {
-		return badRequest({ error: "Module type is required" });
-	}
-
-	const { moduleType, name, ...dateFields } = requestData;
-
-	// Build settings based on module type
-	let settings: CourseModuleSettingsV1;
-
-	switch (moduleType) {
-		case "page":
-		case "whiteboard":
-			settings = {
-				version: "v1",
-				settings: {
-					type: moduleType,
-					name: name || undefined,
-				},
-			};
-			break;
-
-		case "assignment": {
-			settings = {
-				version: "v1",
-				settings: {
-					type: "assignment",
-					name: name || undefined,
-					allowSubmissionsFrom: dateFields.allowSubmissionsFrom || undefined,
-					dueDate: dateFields.dueDate || undefined,
-					cutoffDate: dateFields.cutoffDate || undefined,
-				},
-			};
-			break;
-		}
-
-		case "quiz": {
-			settings = {
-				version: "v1",
-				settings: {
-					type: "quiz",
-					name: name || undefined,
-					openingTime: dateFields.openingTime || undefined,
-					closingTime: dateFields.closingTime || undefined,
-				},
-			};
-			break;
-		}
-
-		case "discussion": {
-			settings = {
-				version: "v1",
-				settings: {
-					type: "discussion",
-					name: name || undefined,
-					dueDate: dateFields.dueDate || undefined,
-					cutoffDate: dateFields.cutoffDate || undefined,
-				},
-			};
-			break;
-		}
-
-		default:
-			return badRequest({ error: "Invalid module type" });
-	}
-
-	// Update the settings
-	const result = await tryUpdateCourseModuleSettings(
-		{
-			payload,
-			linkId: Number(moduleLinkId),
-			settings,
-			// user: currentUser,
-			req: request,
+	const settings: LatestCourseModuleSettings = {
+		version: "v2",
+		settings: {
+			type: "page",
+			name: requestData.name || undefined,
 		},
-	);
+	};
+
+	const result = await tryUpdateCourseModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		settings,
+		req: request,
+	});
 
 	if (!result.ok) {
 		return badRequest({ error: result.error.message });
 	}
 
-	// Redirect to the module page
 	return redirect(
 		href("/course/module/:moduleLinkId", {
 			moduleLinkId: String(moduleLinkId),
 		}),
 	);
+};
+
+const updateWhiteboardSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+	};
+
+	const settings: LatestCourseModuleSettings = {
+		version: "v2",
+		settings: {
+			type: "whiteboard",
+			name: requestData.name || undefined,
+		},
+	};
+
+	const result = await tryUpdateCourseModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		settings,
+		req: request,
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateFileSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+	};
+
+	const settings: LatestCourseModuleSettings = {
+		version: "v2",
+		settings: {
+			type: "file",
+			name: requestData.name || undefined,
+		},
+	};
+
+	const result = await tryUpdateCourseModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		settings,
+		req: request,
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateAssignmentSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+		allowSubmissionsFrom?: string | null;
+		dueDate?: string | null;
+		cutoffDate?: string | null;
+		maxAttempts?: number | null;
+	};
+
+	const settings: LatestCourseModuleSettings = {
+		version: "v2",
+		settings: {
+			type: "assignment",
+			name: requestData.name || undefined,
+			allowSubmissionsFrom: requestData.allowSubmissionsFrom || undefined,
+			dueDate: requestData.dueDate || undefined,
+			cutoffDate: requestData.cutoffDate || undefined,
+			maxAttempts: requestData.maxAttempts || undefined,
+		},
+	};
+
+	const result = await tryUpdateCourseModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		settings,
+		req: request,
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateQuizSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+		openingTime?: string | null;
+		closingTime?: string | null;
+		maxAttempts?: number | null;
+	};
+
+	const settings: LatestCourseModuleSettings = {
+		version: "v2",
+		settings: {
+			type: "quiz",
+			name: requestData.name || undefined,
+			openingTime: requestData.openingTime || undefined,
+			closingTime: requestData.closingTime || undefined,
+			maxAttempts: requestData.maxAttempts || undefined,
+		},
+	};
+
+	const result = await tryUpdateCourseModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		settings,
+		req: request,
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateDiscussionSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+		dueDate?: string | null;
+		cutoffDate?: string | null;
+	};
+
+	const settings: LatestCourseModuleSettings = {
+		version: "v2",
+		settings: {
+			type: "discussion",
+			name: requestData.name || undefined,
+			dueDate: requestData.dueDate || undefined,
+			cutoffDate: requestData.cutoffDate || undefined,
+		},
+	};
+
+	const result = await tryUpdateCourseModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		settings,
+		req: request,
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const getActionUrl = (action: Action, moduleLinkId: string) => {
+	return (
+		href("/course/module/:moduleLinkId/edit", {
+			moduleLinkId,
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
+		});
+	}
+
+	if (actionType === Action.UpdatePage) {
+		return updatePageSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateWhiteboard) {
+		return updateWhiteboardSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateFile) {
+		return updateFileSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateAssignment) {
+		return updateAssignmentSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateQuiz) {
+		return updateQuizSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateDiscussion) {
+		return updateDiscussionSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -223,15 +498,17 @@ type UpdateModuleValues = {
 	allowSubmissionsFrom?: Date | string | null;
 	assignmentDueDate?: Date | string | null;
 	assignmentCutoffDate?: Date | string | null;
+	assignmentMaxAttempts?: number | null;
 	// Quiz fields
 	quizOpeningTime?: Date | string | null;
 	quizClosingTime?: Date | string | null;
+	quizMaxAttempts?: number | null;
 	// Discussion fields
 	discussionDueDate?: Date | string | null;
 	discussionCutoffDate?: Date | string | null;
 };
 
-const useUpdateCourseModule = () => {
+const useUpdateCourseModule = (moduleLinkId: string) => {
 	const fetcher = useFetcher<typeof action>();
 
 	const toISOStringOrNull = (
@@ -244,30 +521,59 @@ const useUpdateCourseModule = () => {
 	};
 
 	const updateModule = (values: UpdateModuleValues) => {
-		const payload: Record<string, string | null> = {
-			moduleType: values.moduleType,
+		const payload: Record<string, string | number | null> = {
 			name: values.name || null,
 		};
 
-		// Add module-specific fields
+		// Add module-specific fields based on type
 		if (values.moduleType === "assignment") {
 			payload.allowSubmissionsFrom = toISOStringOrNull(
 				values.allowSubmissionsFrom,
 			);
 			payload.dueDate = toISOStringOrNull(values.assignmentDueDate);
 			payload.cutoffDate = toISOStringOrNull(values.assignmentCutoffDate);
+			payload.maxAttempts = values.assignmentMaxAttempts || null;
+			fetcher.submit(payload, {
+				method: "POST",
+				action: getActionUrl(Action.UpdateAssignment, moduleLinkId),
+				encType: ContentType.JSON,
+			});
 		} else if (values.moduleType === "quiz") {
 			payload.openingTime = toISOStringOrNull(values.quizOpeningTime);
 			payload.closingTime = toISOStringOrNull(values.quizClosingTime);
+			payload.maxAttempts = values.quizMaxAttempts || null;
+			fetcher.submit(payload, {
+				method: "POST",
+				action: getActionUrl(Action.UpdateQuiz, moduleLinkId),
+				encType: ContentType.JSON,
+			});
 		} else if (values.moduleType === "discussion") {
 			payload.dueDate = toISOStringOrNull(values.discussionDueDate);
 			payload.cutoffDate = toISOStringOrNull(values.discussionCutoffDate);
+			fetcher.submit(payload, {
+				method: "POST",
+				action: getActionUrl(Action.UpdateDiscussion, moduleLinkId),
+				encType: ContentType.JSON,
+			});
+		} else if (values.moduleType === "page") {
+			fetcher.submit(payload, {
+				method: "POST",
+				action: getActionUrl(Action.UpdatePage, moduleLinkId),
+				encType: ContentType.JSON,
+			});
+		} else if (values.moduleType === "whiteboard") {
+			fetcher.submit(payload, {
+				method: "POST",
+				action: getActionUrl(Action.UpdateWhiteboard, moduleLinkId),
+				encType: ContentType.JSON,
+			});
+		} else if (values.moduleType === "file") {
+			fetcher.submit(payload, {
+				method: "POST",
+				action: getActionUrl(Action.UpdateFile, moduleLinkId),
+				encType: ContentType.JSON,
+			});
 		}
-
-		fetcher.submit(payload, {
-			method: "POST",
-			encType: ContentType.JSON,
-		});
 	};
 
 	return {
@@ -281,7 +587,9 @@ const useUpdateCourseModule = () => {
 export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 	const { course, module, moduleLinkId, settings } = loaderData;
 	const navigate = useNavigate();
-	const { updateModule, isLoading } = useUpdateCourseModule();
+	const { updateModule, isLoading } = useUpdateCourseModule(
+		String(moduleLinkId),
+	);
 	const { deleteModuleLink, isLoading: isDeleting } = useDeleteModuleLink();
 
 	// Parse existing settings
@@ -299,7 +607,7 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 			// Assignment fields
 			allowSubmissionsFrom:
 				existingSettings?.type === "assignment" &&
-					existingSettings.allowSubmissionsFrom
+				existingSettings.allowSubmissionsFrom
 					? new Date(existingSettings.allowSubmissionsFrom)
 					: null,
 			assignmentDueDate:
@@ -310,6 +618,12 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 				existingSettings?.type === "assignment" && existingSettings.cutoffDate
 					? new Date(existingSettings.cutoffDate)
 					: null,
+			assignmentMaxAttempts:
+				existingSettings?.type === "assignment" &&
+				"maxAttempts" in existingSettings &&
+				typeof existingSettings.maxAttempts === "number"
+					? existingSettings.maxAttempts
+					: null,
 			// Quiz fields
 			quizOpeningTime:
 				existingSettings?.type === "quiz" && existingSettings.openingTime
@@ -318,6 +632,12 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 			quizClosingTime:
 				existingSettings?.type === "quiz" && existingSettings.closingTime
 					? new Date(existingSettings.closingTime)
+					: null,
+			quizMaxAttempts:
+				existingSettings?.type === "quiz" &&
+				"maxAttempts" in existingSettings &&
+				typeof existingSettings.maxAttempts === "number"
+					? existingSettings.maxAttempts
 					: null,
 			// Discussion fields
 			discussionDueDate:
@@ -420,6 +740,15 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 										description="Latest possible submission time"
 										{...form.getInputProps("assignmentCutoffDate")}
 									/>
+
+									<NumberInput
+										label="Maximum Attempts"
+										placeholder="Leave empty for unlimited"
+										disabled={isLoading}
+										min={1}
+										description="Maximum number of submission attempts allowed"
+										{...form.getInputProps("assignmentMaxAttempts")}
+									/>
 								</>
 							)}
 
@@ -441,6 +770,15 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 										clearable
 										description="When quiz closes"
 										{...form.getInputProps("quizClosingTime")}
+									/>
+
+									<NumberInput
+										label="Maximum Attempts"
+										placeholder="Leave empty for unlimited"
+										disabled={isLoading}
+										min={1}
+										description="Maximum number of attempt attempts allowed"
+										{...form.getInputProps("quizMaxAttempts")}
 									/>
 								</>
 							)}
@@ -467,7 +805,9 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 								</>
 							)}
 
-							{(module.type === "page" || module.type === "whiteboard") && (
+							{(module.type === "page" ||
+								module.type === "whiteboard" ||
+								module.type === "file") && (
 								<Text c="dimmed" size="sm">
 									Only custom name can be configured for {module.type} modules.
 								</Text>

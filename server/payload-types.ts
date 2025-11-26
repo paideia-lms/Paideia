@@ -557,9 +557,6 @@ export interface Assignment {
   title: string;
   description?: string | null;
   instructions?: string | null;
-  dueDate?: string | null;
-  maxAttempts?: number | null;
-  allowLateSubmissions?: boolean | null;
   allowedFileTypes?:
     | {
         extension: string;
@@ -584,9 +581,6 @@ export interface Quiz {
   title: string;
   description?: string | null;
   instructions?: string | null;
-  dueDate?: string | null;
-  maxAttempts?: number | null;
-  allowLateSubmissions?: boolean | null;
   points?: number | null;
   gradingType?: ('automatic' | 'manual') | null;
   showCorrectAnswers?: boolean | null;
@@ -1485,9 +1479,6 @@ export interface AssignmentsSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   instructions?: T;
-  dueDate?: T;
-  maxAttempts?: T;
-  allowLateSubmissions?: T;
   allowedFileTypes?:
     | T
     | {
@@ -1511,9 +1502,6 @@ export interface QuizzesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   instructions?: T;
-  dueDate?: T;
-  maxAttempts?: T;
-  allowLateSubmissions?: T;
   points?: T;
   gradingType?: T;
   showCorrectAnswers?: T;

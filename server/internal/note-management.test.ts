@@ -1106,7 +1106,7 @@ describe("Note Management Functions", () => {
 				expect(result.value.availableYears.length).toBeGreaterThan(0);
 
 				// Check heatmap data format
-				const firstDate = Object.keys(result.value.heatmapData)[0];
+				const firstDate = Object.keys(result.value.heatmapData)[0]!;
 				expect(firstDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 				expect(typeof result.value.heatmapData[firstDate]).toBe("number");
 			}

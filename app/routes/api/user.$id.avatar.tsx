@@ -23,7 +23,7 @@ function parseRangeHeader(
 		return null;
 	}
 
-	const startStr = parts[0];
+	const startStr = parts[0]!;
 	const endStr = parts[1];
 
 	// Handle suffix range: "bytes=-suffix"
@@ -116,14 +116,7 @@ export const loader = async ({
 
 	// Extract avatar media ID
 	// Avatar can be an object (when depth > 0) or just an ID (when depth = 0)
-	let avatarMediaId: string | number;
-	if (typeof user.avatar === "object" && "id" in user.avatar) {
-		avatarMediaId = user.avatar.id;
-	} else if (typeof user.avatar === "number") {
-		avatarMediaId = user.avatar;
-	} else {
-		return new Response("Invalid avatar data", { status: 500 });
-	}
+	const avatarMediaId = user.avatar;
 
 	// Parse Range header if present (we'll get file size from the media record)
 	const rangeHeader = request.headers.get("Range");
@@ -133,8 +126,8 @@ export const loader = async ({
 		payload,
 		s3Client,
 		id: avatarMediaId,
-		depth: 0,
 		user: requestUser,
+		req: request,
 	});
 
 	if (!result.ok) {
@@ -154,7 +147,6 @@ export const loader = async ({
 			payload,
 			s3Client,
 			id: avatarMediaId,
-			depth: 0,
 			range,
 			user: requestUser,
 		});

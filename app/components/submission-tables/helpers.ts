@@ -113,9 +113,9 @@ export function calculateDiscussionGradingStats<T extends DiscussionSubmission>(
 	// Get maxGrade from first graded submission (all should have same maxGrade)
 	const maxGrade =
 		gradedSubmissions.length > 0 &&
-		gradedSubmissions[0].grade?.maxGrade !== null &&
-		gradedSubmissions[0].grade?.maxGrade !== undefined
-			? gradedSubmissions[0].grade.maxGrade
+		gradedSubmissions[0]!.grade?.maxGrade !== null &&
+		gradedSubmissions[0]!.grade?.maxGrade !== undefined
+			? gradedSubmissions[0]!.grade.maxGrade
 			: null;
 
 	return {

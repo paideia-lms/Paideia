@@ -57,7 +57,7 @@ import type {
 	QuizResource,
 	RankingQuestion,
 	SingleSelectionMatrixQuestion,
-} from "server/json/raw-quiz-config.types.v2";
+} from "server/json/raw-quiz-config/types.v2";
 import type {
 	ActivityModuleFormValues,
 	QuizModuleFormValues,
@@ -864,7 +864,7 @@ export function RankingEditor({ form, path }: RankingEditorProps) {
 								<SortableRankingItem
 									key={key}
 									id={key}
-									label={items[key]}
+									label={items[key]!}
 									index={index}
 									onRemove={() => removeItem(key)}
 									canRemove={itemKeys.length > 2}
@@ -1542,8 +1542,8 @@ export function SortablePageBreakItem({
 		if (pageIndex === -1 || pageIndex === 0) return; // Don't remove page 0
 
 		// we get the question in this page and move them to previous page
-		const questions = currentPages[pageIndex].questions;
-		const previousPage = currentPages[pageIndex - 1];
+		const questions = currentPages[pageIndex]!.questions;
+		const previousPage = currentPages[pageIndex - 1]!;
 		const updatedQuestions = [...previousPage.questions, ...questions];
 		previousPage.questions = updatedQuestions;
 		const updatedPages = currentPages.filter((_, index) => index !== pageIndex);
@@ -1592,8 +1592,8 @@ export function SortableQuestionItem({
 	pageNumber,
 }: SortableQuestionItemProps) {
 	const parts = path.split(".");
-	const pageIndex = Number.parseInt(parts[parts.indexOf("pages") + 1]);
-	const questionIndex = Number.parseInt(parts[parts.indexOf("questions") + 1]);
+	const pageIndex = Number.parseInt(parts[parts.indexOf("pages") + 1]!);
+	const questionIndex = Number.parseInt(parts[parts.indexOf("questions") + 1]!);
 	const pagesPath = parts.slice(0, parts.indexOf("pages") + 1).join(".") as
 		| `rawQuizConfig.pages`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages`;
@@ -1639,11 +1639,12 @@ export function SortableQuestionItem({
 
 		const currentPages = getPath(pagesPath, form.getValues());
 		const updatedPages = [...currentPages];
-		const updatedQuestions = [...updatedPages[pageIndex].questions];
+		const page = updatedPages[pageIndex]!;
+		const updatedQuestions = [...page.questions];
 		updatedQuestions.splice(questionIndex, 1);
 
 		updatedPages[pageIndex] = {
-			...updatedPages[pageIndex],
+			...page,
 			questions: updatedQuestions,
 		};
 
@@ -1995,14 +1996,14 @@ export function QuestionsList({ form, path }: QuestionsListProps) {
 	//         flatListItems.push({ type: "page", id: page.id, pageIndex: pageIdx });
 	// });
 	for (let i = 0; i < pagesData.length; i++) {
-		const page = pagesData[i];
+		const page = pagesData[i]!;
 		if (i > 0) {
 			flatListItems.push({ type: "page", id: page.id, pageIndex: i });
 		}
 		for (let j = 0; j < page.questions.length; j++) {
 			flatListItems.push({
 				type: "question",
-				id: page.questions[j].id,
+				id: page.questions[j]!.id,
 				pageIndex: i,
 				questionIndex: j,
 			});
@@ -2057,18 +2058,18 @@ export function QuestionsList({ form, path }: QuestionsListProps) {
 		const newPages: QuizPage[] = [];
 		// add the first page
 		newPages.push({
-			id: currentPages[0].id,
-			title: currentPages[0].title,
+			id: currentPages[0]!.id,
+			title: currentPages[0]!.title,
 			questions: [],
 		});
 		// loop through reordered flat list and add the questions or pages
 		let currentPage = 0;
 		for (let i = 0; i < reorderedFlatList.length; i++) {
-			const item = reorderedFlatList[i];
+			const item = reorderedFlatList[i]!;
 			if (item.type === "question") {
 				const question = questionMap.get(item.id);
 				if (question) {
-					newPages[currentPage].questions.push(question);
+					newPages[currentPage]!.questions.push(question);
 				}
 			} else if (item.type === "page") {
 				const page = pageMap.get(item.id);
@@ -2119,9 +2120,10 @@ export function QuestionsList({ form, path }: QuestionsListProps) {
 		} else {
 			// Add to last page
 			const updatedPages = [...currentPages];
+			const page = updatedPages[lastPageIndex]!;
 			updatedPages[lastPageIndex] = {
-				...updatedPages[lastPageIndex],
-				questions: [...updatedPages[lastPageIndex].questions, newQuestion],
+				...page,
+				questions: [...page.questions, newQuestion],
 			};
 			form.setFieldValue(path, updatedPages);
 		}

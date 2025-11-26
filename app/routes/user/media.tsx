@@ -86,7 +86,11 @@ import {
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/media";
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -125,25 +129,21 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 			);
 		} else {
 			// Fallback to fetching directly
-			userProfileContext = await getUserProfileContext(
-				{
-					payload,
-					profileUserId: userId,
-					user: currentUser,
-					req: request,
-				},
-			);
-		}
-	} else {
-		// Viewing another user's profile
-		userProfileContext = await getUserProfileContext(
-			{
+			userProfileContext = await getUserProfileContext({
 				payload,
 				profileUserId: userId,
 				user: currentUser,
 				req: request,
-			},
-		);
+			});
+		}
+	} else {
+		// Viewing another user's profile
+		userProfileContext = await getUserProfileContext({
+			payload,
+			profileUserId: userId,
+			user: currentUser,
+			req: request,
+		});
 	}
 
 	if (!userProfileContext) {
@@ -438,7 +438,7 @@ const deleteAction = async ({
 	const result = await tryDeleteMedia({
 		payload,
 		s3Client,
-		id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
+		id: mediaIds,
 		userId: currentUser.id,
 		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
@@ -1081,8 +1081,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1173,8 +1173,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (
@@ -1253,8 +1253,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (

@@ -162,7 +162,13 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			const parentRaw = form.get("parent");
 			const parent = parentRaw ? Number(parentRaw) : undefined;
 
-			const updateRes = await tryUpdateCategory({ payload, categoryId, req: request, name: name ? String(name) : undefined, parent: parent ? Number(parent) : undefined });
+			const updateRes = await tryUpdateCategory({
+				payload,
+				categoryId,
+				req: request,
+				name: name ? String(name) : undefined,
+				parent: parent ? Number(parent) : undefined,
+			});
 
 			if (!updateRes.ok) {
 				await payload.db.rollbackTransaction(transactionID);
@@ -186,7 +192,11 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 				});
 			}
 
-			const delRes = await tryDeleteCategory({ payload, categoryId, req: request });
+			const delRes = await tryDeleteCategory({
+				payload,
+				categoryId,
+				req: request,
+			});
 			if (!delRes.ok) {
 				await payload.db.rollbackTransaction(transactionID);
 				return badRequest({ error: delRes.error.message });
@@ -291,7 +301,7 @@ export default function AdminCategoriesPage({
 				});
 				return;
 			}
-			const sourceId = items[0].getId();
+			const sourceId = items[0]!.getId();
 			const targetId = target.item.getId();
 
 			if (targetId === "root") {
@@ -346,7 +356,7 @@ export default function AdminCategoriesPage({
 						parentId: null,
 						children: [
 							"uncategorized",
-							...Object.keys(flat).filter((k) => flat[k].parentId === null),
+							...Object.keys(flat).filter((k) => flat[k]!.parentId === null),
 						],
 						directCoursesCount: 0,
 						totalNestedCoursesCount: 0,
@@ -362,13 +372,13 @@ export default function AdminCategoriesPage({
 						totalNestedCoursesCount: uncategorizedCount,
 					} as unknown as FlatNode; // virtual node compatible with tree usage
 				}
-				return flat[id];
+				return flat[id]!;
 			},
 			getChildren: (id: string) => {
 				if (id === "root")
 					return [
 						"uncategorized",
-						...Object.keys(flat).filter((k) => flat[k].parentId === null),
+						...Object.keys(flat).filter((k) => flat[k]!.parentId === null),
 					];
 				if (id === "uncategorized") return [];
 				return flat[id]?.children ?? [];
@@ -430,11 +440,11 @@ export default function AdminCategoriesPage({
 					const viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent("category:none")
+								"?query=" +
+								encodeURIComponent("category:none")
 							: href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent(`category:"${d.name}"`);
+								"?query=" +
+								encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">

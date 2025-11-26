@@ -1,10 +1,8 @@
-
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export type GetAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
-}
+export type GetAnalyticsSettingsArgs = BaseInternalFunctionArgs & {};
 
 export type UpdateAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
 	data: {
@@ -13,7 +11,7 @@ export type UpdateAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
 			defer?: boolean;
 		}>;
 	};
-}
+};
 
 /**
  * Read analytics settings from the AnalyticsSettings global.

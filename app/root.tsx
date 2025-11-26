@@ -348,26 +348,26 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-					color: "blue",
-					radius: "sm" as const,
-					logoLight: null,
-					logoDark: null,
-					compactLogoLight: null,
-					compactLogoDark: null,
-					faviconLight: null,
-					faviconDark: null,
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
+					maintenanceSettings: { maintenanceMode: false },
+					sitePolicies: {
+						userMediaStorageTotal: null,
+						siteUploadLimit: null,
+					},
+					appearanceSettings: {
+						additionalCssStylesheets: [],
+						color: "blue",
+						radius: "sm" as const,
+						logoLight: null,
+						logoDark: null,
+						compactLogoLight: null,
+						compactLogoDark: null,
+						faviconLight: null,
+						faviconDark: null,
+					},
+					analyticsSettings: {
+						additionalJsScripts: [],
+					},
+				};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -419,14 +419,12 @@ export const middleware = [
 					params as RouteParams<"layouts/course-module-layout">;
 				if (Number.isNaN(moduleLinkId)) return;
 
-				const moduleContext = await tryFindCourseActivityModuleLinkById(
-					{
-						payload,
-						linkId: Number(moduleLinkId),
-						user: currentUser,
-						req: request,
-					}
-				);
+				const moduleContext = await tryFindCourseActivityModuleLinkById({
+					payload,
+					linkId: Number(moduleLinkId),
+					user: currentUser,
+					req: request,
+				});
 
 				if (!moduleContext.ok) return;
 
@@ -529,14 +527,12 @@ export const middleware = [
 						: currentUser.avatar.id
 					: undefined,
 			};
-			const userAccessContext = await getUserAccessContext(
-				{
-					payload,
-					userId: currentUser.id,
-					user: typedUser,
-					req: request,
-				}
-			);
+			const userAccessContext = await getUserAccessContext({
+				payload,
+				userId: currentUser.id,
+				user: typedUser,
+				req: request,
+			});
 			context.set(userAccessContextKey, userAccessContext);
 		}
 	},
@@ -565,16 +561,16 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext({
-							payload,
-							profileUserId,
-							user: currentUser,
-							req: request,
-							overrideAccess: false,
-						});
+								payload,
+								profileUserId,
+								user: currentUser,
+								req: request,
+								overrideAccess: false,
+							});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -621,16 +617,14 @@ export const middleware = [
 
 			// Get module link ID from params
 			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
-				const courseModuleContextResult = await tryGetCourseModuleContext(
-					{
-						payload,
-						moduleLinkId: Number(moduleLinkId),
-						courseId: courseContext.courseId,
-						user: currentUser,
-						enrolment: enrolmentContext?.enrolment ?? null,
-						req: request,
-					}
-				);
+				const courseModuleContextResult = await tryGetCourseModuleContext({
+					payload,
+					moduleLinkId: Number(moduleLinkId),
+					courseId: courseContext.courseId,
+					user: currentUser,
+					enrolment: enrolmentContext?.enrolment ?? null,
+					req: request,
+				});
 
 				if (courseModuleContextResult.ok) {
 					context.set(courseModuleContextKey, courseModuleContextResult.value);
@@ -657,14 +651,12 @@ export const middleware = [
 			const moduleId = params.moduleId ? Number(params.moduleId) : null;
 
 			if (moduleId && !Number.isNaN(moduleId)) {
-				const userModuleContextResult = await tryGetUserModuleContext(
-					{
-						payload,
-						moduleId,
-						user: currentUser,
-						req: request,
-					},
-				);
+				const userModuleContextResult = await tryGetUserModuleContext({
+					payload,
+					moduleId,
+					user: currentUser,
+					req: request,
+				});
 
 				if (userModuleContextResult.ok) {
 					context.set(userModuleContextKey, userModuleContextResult.value);
@@ -758,17 +750,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-				userSession: userSession,
-				courseContext: context.get(courseContextKey),
-				courseModuleContext: context.get(courseModuleContextKey),
-				courseSectionContext: context.get(courseSectionContextKey),
-				enrolmentContext: context.get(enrolmentContextKey),
-				userModuleContext: context.get(userModuleContextKey),
-				userProfileContext: context.get(userProfileContextKey),
-				userAccessContext: context.get(userAccessContextKey),
-				userContext: context.get(userContextKey),
-				systemGlobals: systemGlobals,
-			};
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				};
 
 	return {
 		users: users,

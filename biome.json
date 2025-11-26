@@ -8,11 +8,17 @@
 	"files": {
 		"ignoreUnknown": false,
 		"includes": [
-			"**",
+			"server/**",
+			"src/**",
+			"app/**",
 			"!server/payload-types.ts",
 			"!server/vfs.ts",
 			"!src/migrations",
-			"!**/dist"
+			"!**/dist",
+			"!**/*.json",
+			"!**/*.config.ts",
+			"!**/*.test.ts",
+			"!node_modules"
 		]
 	},
 	"formatter": {
@@ -25,6 +31,9 @@
 			"recommended": true,
 			"style": {
 				"noNonNullAssertion": "off"
+			},
+			"suspicious": {
+				"noTsIgnore": "off"
 			}
 		}
 	},

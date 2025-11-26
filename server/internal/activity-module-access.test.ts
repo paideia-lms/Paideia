@@ -501,12 +501,9 @@ describe("Activity Module Access Control", () => {
 		expect(grantResult.ok).toBe(true);
 		if (grantResult.ok) {
 			// Handle depth - activityModule can be ID or object
-			const grantActivityModuleId =
-				grantResult.value.activityModule;
-			const grantedToId =
-				grantResult.value.grantedTo;
-			const grantedById =
-				grantResult.value.grantedBy;
+			const grantActivityModuleId = grantResult.value.activityModule;
+			const grantedToId = grantResult.value.grantedTo;
+			const grantedById = grantResult.value.grantedBy;
 
 			expect(grantActivityModuleId).toBe(activityModule.id);
 			expect(grantedToId).toBe(testUser2.id);
@@ -718,8 +715,7 @@ describe("Activity Module Access Control", () => {
 
 		expect(transferResult.ok).toBe(true);
 		if (transferResult.ok) {
-			const newOwnerId =
-				transferResult.value.owner;
+			const newOwnerId = transferResult.value.owner;
 			expect(newOwnerId).toBe(testUser2.id);
 		}
 

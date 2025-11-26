@@ -243,6 +243,7 @@ export const tryFindUserById = Result.wrap(
 			.findByID({
 				collection: "users",
 				id: userId,
+				depth: 0,
 				user,
 				req,
 				overrideAccess,

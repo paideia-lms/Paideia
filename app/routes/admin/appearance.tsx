@@ -177,11 +177,11 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 
 	const moveStylesheet = (index: number, direction: "up" | "down") => {
 		if (direction === "up" && index > 0) {
-			const item = stylesheets[index];
+			const item = stylesheets[index]!;
 			form.removeListItem("stylesheets", index);
 			form.insertListItem("stylesheets", item, index - 1);
 		} else if (direction === "down" && index < stylesheets.length - 1) {
-			const item = stylesheets[index];
+			const item = stylesheets[index]!;
 			form.removeListItem("stylesheets", index);
 			form.insertListItem("stylesheets", item, index + 1);
 		}

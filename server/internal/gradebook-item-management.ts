@@ -1,4 +1,4 @@
-import type { Payload } from "payload";
+import type { Payload, PayloadRequest } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -7,23 +7,18 @@ import {
 	GradebookItemNotFoundError,
 	InvalidGradeValueError,
 	InvalidSortOrderError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import type {
-	Enrollment,
-	GradebookItem,
-	UserGrade,
-} from "../payload-types";
+import type { Enrollment, GradebookItem, UserGrade } from "../payload-types";
 import { tryGetGradebookAllRepresentations } from "./gradebook-management";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+	type BaseInternalFunctionArgs,
+	interceptPayloadError,
+	stripDepth,
+} from "./utils/internal-function-utils";
 import { validateGradebookWeights } from "./utils/validate-gradebook-weights";
 
 export type ValidateOverallWeightTotalArgs = BaseInternalFunctionArgs & {
@@ -117,7 +112,7 @@ export const tryCreateGradebookItem = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			const newItem = await payload.create({
 				collection: GradebookItems.slug,
 				data: {
@@ -133,7 +128,7 @@ export const tryCreateGradebookItem = Result.wrap(
 					sortOrder,
 				},
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -142,7 +137,7 @@ export const tryCreateGradebookItem = Result.wrap(
 				payload,
 				courseId,
 				user: user ?? null,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Item creation",
 			});
@@ -150,8 +145,6 @@ export const tryCreateGradebookItem = Result.wrap(
 			if (!validateResult.ok) {
 				throw validateResult.error;
 			}
-
-			await commitTransactionIfCreated(payload, transactionInfo);
 
 			////////////////////////////////////////////////////
 			// type narrowing
@@ -195,10 +188,7 @@ export const tryCreateGradebookItem = Result.wrap(
 				activityModule: itemActivityModule,
 			};
 			return result;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -390,14 +380,14 @@ export const tryUpdateGradebookItem = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Update the item
 			const updatedItem = await payload.update({
 				collection: GradebookItems.slug,
 				id: itemId,
 				data: updateData,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -405,7 +395,7 @@ export const tryUpdateGradebookItem = Result.wrap(
 				payload,
 				courseId: gradebookId,
 				user: user ?? null,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Weight update",
 			});
@@ -414,13 +404,8 @@ export const tryUpdateGradebookItem = Result.wrap(
 				throw validateResult.error;
 			}
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return updatedItem as GradebookItem;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -460,42 +445,63 @@ export const tryDeleteGradebookItem = Result.wrap(
 		const { payload, itemId, user = null, req, overrideAccess = false } = args;
 
 		// Check if item exists and get gradebook ID
-		const existingItem = await payload.findByID({
-			collection: GradebookItems.slug,
-			id: itemId,
-			user,
-			req,
-			overrideAccess,
-		});
+		const existingItem = await payload
+			.findByID({
+				collection: GradebookItems.slug,
+				id: itemId,
+				depth: 0,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryDeleteGradebookItem",
+					"find gradebook item",
+					args,
+				);
+				throw error;
+			});
 
 		if (!existingItem) {
 			throw new GradebookItemNotFoundError(`Item with ID ${itemId} not found`);
 		}
 
 		// Get gradebook ID from existing item
-		const gradebookId =
-			typeof existingItem.gradebook === "number"
-				? existingItem.gradebook
-				: existingItem.gradebook.id;
+		const gradebookId = existingItem.gradebook;
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Delete the item
-			const deletedItem = await payload.delete({
-				collection: GradebookItems.slug,
-				id: itemId,
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			const deletedItem = await payload
+				.delete({
+					collection: GradebookItems.slug,
+					id: itemId,
+					depth: 0,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "delete">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryDeleteGradebookItem",
+						"delete gradebook item",
+						args,
+					);
+					throw error;
+				});
 
 			// After deletion, validate that overall weights sum to exactly 100%
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
 				courseId: gradebookId,
 				user: user ?? null,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Deletion",
 			});
@@ -504,13 +510,8 @@ export const tryDeleteGradebookItem = Result.wrap(
 				throw validateResult.error;
 			}
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			return deletedItem as GradebookItem;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+			return deletedItem;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -622,34 +623,26 @@ export const tryGetNextItemSortOrder = Result.wrap(
  */
 export const tryReorderItems = Result.wrap(
 	async (payload: Payload, request: Request, itemIds: number[]) => {
-		const transactionID = await payload.db.beginTransaction();
+		const transactionInfo = await handleTransactionId(
+			payload,
+			request as Partial<PayloadRequest>,
+		);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Update sort order for each item
 			for (let i = 0; i < itemIds.length; i++) {
 				await payload.update({
 					collection: GradebookItems.slug,
-					id: itemIds[i],
+					id: itemIds[i]!,
 					data: {
 						sortOrder: i,
 					},
-					req: { ...request, transactionID },
+					req: reqWithTransaction,
 				});
 			}
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
-
 			return { success: true };
-		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -730,9 +723,10 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 		),
 );
 
-export type FindGradebookItemByCourseModuleLinkArgs = BaseInternalFunctionArgs & {
-	courseModuleLinkId: number;
-};
+export type FindGradebookItemByCourseModuleLinkArgs =
+	BaseInternalFunctionArgs & {
+		courseModuleLinkId: number;
+	};
 
 /**
  * Finds a gradebook item by course module link (course-activity-module-link)

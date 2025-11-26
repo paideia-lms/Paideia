@@ -7,7 +7,9 @@ export interface HandleTransactionIdResult {
 	 */
 	isTransactionCreated: boolean;
 	reqWithTransaction: Partial<PayloadRequest>;
-	tx: <T>(operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T) => Promise<T>
+	tx: <T>(
+		operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T,
+	) => Promise<T>;
 }
 
 /**
@@ -16,20 +18,20 @@ export interface HandleTransactionIdResult {
  * If req.transactionID exists (and is not a Promise), uses it.
  * If req.transactionID is a Promise, awaits it.
  * Otherwise, creates a new transaction.
- * 
+ *
  * when you use this function, you should always use `commitTransactionIfCreated` and `rollbackTransactionIfCreated` to commit and rollback the transaction **at the same level** as the transaction creation.
- * 
+ *
  * ```typescript
  * const transactionInfo = await handleTransactionId(payload, req);
- * 
+ *
  * const result = await someFunction(payload, transactionInfo.reqWithTransaction);
- * 
+ *
  * if (!result.ok) {
  *   await rollbackTransactionIfCreated(payload, transactionInfo);
- *   return; 
- * } 
+ *   return;
+ * }
  * await commitTransactionIfCreated(payload, transactionInfo);
- * 
+ *
  * ```
  *
  * @param payload - Payload instance
@@ -78,10 +80,11 @@ export async function handleTransactionId(
 		transactionID,
 		isTransactionCreated,
 		reqWithTransaction,
-	}
+	};
 
-	const tx = async <T>(operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T) => {
-
+	const tx = async <T>(
+		operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T,
+	) => {
 		try {
 			const o = operation(_transactionInfo);
 			const isAsyncOperation = o instanceof Promise;
@@ -98,7 +101,7 @@ export async function handleTransactionId(
 			}
 			throw error;
 		}
-	}
+	};
 
 	return {
 		transactionID,
@@ -122,7 +125,8 @@ export function getTx<T extends Payload>(
 	payload: T,
 	transactionID: string | number,
 ) {
-	return payload.db.sessions![transactionID].db as Parameters<
+	const session = payload.db.sessions![transactionID]!;
+	return session.db as Parameters<
 		Parameters<T["db"]["drizzle"]["transaction"]>[0]
 	>[0];
 }

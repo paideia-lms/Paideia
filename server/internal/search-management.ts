@@ -76,17 +76,17 @@ export const tryGlobalSearch = Result.wrap(
 			{
 				or: text
 					? [
-						{
-							title: {
-								contains: text,
+							{
+								title: {
+									contains: text,
+								},
 							},
-						},
-						{
-							meta: {
-								contains: text,
+							{
+								meta: {
+									contains: text,
+								},
 							},
-						},
-					]
+						]
 					: [],
 			},
 		];

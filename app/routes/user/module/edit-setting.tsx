@@ -9,15 +9,18 @@ import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userModuleContextKey } from "server/contexts/user-module-context";
+import type { ActivityModuleResult } from "server/internal/activity-module-management";
 import {
-	tryUpdatePageModule,
-	tryUpdateWhiteboardModule,
-	tryUpdateFileModule,
 	tryUpdateAssignmentModule,
-	tryUpdateQuizModule,
 	tryUpdateDiscussionModule,
+	tryUpdateFileModule,
+	tryUpdatePageModule,
+	tryUpdateQuizModule,
+	tryUpdateWhiteboardModule,
 } from "server/internal/activity-module-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
+import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import { serverOnly$ } from "vite-env-only/macros";
 import {
 	AssignmentForm,
 	DiscussionForm,
@@ -48,7 +51,6 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/edit-setting";
-import { serverOnly$ } from "vite-env-only/macros"
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -91,559 +93,566 @@ export const moduleUpdateSearchParams = {
 
 export const loadSearchParams = createLoader(moduleUpdateSearchParams);
 
-const updatePageAction = serverOnly$(async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const updatePageAction = serverOnly$(
+	async ({
+		request,
+		context,
+		params,
+	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
-		});
-	}
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	return transactionInfo.tx(async ({ reqWithTransaction }) => {
-		// Handle JSON request
-		const { data } = await getDataAndContentTypeFromRequest(request);
-		const parsedData = activityModuleSchema.parse(data);
-
-		if (parsedData.type !== "page") {
+		if (!userSession?.isAuthenticated) {
 			return badRequest({
 				success: false,
-				error: "Invalid module type for page action",
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		const { pageData } = transformToActivityData(parsedData);
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (!pageData) {
+		if (!currentUser) {
 			return badRequest({
 				success: false,
-				error: "Missing page data",
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		const updateResult = await tryUpdatePageModule({
-			payload,
-			id: Number(moduleId),
-			title: parsedData.title,
-			description: parsedData.description,
-			status: parsedData.status,
-			content: pageData.content,
-			req: reqWithTransaction,
-			user: currentUser,
-			overrideAccess: false,
-		});
-
-		if (!updateResult.ok) {
+		const moduleId = params.moduleId;
+		if (!moduleId) {
 			return badRequest({
 				success: false,
-				error: updateResult.error.message,
+				error: "Module ID is required",
 			});
 		}
 
-		return ok({
-			success: true,
-			message: "Module updated successfully",
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Handle JSON request
+			const { data } = await getDataAndContentTypeFromRequest(request);
+			const parsedData = activityModuleSchema.parse(data);
+
+			if (parsedData.type !== "page") {
+				return badRequest({
+					success: false,
+					error: "Invalid module type for page action",
+				});
+			}
+
+			const { pageData } = transformToActivityData(parsedData);
+
+			if (!pageData) {
+				return badRequest({
+					success: false,
+					error: "Missing page data",
+				});
+			}
+
+			const updateResult = await tryUpdatePageModule({
+				payload,
+				id: Number(moduleId),
+				title: parsedData.title,
+				description: parsedData.description,
+				status: parsedData.status,
+				content: pageData.content,
+				req: reqWithTransaction,
+				user: currentUser,
+				overrideAccess: false,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
 		});
-	});
-})!;
+	},
+)!;
 
-const updateWhiteboardAction = serverOnly$(async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const updateWhiteboardAction = serverOnly$(
+	async ({
+		request,
+		context,
+		params,
+	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
-		});
-	}
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	return transactionInfo.tx(async ({ reqWithTransaction }) => {
-		// Handle JSON request
-		const { data } = await getDataAndContentTypeFromRequest(request);
-		const parsedData = activityModuleSchema.parse(data);
-
-		if (parsedData.type !== "whiteboard") {
+		if (!userSession?.isAuthenticated) {
 			return badRequest({
 				success: false,
-				error: "Invalid module type for whiteboard action",
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		const { whiteboardData } = transformToActivityData(parsedData);
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (!whiteboardData) {
+		if (!currentUser) {
 			return badRequest({
 				success: false,
-				error: "Missing whiteboard data",
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		const updateResult = await tryUpdateWhiteboardModule({
-			payload,
-			id: Number(moduleId),
-			title: parsedData.title,
-			description: parsedData.description,
-			status: parsedData.status,
-			content: whiteboardData.content,
-			req: reqWithTransaction,
-			user: currentUser,
-			overrideAccess: false,
-		});
-
-		if (!updateResult.ok) {
+		const moduleId = params.moduleId;
+		if (!moduleId) {
 			return badRequest({
 				success: false,
-				error: updateResult.error.message,
+				error: "Module ID is required",
 			});
 		}
 
-		return ok({
-			success: true,
-			message: "Module updated successfully",
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Handle JSON request
+			const { data } = await getDataAndContentTypeFromRequest(request);
+			const parsedData = activityModuleSchema.parse(data);
+
+			if (parsedData.type !== "whiteboard") {
+				return badRequest({
+					success: false,
+					error: "Invalid module type for whiteboard action",
+				});
+			}
+
+			const { whiteboardData } = transformToActivityData(parsedData);
+
+			if (!whiteboardData) {
+				return badRequest({
+					success: false,
+					error: "Missing whiteboard data",
+				});
+			}
+
+			const updateResult = await tryUpdateWhiteboardModule({
+				payload,
+				id: Number(moduleId),
+				title: parsedData.title,
+				description: parsedData.description,
+				status: parsedData.status,
+				content: whiteboardData.content,
+				req: reqWithTransaction,
+				user: currentUser,
+				overrideAccess: false,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
 		});
-	});
-})!;
+	},
+)!;
 
-const updateFileAction = serverOnly$(async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
+const updateFileAction = serverOnly$(
+	async ({
+		request,
+		context,
+		params,
+	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+		const { payload, systemGlobals } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
+		if (!userSession?.isAuthenticated) {
+			return badRequest({
+				success: false,
+				error: "You must be logged in to edit modules",
+			});
+		}
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	if (!currentUser) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
+		if (!currentUser) {
+			return badRequest({
+				success: false,
+				error: "You must be logged in to edit modules",
+			});
+		}
 
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
-		});
-	}
+		const moduleId = params.moduleId;
+		if (!moduleId) {
+			return badRequest({
+				success: false,
+				error: "Module ID is required",
+			});
+		}
 
-	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+		const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload);
 
-	return transactionInfo.tx(async ({ reqWithTransaction }) => {
-		// Parse form data with media upload handler
-		const parseResult = await tryParseFormDataWithMediaUpload({
-			payload,
-			request,
-			userId: currentUser.id,
-			user: currentUser,
-			req: reqWithTransaction,
-			maxFileSize,
-			fields: [
-				{
-					fieldName: "files",
-				},
-			],
-		});
-
-		if (!parseResult.ok) {
-			return handleUploadError(
-				parseResult.error,
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Parse form data with media upload handler
+			const parseResult = await tryParseFormDataWithMediaUpload({
+				payload,
+				request,
+				userId: currentUser.id,
+				user: currentUser,
+				req: reqWithTransaction,
 				maxFileSize,
-				"Failed to parse form data",
-			);
-		}
+				fields: [
+					{
+						fieldName: "files",
+					},
+				],
+			});
 
-		const { formData, uploadedMedia } = parseResult.value;
+			if (!parseResult.ok) {
+				return handleUploadError(
+					parseResult.error,
+					maxFileSize,
+					"Failed to parse form data",
+				);
+			}
 
-		const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
+			const { formData, uploadedMedia } = parseResult.value;
 
-		// Extract form data (excluding files) and parse values
-		const formDataObj: Record<string, unknown> = {};
-		for (const [key, value] of formData.entries()) {
-			if (key !== "files") {
-				const stringValue = value.toString();
-				// Try to parse JSON values (arrays, objects, booleans, numbers)
-				try {
-					formDataObj[key] = JSON.parse(stringValue);
-				} catch {
-					// If not JSON, keep as string
-					formDataObj[key] = stringValue;
+			const uploadedMediaIds = uploadedMedia.map((media) => media.mediaId);
+
+			// Extract form data (excluding files) and parse values
+			const formDataObj: Record<string, unknown> = {};
+			for (const [key, value] of formData.entries()) {
+				if (key !== "files") {
+					const stringValue = value.toString();
+					// Try to parse JSON values (arrays, objects, booleans, numbers)
+					try {
+						formDataObj[key] = JSON.parse(stringValue);
+					} catch {
+						// If not JSON, keep as string
+						formDataObj[key] = stringValue;
+					}
 				}
 			}
-		}
 
-		// Parse the form data
-		const parsedData = activityModuleSchema.parse(formDataObj);
+			// Parse the form data
+			const parsedData = activityModuleSchema.parse(formDataObj);
 
-		if (parsedData.type !== "file") {
+			if (parsedData.type !== "file") {
+				return badRequest({
+					success: false,
+					error: "Invalid module type for file action",
+				});
+			}
+
+			// For file type, combine existing media IDs with newly uploaded media IDs
+			const existingMediaIds = parsedData.fileMedia ?? [];
+			const allMediaIds = [...existingMediaIds, ...uploadedMediaIds];
+
+			const updateResult = await tryUpdateFileModule({
+				payload,
+				id: Number(moduleId),
+				title: parsedData.title,
+				description: parsedData.description,
+				status: parsedData.status,
+				media: allMediaIds.length > 0 ? allMediaIds : undefined,
+				req: reqWithTransaction,
+				user: currentUser,
+				overrideAccess: false,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
+		});
+	},
+)!;
+
+const updateAssignmentAction = serverOnly$(
+	async ({
+		request,
+		context,
+		params,
+	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
 			return badRequest({
 				success: false,
-				error: "Invalid module type for file action",
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		// For file type, combine existing media IDs with newly uploaded media IDs
-		const existingMediaIds = parsedData.fileMedia ?? [];
-		const allMediaIds = [...existingMediaIds, ...uploadedMediaIds];
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		const updateResult = await tryUpdateFileModule({
-			payload,
-			id: Number(moduleId),
-			title: parsedData.title,
-			description: parsedData.description,
-			status: parsedData.status,
-			media: allMediaIds.length > 0 ? allMediaIds : undefined,
-			req: reqWithTransaction,
-			user: currentUser,
-			overrideAccess: false,
-		});
-
-		if (!updateResult.ok) {
+		if (!currentUser) {
 			return badRequest({
 				success: false,
-				error: updateResult.error.message,
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		return ok({
-			success: true,
-			message: "Module updated successfully",
-		});
-	});
-})!;
-
-const updateAssignmentAction = serverOnly$(async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
-		});
-	}
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	return transactionInfo.tx(async ({ reqWithTransaction }) => {
-		// Handle JSON request
-		const { data } = await getDataAndContentTypeFromRequest(request);
-		const parsedData = activityModuleSchema.parse(data);
-
-		if (parsedData.type !== "assignment") {
+		const moduleId = params.moduleId;
+		if (!moduleId) {
 			return badRequest({
 				success: false,
-				error: "Invalid module type for assignment action",
+				error: "Module ID is required",
 			});
 		}
 
-		const { assignmentData } = transformToActivityData(parsedData);
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload);
 
-		if (!assignmentData) {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Handle JSON request
+			const { data } = await getDataAndContentTypeFromRequest(request);
+			const parsedData = activityModuleSchema.parse(data);
+
+			if (parsedData.type !== "assignment") {
+				return badRequest({
+					success: false,
+					error: "Invalid module type for assignment action",
+				});
+			}
+
+			const { assignmentData } = transformToActivityData(parsedData);
+
+			if (!assignmentData) {
+				return badRequest({
+					success: false,
+					error: "Missing assignment data",
+				});
+			}
+
+			const updateResult = await tryUpdateAssignmentModule({
+				payload,
+				id: Number(moduleId),
+				title: parsedData.title,
+				description: parsedData.description,
+				status: parsedData.status,
+				instructions: assignmentData.instructions,
+				requireTextSubmission: assignmentData.requireTextSubmission,
+				requireFileSubmission: assignmentData.requireFileSubmission,
+				allowedFileTypes: assignmentData.allowedFileTypes,
+				maxFileSize: assignmentData.maxFileSize,
+				maxFiles: assignmentData.maxFiles,
+				req: reqWithTransaction,
+				user: currentUser,
+				overrideAccess: false,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
+		});
+	},
+)!;
+
+const updateQuizAction = serverOnly$(
+	async ({
+		request,
+		context,
+		params,
+	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
 			return badRequest({
 				success: false,
-				error: "Missing assignment data",
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		const updateResult = await tryUpdateAssignmentModule({
-			payload,
-			id: Number(moduleId),
-			title: parsedData.title,
-			description: parsedData.description,
-			status: parsedData.status,
-			instructions: assignmentData.instructions,
-			dueDate: assignmentData.dueDate,
-			maxAttempts: assignmentData.maxAttempts,
-			allowLateSubmissions: assignmentData.allowLateSubmissions,
-			requireTextSubmission: assignmentData.requireTextSubmission,
-			requireFileSubmission: assignmentData.requireFileSubmission,
-			allowedFileTypes: assignmentData.allowedFileTypes,
-			maxFileSize: assignmentData.maxFileSize,
-			maxFiles: assignmentData.maxFiles,
-			req: reqWithTransaction,
-			user: currentUser,
-			overrideAccess: false,
-		});
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (!updateResult.ok) {
+		if (!currentUser) {
 			return badRequest({
 				success: false,
-				error: updateResult.error.message,
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		return ok({
-			success: true,
-			message: "Module updated successfully",
-		});
-	});
-})!;
-
-const updateQuizAction = serverOnly$(async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
-		});
-	}
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	return transactionInfo.tx(async ({ reqWithTransaction }) => {
-		// Handle JSON request
-		const { data } = await getDataAndContentTypeFromRequest(request);
-		const parsedData = activityModuleSchema.parse(data);
-
-		if (parsedData.type !== "quiz") {
+		const moduleId = params.moduleId;
+		if (!moduleId) {
 			return badRequest({
 				success: false,
-				error: "Invalid module type for quiz action",
+				error: "Module ID is required",
 			});
 		}
 
-		const { quizData } = transformToActivityData(parsedData);
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload);
 
-		if (!quizData) {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Handle JSON request
+			const { data } = await getDataAndContentTypeFromRequest(request);
+			const parsedData = activityModuleSchema.parse(data);
+
+			if (parsedData.type !== "quiz") {
+				return badRequest({
+					success: false,
+					error: "Invalid module type for quiz action",
+				});
+			}
+
+			const { quizData } = transformToActivityData(parsedData);
+
+			if (!quizData) {
+				return badRequest({
+					success: false,
+					error: "Missing quiz data",
+				});
+			}
+
+			const updateResult = await tryUpdateQuizModule({
+				payload,
+				id: Number(moduleId),
+				title: parsedData.title,
+				description: parsedData.description,
+				status: parsedData.status,
+				instructions: quizData.instructions,
+				points: quizData.points,
+				timeLimit: quizData.timeLimit,
+				gradingType: quizData.gradingType,
+				rawQuizConfig: quizData.rawQuizConfig,
+				req: reqWithTransaction,
+				user: currentUser,
+				overrideAccess: false,
+			});
+
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
+
+			return ok({
+				success: true,
+				message: "Module updated successfully",
+			});
+		});
+	},
+)!;
+
+const updateDiscussionAction = serverOnly$(
+	async ({
+		request,
+		context,
+		params,
+	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+		const { payload } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+
+		if (!userSession?.isAuthenticated) {
 			return badRequest({
 				success: false,
-				error: "Missing quiz data",
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		const updateResult = await tryUpdateQuizModule({
-			payload,
-			id: Number(moduleId),
-			title: parsedData.title,
-			description: parsedData.description,
-			status: parsedData.status,
-			instructions: quizData.instructions,
-			dueDate: quizData.dueDate,
-			maxAttempts: quizData.maxAttempts,
-			points: quizData.points,
-			timeLimit: quizData.timeLimit,
-			gradingType: quizData.gradingType,
-			rawQuizConfig: quizData.rawQuizConfig,
-			req: reqWithTransaction,
-			user: currentUser,
-			overrideAccess: false,
-		});
+		const currentUser =
+			userSession.effectiveUser ?? userSession.authenticatedUser;
 
-		if (!updateResult.ok) {
+		if (!currentUser) {
 			return badRequest({
 				success: false,
-				error: updateResult.error.message,
+				error: "You must be logged in to edit modules",
 			});
 		}
 
-		return ok({
-			success: true,
-			message: "Module updated successfully",
-		});
-	});
-})!;
-
-const updateDiscussionAction = serverOnly$(async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-
-	if (!userSession?.isAuthenticated) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	if (!currentUser) {
-		return badRequest({
-			success: false,
-			error: "You must be logged in to edit modules",
-		});
-	}
-
-	const moduleId = params.moduleId;
-	if (!moduleId) {
-		return badRequest({
-			success: false,
-			error: "Module ID is required",
-		});
-	}
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	return transactionInfo.tx(async ({ reqWithTransaction }) => {
-		// Handle JSON request
-		const { data } = await getDataAndContentTypeFromRequest(request);
-		const parsedData = activityModuleSchema.parse(data);
-
-		if (parsedData.type !== "discussion") {
+		const moduleId = params.moduleId;
+		if (!moduleId) {
 			return badRequest({
 				success: false,
-				error: "Invalid module type for discussion action",
+				error: "Module ID is required",
 			});
 		}
 
-		const { discussionData } = transformToActivityData(parsedData);
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload);
 
-		if (!discussionData) {
-			return badRequest({
-				success: false,
-				error: "Missing discussion data",
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Handle JSON request
+			const { data } = await getDataAndContentTypeFromRequest(request);
+			const parsedData = activityModuleSchema.parse(data);
+
+			if (parsedData.type !== "discussion") {
+				return badRequest({
+					success: false,
+					error: "Invalid module type for discussion action",
+				});
+			}
+
+			const { discussionData } = transformToActivityData(parsedData);
+
+			if (!discussionData) {
+				return badRequest({
+					success: false,
+					error: "Missing discussion data",
+				});
+			}
+
+			const updateResult = await tryUpdateDiscussionModule({
+				payload,
+				id: Number(moduleId),
+				title: parsedData.title,
+				description: parsedData.description,
+				status: parsedData.status,
+				instructions: discussionData.instructions,
+				dueDate: discussionData.dueDate,
+				requireThread: discussionData.requireThread,
+				requireReplies: discussionData.requireReplies,
+				minReplies: discussionData.minReplies,
+				req: reqWithTransaction,
+				user: currentUser,
+				overrideAccess: false,
 			});
-		}
 
-		const updateResult = await tryUpdateDiscussionModule({
-			payload,
-			id: Number(moduleId),
-			title: parsedData.title,
-			description: parsedData.description,
-			status: parsedData.status,
-			instructions: discussionData.instructions,
-			dueDate: discussionData.dueDate,
-			requireThread: discussionData.requireThread,
-			requireReplies: discussionData.requireReplies,
-			minReplies: discussionData.minReplies,
-			req: reqWithTransaction,
-			user: currentUser,
-			overrideAccess: false,
-		});
+			if (!updateResult.ok) {
+				return badRequest({
+					success: false,
+					error: updateResult.error.message,
+				});
+			}
 
-		if (!updateResult.ok) {
-			return badRequest({
-				success: false,
-				error: updateResult.error.message,
+			return ok({
+				success: true,
+				message: "Module updated successfully",
 			});
-		}
-
-		return ok({
-			success: true,
-			message: "Module updated successfully",
 		});
-	});
-})!;
+	},
+)!;
 
 const getActionUrl = (action: Action, moduleId: string) => {
 	return (
@@ -917,113 +926,145 @@ export function useUpdateDiscussion() {
 
 // Form wrappers that use their respective hooks
 function PageFormWrapper({
-	moduleId,
-	initialValues,
+	module,
 }: {
-	moduleId: number;
-	initialValues: Extract<ActivityModuleFormValues, { type: "page" }>;
+	module: Extract<ActivityModuleResult, { type: "page" }>;
 }) {
 	const { updatePage, isLoading } = useUpdatePage();
 	return (
 		<PageForm
-			initialValues={initialValues}
-			onSubmit={(values) => updatePage(String(moduleId), values)}
+			initialValues={{
+				title: module.title,
+				description: module.description || "",
+				status: module.status,
+				type: "page",
+				pageContent: module.content || "",
+			}}
+			onSubmit={(values) => updatePage(String(module.id), values)}
 			isLoading={isLoading}
 		/>
 	);
 }
 
 function WhiteboardFormWrapper({
-	moduleId,
-	initialValues,
+	module,
 }: {
-	moduleId: number;
-	initialValues: Extract<ActivityModuleFormValues, { type: "whiteboard" }>;
+	module: Extract<ActivityModuleResult, { type: "whiteboard" }>;
 }) {
 	const { updateWhiteboard, isLoading } = useUpdateWhiteboard();
 	return (
 		<WhiteboardForm
-			initialValues={initialValues}
-			onSubmit={(values) => updateWhiteboard(String(moduleId), values)}
+			initialValues={{
+				title: module.title,
+				description: module.description || "",
+				status: module.status,
+				type: "whiteboard",
+				whiteboardContent: module.content || "",
+			}}
+			onSubmit={(values) => updateWhiteboard(String(module.id), values)}
 			isLoading={isLoading}
 		/>
 	);
 }
 
 function FileFormWrapper({
-	moduleId,
-	initialValues,
+	module,
 	uploadLimit,
-	existingMedia,
 }: {
-	moduleId: number;
-	initialValues: Extract<ActivityModuleFormValues, { type: "file" }>;
+	module: Extract<ActivityModuleResult, { type: "file" }>;
 	uploadLimit?: number;
-	existingMedia?: Array<{
-		id: number;
-		filename?: string | null;
-		mimeType?: string | null;
-		filesize?: number | null;
-	}>;
 }) {
 	const { updateFile, isLoading } = useUpdateFile();
 	return (
 		<FileForm
-			initialValues={initialValues}
-			onSubmit={(values) => updateFile(String(moduleId), values)}
+			initialValues={{
+				title: module.title,
+				description: module.description || "",
+				status: module.status,
+				fileMedia: module.media?.map((m) => m.id) ?? [],
+				fileFiles: [],
+			}}
+			onSubmit={(values) => updateFile(String(module.id), values)}
 			uploadLimit={uploadLimit}
-			existingMedia={existingMedia || []}
+			existingMedia={module.media ?? []}
 			isLoading={isLoading}
 		/>
 	);
 }
 
 function AssignmentFormWrapper({
-	moduleId,
-	initialValues,
+	module,
 }: {
-	moduleId: number;
-	initialValues: Extract<ActivityModuleFormValues, { type: "assignment" }>;
+	module: Extract<ActivityModuleResult, { type: "assignment" }>;
 }) {
 	const { updateAssignment, isLoading } = useUpdateAssignment();
 	return (
 		<AssignmentForm
-			initialValues={initialValues}
-			onSubmit={(values) => updateAssignment(String(moduleId), values)}
+			initialValues={{
+				title: module.title,
+				description: module.description || "",
+				status: module.status,
+				type: "assignment",
+				assignmentInstructions: module.instructions || "",
+				assignmentRequireTextSubmission: module.requireTextSubmission ?? false,
+				assignmentRequireFileSubmission: module.requireFileSubmission ?? false,
+				assignmentAllowedFileTypes: fileTypesToPresetValues(
+					module.allowedFileTypes,
+				),
+				assignmentMaxFileSize: module.maxFileSize ?? 10,
+				assignmentMaxFiles: module.maxFiles ?? 5,
+			}}
+			onSubmit={(values) => updateAssignment(String(module.id), values)}
 			isLoading={isLoading}
 		/>
 	);
 }
 
 function QuizFormWrapper({
-	moduleId,
-	initialValues,
+	module,
 }: {
-	moduleId: number;
-	initialValues: Extract<ActivityModuleFormValues, { type: "quiz" }>;
+	module: Extract<ActivityModuleResult, { type: "quiz" }>;
 }) {
 	const { updateQuiz, isLoading } = useUpdateQuiz();
 	return (
 		<QuizForm
-			initialValues={initialValues}
-			onSubmit={(values) => updateQuiz(String(moduleId), values)}
+			initialValues={{
+				title: module.title,
+				description: module.description || "",
+				status: module.status,
+				type: "quiz",
+				quizInstructions: module.instructions || "",
+				quizPoints: module.points ?? 100,
+				quizTimeLimit: module.timeLimit ?? 60,
+				quizGradingType: module.gradingType || "automatic",
+				rawQuizConfig: (module.rawQuizConfig as QuizConfig | null) ?? null,
+			}}
+			onSubmit={(values) => updateQuiz(String(module.id), values)}
 			isLoading={isLoading}
 		/>
 	);
 }
 
 function DiscussionFormWrapper({
-	moduleId,
-	initialValues,
+	module,
 }: {
-	moduleId: number;
-	initialValues: Extract<ActivityModuleFormValues, { type: "discussion" }>;
+	module: Extract<ActivityModuleResult, { type: "discussion" }>;
 }) {
 	const { updateDiscussion, isLoading } = useUpdateDiscussion();
 	return (
 		<DiscussionForm
-			initialValues={initialValues}
-			onSubmit={(values) => updateDiscussion(String(moduleId), values)}
+			initialValues={{
+				title: module.title,
+				description: module.description || "",
+				status: module.status,
+				type: "discussion",
+				discussionInstructions: module.instructions || "",
+				discussionDueDate: module.dueDate ? new Date(module.dueDate) : null,
+				discussionRequireThread: module.requireThread ?? false,
+				discussionRequireReplies: module.requireReplies ?? false,
+				discussionMinReplies: module.minReplies ?? 1,
+			}}
+			onSubmit={(values) => updateDiscussion(String(module.id), values)}
 			isLoading={isLoading}
 		/>
 	);
@@ -1031,98 +1072,6 @@ function DiscussionFormWrapper({
 
 export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 	const { module, uploadLimit, hasLinkedCourses } = loaderData;
-
-	// Extract activity-specific data
-	const pageData = module.page;
-	const whiteboardData = module.whiteboard;
-	const fileData = module.file;
-	const assignmentData = module.assignment;
-	const quizData = module.quiz;
-	const discussionData = module.discussion;
-
-	// Prepare initial values for each form type
-	const getInitialValues = () => {
-		const base = {
-			title: module.title,
-			description: module.description || "",
-			status: module.status,
-		};
-
-		switch (module.type) {
-			case "page":
-				return {
-					...base,
-					type: "page" as const,
-					pageContent: pageData?.content ?? "",
-				};
-			case "whiteboard":
-				return {
-					...base,
-					type: "whiteboard" as const,
-					whiteboardContent: whiteboardData?.content ?? "",
-				};
-			case "file":
-				return {
-					...base,
-					type: "file" as const,
-					fileMedia:
-						fileData?.media
-							?.map((m: number | { id: number } | null | undefined) =>
-								typeof m === "object" && m !== null && "id" in m ? m.id : m,
-							)
-							.filter(
-								(id: number | null | undefined): id is number =>
-									typeof id === "number",
-							) ?? [],
-					fileFiles: [],
-				};
-			case "assignment":
-				return {
-					...base,
-					type: "assignment" as const,
-					assignmentInstructions: assignmentData?.instructions ?? "",
-					assignmentDueDate: assignmentData?.dueDate
-						? new Date(assignmentData.dueDate)
-						: null,
-					assignmentMaxAttempts: assignmentData?.maxAttempts ?? 1,
-					assignmentAllowLateSubmissions:
-						assignmentData?.allowLateSubmissions ?? false,
-					assignmentRequireTextSubmission:
-						assignmentData?.requireTextSubmission ?? false,
-					assignmentRequireFileSubmission:
-						assignmentData?.requireFileSubmission ?? false,
-					assignmentAllowedFileTypes: fileTypesToPresetValues(
-						assignmentData?.allowedFileTypes,
-					),
-					assignmentMaxFileSize: assignmentData?.maxFileSize ?? 10,
-					assignmentMaxFiles: assignmentData?.maxFiles ?? 5,
-				};
-			case "quiz":
-				return {
-					...base,
-					type: "quiz" as const,
-					quizInstructions: quizData?.instructions ?? "",
-					quizDueDate: quizData?.dueDate ? new Date(quizData.dueDate) : null,
-					quizMaxAttempts: quizData?.maxAttempts ?? 1,
-					quizPoints: quizData?.points ?? 100,
-					quizTimeLimit: quizData?.timeLimit ?? 60,
-					quizGradingType: quizData?.gradingType ?? "automatic",
-					rawQuizConfig: quizData?.rawQuizConfig ?? null,
-				};
-			case "discussion":
-				return {
-					...base,
-					type: "discussion" as const,
-					discussionInstructions: discussionData?.instructions ?? "",
-					discussionDueDate: discussionData?.dueDate
-						? new Date(discussionData.dueDate)
-						: null,
-					discussionRequireThread: discussionData?.requireThread ?? false,
-					discussionRequireReplies: discussionData?.requireReplies ?? false,
-					discussionMinReplies: discussionData?.minReplies ?? 1,
-				};
-		}
-	};
 
 	return (
 		<Container size="md" py="xl">
@@ -1159,73 +1108,19 @@ export default function EditModulePage({ loaderData }: Route.ComponentProps) {
 							]}
 						/>
 
-						{module.type === "page" && (
-							<PageFormWrapper
-								moduleId={module.id}
-								initialValues={
-									getInitialValues() as Extract<
-										ActivityModuleFormValues,
-										{ type: "page" }
-									>
-								}
-							/>
-						)}
+						{module.type === "page" && <PageFormWrapper module={module} />}
 						{module.type === "whiteboard" && (
-							<WhiteboardFormWrapper
-								moduleId={module.id}
-								initialValues={
-									getInitialValues() as Extract<
-										ActivityModuleFormValues,
-										{ type: "whiteboard" }
-									>
-								}
-							/>
+							<WhiteboardFormWrapper module={module} />
 						)}
 						{module.type === "file" && (
-							<FileFormWrapper
-								moduleId={module.id}
-								initialValues={
-									getInitialValues() as Extract<
-										ActivityModuleFormValues,
-										{ type: "file" }
-									>
-								}
-								uploadLimit={uploadLimit}
-								existingMedia={fileData?.media || []}
-							/>
+							<FileFormWrapper module={module} uploadLimit={uploadLimit} />
 						)}
 						{module.type === "assignment" && (
-							<AssignmentFormWrapper
-								moduleId={module.id}
-								initialValues={
-									getInitialValues() as Extract<
-										ActivityModuleFormValues,
-										{ type: "assignment" }
-									>
-								}
-							/>
+							<AssignmentFormWrapper module={module} />
 						)}
-						{module.type === "quiz" && (
-							<QuizFormWrapper
-								moduleId={module.id}
-								initialValues={
-									getInitialValues() as Extract<
-										ActivityModuleFormValues,
-										{ type: "quiz" }
-									>
-								}
-							/>
-						)}
+						{module.type === "quiz" && <QuizFormWrapper module={module} />}
 						{module.type === "discussion" && (
-							<DiscussionFormWrapper
-								moduleId={module.id}
-								initialValues={
-									getInitialValues() as Extract<
-										ActivityModuleFormValues,
-										{ type: "discussion" }
-									>
-								}
-							/>
+							<DiscussionFormWrapper module={module} />
 						)}
 					</Stack>
 				</Paper>

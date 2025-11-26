@@ -109,10 +109,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				userId: enrolmentContext.enrolment.userId,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					userId: enrolmentContext.enrolment.userId,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -194,10 +194,10 @@ export const action = async ({
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				userId: enrollment.user as number,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					userId: enrollment.user as number,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 
@@ -267,15 +267,11 @@ export const action = async ({
 		const linkId = parsedData.data.linkId;
 		const redirectTo = parsedData.data.redirectTo;
 
-		const deleteResult = await tryDeleteCourseActivityModuleLink(
-			{
-				payload,
-				req: request,
-				linkId
-			},
-
-
-		);
+		const deleteResult = await tryDeleteCourseActivityModuleLink({
+			payload,
+			req: request,
+			linkId,
+		});
 
 		if (!deleteResult.ok) {
 			return badRequest({ error: deleteResult.error.message });

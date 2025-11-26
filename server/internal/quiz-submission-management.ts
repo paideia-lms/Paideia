@@ -1,6 +1,7 @@
 import type { Payload } from "payload";
 import { QuizSubmissions } from "server/collections";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { LatestQuizSettings } from "server/json/course-module-settings/version-resolver";
+import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { JobQueue } from "server/payload.config";
 import type { QuizSubmission } from "server/payload-types";
 import { assertZodInternal } from "server/utils/type-narrowing";
@@ -13,21 +14,18 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
-import { interceptPayloadError, stripDepth, type BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { tryCreateUserGrade } from "./user-grade-management";
+import { handleTransactionId } from "./utils/handle-transaction-id";
+import {
+	type BaseInternalFunctionArgs,
+	interceptPayloadError,
+	stripDepth,
+} from "./utils/internal-function-utils";
 
 export type CreateQuizArgs = BaseInternalFunctionArgs & {
 	title: string;
 	description?: string;
 	instructions?: string;
-	dueDate?: string;
-	maxAttempts?: number;
-	allowLateSubmissions?: boolean;
 	points?: number;
 	gradingType?: "automatic" | "manual";
 	timeLimit?: number;
@@ -40,13 +38,13 @@ export type CreateQuizArgs = BaseInternalFunctionArgs & {
 	questions: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -67,9 +65,6 @@ export type UpdateQuizArgs = BaseInternalFunctionArgs & {
 	title?: string;
 	description?: string;
 	instructions?: string;
-	dueDate?: string;
-	maxAttempts?: number;
-	allowLateSubmissions?: boolean;
 	points?: number;
 	gradingType?: "automatic" | "manual";
 	timeLimit?: number;
@@ -82,13 +77,13 @@ export type UpdateQuizArgs = BaseInternalFunctionArgs & {
 	questions?: Array<{
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank"
-		| "matching"
-		| "ordering";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
 		points: number;
 		options?: Array<{
 			text: string;
@@ -112,11 +107,11 @@ export type CreateQuizSubmissionArgs = BaseInternalFunctionArgs & {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -140,11 +135,11 @@ export type UpdateQuizSubmissionArgs = BaseInternalFunctionArgs & {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -160,7 +155,7 @@ export type GradeQuizSubmissionArgs = BaseInternalFunctionArgs & {
 	gradebookItemId: number;
 	gradedBy: number;
 	submittedAt?: string | number;
-}
+};
 
 export type GetQuizByIdArgs = BaseInternalFunctionArgs & {
 	id: number | string;
@@ -198,11 +193,11 @@ export type SubmitQuizArgs = BaseInternalFunctionArgs & {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -332,9 +327,6 @@ export const tryCreateQuiz = Result.wrap(
 			title,
 			description,
 			instructions,
-			dueDate,
-			maxAttempts = 1,
-			allowLateSubmissions = false,
 			points = 100,
 			gradingType = "automatic",
 			// timeLimit is no longer used - it's derived from rawQuizConfig.globalTimer
@@ -399,9 +391,6 @@ export const tryCreateQuiz = Result.wrap(
 				title,
 				description,
 				instructions,
-				dueDate,
-				maxAttempts,
-				allowLateSubmissions,
 				points,
 				gradingType,
 				showCorrectAnswers,
@@ -453,20 +442,22 @@ export const tryGetQuizById = Result.wrap(
 		}
 
 		// Fetch the quiz
-		const quizResult = await payload.find({
-			collection: "quizzes",
-			where: {
-				and: [
-					{
-						id: { equals: id },
-					},
-				],
-			},
-			depth: 1, // Fetch related data
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "find">())
+		const quizResult = await payload
+			.find({
+				collection: "quizzes",
+				where: {
+					and: [
+						{
+							id: { equals: id },
+						},
+					],
+				},
+				depth: 1, // Fetch related data
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		const quiz = quizResult.docs[0];
 
@@ -474,7 +465,7 @@ export const tryGetQuizById = Result.wrap(
 			throw new InvalidArgumentError(`Quiz with id '${id}' not found`);
 		}
 
-		return quiz
+		return quiz;
 	},
 	(error) =>
 		transformError(error) ??
@@ -494,9 +485,6 @@ export const tryUpdateQuiz = Result.wrap(
 			title,
 			description,
 			instructions,
-			dueDate,
-			maxAttempts,
-			allowLateSubmissions,
 			points,
 			gradingType,
 			// timeLimit is no longer used - it's derived from rawQuizConfig.globalTimer
@@ -519,10 +507,6 @@ export const tryUpdateQuiz = Result.wrap(
 		if (title !== undefined) updateData.title = title;
 		if (description !== undefined) updateData.description = description;
 		if (instructions !== undefined) updateData.instructions = instructions;
-		if (dueDate !== undefined) updateData.dueDate = dueDate;
-		if (maxAttempts !== undefined) updateData.maxAttempts = maxAttempts;
-		if (allowLateSubmissions !== undefined)
-			updateData.allowLateSubmissions = allowLateSubmissions;
 		if (points !== undefined) updateData.points = points;
 		if (gradingType !== undefined) updateData.gradingType = gradingType;
 		// timeLimit is no longer stored in the collection - it's derived from rawQuizConfig.globalTimer
@@ -546,13 +530,15 @@ export const tryUpdateQuiz = Result.wrap(
 			);
 		}
 
-		const updatedQuiz = await payload.update({
-			collection: "quizzes",
-			id,
-			data: updateData,
-		}).then(stripDepth<1, "update">())
+		const updatedQuiz = await payload
+			.update({
+				collection: "quizzes",
+				id,
+				data: updateData,
+			})
+			.then(stripDepth<1, "update">());
 
-		return updatedQuiz
+		return updatedQuiz;
 	},
 	(error) =>
 		transformError(error) ??
@@ -560,7 +546,6 @@ export const tryUpdateQuiz = Result.wrap(
 			cause: error,
 		}),
 );
-
 
 /**
  * Starts a new quiz attempt by creating an in_progress submission
@@ -591,24 +576,26 @@ export const tryStartQuizAttempt = Result.wrap(
 		}
 
 		// Check if there's an existing in_progress submission for this student and quiz
-		const existingInProgressSubmission = await payload.find({
-			collection: "quiz-submissions",
-			where: {
-				and: [
-					{ courseModuleLink: { equals: courseModuleLinkId } },
-					{ student: { equals: studentId } },
-					{
-						status: {
-							equals: "in_progress" satisfies QuizSubmission["status"],
+		const existingInProgressSubmission = await payload
+			.find({
+				collection: "quiz-submissions",
+				where: {
+					and: [
+						{ courseModuleLink: { equals: courseModuleLinkId } },
+						{ student: { equals: studentId } },
+						{
+							status: {
+								equals: "in_progress" satisfies QuizSubmission["status"],
+							},
 						},
-					},
-				],
-			},
-			depth: 1, 
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "find">())
+					],
+				},
+				depth: 1,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		if (existingInProgressSubmission.docs.length > 0) {
 			throw new InvalidArgumentError(
@@ -617,20 +604,22 @@ export const tryStartQuizAttempt = Result.wrap(
 		}
 
 		// Check if submission already exists for this attempt number
-		const existingSubmission = await payload.find({
-			collection: "quiz-submissions",
-			where: {
-				and: [
-					{ courseModuleLink: { equals: courseModuleLinkId } },
-					{ student: { equals: studentId } },
-					{ attemptNumber: { equals: attemptNumber } },
-				],
-			},
-			depth: 1, 
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "find">())
+		const existingSubmission = await payload
+			.find({
+				collection: "quiz-submissions",
+				where: {
+					and: [
+						{ courseModuleLink: { equals: courseModuleLinkId } },
+						{ student: { equals: studentId } },
+						{ attemptNumber: { equals: attemptNumber } },
+					],
+				},
+				depth: 1,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		if (existingSubmission.docs.length > 0) {
 			throw new InvalidArgumentError(
@@ -639,44 +628,55 @@ export const tryStartQuizAttempt = Result.wrap(
 		}
 
 		// Get course module link to access quiz
-		const courseModuleLink = await payload.findByID({
-			collection: "course-activity-module-links",
-			id: courseModuleLinkId,
-			depth: 2, // Need to get activity module and quiz
-		}).then(stripDepth<2, "findByID">())
+		const courseModuleLink = await payload
+			.findByID({
+				collection: "course-activity-module-links",
+				id: courseModuleLinkId,
+				depth: 2, // Need to get activity module and quiz
+			})
+			.then(stripDepth<2, "findByID">());
 
 		if (!courseModuleLink) {
 			throw new InvalidArgumentError("Course module link not found");
 		}
 
 		// Get quiz from activity module
-		const activityModule =
-			 courseModuleLink.activityModule
+		const activityModule = courseModuleLink.activityModule;
 
-		const quiz =
-			 activityModule.quiz
+		const quiz = activityModule.quiz;
+		const quizSettings =
+			courseModuleLink.settings as unknown as LatestQuizSettings;
 
-		const isLate = quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+		const isLate = quizSettings.closingTime
+			? new Date() > new Date(quizSettings.closingTime)
+			: false;
+
+		// ! for now, we don't allow any late submissions for quiz
+		if (isLate) {
+			throw new QuizTimeLimitExceededError("Quiz is closed");
+		}
 
 		const startedAt = new Date().toISOString();
 
-		const submission = await payload.create({
-			collection: "quiz-submissions",
-			data: {
-				courseModuleLink: courseModuleLinkId,
-				student: studentId,
-				enrollment: enrollmentId,
-				attemptNumber,
-				status: "in_progress",
-				startedAt,
-				answers: [],
-				isLate,
-			},
-			depth: 1, 
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "create">())
+		const submission = await payload
+			.create({
+				collection: "quiz-submissions",
+				data: {
+					courseModuleLink: courseModuleLinkId,
+					student: studentId,
+					enrollment: enrollmentId,
+					attemptNumber,
+					status: "in_progress",
+					startedAt,
+					answers: [],
+					isLate,
+				},
+				depth: 1,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "create">());
 
 		// Schedule auto-submit job if quiz has a time limit
 		if (quiz) {
@@ -758,19 +758,21 @@ export const tryCreateQuizSubmission = Result.wrap(
 		}
 
 		// Check if submission already exists for this attempt
-		const existingSubmission = await payload.find({
-			collection: "quiz-submissions",
-			where: {
-				and: [
-					{ courseModuleLink: { equals: courseModuleLinkId } },
-					{ student: { equals: studentId } },
-					{ attemptNumber: { equals: attemptNumber } },
-				],
-			},
-			user,
-			req,
-			overrideAccess,
-		});
+		const existingSubmission = await payload
+			.find({
+				collection: "quiz-submissions",
+				where: {
+					and: [
+						{ courseModuleLink: { equals: courseModuleLinkId } },
+						{ student: { equals: studentId } },
+						{ attemptNumber: { equals: attemptNumber } },
+					],
+				},
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		if (existingSubmission.docs.length > 0) {
 			throw new InvalidArgumentError(
@@ -779,44 +781,46 @@ export const tryCreateQuizSubmission = Result.wrap(
 		}
 
 		// Get course module link to access quiz
-		const courseModuleLink = await payload.findByID({
-			collection: "course-activity-module-links",
-			id: courseModuleLinkId,
-			depth: 2, // Need to get activity module and quiz
-		});
+		const courseModuleLink = await payload
+			.findByID({
+				collection: "course-activity-module-links",
+				id: courseModuleLinkId,
+				depth: 1, // Need to get activity module and quiz
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "findByID">());
 
 		if (!courseModuleLink) {
 			throw new InvalidArgumentError("Course module link not found");
 		}
 
-		// Get quiz from activity module
-		const activityModule =
-			typeof courseModuleLink.activityModule === "object"
-				? courseModuleLink.activityModule
-				: null;
-		const quiz =
-			activityModule && typeof activityModule.quiz === "object"
-				? activityModule.quiz
-				: null;
+		const quizSettings =
+			courseModuleLink.settings as unknown as LatestQuizSettings;
 
-		const isLate = quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
+		const isLate = quizSettings.closingTime
+			? new Date() > new Date(quizSettings.closingTime)
+			: false;
 
-		const submission = await payload.create({
-			collection: "quiz-submissions",
-			data: {
-				courseModuleLink: courseModuleLinkId,
-				student: studentId,
-				enrollment: enrollmentId,
-				attemptNumber,
-				status: "in_progress",
-				answers,
-				isLate,
-				timeSpent,
-			},
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "create">())
+		const submission = await payload
+			.create({
+				collection: "quiz-submissions",
+				data: {
+					courseModuleLink: courseModuleLinkId,
+					student: studentId,
+					enrollment: enrollmentId,
+					attemptNumber,
+					status: "in_progress",
+					answers,
+					isLate,
+					timeSpent,
+				},
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "create">());
 
 		////////////////////////////////////////////////////
 		// type narrowing
@@ -873,15 +877,17 @@ export const tryUpdateQuizSubmission = Result.wrap(
 			);
 		}
 
-		const updatedSubmission = await payload.update({
-			collection: "quiz-submissions",
-			id,
-			data: updateData,
-			depth: 1,
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "update">())
+		const updatedSubmission = await payload
+			.update({
+				collection: "quiz-submissions",
+				id,
+				data: updateData,
+				depth: 1,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "update">());
 
 		return {
 			...updatedSubmission,
@@ -908,20 +914,22 @@ export const tryGetQuizSubmissionById = Result.wrap(
 		}
 
 		// Fetch the quiz submission
-		const submissionResult = await payload.find({
-			collection: "quiz-submissions",
-			where: {
-				and: [
-					{
-						id: { equals: id },
-					},
-				],
-			},
-			depth: 1, // Fetch related data
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "find">())
+		const submissionResult = await payload
+			.find({
+				collection: "quiz-submissions",
+				where: {
+					and: [
+						{
+							id: { equals: id },
+						},
+					],
+				},
+				depth: 1, // Fetch related data
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		const submission = submissionResult.docs[0];
 
@@ -931,11 +939,10 @@ export const tryGetQuizSubmissionById = Result.wrap(
 			);
 		}
 
-		return { 
-			...submission, 
+		return {
+			...submission,
 			courseModuleLink: submission.courseModuleLink.id,
-		}
-		
+		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -991,7 +998,7 @@ export const trySubmitQuiz = Result.wrap(
 				collection: "course-activity-module-links",
 				id:
 					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
+					"id" in currentSubmission.courseModuleLink
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
@@ -1048,19 +1055,21 @@ export const trySubmitQuiz = Result.wrap(
 		}
 
 		// Update status to completed
-		const updatedSubmission = await payload.update({
-			collection: "quiz-submissions",
-			id: submissionId,
-			data: updateData,
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "update">())
+		const updatedSubmission = await payload
+			.update({
+				collection: "quiz-submissions",
+				id: submissionId,
+				data: updateData,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "update">());
 
-		return { 
+		return {
 			...updatedSubmission,
 			courseModuleLink: updatedSubmission.courseModuleLink.id,
-		}
+		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -1075,11 +1084,11 @@ type CalculateQuizGradeArgs = BaseInternalFunctionArgs & {
 		questionId: string;
 		questionText: string;
 		questionType:
-		| "multiple_choice"
-		| "true_false"
-		| "short_answer"
-		| "essay"
-		| "fill_blank";
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
 		selectedAnswer?: string | null;
 		multipleChoiceAnswers?: Array<{
 			option: string;
@@ -1093,7 +1102,14 @@ type CalculateQuizGradeArgs = BaseInternalFunctionArgs & {
  */
 export const tryCalculateQuizGrade = Result.wrap(
 	async (args: CalculateQuizGradeArgs) => {
-		const { payload, quizId, answers, user = null, req, overrideAccess = false } = args;
+		const {
+			payload,
+			quizId,
+			answers,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		// Get the quiz to access correct answers
 		const quiz = await payload.findByID({
@@ -1296,7 +1312,17 @@ export const tryCalculateQuizGrade = Result.wrap(
  */
 export const tryGradeQuizSubmission = Result.wrap(
 	async (args: GradeQuizSubmissionArgs) => {
-		const { payload, id, enrollmentId, gradebookItemId, gradedBy, submittedAt, req, user = null, overrideAccess = false } = args;
+		const {
+			payload,
+			id,
+			enrollmentId,
+			gradebookItemId,
+			gradedBy,
+			submittedAt,
+			req,
+			user = null,
+			overrideAccess = false,
+		} = args;
 
 		// Validate ID
 		if (!id) {
@@ -1317,20 +1343,27 @@ export const tryGradeQuizSubmission = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		return transactionInfo.tx(async ( { reqWithTransaction}) => {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Get the current submission
-			const currentSubmission = await payload.findByID({
-				collection: QuizSubmissions.slug,
-				id,
-				req: reqWithTransaction,
-				user, 
-				overrideAccess,
-				depth: 0
-			}).then(stripDepth<0, "findByID">())
-			.catch((error) => {
-				interceptPayloadError(error, "tryGradeQuizSubmission", "Get current submission", args);	
-				throw error ;
-			})
+			const currentSubmission = await payload
+				.findByID({
+					collection: QuizSubmissions.slug,
+					id,
+					req: reqWithTransaction,
+					user,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "findByID">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryGradeQuizSubmission",
+						"Get current submission",
+						args,
+					);
+					throw error;
+				});
 
 			if (!currentSubmission) {
 				throw new NonExistingQuizSubmissionError(
@@ -1345,32 +1378,31 @@ export const tryGradeQuizSubmission = Result.wrap(
 			}
 
 			// Get course module link to access quiz
-			const courseModuleLink = await payload.findByID({
-				collection: "course-activity-module-links",
-				id: currentSubmission.courseModuleLink,
-				depth: 2,
-				req: transactionInfo.reqWithTransaction,
-				user,
-				overrideAccess,
-			}).then(stripDepth<2, "findByID">())
+			const courseModuleLink = await payload
+				.findByID({
+					collection: "course-activity-module-links",
+					id: currentSubmission.courseModuleLink,
+					depth: 2,
+					req: transactionInfo.reqWithTransaction,
+					user,
+					overrideAccess,
+				})
+				.then(stripDepth<2, "findByID">());
 
 			if (!courseModuleLink) {
 				throw new InvalidArgumentError("Course module link not found");
 			}
 
-			const activityModule = courseModuleLink.activityModule
-			const quiz = activityModule.quiz
+			const activityModule = courseModuleLink.activityModule;
+			const quiz = activityModule.quiz;
 
-			if (!quiz ) {
+			if (!quiz) {
 				throw new InvalidArgumentError("Quiz not found");
 			}
 
 			// Calculate the grade
 			const validAnswers = (currentSubmission.answers ?? [])
-				.filter(
-					(answer) =>
-						answer.questionText ,
-				)
+				.filter((answer) => answer.questionText)
 				.map((answer) => ({
 					questionId: answer.questionId,
 					questionText: answer.questionText as string,
@@ -1387,15 +1419,14 @@ export const tryGradeQuizSubmission = Result.wrap(
 						})),
 				}));
 
-			const gradingResult = await tryCalculateQuizGrade(
-				{
-					payload,
-					quizId: quiz.id,
-					answers: validAnswers,
-					user,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				});
+			const gradingResult = await tryCalculateQuizGrade({
+				payload,
+				quizId: quiz.id,
+				answers: validAnswers,
+				user,
+				req: transactionInfo.reqWithTransaction,
+				overrideAccess,
+			});
 
 			if (!gradingResult.ok) {
 				throw new Error(
@@ -1406,21 +1437,23 @@ export const tryGradeQuizSubmission = Result.wrap(
 			const gradeData = gradingResult.value;
 
 			// Update submission with grade
-			const updatedSubmission = await payload.update({
-				collection: QuizSubmissions.slug,
-				id,
-				data: {
-					status: "graded",
-					totalScore: gradeData.totalScore,
-					maxScore: gradeData.maxScore,
-					percentage: gradeData.percentage,
-					autoGraded: true,
-				},
-				depth: 1,
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			}).then(stripDepth<1, "update">())
+			const updatedSubmission = await payload
+				.update({
+					collection: QuizSubmissions.slug,
+					id,
+					data: {
+						status: "graded",
+						totalScore: gradeData.totalScore,
+						maxScore: gradeData.maxScore,
+						percentage: gradeData.percentage,
+						autoGraded: true,
+					},
+					depth: 1,
+					user,
+					req: transactionInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
 
 			// Create user grade in gradebook
 			const submittedAtString =
@@ -1463,7 +1496,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				userGrade: userGradeResult.value,
 				questionResults: gradeData.questionResults,
 			};
-		})
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1519,17 +1552,19 @@ export const tryListQuizSubmissions = Result.wrap(
 		const where =
 			whereConditions.length > 0 ? { and: whereConditions } : undefined;
 
-		const result = await payload.find({
-			collection: "quiz-submissions",
-			where,
-			limit,
-			page,
-			sort: "-createdAt",
-			depth: 1, // Fetch related data
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<1, "find">())
+		const result = await payload
+			.find({
+				collection: "quiz-submissions",
+				where,
+				limit,
+				page,
+				sort: "-createdAt",
+				depth: 1, // Fetch related data
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		// type narrowing
 		const docs = result.docs.map((doc) => {
@@ -2107,10 +2142,10 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 			// Build response distribution for multiple choice
 			let responseDistribution:
 				| Array<{
-					option: string;
-					count: number;
-					percentage: number;
-				}>
+						option: string;
+						count: number;
+						percentage: number;
+				  }>
 				| undefined;
 
 			if (

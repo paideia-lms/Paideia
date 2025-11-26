@@ -1,3 +1,4 @@
+import { MIME_TYPES } from "@mantine/dropzone";
 import {
 	IconFile,
 	IconFileText,
@@ -26,7 +27,6 @@ import {
 	IconFileZip,
 	IconPhoto,
 } from "@tabler/icons-react";
-import { MIME_TYPES } from "@mantine/dropzone";
 import mime from "mime";
 
 export interface FileTypeOption {

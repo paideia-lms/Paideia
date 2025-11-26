@@ -1,4 +1,4 @@
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
 import { devConstants } from "../constants";
 
 // Sample Nested Quiz Config for testing and seeding

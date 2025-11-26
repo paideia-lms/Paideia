@@ -7,10 +7,10 @@ import { generateCourseStructureTree } from "../utils/course-structure-tree";
 import {
 	type CreateAssignmentModuleArgs,
 	type CreateDiscussionModuleArgs,
+	type CreateQuizModuleArgs,
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
 	tryCreateQuizModule,
-	type CreateQuizModuleArgs,
 } from "./activity-module-management";
 import { tryCreateCourse } from "./course-management";
 import {
@@ -2336,7 +2336,7 @@ describe("Course Section Management Functions", () => {
 		// console.log("Links in Section A.1:", linksInSectionA1.docs);
 
 		if (linksInSectionA1.docs.length > 0) {
-			const linkToMove = linksInSectionA1.docs[0];
+			const linkToMove = linksInSectionA1.docs[0]!;
 			// console.log("Link to move:", linkToMove);
 
 			// Move this link to be positioned between Activity Module 2 and Section A.1.1

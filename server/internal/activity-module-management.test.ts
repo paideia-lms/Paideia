@@ -17,7 +17,7 @@ import {
 	tryUpdateFileModule,
 	tryUpdatePageModule,
 	tryUpdateQuizModule,
-	tryUpdateWhiteboardModule,
+	type tryUpdateWhiteboardModule,
 } from "./activity-module-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
@@ -143,9 +143,6 @@ describe("Activity Module Management", () => {
 			userId: testUserId,
 			user: testUser ?? undefined,
 			instructions: "Complete this assignment",
-			dueDate: "2024-12-31",
-			maxAttempts: 3,
-			allowLateSubmissions: true,
 			allowedFileTypes: [
 				{ extension: "pdf", mimeType: "application/pdf" },
 				{
@@ -188,9 +185,6 @@ describe("Activity Module Management", () => {
 			userId: testUserId,
 			user: testUser ?? undefined,
 			instructions: "Answer all questions",
-			dueDate: "2024-12-31",
-			maxAttempts: 2,
-			allowLateSubmissions: false,
 			points: 100,
 			gradingType: "automatic",
 			timeLimit: 60,
@@ -349,8 +343,6 @@ describe("Activity Module Management", () => {
 				userId: testUserId,
 				user: testUser ?? undefined,
 				instructions: "Complete this assignment",
-				dueDate: "2024-12-31",
-				maxAttempts: 1,
 			}),
 			tryCreateQuizModule({
 				payload,
@@ -462,8 +454,6 @@ describe("Activity Module Management", () => {
 			userId: testUserId,
 			user: testUser ?? undefined,
 			instructions: "Original instructions",
-			dueDate: "2024-12-31",
-			maxAttempts: 1,
 		} satisfies CreateAssignmentModuleArgs;
 
 		const createResult = await tryCreateAssignmentModule(createArgs);
@@ -480,9 +470,6 @@ describe("Activity Module Management", () => {
 			status: "published",
 			user: testUser ?? undefined,
 			instructions: "Updated instructions",
-			dueDate: `${year}-01-31`,
-			maxAttempts: 3,
-			allowLateSubmissions: true,
 		};
 
 		const updateResult = await tryUpdateAssignmentModule(updateArgs);
@@ -659,8 +646,6 @@ describe("Activity Module Management", () => {
 			userId: testUserId,
 			user: testUser ?? undefined,
 			instructions: "Complete this assignment",
-			dueDate: "2024-12-31",
-			maxAttempts: 3,
 		} satisfies CreateAssignmentModuleArgs;
 
 		const createResult = await tryCreateAssignmentModule(args);
@@ -670,7 +655,6 @@ describe("Activity Module Management", () => {
 		const createdModule = createResult.value;
 		if (createdModule.type !== "assignment")
 			throw new Error("Test Error: Activity module type is not assignment");
-		expect(createdModule.maxAttempts).toBeDefined();
 
 		const deleteResult = await tryDeleteActivityModule({
 			payload,
@@ -811,8 +795,6 @@ describe("Activity Module Management", () => {
 				userId: testUserId,
 				user: testUser ?? undefined,
 				instructions: "Complete this assignment",
-				dueDate: "2024-12-31",
-				maxAttempts: 1,
 			}),
 			tryCreateQuizModule({
 				payload,

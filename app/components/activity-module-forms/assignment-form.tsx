@@ -44,10 +44,6 @@ export function AssignmentForm({
 			type: "assignment" as const,
 			status: initialValues?.status || "draft",
 			assignmentInstructions: initialValues?.assignmentInstructions || "",
-			assignmentDueDate: initialValues?.assignmentDueDate || null,
-			assignmentMaxAttempts: initialValues?.assignmentMaxAttempts || 1,
-			assignmentAllowLateSubmissions:
-				initialValues?.assignmentAllowLateSubmissions || false,
 			assignmentRequireTextSubmission:
 				initialValues?.assignmentRequireTextSubmission || false,
 			assignmentRequireFileSubmission:

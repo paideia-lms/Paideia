@@ -34,7 +34,7 @@ export type {
 	SingleSelectionMatrixQuestion,
 	WeightedScoring,
 	WhiteboardQuestion,
-} from "../../../server/json/raw-quiz-config.types.v2";
+} from "server/json/raw-quiz-config/types.v2";
 // Quiz type guards and helpers
 export {
 	calculateTotalPoints,
@@ -43,7 +43,7 @@ export {
 	getScoringDescription,
 	isContainerQuiz,
 	isRegularQuiz,
-} from "../../../server/json/raw-quiz-config.types.v2";
+} from "server/json/raw-quiz-config/types.v2";
 export { AssignmentPreview } from "../activity-modules-preview/assignment-preview";
 export { DiscussionPreview } from "../activity-modules-preview/discussion-preview";
 // Nested quiz components

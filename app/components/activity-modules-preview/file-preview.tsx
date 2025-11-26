@@ -11,11 +11,11 @@ interface FilePreviewProps {
 	files: Array<
 		| number
 		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		}
+				id: number;
+				filename?: string | null;
+				mimeType?: string | null;
+				filesize?: number | null;
+		  }
 	>;
 }
 

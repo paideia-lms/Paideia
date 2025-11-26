@@ -3,8 +3,8 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
-	tryCreateAssignmentModule,
 	type CreateAssignmentModuleArgs,
+	tryCreateAssignmentModule,
 } from "./activity-module-management";
 import {
 	type CreateAssignmentSubmissionArgs,
@@ -145,9 +145,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			status: "published",
 			userId: teacherId,
 			instructions: "Complete this assignment by writing a short essay",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 3,
-			allowLateSubmissions: true,
 			requireTextSubmission: true,
 			requireFileSubmission: false,
 			overrideAccess: true,

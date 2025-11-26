@@ -110,8 +110,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-			filenameOrId: thumbnailFileNameOrId,
-		})
+				filenameOrId: thumbnailFileNameOrId,
+			})
 		: null;
 
 	return {

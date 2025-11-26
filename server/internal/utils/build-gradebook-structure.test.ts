@@ -82,8 +82,8 @@ describe("Build Gradebook Structure", () => {
 
 		// Should only have root categories (Category 1 with its subcategory)
 		expect(result.length).toBe(1);
-		expect(result[0].type).toBe("category");
-		expect(result[0].id).toBe(1);
+		expect(result[0]!.type).toBe("category");
+		expect(result[0]!.id).toBe(1);
 	});
 
 	it("should include items when processing a specific category", () => {
@@ -136,10 +136,10 @@ describe("Build Gradebook Structure", () => {
 
 		// Should have only the items (no subcategories, and not the category itself)
 		expect(result.length).toBe(2);
-		expect(result[0].id).toBe(3);
-		expect(result[0].type).toBe("manual_item");
-		expect(result[1].id).toBe(4);
-		expect(result[1].type).toBe("manual_item");
+		expect(result[0]!.id).toBe(3);
+		expect(result[0]!.type).toBe("manual_item");
+		expect(result[1]!.id).toBe(4);
+		expect(result[1]!.type).toBe("manual_item");
 	});
 
 	it("should handle nested categories correctly", () => {
@@ -184,16 +184,16 @@ describe("Build Gradebook Structure", () => {
 
 		// Should have root category with nested category inside
 		expect(result.length).toBe(1);
-		expect(result[0].type).toBe("category");
-		expect(result[0].id).toBe(1);
-		expect(result[0].grade_items).toBeDefined();
-		if (result[0].grade_items) {
-			expect(result[0].grade_items.length).toBe(1);
-			expect(result[0].grade_items[0].type).toBe("category");
-			expect(result[0].grade_items[0].id).toBe(2);
-			if (result[0].grade_items[0].grade_items) {
-				expect(result[0].grade_items[0].grade_items.length).toBe(1);
-				expect(result[0].grade_items[0].grade_items[0].id).toBe(3);
+		expect(result[0]!.type).toBe("category");
+		expect(result[0]!.id).toBe(1);
+		expect(result[0]!.grade_items).toBeDefined();
+		if (result[0]!.grade_items) {
+			expect(result[0]!.grade_items.length).toBe(1);
+			expect(result[0]!.grade_items[0]!.type).toBe("category");
+			expect(result[0]!.grade_items[0]!.id).toBe(2);
+			if (result[0]!.grade_items[0]!.grade_items) {
+				expect(result[0]!.grade_items[0]!.grade_items.length).toBe(1);
+				expect(result[0]!.grade_items[0]!.grade_items[0]!.id).toBe(3);
 			}
 		}
 	});
@@ -297,9 +297,9 @@ describe("Build Gradebook Structure", () => {
 		);
 
 		expect(result.length).toBe(2);
-		expect(result[0].id).toBe(3);
-		expect(result[0].extra_credit).toBe(false);
-		expect(result[1].id).toBe(4);
-		expect(result[1].extra_credit).toBe(true);
+		expect(result[0]!.id).toBe(3);
+		expect(result[0]!.extra_credit).toBe(false);
+		expect(result[1]!.id).toBe(4);
+		expect(result[1]!.extra_credit).toBe(true);
 	});
 });

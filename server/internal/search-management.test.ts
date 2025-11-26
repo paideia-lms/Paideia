@@ -196,7 +196,7 @@ describe("Search Management Functions", () => {
 
 			expect(result.value.docs.length).toBe(1);
 			// should be python course
-			expect(result.value.docs[0].title).toBe(
+			expect(result.value.docs[0]!.title).toBe(
 				"Advanced Python Development Patterns",
 			);
 		});

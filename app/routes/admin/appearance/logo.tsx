@@ -245,7 +245,7 @@ const uploadAction = async ({
 	const updateData: {
 		[K in LogoField]?: number | null;
 	} = {
-		[logoField]: uploadedMedia[0].mediaId,
+		[logoField]: uploadedMedia[0]!.mediaId,
 	};
 
 	const updateResult = await tryUpdateAppearanceSettings({

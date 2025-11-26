@@ -171,7 +171,7 @@ export function calculateMoveOperation(
 		return null; // Multiple item move not supported
 	}
 
-	const sourceItem = dragIds[0];
+	const sourceItem = dragIds[0]!;
 
 	const isInTargetSection = getChildrenFn(targetId ?? "root").some(
 		(item) => item === sourceItem,
@@ -204,7 +204,7 @@ export function calculateMoveOperation(
 	if (targetIndex === undefined) {
 		if (targetId === null || targetId === "root") {
 			// in this case, we just move to the first item of root section
-			const firstItemInRoot = getChildrenFn("root")[0];
+			const firstItemInRoot = getChildrenFn("root")[0]!;
 			return {
 				sourceType,
 				sourceId,
@@ -252,7 +252,7 @@ export function calculateMoveOperation(
 			const children = getChildrenFn("root").filter(
 				(item) => item !== sourceItem,
 			);
-			const lastItemInRoot = children[children.length - 1];
+			const lastItemInRoot = children[children.length - 1]!;
 			targetType = "section";
 			targetIdNum = Number(lastItemInRoot.substring(1));
 			location = "below";

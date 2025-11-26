@@ -153,8 +153,6 @@ describe("Quiz Submission Management - Time Limit", () => {
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
 			instructions: "Complete quickly",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig: {
@@ -214,8 +212,6 @@ describe("Quiz Submission Management - Time Limit", () => {
 			status: "published",
 			userId: teacherId,
 			instructions: "Complete quickly",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig: {

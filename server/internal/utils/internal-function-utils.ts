@@ -309,7 +309,6 @@ export function stripDepth<
 	D extends number,
 	f extends "find" | "findByID" | "create" | "update" | "delete" = "findByID",
 >() {
-	return function <T>(data: T): Depth<T, f extends "find" ? Sum<D, 1> : D> {
-		return data as any;
-	};
+	return <T>(data: T): Depth<T, f extends "find" ? Sum<D, 1> : D> =>
+		data as any;
 }

@@ -1,19 +1,19 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload } from "payload";
-import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
+import type { LatestCourseModuleSettings } from "server/json";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateAssignmentModuleArgs,
-	type CreatePageModuleArgs,
-	tryCreateAssignmentModule,
-	tryCreatePageModule,
-	type CreateQuizModuleArgs,
-	tryCreateQuizModule,
 	type CreateDiscussionModuleArgs,
-	tryCreateDiscussionModule,
-	tryCreateWhiteboardModule,
+	type CreatePageModuleArgs,
+	type CreateQuizModuleArgs,
 	type CreateWhiteboardModuleArgs,
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+	tryCreatePageModule,
+	tryCreateQuizModule,
+	tryCreateWhiteboardModule,
 } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
@@ -174,9 +174,6 @@ describe("Course Activity Module Link Management Functions", () => {
 				status: "draft",
 				userId: testUser.id,
 				instructions: "Complete this assignment",
-				dueDate: "2025-12-31T23:59:59Z",
-				maxAttempts: 3,
-				allowLateSubmissions: true,
 				requireTextSubmission: true,
 				requireFileSubmission: false,
 				overrideAccess: true,
@@ -291,11 +288,7 @@ describe("Course Activity Module Link Management Functions", () => {
 				expect(result.value.docs.length).toBeGreaterThan(0);
 				result.value.docs.forEach((link) => {
 					// Handle both depth 0 (ID) and depth 1 (object) cases
-					if (link.course && typeof link.course === "object") {
-						expect(link.course.id).toBe(testCourse.id);
-					} else {
-						expect(link.course).toBe(testCourse.id);
-					}
+					expect(link.course.id).toBe(testCourse.id);
 				});
 			}
 		});
@@ -313,11 +306,7 @@ describe("Course Activity Module Link Management Functions", () => {
 				expect(result.value.docs.length).toBeGreaterThan(0);
 				result.value.docs.forEach((link) => {
 					// Handle both depth 0 (ID) and depth 1 (object) cases
-					if (link.activityModule && typeof link.activityModule === "object") {
-						expect(link.activityModule.id).toBe(testActivityModule.id);
-					} else {
-						expect(link.activityModule).toBe(testActivityModule.id);
-					}
+					expect(link.activityModule.id).toBe(testActivityModule.id);
 				});
 			}
 		});
@@ -562,9 +551,6 @@ describe("Course Activity Module Link Management Functions", () => {
 				status: "draft",
 				userId: testUser.id,
 				instructions: "Complete this assignment",
-				dueDate: "2025-12-31T23:59:59Z",
-				maxAttempts: 3,
-				allowLateSubmissions: true,
 				requireTextSubmission: true,
 				requireFileSubmission: false,
 				overrideAccess: true,
@@ -585,9 +571,7 @@ describe("Course Activity Module Link Management Functions", () => {
 				status: "draft",
 				userId: testUser.id,
 				instructions: "Complete this quiz",
-				dueDate: "2025-12-31T23:59:59Z",
 				timeLimit: 60,
-				maxAttempts: 2,
 				overrideAccess: true,
 			} satisfies CreateQuizModuleArgs;
 
@@ -659,8 +643,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		describe("Creating links with initial settings", () => {
 			test("should create link with assignment settings", async () => {
-				const settings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Weekly Learning Journal - Week 1",
@@ -687,8 +671,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should create link with quiz settings", async () => {
-				const settings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "quiz",
 						name: "Mid-term Quiz",
@@ -714,8 +698,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should create link with discussion settings", async () => {
-				const settings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "discussion",
 						name: "Weekly Discussion Forum",
@@ -754,8 +738,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 				if (!pageModule.ok) return;
 
-				const settings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "page",
 						name: "Custom Page Title",
@@ -792,8 +776,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 				if (!whiteboardModule.ok) return;
 
-				const settings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "whiteboard",
 						name: "Brainstorming Session 1",
@@ -819,8 +803,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		describe("tryUpdateCourseModuleSettings", () => {
 			test("should update assignment settings successfully", async () => {
-				const newSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const newSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Updated Assignment Name",
@@ -845,8 +829,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should update quiz settings successfully", async () => {
-				const newSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const newSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "quiz",
 						name: "Updated Quiz Name",
@@ -870,8 +854,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should update discussion settings successfully", async () => {
-				const newSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const newSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "discussion",
 						name: "Updated Discussion Name",
@@ -898,8 +882,8 @@ describe("Course Activity Module Link Management Functions", () => {
 		describe("tryGetCourseModuleSettings", () => {
 			test("should retrieve settings for a link", async () => {
 				// First update with known settings
-				const settings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Test Assignment Settings",
@@ -960,8 +944,8 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		describe("Date Validation", () => {
 			test("should reject assignment with due date after cutoff date", async () => {
-				const invalidSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const invalidSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Invalid Assignment",
@@ -987,8 +971,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject assignment with allowSubmissionsFrom after due date", async () => {
-				const invalidSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const invalidSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Invalid Assignment",
@@ -1014,8 +998,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject assignment with allowSubmissionsFrom after cutoff date", async () => {
-				const invalidSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const invalidSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Invalid Assignment",
@@ -1041,8 +1025,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject quiz with opening time after closing time", async () => {
-				const invalidSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const invalidSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "quiz",
 						name: "Invalid Quiz",
@@ -1068,8 +1052,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject discussion with due date after cutoff date", async () => {
-				const invalidSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const invalidSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "discussion",
 						name: "Invalid Discussion",
@@ -1095,8 +1079,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should accept valid assignment date ranges", async () => {
-				const validSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const validSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Valid Assignment",
@@ -1118,8 +1102,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should accept valid quiz time range", async () => {
-				const validSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const validSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "quiz",
 						name: "Valid Quiz",
@@ -1140,8 +1124,8 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should accept valid discussion date range", async () => {
-				const validSettings: CourseModuleSettingsV1 = {
-					version: "v1",
+				const validSettings: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "discussion",
 						name: "Valid Discussion",
@@ -1165,8 +1149,8 @@ describe("Course Activity Module Link Management Functions", () => {
 		describe("Same module, multiple links with different settings", () => {
 			test("should allow same assignment module with different settings in same course", async () => {
 				// Create first link with settings
-				const settings1: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings1: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Learning Journal - Week 1",
@@ -1188,8 +1172,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				expect(link1.ok).toBe(true);
 
 				// Create second link with different settings
-				const settings2: CourseModuleSettingsV1 = {
-					version: "v1",
+				const settings2: LatestCourseModuleSettings = {
+					version: "v2",
 					settings: {
 						type: "assignment",
 						name: "Learning Journal - Week 2",

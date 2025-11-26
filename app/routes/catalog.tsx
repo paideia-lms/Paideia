@@ -155,7 +155,7 @@ function getMockCourseInstances(code: string) {
 
 		for (let i = 0; i < numSections; i++) {
 			const sectionLetter = String.fromCharCode(65 + i); // A, B, C
-			const schedule = schedules[i % schedules.length];
+			const schedule = schedules[i % schedules.length]!;
 			const instructor = instructors[i % instructors.length];
 			const location = locations[i % locations.length];
 

@@ -2,12 +2,12 @@ import { Button, Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
 import { useForm } from "@mantine/form";
 import { useRef } from "react";
+import { FileUploader } from "~/components/file-uploader";
 import type {
 	ActivityModuleFormValues,
 	FileModuleFormValues,
 } from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
-import { FileUploader } from "~/components/file-uploader";
 import { CommonFields } from "./common-fields";
 
 /**
@@ -99,12 +99,20 @@ export function FileForm({
 	});
 
 	// Watch form values to sync with FileUploader
-	const files = useFormWatchForceUpdate(form, "fileFiles", (({ value, previousValue }) => {
-		return JSON.stringify(value) !== JSON.stringify(previousValue);
-	}));
-	const mediaIds = useFormWatchForceUpdate(form, "fileMedia", (({ value, previousValue }) => {
-		return JSON.stringify(value) !== JSON.stringify(previousValue);
-	}));
+	const files = useFormWatchForceUpdate(
+		form,
+		"fileFiles",
+		({ value, previousValue }) => {
+			return JSON.stringify(value) !== JSON.stringify(previousValue);
+		},
+	);
+	const mediaIds = useFormWatchForceUpdate(
+		form,
+		"fileMedia",
+		({ value, previousValue }) => {
+			return JSON.stringify(value) !== JSON.stringify(previousValue);
+		},
+	);
 
 	// Sync form with initialValues when they change (e.g., after loader revalidation)
 	useSyncFormWithInitialValues(form, initialValues, ["fileMedia", "fileFiles"]);

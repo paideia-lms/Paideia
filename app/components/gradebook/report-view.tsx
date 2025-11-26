@@ -210,7 +210,7 @@ function buildHeadersRecursive(
 		if (isCategory) {
 			// This is a category - it needs a header cell that spans its children
 			// Add category header at current depth with colStart and colEnd
-			rows[depth].cells.push({
+			rows[depth]!.cells.push({
 				id: item.id,
 				name: item.name,
 				type: item.type,
@@ -231,7 +231,7 @@ function buildHeadersRecursive(
 			}
 		} else {
 			// This is a leaf item - always add to the final row
-			rows[finalRowIndex].cells.push({
+			rows[finalRowIndex]!.cells.push({
 				id: item.id,
 				name: item.name,
 				type: item.type,

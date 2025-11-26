@@ -1,4 +1,3 @@
-
 import { Result } from "typescript-result";
 import {
 	AccessGrantNotFoundError,
@@ -9,38 +8,42 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import { interceptPayloadError, stripDepth, type BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { handleTransactionId } from "./utils/handle-transaction-id";
+import {
+	type BaseInternalFunctionArgs,
+	interceptPayloadError,
+	stripDepth,
+} from "./utils/internal-function-utils";
 
 export type GrantAccessArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	grantedToUserId: number;
 	grantedByUserId: number;
-}
+};
 
 export type RevokeAccessArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	userId: number;
-}
+};
 
 export type TransferOwnershipArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	newOwnerId: number;
 	currentOwnerId: number;
-}
+};
 
 export type CheckAccessArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
 	userId: number;
-}
+};
 
 export type FindGrantsByActivityModuleArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
-}
+};
 
 export type FindInstructorsForActivityModuleArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
-}
+};
 
 export interface AccessCheckResult {
 	hasAccess: boolean;
@@ -73,7 +76,7 @@ export const tryGrantAccessToActivityModule = Result.wrap(
 			id: activityModuleId,
 			depth: 0,
 			overrideAccess: true,
-		})
+		});
 
 		if (!activityModule) {
 			throw new NonExistingActivityModuleError(
@@ -139,19 +142,21 @@ export const tryGrantAccessToActivityModule = Result.wrap(
 		}
 
 		// Create the grant
-		const grant = await payload.create({
-			collection: "activity-module-grants",
-			data: {
-				activityModule: activityModuleId,
-				grantedTo: grantedToUserId,
-				grantedBy: grantedByUserId,
-				grantedAt: new Date().toISOString(),
-			},
-			depth: 0, 
-			user,
-			req,
-			overrideAccess, 
-		}).then( stripDepth<0>())
+		const grant = await payload
+			.create({
+				collection: "activity-module-grants",
+				data: {
+					activityModule: activityModuleId,
+					grantedTo: grantedToUserId,
+					grantedBy: grantedByUserId,
+					grantedAt: new Date().toISOString(),
+				},
+				depth: 0,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0>());
 
 		return grant;
 	},
@@ -179,24 +184,31 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 		} = args;
 
 		// Find the grant
-		const existingGrant = await payload.find({
-			collection: "activity-module-grants",
-			where: {
-				and: [
-					{ activityModule: { equals: activityModuleId } },
-					{ grantedTo: { equals: userId } },
-				],
-			},
-			depth: 0,
-			user,
-			req,
-			overrideAccess,
-		}).then(stripDepth<0, "find">())
-		.then(result=>result.docs)
-		.catch( error => { 
-			interceptPayloadError(error, "tryRevokeAccessFromActivityModule", "existingGrant", args);
-			throw error; 
-		})
+		const existingGrant = await payload
+			.find({
+				collection: "activity-module-grants",
+				where: {
+					and: [
+						{ activityModule: { equals: activityModuleId } },
+						{ grantedTo: { equals: userId } },
+					],
+				},
+				depth: 0,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "find">())
+			.then((result) => result.docs)
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryRevokeAccessFromActivityModule",
+					"existingGrant",
+					args,
+				);
+				throw error;
+			});
 
 		const existingGrantId = existingGrant[0]?.id;
 
@@ -332,19 +344,21 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 			}
 
 			// Remove grant for new owner if they had one (since they're now the owner)
-			const newOwnerGrant = await payload.find({
-				collection: "activity-module-grants",
-				where: {
-					and: [
-						{ activityModule: { equals: activityModuleId } },
-						{ grantedTo: { equals: newOwnerId } },
-					],
-				},
-				depth: 0,
-				overrideAccess: true,
-				user,
-				req: reqWithTransaction,
-			}).then(stripDepth<0, "find">())
+			const newOwnerGrant = await payload
+				.find({
+					collection: "activity-module-grants",
+					where: {
+						and: [
+							{ activityModule: { equals: activityModuleId } },
+							{ grantedTo: { equals: newOwnerId } },
+						],
+					},
+					depth: 0,
+					overrideAccess: true,
+					user,
+					req: reqWithTransaction,
+				})
+				.then(stripDepth<0, "find">());
 
 			const newOwnerGrantId = newOwnerGrant.docs[0]?.id;
 
@@ -359,14 +373,15 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 			}
 
 			// Return updated activity module
-			return await payload.findByID({
-				collection: "activity-modules",
-				id: activityModuleId,
-				depth: 0,
-				overrideAccess: true,
-			}).then(stripDepth<0, "findByID">())
+			return await payload
+				.findByID({
+					collection: "activity-modules",
+					id: activityModuleId,
+					depth: 0,
+					overrideAccess: true,
+				})
+				.then(stripDepth<0, "findByID">());
 		});
-		
 	},
 	(error) =>
 		transformError(error) ??
@@ -426,17 +441,19 @@ export const tryCheckActivityModuleAccess = Result.wrap(
 		const isCreator = createdById === userId;
 
 		// Check if user has granted access
-		const grant = await payload.find({
-			collection: "activity-module-grants",
-			where: {
-				and: [
-					{ activityModule: { equals: activityModuleId } },
-					{ grantedTo: { equals: userId } },
-				],
-			},
-			depth: 0,
-			overrideAccess: true,
-		}).then(stripDepth<0, "find">())
+		const grant = await payload
+			.find({
+				collection: "activity-module-grants",
+				where: {
+					and: [
+						{ activityModule: { equals: activityModuleId } },
+						{ grantedTo: { equals: userId } },
+					],
+				},
+				depth: 0,
+				overrideAccess: true,
+			})
+			.then(stripDepth<0, "find">());
 		const isGranted = grant.docs.length > 0;
 
 		const hasAccess = isAdmin || isOwner || isCreator || isGranted;
@@ -478,7 +495,7 @@ export const tryFindGrantsByActivityModule = Result.wrap(
 				overrideAccess: true,
 			})
 			.then(stripDepth<1, "find">())
-			.then(result=>result.docs)
+			.then((result) => result.docs);
 
 		return grants;
 	},
@@ -498,38 +515,40 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 		const { payload, activityModuleId } = args;
 
 		// Find all course links for this activity module
-		const links = await payload.find({
-			collection: "course-activity-module-links",
-			where: {
-				activityModule: { equals: activityModuleId },
-			},
-			depth: 0,
-			overrideAccess: true,
-		});
+		const links = await payload
+			.find({
+				collection: "course-activity-module-links",
+				where: {
+					activityModule: { equals: activityModuleId },
+				},
+				depth: 0,
+				overrideAccess: true,
+			})
+			.then(stripDepth<0, "find">());
 
 		if (links.docs.length === 0) {
 			return [];
 		}
 
 		// Extract course IDs
-		const courseIds = links.docs.map((link) =>
-			typeof link.course === "number" ? link.course : link.course.id,
-		);
+		const courseIds = links.docs.map((link) => link.course);
 
 		// Find all enrollments for these courses with teacher/ta roles
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where: {
-				and: [
-					{ course: { in: courseIds } },
-					{ role: { in: ["teacher", "ta"] } },
-					{ status: { equals: "active" } },
-				],
-			},
-			depth: 1, // Populate user data
-			pagination: false, 
-			overrideAccess: true,
-		}).then(stripDepth<1, "find">())
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					and: [
+						{ course: { in: courseIds } },
+						{ role: { in: ["teacher", "ta"] } },
+						{ status: { equals: "active" } },
+					],
+				},
+				depth: 1, // Populate user data
+				pagination: false,
+				overrideAccess: true,
+			})
+			.then(stripDepth<1, "find">());
 
 		// Extract unique users with their course info
 		const instructorMap = new Map<
@@ -540,12 +559,12 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				firstName: string | null;
 				lastName: string | null;
 				avatar?:
-				| number
-				| {
-					id: number;
-					filename?: string;
-				}
-				| null;
+					| number
+					| {
+							id: number;
+							filename?: string;
+					  }
+					| null;
 				enrollments: {
 					courseId: number;
 					role: "teacher" | "ta";
@@ -571,7 +590,10 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 					lastName: user.lastName ?? "",
 					avatar: user.avatar ?? null,
 					enrollments: [
-						{ courseId: enrollment.course.id, role: enrollment.role as "teacher" | "ta" },
+						{
+							courseId: enrollment.course.id,
+							role: enrollment.role as "teacher" | "ta",
+						},
 					],
 				});
 			}
@@ -610,17 +632,25 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				// ! we don't care about pagination and performance for now
 				pagination: false,
 				user,
-				req, 
+				req,
 				overrideAccess,
-			}).then(stripDepth<0, "find">())
-			.then(result=>result.docs)
-			.catch( error => { 
-				interceptPayloadError(error, "tryFindAutoGrantedModulesForInstructor", "enrollments", args);
-				throw error; 
 			})
+			.then(stripDepth<0, "find">())
+			.then((result) => result.docs)
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryFindAutoGrantedModulesForInstructor",
+					"enrollments",
+					args,
+				);
+				throw error;
+			});
 
 		// unique by course id, these are the courses that the instructor is teaching
-		const courseIds = enrollments.map((enrollment) => enrollment.course).filter((course, index, self) => self.indexOf(course) === index);
+		const courseIds = enrollments
+			.map((enrollment) => enrollment.course)
+			.filter((course, index, self) => self.indexOf(course) === index);
 
 		// get all the course-activity-module-links for these courses
 		const links = await payload
@@ -634,20 +664,28 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				user,
 				// ! we don't care about pagination and performance for now
 				pagination: false,
-			}).then(stripDepth<2, "find">())
-			.then( result=> result.docs)
-			// unique by activity module id
-			.then(links=>links.filter((link, index, self) => {
-				return (
-					self.findIndex(
-						(l) => l.activityModule.id === link.activityModule.id,
-					) === index
-				);
-			}))
-			.catch( error => { 
-				interceptPayloadError(error, "tryFindAutoGrantedModulesForInstructor", "links", args);
-				throw error; 
 			})
+			.then(stripDepth<2, "find">())
+			.then((result) => result.docs)
+			// unique by activity module id
+			.then((links) =>
+				links.filter((link, index, self) => {
+					return (
+						self.findIndex(
+							(l) => l.activityModule.id === link.activityModule.id,
+						) === index
+					);
+				}),
+			)
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryFindAutoGrantedModulesForInstructor",
+					"links",
+					args,
+				);
+				throw error;
+			});
 
 		return links.map((link) => ({
 			...link.activityModule,

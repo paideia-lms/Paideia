@@ -11,7 +11,7 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { CourseModuleSettingsV1 } from "../json/course-module-settings.types";
+import type { CourseModuleSettingsV1 } from "../json/course-module-settings/types";
 import type {
 	CourseActivityModuleLink,
 	CourseSection,
@@ -854,7 +854,7 @@ export const tryReorderSections = Result.wrap(
 			// Get the first section to determine the parent
 			const firstSection = await payload.findByID({
 				collection: CourseSections.slug,
-				id: sectionIds[0],
+				id: sectionIds[0]!,
 				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess: true,
@@ -1388,7 +1388,7 @@ export const tryAddActivityModuleToSection = Result.wrap(
 
 				linkOrder =
 					existingModules.docs.length > 0
-						? (existingModules.docs[0].contentOrder ?? 0) + 1
+						? (existingModules.docs[0]!.contentOrder ?? 0) + 1
 						: 1;
 			}
 
@@ -1514,7 +1514,7 @@ export const tryReorderActivityModulesInSection = Result.wrap(
 			for (let i = 0; i < linkIds.length; i++) {
 				await payload.update({
 					collection: CourseActivityModuleLinks.slug,
-					id: linkIds[i],
+					id: linkIds[i]!,
 					data: { contentOrder: i },
 					user,
 					req: transactionInfo.reqWithTransaction,
@@ -1621,7 +1621,7 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
 
 				linkOrder =
 					existingModules.docs.length > 0
-						? (existingModules.docs[0].contentOrder ?? 0) + 1
+						? (existingModules.docs[0]!.contentOrder ?? 0) + 1
 						: 1;
 			}
 
@@ -1792,7 +1792,7 @@ function assertRightContentOrder(
 	sections: (CourseStructureItem | CourseStructureSection)[],
 ): void {
 	for (let i = 0; i < sections.length; i++) {
-		const section = sections[i];
+		const section = sections[i]!;
 		if (section.type === "section") {
 			if (section.contentOrder !== i) {
 				throw new InvalidArgumentError(
@@ -1961,7 +1961,7 @@ export const tryGetCourseStructure = Result.wrap(
 
 			// Normalize contentOrder to start from 0 with no gaps
 			for (let i = 0; i < mixedContent.length; i++) {
-				mixedContent[i].contentOrder = i;
+				mixedContent[i]!.contentOrder = i;
 			}
 
 			structureSection.content = mixedContent;
@@ -1977,7 +1977,7 @@ export const tryGetCourseStructure = Result.wrap(
 
 		// Normalize root sections contentOrder to start from 0
 		for (let i = 0; i < rootSections.length; i++) {
-			rootSections[i].contentOrder = i;
+			rootSections[i]!.contentOrder = i;
 		}
 
 		assertRightContentOrder(rootSections);
@@ -2080,117 +2080,117 @@ export const tryGeneralMove = Result.wrap(
 			const sourceItem =
 				source.type === "section"
 					? await payload
-						.findByID({
-							collection: CourseSections.slug,
-							id: source.id,
-							user,
-							req: transactionInfo.reqWithTransaction,
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const parentSection = result.parentSection;
-							assertZodInternal(
-								"tryGeneralMove: Parent section is required",
-								parentSection,
-								z.object({ id: z.number() }).nullish(),
-							);
-							const course = result.course;
-							assertZodInternal(
-								"tryGeneralMove: Course is required",
-								course,
-								z.object({ id: z.number() }),
-							);
-							return {
-								...result,
-								parentSection,
-								course,
-							};
-						})
+							.findByID({
+								collection: CourseSections.slug,
+								id: source.id,
+								user,
+								req: transactionInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const parentSection = result.parentSection;
+								assertZodInternal(
+									"tryGeneralMove: Parent section is required",
+									parentSection,
+									z.object({ id: z.number() }).nullish(),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									parentSection,
+									course,
+								};
+							})
 					: await payload
-						.findByID({
-							collection: CourseActivityModuleLinks.slug,
-							id: source.id,
-							user,
-							req: transactionInfo.reqWithTransaction,
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const section = result.section;
-							assertZodInternal(
-								"tryGeneralMove: Section is required",
-								section,
-								z.object({ id: z.number() }),
-							);
-							const course = result.course;
-							assertZodInternal(
-								"tryGeneralMove: Course is required",
-								course,
-								z.object({ id: z.number() }),
-							);
-							return {
-								...result,
-								section,
-								course,
-							};
-						});
+							.findByID({
+								collection: CourseActivityModuleLinks.slug,
+								id: source.id,
+								user,
+								req: transactionInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const section = result.section;
+								assertZodInternal(
+									"tryGeneralMove: Section is required",
+									section,
+									z.object({ id: z.number() }),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									section,
+									course,
+								};
+							});
 
 			// Get target item (skip for root moves)
 			const targetItem =
 				target.type === "section"
 					? await payload
-						.findByID({
-							collection: CourseSections.slug,
-							id: target.id,
-							user,
-							req: transactionInfo.reqWithTransaction,
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const parentSection = result.parentSection;
-							assertZodInternal(
-								"tryGeneralMove: Parent section is required",
-								parentSection,
-								z.object({ id: z.number() }).nullish(),
-							);
-							const course = result.course;
-							assertZodInternal(
-								"tryGeneralMove: Course is required",
-								course,
-								z.object({ id: z.number() }),
-							);
-							return {
-								...result,
-								parentSection,
-								course,
-							};
-						})
+							.findByID({
+								collection: CourseSections.slug,
+								id: target.id,
+								user,
+								req: transactionInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const parentSection = result.parentSection;
+								assertZodInternal(
+									"tryGeneralMove: Parent section is required",
+									parentSection,
+									z.object({ id: z.number() }).nullish(),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									parentSection,
+									course,
+								};
+							})
 					: await payload
-						.findByID({
-							collection: CourseActivityModuleLinks.slug,
-							id: target.id,
-							user,
-							req: transactionInfo.reqWithTransaction,
-							overrideAccess: true,
-						})
-						.then((result) => {
-							const section = result.section;
-							assertZodInternal(
-								"tryGeneralMove: Section is required",
-								section,
-								z.object({ id: z.number() }),
-							);
-							const course = result.course;
-							assertZodInternal(
-								"tryGeneralMove: Course is required",
-								course,
-								z.object({ id: z.number() }),
-							);
-							return {
-								...result,
-								section,
-								course,
-							};
-						});
+							.findByID({
+								collection: CourseActivityModuleLinks.slug,
+								id: target.id,
+								user,
+								req: transactionInfo.reqWithTransaction,
+								overrideAccess: true,
+							})
+							.then((result) => {
+								const section = result.section;
+								assertZodInternal(
+									"tryGeneralMove: Section is required",
+									section,
+									z.object({ id: z.number() }),
+								);
+								const course = result.course;
+								assertZodInternal(
+									"tryGeneralMove: Course is required",
+									course,
+									z.object({ id: z.number() }),
+								);
+								return {
+									...result,
+									section,
+									course,
+								};
+							});
 			// Determine course ID
 			const sourceCourseId = sourceItem.course.id;
 
@@ -2330,19 +2330,19 @@ export const tryGeneralMove = Result.wrap(
 			const finalResult =
 				source.type === "section"
 					? await payload.findByID({
-						collection: CourseSections.slug,
-						id: source.id,
-						user,
-						req: transactionInfo.reqWithTransaction,
-						overrideAccess: true,
-					})
+							collection: CourseSections.slug,
+							id: source.id,
+							user,
+							req: transactionInfo.reqWithTransaction,
+							overrideAccess: true,
+						})
 					: await payload.findByID({
-						collection: CourseActivityModuleLinks.slug,
-						id: source.id,
-						user,
-						req: transactionInfo.reqWithTransaction,
-						overrideAccess: true,
-					});
+							collection: CourseActivityModuleLinks.slug,
+							id: source.id,
+							user,
+							req: transactionInfo.reqWithTransaction,
+							overrideAccess: true,
+						});
 
 			await commitTransactionIfCreated(payload, transactionInfo);
 			return finalResult;
@@ -2409,7 +2409,7 @@ async function recalculateSectionContentOrder(
 
 	// Reassign contentOrder starting from 0
 	for (let i = 0; i < allContent.length; i++) {
-		const contentItem = allContent[i];
+		const contentItem = allContent[i]!;
 		const newContentOrder = i;
 
 		if (contentItem.type === "section") {

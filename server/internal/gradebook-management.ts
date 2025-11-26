@@ -46,13 +46,13 @@ export interface GradebookSetupItem {
 	 */
 	id: number;
 	type:
-	| "manual_item"
-	| "category"
-	| "page"
-	| "whiteboard"
-	| "assignment"
-	| "quiz"
-	| "discussion";
+		| "manual_item"
+		| "category"
+		| "page"
+		| "whiteboard"
+		| "assignment"
+		| "quiz"
+		| "discussion";
 	name: string;
 	weight: number | null;
 	max_grade: number | null;
@@ -409,7 +409,7 @@ function buildGradeSummaryRows(
 	const rows: string[] = [];
 
 	for (let i = 0; i < items.length; i++) {
-		const item = items[i];
+		const item = items[i]!;
 		const isLast = i === items.length - 1;
 		const isCategory = item.type === "category";
 		const hasNestedItems =

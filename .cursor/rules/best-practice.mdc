@@ -87,6 +87,11 @@ use virtual field over depth. we would rather have a nested virtual field than h
 
 all globals collections should be defined in a single `server/collections/globals.ts`.
 
+
+## json
+
+some data are stored as json object in the database. we should use `tryResolve` functions to resolve the json object to the latest version. in other files, we should always import from `server/json` instead of directly from the file because it will be easier to manage the imports.
+
 ## internal functions 
 
 when user id provided to the internal function, we can always assume the user exists.

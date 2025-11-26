@@ -4,7 +4,7 @@ import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
-	CreateQuizModuleArgs,
+	type CreateQuizModuleArgs,
 	tryCreateQuizModule,
 } from "./activity-module-management";
 import {
@@ -132,8 +132,6 @@ describe("Quiz Attempt Management - Start and Retrieve", () => {
 			status: "published",
 			userId: teacherId,
 			instructions: "Complete this quiz",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 3,
 			points: 100,
 			gradingType: "automatic",
 			questions: [
