@@ -24,7 +24,6 @@ import { tryCreateGradebookItem } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
 import {
 	tryAddAdjustment,
-	tryBulkUpdateUserGrades,
 	tryCalculateUserFinalGrade,
 	tryCreateUserGrade,
 	tryDeleteUserGrade,
@@ -362,7 +361,7 @@ describe("User Grade Management", () => {
 		if (result.ok) {
 			console.log(result.value);
 			expect(result.value).toHaveLength(1);
-			expect(result.value[0].id).toBe(testGrade.id);
+			expect(result.value[0]!.id).toBe(testGrade.id);
 		}
 	});
 
@@ -378,33 +377,10 @@ describe("User Grade Management", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value).toHaveLength(1);
-			expect(result.value[0].id).toBe(testGrade.id);
+			expect(result.value[0]!.id).toBe(testGrade.id);
 		}
 	});
 
-	it("should bulk update user grades", async () => {
-		const result = await tryBulkUpdateUserGrades({
-			payload,
-			user: instructor as typeof instructor & { collection: "users" },
-			req: undefined,
-			overrideAccess: false,
-			enrollmentId: testEnrollment.id,
-			grades: [
-				{
-					gradebookItemId: testItem2.id,
-					baseGrade: 45,
-					feedback: "Good quiz performance",
-				},
-			],
-			gradedBy: instructor.id,
-		});
-
-		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value).toHaveLength(1);
-			expect(result.value[0].baseGrade).toBe(45);
-		}
-	});
 
 	it("should calculate user final grade", async () => {
 		const result = await tryCalculateUserFinalGrade({
@@ -464,10 +440,9 @@ describe("User Grade Management", () => {
 		if (result.ok) {
 			console.log(JSON.stringify(result.value, null, 2));
 			expect(result.value.course_id).toBe(testCourse.id);
-			expect(result.value.gradebook_id).toBe(testGradebook.id);
 			expect(result.value.enrollments).toHaveLength(1);
 
-			const enrollment = result.value.enrollments[0];
+			const enrollment = result.value.enrollments[0]!;
 			expect(enrollment.enrollment_id).toBe(testEnrollment.id);
 			expect(enrollment.user_id).toBe(student.id);
 			expect(enrollment.items).toHaveLength(2);
@@ -644,9 +619,10 @@ describe("User Grade Management", () => {
 		expect(adjustmentResult.ok).toBe(true);
 		if (adjustmentResult.ok) {
 			expect(adjustmentResult.value.adjustments).toHaveLength(1);
-			expect(adjustmentResult.value.adjustments?.[0].type).toBe("bonus");
-			expect(adjustmentResult.value.adjustments?.[0].points).toBe(5);
-			expect(adjustmentResult.value.adjustments?.[0].isActive).toBe(true);
+			const adjustment = adjustmentResult.value.adjustments?.[0]!
+			expect(adjustment.type).toBe("bonus");
+			expect(adjustment.points).toBe(5);
+			expect(adjustment.isActive).toBe(true);
 		}
 	});
 
@@ -684,8 +660,9 @@ describe("User Grade Management", () => {
 		expect(adjustmentResult.ok).toBe(true);
 		if (adjustmentResult.ok) {
 			expect(adjustmentResult.value.adjustments).toHaveLength(2);
-			expect(adjustmentResult.value.adjustments?.[1].type).toBe("penalty");
-			expect(adjustmentResult.value.adjustments?.[1].points).toBe(-2);
+			const adjustment = adjustmentResult.value.adjustments?.[1]!
+			expect(adjustment.type).toBe("penalty");
+			expect(adjustment.points).toBe(-2);
 		}
 	});
 
@@ -1063,7 +1040,7 @@ describe("User Grade Management", () => {
 		});
 
 		expect(gradebookItems.docs.length).toBeGreaterThan(0);
-		const gradebookItem = gradebookItems.docs[0];
+		const gradebookItem = gradebookItems.docs[0]!;
 
 		// Create an assignment submission
 		const submissionResult = await tryCreateAssignmentSubmission({
@@ -1317,7 +1294,7 @@ describe("User Grade Management", () => {
 		});
 
 		expect(gradebookItems.docs.length).toBeGreaterThan(0);
-		const gradebookItem = gradebookItems.docs[0];
+		const gradebookItem = gradebookItems.docs[0]!;
 
 		// Create discussion submissions (thread, reply, comment)
 		const threadArgs: CreateDiscussionSubmissionArgs = {

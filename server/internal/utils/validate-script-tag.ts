@@ -50,6 +50,9 @@ export const tryValidateScriptTag = Result.wrap(
 		}
 
 		const script = scripts[0];
+		if (!script) {
+			throw new ScriptValidationError("No script tag found");
+		}
 		const $script = $(script);
 
 		// Check for inline script content (reject if present)

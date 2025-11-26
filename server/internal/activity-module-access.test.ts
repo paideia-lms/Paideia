@@ -719,9 +719,7 @@ describe("Activity Module Access Control", () => {
 		expect(transferResult.ok).toBe(true);
 		if (transferResult.ok) {
 			const newOwnerId =
-				typeof transferResult.value.owner === "number"
-					? transferResult.value.owner
-					: transferResult.value.owner?.id;
+				transferResult.value.owner;
 			expect(newOwnerId).toBe(testUser2.id);
 		}
 
@@ -1281,8 +1279,8 @@ describe("Activity Module Access Control", () => {
 
 			expect(teacherInstructor?.enrollments.length).toBe(1);
 			expect(taInstructor?.enrollments.length).toBe(1);
-			expect(teacherInstructor?.enrollments[0].role).toBe("teacher");
-			expect(taInstructor?.enrollments[0].role).toBe("ta");
+			expect(teacherInstructor?.enrollments[0]!.role).toBe("teacher");
+			expect(taInstructor?.enrollments[0]!.role).toBe("ta");
 		}
 	});
 
@@ -1410,12 +1408,12 @@ describe("Activity Module Access Control", () => {
 			expect(instructorsResult.value.length).toBe(1);
 
 			// Check that user2 is instructor with 2 enrollments
-			const instructor = instructorsResult.value[0];
+			const instructor = instructorsResult.value[0]!;
 			expect(instructor.id).toBe(testUser2.id);
 			expect(instructor.enrollments.length).toBe(2);
 			// Both enrollments should be teacher role
-			expect(instructor.enrollments[0].role).toBe("teacher");
-			expect(instructor.enrollments[1].role).toBe("teacher");
+			expect(instructor.enrollments[0]!.role).toBe("teacher");
+			expect(instructor.enrollments[1]!.role).toBe("teacher");
 		}
 	});
 

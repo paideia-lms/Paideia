@@ -1,17 +1,12 @@
 import type { PayloadRequest, Where } from "payload";
 import { getAccessResults } from "payload";
 import searchQueryParser from "search-query-parser";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 import type { Media, User } from "../payload-types";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { stripDepth } from "./utils/internal-function-utils";
 
 export type CreateUserArgs = BaseInternalFunctionArgs & {
 	data: {
@@ -148,18 +143,7 @@ export const tryCreateUser = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryCreateUser: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "create">());
 
 		return newUser;
 	},
@@ -196,18 +180,7 @@ export const tryUpdateUser = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryFindUserByEmail: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "update">());
 
 		return updatedUser;
 	},
@@ -240,21 +213,12 @@ export const tryFindUserByEmail = Result.wrap(
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<0, "find">())
 			.then((users) => {
 				if (users.docs.length === 0) {
 					return null;
 				}
-				const user = users.docs[0];
-				const avatar = user.avatar;
-				assertZodInternal(
-					"tryFindUserByEmail: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...user,
-					avatar,
-				};
+				return users.docs[0];
 			});
 
 		return foundUser;
@@ -283,18 +247,7 @@ export const tryFindUserById = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryFindUserById: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "findByID">());
 
 		return foundUser;
 	},
@@ -322,18 +275,7 @@ export const tryDeleteUser = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryDeleteUser: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "delete">());
 
 		return deletedUser;
 	},
@@ -425,25 +367,7 @@ export const tryFindAllUsers = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then((result) => {
-				const docs = result.docs.map((doc) => {
-					const avatar = doc.avatar;
-					// type narrowing - avatar can be null
-					assertZodInternal(
-						"tryFindAllUsers: User avatar is required",
-						avatar,
-						z.object({ id: z.number() }).nullish(),
-					);
-					return {
-						...doc,
-						avatar: avatar,
-					};
-				});
-				return {
-					...result,
-					docs,
-				};
-			});
+			.then(stripDepth<1, "find">());
 
 		return {
 			docs: usersResult.docs,
@@ -473,28 +397,14 @@ export const tryLogin = Result.wrap(
 	async (args: LoginArgs) => {
 		const { payload, email, password, req } = args;
 
-		const loginResult = await payload
-			.login({
-				collection: "users",
-				req,
-				data: {
-					email,
-					password,
-				},
-			})
-			.then((l) => {
-				const user = l.user;
-				const avatar = user.avatar;
-				assertZodInternal(
-					"tryLogin: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...l,
-					user: { ...user, avatar },
-				};
-			});
+		const loginResult = await payload.login({
+			collection: "users",
+			req,
+			data: {
+				email,
+				password,
+			},
+		});
 
 		const { exp, token, user } = loginResult;
 
@@ -539,23 +449,25 @@ export const tryRegisterFirstUser = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Create the first user as admin
-			const newUser = await payload.create({
-				collection: "users",
-				data: {
-					email,
-					password,
-					firstName,
-					lastName,
-					role: "admin",
-					theme: "light",
-					direction: "ltr",
-				},
-				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
-				overrideAccess: true,
-				req: transactionInfo.reqWithTransaction,
-			});
+			const newUser = await payload
+				.create({
+					collection: "users",
+					data: {
+						email,
+						password,
+						firstName,
+						lastName,
+						role: "admin",
+						theme: "light",
+						direction: "ltr",
+					},
+					// ! we are using overrideAccess here because it is always a system request, we don't care about access control
+					overrideAccess: true,
+					req: reqWithTransaction,
+				})
+				.then(stripDepth<0, "create">());
 
 			// Auto-verify the first user
 			await payload.update({
@@ -566,34 +478,20 @@ export const tryRegisterFirstUser = Result.wrap(
 				},
 				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			// Log in the new user (outside transaction)
-			const loginResult = await payload
-				.login({
-					collection: "users",
-					req,
-					data: {
-						email,
-						password,
-					},
-				})
-				.then((l) => {
-					const user = l.user;
-					const avatar = user.avatar;
-					assertZodInternal(
-						"tryRegisterFirstUser: User avatar is required",
-						avatar,
-						z.object({ id: z.number() }).nullish(),
-					);
-					return {
-						...l,
-						user: { ...user, avatar },
-					};
-				});
+			const loginResult = await payload.login({
+				collection: "users",
+				req: reqWithTransaction,
+				data: {
+					email,
+					password,
+				},
+				// ! this has override access because it is a system request, we don't care about access control
+				overrideAccess: true,
+			});
 
 			const { exp, token, user } = loginResult;
 
@@ -606,10 +504,7 @@ export const tryRegisterFirstUser = Result.wrap(
 				exp,
 				user,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -651,7 +546,7 @@ export const tryRegisterUser = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Create the user within transaction
 			await payload.create({
 				collection: "users",
@@ -667,32 +562,19 @@ export const tryRegisterUser = Result.wrap(
 					_verified: true,
 				},
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				// ! this has override access because it is a system request, we don't care about access control
 				overrideAccess: true,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			// Login new user (outside transaction)
-			const loginResult = await payload
-				.login({
-					collection: "users",
-					req,
-					data: { email, password },
-					// ! this has override access because it is a system request, we don't care about access control
-					overrideAccess: true,
-				})
-				.then((l) => {
-					const user = l.user;
-					const avatar = user.avatar;
-					assertZodInternal(
-						"tryRegisterUser: User avatar is required",
-						avatar,
-						z.object({ id: z.number() }).nullish(),
-					);
-					return { ...l, user: { ...user, avatar } };
-				});
+			const loginResult = await payload.login({
+				collection: "users",
+				req,
+				data: { email, password },
+				// ! this has override access because it is a system request, we don't care about access control
+				overrideAccess: true,
+			});
 
 			const { exp, token, user: loggedInUser } = loginResult;
 			if (!exp || !token) {
@@ -700,10 +582,7 @@ export const tryRegisterUser = Result.wrap(
 			}
 
 			return { token, exp, user: loggedInUser };
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??

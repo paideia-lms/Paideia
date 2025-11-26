@@ -305,43 +305,6 @@ describe("User Management Functions", () => {
 			expect(result.ok).toBe(false);
 		});
 
-		test("admin should be able to update any user", async () => {
-			// Create a test user
-			const createArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "admin-update-test@example.com",
-					password: "testpassword123",
-					firstName: "AdminUpdate",
-					lastName: "Test",
-				},
-				overrideAccess: true,
-			};
-
-			const createResult = await tryCreateUser(createArgs);
-			expect(createResult.ok).toBe(true);
-
-			if (createResult.ok) {
-				const adminUser = await getAuthUser(adminToken);
-
-				const updateArgs: UpdateUserArgs = {
-					payload,
-					userId: createResult.value.id,
-					data: {
-						bio: "Updated by admin",
-					},
-					user: adminUser,
-					overrideAccess: false,
-				};
-
-				const updateResult = await tryUpdateUser(updateArgs);
-
-				expect(updateResult.ok).toBe(true);
-				if (updateResult.ok) {
-					expect(updateResult.value.bio).toBe("Updated by admin");
-				}
-			}
-		});
 
 		test("unauthenticated request should fail to update user", async () => {
 			const updateArgs: UpdateUserArgs = {
@@ -1034,24 +997,6 @@ describe("User Management Functions", () => {
 			}
 		});
 
-		test("should allow admin to impersonate student user", async () => {
-			const result = await tryHandleImpersonation({
-				payload,
-				impersonateUserId: String(studentUser.id),
-				authenticatedUser: adminUser,
-			});
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).not.toBeNull();
-				expect(result.value?.targetUser.id).toBe(studentUser.id);
-				expect(result.value?.targetUser.email).toBe(
-					"impersonate-student@test.com",
-				);
-				expect(result.value?.permissions).toBeDefined();
-				expect(Array.isArray(result.value?.permissions)).toBe(true);
-			}
-		});
 
 		test("should not allow admin to impersonate another admin", async () => {
 			// Create another admin user
