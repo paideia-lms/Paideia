@@ -4,8 +4,16 @@ import { getPayload } from "payload";
 import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import sanitizedConfig from "../payload.config";
 import {
-	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
+	type CreateAssignmentModuleArgs,
+	type CreatePageModuleArgs,
+	tryCreateAssignmentModule,
+	tryCreatePageModule,
+	type CreateQuizModuleArgs,
+	tryCreateQuizModule,
+	type CreateDiscussionModuleArgs,
+	tryCreateDiscussionModule,
+	tryCreateWhiteboardModule,
+	type CreateWhiteboardModuleArgs,
 } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
@@ -99,21 +107,18 @@ describe("Course Activity Module Link Management Functions", () => {
 		}
 
 		// Create test activity module first
-		const activityModuleArgs: CreateActivityModuleArgs = {
+		const activityModuleArgs = {
 			payload,
 			req: mockRequest,
 			title: "Test Activity Module",
 			description: "A test activity module for link management",
-			type: "page",
 			status: "draft",
 			userId: testUser.id,
-			pageData: {
-				content: "<p>Test content</p>",
-			},
+			content: "<p>Test content</p>",
 			overrideAccess: true,
-		};
+		} satisfies CreatePageModuleArgs;
 
-		const activityModuleResult = await tryCreateActivityModule(activityModuleArgs);
+		const activityModuleResult = await tryCreatePageModule(activityModuleArgs);
 		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok)
 			throw new Error("Test Error: Activity module creation failed");
@@ -161,26 +166,24 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		test("should create multiple links for the same course", async () => {
 			// Create another activity module for testing
-			const activityModuleArgs2: CreateActivityModuleArgs = {
+			const activityModuleArgs2 = {
 				payload,
 				req: mockRequest,
 				title: "Second Test Activity Module",
 				description: "A second test activity module for link management",
-				type: "assignment",
 				status: "draft",
 				userId: testUser.id,
-				assignmentData: {
-					instructions: "Complete this assignment",
-					dueDate: "2025-12-31T23:59:59Z",
-					maxAttempts: 3,
-					allowLateSubmissions: true,
-					requireTextSubmission: true,
-					requireFileSubmission: false,
-				},
+				instructions: "Complete this assignment",
+				dueDate: "2025-12-31T23:59:59Z",
+				maxAttempts: 3,
+				allowLateSubmissions: true,
+				requireTextSubmission: true,
+				requireFileSubmission: false,
 				overrideAccess: true,
-			};
+			} satisfies CreateAssignmentModuleArgs;
 
-			const activityModuleResult2 = await tryCreateActivityModule(activityModuleArgs2);
+			const activityModuleResult2 =
+				await tryCreateAssignmentModule(activityModuleArgs2);
 			expect(activityModuleResult2.ok).toBe(true);
 			if (!activityModuleResult2.ok) return;
 
@@ -451,21 +454,19 @@ describe("Course Activity Module Link Management Functions", () => {
 
 				if (!sectionResult.ok) return;
 
-				const activityModuleArgs: CreateActivityModuleArgs = {
+				const activityModuleArgs = {
 					payload,
 					req: mockRequest,
 					title: "Unlinked Activity Module",
 					description: "An activity module with no links",
-					type: "page",
 					status: "draft",
 					userId: testUser.id,
-					pageData: {
-						content: "<p>Unlinked module content</p>",
-					},
+					content: "<p>Unlinked module content</p>",
 					overrideAccess: true,
-				};
+				} satisfies CreatePageModuleArgs;
 
-				const activityModuleResult = await tryCreateActivityModule(activityModuleArgs);
+				const activityModuleResult =
+					await tryCreatePageModule(activityModuleArgs);
 
 				if (!activityModuleResult.ok)
 					throw new Error("Test Error: Failed to create activity module");
@@ -553,75 +554,66 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		beforeAll(async () => {
 			// Create assignment module
-			const assignmentArgs: CreateActivityModuleArgs = {
+			const assignmentArgs = {
 				payload,
 				req: mockRequest,
 				title: "Test Assignment for Settings",
 				description: "Assignment module to test settings",
-				type: "assignment",
 				status: "draft",
 				userId: testUser.id,
-				assignmentData: {
-					instructions: "Complete this assignment",
-					dueDate: "2025-12-31T23:59:59Z",
-					maxAttempts: 3,
-					allowLateSubmissions: true,
-					requireTextSubmission: true,
-					requireFileSubmission: false,
-				},
+				instructions: "Complete this assignment",
+				dueDate: "2025-12-31T23:59:59Z",
+				maxAttempts: 3,
+				allowLateSubmissions: true,
+				requireTextSubmission: true,
+				requireFileSubmission: false,
 				overrideAccess: true,
-			};
+			} satisfies CreateAssignmentModuleArgs;
 
-			const assignmentResult = await tryCreateActivityModule(assignmentArgs);
+			const assignmentResult = await tryCreateAssignmentModule(assignmentArgs);
 			expect(assignmentResult.ok).toBe(true);
 			if (assignmentResult.ok) {
 				assignmentModule = assignmentResult.value;
 			}
 
 			// Create quiz module
-			const quizArgs: CreateActivityModuleArgs = {
+			const quizArgs = {
 				payload,
 				req: mockRequest,
 				title: "Test Quiz for Settings",
 				description: "Quiz module to test settings",
-				type: "quiz",
 				status: "draft",
 				userId: testUser.id,
-				quizData: {
-					instructions: "Complete this quiz",
-					dueDate: "2025-12-31T23:59:59Z",
-					timeLimit: 60,
-					maxAttempts: 2,
-				},
+				instructions: "Complete this quiz",
+				dueDate: "2025-12-31T23:59:59Z",
+				timeLimit: 60,
+				maxAttempts: 2,
 				overrideAccess: true,
-			};
+			} satisfies CreateQuizModuleArgs;
 
-			const quizResult = await tryCreateActivityModule(quizArgs);
+			const quizResult = await tryCreateQuizModule(quizArgs);
 			expect(quizResult.ok).toBe(true);
 			if (quizResult.ok) {
 				quizModule = quizResult.value;
 			}
 
 			// Create discussion module
-			const discussionArgs: CreateActivityModuleArgs = {
+			const discussionArgs = {
 				payload,
 				req: mockRequest,
 				title: "Test Discussion for Settings",
 				description: "Discussion module to test settings",
-				type: "discussion",
 				status: "draft",
 				userId: testUser.id,
-				discussionData: {
-					instructions: "Participate in this discussion",
-					dueDate: "2025-12-31T23:59:59Z",
-					requireThread: true,
-					requireReplies: true,
-					minReplies: 2,
-				},
+				instructions: "Participate in this discussion",
+				dueDate: "2025-12-31T23:59:59Z",
+				requireThread: true,
+				requireReplies: true,
+				minReplies: 2,
 				overrideAccess: true,
-			};
+			} satisfies CreateDiscussionModuleArgs;
 
-			const discussionResult = await tryCreateActivityModule(discussionArgs);
+			const discussionResult = await tryCreateDiscussionModule(discussionArgs);
 			expect(discussionResult.ok).toBe(true);
 			if (discussionResult.ok) {
 				discussionModule = discussionResult.value;
@@ -749,17 +741,16 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should create link with page settings (name only)", async () => {
-				const pageModule = await tryCreateActivityModule({
+				const pageModule = await tryCreatePageModule({
 					payload,
 					req: mockRequest,
 					title: "Test Page",
 					description: "Page module",
-					type: "page",
 					status: "draft",
 					userId: testUser.id,
-					pageData: { content: "<p>Page content</p>" },
+					content: "<p>Page content</p>",
 					overrideAccess: true,
-				});
+				} satisfies CreatePageModuleArgs);
 
 				if (!pageModule.ok) return;
 
@@ -788,17 +779,16 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should create link with whiteboard settings (name only)", async () => {
-				const whiteboardModule = await tryCreateActivityModule({
+				const whiteboardModule = await tryCreateWhiteboardModule({
 					payload,
 					req: mockRequest,
 					title: "Test Whiteboard",
 					description: "Whiteboard module",
-					type: "whiteboard",
 					status: "draft",
 					userId: testUser.id,
-					whiteboardData: { content: "" },
+					content: "",
 					overrideAccess: true,
-				});
+				} satisfies CreateWhiteboardModuleArgs);
 
 				if (!whiteboardModule.ok) return;
 

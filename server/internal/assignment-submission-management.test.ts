@@ -3,8 +3,8 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
-	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
+	tryCreateAssignmentModule,
+	type CreateAssignmentModuleArgs,
 } from "./activity-module-management";
 import {
 	type CreateAssignmentSubmissionArgs,
@@ -21,7 +21,7 @@ import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,
 } from "./course-activity-module-link-management";
-import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
+import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import {
 	type CreateEnrollmentArgs,
@@ -137,28 +137,24 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		}
 
 		// Create activity module with assignment
-		const activityModuleArgs: CreateActivityModuleArgs = {
+		const activityModuleArgs = {
 			payload,
 			req: mockRequest,
 			title: "Test Assignment",
 			description: "A test assignment for submission workflow",
-			type: "assignment",
 			status: "published",
 			userId: teacherId,
-			assignmentData: {
-				instructions: "Complete this assignment by writing a short essay",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 3,
-				allowLateSubmissions: true,
-				requireTextSubmission: true,
-				requireFileSubmission: false,
-			},
+			instructions: "Complete this assignment by writing a short essay",
+			dueDate: `${year}-12-31T23:59:59Z`,
+			maxAttempts: 3,
+			allowLateSubmissions: true,
+			requireTextSubmission: true,
+			requireFileSubmission: false,
 			overrideAccess: true,
-		};
+		} satisfies CreateAssignmentModuleArgs;
 
-		const activityModuleResult = await tryCreateActivityModule(
-			activityModuleArgs,
-		);
+		const activityModuleResult =
+			await tryCreateAssignmentModule(activityModuleArgs);
 		if (!activityModuleResult.ok) {
 			throw new Error("Test Error: Failed to create test activity module");
 		}
@@ -213,9 +209,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		};
 
 		const courseActivityModuleLinkResult =
-			await tryCreateCourseActivityModuleLink(
-				courseActivityModuleLinkArgs,
-			);
+			await tryCreateCourseActivityModuleLink(courseActivityModuleLinkArgs);
 		expect(courseActivityModuleLinkResult.ok).toBe(true);
 		if (!courseActivityModuleLinkResult.ok) {
 			throw new Error(

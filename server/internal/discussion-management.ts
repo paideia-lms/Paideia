@@ -14,10 +14,14 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	interceptPayloadError,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
 
-export interface CreateDiscussionSubmissionArgs {
+export type CreateDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -25,15 +29,15 @@ export interface CreateDiscussionSubmissionArgs {
 	title?: string; // Required for threads
 	content: string;
 	parentThread?: number; // Required for replies and comments
-}
+};
 
-export interface UpdateDiscussionSubmissionArgs {
+export type UpdateDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
 	id: number;
 	title?: string;
 	content?: string;
 	isPinned?: boolean;
 	isLocked?: boolean;
-}
+};
 
 export type GradeDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
 	id: number;
@@ -42,9 +46,9 @@ export type GradeDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
 	gradedBy: number;
 };
 
-export interface GetDiscussionSubmissionByIdArgs {
+export type GetDiscussionSubmissionByIdArgs = BaseInternalFunctionArgs & {
 	id: number | string;
-}
+};
 
 export type ListDiscussionSubmissionsArgs = BaseInternalFunctionArgs & {
 	courseModuleLinkId?: number;
@@ -58,21 +62,22 @@ export type ListDiscussionSubmissionsArgs = BaseInternalFunctionArgs & {
 	sortBy?: "recent" | "upvoted" | "active" | "alphabetical";
 };
 
-export type GetDiscussionThreadsWithAllRepliesArgs = BaseInternalFunctionArgs & {
-	courseModuleLinkId: number;
+export type GetDiscussionThreadsWithAllRepliesArgs =
+	BaseInternalFunctionArgs & {
+		courseModuleLinkId: number;
+	};
+
+export type UpvoteDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+	submissionId: number;
+	userId: number;
 };
 
-export interface UpvoteDiscussionSubmissionArgs {
+export type RemoveUpvoteDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
 	submissionId: number;
 	userId: number;
-}
+};
 
-export interface RemoveUpvoteDiscussionSubmissionArgs {
-	submissionId: number;
-	userId: number;
-}
-
-export interface DiscussionGradingResult {
+export type DiscussionGradingResult = BaseInternalFunctionArgs & {
 	totalScore: number;
 	maxScore: number;
 	percentage: number;
@@ -86,14 +91,15 @@ export interface DiscussionGradingResult {
 		gradedAt: string;
 	}>;
 	feedback: string;
-}
+};
 
 /**
  * Creates a new discussion submission (thread, reply, or comment)
  */
 export const tryCreateDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: CreateDiscussionSubmissionArgs) => {
+	async (args: CreateDiscussionSubmissionArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -215,8 +221,8 @@ export const tryCreateDiscussionSubmission = Result.wrap(
  * Updates a discussion submission
  */
 export const tryUpdateDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: UpdateDiscussionSubmissionArgs) => {
-		const { id, title, content, isPinned, isLocked } = args;
+	async (args: UpdateDiscussionSubmissionArgs) => {
+		const { payload, id, title, content, isPinned, isLocked } = args;
 
 		// Validate ID
 		if (!id) {
@@ -299,8 +305,8 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
  * Gets a discussion submission by ID
  */
 export const tryGetDiscussionSubmissionById = Result.wrap(
-	async (payload: Payload, args: GetDiscussionSubmissionByIdArgs) => {
-		const { id } = args;
+	async (args: GetDiscussionSubmissionByIdArgs) => {
+		const { payload, id } = args;
 
 		// Validate ID
 		if (!id) {
@@ -439,8 +445,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Handle courseModuleLink - can be object or number
 				const courseModuleLinkId =
 					typeof item.courseModuleLink === "object" &&
-						item.courseModuleLink !== null &&
-						"id" in item.courseModuleLink
+					item.courseModuleLink !== null &&
+					"id" in item.courseModuleLink
 						? item.courseModuleLink.id
 						: typeof item.courseModuleLink === "number"
 							? item.courseModuleLink
@@ -473,8 +479,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Get parentThread ID
 				const parentThreadId =
 					typeof item.parentThread === "object" &&
-						item.parentThread !== null &&
-						"id" in item.parentThread
+					item.parentThread !== null &&
+					"id" in item.parentThread
 						? item.parentThread.id
 						: typeof item.parentThread === "number"
 							? item.parentThread
@@ -639,8 +645,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
  * Upvotes a discussion submission
  */
 export const tryUpvoteDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: UpvoteDiscussionSubmissionArgs) => {
-		const { submissionId, userId } = args;
+	async (args: UpvoteDiscussionSubmissionArgs) => {
+		const { payload, submissionId, userId } = args;
 
 		// Validate required fields
 		if (!submissionId) {
@@ -740,8 +746,15 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
  * Removes upvote from a discussion submission
  */
 export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: RemoveUpvoteDiscussionSubmissionArgs) => {
-		const { submissionId, userId } = args;
+	async (args: RemoveUpvoteDiscussionSubmissionArgs) => {
+		const {
+			payload,
+			user = null,
+			req,
+			submissionId,
+			userId,
+			overrideAccess = false,
+		} = args;
 
 		// Validate required fields
 		if (!submissionId) {
@@ -755,6 +768,9 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		const submission = await payload.findByID({
 			collection: "discussion-submissions",
 			id: submissionId,
+			user,
+			req,
+			overrideAccess,
 		});
 
 		if (!submission) {
@@ -782,6 +798,9 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 			data: {
 				upvotes: filteredUpvotes,
 			},
+			user,
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -1146,16 +1165,18 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 		}),
 );
 
+type CalculateDiscussionGradeArgs = BaseInternalFunctionArgs & {
+	courseModuleLinkId: number;
+	studentId: number;
+	enrollmentId: number;
+};
+
 /**
  * Calculates discussion grade based on all graded posts for a student
  */
 export const calculateDiscussionGrade = Result.wrap(
-	async (
-		payload: Payload,
-		courseModuleLinkId: number,
-		studentId: number,
-		enrollmentId: number,
-	): Promise<DiscussionGradingResult> => {
+	async (args: CalculateDiscussionGradeArgs) => {
+		const { payload, courseModuleLinkId, studentId, enrollmentId } = args;
 		// Get all discussion submissions for this student in this course module link
 		const submissions = await payload
 			.find({
@@ -1316,32 +1337,34 @@ export const calculateDiscussionGrade = Result.wrap(
 		}),
 );
 
+type DeleteDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+	id: number;
+};
 /**
  * Deletes a discussion submission
  */
 export const tryDeleteDiscussionSubmission = Result.wrap(
-	async (payload: Payload, id: number) => {
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Discussion submission ID is required");
-		}
+	async (args: DeleteDiscussionSubmissionArgs) => {
+		const { payload, user = null, req, id, overrideAccess = false } = args;
 
-		// Check if submission exists
-		const existingSubmission = await payload.findByID({
-			collection: "discussion-submissions",
-			id,
-		});
-
-		if (!existingSubmission) {
-			throw new NonExistingDiscussionSubmissionError(
-				`Discussion submission with id '${id}' not found`,
-			);
-		}
-
-		const deletedSubmission = await payload.delete({
-			collection: "discussion-submissions",
-			id,
-		});
+		const deletedSubmission = await payload
+			.delete({
+				collection: "discussion-submissions",
+				id,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "delete">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryDeleteDiscussionSubmission",
+					"delete discussion submission",
+					args,
+				);
+				throw error;
+			});
 
 		return deletedSubmission;
 	},

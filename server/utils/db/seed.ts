@@ -3,7 +3,15 @@ import type { Simplify } from "node_modules/drizzle-orm/utils";
 import type { Payload } from "payload";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { Result } from "typescript-result";
-import { tryCreateActivityModule } from "../../internal/activity-module-management";
+import {
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+	tryCreateFileModule,
+	tryCreatePageModule,
+	tryCreateQuizModule,
+	tryCreateWhiteboardModule,
+	type ActivityModuleResult,
+} from "../../internal/activity-module-management";
 import { tryCheckFirstUser } from "../../internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "../../internal/course-activity-module-link-management";
 import { tryCreateCategory } from "../../internal/course-category-management";
@@ -266,9 +274,9 @@ async function createCourses(
 
 	// Create first 6 courses with categories
 	for (let i = 0; i < 6; i++) {
-		const courseData = coursesData[i];
+		const courseData = coursesData[i]!;
 		const categoryId =
-			categories.length > 0 ? categories[i % categories.length].id : undefined;
+			categories.length > 0 ? categories[i % categories.length]!.id : undefined;
 
 		const courseResult = await tryCreateCourse({
 			payload,
@@ -291,7 +299,7 @@ async function createCourses(
 	}
 
 	// Create uncategorized course
-	const uncategorizedCourseData = coursesData[6];
+	const uncategorizedCourseData = coursesData[6]!;
 	const uncategorizedResult = await tryCreateCourse({
 		payload,
 		data: {
@@ -341,91 +349,6 @@ async function createEnrollment(
 }
 
 /**
- * Build activity module args from module data
- */
-async function buildActivityModuleArgs(
-	payload: Payload,
-	moduleData: SeedData["modules"]["additional"][number],
-	adminUserId: number,
-	whiteboardFixtureLoader: () => Promise<string>,
-) {
-	const baseArgs = {
-		payload,
-		title: moduleData.title,
-		description: moduleData.description,
-		status: moduleData.status,
-		userId: adminUserId,
-		overrideAccess: true,
-	};
-
-	switch (moduleData.type) {
-		case "page":
-			return {
-				...baseArgs,
-				type: "page" as const,
-				pageData: { content: moduleData.content },
-			};
-
-		case "whiteboard": {
-			const whiteboardContent = await whiteboardFixtureLoader();
-			return {
-				...baseArgs,
-				type: "whiteboard" as const,
-				whiteboardData: { content: whiteboardContent },
-			};
-		}
-
-		case "assignment":
-			return {
-				...baseArgs,
-				type: "assignment" as const,
-				assignmentData: {
-					instructions: moduleData.instructions,
-					dueDate: moduleData.dueDate,
-					maxAttempts: moduleData.maxAttempts,
-				},
-			};
-
-		case "quiz": {
-			const quizData: {
-				instructions?: string;
-				points?: number;
-				timeLimit?: number;
-				rawQuizConfig?: QuizConfig;
-			} = {
-				instructions: moduleData.instructions,
-				points: moduleData.points,
-				timeLimit: moduleData.timeLimit,
-			};
-			if (moduleData.rawQuizConfig) {
-				quizData.rawQuizConfig = moduleData.rawQuizConfig as QuizConfig;
-			}
-			return {
-				...baseArgs,
-				type: "quiz" as const,
-				quizData,
-			};
-		}
-
-		case "discussion":
-			return {
-				...baseArgs,
-				type: "discussion" as const,
-				discussionData: {
-					instructions: moduleData.instructions,
-					minReplies: moduleData.minReplies,
-					threadSorting: moduleData.threadSorting,
-				},
-			};
-
-		default:
-			throw new Error(
-				`Unknown module type: ${(moduleData as { type: string }).type}`,
-			);
-	}
-}
-
-/**
  * Create whiteboard fixture loader with state tracking
  */
 function createWhiteboardFixtureLoader(): () => Promise<string> {
@@ -469,47 +392,117 @@ async function createActivityModules(
 		additional: readonly SeedData["modules"]["additional"][number][];
 	},
 	adminUserId: number,
+	req?: Request,
 ): Promise<{
-	pageModule: Awaited<ReturnType<typeof tryCreateActivityModule>>["value"];
-	additionalModules: Awaited<
-		ReturnType<typeof tryCreateActivityModule>
-	>["value"][];
+	pageModule: ActivityModuleResult;
+	additionalModules: ActivityModuleResult[];
 }> {
-	// Create page module
-	const pageModuleResult = await tryCreateActivityModule({
+	const baseArgs = {
 		payload,
+		userId: adminUserId,
+		user: null,
+		req,
+		overrideAccess: true,
+	};
+
+	// Create page module
+	const pageModuleResult = await tryCreatePageModule({
+		...baseArgs,
 		title: modulesData.page.title,
 		description: modulesData.page.description,
-		type: "page",
 		status: "published",
-		userId: adminUserId,
-		pageData: { content: modulesData.page.content },
-		overrideAccess: true,
+		content: modulesData.page.content,
 	});
 
 	assertResultOk(pageModuleResult, "Failed to create page module");
 
 	// Create additional modules
-	const additionalModules: Awaited<
-		ReturnType<typeof tryCreateActivityModule>
-	>["value"][] = [];
+	const additionalModules: ActivityModuleResult[] = [];
 	const whiteboardLoader = createWhiteboardFixtureLoader();
 
 	for (const moduleData of modulesData.additional) {
-		const moduleArgs = await buildActivityModuleArgs(
-			payload,
-			moduleData,
-			adminUserId,
-			whiteboardLoader,
-		);
+		let moduleResult:
+			| Awaited<ReturnType<typeof tryCreatePageModule>>
+			| Awaited<ReturnType<typeof tryCreateWhiteboardModule>>
+			| Awaited<ReturnType<typeof tryCreateAssignmentModule>>
+			| Awaited<ReturnType<typeof tryCreateQuizModule>>
+			| Awaited<ReturnType<typeof tryCreateDiscussionModule>>;
 
-		const moduleResult = await tryCreateActivityModule(moduleArgs);
-		assertResultOk(
-			moduleResult,
-			`Failed to create additional module "${moduleData.title}"`,
-		);
+		switch (moduleData.type) {
+			case "page": {
+				moduleResult = await tryCreatePageModule({
+					...baseArgs,
+					title: moduleData.title,
+					description: moduleData.description,
+					status: moduleData.status,
+					content: moduleData.content,
+				});
+				break;
+			}
+			case "whiteboard": {
+				const whiteboardContent = await whiteboardLoader();
+				moduleResult = await tryCreateWhiteboardModule({
+					...baseArgs,
+					title: moduleData.title,
+					description: moduleData.description,
+					status: moduleData.status,
+					content: whiteboardContent,
+				});
+				break;
+			}
+			case "assignment": {
+				moduleResult = await tryCreateAssignmentModule({
+					...baseArgs,
+					title: moduleData.title,
+					description: moduleData.description,
+					status: moduleData.status,
+					instructions: moduleData.instructions,
+					dueDate: moduleData.dueDate,
+					maxAttempts: moduleData.maxAttempts,
+				});
+				break;
+			}
+			case "quiz": {
+				const quizArgs: Parameters<typeof tryCreateQuizModule>[0] = {
+					...baseArgs,
+					title: moduleData.title,
+					description: moduleData.description,
+					status: moduleData.status,
+					instructions: moduleData.instructions,
+					points: moduleData.points,
+					timeLimit: moduleData.timeLimit,
+				};
+				if (moduleData.rawQuizConfig) {
+					quizArgs.rawQuizConfig = moduleData.rawQuizConfig as QuizConfig;
+				}
+				moduleResult = await tryCreateQuizModule(quizArgs);
+				break;
+			}
+			case "discussion": {
+				moduleResult = await tryCreateDiscussionModule({
+					...baseArgs,
+					title: moduleData.title,
+					description: moduleData.description,
+					status: moduleData.status,
+					instructions: moduleData.instructions,
+					minReplies: moduleData.minReplies,
+					threadSorting: moduleData.threadSorting,
+				});
+				break;
+			}
+			default:
+				throw new Error(
+					`Unknown module type: ${(moduleData as { type: string }).type}`,
+				);
+		}
 
-		additionalModules.push(moduleResult.value);
+		if (!moduleResult.ok) {
+			throw new Error(
+				`Failed to create additional module "${moduleData.title}": ${moduleResult.error.message}`,
+			);
+		}
+
+		additionalModules.push(moduleResult.value as ActivityModuleResult);
 	}
 
 	return {
@@ -557,7 +550,7 @@ async function linkModulesToSections(
 	payload: Payload,
 	req: Request,
 	courseId: number,
-	modules: Awaited<ReturnType<typeof tryCreateActivityModule>>["value"][],
+	modules: ActivityModuleResult[],
 	sections: Awaited<ReturnType<typeof tryCreateSection>>["value"][],
 ): Promise<
 	Awaited<ReturnType<typeof tryCreateCourseActivityModuleLink>>["value"][]
@@ -796,7 +789,7 @@ export const tryRunSeed = Result.wrap(
 			if (!student) continue;
 
 			const status =
-				data.enrollmentStatuses[i % data.enrollmentStatuses.length];
+				data.enrollmentStatuses[i % data.enrollmentStatuses.length]!;
 			const enrollment = await createEnrollment(
 				payload,
 				mockRequest,
@@ -823,6 +816,7 @@ export const tryRunSeed = Result.wrap(
 					.additional as readonly SeedData["modules"]["additional"][number][],
 			},
 			adminUser.id,
+			mockRequest,
 		);
 		if (!pageModule) {
 			throw new Error("Failed to create page module");

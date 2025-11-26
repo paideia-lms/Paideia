@@ -3,8 +3,9 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
+	CreateDiscussionModuleArgs,
+	tryCreateDiscussionModule,
 	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
 } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
@@ -139,36 +140,33 @@ describe("Discussion Management - Full Workflow", () => {
 		enrollmentId = enrollmentResult.value.id;
 
 		// Create activity module with discussion
-		const activityModuleArgs: CreateActivityModuleArgs = {
+		const activityModuleArgs = {
 			payload,
 			title: "Test Discussion",
 			description: "A test discussion for submission workflow",
-			type: "discussion",
 			status: "published",
 			userId: teacherId,
-			discussionData: {
-				instructions:
-					"Participate in this discussion by creating threads and replies",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				requireThread: true,
-				requireReplies: true,
-				minReplies: 2,
-				minWordsPerPost: 10,
-				allowAttachments: true,
-				allowUpvotes: true,
-				allowEditing: true,
-				allowDeletion: false,
-				moderationRequired: false,
-				anonymousPosting: false,
-				groupDiscussion: false,
-				threadSorting: "recent" as const,
-			},
-			overrideAccess: true,
-		};
 
-		const activityModuleResult = await tryCreateActivityModule(
-			activityModuleArgs,
-		);
+			instructions:
+				"Participate in this discussion by creating threads and replies",
+			dueDate: `${year}-12-31T23:59:59Z`,
+			requireThread: true,
+			requireReplies: true,
+			minReplies: 2,
+			minWordsPerPost: 10,
+			allowAttachments: true,
+			allowUpvotes: true,
+			allowEditing: true,
+			allowDeletion: false,
+			moderationRequired: false,
+			anonymousPosting: false,
+			groupDiscussion: false,
+			threadSorting: "recent" as const,
+			overrideAccess: true,
+		} satisfies CreateDiscussionModuleArgs;
+
+		const activityModuleResult =
+			await tryCreateDiscussionModule(activityModuleArgs);
 		if (!activityModuleResult.ok) {
 			throw new Error("Test Error: Failed to create test activity module");
 		}
@@ -223,9 +221,7 @@ describe("Discussion Management - Full Workflow", () => {
 			overrideAccess: true,
 		};
 
-		const linkResult = await tryCreateCourseActivityModuleLink(
-			linkArgs,
-		);
+		const linkResult = await tryCreateCourseActivityModuleLink(linkArgs);
 		expect(linkResult.ok).toBe(true);
 		if (!linkResult.ok) {
 			throw new Error(
@@ -254,6 +250,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 	test("should create a thread (student workflow)", async () => {
 		const args: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -263,7 +261,7 @@ describe("Discussion Management - Full Workflow", () => {
 				"This is my first thread in this discussion. I'm excited to participate!",
 		};
 
-		const result = await tryCreateDiscussionSubmission(payload, args);
+		const result = await tryCreateDiscussionSubmission(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -287,6 +285,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should create a reply to a thread", async () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -295,10 +295,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "Let's discuss this important topic together.",
 		};
 
-		const threadResult = await tryCreateDiscussionSubmission(
-			payload,
-			threadArgs,
-		);
+		const threadResult = await tryCreateDiscussionSubmission(threadArgs);
 		expect(threadResult.ok).toBe(true);
 		if (!threadResult.ok) return;
 
@@ -306,6 +303,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a reply to the thread
 		const replyArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -315,7 +314,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const result = await tryCreateDiscussionSubmission(payload, replyArgs);
+		const result = await tryCreateDiscussionSubmission(replyArgs);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -334,6 +333,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should create a comment on a thread", async () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -342,10 +343,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This is another topic for discussion.",
 		};
 
-		const threadResult = await tryCreateDiscussionSubmission(
-			payload,
-			threadArgs,
-		);
+		const threadResult = await tryCreateDiscussionSubmission(threadArgs);
 		expect(threadResult.ok).toBe(true);
 		if (!threadResult.ok) return;
 
@@ -353,6 +351,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a comment on the thread
 		const commentArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -361,7 +361,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const result = await tryCreateDiscussionSubmission(payload, commentArgs);
+		const result = await tryCreateDiscussionSubmission(commentArgs);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -378,6 +378,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should update a discussion submission", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -386,10 +388,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "Original content that needs updating.",
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -397,12 +396,14 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Update the submission
 		const updateArgs: UpdateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			id: submissionId,
 			title: "Updated Title",
 			content: "This is the updated content with more detailed information.",
 		};
 
-		const result = await tryUpdateDiscussionSubmission(payload, updateArgs);
+		const result = await tryUpdateDiscussionSubmission(updateArgs);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -419,6 +420,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should get a discussion submission by ID", async () => {
 		// First create a submission
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -427,17 +430,16 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This is a test thread for retrieval.",
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Get the submission by ID
-		const result = await tryGetDiscussionSubmissionById(payload, {
+		const result = await tryGetDiscussionSubmissionById({
+			payload,
+			req: mockRequest,
 			id: submissionId,
 		});
 
@@ -460,6 +462,7 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should get all threads with nested replies (reply to reply)", async () => {
 		// Create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
+			payload,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -468,10 +471,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This is a thread that will have nested replies.",
 		};
 
-		const threadResult = await tryCreateDiscussionSubmission(
-			payload,
-			threadArgs,
-		);
+		const threadResult = await tryCreateDiscussionSubmission(threadArgs);
 		expect(threadResult.ok).toBe(true);
 		if (!threadResult.ok) return;
 
@@ -480,6 +480,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a reply to the thread
 		const reply1Args: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -488,10 +490,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const reply1Result = await tryCreateDiscussionSubmission(
-			payload,
-			reply1Args,
-		);
+		const reply1Result = await tryCreateDiscussionSubmission(reply1Args);
 		expect(reply1Result.ok).toBe(true);
 		if (!reply1Result.ok) return;
 
@@ -500,6 +499,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a reply to the reply (nested reply)
 		const reply2Args: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -508,10 +509,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: reply1Id,
 		};
 
-		const reply2Result = await tryCreateDiscussionSubmission(
-			payload,
-			reply2Args,
-		);
+		const reply2Result = await tryCreateDiscussionSubmission(reply2Args);
 		expect(reply2Result.ok).toBe(true);
 		if (!reply2Result.ok) return;
 
@@ -544,7 +542,7 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(threadData.replies.length).toBe(1); // Should have one top-level reply
 
 		// Verify the first reply exists and has nested replies
-		const firstReply = threadData.replies[0];
+		const firstReply = threadData.replies[0]!;
 		expect(firstReply).toBeDefined();
 		expect(firstReply.id).toBe(reply1Id);
 		expect(firstReply.content).toBe("This is the first reply to the thread.");
@@ -552,7 +550,7 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(firstReply.replies.length).toBe(1); // Should have one nested reply
 
 		// Verify the nested reply (reply to reply)
-		const nestedReply = firstReply.replies[0];
+		const nestedReply = firstReply.replies[0]!;
 		expect(nestedReply).toBeDefined();
 		expect(nestedReply.id).toBe(reply2Id);
 		expect(nestedReply.content).toBe(
@@ -564,13 +562,15 @@ describe("Discussion Management - Full Workflow", () => {
 		// Verify the data shape: thread: { replies: { replies, ... }[], ... }
 		expect(threadData.thread).toBeDefined();
 		expect(Array.isArray(threadData.replies)).toBe(true);
-		expect(threadData.replies[0].replies).toBeDefined();
-		expect(Array.isArray(threadData.replies[0].replies)).toBe(true);
+		expect(firstReply.replies).toBeDefined();
+		expect(Array.isArray(firstReply.replies)).toBe(true);
 	});
 
 	test("should get all threads with all replies and comments for a course module link", async () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -579,10 +579,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This is the main discussion thread.",
 		};
 
-		const threadResult = await tryCreateDiscussionSubmission(
-			payload,
-			threadArgs,
-		);
+		const threadResult = await tryCreateDiscussionSubmission(threadArgs);
 		expect(threadResult.ok).toBe(true);
 		if (!threadResult.ok) return;
 
@@ -590,6 +587,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create replies to the thread
 		const reply1Args: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -598,13 +597,12 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const reply1Result = await tryCreateDiscussionSubmission(
-			payload,
-			reply1Args,
-		);
+		const reply1Result = await tryCreateDiscussionSubmission(reply1Args);
 		expect(reply1Result.ok).toBe(true);
 
 		const reply2Args: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -613,14 +611,13 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const reply2Result = await tryCreateDiscussionSubmission(
-			payload,
-			reply2Args,
-		);
+		const reply2Result = await tryCreateDiscussionSubmission(reply2Args);
 		expect(reply2Result.ok).toBe(true);
 
 		// Create comments on the thread
 		const comment1Args: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -629,10 +626,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const comment1Result = await tryCreateDiscussionSubmission(
-			payload,
-			comment1Args,
-		);
+		const comment1Result = await tryCreateDiscussionSubmission(comment1Args);
 		expect(comment1Result.ok).toBe(true);
 
 		// Get all threads with all replies and comments for this course module link
@@ -691,6 +685,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should upvote a discussion submission", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -699,17 +695,16 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This thread should be upvotable.",
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Upvote the submission
-		const result = await tryUpvoteDiscussionSubmission(payload, {
+		const result = await tryUpvoteDiscussionSubmission({
+			payload,
+			req: mockRequest,
 			submissionId,
 			userId: studentId,
 		});
@@ -721,41 +716,48 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Verify upvote was added
 		expect(upvotedSubmission.upvotes).toHaveLength(1);
-		expect(upvotedSubmission.upvotes?.[0].user).toBeDefined();
-		expect(upvotedSubmission.upvotes?.[0].upvotedAt).toBeDefined();
+		const firstUpvote = upvotedSubmission.upvotes?.[0]!;
+		expect(firstUpvote.user).toBeDefined();
+		expect(firstUpvote.upvotedAt).toBeDefined();
 	});
 
 	test("should remove upvote from a discussion submission", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
 			title: "Upvotable Thread 2",
 			content: "This thread should be upvotable and then un-upvotable.",
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Upvote the submission first
-		const upvoteResult = await tryUpvoteDiscussionSubmission(payload, {
+		const upvoteResult = await tryUpvoteDiscussionSubmission({
+			payload,
+			req: mockRequest,
 			submissionId,
 			userId: studentId,
+			overrideAccess: true,
 		});
 		expect(upvoteResult.ok).toBe(true);
 
 		// Remove the upvote
-		const result = await tryRemoveUpvoteDiscussionSubmission(payload, {
+		const result = await tryRemoveUpvoteDiscussionSubmission({
+			payload,
+			req: mockRequest,
 			submissionId,
 			userId: studentId,
+			overrideAccess: true,
 		});
 
 		expect(result.ok).toBe(true);
@@ -770,6 +772,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should list discussion submissions with filtering", async () => {
 		// Create multiple submissions for testing
 		const threadArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -778,10 +782,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This is a thread for list testing.",
 		};
 
-		const threadResult = await tryCreateDiscussionSubmission(
-			payload,
-			threadArgs,
-		);
+		const threadResult = await tryCreateDiscussionSubmission(threadArgs);
 		expect(threadResult.ok).toBe(true);
 		if (!threadResult.ok) return;
 
@@ -789,6 +790,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create a reply
 		const replyArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -797,7 +800,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const replyResult = await tryCreateDiscussionSubmission(payload, replyArgs);
+		const replyResult = await tryCreateDiscussionSubmission(replyArgs);
 		expect(replyResult.ok).toBe(true);
 
 		// List all submissions for this course module link
@@ -853,6 +856,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should manually grade a discussion submission", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -861,10 +866,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This thread should be gradable by the teacher.",
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -906,8 +908,8 @@ describe("Discussion Management - Full Workflow", () => {
 		// Verify gradedBy is the teacher
 		const gradedById =
 			typeof submissionWithGrade.gradedBy === "object" &&
-				submissionWithGrade.gradedBy !== null &&
-				"id" in submissionWithGrade.gradedBy
+			submissionWithGrade.gradedBy !== null &&
+			"id" in submissionWithGrade.gradedBy
 				? submissionWithGrade.gradedBy.id
 				: submissionWithGrade.gradedBy;
 		expect(gradedById).toBe(teacherId);
@@ -919,6 +921,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create multiple submissions and grade them
 		const threadArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -927,10 +931,7 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This is the main thread for grade calculation testing.",
 		};
 
-		const threadResult = await tryCreateDiscussionSubmission(
-			payload,
-			threadArgs,
-		);
+		const threadResult = await tryCreateDiscussionSubmission(threadArgs);
 		expect(threadResult.ok).toBe(true);
 		if (!threadResult.ok) return;
 
@@ -955,6 +956,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create and grade a reply
 		const replyArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -963,7 +966,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const replyResult = await tryCreateDiscussionSubmission(payload, replyArgs);
+		const replyResult = await tryCreateDiscussionSubmission(replyArgs);
 		expect(replyResult.ok).toBe(true);
 		if (!replyResult.ok) return;
 
@@ -987,6 +990,8 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// Create and grade a comment
 		const commentArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -995,10 +1000,7 @@ describe("Discussion Management - Full Workflow", () => {
 			parentThread: threadId,
 		};
 
-		const commentResult = await tryCreateDiscussionSubmission(
-			payload,
-			commentArgs,
-		);
+		const commentResult = await tryCreateDiscussionSubmission(commentArgs);
 		expect(commentResult.ok).toBe(true);
 		if (!commentResult.ok) return;
 
@@ -1022,12 +1024,13 @@ describe("Discussion Management - Full Workflow", () => {
 		expect(commentGradeResult.ok).toBe(true);
 
 		// Calculate the overall discussion grade
-		const result = await calculateDiscussionGrade(
+		const result = await calculateDiscussionGrade({
 			payload,
-			courseActivityModuleLinkId,
+			req: mockRequest,
+			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
-		);
+		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -1072,6 +1075,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail with invalid arguments", async () => {
 		// Test missing course module link ID
 		const invalidArgs1: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: undefined as never,
 			studentId,
 			enrollmentId,
@@ -1080,11 +1085,13 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "Test content",
 		};
 
-		const result1 = await tryCreateDiscussionSubmission(payload, invalidArgs1);
+		const result1 = await tryCreateDiscussionSubmission(invalidArgs1);
 		expect(result1.ok).toBe(false);
 
 		// Test missing content
 		const invalidArgs2: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -1093,11 +1100,13 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "",
 		};
 
-		const result2 = await tryCreateDiscussionSubmission(payload, invalidArgs2);
+		const result2 = await tryCreateDiscussionSubmission(invalidArgs2);
 		expect(result2.ok).toBe(false);
 
 		// Test missing title for thread
 		const invalidArgs3: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -1105,11 +1114,13 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "Test content",
 		};
 
-		const result3 = await tryCreateDiscussionSubmission(payload, invalidArgs3);
+		const result3 = await tryCreateDiscussionSubmission(invalidArgs3);
 		expect(result3.ok).toBe(false);
 
 		// Test missing parent thread for reply
 		const invalidArgs4: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -1117,12 +1128,14 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "Test content",
 		};
 
-		const result4 = await tryCreateDiscussionSubmission(payload, invalidArgs4);
+		const result4 = await tryCreateDiscussionSubmission(invalidArgs4);
 		expect(result4.ok).toBe(false);
 	});
 
 	test("should fail to get non-existent submission", async () => {
-		const result = await tryGetDiscussionSubmissionById(payload, {
+		const result = await tryGetDiscussionSubmissionById({
+			payload,
+			req: mockRequest,
 			id: 99999,
 		});
 
@@ -1130,7 +1143,9 @@ describe("Discussion Management - Full Workflow", () => {
 	});
 
 	test("should fail to upvote non-existent submission", async () => {
-		const result = await tryUpvoteDiscussionSubmission(payload, {
+		const result = await tryUpvoteDiscussionSubmission({
+			payload,
+			req: mockRequest,
 			submissionId: 99999,
 			userId: studentId,
 		});
@@ -1141,6 +1156,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail to upvote same submission twice", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -1149,24 +1166,25 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This thread should not be upvotable twice.",
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Upvote the submission first time
-		const upvoteResult1 = await tryUpvoteDiscussionSubmission(payload, {
+		const upvoteResult1 = await tryUpvoteDiscussionSubmission({
+			payload,
+			req: mockRequest,
 			submissionId,
 			userId: studentId,
 		});
 		expect(upvoteResult1.ok).toBe(true);
 
 		// Try to upvote the same submission again
-		const upvoteResult2 = await tryUpvoteDiscussionSubmission(payload, {
+		const upvoteResult2 = await tryUpvoteDiscussionSubmission({
+			payload,
+			req: mockRequest,
 			submissionId,
 			userId: studentId,
 		});
@@ -1176,6 +1194,8 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail to remove upvote from submission that wasn't upvoted", async () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -1184,17 +1204,16 @@ describe("Discussion Management - Full Workflow", () => {
 			content: "This thread was never upvoted.",
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Try to remove upvote from submission that was never upvoted
-		const result = await tryRemoveUpvoteDiscussionSubmission(payload, {
+		const result = await tryRemoveUpvoteDiscussionSubmission({
+			payload,
+			req: mockRequest,
 			submissionId,
 			userId: studentId,
 		});
@@ -1205,39 +1224,49 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should delete discussion submission", async () => {
 		// Create a submission
 		const createArgs: CreateDiscussionSubmissionArgs = {
+			payload,
+			req: mockRequest,
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId,
 			postType: "thread",
 			title: "Delete Test Thread",
 			content: "This thread should be deletable.",
+			overrideAccess: true,
 		};
 
-		const createResult = await tryCreateDiscussionSubmission(
-			payload,
-			createArgs,
-		);
+		const createResult = await tryCreateDiscussionSubmission(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const submissionId = createResult.value.id;
 
 		// Delete the submission
-		const deleteResult = await tryDeleteDiscussionSubmission(
+		const deleteResult = await tryDeleteDiscussionSubmission({
 			payload,
-			submissionId,
-		);
+			req: mockRequest,
+			id: submissionId,
+			overrideAccess: true,
+		});
 		expect(deleteResult.ok).toBe(true);
 
 		// Verify submission is deleted
-		const getResult = await tryGetDiscussionSubmissionById(payload, {
+		const getResult = await tryGetDiscussionSubmissionById({
+			payload,
+			req: mockRequest,
 			id: submissionId,
+			overrideAccess: true,
 		});
 		expect(getResult.ok).toBe(false);
 	});
 
 	test("should fail to delete non-existent submission", async () => {
-		const result = await tryDeleteDiscussionSubmission(payload, 99999);
+		const result = await tryDeleteDiscussionSubmission({
+			payload,
+			req: mockRequest,
+			id: 99999,
+			overrideAccess: true,
+		});
 		expect(result.ok).toBe(false);
 	});
 });

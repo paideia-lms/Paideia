@@ -17,7 +17,18 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
 	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
+	tryCreatePageModule,
+	tryCreateWhiteboardModule,
+	tryCreateFileModule,
+	tryCreateAssignmentModule,
+	tryCreateQuizModule,
+	tryCreateDiscussionModule,
+	type CreateWhiteboardModuleArgs,
+	CreatePageModuleArgs,
+	CreateFileModuleArgs,
+	CreateAssignmentModuleArgs,
+	CreateQuizModuleArgs,
+	CreateDiscussionModuleArgs,
 } from "server/internal/activity-module-management";
 import {
 	commitTransactionIfCreated,
@@ -51,6 +62,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
+import { tryCreatePage } from "server/internal/page-management";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -134,7 +146,7 @@ const createPageAction = async ({
 		});
 	}
 
-	const createArgs: CreateActivityModuleArgs = {
+	const createArgs = {
 		payload,
 		title: parsedData.title,
 		description: parsedData.description,
@@ -142,11 +154,10 @@ const createPageAction = async ({
 		userId: currentUser.id,
 		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
-		type: "page" as const,
-		pageData,
-	};
+		...pageData
+	} satisfies CreatePageModuleArgs;
 
-	const createResult = await tryCreateActivityModule(createArgs);
+	const createResult = await tryCreatePageModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -210,7 +221,7 @@ const createWhiteboardAction = async ({
 		});
 	}
 
-	const createArgs: CreateActivityModuleArgs = {
+	const createArgs = {
 		payload,
 		title: parsedData.title,
 		description: parsedData.description,
@@ -218,11 +229,10 @@ const createWhiteboardAction = async ({
 		userId: currentUser.id,
 		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
-		type: "whiteboard" as const,
-		whiteboardData,
-	};
+		...whiteboardData
+	} satisfies CreateWhiteboardModuleArgs;
 
-	const createResult = await tryCreateActivityModule(createArgs);
+	const createResult = await tryCreateWhiteboardModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -334,7 +344,7 @@ const createFileAction = async ({
 		});
 	}
 
-	const createArgs: CreateActivityModuleArgs = {
+	const createArgs = {
 		payload,
 		title: parsedData.title,
 		description: parsedData.description,
@@ -342,11 +352,10 @@ const createFileAction = async ({
 		userId: currentUser.id,
 		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
-		type: "file" as const,
-		fileData: finalFileData,
-	};
+		...finalFileData
+	} satisfies CreateFileModuleArgs;
 
-	const createResult = await tryCreateActivityModule(createArgs);
+	const createResult = await tryCreateFileModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -410,7 +419,7 @@ const createAssignmentAction = async ({
 		});
 	}
 
-	const createArgs: CreateActivityModuleArgs = {
+	const createArgs = {
 		payload,
 		title: parsedData.title,
 		description: parsedData.description,
@@ -418,11 +427,10 @@ const createAssignmentAction = async ({
 		userId: currentUser.id,
 		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
-		type: "assignment" as const,
-		assignmentData,
-	};
+		...assignmentData
+	} satisfies CreateAssignmentModuleArgs;
 
-	const createResult = await tryCreateActivityModule(createArgs);
+	const createResult = await tryCreateAssignmentModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -486,7 +494,7 @@ const createQuizAction = async ({
 		});
 	}
 
-	const createArgs: CreateActivityModuleArgs = {
+	const createArgs = {
 		payload,
 		title: parsedData.title,
 		description: parsedData.description,
@@ -494,11 +502,10 @@ const createQuizAction = async ({
 		userId: currentUser.id,
 		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
-		type: "quiz" as const,
-		quizData,
-	};
+		...quizData
+	} satisfies CreateQuizModuleArgs;
 
-	const createResult = await tryCreateActivityModule(createArgs);
+	const createResult = await tryCreateQuizModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
@@ -562,7 +569,7 @@ const createDiscussionAction = async ({
 		});
 	}
 
-	const createArgs: CreateActivityModuleArgs = {
+	const createArgs = {
 		payload,
 		title: parsedData.title,
 		description: parsedData.description,
@@ -570,11 +577,10 @@ const createDiscussionAction = async ({
 		userId: currentUser.id,
 		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
-		type: "discussion" as const,
-		discussionData,
-	};
+		...discussionData
+	} satisfies CreateDiscussionModuleArgs;
 
-	const createResult = await tryCreateActivityModule(createArgs);
+	const createResult = await tryCreateDiscussionModule(createArgs);
 
 	if (!createResult.ok) {
 		await rollbackTransactionIfCreated(payload, transactionInfo);

@@ -4,7 +4,14 @@ import { getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import type { CourseActivityModuleLink, CourseSection } from "../payload-types";
 import { generateCourseStructureTree } from "../utils/course-structure-tree";
-import { tryCreateActivityModule } from "./activity-module-management";
+import {
+	type CreateAssignmentModuleArgs,
+	type CreateDiscussionModuleArgs,
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+	tryCreateQuizModule,
+	type CreateQuizModuleArgs,
+} from "./activity-module-management";
 import { tryCreateCourse } from "./course-management";
 import {
 	tryAddActivityModuleToSection,
@@ -89,17 +96,14 @@ describe("Course Section Management Functions", () => {
 		testCourse = courseResult.value;
 
 		// Create test activity module
-		const activityModuleResult = await tryCreateActivityModule({
+		const activityModuleResult = await tryCreateAssignmentModule({
 			payload,
 			title: "Test Activity Module",
 			description: "A test activity module",
-			type: "assignment",
 			userId: testUser.id,
-			assignmentData: {
-				instructions: "Test assignment instructions",
-			},
+			instructions: "Test assignment instructions",
 			overrideAccess: true,
-		});
+		} satisfies CreateAssignmentModuleArgs);
 
 		if (!activityModuleResult.ok) {
 			throw new Error("Failed to create test activity module");
@@ -600,9 +604,9 @@ describe("Course Section Management Functions", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.length).toBe(3);
-			expect(result.value[0].title).toBe("Root Ancestor");
-			expect(result.value[1].title).toBe("Child Ancestor");
-			expect(result.value[2].title).toBe("Grandchild");
+			expect(result.value[0]!.title).toBe("Root Ancestor");
+			expect(result.value[1]!.title).toBe("Child Ancestor");
+			expect(result.value[2]!.title).toBe("Grandchild");
 		}
 	});
 
@@ -978,17 +982,14 @@ describe("Course Section Management Functions", () => {
 		if (!sectionResult.ok) return;
 
 		// Create another activity module
-		const activityModule2Result = await tryCreateActivityModule({
+		const activityModule2Result = await tryCreateQuizModule({
 			payload,
 			title: "Test Activity Module 2",
 			description: "Second test activity module",
-			type: "quiz",
 			userId: testUser.id,
-			quizData: {
-				instructions: "Test quiz instructions",
-			},
+			instructions: "Test quiz instructions",
 			overrideAccess: true,
-		});
+		} satisfies CreateQuizModuleArgs);
 
 		expect(activityModule2Result.ok).toBe(true);
 		if (!activityModule2Result.ok) return;
@@ -1289,29 +1290,23 @@ describe("Course Section Management Functions", () => {
 		if (!section11Result.ok) return;
 
 		// Create additional activity modules
-		const activityModule2Result = await tryCreateActivityModule({
+		const activityModule2Result = await tryCreateQuizModule({
 			payload,
 			title: "Test Activity Module 2",
 			description: "Second test activity module",
-			type: "quiz",
 			userId: testUser.id,
-			quizData: {
-				instructions: "Test quiz instructions",
-			},
+			instructions: "Test quiz instructions",
 			overrideAccess: true,
-		});
+		} satisfies CreateQuizModuleArgs);
 
-		const activityModule3Result = await tryCreateActivityModule({
+		const activityModule3Result = await tryCreateDiscussionModule({
 			payload,
 			title: "Test Activity Module 3",
 			description: "Third test activity module",
-			type: "discussion",
 			userId: testUser.id,
-			discussionData: {
-				instructions: "Test discussion instructions",
-			},
+			instructions: "Test discussion instructions",
 			overrideAccess: true,
-		});
+		} satisfies CreateDiscussionModuleArgs);
 
 		expect(activityModule2Result.ok).toBe(true);
 		expect(activityModule3Result.ok).toBe(true);
@@ -1383,14 +1378,14 @@ describe("Course Section Management Functions", () => {
 
 			// Verify Introduction section has one activity module
 			expect(introSection.content.length).toBe(1);
-			expect(introSection.content[0].type).toBe("activity-module");
-			expect(introSection.content[0].id).toBe(link1Result.value.id);
+			expect(introSection.content[0]!.type).toBe("activity-module");
+			expect(introSection.content[0]!.id).toBe(link1Result.value.id);
 
 			// Verify Main Content section structure
 			expect(mainContentSection.content.length).toBe(2); // Chapter 1 and Chapter 2
 
 			// Verify Chapter 1
-			const chapter1 = mainContentSection.content[0];
+			const chapter1 = mainContentSection.content[0]!;
 			expect(chapter1.type).toBe("section");
 			if (chapter1.type === "section") {
 				expect(chapter1.title).toBe("Chapter 1");
@@ -1418,15 +1413,15 @@ describe("Course Section Management Functions", () => {
 					expect(section11.title).toBe("Section 1.1");
 					expect(section11.contentOrder).toBe(0);
 					expect(section11.content.length).toBe(1);
-					expect(section11.content[0].type).toBe("activity-module");
-					if (section11.content[0].type === "activity-module") {
-						expect(section11.content[0].id).toBe(link3Result.value.id);
+					expect(section11.content[0]!.type).toBe("activity-module");
+					if (section11.content[0]!.type === "activity-module") {
+						expect(section11.content[0]!.id).toBe(link3Result.value.id);
 					}
 				}
 			}
 
 			// Verify Chapter 2
-			const chapter2 = mainContentSection.content[1];
+			const chapter2 = mainContentSection.content[1]!;
 			expect(chapter2.type).toBe("section");
 			if (chapter2.type === "section") {
 				expect(chapter2.title).toBe("Chapter 2");
@@ -1623,26 +1618,26 @@ describe("Course Section Management Functions", () => {
 		if (level1) {
 			expect(level1.content.length).toBe(1);
 
-			const level2 = level1.content[0];
+			const level2 = level1.content[0]!;
 			expect(level2.type).toBe("section");
 			if (level2.type === "section") {
 				expect(level2.title).toBe("Level 2");
 				expect(level2.content.length).toBe(1);
 
-				const level3 = level2.content[0];
+				const level3 = level2.content[0]!;
 				expect(level3.type).toBe("section");
 				if (level3.type === "section") {
 					expect(level3.title).toBe("Level 3");
 					expect(level3.content.length).toBe(1);
 
-					const level4 = level3.content[0];
+					const level4 = level3.content[0]!;
 					expect(level4.type).toBe("section");
 					if (level4.type === "section") {
 						expect(level4.title).toBe("Level 4");
 						expect(level4.content.length).toBe(1);
-						expect(level4.content[0].type).toBe("activity-module");
-						if (level4.content[0].type === "activity-module") {
-							expect(level4.content[0].id).toBe(linkResult.value.id);
+						expect(level4.content[0]!.type).toBe("activity-module");
+						if (level4.content[0]!.type === "activity-module") {
+							expect(level4.content[0]!.id).toBe(linkResult.value.id);
 						}
 					}
 				}
@@ -1679,7 +1674,7 @@ describe("Course Section Management Functions", () => {
 		if (!sectionsResult.ok) return;
 
 		expect(sectionsResult.value.length).toBe(1);
-		const defaultSection = sectionsResult.value[0];
+		const defaultSection = sectionsResult.value[0]!;
 
 		// Try to delete the only section
 		const deleteResult = await tryDeleteSection({
@@ -1740,7 +1735,7 @@ describe("Course Section Management Functions", () => {
 		if (!sectionsResult.ok) return;
 
 		expect(sectionsResult.value.length).toBe(2);
-		const defaultSection = sectionsResult.value[0];
+		const defaultSection = sectionsResult.value[0]!;
 
 		// Now we should be able to delete the default section
 		const deleteResult = await tryDeleteSection({
@@ -1878,15 +1873,12 @@ describe("Course Section Management Functions", () => {
 		// Create additional activity modules for this complex structure
 		const activityModules = [];
 		for (let i = 1; i <= 12; i++) {
-			const moduleResult = await tryCreateActivityModule({
+			const moduleResult = await tryCreateAssignmentModule({
 				payload,
 				title: `Activity Module ${i}`,
 				description: `Test activity module ${i}`,
-				type: "assignment",
 				userId: testUser.id,
-				assignmentData: {
-					instructions: `Instructions for activity module ${i}`,
-				},
+				instructions: `Instructions for activity module ${i}`,
 				overrideAccess: true,
 			});
 
@@ -1914,7 +1906,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A1 (contentOrder: 1)
 		const linkA1Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[0].id,
+			activityModuleId: activityModules[0]!.id,
 			sectionId: sectionAResult.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -1942,7 +1934,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A1.1 (contentOrder: 1)
 		const linkA11Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[1].id,
+			activityModuleId: activityModules[1]!.id,
 			sectionId: sectionA1Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -1970,7 +1962,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A1.1.1 (contentOrder: 1)
 		const linkA111Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[2].id,
+			activityModuleId: activityModules[2]!.id,
 			sectionId: sectionA11Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -1979,7 +1971,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A1.1.2 (contentOrder: 2)
 		const linkA112Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[3].id,
+			activityModuleId: activityModules[3]!.id,
 			sectionId: sectionA11Result.value.id,
 			order: 2,
 			overrideAccess: true,
@@ -1992,7 +1984,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A1.2 (contentOrder: 3)
 		const linkA12Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[4].id,
+			activityModuleId: activityModules[4]!.id,
 			sectionId: sectionA1Result.value.id,
 			order: 3,
 			overrideAccess: true,
@@ -2004,7 +1996,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A2 (contentOrder: 3)
 		const linkA2Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[5].id,
+			activityModuleId: activityModules[5]!.id,
 			sectionId: sectionAResult.value.id,
 			order: 3,
 			overrideAccess: true,
@@ -2032,7 +2024,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A2.1 (contentOrder: 1)
 		const linkA21Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[6].id,
+			activityModuleId: activityModules[6]!.id,
 			sectionId: sectionA2Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -2060,7 +2052,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A2.1.1 (contentOrder: 1)
 		const linkA211Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[7].id,
+			activityModuleId: activityModules[7]!.id,
 			sectionId: sectionA21Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -2069,7 +2061,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module A2.1.2 (contentOrder: 2)
 		const linkA212Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[8].id,
+			activityModuleId: activityModules[8]!.id,
 			sectionId: sectionA21Result.value.id,
 			order: 2,
 			overrideAccess: true,
@@ -2113,7 +2105,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module B1.1 (contentOrder: 1)
 		const linkB11Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[9].id,
+			activityModuleId: activityModules[9]!.id,
 			sectionId: sectionB1Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -2141,7 +2133,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module B1.1.1 (contentOrder: 1)
 		const linkB111Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[10].id,
+			activityModuleId: activityModules[10]!.id,
 			sectionId: sectionB11Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -2150,7 +2142,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module B1.1.2 (contentOrder: 2)
 		const linkB112Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[11].id,
+			activityModuleId: activityModules[11]!.id,
 			sectionId: sectionB11Result.value.id,
 			order: 2,
 			overrideAccess: true,
@@ -2218,7 +2210,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module C1.1 (contentOrder: 1)
 		const linkC11Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[0].id, // Reuse existing module
+			activityModuleId: activityModules[0]!.id, // Reuse existing module
 			sectionId: sectionC1Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -2246,7 +2238,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module C1.1.1 (contentOrder: 1)
 		const linkC111Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[1].id, // Reuse existing module
+			activityModuleId: activityModules[1]!.id, // Reuse existing module
 			sectionId: sectionC11Result.value.id,
 			order: 1,
 			overrideAccess: true,
@@ -2255,7 +2247,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module C1.1.2 (contentOrder: 2)
 		const linkC112Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[2].id, // Reuse existing module
+			activityModuleId: activityModules[2]!.id, // Reuse existing module
 			sectionId: sectionC11Result.value.id,
 			order: 2,
 			overrideAccess: true,
@@ -2268,7 +2260,7 @@ describe("Course Section Management Functions", () => {
 		// Add Activity Module C2 (contentOrder: 3)
 		const linkC2Result = await tryAddActivityModuleToSection({
 			payload,
-			activityModuleId: activityModules[3].id, // Reuse existing module
+			activityModuleId: activityModules[3]!.id, // Reuse existing module
 			sectionId: sectionCResult.value.id,
 			order: 3,
 			overrideAccess: true,
@@ -2326,7 +2318,7 @@ describe("Course Section Management Functions", () => {
 		// Find the link for Activity Module 17 (which should be the 5th activity module we created)
 		// We need to find the link ID, not the activity module ID
 		// Let's find the link that corresponds to Activity Module 5 (which is activityModules[4])
-		const targetActivityModule = activityModules[4]; // This is Activity Module 5
+		const targetActivityModule = activityModules[4]!; // This is Activity Module 5
 		// console.log("Target activity module:", targetActivityModule);
 
 		// Find the link for this activity module in Section A.1
@@ -2477,27 +2469,21 @@ describe("Course Section Management Functions", () => {
 		const childSection2 = childSection2Result.value;
 
 		// Create activity modules
-		const activityModule1Result = await tryCreateActivityModule({
+		const activityModule1Result = await tryCreateAssignmentModule({
 			payload,
 			title: "Activity Module 1",
 			description: "First activity module",
-			type: "assignment",
 			userId: testUser.id,
-			assignmentData: {
-				instructions: "Test assignment 1",
-			},
+			instructions: "Test assignment 1",
 			overrideAccess: true,
 		});
 
-		const activityModule2Result = await tryCreateActivityModule({
+		const activityModule2Result = await tryCreateQuizModule({
 			payload,
 			title: "Activity Module 2",
 			description: "Second activity module",
-			type: "quiz",
 			userId: testUser.id,
-			quizData: {
-				instructions: "Test quiz 1",
-			},
+			instructions: "Test quiz 1",
 			overrideAccess: true,
 		});
 
@@ -2883,15 +2869,12 @@ describe("Course Section Management Functions", () => {
 		if (!sectionResult.ok) return;
 
 		// create a module in section 1
-		const module1Result = await tryCreateActivityModule({
+		const module1Result = await tryCreateDiscussionModule({
 			payload,
 			title: "Module 1",
 			description: "First module",
-			type: "discussion",
 			userId: testUser.id,
-			discussionData: {
-				instructions: "Test discussion 1",
-			},
+			instructions: "Test discussion 1",
 			overrideAccess: true,
 		});
 
@@ -2899,15 +2882,12 @@ describe("Course Section Management Functions", () => {
 		if (!module1Result.ok) return;
 
 		// create a module in section 2
-		const module2Result = await tryCreateActivityModule({
+		const module2Result = await tryCreateDiscussionModule({
 			payload,
 			title: "Module 2",
 			description: "Second module",
-			type: "discussion",
 			userId: testUser.id,
-			discussionData: {
-				instructions: "Test discussion 2",
-			},
+			instructions: "Test discussion 2",
 			overrideAccess: true,
 		});
 
@@ -2915,27 +2895,21 @@ describe("Course Section Management Functions", () => {
 		if (!module2Result.ok) return;
 
 		// Create activity modules
-		const activityModule3Result = await tryCreateActivityModule({
+		const activityModule3Result = await tryCreateDiscussionModule({
 			payload,
 			title: "Activity Module 3",
 			description: "Third activity module",
-			type: "discussion",
 			userId: testUser.id,
-			discussionData: {
-				instructions: "Test discussion 3",
-			},
+			instructions: "Test discussion 3",
 			overrideAccess: true,
 		});
 
-		const activityModule4Result = await tryCreateActivityModule({
+		const activityModule4Result = await tryCreateDiscussionModule({
 			payload,
 			title: "Activity Module 4",
 			description: "Fourth activity module",
-			type: "discussion",
 			userId: testUser.id,
-			discussionData: {
-				instructions: "Test discussion 4",
-			},
+			instructions: "Test discussion 4",
 			overrideAccess: true,
 		});
 
@@ -3106,27 +3080,21 @@ describe("Course Section Management Functions", () => {
 		if (!sectionResult.ok) return;
 
 		// Create activity modules
-		const assignmentResult = await tryCreateActivityModule({
+		const assignmentResult = await tryCreateAssignmentModule({
 			payload,
 			title: "Generic Assignment Title",
 			description: "A reusable assignment",
-			type: "assignment",
 			userId: testUser.id,
-			assignmentData: {
-				instructions: "Complete the assignment",
-			},
+			instructions: "Complete the assignment",
 			overrideAccess: true,
 		});
 
-		const quizResult = await tryCreateActivityModule({
+		const quizResult = await tryCreateQuizModule({
 			payload,
 			title: "Generic Quiz Title",
 			description: "A reusable quiz",
-			type: "quiz",
 			userId: testUser.id,
-			quizData: {
-				instructions: "Complete the quiz",
-			},
+			instructions: "Complete the quiz",
 			overrideAccess: true,
 		});
 

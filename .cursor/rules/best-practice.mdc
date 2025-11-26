@@ -107,7 +107,7 @@ try our best not to provide return type for internal functions.
 
 use `then(stripDepth<depth, operation>())` to strip the depth from the payload result.
 
-should not accept `depth` as an arg for internal functions.
+should not accept `depth` as an arg for internal functions but we should always use explicit `depth` for the payload function call.
 
 
 ## Changelog

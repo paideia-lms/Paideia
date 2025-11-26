@@ -3,10 +3,7 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
-import {
-	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
-} from "./activity-module-management";
+import { type CreateActivityModuleArgs } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,
@@ -458,8 +455,8 @@ describe("Gradebook Item Management", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.length).toBeGreaterThanOrEqual(2);
-			expect(result.value[0].sortOrder).toBeLessThanOrEqual(
-				result.value[1].sortOrder,
+			expect(result.value[0]!.sortOrder).toBeLessThanOrEqual(
+				result.value[1]!.sortOrder,
 			);
 		}
 	});

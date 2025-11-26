@@ -9,7 +9,6 @@ import { getPayload } from "payload";
 import { envVars } from "../env";
 import config from "../payload.config";
 import { s3Client } from "../utils/s3-client";
-import { tryCreateActivityModule } from "./activity-module-management";
 import { tryCreateAssignmentSubmission } from "./assignment-submission-management";
 import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
@@ -34,6 +33,10 @@ import {
 import { tryCreateNote } from "./note-management";
 import { tryCreatePage } from "./page-management";
 import { tryCreateUser } from "./user-management";
+import {
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+} from "./activity-module-management";
 
 describe("Media Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -112,7 +115,7 @@ describe("Media Management", () => {
 			// createdBy could be an object or ID, so check if it's a number or has an id property
 			const createdBy =
 				typeof result.value.media.createdBy === "object" &&
-					result.value.media.createdBy !== null
+				result.value.media.createdBy !== null
 					? result.value.media.createdBy.id
 					: result.value.media.createdBy;
 			expect(createdBy).toBe(testUserId);
@@ -185,7 +188,7 @@ describe("Media Management", () => {
 		const getResult = await tryGetMediaByFilename({
 			payload,
 			filename: createdMedia.filename,
-			
+
 			overrideAccess: true,
 		});
 
@@ -207,7 +210,6 @@ describe("Media Management", () => {
 		const result = await tryGetMediaByFilename({
 			payload,
 			filename: "non-existent-file-12345.png",
-			
 		});
 
 		expect(result.ok).toBe(false);
@@ -217,7 +219,6 @@ describe("Media Management", () => {
 		const result = await tryGetMediaByFilename({
 			payload,
 			filename: "",
-			
 		});
 
 		expect(result.ok).toBe(false);
@@ -258,7 +259,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filename: createdMedia.filename,
-			
+
 			overrideAccess: true,
 		});
 
@@ -289,7 +290,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filename: "non-existent-buffer-file.png",
-			
+
 			overrideAccess: true,
 		});
 
@@ -301,7 +302,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filename: "",
-			
+
 			overrideAccess: true,
 		});
 
@@ -342,7 +343,7 @@ describe("Media Management", () => {
 			userId: testUserId,
 			limit: 10,
 			page: 1,
-			
+
 			overrideAccess: true,
 		});
 
@@ -370,7 +371,7 @@ describe("Media Management", () => {
 			userId: testUserId,
 			limit: 1,
 			page: 1,
-			
+
 			overrideAccess: true,
 		});
 
@@ -434,7 +435,7 @@ describe("Media Management", () => {
 					payload,
 					s3Client,
 					filename: createdMedia.filename,
-					
+
 					overrideAccess: true,
 				});
 				expect(bufferResult.ok).toBe(false);
@@ -858,7 +859,7 @@ describe("Media Management", () => {
 			const getOldResult = await tryGetMediaByFilename({
 				payload,
 				filename: createdMedia.filename,
-				
+
 				overrideAccess: true,
 			});
 			expect(getOldResult.ok).toBe(false);
@@ -1200,18 +1201,16 @@ describe("Media Management", () => {
 		const sectionId = sectionResult.value.id;
 
 		// 5. Create activity module with assignment
-		const activityModuleResult = await tryCreateActivityModule({
+		const activityModuleResult = await tryCreateAssignmentModule({
 			payload,
 			title: "Test Assignment",
 			description: "A test assignment",
-			type: "assignment",
 			status: "published",
 			userId: testUserId,
-			assignmentData: {
-				instructions: "Complete this assignment",
-				requireFileSubmission: true,
-				requireTextSubmission: false,
-			},
+			instructions: "Complete this assignment",
+			requireFileSubmission: true,
+			requireTextSubmission: false,
+			overrideAccess: true,
 		});
 
 		expect(activityModuleResult.ok).toBe(true);
@@ -1222,16 +1221,15 @@ describe("Media Management", () => {
 
 		// 6. Create course activity module link
 		const mockRequest = new Request("http://localhost:3000/test");
-		const linkResult = await tryCreateCourseActivityModuleLink(
-			{
-				payload,
-				req: mockRequest,
-				course: courseId,
-				activityModule: activityModuleId,
-				section: sectionId,
-				contentOrder: 0,
-			},
-		);
+		const linkResult = await tryCreateCourseActivityModuleLink({
+			payload,
+			req: mockRequest,
+			course: courseId,
+			activityModule: activityModuleId,
+			section: sectionId,
+			contentOrder: 0,
+			overrideAccess: true,
+		});
 
 		expect(linkResult.ok).toBe(true);
 		if (!linkResult.ok) {
@@ -1253,6 +1251,7 @@ describe("Media Management", () => {
 					description: "Test attachment",
 				},
 			],
+			overrideAccess: true,
 		});
 
 		expect(assignmentSubmissionResult.ok).toBe(true);
@@ -1266,20 +1265,16 @@ describe("Media Management", () => {
 		});
 
 		// 8. Create activity module with discussion
-		const discussionActivityModuleResult = await tryCreateActivityModule(
-			{
-				payload,
-				title: "Test Discussion",
-				description: "A test discussion",
-				type: "discussion",
-				status: "published",
-				userId: testUserId,
-				discussionData: {
-					instructions: "Participate in this discussion",
-					allowAttachments: true,
-				},
-			},
-		);
+		const discussionActivityModuleResult = await tryCreateDiscussionModule({
+			payload,
+			title: "Test Discussion",
+			description: "A test discussion",
+			status: "published",
+			userId: testUserId,
+			instructions: "Participate in this discussion",
+			allowAttachments: true,
+			overrideAccess: true,
+		});
 
 		expect(discussionActivityModuleResult.ok).toBe(true);
 		if (!discussionActivityModuleResult.ok) {
@@ -1288,16 +1283,15 @@ describe("Media Management", () => {
 		const discussionActivityModuleId = discussionActivityModuleResult.value.id;
 
 		// 9. Create course activity module link for discussion
-		const discussionLinkResult = await tryCreateCourseActivityModuleLink(
-			{
-				payload,
-				req: mockRequest,
-				course: courseId,
-				activityModule: discussionActivityModuleId,
-				section: sectionId,
-				contentOrder: 1,
-			},
-		);
+		const discussionLinkResult = await tryCreateCourseActivityModuleLink({
+			payload,
+			req: mockRequest,
+			course: courseId,
+			activityModule: discussionActivityModuleId,
+			section: sectionId,
+			contentOrder: 1,
+			overrideAccess: true,
+		});
 
 		expect(discussionLinkResult.ok).toBe(true);
 		if (!discussionLinkResult.ok) {
@@ -1308,17 +1302,16 @@ describe("Media Management", () => {
 		const discussionCourseModuleLinkId = discussionLinkResult.value.id;
 
 		// 10. Create discussion submission
-		const discussionSubmissionResult = await tryCreateDiscussionSubmission(
+		const discussionSubmissionResult = await tryCreateDiscussionSubmission({
 			payload,
-			{
-				courseModuleLinkId: discussionCourseModuleLinkId,
-				studentId: testUserId,
-				enrollmentId,
-				postType: "thread",
-				title: "Test Discussion Thread",
-				content: "This is a test discussion thread",
-			},
-		);
+			courseModuleLinkId: discussionCourseModuleLinkId,
+			studentId: testUserId,
+			enrollmentId,
+			postType: "thread",
+			title: "Test Discussion Thread",
+			content: "This is a test discussion thread",
+			overrideAccess: true,
+		});
 
 		expect(discussionSubmissionResult.ok).toBe(true);
 		if (!discussionSubmissionResult.ok) {

@@ -1,5 +1,5 @@
 import { omit } from "es-toolkit";
-import type { Payload, PayloadRequest, TypedUser, User } from "payload";
+import type { Payload, PayloadRequest, TypedUser } from "payload";
 import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -13,6 +13,7 @@ import {
 import { tryFindAutoGrantedModulesForInstructor } from "./activity-module-access";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
+	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
@@ -26,114 +27,96 @@ type BaseCreateActivityModuleArgs = BaseInternalFunctionArgs & {
 };
 
 // Discriminated union for create args
-type CreatePageModuleArgs = BaseCreateActivityModuleArgs & {
-	type: "page";
-	pageData: {
-		content?: string;
-	};
+export type CreatePageModuleArgs = BaseCreateActivityModuleArgs & {
+	content?: string;
 };
 
-type CreateWhiteboardModuleArgs = BaseCreateActivityModuleArgs & {
-	type: "whiteboard";
-	whiteboardData: {
-		content?: string;
-	};
+export type CreateWhiteboardModuleArgs = BaseCreateActivityModuleArgs & {
+	content?: string;
 };
 
-type CreateAssignmentModuleArgs = BaseCreateActivityModuleArgs & {
-	type: "assignment";
-	assignmentData: {
-		instructions?: string;
-		dueDate?: string;
-		maxAttempts?: number;
-		allowLateSubmissions?: boolean;
-		requireTextSubmission?: boolean;
-		requireFileSubmission?: boolean;
-		allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
-		maxFileSize?: number;
-		maxFiles?: number;
-	};
+export type CreateAssignmentModuleArgs = BaseCreateActivityModuleArgs & {
+	instructions?: string;
+	dueDate?: string;
+	maxAttempts?: number;
+	allowLateSubmissions?: boolean;
+	requireTextSubmission?: boolean;
+	requireFileSubmission?: boolean;
+	allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
+	maxFileSize?: number;
+	maxFiles?: number;
 };
 
-type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
-	type: "quiz";
-	quizData: {
-		description?: string;
-		instructions?: string;
-		dueDate?: string;
-		maxAttempts?: number;
-		allowLateSubmissions?: boolean;
-		points?: number;
-		gradingType?: "automatic" | "manual";
-		timeLimit?: number;
-		showCorrectAnswers?: boolean;
-		allowMultipleAttempts?: boolean;
-		shuffleQuestions?: boolean;
-		shuffleAnswers?: boolean;
-		showOneQuestionAtATime?: boolean;
-		rawQuizConfig?: QuizConfig;
-		questions?: Array<{
-			questionText: string;
-			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
-			points: number;
-			options?: Array<{
-				text: string;
-				isCorrect: boolean;
-				feedback?: string;
-			}>;
-			correctAnswer?: string;
-			explanation?: string;
-			hints?: Array<{ hint: string }>;
+export type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
+	description?: string;
+	instructions?: string;
+	dueDate?: string;
+	maxAttempts?: number;
+	allowLateSubmissions?: boolean;
+	points?: number;
+	gradingType?: "automatic" | "manual";
+	timeLimit?: number;
+	showCorrectAnswers?: boolean;
+	allowMultipleAttempts?: boolean;
+	shuffleQuestions?: boolean;
+	shuffleAnswers?: boolean;
+	showOneQuestionAtATime?: boolean;
+	rawQuizConfig?: QuizConfig;
+	questions?: Array<{
+		questionText: string;
+		questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
+		points: number;
+		options?: Array<{
+			text: string;
+			isCorrect: boolean;
+			feedback?: string;
 		}>;
-	};
+		correctAnswer?: string;
+		explanation?: string;
+		hints?: Array<{ hint: string }>;
+	}>;
 };
 
-type CreateDiscussionModuleArgs = BaseCreateActivityModuleArgs & {
-	type: "discussion";
-	discussionData: {
-		description?: string;
-		instructions?: string;
-		dueDate?: string;
-		requireThread?: boolean;
-		requireReplies?: boolean;
-		minReplies?: number;
-		minWordsPerPost?: number;
-		allowAttachments?: boolean;
-		allowUpvotes?: boolean;
-		allowEditing?: boolean;
-		allowDeletion?: boolean;
-		moderationRequired?: boolean;
-		anonymousPosting?: boolean;
-		groupDiscussion?: boolean;
-		maxGroupSize?: number;
-		threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
-	};
+export type CreateDiscussionModuleArgs = BaseCreateActivityModuleArgs & {
+	description?: string;
+	instructions?: string;
+	dueDate?: string;
+	requireThread?: boolean;
+	requireReplies?: boolean;
+	minReplies?: number;
+	minWordsPerPost?: number;
+	allowAttachments?: boolean;
+	allowUpvotes?: boolean;
+	allowEditing?: boolean;
+	allowDeletion?: boolean;
+	moderationRequired?: boolean;
+	anonymousPosting?: boolean;
+	groupDiscussion?: boolean;
+	maxGroupSize?: number;
+	threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
 };
 
-type CreateFileModuleArgs = BaseCreateActivityModuleArgs & {
-	type: "file";
-	fileData: {
-		media?: number[];
-	};
+export type CreateFileModuleArgs = BaseCreateActivityModuleArgs & {
+	media?: number[];
 };
 
 export type CreateActivityModuleArgs =
-	| CreatePageModuleArgs
-	| CreateWhiteboardModuleArgs
-	| CreateFileModuleArgs
-	| CreateAssignmentModuleArgs
-	| CreateQuizModuleArgs
-	| CreateDiscussionModuleArgs;
+	| ({ type: "page" } & CreatePageModuleArgs)
+	| ({ type: "whiteboard" } & CreateWhiteboardModuleArgs)
+	| ({ type: "file" } & CreateFileModuleArgs)
+	| ({ type: "assignment" } & CreateAssignmentModuleArgs)
+	| ({ type: "quiz" } & CreateQuizModuleArgs)
+	| ({ type: "discussion" } & CreateDiscussionModuleArgs);
 
 // Base args for update
-type BaseUpdateActivityModuleArgs = BaseInternalFunctionArgs & {
+export type BaseUpdateActivityModuleArgs = BaseInternalFunctionArgs & {
 	id: number;
 	title?: string;
 	description?: string;
@@ -141,111 +124,93 @@ type BaseUpdateActivityModuleArgs = BaseInternalFunctionArgs & {
 };
 
 // Discriminated union for update args
-type UpdatePageModuleArgs = BaseUpdateActivityModuleArgs & {
-	type: "page";
-	pageData: {
-		content?: string;
-	};
+export type UpdatePageModuleArgs = BaseUpdateActivityModuleArgs & {
+	content?: string;
 };
 
-type UpdateWhiteboardModuleArgs = BaseUpdateActivityModuleArgs & {
-	type: "whiteboard";
-	whiteboardData: {
-		content?: string;
-	};
+export type UpdateWhiteboardModuleArgs = BaseUpdateActivityModuleArgs & {
+	content?: string;
 };
 
-type UpdateAssignmentModuleArgs = BaseUpdateActivityModuleArgs & {
-	type: "assignment";
-	assignmentData: {
-		instructions?: string;
-		dueDate?: string;
-		maxAttempts?: number;
-		allowLateSubmissions?: boolean;
-		requireTextSubmission?: boolean;
-		requireFileSubmission?: boolean;
-		allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
-		maxFileSize?: number;
-		maxFiles?: number;
-	};
+export type UpdateAssignmentModuleArgs = BaseUpdateActivityModuleArgs & {
+	instructions?: string;
+	dueDate?: string;
+	maxAttempts?: number;
+	allowLateSubmissions?: boolean;
+	requireTextSubmission?: boolean;
+	requireFileSubmission?: boolean;
+	allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
+	maxFileSize?: number;
+	maxFiles?: number;
 };
 
-type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
-	type: "quiz";
-	quizData: {
-		description?: string;
-		instructions?: string;
-		dueDate?: string;
-		maxAttempts?: number;
-		allowLateSubmissions?: boolean;
-		points?: number;
-		gradingType?: "automatic" | "manual";
-		timeLimit?: number;
-		showCorrectAnswers?: boolean;
-		allowMultipleAttempts?: boolean;
-		shuffleQuestions?: boolean;
-		shuffleAnswers?: boolean;
-		showOneQuestionAtATime?: boolean;
-		rawQuizConfig?: QuizConfig;
-		questions?: Array<{
-			questionText: string;
-			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank"
-				| "matching"
-				| "ordering";
-			points: number;
-			options?: Array<{
-				text: string;
-				isCorrect: boolean;
-				feedback?: string;
-			}>;
-			correctAnswer?: string;
-			explanation?: string;
-			hints?: Array<{ hint: string }>;
+export type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
+	description?: string;
+	instructions?: string;
+	dueDate?: string;
+	maxAttempts?: number;
+	allowLateSubmissions?: boolean;
+	points?: number;
+	gradingType?: "automatic" | "manual";
+	timeLimit?: number;
+	showCorrectAnswers?: boolean;
+	allowMultipleAttempts?: boolean;
+	shuffleQuestions?: boolean;
+	shuffleAnswers?: boolean;
+	showOneQuestionAtATime?: boolean;
+	rawQuizConfig?: QuizConfig;
+	questions?: Array<{
+		questionText: string;
+		questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank"
+			| "matching"
+			| "ordering";
+		points: number;
+		options?: Array<{
+			text: string;
+			isCorrect: boolean;
+			feedback?: string;
 		}>;
-	};
+		correctAnswer?: string;
+		explanation?: string;
+		hints?: Array<{ hint: string }>;
+	}>;
 };
 
-type UpdateDiscussionModuleArgs = BaseUpdateActivityModuleArgs & {
-	type: "discussion";
-	discussionData: {
-		description?: string;
-		instructions?: string;
-		dueDate?: string;
-		requireThread?: boolean;
-		requireReplies?: boolean;
-		minReplies?: number;
-		minWordsPerPost?: number;
-		allowAttachments?: boolean;
-		allowUpvotes?: boolean;
-		allowEditing?: boolean;
-		allowDeletion?: boolean;
-		moderationRequired?: boolean;
-		anonymousPosting?: boolean;
-		groupDiscussion?: boolean;
-		maxGroupSize?: number;
-		threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
-	};
+export type UpdateDiscussionModuleArgs = BaseUpdateActivityModuleArgs & {
+	description?: string;
+	instructions?: string;
+	dueDate?: string;
+	requireThread?: boolean;
+	requireReplies?: boolean;
+	minReplies?: number;
+	minWordsPerPost?: number;
+	allowAttachments?: boolean;
+	allowUpvotes?: boolean;
+	allowEditing?: boolean;
+	allowDeletion?: boolean;
+	moderationRequired?: boolean;
+	anonymousPosting?: boolean;
+	groupDiscussion?: boolean;
+	maxGroupSize?: number;
+	threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
 };
 
-type UpdateFileModuleArgs = BaseUpdateActivityModuleArgs & {
-	type: "file";
-	fileData: {
-		media?: number[];
-	};
+export type UpdateFileModuleArgs = BaseUpdateActivityModuleArgs & {
+	media?: number[];
 };
 
 export type UpdateActivityModuleArgs =
-	| UpdatePageModuleArgs
-	| UpdateWhiteboardModuleArgs
-	| UpdateFileModuleArgs
-	| UpdateAssignmentModuleArgs
-	| UpdateQuizModuleArgs
-	| UpdateDiscussionModuleArgs;
+	| ({ type: "page" } & UpdatePageModuleArgs)
+	| ({ type: "whiteboard" } & UpdateWhiteboardModuleArgs)
+	| ({ type: "file" } & UpdateFileModuleArgs)
+	| ({ type: "assignment" } & UpdateAssignmentModuleArgs)
+	| ({ type: "quiz" } & UpdateQuizModuleArgs)
+	| ({ type: "discussion" } & UpdateDiscussionModuleArgs);
 
 export type GetActivityModuleByIdArgs = BaseInternalFunctionArgs & {
 	id: number | string;
@@ -519,12 +484,18 @@ type ActivityModuleData = {
 	createdAt: string;
 	// These come from Payload and may have createdBy: number | User, but we exclude it
 	// Use unknown for createdBy to allow both number | User from Payload
-	page?: (Page & { createdBy?: number | User | unknown }) | null;
-	whiteboard?: (Whiteboard & { createdBy?: number | User | unknown }) | null;
-	file?: (File & { createdBy?: number | User | unknown }) | null;
-	assignment?: (Assignment & { createdBy?: number | User | unknown }) | null;
-	quiz?: (Quiz & { createdBy?: number | User | unknown }) | null;
-	discussion?: (Discussion & { createdBy?: number | User | unknown }) | null;
+	page?: (Page & { createdBy?: number | TypedUser }) | null;
+	whiteboard?:
+		| (Whiteboard & { createdBy?: number | TypedUser | unknown })
+		| null;
+	file?: (File & { createdBy?: number | TypedUser | unknown }) | null;
+	assignment?:
+		| (Assignment & { createdBy?: number | TypedUser | unknown })
+		| null;
+	quiz?: (Quiz & { createdBy?: number | TypedUser | unknown }) | null;
+	discussion?:
+		| (Discussion & { createdBy?: number | TypedUser | unknown })
+		| null;
 };
 
 /**
@@ -623,20 +594,20 @@ function buildDiscriminatedUnionResult(
 }
 
 /**
- * Creates a new activity module using Payload local API
+ * Creates a new page activity module
  */
-export const tryCreateActivityModule = Result.wrap(
-	async (args: CreateActivityModuleArgs) => {
+export const tryCreatePageModule = Result.wrap(
+	async (args: CreatePageModuleArgs) => {
 		const {
 			payload,
 			title,
 			description,
-			type,
 			status = "draft",
 			userId,
 			user = null,
 			req,
 			overrideAccess = false,
+			content,
 		} = args;
 
 		// Validate required fields
@@ -649,345 +620,778 @@ export const tryCreateActivityModule = Result.wrap(
 		}
 
 		// Handle transaction ID
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			// Create the related entity first based on discriminated type
-			let relatedEntityId: number | undefined;
-			let createdPage: Page | undefined;
-			let createdWhiteboard: Whiteboard | undefined;
-			let createdFile: File | undefined;
-			let createdAssignment: Assignment | undefined;
-			let createdQuiz: Quiz | undefined;
-			let createdDiscussion: Discussion | undefined;
-
-			if (type === "page") {
-				const page = await payload.create({
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Create the page entity
+			const page = await payload
+				.create({
 					collection: "pages",
 					data: {
-						content: args.pageData.content || "",
+						content: content || "",
 						createdBy: userId,
 					},
 					user,
 					req: reqWithTransaction,
 					overrideAccess,
-				});
-				relatedEntityId = page.id;
-				createdPage = {
-					id: page.id,
-					content: page.content ?? null,
-					media: Array.isArray(page.media)
-						? page.media.map((m) => (typeof m === "number" ? m : m.id))
-						: null,
-					updatedAt: page.updatedAt,
-					createdAt: page.createdAt,
-				};
-			} else if (type === "whiteboard") {
-				const whiteboard = await payload.create({
-					collection: "whiteboards",
-					data: {
-						content: args.whiteboardData.content || "",
-						createdBy: userId,
-					},
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
-				relatedEntityId = whiteboard.id;
-				createdWhiteboard = {
-					id: whiteboard.id,
-					content: whiteboard.content ?? null,
-					updatedAt: whiteboard.updatedAt,
-					createdAt: whiteboard.createdAt,
-				};
-			} else if (type === "assignment") {
-				const assignment = await payload.create({
-					collection: "assignments",
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
+
+			// Create the activity module
+			const activityModule = await payload
+				.create({
+					collection: "activity-modules",
 					data: {
 						title,
-						description: args.assignmentData.instructions || description,
-						instructions: args.assignmentData.instructions,
-						dueDate: args.assignmentData.dueDate,
-						maxAttempts: args.assignmentData.maxAttempts,
-						allowLateSubmissions: args.assignmentData.allowLateSubmissions,
-						requireTextSubmission: args.assignmentData.requireTextSubmission,
-						requireFileSubmission: args.assignmentData.requireFileSubmission,
-						allowedFileTypes: args.assignmentData.allowedFileTypes,
-						maxFileSize: args.assignmentData.maxFileSize,
-						maxFiles: args.assignmentData.maxFiles,
+						description,
+						type: "page",
+						status,
 						createdBy: userId,
+						owner: userId,
+						page: page.id,
 					},
 					user,
 					req: reqWithTransaction,
 					overrideAccess,
-				});
-				relatedEntityId = assignment.id;
-				createdAssignment = {
-					id: assignment.id,
-					title: assignment.title,
-					description: assignment.description ?? null,
-					instructions: assignment.instructions ?? null,
-					dueDate: assignment.dueDate ?? null,
-					maxAttempts: assignment.maxAttempts ?? null,
-					allowLateSubmissions: assignment.allowLateSubmissions ?? null,
-					allowedFileTypes: assignment.allowedFileTypes ?? null,
-					maxFileSize: assignment.maxFileSize ?? null,
-					maxFiles: assignment.maxFiles ?? null,
-					requireTextSubmission: assignment.requireTextSubmission ?? null,
-					requireFileSubmission: assignment.requireFileSubmission ?? null,
-					updatedAt: assignment.updatedAt,
-					createdAt: assignment.createdAt,
-				};
-			} else if (type === "quiz") {
-				const quiz = await payload.create({
-					collection: "quizzes",
-					data: {
-						title,
-						description: args.quizData.description || description,
-						instructions: args.quizData.instructions,
-						dueDate: args.quizData.dueDate,
-						maxAttempts: args.quizData.maxAttempts,
-						allowLateSubmissions: args.quizData.allowLateSubmissions,
-						points: args.quizData.points,
-						gradingType: args.quizData.gradingType,
-						showCorrectAnswers: args.quizData.showCorrectAnswers,
-						allowMultipleAttempts: args.quizData.allowMultipleAttempts,
-						shuffleQuestions: args.quizData.shuffleQuestions,
-						shuffleAnswers: args.quizData.shuffleAnswers,
-						showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
-						rawQuizConfig: args.quizData.rawQuizConfig as unknown as {
-							[x: string]: unknown;
-						},
-						questions: args.quizData.questions,
-						createdBy: userId,
-					},
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
-				relatedEntityId = quiz.id;
-				createdQuiz = {
-					id: quiz.id,
-					title: quiz.title,
-					description: quiz.description ?? null,
-					instructions: quiz.instructions ?? null,
-					dueDate: quiz.dueDate ?? null,
-					maxAttempts: quiz.maxAttempts ?? null,
-					allowLateSubmissions: quiz.allowLateSubmissions ?? null,
-					points: quiz.points ?? null,
-					gradingType: quiz.gradingType ?? null,
-					showCorrectAnswers: quiz.showCorrectAnswers ?? null,
-					allowMultipleAttempts: quiz.allowMultipleAttempts ?? null,
-					shuffleQuestions: quiz.shuffleQuestions ?? null,
-					shuffleAnswers: quiz.shuffleAnswers ?? null,
-					showOneQuestionAtATime: quiz.showOneQuestionAtATime ?? null,
-					rawQuizConfig: quiz.rawQuizConfig ?? null,
-					questions: quiz.questions ?? null,
-					updatedAt: quiz.updatedAt,
-					createdAt: quiz.createdAt,
-				};
-			} else if (type === "file") {
-				const file = await payload.create({
-					collection: "files",
-					data: {
-						media: args.fileData.media || [],
-						createdBy: userId,
-					},
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
-				relatedEntityId = file.id;
-				const fileMedia = Array.isArray(file.media)
-					? file.media.map((m) => (typeof m === "number" ? m : m.id))
-					: null;
-				// Exclude createdBy since it's in baseResult
-				createdFile = {
-					id: file.id,
-					media: fileMedia ?? null,
-					updatedAt: file.updatedAt,
-					createdAt: file.createdAt,
-				};
-			} else if (type === "discussion") {
-				const discussion = await payload.create({
-					collection: "discussions",
-					data: {
-						title,
-						description: args.discussionData.description || description,
-						instructions: args.discussionData.instructions,
-						dueDate: args.discussionData.dueDate,
-						requireThread: args.discussionData.requireThread,
-						requireReplies: args.discussionData.requireReplies,
-						minReplies: args.discussionData.minReplies,
-						minWordsPerPost: args.discussionData.minWordsPerPost,
-						allowAttachments: args.discussionData.allowAttachments,
-						allowUpvotes: args.discussionData.allowUpvotes,
-						allowEditing: args.discussionData.allowEditing,
-						allowDeletion: args.discussionData.allowDeletion,
-						moderationRequired: args.discussionData.moderationRequired,
-						anonymousPosting: args.discussionData.anonymousPosting,
-						groupDiscussion: args.discussionData.groupDiscussion,
-						maxGroupSize: args.discussionData.maxGroupSize,
-						threadSorting: args.discussionData.threadSorting || "recent",
-						createdBy: userId,
-					},
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
-				relatedEntityId = discussion.id;
-				createdDiscussion = {
-					id: discussion.id,
-					title: discussion.title,
-					description: discussion.description ?? null,
-					instructions: discussion.instructions ?? null,
-					dueDate: discussion.dueDate ?? null,
-					requireThread: discussion.requireThread ?? null,
-					requireReplies: discussion.requireReplies ?? null,
-					minReplies: discussion.minReplies ?? null,
-					minWordsPerPost: discussion.minWordsPerPost ?? null,
-					allowAttachments: discussion.allowAttachments ?? null,
-					allowUpvotes: discussion.allowUpvotes ?? null,
-					allowEditing: discussion.allowEditing ?? null,
-					allowDeletion: discussion.allowDeletion ?? null,
-					moderationRequired: discussion.moderationRequired ?? null,
-					anonymousPosting: discussion.anonymousPosting ?? null,
-					groupDiscussion: discussion.groupDiscussion ?? null,
-					maxGroupSize: discussion.maxGroupSize ?? null,
-					threadSorting: discussion.threadSorting ?? null,
-					pinnedThreads: discussion.pinnedThreads ?? null,
-					updatedAt: discussion.updatedAt,
-					createdAt: discussion.createdAt,
-				};
-			}
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
 
-			// Create the activity module with reference to the related entity
-			const activityModuleData = {
-				title,
-				description,
-				type,
-				status,
-				createdBy: userId,
-				owner: userId,
-				...(type === "page" && relatedEntityId && { page: relatedEntityId }),
-				...(type === "whiteboard" &&
-					relatedEntityId && { whiteboard: relatedEntityId }),
-				...(type === "file" && relatedEntityId && { file: relatedEntityId }),
-				...(type === "assignment" &&
-					relatedEntityId && { assignment: relatedEntityId }),
-				...(type === "quiz" && relatedEntityId && { quiz: relatedEntityId }),
-				...(type === "discussion" &&
-					relatedEntityId && { discussion: relatedEntityId }),
-			};
-
-			const activityModule = await payload.create({
-				collection: "activity-modules",
-				data: activityModuleData,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			// Commit the transaction only if we created it
-			if (isTransactionCreated && transactionID) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
-			////////////////////////////////////////////////////
-			// Build discriminated union result
-			////////////////////////////////////////////////////
-
+			// Build result directly since we know the type
 			const createdBy = activityModule.createdBy;
-			assertZodInternal(
-				"tryCreateActivityModule: Created by is required",
-				createdBy,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			const createdByAvatar = createdBy.avatar;
-			assertZodInternal(
-				"tryCreateActivityModule: Created by avatar is required",
-				createdByAvatar,
-				z.number().nullish(),
-			);
-
 			const owner = activityModule.owner;
-			assertZodInternal(
-				"tryCreateActivityModule: Owner is required",
-				owner,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			const ownerAvatar = owner.avatar;
-			assertZodInternal(
-				"tryCreateActivityModule: Owner avatar is required",
-				ownerAvatar,
-				z.number().nullish(),
-			);
 
-			const baseResult = {
+			const result = {
 				id: activityModule.id,
 				title: activityModule.title,
 				description: activityModule.description,
 				status: activityModule.status,
+				type: "page",
 				createdBy: {
 					id: createdBy.id,
-					avatar: createdByAvatar ?? null,
-					email: createdBy.email,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
 					firstName: createdBy.firstName ?? "",
 					lastName: createdBy.lastName ?? "",
 				},
 				owner: {
 					id: owner.id,
-					avatar: ownerAvatar ?? null,
-					email: owner.email,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
 					firstName: owner.firstName ?? "",
 					lastName: owner.lastName ?? "",
 				},
-				grants: undefined,
+				content: page.content ?? null,
+				media: page.media,
 				updatedAt: activityModule.updatedAt,
 				createdAt: activityModule.createdAt,
-			} satisfies BaseActivityModuleResult;
+			} satisfies PageModuleResult;
 
-			// Build discriminated union result using helper function
-			const moduleData: ActivityModuleData = {
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create page module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new whiteboard activity module
+ */
+export const tryCreateWhiteboardModule = Result.wrap(
+	async (args: CreateWhiteboardModuleArgs) => {
+		const {
+			payload,
+			title,
+			description,
+			status = "draft",
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+			content,
+		} = args;
+
+		// Validate required fields
+		if (!title || title.trim() === "") {
+			throw new InvalidArgumentError("Title is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Create the whiteboard entity
+			const whiteboard = await payload
+				.create({
+					collection: "whiteboards",
+					data: {
+						content: content || "",
+						createdBy: userId,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
+
+			// Create the activity module
+			const activityModule = await payload
+				.create({
+					collection: "activity-modules",
+					data: {
+						title,
+						description,
+						type: "whiteboard",
+						status,
+						createdBy: userId,
+						owner: userId,
+						whiteboard: whiteboard.id,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
+
+			// Build result directly since we know the type
+			const createdBy = activityModule.createdBy;
+			const owner = activityModule.owner;
+
+			const result = {
 				id: activityModule.id,
 				title: activityModule.title,
 				description: activityModule.description,
 				status: activityModule.status,
-				type,
-				createdBy: baseResult.createdBy,
-				owner: baseResult.owner,
-				grants: baseResult.grants,
+				type: "whiteboard",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				content: whiteboard.content ?? null,
 				updatedAt: activityModule.updatedAt,
 				createdAt: activityModule.createdAt,
-				// Cast created entities to allow createdBy from Payload
-				page: createdPage,
-				whiteboard: createdWhiteboard,
-				file: createdFile,
-				assignment: createdAssignment,
-				quiz: createdQuiz,
-				discussion: createdDiscussion,
-			};
+			} satisfies WhiteboardModuleResult;
 
-			return buildDiscriminatedUnionResult(baseResult, moduleData);
-		} catch (error) {
-			// Rollback the transaction on error only if we created it
-			if (isTransactionCreated) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+			return result;
+		});
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to create activity module", {
+		new UnknownError("Failed to create whiteboard module", {
 			cause: error,
 		}),
 );
+
+/**
+ * Creates a new file activity module
+ */
+export const tryCreateFileModule = Result.wrap(
+	async (args: CreateFileModuleArgs) => {
+		const {
+			payload,
+			title,
+			description,
+			status = "draft",
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+			media,
+		} = args;
+
+		// Validate required fields
+		if (!title || title.trim() === "") {
+			throw new InvalidArgumentError("Title is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Create the file entity
+			const file = await payload
+				.create({
+					collection: "files",
+					data: {
+						media: media || [],
+						createdBy: userId,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
+
+			// Create the activity module
+			const activityModule = await payload
+				.create({
+					collection: "activity-modules",
+					data: {
+						title,
+						description,
+						type: "file",
+						status,
+						createdBy: userId,
+						owner: userId,
+						file: file.id,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
+
+			// Build result directly since we know the type
+			const createdBy = activityModule.createdBy;
+			const owner = activityModule.owner;
+			const fileMedia = file.media ?? null;
+
+			const result = {
+				id: activityModule.id,
+				title: activityModule.title,
+				description: activityModule.description,
+				status: activityModule.status,
+				type: "file",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				media: fileMedia,
+				updatedAt: activityModule.updatedAt,
+				createdAt: activityModule.createdAt,
+			} satisfies FileModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create file module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new assignment activity module
+ */
+export const tryCreateAssignmentModule = Result.wrap(
+	async (args: CreateAssignmentModuleArgs) => {
+		const {
+			payload,
+			title,
+			description,
+			status = "draft",
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+			instructions,
+			dueDate,
+			maxAttempts,
+			allowLateSubmissions,
+			requireTextSubmission,
+			requireFileSubmission,
+			allowedFileTypes,
+			maxFileSize,
+			maxFiles,
+		} = args;
+
+		// Validate required fields
+		if (!title || title.trim() === "") {
+			throw new InvalidArgumentError("Title is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Create the assignment entity
+			const assignment = await payload
+				.create({
+					collection: "assignments",
+					data: {
+						title,
+						description: description,
+						instructions: instructions,
+						dueDate: dueDate,
+						maxAttempts: maxAttempts,
+						allowLateSubmissions: allowLateSubmissions,
+						requireTextSubmission: requireTextSubmission,
+						requireFileSubmission: requireFileSubmission,
+						allowedFileTypes: allowedFileTypes,
+						maxFileSize: maxFileSize,
+						maxFiles: maxFiles,
+						createdBy: userId,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryCreateAssignmentModule",
+						`to create assignment`,
+						args,
+					);
+					throw error;
+				});
+
+			// Create the activity module
+			const activityModule = await payload
+				.create({
+					collection: "activity-modules",
+					data: {
+						title,
+						description,
+						type: "assignment",
+						status,
+						createdBy: userId,
+						owner: userId,
+						assignment: assignment.id,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryCreateAssignmentModule",
+						`to create activity module`,
+						args,
+					);
+					throw error;
+				});
+
+			// Build result directly since we know the type
+			const createdBy = activityModule.createdBy;
+			const owner = activityModule.owner;
+
+			const result = {
+				id: activityModule.id,
+				title: activityModule.title,
+				description: activityModule.description,
+				status: activityModule.status,
+				type: "assignment",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				instructions: assignment.instructions ?? null,
+				dueDate: assignment.dueDate ?? null,
+				maxAttempts: assignment.maxAttempts ?? null,
+				allowLateSubmissions: assignment.allowLateSubmissions ?? null,
+				allowedFileTypes: assignment.allowedFileTypes ?? null,
+				maxFileSize: assignment.maxFileSize ?? null,
+				maxFiles: assignment.maxFiles ?? null,
+				requireTextSubmission: assignment.requireTextSubmission ?? null,
+				requireFileSubmission: assignment.requireFileSubmission ?? null,
+				updatedAt: activityModule.updatedAt,
+				createdAt: activityModule.createdAt,
+			};
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create assignment module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new quiz activity module
+ */
+export const tryCreateQuizModule = Result.wrap(
+	async (args: CreateQuizModuleArgs) => {
+		const {
+			payload,
+			title,
+			description,
+			status = "draft",
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+			instructions,
+			dueDate,
+			maxAttempts,
+			allowLateSubmissions,
+			points,
+			gradingType,
+			showCorrectAnswers,
+			allowMultipleAttempts,
+			shuffleQuestions,
+			shuffleAnswers,
+			showOneQuestionAtATime,
+			rawQuizConfig,
+			questions,
+		} = args;
+
+		// Validate required fields
+		if (!title || title.trim() === "") {
+			throw new InvalidArgumentError("Title is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Create the quiz entity
+			const quiz = await payload
+				.create({
+					collection: "quizzes",
+					data: {
+						title,
+						description: description,
+						instructions: instructions,
+						dueDate: dueDate,
+						maxAttempts: maxAttempts,
+						allowLateSubmissions: allowLateSubmissions,
+						points: points,
+						gradingType: gradingType,
+						showCorrectAnswers: showCorrectAnswers,
+						allowMultipleAttempts: allowMultipleAttempts,
+						shuffleQuestions: shuffleQuestions,
+						shuffleAnswers: shuffleAnswers,
+						showOneQuestionAtATime: showOneQuestionAtATime,
+						rawQuizConfig: rawQuizConfig as unknown as {
+							[x: string]: unknown;
+						},
+						questions: questions,
+						createdBy: userId,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
+
+			// Create the activity module
+			const activityModule = await payload
+				.create({
+					collection: "activity-modules",
+					data: {
+						title,
+						description: description,
+						type: "quiz",
+						status,
+						createdBy: userId,
+						owner: userId,
+						quiz: quiz.id,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
+
+			// Build result directly since we know the type
+			const createdBy = activityModule.createdBy;
+			const owner = activityModule.owner;
+
+			const result = {
+				id: activityModule.id,
+				title: activityModule.title,
+				description: activityModule.description,
+				status: activityModule.status,
+				type: "quiz",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				instructions: quiz.instructions ?? null,
+				dueDate: quiz.dueDate ?? null,
+				maxAttempts: quiz.maxAttempts ?? null,
+				allowLateSubmissions: quiz.allowLateSubmissions ?? null,
+				points: quiz.points ?? null,
+				gradingType: quiz.gradingType ?? null,
+				showCorrectAnswers: quiz.showCorrectAnswers ?? null,
+				allowMultipleAttempts: quiz.allowMultipleAttempts ?? null,
+				shuffleQuestions: quiz.shuffleQuestions ?? null,
+				shuffleAnswers: quiz.shuffleAnswers ?? null,
+				showOneQuestionAtATime: quiz.showOneQuestionAtATime ?? null,
+				rawQuizConfig: quiz.rawQuizConfig ?? null,
+				questions: quiz.questions ?? null,
+				updatedAt: activityModule.updatedAt,
+				createdAt: activityModule.createdAt,
+			} satisfies QuizModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create quiz module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new discussion activity module
+ */
+export const tryCreateDiscussionModule = Result.wrap(
+	async (args: CreateDiscussionModuleArgs) => {
+		const {
+			payload,
+			title,
+			description,
+			status = "draft",
+			userId,
+			user = null,
+			req,
+			overrideAccess = false,
+			instructions,
+			dueDate,
+			requireThread,
+			requireReplies,
+			minReplies,
+			minWordsPerPost,
+			allowAttachments,
+			allowUpvotes,
+			allowEditing,
+			allowDeletion,
+			moderationRequired,
+			anonymousPosting,
+			groupDiscussion,
+			maxGroupSize,
+			threadSorting,
+		} = args;
+
+		// Validate required fields
+		if (!title || title.trim() === "") {
+			throw new InvalidArgumentError("Title is required");
+		}
+
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Create the discussion entity
+			const discussion = await payload
+				.create({
+					collection: "discussions",
+					data: {
+						title,
+						description: description,
+						instructions: instructions,
+						dueDate: dueDate,
+						requireThread: requireThread,
+						requireReplies: requireReplies,
+						minReplies: minReplies,
+						minWordsPerPost: minWordsPerPost,
+						allowAttachments: allowAttachments,
+						allowUpvotes: allowUpvotes,
+						allowEditing: allowEditing,
+						allowDeletion: allowDeletion,
+						moderationRequired: moderationRequired,
+						anonymousPosting: anonymousPosting,
+						groupDiscussion: groupDiscussion,
+						maxGroupSize: maxGroupSize,
+						threadSorting: threadSorting || "recent",
+						createdBy: userId,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
+
+			// Create the activity module
+			const activityModule = await payload
+				.create({
+					collection: "activity-modules",
+					data: {
+						title,
+						description: description,
+						type: "discussion",
+						status,
+						createdBy: userId,
+						owner: userId,
+						discussion: discussion.id,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
+
+			// Build result directly since we know the type
+			const createdBy = activityModule.createdBy;
+			const owner = activityModule.owner;
+
+			const result: DiscussionModuleResult = {
+				id: activityModule.id,
+				title: activityModule.title,
+				description: activityModule.description,
+				status: activityModule.status,
+				type: "discussion",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				instructions: discussion.instructions ?? null,
+				dueDate: discussion.dueDate ?? null,
+				requireThread: discussion.requireThread ?? null,
+				requireReplies: discussion.requireReplies ?? null,
+				minReplies: discussion.minReplies ?? null,
+				minWordsPerPost: discussion.minWordsPerPost ?? null,
+				allowAttachments: discussion.allowAttachments ?? null,
+				allowUpvotes: discussion.allowUpvotes ?? null,
+				allowEditing: discussion.allowEditing ?? null,
+				allowDeletion: discussion.allowDeletion ?? null,
+				moderationRequired: discussion.moderationRequired ?? null,
+				anonymousPosting: discussion.anonymousPosting ?? null,
+				groupDiscussion: discussion.groupDiscussion ?? null,
+				maxGroupSize: discussion.maxGroupSize ?? null,
+				threadSorting: discussion.threadSorting ?? null,
+				pinnedThreads: discussion.pinnedThreads ?? null,
+				updatedAt: activityModule.updatedAt,
+				createdAt: activityModule.createdAt,
+			} satisfies DiscussionModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create discussion module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Creates a new activity module using Payload local API
+ * Delegates to type-specific create functions based on the module type
+ */
+// export const tryCreateActivityModule = Result.wrap(
+// 	async (args: CreateActivityModuleArgs) => {
+// 		if (args.type === "page") {
+// 			const result = await tryCreatePageModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "whiteboard") {
+// 			const result = await tryCreateWhiteboardModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "file") {
+// 			const result = await tryCreateFileModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "assignment") {
+// 			const result = await tryCreateAssignmentModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "quiz") {
+// 			const result = await tryCreateQuizModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "discussion") {
+// 			const result = await tryCreateDiscussionModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		throw new InvalidArgumentError(`Unknown module type`);
+// 	},
+// 	(error) =>
+// 		transformError(error) ??
+// 		new UnknownError("Failed to create activity module", {
+// 			cause: error,
+// 		}),
+// );
 
 /**
  * Get an activity module by ID
@@ -1050,8 +1454,6 @@ export const tryGetActivityModuleById = Result.wrap(
 				const fileMedia = file?.media?.map((m) => {
 					return m;
 				});
-
-				const fileCreatedBy = file?.createdBy;
 
 				const pageMedia = page?.media;
 				return {
@@ -1144,20 +1546,20 @@ export const tryGetActivityModuleById = Result.wrap(
 );
 
 /**
- * Updates an activity module
+ * Updates a page activity module
  */
-export const tryUpdateActivityModule = Result.wrap(
-	async (args: UpdateActivityModuleArgs) => {
+export const tryUpdatePageModule = Result.wrap(
+	async (args: UpdatePageModuleArgs) => {
 		const {
 			payload,
 			id,
 			title,
 			description,
-			type,
 			status,
 			user = null,
 			req,
 			overrideAccess = false,
+			content,
 		} = args;
 
 		// Validate ID
@@ -1166,13 +1568,16 @@ export const tryUpdateActivityModule = Result.wrap(
 		}
 
 		// Get the existing activity module to check its current type
-		const existingModule = await payload.findByID({
-			collection: "activity-modules",
-			id,
-			user,
-			req,
-			overrideAccess,
-		});
+		const existingModule = await payload
+			.findByID({
+				collection: "activity-modules",
+				id,
+				user,
+				req,
+				depth: 0,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">());
 
 		if (!existingModule) {
 			throw new NonExistingActivityModuleError(
@@ -1180,192 +1585,39 @@ export const tryUpdateActivityModule = Result.wrap(
 			);
 		}
 
-		// Verify type matches if updating content
-		const currentType = existingModule.type as string;
-		if (currentType !== type) {
+		// Verify type matches
+		const currentType = existingModule.type;
+		const pageId = existingModule.page;
+		if (currentType !== "page" || !pageId) {
 			throw new InvalidArgumentError(
-				`Cannot update ${type} data for a ${currentType} module`,
+				`Cannot update page data for a ${currentType} module`,
 			);
 		}
 
 		// Handle transaction ID
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Build update data object for activity module
 			const updateData: Record<string, unknown> = {};
 			if (title !== undefined) updateData.title = title;
 			if (description !== undefined) updateData.description = description;
 			if (status !== undefined) updateData.status = status;
 
-			// Update related entity based on discriminated type
-			if (type === "page") {
-				const pageId = existingModule.page;
-				if (
-					pageId &&
-					typeof pageId === "object" &&
-					"id" in pageId &&
-					pageId.id
-				) {
-					await payload.update({
-						collection: "pages",
-						id: pageId.id,
-						data: {
-							content: args.pageData.content,
-						},
-						user,
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-				}
-			} else if (type === "whiteboard") {
-				const whiteboardId = existingModule.whiteboard;
-				if (
-					whiteboardId &&
-					typeof whiteboardId === "object" &&
-					"id" in whiteboardId &&
-					whiteboardId.id
-				) {
-					await payload.update({
-						collection: "whiteboards",
-						id: whiteboardId.id,
-						data: {
-							content: args.whiteboardData.content,
-						},
-						user,
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-				}
-			} else if (type === "assignment") {
-				const assignmentId = existingModule.assignment;
-				if (
-					assignmentId &&
-					typeof assignmentId === "object" &&
-					"id" in assignmentId &&
-					assignmentId.id
-				) {
-					await payload.update({
-						collection: "assignments",
-						id: assignmentId.id,
-						data: {
-							title: title || existingModule.title,
-							description:
-								args.assignmentData.instructions ||
-								description ||
-								existingModule.description,
-							instructions: args.assignmentData.instructions,
-							dueDate: args.assignmentData.dueDate,
-							maxAttempts: args.assignmentData.maxAttempts,
-							allowLateSubmissions: args.assignmentData.allowLateSubmissions,
-							requireTextSubmission: args.assignmentData.requireTextSubmission,
-							requireFileSubmission: args.assignmentData.requireFileSubmission,
-							allowedFileTypes: args.assignmentData.allowedFileTypes,
-							maxFileSize: args.assignmentData.maxFileSize,
-							maxFiles: args.assignmentData.maxFiles,
-						},
-						user,
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-				}
-			} else if (type === "quiz") {
-				const quizId = existingModule.quiz;
-				if (
-					quizId &&
-					typeof quizId === "object" &&
-					"id" in quizId &&
-					quizId.id
-				) {
-					await payload.update({
-						collection: "quizzes",
-						id: quizId.id,
-						data: {
-							title: title || existingModule.title,
-							description:
-								args.quizData.description ||
-								description ||
-								existingModule.description,
-							instructions: args.quizData.instructions,
-							dueDate: args.quizData.dueDate,
-							maxAttempts: args.quizData.maxAttempts,
-							allowLateSubmissions: args.quizData.allowLateSubmissions,
-							points: args.quizData.points,
-							gradingType: args.quizData.gradingType,
-							showCorrectAnswers: args.quizData.showCorrectAnswers,
-							allowMultipleAttempts: args.quizData.allowMultipleAttempts,
-							shuffleQuestions: args.quizData.shuffleQuestions,
-							shuffleAnswers: args.quizData.shuffleAnswers,
-							showOneQuestionAtATime: args.quizData.showOneQuestionAtATime,
-							rawQuizConfig: args.quizData.rawQuizConfig as unknown as {
-								[x: string]: unknown;
-							},
-							questions: args.quizData.questions,
-						},
-						user,
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-				}
-			} else if (type === "file") {
-				const fileId = existingModule.file;
-				if (
-					fileId &&
-					typeof fileId === "object" &&
-					"id" in fileId &&
-					fileId.id
-				) {
-					await payload.update({
-						collection: "files",
-						id: fileId.id,
-						data: {
-							media: args.fileData.media,
-						},
-						user,
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-				}
-			} else if (type === "discussion") {
-				const discussionId = existingModule.discussion;
-				if (
-					discussionId &&
-					typeof discussionId === "object" &&
-					"id" in discussionId &&
-					discussionId.id
-				) {
-					await payload.update({
-						collection: "discussions",
-						id: discussionId.id,
-						data: {
-							title: title || existingModule.title,
-							description:
-								args.discussionData.description ||
-								description ||
-								existingModule.description,
-							instructions: args.discussionData.instructions,
-							dueDate: args.discussionData.dueDate,
-							requireThread: args.discussionData.requireThread,
-							requireReplies: args.discussionData.requireReplies,
-							minReplies: args.discussionData.minReplies,
-							minWordsPerPost: args.discussionData.minWordsPerPost,
-							allowAttachments: args.discussionData.allowAttachments,
-							allowUpvotes: args.discussionData.allowUpvotes,
-							allowEditing: args.discussionData.allowEditing,
-							allowDeletion: args.discussionData.allowDeletion,
-							moderationRequired: args.discussionData.moderationRequired,
-							anonymousPosting: args.discussionData.anonymousPosting,
-							groupDiscussion: args.discussionData.groupDiscussion,
-							maxGroupSize: args.discussionData.maxGroupSize,
-							threadSorting: args.discussionData.threadSorting,
-						},
-						user,
-						req: reqWithTransaction,
-						overrideAccess,
-					});
-				}
-			}
+			// Update related entity
+			await payload
+				.update({
+					collection: "pages",
+					id: pageId,
+					data: {
+						content: content,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
 
 			// Validate that at least one field is being updated
 			if (Object.keys(updateData).length === 0) {
@@ -1374,55 +1626,992 @@ export const tryUpdateActivityModule = Result.wrap(
 				);
 			}
 
-			await payload.update({
-				collection: "activity-modules",
-				id,
-				data: updateData,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			await payload
+				.update({
+					collection: "activity-modules",
+					id,
+					data: updateData,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
 
-			// Commit the transaction only if we created it
-			if (isTransactionCreated && transactionID) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			// Fetch updated module with depth 1 to get related data
+			const updatedModule = await payload
+				.findByID({
+					collection: "activity-modules",
+					id,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
 
-			////////////////////////////////////////////////////
-			// Fetch updated module with discriminated union
-			////////////////////////////////////////////////////
-
-			// Use tryGetActivityModuleById to fetch the updated module with all related data
-			// This ensures we return the same discriminated union type
-			const getResult = await tryGetActivityModuleById({
-				payload,
-				id,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			if (!getResult.ok) {
+			if (!updatedModule) {
 				throw new NonExistingActivityModuleError(
 					`Failed to retrieve updated activity module with id '${id}'`,
 				);
 			}
 
-			return getResult.value;
-		} catch (error) {
-			// Rollback the transaction on error only if we created it
-			if (isTransactionCreated && transactionID) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+			// Build result directly since we know the type
+			const createdBy = updatedModule.createdBy;
+			const owner = updatedModule.owner;
+			const pageRelation = updatedModule.page;
+
+			const result = {
+				id: updatedModule.id,
+				title: updatedModule.title,
+				description: updatedModule.description,
+				status: updatedModule.status,
+				type: "page",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				content: pageRelation?.content ?? null,
+				media: pageRelation?.media ?? null,
+				updatedAt: updatedModule.updatedAt,
+				createdAt: updatedModule.createdAt,
+			} satisfies PageModuleResult;
+
+			return result;
+		});
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to update activity module", {
+		new UnknownError("Failed to update page module", {
 			cause: error,
 		}),
 );
+
+/**
+ * Updates a whiteboard activity module
+ */
+export const tryUpdateWhiteboardModule = Result.wrap(
+	async (args: UpdateWhiteboardModuleArgs) => {
+		const {
+			payload,
+			id,
+			title,
+			description,
+			status,
+			user = null,
+			req,
+			overrideAccess = false,
+			content,
+		} = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Activity module ID is required");
+		}
+
+		// Get the existing activity module to check its current type
+		const existingModule = await payload
+			.findByID({
+				collection: "activity-modules",
+				id,
+				user,
+				req,
+				depth: 0,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">());
+
+		if (!existingModule) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${id}' not found`,
+			);
+		}
+
+		// Verify type matches
+		const currentType = existingModule.type;
+		const whiteboardId = existingModule.whiteboard;
+		if (currentType !== "whiteboard" || !whiteboardId) {
+			throw new InvalidArgumentError(
+				`Cannot update whiteboard data for a ${currentType} module`,
+			);
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Build update data object for activity module
+			const updateData: Record<string, unknown> = {};
+			if (title !== undefined) updateData.title = title;
+			if (description !== undefined) updateData.description = description;
+			if (status !== undefined) updateData.status = status;
+
+			// Update related entity
+			await payload
+				.update({
+					collection: "whiteboards",
+					id: whiteboardId,
+					data: {
+						content: content,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Validate that at least one field is being updated
+			if (Object.keys(updateData).length === 0) {
+				throw new InvalidArgumentError(
+					"At least one field must be provided for update",
+				);
+			}
+
+			await payload
+				.update({
+					collection: "activity-modules",
+					id,
+					data: updateData,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Fetch updated module with depth 1 to get related data
+			const updatedModule = await payload
+				.findByID({
+					collection: "activity-modules",
+					id,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (!updatedModule) {
+				throw new NonExistingActivityModuleError(
+					`Failed to retrieve updated activity module with id '${id}'`,
+				);
+			}
+
+			// Build result directly since we know the type
+			const createdBy = updatedModule.createdBy;
+			const owner = updatedModule.owner;
+			const whiteboardRelation = updatedModule.whiteboard;
+
+			const result = {
+				id: updatedModule.id,
+				title: updatedModule.title,
+				description: updatedModule.description,
+				status: updatedModule.status,
+				type: "whiteboard",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				content: whiteboardRelation?.content ?? null,
+				updatedAt: updatedModule.updatedAt,
+				createdAt: updatedModule.createdAt,
+			} satisfies WhiteboardModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update whiteboard module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Updates a file activity module
+ */
+export const tryUpdateFileModule = Result.wrap(
+	async (args: UpdateFileModuleArgs) => {
+		const {
+			payload,
+			id,
+			title,
+			description,
+			status,
+			user = null,
+			req,
+			overrideAccess = false,
+			media,
+		} = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Activity module ID is required");
+		}
+
+		// Get the existing activity module to check its current type
+		const existingModule = await payload
+			.findByID({
+				collection: "activity-modules",
+				id,
+				user,
+				req,
+				depth: 0,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">());
+
+		if (!existingModule) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${id}' not found`,
+			);
+		}
+
+		// Verify type matches
+		const currentType = existingModule.type;
+		const fileId = existingModule.file;
+		if (currentType !== "file" || !fileId) {
+			throw new InvalidArgumentError(
+				`Cannot update file data for a ${currentType} module`,
+			);
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Build update data object for activity module
+			const updateData: Record<string, unknown> = {};
+			if (title !== undefined) updateData.title = title;
+			if (description !== undefined) updateData.description = description;
+			if (status !== undefined) updateData.status = status;
+
+			// Update related entity
+			await payload
+				.update({
+					collection: "files",
+					id: fileId,
+					data: {
+						media: media,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Validate that at least one field is being updated
+			if (Object.keys(updateData).length === 0) {
+				throw new InvalidArgumentError(
+					"At least one field must be provided for update",
+				);
+			}
+
+			await payload
+				.update({
+					collection: "activity-modules",
+					id,
+					data: updateData,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Fetch updated module with depth 1 to get related data
+			const updatedModule = await payload
+				.findByID({
+					collection: "activity-modules",
+					id,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (!updatedModule) {
+				throw new NonExistingActivityModuleError(
+					`Failed to retrieve updated activity module with id '${id}'`,
+				);
+			}
+
+			// Build result directly since we know the type
+			const createdBy = updatedModule.createdBy;
+			const owner = updatedModule.owner;
+			const fileRelation = updatedModule.file;
+
+			const result = {
+				id: updatedModule.id,
+				title: updatedModule.title,
+				description: updatedModule.description,
+				status: updatedModule.status,
+				type: "file",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				media: fileRelation?.media ?? null,
+				updatedAt: updatedModule.updatedAt,
+				createdAt: updatedModule.createdAt,
+			} satisfies FileModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update file module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Updates an assignment activity module
+ */
+export const tryUpdateAssignmentModule = Result.wrap(
+	async (args: UpdateAssignmentModuleArgs) => {
+		const {
+			payload,
+			id,
+			title,
+			description,
+			status,
+			user = null,
+			req,
+			overrideAccess = false,
+			instructions,
+			dueDate,
+			maxAttempts,
+			allowLateSubmissions,
+			requireTextSubmission,
+			requireFileSubmission,
+			allowedFileTypes,
+			maxFileSize,
+			maxFiles,
+		} = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Activity module ID is required");
+		}
+
+		// Get the existing activity module to check its current type
+		const existingModule = await payload
+			.findByID({
+				collection: "activity-modules",
+				id,
+				user,
+				req,
+				depth: 0,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">());
+
+		if (!existingModule) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${id}' not found`,
+			);
+		}
+
+		// Verify type matches
+		const currentType = existingModule.type;
+		const assignmentId = existingModule.assignment;
+		if (currentType !== "assignment" || !assignmentId) {
+			throw new InvalidArgumentError(
+				`Cannot update assignment data for a ${currentType} module`,
+			);
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Build update data object for activity module
+			const updateData: Record<string, unknown> = {};
+			if (title !== undefined) updateData.title = title;
+			if (description !== undefined) updateData.description = description;
+			if (status !== undefined) updateData.status = status;
+
+			// Update related entity
+			await payload
+				.update({
+					collection: "assignments",
+					id: assignmentId,
+					data: {
+						title: title || existingModule.title,
+						description:
+							instructions || description || existingModule.description,
+						instructions: instructions,
+						dueDate: dueDate,
+						maxAttempts: maxAttempts,
+						allowLateSubmissions: allowLateSubmissions,
+						requireTextSubmission: requireTextSubmission,
+						requireFileSubmission: requireFileSubmission,
+						allowedFileTypes: allowedFileTypes,
+						maxFileSize: maxFileSize,
+						maxFiles: maxFiles,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Validate that at least one field is being updated
+			if (Object.keys(updateData).length === 0) {
+				throw new InvalidArgumentError(
+					"At least one field must be provided for update",
+				);
+			}
+
+			await payload
+				.update({
+					collection: "activity-modules",
+					id,
+					data: updateData,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Fetch updated module with depth 1 to get related data
+			const updatedModule = await payload
+				.findByID({
+					collection: "activity-modules",
+					id,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (!updatedModule) {
+				throw new NonExistingActivityModuleError(
+					`Failed to retrieve updated activity module with id '${id}'`,
+				);
+			}
+
+			// Build result directly since we know the type
+			const createdBy = updatedModule.createdBy;
+			const owner = updatedModule.owner;
+			const assignmentRelation = updatedModule.assignment;
+
+			const result = {
+				id: updatedModule.id,
+				title: updatedModule.title,
+				description: updatedModule.description,
+				status: updatedModule.status,
+				type: "assignment",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				instructions: assignmentRelation?.instructions ?? null,
+				dueDate: assignmentRelation?.dueDate ?? null,
+				maxAttempts: assignmentRelation?.maxAttempts ?? null,
+				allowLateSubmissions: assignmentRelation?.allowLateSubmissions ?? null,
+				allowedFileTypes: assignmentRelation?.allowedFileTypes ?? null,
+				maxFileSize: assignmentRelation?.maxFileSize ?? null,
+				maxFiles: assignmentRelation?.maxFiles ?? null,
+				requireTextSubmission:
+					assignmentRelation?.requireTextSubmission ?? null,
+				requireFileSubmission:
+					assignmentRelation?.requireFileSubmission ?? null,
+				updatedAt: updatedModule.updatedAt,
+				createdAt: updatedModule.createdAt,
+			} satisfies AssignmentModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update assignment module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Updates a quiz activity module
+ */
+export const tryUpdateQuizModule = Result.wrap(
+	async (args: UpdateQuizModuleArgs) => {
+		const {
+			payload,
+			id,
+			title,
+			description,
+			status,
+			user = null,
+			req,
+			overrideAccess = false,
+			instructions,
+			dueDate,
+			maxAttempts,
+			allowLateSubmissions,
+			points,
+			gradingType,
+			showCorrectAnswers,
+			allowMultipleAttempts,
+			shuffleQuestions,
+			shuffleAnswers,
+			showOneQuestionAtATime,
+			rawQuizConfig,
+			questions,
+		} = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Activity module ID is required");
+		}
+
+		// Get the existing activity module to check its current type
+		const existingModule = await payload
+			.findByID({
+				collection: "activity-modules",
+				id,
+				user,
+				req,
+				depth: 0,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">());
+
+		if (!existingModule) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${id}' not found`,
+			);
+		}
+
+		// Verify type matches
+		const currentType = existingModule.type;
+		const quizId = existingModule.quiz;
+		if (currentType !== "quiz" || !quizId) {
+			throw new InvalidArgumentError(
+				`Cannot update quiz data for a ${currentType} module`,
+			);
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Build update data object for activity module
+			const updateData: Record<string, unknown> = {};
+			if (title !== undefined) updateData.title = title;
+			if (description !== undefined) updateData.description = description;
+			if (status !== undefined) updateData.status = status;
+
+			// Update related entity
+			await payload
+				.update({
+					collection: "quizzes",
+					id: quizId,
+					data: {
+						title: title ?? undefined,
+						description: description ?? undefined,
+						instructions: instructions,
+						dueDate: dueDate,
+						maxAttempts: maxAttempts,
+						allowLateSubmissions: allowLateSubmissions,
+						points: points,
+						gradingType: gradingType,
+						showCorrectAnswers: showCorrectAnswers,
+						allowMultipleAttempts: allowMultipleAttempts,
+						shuffleQuestions: shuffleQuestions,
+						shuffleAnswers: shuffleAnswers,
+						showOneQuestionAtATime: showOneQuestionAtATime,
+						rawQuizConfig: rawQuizConfig as unknown as {
+							[x: string]: unknown;
+						},
+						questions: questions,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Validate that at least one field is being updated
+			if (Object.keys(updateData).length === 0) {
+				throw new InvalidArgumentError(
+					"At least one field must be provided for update",
+				);
+			}
+
+			await payload
+				.update({
+					collection: "activity-modules",
+					id,
+					data: updateData,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Fetch updated module with depth 1 to get related data
+			const updatedModule = await payload
+				.findByID({
+					collection: "activity-modules",
+					id,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (!updatedModule) {
+				throw new NonExistingActivityModuleError(
+					`Failed to retrieve updated activity module with id '${id}'`,
+				);
+			}
+
+			// Build result directly since we know the type
+			const createdBy = updatedModule.createdBy;
+			const owner = updatedModule.owner;
+			const quizRelation = updatedModule.quiz;
+
+			const result = {
+				id: updatedModule.id,
+				title: updatedModule.title,
+				description: updatedModule.description,
+				status: updatedModule.status,
+				type: "quiz",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				instructions: quizRelation?.instructions ?? null,
+				dueDate: quizRelation?.dueDate ?? null,
+				maxAttempts: quizRelation?.maxAttempts ?? null,
+				allowLateSubmissions: quizRelation?.allowLateSubmissions ?? null,
+				points: quizRelation?.points ?? null,
+				gradingType: quizRelation?.gradingType ?? null,
+				showCorrectAnswers: quizRelation?.showCorrectAnswers ?? null,
+				allowMultipleAttempts: quizRelation?.allowMultipleAttempts ?? null,
+				shuffleQuestions: quizRelation?.shuffleQuestions ?? null,
+				shuffleAnswers: quizRelation?.shuffleAnswers ?? null,
+				showOneQuestionAtATime: quizRelation?.showOneQuestionAtATime ?? null,
+				rawQuizConfig: quizRelation?.rawQuizConfig ?? null,
+				questions: quizRelation?.questions ?? null,
+				updatedAt: updatedModule.updatedAt,
+				createdAt: updatedModule.createdAt,
+			} satisfies QuizModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update quiz module", {
+			cause: error,
+		}),
+);
+
+/**
+ * Updates a discussion activity module
+ */
+export const tryUpdateDiscussionModule = Result.wrap(
+	async (args: UpdateDiscussionModuleArgs) => {
+		const {
+			payload,
+			id,
+			title,
+			description,
+			status,
+			user = null,
+			req,
+			overrideAccess = false,
+			instructions,
+			dueDate,
+			requireThread,
+			requireReplies,
+			minReplies,
+			minWordsPerPost,
+			allowAttachments,
+			allowUpvotes,
+			allowEditing,
+			allowDeletion,
+			moderationRequired,
+			anonymousPosting,
+			groupDiscussion,
+			maxGroupSize,
+			threadSorting,
+		} = args;
+
+		// Validate ID
+		if (!id) {
+			throw new InvalidArgumentError("Activity module ID is required");
+		}
+
+		// Get the existing activity module to check its current type
+		const existingModule = await payload
+			.findByID({
+				collection: "activity-modules",
+				id,
+				user,
+				req,
+				depth: 0,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">());
+
+		if (!existingModule) {
+			throw new NonExistingActivityModuleError(
+				`Activity module with id '${id}' not found`,
+			);
+		}
+
+		// Verify type matches
+		const currentType = existingModule.type;
+		const discussionId = existingModule.discussion;
+		if (currentType !== "discussion" || !discussionId) {
+			throw new InvalidArgumentError(
+				`Cannot update discussion data for a ${currentType} module`,
+			);
+		}
+
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Build update data object for activity module
+			const updateData: Record<string, unknown> = {};
+			if (title !== undefined) updateData.title = title;
+			if (description !== undefined) updateData.description = description;
+			if (status !== undefined) updateData.status = status;
+
+			// Update related entity
+			await payload
+				.update({
+					collection: "discussions",
+					id: discussionId,
+					data: {
+						title: title ?? undefined,
+						description: description ?? undefined,
+						instructions: instructions,
+						dueDate: dueDate,
+						requireThread: requireThread,
+						requireReplies: requireReplies,
+						minReplies: minReplies,
+						minWordsPerPost: minWordsPerPost,
+						allowAttachments: allowAttachments,
+						allowUpvotes: allowUpvotes,
+						allowEditing: allowEditing,
+						allowDeletion: allowDeletion,
+						moderationRequired: moderationRequired,
+						anonymousPosting: anonymousPosting,
+						groupDiscussion: groupDiscussion,
+						maxGroupSize: maxGroupSize,
+						threadSorting: threadSorting,
+					},
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Validate that at least one field is being updated
+			if (Object.keys(updateData).length === 0) {
+				throw new InvalidArgumentError(
+					"At least one field must be provided for update",
+				);
+			}
+
+			await payload
+				.update({
+					collection: "activity-modules",
+					id,
+					data: updateData,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			// Fetch updated module with depth 1 to get related data
+			const updatedModule = await payload
+				.findByID({
+					collection: "activity-modules",
+					id,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
+
+			if (!updatedModule) {
+				throw new NonExistingActivityModuleError(
+					`Failed to retrieve updated activity module with id '${id}'`,
+				);
+			}
+
+			// Build result directly since we know the type
+			const createdBy = updatedModule.createdBy;
+			const owner = updatedModule.owner;
+			const discussionRelation = updatedModule.discussion;
+
+			const result = {
+				id: updatedModule.id,
+				title: updatedModule.title,
+				description: updatedModule.description,
+				status: updatedModule.status,
+				type: "discussion",
+				createdBy: {
+					id: createdBy.id,
+					avatar: createdBy.avatar ?? null,
+					email: createdBy.email ?? "",
+					firstName: createdBy.firstName ?? "",
+					lastName: createdBy.lastName ?? "",
+				},
+				owner: {
+					id: owner.id,
+					avatar: owner.avatar ?? null,
+					email: owner.email ?? "",
+					firstName: owner.firstName ?? "",
+					lastName: owner.lastName ?? "",
+				},
+				instructions: discussionRelation?.instructions ?? null,
+				dueDate: discussionRelation?.dueDate ?? null,
+				requireThread: discussionRelation?.requireThread ?? null,
+				requireReplies: discussionRelation?.requireReplies ?? null,
+				minReplies: discussionRelation?.minReplies ?? null,
+				minWordsPerPost: discussionRelation?.minWordsPerPost ?? null,
+				allowAttachments: discussionRelation?.allowAttachments ?? null,
+				allowUpvotes: discussionRelation?.allowUpvotes ?? null,
+				allowEditing: discussionRelation?.allowEditing ?? null,
+				allowDeletion: discussionRelation?.allowDeletion ?? null,
+				moderationRequired: discussionRelation?.moderationRequired ?? null,
+				anonymousPosting: discussionRelation?.anonymousPosting ?? null,
+				groupDiscussion: discussionRelation?.groupDiscussion ?? null,
+				maxGroupSize: discussionRelation?.maxGroupSize ?? null,
+				threadSorting: discussionRelation?.threadSorting ?? null,
+				pinnedThreads: discussionRelation?.pinnedThreads ?? null,
+				updatedAt: updatedModule.updatedAt,
+				createdAt: updatedModule.createdAt,
+			} satisfies DiscussionModuleResult;
+
+			return result;
+		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update discussion module", {
+			cause: error,
+		}),
+);
+
+// /**
+//  * Updates an activity module
+//  * Delegates to type-specific update functions based on the module type
+//  */
+// export const tryUpdateActivityModule = Result.wrap(
+// 	async (args: UpdateActivityModuleArgs) => {
+// 		if (args.type === "page") {
+// 			const result = await tryUpdatePageModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "whiteboard") {
+// 			const result = await tryUpdateWhiteboardModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "file") {
+// 			const result = await tryUpdateFileModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "assignment") {
+// 			const result = await tryUpdateAssignmentModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "quiz") {
+// 			const result = await tryUpdateQuizModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		if (args.type === "discussion") {
+// 			const result = await tryUpdateDiscussionModule(args);
+// 			if (!result.ok) throw result.error;
+// 			return result.value;
+// 		}
+// 		// TypeScript should never reach here, but handle it for safety
+// 		const type = (args as { type: string }).type;
+// 		throw new InvalidArgumentError(`Unknown module type: ${type}`);
+// 	},
+// 	(error) =>
+// 		transformError(error) ??
+// 		new UnknownError("Failed to update activity module", {
+// 			cause: error,
+// 		}),
+// );
 
 export interface DeleteActivityModuleArgs {
 	payload: Payload;

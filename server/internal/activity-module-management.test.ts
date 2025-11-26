@@ -3,15 +3,49 @@ import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
-	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+	tryCreateFileModule,
+	tryCreatePageModule,
+	tryCreateQuizModule,
+	tryCreateWhiteboardModule,
 	tryDeleteActivityModule,
 	tryGetActivityModuleById,
 	tryListActivityModules,
-	tryUpdateActivityModule,
-	type UpdateActivityModuleArgs,
+	tryUpdateAssignmentModule,
+	tryUpdateDiscussionModule,
+	tryUpdateFileModule,
+	tryUpdatePageModule,
+	tryUpdateQuizModule,
+	tryUpdateWhiteboardModule,
 } from "./activity-module-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+
+type CreatePageModuleArgs = Parameters<typeof tryCreatePageModule>[0];
+type CreateWhiteboardModuleArgs = Parameters<
+	typeof tryCreateWhiteboardModule
+>[0];
+type CreateFileModuleArgs = Parameters<typeof tryCreateFileModule>[0];
+type CreateAssignmentModuleArgs = Parameters<
+	typeof tryCreateAssignmentModule
+>[0];
+type CreateQuizModuleArgs = Parameters<typeof tryCreateQuizModule>[0];
+type CreateDiscussionModuleArgs = Parameters<
+	typeof tryCreateDiscussionModule
+>[0];
+
+type UpdatePageModuleArgs = Parameters<typeof tryUpdatePageModule>[0];
+type UpdateWhiteboardModuleArgs = Parameters<
+	typeof tryUpdateWhiteboardModule
+>[0];
+type UpdateFileModuleArgs = Parameters<typeof tryUpdateFileModule>[0];
+type UpdateAssignmentModuleArgs = Parameters<
+	typeof tryUpdateAssignmentModule
+>[0];
+type UpdateQuizModuleArgs = Parameters<typeof tryUpdateQuizModule>[0];
+type UpdateDiscussionModuleArgs = Parameters<
+	typeof tryUpdateDiscussionModule
+>[0];
 
 const year = new Date().getFullYear();
 
@@ -73,20 +107,17 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should create a page activity module", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Test Page Module",
 			description: "This is a test page module",
-			type: "page",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			pageData: {
-				content: "<p>This is test page content</p>",
-			},
-		};
+			content: "<p>This is test page content</p>",
+		} satisfies CreatePageModuleArgs;
 
-		const result = await tryCreateActivityModule(args);
+		const result = await tryCreatePageModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -96,7 +127,7 @@ describe("Activity Module Management", () => {
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
-		expect(activityModule.type).toBe(args.type);
+		expect(activityModule.type).toBe("page");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
@@ -104,35 +135,32 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should create an assignment activity module", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args: CreateAssignmentModuleArgs = {
 			payload,
 			title: "Test Assignment",
 			description: "This is a test assignment",
-			type: "assignment",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			assignmentData: {
-				instructions: "Complete this assignment",
-				dueDate: "2024-12-31",
-				maxAttempts: 3,
-				allowLateSubmissions: true,
-				allowedFileTypes: [
-					{ extension: "pdf", mimeType: "application/pdf" },
-					{
-						extension: "docx",
-						mimeType:
-							"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-					},
-				],
-				maxFileSize: 10,
-				maxFiles: 2,
-				requireTextSubmission: true,
-				requireFileSubmission: true,
-			},
+			instructions: "Complete this assignment",
+			dueDate: "2024-12-31",
+			maxAttempts: 3,
+			allowLateSubmissions: true,
+			allowedFileTypes: [
+				{ extension: "pdf", mimeType: "application/pdf" },
+				{
+					extension: "docx",
+					mimeType:
+						"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+				},
+			],
+			maxFileSize: 10,
+			maxFiles: 2,
+			requireTextSubmission: true,
+			requireFileSubmission: true,
 		};
 
-		const result = await tryCreateActivityModule(args);
+		const result = await tryCreateAssignmentModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -142,12 +170,8 @@ describe("Activity Module Management", () => {
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.type).toBe("assignment");
-		if (activityModule.type !== "assignment")
-			throw new Error("Test Error: Activity module type is not assignment");
 		// For assignments, description uses instructions if provided
-		expect(activityModule.description).toBe(
-			args.assignmentData.instructions || args.description,
-		);
+		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
@@ -156,81 +180,41 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should create a quiz activity module", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args: CreateQuizModuleArgs = {
 			payload,
 			title: "Test Quiz",
 			description: "This is a test quiz",
-			type: "quiz",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			quizData: {
-				description: "Quiz description",
-				instructions: "Answer all questions",
-				dueDate: "2024-12-31",
-				maxAttempts: 2,
-				allowLateSubmissions: false,
-				points: 100,
-				gradingType: "automatic",
-				timeLimit: 60,
-				showCorrectAnswers: true,
-				allowMultipleAttempts: true,
-				shuffleQuestions: false,
-				shuffleAnswers: true,
-				showOneQuestionAtATime: false,
-				questions: [
-					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 10,
-						options: [
-							{ text: "3", isCorrect: false, feedback: "Incorrect" },
-							{ text: "4", isCorrect: true, feedback: "Correct!" },
-							{ text: "5", isCorrect: false, feedback: "Incorrect" },
-						],
-						explanation: "2 + 2 equals 4",
-					},
-				],
-			},
+			instructions: "Answer all questions",
+			dueDate: "2024-12-31",
+			maxAttempts: 2,
+			allowLateSubmissions: false,
+			points: 100,
+			gradingType: "automatic",
+			timeLimit: 60,
+			showCorrectAnswers: true,
+			allowMultipleAttempts: true,
+			shuffleQuestions: false,
+			shuffleAnswers: true,
+			showOneQuestionAtATime: false,
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 10,
+					options: [
+						{ text: "3", isCorrect: false, feedback: "Incorrect" },
+						{ text: "4", isCorrect: true, feedback: "Correct!" },
+						{ text: "5", isCorrect: false, feedback: "Incorrect" },
+					],
+					explanation: "2 + 2 equals 4",
+				},
+			],
 		};
 
-		const result = await tryCreateActivityModule(args);
-
-		expect(result.ok).toBe(true);
-		if (!result.ok) return;
-
-		const activityModule = result.value;
-
-		// Verify activity module
-		expect(activityModule.title).toBe(args.title);
-		// For quizzes, description uses quizData.description if provided
-		expect(activityModule.description).toBe(
-			args.quizData.description || args.description,
-		);
-		expect(activityModule.type).toBe(args.type);
-		if (activityModule.type !== "quiz")
-			throw new Error("Test Error: Activity module type is not quiz");
-		expect(activityModule.status).toBe(args.status || "draft");
-		expect(activityModule.createdBy.id).toBe(testUserId);
-		expect(activityModule.id).toBeDefined();
-		expect(activityModule.createdAt).toBeDefined();
-	});
-
-	test("should create a file activity module", async () => {
-		const args: CreateActivityModuleArgs = {
-			payload,
-			title: "Test File Module",
-			description: "This is a test file module",
-			type: "file",
-			status: "draft",
-			userId: testUserId,
-			user: testUser ?? undefined,
-			fileData: {
-				media: [],
-			},
-		};
-
-		const result = await tryCreateActivityModule(args);
+		const result = await tryCreateQuizModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -240,45 +224,25 @@ describe("Activity Module Management", () => {
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
 		expect(activityModule.description).toBe(args.description);
-		expect(activityModule.type).toBe(args.type);
-		if (activityModule.type !== "file")
-			throw new Error("Test Error: Activity module type is not file");
+		expect(activityModule.type).toBe("quiz");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
-		expect(activityModule.media).toBeDefined();
 	});
 
-	test("should create a discussion activity module", async () => {
-		const args: CreateActivityModuleArgs = {
+	test("should create a file activity module", async () => {
+		const args = {
 			payload,
-			title: "Test Discussion",
-			description: "This is a test discussion",
-			type: "discussion",
+			title: "Test File Module",
+			description: "This is a test file module",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			discussionData: {
-				description: "Discussion description",
-				instructions: "Participate in this discussion",
-				dueDate: "2024-12-31",
-				requireThread: true,
-				requireReplies: true,
-				minReplies: 2,
-				minWordsPerPost: 50,
-				allowAttachments: true,
-				allowUpvotes: true,
-				allowEditing: true,
-				allowDeletion: false,
-				moderationRequired: false,
-				anonymousPosting: false,
-				groupDiscussion: false,
-				threadSorting: "recent" as const,
-			},
-		};
+			media: [],
+		} satisfies CreateFileModuleArgs;
 
-		const result = await tryCreateActivityModule(args);
+		const result = await tryCreateFileModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -287,15 +251,50 @@ describe("Activity Module Management", () => {
 
 		// Verify activity module
 		expect(activityModule.title).toBe(args.title);
-		// For discussions, description uses discussionData.description if provided
-		if (args.type === "discussion") {
-			expect(activityModule.description).toBe(
-				args.discussionData.description || args.description,
-			);
-		}
-		expect(activityModule.type).toBe(args.type);
-		if (activityModule.type !== "discussion")
-			throw new Error("Test Error: Activity module type is not discussion");
+		expect(activityModule.description).toBe(args.description);
+		expect(activityModule.type).toBe("file");
+		expect(activityModule.status).toBe(args.status);
+		expect(activityModule.createdBy.id).toBe(testUserId);
+		expect(activityModule.id).toBeDefined();
+		expect(activityModule.createdAt).toBeDefined();
+		expect(activityModule.media).toBeDefined();
+	});
+
+	test("should create a discussion activity module", async () => {
+		const args: CreateDiscussionModuleArgs = {
+			payload,
+			title: "Test Discussion",
+			description: "This is a test discussion",
+			status: "draft",
+			userId: testUserId,
+			user: testUser ?? undefined,
+			instructions: "Participate in this discussion",
+			dueDate: "2024-12-31",
+			requireThread: true,
+			requireReplies: true,
+			minReplies: 2,
+			minWordsPerPost: 50,
+			allowAttachments: true,
+			allowUpvotes: true,
+			allowEditing: true,
+			allowDeletion: false,
+			moderationRequired: false,
+			anonymousPosting: false,
+			groupDiscussion: false,
+			threadSorting: "recent" as const,
+		};
+
+		const result = await tryCreateDiscussionModule(args);
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+
+		const activityModule = result.value;
+
+		// Verify activity module
+		expect(activityModule.title).toBe(args.title);
+		expect(activityModule.description).toBe(args.description);
+		expect(activityModule.type).toBe("discussion");
 		expect(activityModule.status).toBe(args.status || "draft");
 		expect(activityModule.createdBy.id).toBe(testUserId);
 		expect(activityModule.id).toBeDefined();
@@ -304,18 +303,15 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should create activity module with default status", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Test Activity Module 2",
-			type: "whiteboard",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			whiteboardData: {
-				content: JSON.stringify({ shapes: [], bindings: [] }),
-			},
-		};
+			content: JSON.stringify({ shapes: [], bindings: [] }),
+		} satisfies CreateWhiteboardModuleArgs;
 
-		const result = await tryCreateActivityModule(args);
+		const result = await tryCreateWhiteboardModule(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -325,112 +321,80 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should create activity module with all types", async () => {
-		const testCases = [
-			{
-				type: "page" as const,
-				args: {
-					title: "page module",
-					type: "page" as const,
-					userId: testUserId,
-					user: testUser ?? undefined,
-					pageData: {
-						content: "<p>Test page content</p>",
-					},
-				},
-			},
-			{
-				type: "whiteboard" as const,
-				args: {
-					title: "whiteboard module",
-					type: "whiteboard" as const,
-					userId: testUserId,
-					user: testUser ?? undefined,
-					whiteboardData: {
-						content: JSON.stringify({ shapes: [], bindings: [] }),
-					},
-				},
-			},
-			{
-				type: "file" as const,
-				args: {
-					title: "file module",
-					type: "file" as const,
-					userId: testUserId,
-					user: testUser ?? undefined,
-					fileData: {
-						media: [],
-					},
-				},
-			},
-			{
-				type: "assignment" as const,
-				args: {
-					title: "assignment module",
-					type: "assignment" as const,
-					userId: testUserId,
-					user: testUser ?? undefined,
-					assignmentData: {
-						instructions: "Complete this assignment",
-						dueDate: "2024-12-31",
-						maxAttempts: 1,
-					},
-				},
-			},
-			{
-				type: "quiz" as const,
-				args: {
-					title: "quiz module",
-					type: "quiz" as const,
-					userId: testUserId,
-					user: testUser ?? undefined,
-					quizData: {
-						instructions: "Answer all questions",
-						points: 100,
-					},
-				},
-			},
-			{
-				type: "discussion" as const,
-				args: {
-					title: "discussion module",
-					type: "discussion" as const,
-					userId: testUserId,
-					user: testUser ?? undefined,
-					discussionData: {
-						instructions: "Participate in this discussion",
-						minReplies: 1,
-						threadSorting: "recent" as const,
-					},
-				},
-			},
-		];
-
-		for (const testCase of testCases) {
-			const result = await tryCreateActivityModule({
+		const results = await Promise.all([
+			tryCreatePageModule({
 				payload,
-				...testCase.args,
-			});
+				title: "page module",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				content: "<p>Test page content</p>",
+			}),
+			tryCreateWhiteboardModule({
+				payload,
+				title: "whiteboard module",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				content: JSON.stringify({ shapes: [], bindings: [] }),
+			}),
+			tryCreateFileModule({
+				payload,
+				title: "file module",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				media: [],
+			}),
+			tryCreateAssignmentModule({
+				payload,
+				title: "assignment module",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				instructions: "Complete this assignment",
+				dueDate: "2024-12-31",
+				maxAttempts: 1,
+			}),
+			tryCreateQuizModule({
+				payload,
+				title: "quiz module",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				instructions: "Answer all questions",
+				points: 100,
+			}),
+			tryCreateDiscussionModule({
+				payload,
+				title: "discussion module",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				instructions: "Participate in this discussion",
+				minReplies: 1,
+				threadSorting: "recent" as const,
+			}),
+		]);
 
+		const expectedType: Array<
+			"page" | "whiteboard" | "file" | "assignment" | "quiz" | "discussion"
+		> = ["page", "whiteboard", "file", "assignment", "quiz", "discussion"];
+
+		results.forEach((result, index) => {
 			expect(result.ok).toBe(true);
-			if (!result.ok) continue;
+			if (!result.ok) {
+				return;
+			}
 
-			expect(result.value.type).toBe(testCase.type);
-		}
+			expect(result.value.type).toBe(expectedType[index]!);
+		});
 	});
 
 	test("should get activity module by ID", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Get Test Module",
-			type: "page",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			pageData: {
-				content: "<p>Get test content</p>",
-			},
-		};
+			content: "<p>Get test content</p>",
+		} satisfies CreatePageModuleArgs;
 
-		const createResult = await tryCreateActivityModule(args);
+		const createResult = await tryCreatePageModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -454,38 +418,32 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should update page activity module", async () => {
-		const createArgs: CreateActivityModuleArgs = {
+		const createArgs = {
 			payload,
 			title: "Update Test Page Module",
-			type: "page",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			pageData: {
-				content: "<p>Original content</p>",
-			},
-		};
+			content: "<p>Original content</p>",
+		} satisfies CreatePageModuleArgs;
 
-		const createResult = await tryCreateActivityModule(createArgs);
+		const createResult = await tryCreatePageModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
-		const updateArgs: UpdateActivityModuleArgs = {
+		const updateArgs: UpdatePageModuleArgs = {
 			payload,
 			id: createdModule.id,
-			type: "page",
 			title: "Updated Page Title",
 			description: "Updated page description",
 			status: "published",
 			user: testUser ?? undefined,
-			pageData: {
-				content: "<p>Updated content</p>",
-			},
+			content: "<p>Updated content</p>",
 		};
 
-		const updateResult = await tryUpdateActivityModule(updateArgs);
+		const updateResult = await tryUpdatePageModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -493,100 +451,84 @@ describe("Activity Module Management", () => {
 		expect(updatedModule.title).toBe("Updated Page Title");
 		expect(updatedModule.description).toBe("Updated page description");
 		expect(updatedModule.status).toBe("published");
-		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
+		expect(updatedModule.type).toBe("page"); // Should remain unchanged
 	});
 
 	test("should update assignment activity module", async () => {
-		const createArgs: CreateActivityModuleArgs = {
+		const createArgs = {
 			payload,
 			title: "Update Test Assignment",
-			type: "assignment",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			assignmentData: {
-				instructions: "Original instructions",
-				dueDate: "2024-12-31",
-				maxAttempts: 1,
-			},
-		};
+			instructions: "Original instructions",
+			dueDate: "2024-12-31",
+			maxAttempts: 1,
+		} satisfies CreateAssignmentModuleArgs;
 
-		const createResult = await tryCreateActivityModule(createArgs);
+		const createResult = await tryCreateAssignmentModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
-		const updateArgs: UpdateActivityModuleArgs = {
+		const updateArgs: UpdateAssignmentModuleArgs = {
 			payload,
 			id: createdModule.id,
-			type: "assignment",
 			title: "Updated Assignment Title",
 			description: "Updated assignment description",
 			status: "published",
 			user: testUser ?? undefined,
-			assignmentData: {
-				instructions: "Updated instructions",
-				dueDate: `${year}-01-31`,
-				maxAttempts: 3,
-				allowLateSubmissions: true,
-			},
+			instructions: "Updated instructions",
+			dueDate: `${year}-01-31`,
+			maxAttempts: 3,
+			allowLateSubmissions: true,
 		};
 
-		const updateResult = await tryUpdateActivityModule(updateArgs);
+		const updateResult = await tryUpdateAssignmentModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Assignment Title");
 		// For assignments, description uses instructions if provided
-		expect(updatedModule.description).toBe(
-			updateArgs.assignmentData.instructions ||
-			"Updated assignment description",
-		);
+		expect(updatedModule.description).toBe("Updated assignment description");
 		expect(updatedModule.status).toBe("published");
-		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
+		expect(updatedModule.type).toBe("assignment"); // Should remain unchanged
 	});
 
 	test("should update quiz activity module", async () => {
-		const createArgs: CreateActivityModuleArgs = {
+		const createArgs = {
 			payload,
 			title: "Update Test Quiz",
-			type: "quiz",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			quizData: {
-				instructions: "Original quiz instructions",
-				points: 50,
-				timeLimit: 30,
-			},
-		};
+			instructions: "Original quiz instructions",
+			points: 50,
+			timeLimit: 30,
+		} satisfies CreateQuizModuleArgs;
 
-		const createResult = await tryCreateActivityModule(createArgs);
+		const createResult = await tryCreateQuizModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
-		const updateArgs: UpdateActivityModuleArgs = {
+		const updateArgs: UpdateQuizModuleArgs = {
 			payload,
 			id: createdModule.id,
-			type: "quiz",
 			title: "Updated Quiz Title",
 			description: "Updated quiz description",
 			status: "published",
 			user: testUser ?? undefined,
-			quizData: {
-				description: "Updated quiz description",
-				instructions: "Updated quiz instructions",
-				points: 100,
-				timeLimit: 60,
-				showCorrectAnswers: true,
-			},
+			instructions: "Updated quiz instructions",
+			points: 100,
+			timeLimit: 60,
+			showCorrectAnswers: true,
 		};
 
-		const updateResult = await tryUpdateActivityModule(updateArgs);
+		const updateResult = await tryUpdateQuizModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -594,42 +536,36 @@ describe("Activity Module Management", () => {
 		expect(updatedModule.title).toBe("Updated Quiz Title");
 		expect(updatedModule.description).toBe("Updated quiz description");
 		expect(updatedModule.status).toBe("published");
-		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
+		expect(updatedModule.type).toBe("quiz"); // Should remain unchanged
 	});
 
 	test("should update file activity module", async () => {
-		const createArgs: CreateActivityModuleArgs = {
+		const createArgs = {
 			payload,
 			title: "Update Test File Module",
-			type: "file",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			fileData: {
-				media: [],
-			},
-		};
+			media: [],
+		} satisfies CreateFileModuleArgs;
 
-		const createResult = await tryCreateActivityModule(createArgs);
+		const createResult = await tryCreateFileModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
-		const updateArgs: UpdateActivityModuleArgs = {
+		const updateArgs: UpdateFileModuleArgs = {
 			payload,
 			id: createdModule.id,
-			type: "file",
 			title: "Updated File Title",
 			description: "Updated file description",
 			status: "published",
 			user: testUser ?? undefined,
-			fileData: {
-				media: [],
-			},
+			media: [],
 		};
 
-		const updateResult = await tryUpdateActivityModule(updateArgs);
+		const updateResult = await tryUpdateFileModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
@@ -637,76 +573,64 @@ describe("Activity Module Management", () => {
 		expect(updatedModule.title).toBe("Updated File Title");
 		expect(updatedModule.description).toBe("Updated file description");
 		expect(updatedModule.status).toBe("published");
-		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
+		expect(updatedModule.type).toBe("file"); // Should remain unchanged
 	});
 
 	test("should update discussion activity module", async () => {
-		const createArgs: CreateActivityModuleArgs = {
+		const createArgs = {
 			payload,
 			title: "Update Test Discussion",
-			type: "discussion",
 			status: "draft",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			discussionData: {
-				instructions: "Original discussion instructions",
-				minReplies: 1,
-				minWordsPerPost: 25,
-				threadSorting: "recent" as const,
-			},
-		};
+			instructions: "Original discussion instructions",
+			minReplies: 1,
+			minWordsPerPost: 25,
+			threadSorting: "recent" as const,
+		} satisfies CreateDiscussionModuleArgs;
 
-		const createResult = await tryCreateActivityModule(createArgs);
+		const createResult = await tryCreateDiscussionModule(createArgs);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
 		const createdModule = createResult.value;
 
-		const updateArgs: UpdateActivityModuleArgs = {
+		const updateArgs: UpdateDiscussionModuleArgs = {
 			payload,
 			id: createdModule.id,
-			type: "discussion",
 			title: "Updated Discussion Title",
 			description: "Updated discussion description",
 			status: "published",
 			user: testUser ?? undefined,
-			discussionData: {
-				description: "Updated discussion description",
-				instructions: "Updated discussion instructions",
-				minReplies: 3,
-				minWordsPerPost: 100,
-				allowAttachments: true,
-				threadSorting: "upvoted" as const,
-			},
+			instructions: "Updated discussion instructions",
+			minReplies: 3,
+			minWordsPerPost: 100,
+			allowAttachments: true,
+			threadSorting: "upvoted" as const,
 		};
 
-		const updateResult = await tryUpdateActivityModule(updateArgs);
+		const updateResult = await tryUpdateDiscussionModule(updateArgs);
 		expect(updateResult.ok).toBe(true);
 		if (!updateResult.ok) return;
 
 		const updatedModule = updateResult.value;
 		expect(updatedModule.title).toBe("Updated Discussion Title");
 		// For discussions, description uses discussionData.description if provided
-		expect(updatedModule.description).toBe(
-			updateArgs.discussionData.description || "Updated discussion description",
-		);
+		expect(updatedModule.description).toBe("Updated discussion description");
 		expect(updatedModule.status).toBe("published");
-		expect(updatedModule.type).toBe(createdModule.type); // Should remain unchanged
+		expect(updatedModule.type).toBe("discussion"); // Should remain unchanged
 	});
 
 	test("should delete page activity module", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Delete Test Page Module",
-			type: "page",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			pageData: {
-				content: "<p>Delete test content</p>",
-			},
-		};
+			content: "<p>Delete test content</p>",
+		} satisfies CreatePageModuleArgs;
 
-		const createResult = await tryCreateActivityModule(args);
+		const createResult = await tryCreatePageModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -729,20 +653,17 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should delete assignment activity module with cascading delete", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Delete Test Assignment",
-			type: "assignment",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			assignmentData: {
-				instructions: "Complete this assignment",
-				dueDate: "2024-12-31",
-				maxAttempts: 3,
-			},
-		};
+			instructions: "Complete this assignment",
+			dueDate: "2024-12-31",
+			maxAttempts: 3,
+		} satisfies CreateAssignmentModuleArgs;
 
-		const createResult = await tryCreateActivityModule(args);
+		const createResult = await tryCreateAssignmentModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -768,30 +689,16 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should delete quiz activity module with cascading delete", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Delete Test Quiz",
-			type: "quiz",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			quizData: {
-				instructions: "Answer all questions",
-				points: 100,
-				questions: [
-					{
-						questionText: "What is 1 + 1?",
-						questionType: "multiple_choice",
-						points: 10,
-						options: [
-							{ text: "1", isCorrect: false },
-							{ text: "2", isCorrect: true },
-						],
-					},
-				],
-			},
-		};
+			instructions: "Answer all questions",
+			points: 100,
+		} satisfies CreateQuizModuleArgs;
 
-		const createResult = await tryCreateActivityModule(args);
+		const createResult = await tryCreateQuizModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -817,18 +724,15 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should delete file activity module with cascading delete", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Delete Test File Module",
-			type: "file",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			fileData: {
-				media: [],
-			},
-		};
+			media: [],
+		} satisfies CreateFileModuleArgs;
 
-		const createResult = await tryCreateActivityModule(args);
+		const createResult = await tryCreateFileModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -854,21 +758,18 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should delete discussion activity module with cascading delete", async () => {
-		const args: CreateActivityModuleArgs = {
+		const args = {
 			payload,
 			title: "Delete Test Discussion",
-			type: "discussion",
 			userId: testUserId,
 			user: testUser ?? undefined,
-			discussionData: {
-				instructions: "Participate in this discussion",
-				minReplies: 2,
-				minWordsPerPost: 50,
-				threadSorting: "recent" as const,
-			},
-		};
+			instructions: "Participate in this discussion",
+			minReplies: 2,
+			minWordsPerPost: 50,
+			threadSorting: "recent" as const,
+		} satisfies CreateDiscussionModuleArgs;
 
-		const createResult = await tryCreateActivityModule(args);
+		const createResult = await tryCreateDiscussionModule(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -894,50 +795,35 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should list activity modules", async () => {
-		// Create multiple modules for testing
-		const modules = [
-			{
-				title: "List Test Module 1",
-				type: "page" as const,
-				status: "published" as const,
-				userId: testUserId,
-				user: testUser ?? undefined,
-				pageData: {
-					content: "<p>List test 1</p>",
-				},
-			},
-			{
-				title: "List Test Module 2",
-				type: "assignment" as const,
-				status: "draft" as const,
-				userId: testUserId,
-				user: testUser ?? undefined,
-				assignmentData: {
-					instructions: "Complete this assignment",
-					dueDate: "2024-12-31",
-					maxAttempts: 1,
-				},
-			},
-			{
-				title: "List Test Module 3",
-				type: "quiz" as const,
-				status: "published" as const,
-				userId: testUserId,
-				user: testUser ?? undefined,
-				quizData: {
-					instructions: "Answer all questions",
-					points: 100,
-				},
-			},
-		];
-
-		for (const module of modules) {
-			const result = await tryCreateActivityModule({
+		await Promise.all([
+			tryCreatePageModule({
 				payload,
-				...module,
-			});
-			expect(result.ok).toBe(true);
-		}
+				title: "List Test Module 1",
+				status: "published",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				content: "<p>List test 1</p>",
+			}),
+			tryCreateAssignmentModule({
+				payload,
+				title: "List Test Module 2",
+				status: "draft",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				instructions: "Complete this assignment",
+				dueDate: "2024-12-31",
+				maxAttempts: 1,
+			}),
+			tryCreateQuizModule({
+				payload,
+				title: "List Test Module 3",
+				status: "published",
+				userId: testUserId,
+				user: testUser ?? undefined,
+				instructions: "Answer all questions",
+				points: 100,
+			}),
+		]);
 
 		// Test listing all modules
 		const listResult = await tryListActivityModules({
@@ -948,8 +834,8 @@ describe("Activity Module Management", () => {
 		expect(listResult.ok).toBe(true);
 		if (!listResult.ok) return;
 
-		expect(listResult.value.docs.length).toBeGreaterThanOrEqual(modules.length);
-		expect(listResult.value.totalDocs).toBeGreaterThanOrEqual(modules.length);
+		expect(listResult.value.docs.length).toBeGreaterThanOrEqual(3);
+		expect(listResult.value.totalDocs).toBeGreaterThanOrEqual(3);
 
 		// Test filtering by type
 		const pageModulesResult = await tryListActivityModules({
@@ -997,18 +883,15 @@ describe("Activity Module Management", () => {
 	test("should handle pagination", async () => {
 		// Create multiple modules for pagination testing
 		for (let i = 0; i < 5; i++) {
-			const args: CreateActivityModuleArgs = {
+			const args = {
 				payload,
 				title: `Pagination Test Module ${i + 1}`,
-				type: "page",
 				userId: testUserId,
 				user: testUser ?? undefined,
-				pageData: {
-					content: `<p>Pagination test ${i + 1}</p>`,
-				},
-			};
+				content: `<p>Pagination test ${i + 1}</p>`,
+			} satisfies CreatePageModuleArgs;
 
-			const result = await tryCreateActivityModule(args);
+			const result = await tryCreatePageModule(args);
 			expect(result.ok).toBe(true);
 		}
 
@@ -1032,31 +915,25 @@ describe("Activity Module Management", () => {
 
 	test("should fail with invalid arguments", async () => {
 		// Test missing title
-		const invalidArgs1: CreateActivityModuleArgs = {
+		const invalidArgs1: CreatePageModuleArgs = {
 			payload,
 			title: "",
-			type: "page",
 			userId: testUserId,
-			pageData: {
-				content: "<p>Test</p>",
-			},
+			content: "<p>Test</p>",
 		};
 
-		const result1 = await tryCreateActivityModule(invalidArgs1);
+		const result1 = await tryCreatePageModule(invalidArgs1);
 		expect(result1.ok).toBe(false);
 
 		// Test missing userId
-		const invalidArgs3: CreateActivityModuleArgs = {
+		const invalidArgs3: CreatePageModuleArgs = {
 			payload,
 			title: "Test",
-			type: "page",
 			userId: undefined as never,
-			pageData: {
-				content: "<p>Test</p>",
-			},
+			content: "<p>Test</p>",
 		};
 
-		const result3 = await tryCreateActivityModule(invalidArgs3);
+		const result3 = await tryCreatePageModule(invalidArgs3);
 		expect(result3.ok).toBe(false);
 	});
 
@@ -1073,17 +950,14 @@ describe("Activity Module Management", () => {
 	});
 
 	test("should fail to update non-existent activity module", async () => {
-		const updateArgs: UpdateActivityModuleArgs = {
+		const updateArgs = {
 			payload,
 			id: 99999,
-			type: "page",
 			title: "Updated Title",
-			pageData: {
-				content: "<p>Updated</p>",
-			},
-		};
+			content: "<p>Updated</p>",
+		} satisfies UpdatePageModuleArgs;
 
-		const result = await tryUpdateActivityModule(updateArgs);
+		const result = await tryUpdatePageModule(updateArgs);
 		expect(result.ok).toBe(false);
 	});
 

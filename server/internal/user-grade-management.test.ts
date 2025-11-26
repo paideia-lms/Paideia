@@ -3,7 +3,10 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
-import { tryCreateActivityModule } from "./activity-module-management";
+import {
+	tryCreateAssignmentModule,
+	tryCreateDiscussionModule,
+} from "./activity-module-management";
 import {
 	tryCreateAssignmentSubmission,
 	tryGradeAssignmentSubmission,
@@ -381,7 +384,6 @@ describe("User Grade Management", () => {
 		}
 	});
 
-
 	it("should calculate user final grade", async () => {
 		const result = await tryCalculateUserFinalGrade({
 			payload,
@@ -619,7 +621,7 @@ describe("User Grade Management", () => {
 		expect(adjustmentResult.ok).toBe(true);
 		if (adjustmentResult.ok) {
 			expect(adjustmentResult.value.adjustments).toHaveLength(1);
-			const adjustment = adjustmentResult.value.adjustments?.[0]!
+			const adjustment = adjustmentResult.value.adjustments?.[0]!;
 			expect(adjustment.type).toBe("bonus");
 			expect(adjustment.points).toBe(5);
 			expect(adjustment.isActive).toBe(true);
@@ -660,7 +662,7 @@ describe("User Grade Management", () => {
 		expect(adjustmentResult.ok).toBe(true);
 		if (adjustmentResult.ok) {
 			expect(adjustmentResult.value.adjustments).toHaveLength(2);
-			const adjustment = adjustmentResult.value.adjustments?.[1]!
+			const adjustment = adjustmentResult.value.adjustments?.[1]!;
 			expect(adjustment.type).toBe("penalty");
 			expect(adjustment.points).toBe(-2);
 		}
@@ -965,24 +967,20 @@ describe("User Grade Management", () => {
 
 	it("should show grade in JSON representation after grading assignment submission", async () => {
 		// Create an assignment activity module
-		const activityModuleResult = await tryCreateActivityModule({
+		const activityModuleResult = await tryCreateAssignmentModule({
 			payload,
 			title: "Programming Exercise: Calculator",
 			description: "Build a calculator application",
-			type: "assignment",
 			status: "published",
 			userId: instructor.id,
 			user: instructor as typeof instructor & { collection: "users" },
 			req: mockRequest,
 			overrideAccess: false,
-			assignmentData: {
-				instructions: "Create a calculator that can perform basic operations",
-				dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-				requireTextSubmission: true,
-				requireFileSubmission: false,
-			},
+			instructions: "Create a calculator that can perform basic operations",
+			dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+			requireTextSubmission: true,
+			requireFileSubmission: false,
 		});
-
 		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok) {
 			throw new Error("Failed to create activity module");
@@ -1008,20 +1006,17 @@ describe("User Grade Management", () => {
 		}
 		const section = sectionResult.value;
 
-
 		const courseActivityModuleLinkResult =
-			await tryCreateCourseActivityModuleLink(
-				{
-					payload,
-					course: testCourse.id,
-					activityModule: activityModule.id,
-					section: section.id,
-					contentOrder: 0,
-					user: admin as typeof admin & { collection: "users" },
-					req: mockRequest,
-					overrideAccess: false,
-				},
-			);
+			await tryCreateCourseActivityModuleLink({
+				payload,
+				course: testCourse.id,
+				activityModule: activityModule.id,
+				section: section.id,
+				contentOrder: 0,
+				user: admin as typeof admin & { collection: "users" },
+				req: mockRequest,
+				overrideAccess: false,
+			});
 
 		expect(courseActivityModuleLinkResult.ok).toBe(true);
 		if (!courseActivityModuleLinkResult.ok) {
@@ -1154,8 +1149,8 @@ describe("User Grade Management", () => {
 			typeof userGrade.submission === "number"
 				? userGrade.submission
 				: typeof userGrade.submission === "object" &&
-					userGrade.submission !== null &&
-					"value" in userGrade.submission
+						userGrade.submission !== null &&
+						"value" in userGrade.submission
 					? typeof userGrade.submission.value === "number"
 						? userGrade.submission.value
 						: userGrade.submission.value?.id
@@ -1208,38 +1203,35 @@ describe("User Grade Management", () => {
 
 	it("should release discussion grade from submissions to user-grade", async () => {
 		// Create a discussion activity module
-		const activityModuleResult = await tryCreateActivityModule({
+		const activityModuleResult = await tryCreateDiscussionModule({
 			payload,
 			title: "Class Discussion: Design Patterns",
 			description: "Discuss various design patterns",
-			type: "discussion",
 			status: "published",
 			userId: instructor.id,
 			user: instructor as typeof instructor & { collection: "users" },
 			req: mockRequest,
 			overrideAccess: false,
-			discussionData: {
-				instructions:
-					"Participate in this discussion by creating threads and replies",
-				dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-				requireThread: true,
-				requireReplies: true,
-				minReplies: 2,
-				minWordsPerPost: 10,
-				allowAttachments: true,
-				allowUpvotes: true,
-				allowEditing: true,
-				allowDeletion: false,
-				moderationRequired: false,
-				anonymousPosting: false,
-				groupDiscussion: false,
-				threadSorting: "recent" as const,
-			},
+			instructions:
+				"Participate in this discussion by creating threads and replies",
+			dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+			requireThread: true,
+			requireReplies: true,
+			minReplies: 2,
+			minWordsPerPost: 10,
+			allowAttachments: true,
+			allowUpvotes: true,
+			allowEditing: true,
+			allowDeletion: false,
+			moderationRequired: false,
+			anonymousPosting: false,
+			groupDiscussion: false,
+			threadSorting: "recent" as const,
 		});
 
 		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok) {
-			throw new Error("Failed to create activity module");
+			throw new Error("Failed to create assignment module");
 		}
 		const activityModule = activityModuleResult.value;
 
@@ -1262,20 +1254,16 @@ describe("User Grade Management", () => {
 		}
 		const section = sectionResult.value;
 
-
-
 		const courseActivityModuleLinkResult =
-			await tryCreateCourseActivityModuleLink(
-				{
-					payload,
-					req: mockRequest,
-					overrideAccess: false,
-					course: testCourse.id,
-					activityModule: activityModule.id,
-					section: section.id,
-					contentOrder: 0,
-				},
-			);
+			await tryCreateCourseActivityModuleLink({
+				payload,
+				req: mockRequest,
+				overrideAccess: false,
+				course: testCourse.id,
+				activityModule: activityModule.id,
+				section: section.id,
+				contentOrder: 0,
+			});
 
 		expect(courseActivityModuleLinkResult.ok).toBe(true);
 		if (!courseActivityModuleLinkResult.ok) {
