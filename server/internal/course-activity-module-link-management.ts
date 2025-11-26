@@ -1,4 +1,4 @@
-import type { Where } from "payload";
+import { Data, type Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
 import { assertZodInternal } from "server/utils/type-narrowing";
@@ -15,7 +15,9 @@ import {
 	tryGetNextItemSortOrder,
 } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { interceptPayloadError, type BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+
+
 
 export type CreateCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
 	course: number;
@@ -64,7 +66,12 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			req,
 			overrideAccess,
 			user,
-		});
+		}).catch((error) => {
+			interceptPayloadError(error, "tryCreateCourseActivityModuleLink", `to create course activity module link`, { payload, user, req, overrideAccess });
+			throw error
+		})
+
+
 
 		////////////////////////////////////////////////////
 		// type narrowing
@@ -97,7 +104,10 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			user,
 			req,
 			overrideAccess,
-		});
+		}).catch((error) => {
+			interceptPayloadError(error, "tryCreateCourseActivityModuleLink", `to get activity module by id ${activityModule}`, { payload, user, req, overrideAccess });
+			throw error
+		})
 
 		const moduleType = activityModuleDoc.type;
 		const gradeableTypes = ["assignment", "quiz", "discussion"] as const;
@@ -438,7 +448,7 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 			overrideAccess,
 			user,
 			req,
-		});
+		})
 
 		////////////////////////////////////////////////////
 		// type narrowing
@@ -544,7 +554,10 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 			req,
 			overrideAccess,
 			user,
-		});
+		}).catch((error) => {
+			interceptPayloadError(error, "tryUpdateCourseModuleSettings", `to update course module settings for link ${linkId}`, { payload, user, req, overrideAccess });
+			throw error
+		})
 
 		////////////////////////////////////////////////////
 		// type narrowing

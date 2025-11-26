@@ -1,8 +1,273 @@
-import type { BasePayload, PayloadRequest, TypedUser } from "payload";
+import type { BasePayload, PayloadRequest, TypedUser} from "payload";
+import { Forbidden } from "payload";
+import type { Subtract, Sum } from "type-fest";
 
 export type BaseInternalFunctionArgs = {
-    payload: BasePayload;
-    user?: Partial<TypedUser> | null;
-    req?: Partial<PayloadRequest>;
-    overrideAccess?: boolean;
+	payload: BasePayload;
+	user?: Partial<TypedUser> | null;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 };
+
+/**
+ * Intercepts errors from Payload operations and logs them with consistent logging.
+ *
+ * @param error - The error that occurred
+ * @param functionName - Name of the function where the error occurred (for logging)
+ * @param context - Additional context about the operation (e.g., "by id 123", "for collection 'users'")
+ * @param args - Base internal function args containing payload, user, and logger
+ * @returns Transformed error (Forbidden errors are returned as-is, others wrapped in UnknownError)
+ */
+export function interceptPayloadError(
+	error: unknown,
+	functionName: string,
+	context: string,
+	args: BaseInternalFunctionArgs,
+) {
+	const { payload, user } = args;
+	if (error instanceof Forbidden) {
+		payload.logger.error(
+			`${functionName}: Failed ${context} by user: ${user ? `id ${user.id}` : "unauthenticated"}`,
+		);
+	} else
+		payload.logger.error(
+			`${functionName}: Failed ${context} by user: ${user ? `id ${user.id}` : "unauthenticated"}`,
+		);
+}
+
+/**
+ * helper function to handle depth of payload local api
+ *
+ * Depth<{ media: number | Media | null | undefined }, 0> // will return { media: number | null | undefined }
+ * Depth<{ media: number | Media | null | undefined }, 1> // will return { media: Media | null | undefined }
+ *
+ * it should also handle nested objects and arrays.
+ *
+ * Depth<{ media: (number | Media)[] | null | undefined }, 0> // will return { media: (number | null | undefined)[] }
+ * Depth<{ media: (number | Media)[] | null | undefined }, 1> // will return { media: (Media | null | undefined)[] }
+ *
+ * it should also handle recursive objects
+ *
+ * type User = {
+ *  id: number;
+ *  avatar: number | Media | null | undefined;
+ * }
+ *
+ * type Media = {
+ *  id: number;
+ *  createdBy: number | User | null | undefined;
+ * }
+ *
+ * Depth<User, 0> // will return { id: number, avatar: number | null | undefined }
+ * Depth<User, 1> // will return { id: number, avatar: { id: number, createdBy: number | null | undefined } | null | undefined }
+ * Depth<User, 2> // will return { id: number, avatar: { id: number, createdBy: { id: number , avatar: number | null | undefined } | null | undefined } | null | undefined }
+ *
+ */
+// 1. Configuration
+type ID = string | number;
+
+type FollowNullable<IsNullable extends boolean, T> = IsNullable extends true
+	? T | null | undefined
+	: T;
+
+type IsNullable<T> = T extends null | undefined ? true : false;
+
+// Type of a single Polymorphic Object
+type PolymorphicObject = { relationTo: string; value: unknown };
+
+type Doc = { docs?: unknown[] };
+
+// 2. IsRelation: Returns true ONLY if T contains BOTH an ID AND an Object
+// We use [] to prevent distribution logic from messing this up.
+type IsNormalRelation<T> =
+	// --- FIX: Unwrap Array First ---
+	// If T (non-nullable) is an array, delegate the check to the item type (U).
+	NonNullable<T> extends (infer U)[]
+		? IsNormalRelation<U>
+		: // --- Original Checks Follow ---
+			[Extract<T, ID>] extends [never] // Does it lack an ID?
+			? false
+			: [Exclude<T, ID | null | undefined>] extends [never] // Does it lack an Object?
+				? false
+				: // does the object has a id field?
+					Exclude<T, ID | null | undefined> extends { id: ID }
+					? true
+					: false;
+
+type IsPolymorphicRelation<T> = NonNullable<T> extends (infer K)[]
+	? IsPolymorphicRelation<K>
+	: NonNullable<T> extends { relationTo: string; value: infer U }
+		? IsNormalRelation<U>
+		: false;
+
+type IsDocRelation<T> = NonNullable<T> extends { docs?: (infer U)[] }
+	? IsNormalRelation<U> extends true
+		? true
+		: IsPolymorphicRelation<U> extends true
+			? true
+			: false
+	: false;
+
+type IsRelation<T> = IsNormalRelation<T> extends true
+	? true
+	: IsPolymorphicRelation<T> extends true
+		? true
+		: IsDocRelation<T> extends true
+			? true
+			: false;
+
+// 3. StripObject: Used when Depth is 0. Keeps IDs and Nulls.
+type StripNormalObject<T> = FollowNullable<
+	IsNullable<T>,
+	NonNullable<T> extends (infer U)[]
+		? Extract<U, ID | null | undefined>[]
+		: Extract<T, ID | null | undefined>
+>;
+
+// 4. StripID: Used when Depth > 0. Keeps Objects and Nulls.
+type StripNormalID<T> = FollowNullable<
+	IsNullable<T>,
+	NonNullable<T> extends (infer U)[] ? StripNormalID<U>[] : Exclude<T, ID>
+>;
+
+// --- Fix 1: Strip Polmorphic IDs (Keeps Objects) ---
+type StripPolymorphicID<T> = FollowNullable<
+	IsNullable<T>,
+	NonNullable<T> extends (infer U)[]
+		? StripPolymorphicID<U>[] // Recurse into Array item (U)
+		: // Check if T is the Polymorphic Object structure
+			NonNullable<T> extends PolymorphicObject
+			? // Map over the Polymorphic structure: apply stripping to 'value', keep 'relationTo'
+				{
+					[K in keyof T]: K extends "value"
+						? // Apply stripping logic to the inner relationship value
+							Exclude<T[K], ID> // Strip the inner ID (number)
+						: T[K]; // Keep relationTo
+				}
+			: StripNormalID<T>
+>; // Fallback to stripping the primitive ID
+
+// --- Fix 2: Strip Polmorphic Objects (Keeps IDs) ---
+type StripPolymorphicObject<T> = FollowNullable<
+	IsNullable<T>,
+	NonNullable<T> extends (infer U)[]
+		? StripPolymorphicObject<U>[] // Recurse into Array item (U)
+		: // Check if T is the Polymorphic Object structure
+			NonNullable<T> extends PolymorphicObject
+			? // Map over the Polymorphic structure: apply stripping to 'value', keep 'relationTo'
+				{
+					[K in keyof T]: K extends "value"
+						? // Apply stripping logic to the inner relationship value
+							Extract<T[K], ID | null | undefined> // Extract the inner ID (number)
+						: T[K]; // Keep relationTo
+				}
+			: StripNormalObject<T>
+>; // Fallback to extracting the primitive ID
+
+// --- New Type 1: Strip Doc ID (Keep Objects / Populate) ---
+// Recursively strips IDs from all relationship types within the 'docs' array of a Doc object.
+type StripDocID<T> = FollowNullable<
+	IsNullable<T>,
+	NonNullable<T> extends (infer U)[]
+		? StripDocID<U>[] // Handle arrays of Docs
+		: NonNullable<T> extends Doc
+			? // If T is a Doc, apply stripping logic to the 'docs' field
+				{
+					[K in keyof T]: K extends "docs"
+						? StripPolymorphicID<T[K]> // Apply ID-stripping (Object-keeping) logic to the array contents
+						: T[K];
+				}
+			: StripPolymorphicID<T> // Fallback for general fields that might be simple/polymorphic relations
+>;
+
+// --- New Type 2: Strip Doc Object (Keep IDs / Shallow) ---
+// Recursively strips Objects from all relationship types within the 'docs' array of a Doc object.
+type StripDocObject<T> = FollowNullable<
+	IsNullable<T>,
+	NonNullable<T> extends (infer U)[]
+		? StripDocObject<U>[] // Handle arrays of Docs
+		: NonNullable<T> extends Doc
+			? // If T is a Doc, apply stripping logic to the 'docs' field
+				{
+					[K in keyof T]: K extends "docs"
+						? StripPolymorphicObject<T[K]> // Apply Object-stripping (ID-keeping) logic to the array contents
+						: T[K];
+				}
+			: StripPolymorphicObject<T> // Fallback for general fields that might be simple/polymorphic relations
+>;
+
+type StripID<T> = IsDocRelation<T> extends true
+	? StripDocID<T>
+	: IsPolymorphicRelation<T> extends true
+		? StripPolymorphicID<T>
+		: IsNormalRelation<T> extends true
+			? StripNormalID<T>
+			: T;
+
+type StripObject<T> = IsDocRelation<T> extends true
+	? StripDocObject<T>
+	: IsPolymorphicRelation<T> extends true
+		? StripPolymorphicObject<T>
+		: IsNormalRelation<T> extends true
+			? StripNormalObject<T>
+			: T;
+
+export type Depth<T, D extends number = 2> = FollowNullable<
+	IsNullable<T>,
+	D extends 0
+		? T extends (infer U)[]
+			? (U extends object
+					? {
+							[K in keyof U]: FollowNullable<
+								IsNullable<U[K]>,
+								NonNullable<StripObject<U[K]>>
+							>;
+						}
+					: U)[]
+			: T extends object
+				? {
+						[K in keyof T]: NonNullable<StripObject<T[K]>>;
+					}
+				: StripObject<T>
+		: IsNormalRelation<T> extends true
+			? Depth<NonNullable<StripID<T>>, Subtract<D, 1>> // ! <---- unwrap the object, end 1
+			: IsPolymorphicRelation<T> extends true
+				? NonNullable<T> extends (infer U)[]
+					? Depth<NonNullable<StripID<U>>, Subtract<D, 1>>[] // !  <----- end 2
+					: {
+							[K in keyof T]: K extends "value"
+								? Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>> // ! <----- end 3
+								: T[K]; // ! <----- end 5
+						}
+				: IsDocRelation<T> extends true
+					? {
+							[K in keyof T]: K extends "docs"
+								? Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>> // ! <----- end 6
+								: T[K]; // ! <----- end 7
+						}
+					: T extends (infer U)[]
+						? (U extends object
+								? {
+										[K in keyof U]: FollowNullable<
+											IsNullable<U[K]>,
+											Depth<NonNullable<StripID<U[K]>>, Subtract<D, 1>>
+										>; // ! <----- end 8
+									}
+								: U)[]
+						: T extends object
+							? {
+									[K in keyof T]: FollowNullable<
+										IsNullable<T[K]>,
+										Depth<NonNullable<StripID<T[K]>>, Subtract<D, 1>>
+									>; // ! <----- end 9
+								}
+							: T // ! <----- end 10
+>;
+
+export function stripDepth<D extends number, f extends "find" | "findByID" | "create" | "update" | "delete"  = 'findByID'>() {
+	return function <T>(
+		data: T,
+	): Depth<T, f extends "find" ?  Sum<D, 1> : D> {
+		return data as any;
+	};
+}

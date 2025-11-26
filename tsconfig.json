@@ -14,6 +14,7 @@
 		"skipLibCheck": true,
 		"strict": true,
 		"allowJs": true,
+		"noUncheckedIndexedAccess": true,
 		"forceConsistentCasingInFileNames": true,
 		// using any should be error
 		"noImplicitAny": true,

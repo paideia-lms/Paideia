@@ -23,6 +23,7 @@ import {
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { interceptPayloadError, stripDepth } from "./utils/internal-function-utils";
 
 export type CreateMediaArgs = BaseInternalFunctionArgs & {
 	file: Buffer;
@@ -33,9 +34,44 @@ export type CreateMediaArgs = BaseInternalFunctionArgs & {
 	userId: number;
 };
 
-export interface CreateMediaResult {
-	media: Media;
-}
+export type GetMediaByIdArgs = BaseInternalFunctionArgs & {
+	id: number | string;
+};
+
+export type GetMediaByFilenameArgs = BaseInternalFunctionArgs & {
+	filename: string;
+};
+
+export type GetMediaBufferFromFilenameArgs = BaseInternalFunctionArgs & {
+	s3Client: S3Client;
+	filename: string;
+};
+
+
+export type GetAllMediaArgs = BaseInternalFunctionArgs & {
+	limit?: number;
+	page?: number;
+	sort?: string;
+	where?: Record<string, unknown>;
+};
+
+export type GetMediaBufferFromIdArgs = BaseInternalFunctionArgs & {
+	s3Client: S3Client;
+	id: number | string;
+};
+
+
+export type GetMediaStreamFromFilenameArgs = BaseInternalFunctionArgs & {
+	s3Client: S3Client;
+	filename: string;
+	range?: { start: number; end?: number };
+};
+
+export type GetMediaStreamFromIdArgs = BaseInternalFunctionArgs & {
+	s3Client: S3Client;
+	id: number | string;
+	range?: { start: number; end?: number };
+};
 
 /**
  * Creates a new media record
@@ -46,7 +82,7 @@ export interface CreateMediaResult {
  * 3. Uses transactions to ensure atomicity
  */
 export const tryCreateMedia = Result.wrap(
-	async (args: CreateMediaArgs): Promise<CreateMediaResult> => {
+	async (args: CreateMediaArgs) => {
 		const {
 			payload,
 			file,
@@ -79,7 +115,7 @@ export const tryCreateMedia = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async () => {
 			// Create media record using Payload's upload functionality
 			const media = await payload.create({
 				collection: "media",
@@ -97,17 +133,16 @@ export const tryCreateMedia = Result.wrap(
 				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
-			});
-
-			await commitTransactionIfCreated(payload, transactionInfo);
+			}).catch((error) => {
+				interceptPayloadError(error, "tryCreateMedia", `to create media`, { payload, user, req, overrideAccess });
+				throw error
+			})
 
 			return {
 				media,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		})
+
 	},
 	(error) =>
 		transformError(error) ??
@@ -116,26 +151,14 @@ export const tryCreateMedia = Result.wrap(
 		}),
 );
 
-export type GetMediaByIdArgs = BaseInternalFunctionArgs & {
-	id: number | string;
-	depth?: number;
-};
 
-export type GetMediaByFilenameArgs = BaseInternalFunctionArgs & {
-	filename: string;
-	depth?: number;
-};
 
-export type GetMediaBufferFromFilenameArgs = BaseInternalFunctionArgs & {
-	s3Client: S3Client;
-	filename: string;
-	depth?: number;
-};
-
-export interface GetMediaBufferFromFilenameResult {
-	media: Media;
-	buffer: Buffer;
-}
+// export interface GetMediaStreamFromIdResult {
+// 	media: Media;
+// 	stream: ReadableStream<Uint8Array>;
+// 	contentLength: number;
+// 	contentRange?: string;
+// }
 
 /**
  * Get a media record by ID
@@ -144,15 +167,8 @@ export interface GetMediaBufferFromFilenameResult {
  * for relationships
  */
 export const tryGetMediaById = Result.wrap(
-	async (args: GetMediaByIdArgs): Promise<Media> => {
-		const {
-			payload,
-			id,
-			depth = 1,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+	async (args: GetMediaByIdArgs) => {
+		const { payload, id, user = null, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -160,26 +176,19 @@ export const tryGetMediaById = Result.wrap(
 		}
 
 		// Fetch the media record
-		const mediaResult = await payload.find({
+		const media = await payload.findByID({
 			collection: "media",
-			where: {
-				and: [
-					{
-						id: { equals: id },
-					},
-				],
-			},
-			depth,
+			id,
+			depth: 1,
 			user,
 			req,
 			overrideAccess,
-		});
-
-		const media = mediaResult.docs[0];
-
-		if (!media) {
-			throw new NonExistingMediaError(`Media with id '${id}' not found`);
-		}
+		})
+		.then(stripDepth<1, "findByID">())
+		.catch((error) => {
+			interceptPayloadError(error, "tryGetMediaById", `to get media by id ${id}`, { payload, user, req, overrideAccess });
+			throw error
+		})
 
 		return media;
 	},
@@ -197,11 +206,10 @@ export const tryGetMediaById = Result.wrap(
  * for relationships
  */
 export const tryGetMediaByFilename = Result.wrap(
-	async (args: GetMediaByFilenameArgs): Promise<Media> => {
+	async (args: GetMediaByFilenameArgs) => {
 		const {
 			payload,
 			filename,
-			depth = 1,
 			user = null,
 			req,
 			overrideAccess = false,
@@ -213,26 +221,28 @@ export const tryGetMediaByFilename = Result.wrap(
 		}
 
 		// Fetch the media record
-		const mediaResult = await payload.find({
+		const media = await payload.find({
 			collection: "media",
 			where: {
 				filename: { equals: filename },
 			},
-			depth,
+			depth: 1 , 
 			user,
 			req,
 			overrideAccess,
+		}).then(stripDepth<1, "find">())
+		.catch((error) => {
+			interceptPayloadError(error, "tryGetMediaByFilename", `to get media by filename ${filename}`, { payload, user, req, overrideAccess });
+			throw error
 		});
 
-		const media = mediaResult.docs[0];
+		const m = media.docs[0];
 
-		if (!media) {
-			throw new NonExistingMediaError(
-				`Media with filename '${filename}' not found`,
-			);
+		if (!m) {
+			throw new NonExistingMediaError(`Media with filename '${filename}' not found`);
 		}
 
-		return media;
+		return m;
 	},
 	(error) =>
 		transformError(error) ??
@@ -253,12 +263,11 @@ export const tryGetMediaByFilename = Result.wrap(
 export const tryGetMediaBufferFromFilename = Result.wrap(
 	async (
 		args: GetMediaBufferFromFilenameArgs,
-	): Promise<GetMediaBufferFromFilenameResult> => {
+	) => {
 		const {
 			payload,
 			s3Client,
 			filename,
-			depth = 0,
 			user = null,
 			req,
 			overrideAccess = false,
@@ -273,11 +282,10 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 		const mediaResult = await tryGetMediaByFilename({
 			payload,
 			filename,
-			depth,
 			user,
 			req,
 			overrideAccess,
-		});
+		})
 
 		if (!mediaResult.ok) {
 			throw mediaResult.error;
@@ -317,45 +325,6 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 		}),
 );
 
-export type GetMediaBufferFromIdArgs = BaseInternalFunctionArgs & {
-	s3Client: S3Client;
-	id: number | string;
-	depth?: number;
-};
-
-export interface GetMediaBufferFromIdResult {
-	media: Media;
-	buffer: Buffer;
-}
-
-export type GetMediaStreamFromFilenameArgs = BaseInternalFunctionArgs & {
-	s3Client: S3Client;
-	filename: string;
-	depth?: number;
-	range?: { start: number; end?: number };
-};
-
-export interface GetMediaStreamFromFilenameResult {
-	media: Media;
-	stream: ReadableStream<Uint8Array>;
-	contentLength: number;
-	contentRange?: string;
-}
-
-export type GetMediaStreamFromIdArgs = BaseInternalFunctionArgs & {
-	s3Client: S3Client;
-	id: number | string;
-	depth?: number;
-	range?: { start: number; end?: number };
-};
-
-export interface GetMediaStreamFromIdResult {
-	media: Media;
-	stream: ReadableStream<Uint8Array>;
-	contentLength: number;
-	contentRange?: string;
-}
-
 /**
  * Get a media record by ID and fetch the file buffer from S3
  *
@@ -368,15 +337,8 @@ export interface GetMediaStreamFromIdResult {
 export const tryGetMediaBufferFromId = Result.wrap(
 	async (
 		args: GetMediaBufferFromIdArgs,
-	): Promise<GetMediaBufferFromIdResult> => {
-		const {
-			payload,
-			s3Client,
-			id,
-			depth = 0,
-			user = null,
-			overrideAccess = false,
-		} = args;
+	) => {
+		const { payload, s3Client, id, user = null, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -387,7 +349,6 @@ export const tryGetMediaBufferFromId = Result.wrap(
 		const mediaResult = await tryGetMediaById({
 			payload,
 			id,
-			depth,
 			user,
 			overrideAccess,
 		});
@@ -420,6 +381,7 @@ export const tryGetMediaBufferFromId = Result.wrap(
 
 		// Convert the stream to a buffer
 		const chunks: Uint8Array[] = [];
+		// @ts-ignore
 		for await (const chunk of response.Body) {
 			chunks.push(chunk);
 		}
@@ -449,12 +411,11 @@ export const tryGetMediaBufferFromId = Result.wrap(
 export const tryGetMediaStreamFromFilename = Result.wrap(
 	async (
 		args: GetMediaStreamFromFilenameArgs,
-	): Promise<GetMediaStreamFromFilenameResult> => {
+	) => {
 		const {
 			payload,
 			s3Client,
 			filename,
-			depth = 0,
 			range,
 			user = null,
 			req,
@@ -470,7 +431,6 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
 		const mediaResult = await tryGetMediaByFilename({
 			payload,
 			filename,
-			depth,
 			user,
 			req,
 			overrideAccess,
@@ -552,12 +512,11 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
 export const tryGetMediaStreamFromId = Result.wrap(
 	async (
 		args: GetMediaStreamFromIdArgs,
-	): Promise<GetMediaStreamFromIdResult> => {
+	) => {
 		const {
 			payload,
 			s3Client,
 			id,
-			depth = 0,
 			range,
 			user = null,
 			req,
@@ -573,7 +532,6 @@ export const tryGetMediaStreamFromId = Result.wrap(
 		const mediaResult = await tryGetMediaById({
 			payload,
 			id,
-			depth,
 			user,
 			req,
 			overrideAccess,
@@ -653,14 +611,6 @@ export const tryGetMediaStreamFromId = Result.wrap(
 		}),
 );
 
-export type GetAllMediaArgs = BaseInternalFunctionArgs & {
-	limit?: number;
-	page?: number;
-	depth?: number;
-	sort?: string;
-	where?: Record<string, unknown>;
-};
-
 /**
  * Gets all media records with pagination and filtering
  *
@@ -672,7 +622,6 @@ export const tryGetAllMedia = Result.wrap(
 			payload,
 			limit = 10,
 			page = 1,
-			depth = 1,
 			sort = "-createdAt",
 			where = {},
 			user = null,
@@ -690,135 +639,40 @@ export const tryGetAllMedia = Result.wrap(
 		}
 
 		// Fetch media records
-		const mediaResult = await payload.find({
+		const media = await payload.find({
 			collection: "media",
 			// @ts-expect-error - Dynamic where clause type
 			where,
-			depth,
+			depth: 1,
 			limit,
 			page,
 			sort,
 			user,
 			req,
 			overrideAccess,
-		});
+			// ! TODO: we don't care about pagination for now
+			pagination: false,
+		}).catch((error) => {
+			interceptPayloadError(error, "tryGetAllMedia", `to get all media`, { payload, user, req, overrideAccess });
+			throw error
+		})
 
 		return {
-			docs: mediaResult.docs,
-			totalDocs: mediaResult.totalDocs,
-			limit: mediaResult.limit || limit,
-			totalPages: mediaResult.totalPages || 0,
-			page: mediaResult.page || page,
-			pagingCounter: mediaResult.pagingCounter || 0,
-			hasPrevPage: mediaResult.hasPrevPage || false,
-			hasNextPage: mediaResult.hasNextPage || false,
-			prevPage: mediaResult.prevPage || null,
-			nextPage: mediaResult.nextPage || null,
+			docs: media.docs,
+			totalDocs: media.totalDocs,
+			limit: media.limit || limit,
+			totalPages: media.totalPages || 0,
+			page: media.page || page,
+			pagingCounter: media.pagingCounter || 0,
+			hasPrevPage: media.hasPrevPage || false,
+			hasNextPage: media.hasNextPage || false,
+			prevPage: media.prevPage || null,
+			nextPage: media.nextPage || null,
 		};
 	},
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to get all media", {
-			cause: error,
-		}),
-);
-
-export type UpdateMediaArgs = BaseInternalFunctionArgs & {
-	id: number;
-	alt?: string;
-	caption?: string;
-	userId: number;
-};
-
-/**
- * Updates a media record's metadata
- *
- * This function:
- * 1. Validates the media record exists
- * 2. Updates the alt text and caption
- * 3. Uses transactions to ensure atomicity
- */
-export const tryUpdateMedia = Result.wrap(
-	async (args: UpdateMediaArgs): Promise<Media> => {
-		const {
-			payload,
-			id,
-			alt,
-			caption,
-			userId,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
-
-		// Validate required fields
-		if (!id) {
-			throw new InvalidArgumentError("Media ID is required");
-		}
-
-		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
-		}
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		try {
-			// Verify user exists
-			const userRecord = await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: transactionInfo.reqWithTransaction,
-			});
-
-			if (!userRecord) {
-				throw new InvalidArgumentError(`User with id '${userId}' not found`);
-			}
-
-			// Get the media record
-			const media = await payload.findByID({
-				collection: "media",
-				id,
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
-
-			if (!media) {
-				throw new NonExistingMediaError(`Media with id '${id}' not found`);
-			}
-
-			// Prepare update data
-			const updateData: Partial<Media> = {};
-
-			if (alt !== undefined) {
-				updateData.alt = alt;
-			}
-
-			if (caption !== undefined) {
-				updateData.caption = caption;
-			}
-
-			// Update the media record
-			const updatedMedia = await payload.update({
-				collection: "media",
-				id,
-				data: updateData,
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
-
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			return updatedMedia;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update media", {
 			cause: error,
 		}),
 );
@@ -843,12 +697,11 @@ export interface DeleteMediaResult {
  * 4. Uses transactions to ensure atomicity
  */
 export const tryDeleteMedia = Result.wrap(
-	async (args: DeleteMediaArgs): Promise<DeleteMediaResult> => {
+	async (args: DeleteMediaArgs) => {
 		const {
 			payload,
 			s3Client,
 			id,
-			userId,
 			user = null,
 			req,
 			overrideAccess = false,
@@ -862,19 +715,15 @@ export const tryDeleteMedia = Result.wrap(
 		if (Array.isArray(id) && id.length === 0) {
 			throw new InvalidArgumentError("At least one media ID is required");
 		}
-
-		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
-		}
-
 		// Normalize to array
 		const ids = Array.isArray(id) ? id : [id];
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+
+		return transactionInfo.tx(async () => {
 			// Get the media records before deletion
-			const mediaResults = await payload.find({
+			const media = await payload.find({
 				collection: "media",
 				where: {
 					id: {
@@ -885,9 +734,13 @@ export const tryDeleteMedia = Result.wrap(
 				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
+			}).catch((error) => {
+				interceptPayloadError(error, "tryDeleteMedia", `to get media before deletion`, { payload, user, req, overrideAccess });
+				throw error;
 			});
 
-			const foundMedia = mediaResults.docs;
+
+			const foundMedia = media.docs;
 
 			if (foundMedia.length === 0) {
 				throw new NonExistingMediaError(
@@ -905,16 +758,30 @@ export const tryDeleteMedia = Result.wrap(
 
 			// Check if any media has usage before deletion
 			const mediaWithUsage: Array<{ id: number; usages: number }> = [];
-			for (const media of foundMedia) {
-				const usagesResult = await tryFindMediaUsages({
-					payload,
-					mediaId: media.id,
-					user,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				});
+			// Use Promise.all to check usages in parallel
+			const usagesResults = await Promise.all(
+				foundMedia.map((media) =>
+					tryFindMediaUsages({
+						payload,
+						mediaId: media.id,
+						user,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+					}).then((usagesResult) => ({
+						media,
+						usagesResult,
+					}))
+				)
+			);
 
-				if (usagesResult.ok && usagesResult.value.totalUsages > 0) {
+			// Check if any media has usage 
+			// or if anything is error, we rollback the transaction
+			for (const { media, usagesResult } of usagesResults) {
+				if (!usagesResult.ok) {
+					await rollbackTransactionIfCreated(payload, transactionInfo);
+					throw usagesResult.error;
+				}
+				if (usagesResult.value.totalUsages > 0) {
 					mediaWithUsage.push({
 						id: media.id,
 						usages: usagesResult.value.totalUsages,
@@ -922,6 +789,8 @@ export const tryDeleteMedia = Result.wrap(
 				}
 			}
 
+			// now we get all media with usage 
+			// we throw error if there is any media with usage
 			if (mediaWithUsage.length > 0) {
 				const mediaIdsWithUsage = mediaWithUsage.map((m) => m.id).join(", ");
 				const totalUsages = mediaWithUsage.reduce(
@@ -934,37 +803,41 @@ export const tryDeleteMedia = Result.wrap(
 			}
 
 			// Delete files from S3 first
-			for (const media of foundMedia) {
-				if (media.filename) {
-					const deleteCommand = new DeleteObjectCommand({
-						Bucket: envVars.S3_BUCKET.value,
-						Key: media.filename,
-					});
-
-					await s3Client.send(deleteCommand);
-				}
-			}
+			await Promise.all(
+				foundMedia
+					.filter((media) => !!media.filename)
+					.map((media) => {
+						const deleteCommand = new DeleteObjectCommand({
+							Bucket: envVars.S3_BUCKET.value,
+							Key: media.filename!,
+						});
+						return s3Client.send(deleteCommand);
+					}),
+			);
 
 			// Delete all media records from database
-			for (const mediaId of ids) {
-				await payload.delete({
-					collection: "media",
-					id: mediaId,
-					user,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				});
-			}
+			await Promise.all(
+				ids.map((mediaId) =>
+					payload.delete({
+						collection: "media",
+						id: mediaId,
+						user,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+					}).catch((error) => {
+						interceptPayloadError(error, "tryDeleteMedia", `to delete media`, { payload, user, req, overrideAccess });
+						throw error
+					})
+				)
+			);
 
 			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return {
 				deletedMedia: foundMedia,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		})
+
 	},
 	(error) =>
 		transformError(error) ??
@@ -988,18 +861,7 @@ export type GetMediaByMimeTypeArgs = BaseInternalFunctionArgs & {
 export const tryGetMediaByMimeType = Result.wrap(
 	async (
 		args: GetMediaByMimeTypeArgs,
-	): Promise<{
-		docs: Media[];
-		totalDocs: number;
-		limit: number;
-		totalPages: number;
-		page: number;
-		pagingCounter: number;
-		hasPrevPage: boolean;
-		hasNextPage: boolean;
-		prevPage: number | null;
-		nextPage: number | null;
-	}> => {
+	) => {
 		const {
 			payload,
 			mimeType,
@@ -1076,18 +938,7 @@ export type FindMediaByUserArgs = BaseInternalFunctionArgs & {
 export const tryFindMediaByUser = Result.wrap(
 	async (
 		args: FindMediaByUserArgs,
-	): Promise<{
-		docs: Media[];
-		totalDocs: number;
-		limit: number;
-		totalPages: number;
-		page: number;
-		pagingCounter: number;
-		hasPrevPage: boolean;
-		hasNextPage: boolean;
-		prevPage: number | null;
-		nextPage: number | null;
-	}> => {
+	) => {
 		const {
 			payload,
 			userId,
@@ -1168,7 +1019,7 @@ export interface RenameMediaResult {
  * 5. Uses transactions to ensure atomicity
  */
 export const tryRenameMedia = Result.wrap(
-	async (args: RenameMediaArgs): Promise<RenameMediaResult> => {
+	async (args: RenameMediaArgs) => {
 		const {
 			payload,
 			s3Client,
@@ -1195,12 +1046,11 @@ export const tryRenameMedia = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async () => {
 			// Get the media record
 			const mediaResult = await tryGetMediaById({
 				payload,
 				id,
-				depth: 0,
 				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
@@ -1231,7 +1081,6 @@ export const tryRenameMedia = Result.wrap(
 			const existingMediaResult = await tryGetMediaByFilename({
 				payload,
 				filename: newFilename,
-				depth: 0,
 				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
@@ -1267,20 +1116,16 @@ export const tryRenameMedia = Result.wrap(
 				data: {
 					filename: newFilename,
 				},
+				depth: 0,
 				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
-			});
-
-			await commitTransactionIfCreated(payload, transactionInfo);
+			}).then(stripDepth<0, "update">());
 
 			return {
 				media: updatedMedia,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1304,11 +1149,7 @@ export type GetUserMediaStatsArgs = BaseInternalFunctionArgs & {
 export const tryGetUserMediaStats = Result.wrap(
 	async (
 		args: GetUserMediaStatsArgs,
-	): Promise<{
-		count: number;
-		totalSize: number;
-		mediaTypeCount: Record<string, number>;
-	}> => {
+	) => {
 		const { payload, userId, user = null, req, overrideAccess = false } = args;
 
 		// Fetch all media for the user (no pagination limit)
@@ -1415,11 +1256,7 @@ export type GetSystemMediaStatsArgs = BaseInternalFunctionArgs;
 export const tryGetSystemMediaStats = Result.wrap(
 	async (
 		args: GetSystemMediaStatsArgs,
-	): Promise<{
-		count: number;
-		totalSize: number;
-		mediaTypeCount: Record<string, number>;
-	}> => {
+	) => {
 		const { payload, user = null, req, overrideAccess = false } = args;
 
 		// Fetch all media in the system (no pagination limit)
@@ -1543,7 +1380,7 @@ export interface GetOrphanedMediaResult {
  * 4. Returns paginated results with metadata
  */
 export const tryGetOrphanedMedia = Result.wrap(
-	async (args: GetOrphanedMediaArgs): Promise<GetOrphanedMediaResult> => {
+	async (args: GetOrphanedMediaArgs) => {
 		const {
 			payload,
 			s3Client,
@@ -1667,7 +1504,7 @@ export interface GetAllOrphanedFilenamesResult {
 export const tryGetAllOrphanedFilenames = Result.wrap(
 	async (
 		args: GetAllOrphanedFilenamesArgs,
-	): Promise<GetAllOrphanedFilenamesResult> => {
+	) => {
 		const {
 			payload,
 			s3Client,
@@ -1759,7 +1596,7 @@ export type PruneAllOrphanedMediaArgs = BaseInternalFunctionArgs & {
 export const tryPruneAllOrphanedMedia = Result.wrap(
 	async (
 		args: PruneAllOrphanedMediaArgs,
-	): Promise<PruneAllOrphanedMediaResult> => {
+	) => {
 		const {
 			payload,
 			s3Client,
@@ -1915,7 +1752,7 @@ export interface DeleteOrphanedMediaResult {
  * 3. Returns results with any errors
  */
 export const tryDeleteOrphanedMedia = Result.wrap(
-	async (args: DeleteOrphanedMediaArgs): Promise<DeleteOrphanedMediaResult> => {
+	async (args: DeleteOrphanedMediaArgs) => {
 		const {
 			payload,
 			s3Client,
@@ -2061,7 +1898,7 @@ export interface FindMediaUsagesResult {
  * 4. Returns all usages with collection name, document ID, and field path
  */
 export const tryFindMediaUsages = Result.wrap(
-	async (args: FindMediaUsagesArgs): Promise<FindMediaUsagesResult> => {
+	async (args: FindMediaUsagesArgs) => {
 		const { payload, mediaId, user, req, overrideAccess = false } = args;
 
 		// Validate media ID
@@ -2081,7 +1918,6 @@ export const tryFindMediaUsages = Result.wrap(
 		const mediaResult = await tryGetMediaById({
 			payload,
 			id: mediaId,
-			depth: 0,
 			user,
 			req,
 			overrideAccess,

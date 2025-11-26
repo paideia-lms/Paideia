@@ -18,7 +18,7 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { interceptPayloadError, stripDepth, type BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { tryCreateUserGrade } from "./user-grade-management";
 
 export type CreateQuizArgs = BaseInternalFunctionArgs & {
@@ -466,7 +466,7 @@ export const tryGetQuizById = Result.wrap(
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "find">())
 
 		const quiz = quizResult.docs[0];
 
@@ -474,23 +474,7 @@ export const tryGetQuizById = Result.wrap(
 			throw new InvalidArgumentError(`Quiz with id '${id}' not found`);
 		}
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const createdBy = quiz.createdBy;
-		assertZodInternal(
-			"tryGetQuizById: Created by user is required",
-			createdBy,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
-			...quiz,
-			createdBy,
-		};
+		return quiz
 	},
 	(error) =>
 		transformError(error) ??
@@ -566,23 +550,9 @@ export const tryUpdateQuiz = Result.wrap(
 			collection: "quizzes",
 			id,
 			data: updateData,
-		});
+		}).then(stripDepth<1, "update">())
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const createdBy = updatedQuiz.createdBy;
-		assertZodInternal(
-			"tryUpdateQuiz: Created by user is required",
-			createdBy,
-			z.object({ id: z.number() }),
-		);
-
-		return {
-			...updatedQuiz,
-			createdBy,
-		};
+		return updatedQuiz
 	},
 	(error) =>
 		transformError(error) ??
@@ -591,39 +561,6 @@ export const tryUpdateQuiz = Result.wrap(
 		}),
 );
 
-/**
- * Deletes a quiz
- */
-export const tryDeleteQuiz = Result.wrap(
-	async (payload: Payload, id: number) => {
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Quiz ID is required");
-		}
-
-		// Check if quiz exists
-		const existingQuiz = await payload.findByID({
-			collection: "quizzes",
-			id,
-		});
-
-		if (!existingQuiz) {
-			throw new InvalidArgumentError(`Quiz with id '${id}' not found`);
-		}
-
-		const deletedQuiz = await payload.delete({
-			collection: "quizzes",
-			id,
-		});
-
-		return deletedQuiz;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to delete quiz", {
-			cause: error,
-		}),
-);
 
 /**
  * Starts a new quiz attempt by creating an in_progress submission
@@ -667,10 +604,11 @@ export const tryStartQuizAttempt = Result.wrap(
 					},
 				],
 			},
+			depth: 1, 
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "find">())
 
 		if (existingInProgressSubmission.docs.length > 0) {
 			throw new InvalidArgumentError(
@@ -688,10 +626,11 @@ export const tryStartQuizAttempt = Result.wrap(
 					{ attemptNumber: { equals: attemptNumber } },
 				],
 			},
+			depth: 1, 
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "find">())
 
 		if (existingSubmission.docs.length > 0) {
 			throw new InvalidArgumentError(
@@ -704,7 +643,7 @@ export const tryStartQuizAttempt = Result.wrap(
 			collection: "course-activity-module-links",
 			id: courseModuleLinkId,
 			depth: 2, // Need to get activity module and quiz
-		});
+		}).then(stripDepth<2, "findByID">())
 
 		if (!courseModuleLink) {
 			throw new InvalidArgumentError("Course module link not found");
@@ -712,13 +651,10 @@ export const tryStartQuizAttempt = Result.wrap(
 
 		// Get quiz from activity module
 		const activityModule =
-			typeof courseModuleLink.activityModule === "object"
-				? courseModuleLink.activityModule
-				: null;
+			 courseModuleLink.activityModule
+
 		const quiz =
-			activityModule && typeof activityModule.quiz === "object"
-				? activityModule.quiz
-				: null;
+			 activityModule.quiz
 
 		const isLate = quiz?.dueDate ? new Date() > new Date(quiz.dueDate) : false;
 
@@ -736,10 +672,11 @@ export const tryStartQuizAttempt = Result.wrap(
 				answers: [],
 				isLate,
 			},
+			depth: 1, 
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "create">())
 
 		// Schedule auto-submit job if quiz has a time limit
 		if (quiz) {
@@ -774,42 +711,9 @@ export const tryStartQuizAttempt = Result.wrap(
 			}
 		}
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const courseModuleLinkRef = submission.courseModuleLink;
-		assertZodInternal(
-			"tryStartQuizAttempt: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = submission.student;
-		assertZodInternal(
-			"tryStartQuizAttempt: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = submission.enrollment;
-		assertZodInternal(
-			"tryStartQuizAttempt: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
 		return {
 			...submission,
-			courseModuleLink: courseModuleLinkRef.id,
-			student,
-			enrollment,
+			courseModuleLink: submission.courseModuleLink.id,
 		};
 	},
 	(error) =>
@@ -912,44 +816,15 @@ export const tryCreateQuizSubmission = Result.wrap(
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "create">())
 
 		////////////////////////////////////////////////////
 		// type narrowing
 		////////////////////////////////////////////////////
 
-		const courseModuleLinkRef = submission.courseModuleLink;
-		assertZodInternal(
-			"tryCreateQuizSubmission: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = submission.student;
-		assertZodInternal(
-			"tryCreateQuizSubmission: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = submission.enrollment;
-		assertZodInternal(
-			"tryCreateQuizSubmission: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
 		return {
 			...submission,
-			courseModuleLink: courseModuleLinkRef.id,
-			student,
-			enrollment,
+			courseModuleLink: submission.courseModuleLink.id,
 		};
 	},
 	(error) =>
@@ -1002,47 +877,15 @@ export const tryUpdateQuizSubmission = Result.wrap(
 			collection: "quiz-submissions",
 			id,
 			data: updateData,
+			depth: 1,
 			user,
 			req,
 			overrideAccess,
-		});
-
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-		assertZodInternal(
-			"tryUpdateQuizSubmission: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = updatedSubmission.student;
-		assertZodInternal(
-			"tryUpdateQuizSubmission: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = updatedSubmission.enrollment;
-		assertZodInternal(
-			"tryUpdateQuizSubmission: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
+		}).then(stripDepth<1, "update">())
 
 		return {
 			...updatedSubmission,
-			courseModuleLink: courseModuleLinkRef.id,
-			student,
-			enrollment,
+			courseModuleLink: updatedSubmission.courseModuleLink.id,
 		};
 	},
 	(error) =>
@@ -1078,7 +921,7 @@ export const tryGetQuizSubmissionById = Result.wrap(
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "find">())
 
 		const submission = submissionResult.docs[0];
 
@@ -1088,43 +931,11 @@ export const tryGetQuizSubmissionById = Result.wrap(
 			);
 		}
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const courseModuleLinkRef = submission.courseModuleLink;
-		assertZodInternal(
-			"tryGetQuizSubmissionById: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = submission.student;
-		assertZodInternal(
-			"tryGetQuizSubmissionById: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = submission.enrollment;
-		assertZodInternal(
-			"tryGetQuizSubmissionById: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
-			...submission,
-			courseModuleLink: courseModuleLinkRef.id,
-			student,
-			enrollment,
-		};
+		return { 
+			...submission, 
+			courseModuleLink: submission.courseModuleLink.id,
+		}
+		
 	},
 	(error) =>
 		transformError(error) ??
@@ -1244,45 +1055,12 @@ export const trySubmitQuiz = Result.wrap(
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "update">())
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-		assertZodInternal(
-			"trySubmitQuiz: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = updatedSubmission.student;
-		assertZodInternal(
-			"trySubmitQuiz: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = updatedSubmission.enrollment;
-		assertZodInternal(
-			"trySubmitQuiz: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
+		return { 
 			...updatedSubmission,
-			courseModuleLink: courseModuleLinkRef.id,
-			student,
-			enrollment,
-		};
+			courseModuleLink: updatedSubmission.courseModuleLink.id,
+		}
 	},
 	(error) =>
 		transformError(error) ??
@@ -1539,13 +1317,20 @@ export const tryGradeQuizSubmission = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ( { reqWithTransaction}) => {
 			// Get the current submission
 			const currentSubmission = await payload.findByID({
 				collection: QuizSubmissions.slug,
 				id,
-				req: transactionInfo.reqWithTransaction,
-			});
+				req: reqWithTransaction,
+				user, 
+				overrideAccess,
+				depth: 0
+			}).then(stripDepth<0, "findByID">())
+			.catch((error) => {
+				interceptPayloadError(error, "tryGradeQuizSubmission", "Get current submission", args);	
+				throw error ;
+			})
 
 			if (!currentSubmission) {
 				throw new NonExistingQuizSubmissionError(
@@ -1562,29 +1347,21 @@ export const tryGradeQuizSubmission = Result.wrap(
 			// Get course module link to access quiz
 			const courseModuleLink = await payload.findByID({
 				collection: "course-activity-module-links",
-				id:
-					typeof currentSubmission.courseModuleLink === "object" &&
-						"id" in currentSubmission.courseModuleLink
-						? currentSubmission.courseModuleLink.id
-						: (currentSubmission.courseModuleLink as number),
+				id: currentSubmission.courseModuleLink,
 				depth: 2,
 				req: transactionInfo.reqWithTransaction,
-			});
+				user,
+				overrideAccess,
+			}).then(stripDepth<2, "findByID">())
 
 			if (!courseModuleLink) {
 				throw new InvalidArgumentError("Course module link not found");
 			}
 
-			const activityModule =
-				typeof courseModuleLink.activityModule === "object"
-					? courseModuleLink.activityModule
-					: null;
-			const quiz =
-				activityModule && typeof activityModule.quiz === "object"
-					? activityModule.quiz
-					: null;
+			const activityModule = courseModuleLink.activityModule
+			const quiz = activityModule.quiz
 
-			if (!quiz || !quiz.id) {
+			if (!quiz ) {
 				throw new InvalidArgumentError("Quiz not found");
 			}
 
@@ -1592,7 +1369,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 			const validAnswers = (currentSubmission.answers ?? [])
 				.filter(
 					(answer) =>
-						answer.questionText && typeof answer.questionText === "string",
+						answer.questionText ,
 				)
 				.map((answer) => ({
 					questionId: answer.questionId,
@@ -1639,8 +1416,11 @@ export const tryGradeQuizSubmission = Result.wrap(
 					percentage: gradeData.percentage,
 					autoGraded: true,
 				},
+				depth: 1,
+				user,
 				req: transactionInfo.reqWithTransaction,
-			});
+				overrideAccess,
+			}).then(stripDepth<1, "update">())
 
 			// Create user grade in gradebook
 			const submittedAtString =
@@ -1672,44 +1452,9 @@ export const tryGradeQuizSubmission = Result.wrap(
 			}
 			payload.logger.info("User grade created successfully");
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
-			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-			assertZodInternal(
-				"tryGradeQuizSubmission: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const student = updatedSubmission.student;
-			assertZodInternal(
-				"tryGradeQuizSubmission: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const enrollment = updatedSubmission.enrollment;
-			assertZodInternal(
-				"tryGradeQuizSubmission: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
 			return {
 				...updatedSubmission,
-				courseModuleLink: courseModuleLinkRef.id,
-				student,
-				enrollment,
+				courseModuleLink: updatedSubmission.courseModuleLink.id,
 				grade: gradeData.totalScore,
 				maxGrade: gradeData.maxScore,
 				percentage: gradeData.percentage,
@@ -1718,10 +1463,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 				userGrade: userGradeResult.value,
 				questionResults: gradeData.questionResults,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		})
 	},
 	(error) =>
 		transformError(error) ??
@@ -1787,31 +1529,10 @@ export const tryListQuizSubmissions = Result.wrap(
 			user,
 			req,
 			overrideAccess,
-		});
+		}).then(stripDepth<1, "find">())
 
 		// type narrowing
 		const docs = result.docs.map((doc) => {
-			assertZodInternal(
-				"tryListQuizSubmissions: Course module link is required",
-				doc.courseModuleLink,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListQuizSubmissions: Student is required",
-				doc.student,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			assertZodInternal(
-				"tryListQuizSubmissions: Enrollment is required",
-				doc.enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
 			return {
 				...doc,
 				courseModuleLink: doc.courseModuleLink.id,

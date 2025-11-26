@@ -95,6 +95,11 @@ export const action = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+
+
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
 		moduleType: string;
@@ -177,6 +182,7 @@ export const action = async ({
 			payload,
 			linkId: Number(moduleLinkId),
 			settings,
+			// user: currentUser,
 			req: request,
 		},
 	);

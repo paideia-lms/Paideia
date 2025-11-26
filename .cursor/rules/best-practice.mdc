@@ -95,11 +95,19 @@ we should not expose the depth variable to args for internal functions. The outp
 
 we should standardize internal function arg. internal function should always have only one arg and we should create type for the arg, the arg type should include `payload: Payload`, `user?: TypedUser | null`, `req?: Partial<PayloadRequest>` and `overrideAccess?: boolean` as args. sometimes we might need to have `s3Client: S3Client` as args. 
 
-internal functions must handle transactions if the function is doing multiple mutations to the database. for internal functions that handle transactions, we should use `handleTransactionId` to handle the transaction. if we use `handleTransactionId` and `isTransactionCreated` is true, we should always use `commitTransactionIfCreated` and `rollbackTransactionIfCreated` to commit and rollback the transaction **at the same level** as the transaction creation.
+internal functions must handle transactions if the function is doing multiple mutations to the database. for internal functions that handle transactions, we should use `handleTransactionId` to handle the transaction. if we use `handleTransactionId` and `isTransactionCreated` is true, we should always use `tx` to execute the operation inside the transaction.
 
 for other function, we don't need to check for transaction, we simply pass the req into payload function call (payload.find) as it is. (if req has transaction ID, good, if not, we let it be). 
 
 course and the linked gradebook should always have the same id. so we can use them interchangeably.
+
+we use `interceptPayloadError` to intercept raw payload function call such as `payload.create`, `payload.find`, `payload.findByID`, `payload.update`, `payload.delete` and etc. to handle the error and throw the error with the appropriate error message.
+
+try our best not to provide return type for internal functions. 
+
+use `then(stripDepth<depth, operation>())` to strip the depth from the payload result.
+
+should not accept `depth` as an arg for internal functions.
 
 
 ## Changelog

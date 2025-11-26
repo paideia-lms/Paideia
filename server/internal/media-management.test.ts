@@ -185,7 +185,7 @@ describe("Media Management", () => {
 		const getResult = await tryGetMediaByFilename({
 			payload,
 			filename: createdMedia.filename,
-			depth: 0,
+			
 			overrideAccess: true,
 		});
 
@@ -207,7 +207,7 @@ describe("Media Management", () => {
 		const result = await tryGetMediaByFilename({
 			payload,
 			filename: "non-existent-file-12345.png",
-			depth: 0,
+			
 		});
 
 		expect(result.ok).toBe(false);
@@ -217,7 +217,7 @@ describe("Media Management", () => {
 		const result = await tryGetMediaByFilename({
 			payload,
 			filename: "",
-			depth: 0,
+			
 		});
 
 		expect(result.ok).toBe(false);
@@ -258,7 +258,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filename: createdMedia.filename,
-			depth: 0,
+			
 			overrideAccess: true,
 		});
 
@@ -289,7 +289,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filename: "non-existent-buffer-file.png",
-			depth: 0,
+			
 			overrideAccess: true,
 		});
 
@@ -301,7 +301,7 @@ describe("Media Management", () => {
 			payload,
 			s3Client,
 			filename: "",
-			depth: 0,
+			
 			overrideAccess: true,
 		});
 
@@ -342,7 +342,7 @@ describe("Media Management", () => {
 			userId: testUserId,
 			limit: 10,
 			page: 1,
-			depth: 0,
+			
 			overrideAccess: true,
 		});
 
@@ -370,7 +370,7 @@ describe("Media Management", () => {
 			userId: testUserId,
 			limit: 1,
 			page: 1,
-			depth: 0,
+			
 			overrideAccess: true,
 		});
 
@@ -417,13 +417,12 @@ describe("Media Management", () => {
 
 		if (deleteResult.ok) {
 			expect(deleteResult.value.deletedMedia.length).toBe(1);
-			expect(deleteResult.value.deletedMedia[0].id).toBe(createdMedia.id);
+			expect(deleteResult.value.deletedMedia[0]?.id).toBe(createdMedia.id);
 
 			// Verify the media is actually deleted from database
 			const getResult = await tryGetMediaById({
 				payload,
 				id: createdMedia.id,
-				depth: 0,
 				overrideAccess: true,
 			});
 
@@ -435,7 +434,7 @@ describe("Media Management", () => {
 					payload,
 					s3Client,
 					filename: createdMedia.filename,
-					depth: 0,
+					
 					overrideAccess: true,
 				});
 				expect(bufferResult.ok).toBe(false);
@@ -492,7 +491,6 @@ describe("Media Management", () => {
 		const getResult = await tryGetMediaById({
 			payload,
 			id: testMediaId,
-			depth: 0,
 			overrideAccess: true,
 		});
 		expect(getResult.ok).toBe(true);
@@ -563,16 +561,15 @@ describe("Media Management", () => {
 			const deletedIds = deleteResult.value.deletedMedia.map(
 				(m: { id: number }) => m.id,
 			);
-			expect(deletedIds).toContain(mediaIds[0]);
-			expect(deletedIds).toContain(mediaIds[1]);
-			expect(deletedIds).toContain(mediaIds[2]);
+			expect(deletedIds).toContain(mediaIds[0]!);
+			expect(deletedIds).toContain(mediaIds[1]!);
+			expect(deletedIds).toContain(mediaIds[2]!);
 
 			// Verify all media are actually deleted
 			for (const mediaId of mediaIds) {
 				const getResult = await tryGetMediaById({
 					payload,
 					id: mediaId,
-					depth: 0,
 					overrideAccess: true,
 				});
 
@@ -644,7 +641,6 @@ describe("Media Management", () => {
 		const getResult = await tryGetMediaById({
 			payload,
 			id: existingId,
-			depth: 0,
 			overrideAccess: true,
 		});
 
@@ -713,13 +709,11 @@ describe("Media Management", () => {
 		const getResult1 = await tryGetMediaById({
 			payload,
 			id: mediaId1,
-			depth: 0,
 			overrideAccess: true,
 		});
 		const getResult2 = await tryGetMediaById({
 			payload,
 			id: mediaId2,
-			depth: 0,
 			overrideAccess: true,
 		});
 
@@ -864,7 +858,7 @@ describe("Media Management", () => {
 			const getOldResult = await tryGetMediaByFilename({
 				payload,
 				filename: createdMedia.filename,
-				depth: 0,
+				
 				overrideAccess: true,
 			});
 			expect(getOldResult.ok).toBe(false);
@@ -872,7 +866,6 @@ describe("Media Management", () => {
 			const getNewResult = await tryGetMediaByFilename({
 				payload,
 				filename: newFilename,
-				depth: 0,
 				overrideAccess: true,
 			});
 			expect(getNewResult.ok).toBe(true);

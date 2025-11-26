@@ -1,6 +1,5 @@
 import type { Payload, PayloadRequest } from "payload";
 import { TransactionIdNotFoundError } from "~/utils/error";
-
 export interface HandleTransactionIdResult {
 	transactionID: string | number;
 	/**
@@ -8,6 +7,7 @@ export interface HandleTransactionIdResult {
 	 */
 	isTransactionCreated: boolean;
 	reqWithTransaction: Partial<PayloadRequest>;
+	tx: <T>(operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T) => Promise<T>
 }
 
 /**
@@ -74,10 +74,37 @@ export async function handleTransactionId(
 		transactionID,
 	};
 
+	const _transactionInfo = {
+		transactionID,
+		isTransactionCreated,
+		reqWithTransaction,
+	}
+
+	const tx = async <T>(operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T) => {
+
+		try {
+			const o = operation(_transactionInfo);
+			const isAsyncOperation = o instanceof Promise;
+			const value = isAsyncOperation ? await o : o;
+			// commit the transaction if it was created
+			if (_transactionInfo.isTransactionCreated) {
+				await payload.db.commitTransaction(_transactionInfo.transactionID);
+			}
+			return value;
+		} catch (error) {
+			// rollback the transaction if it was created
+			if (_transactionInfo.isTransactionCreated) {
+				await payload.db.rollbackTransaction(_transactionInfo.transactionID);
+			}
+			throw error;
+		}
+	}
+
 	return {
 		transactionID,
 		isTransactionCreated,
 		reqWithTransaction,
+		tx,
 	};
 }
 

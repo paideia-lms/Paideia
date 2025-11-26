@@ -502,17 +502,11 @@ describe("Activity Module Access Control", () => {
 		if (grantResult.ok) {
 			// Handle depth - activityModule can be ID or object
 			const grantActivityModuleId =
-				typeof grantResult.value.activityModule === "number"
-					? grantResult.value.activityModule
-					: grantResult.value.activityModule?.id;
+				grantResult.value.activityModule;
 			const grantedToId =
-				typeof grantResult.value.grantedTo === "number"
-					? grantResult.value.grantedTo
-					: grantResult.value.grantedTo?.id;
+				grantResult.value.grantedTo;
 			const grantedById =
-				typeof grantResult.value.grantedBy === "number"
-					? grantResult.value.grantedBy
-					: grantResult.value.grantedBy?.id;
+				grantResult.value.grantedBy;
 
 			expect(grantActivityModuleId).toBe(activityModule.id);
 			expect(grantedToId).toBe(testUser2.id);

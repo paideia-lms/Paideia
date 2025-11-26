@@ -1,18 +1,16 @@
 
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	AccessGrantNotFoundError,
 	ActivityModuleAccessDeniedError,
 	DuplicateAccessGrantError,
 	InvalidOwnerTransferError,
 	NonExistingActivityModuleError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { interceptPayloadError, stripDepth, type BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 
 export type GrantAccessArgs = BaseInternalFunctionArgs & {
 	activityModuleId: number;
@@ -75,7 +73,7 @@ export const tryGrantAccessToActivityModule = Result.wrap(
 			id: activityModuleId,
 			depth: 0,
 			overrideAccess: true,
-		});
+		})
 
 		if (!activityModule) {
 			throw new NonExistingActivityModuleError(
@@ -83,22 +81,23 @@ export const tryGrantAccessToActivityModule = Result.wrap(
 			);
 		}
 
-		// Verify both users exist
-		const grantedToUser = await payload.findByID({
-			collection: "users",
-			id: grantedToUserId,
-			overrideAccess: true,
-		});
+		// Verify both users exist using Promise.all
+		const [grantedToUser, grantedByUser] = await Promise.all([
+			payload.findByID({
+				collection: "users",
+				id: grantedToUserId,
+				overrideAccess: true,
+			}),
+			payload.findByID({
+				collection: "users",
+				id: grantedByUserId,
+				overrideAccess: true,
+			}),
+		]);
 
 		if (!grantedToUser) {
 			throw new Error(`User with ID ${grantedToUserId} not found`);
 		}
-
-		const grantedByUser = await payload.findByID({
-			collection: "users",
-			id: grantedByUserId,
-			overrideAccess: true,
-		});
 
 		if (!grantedByUser) {
 			throw new Error(`User with ID ${grantedByUserId} not found`);
@@ -148,10 +147,11 @@ export const tryGrantAccessToActivityModule = Result.wrap(
 				grantedBy: grantedByUserId,
 				grantedAt: new Date().toISOString(),
 			},
+			depth: 0, 
 			user,
 			req,
-			overrideAccess: true, // We've already checked permissions
-		});
+			overrideAccess, 
+		}).then( stripDepth<0>())
 
 		return grant;
 	},
@@ -178,20 +178,6 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 			overrideAccess = false,
 		} = args;
 
-		// Verify activity module exists
-		const activityModule = await payload.findByID({
-			collection: "activity-modules",
-			id: activityModuleId,
-			depth: 0,
-			overrideAccess: true,
-		});
-
-		if (!activityModule) {
-			throw new NonExistingActivityModuleError(
-				`Activity module with ID ${activityModuleId} not found`,
-			);
-		}
-
 		// Find the grant
 		const existingGrant = await payload.find({
 			collection: "activity-module-grants",
@@ -202,10 +188,19 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 				],
 			},
 			depth: 0,
-			overrideAccess: true,
-		});
+			user,
+			req,
+			overrideAccess,
+		}).then(stripDepth<0, "find">())
+		.then(result=>result.docs)
+		.catch( error => { 
+			interceptPayloadError(error, "tryRevokeAccessFromActivityModule", "existingGrant", args);
+			throw error; 
+		})
 
-		if (existingGrant.docs.length === 0) {
+		const existingGrantId = existingGrant[0]?.id;
+
+		if (!existingGrantId) {
 			throw new AccessGrantNotFoundError(
 				`No access grant found for user ${userId} on activity module ${activityModuleId}`,
 			);
@@ -214,7 +209,7 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 		// Delete the grant
 		const deletedGrant = await payload.delete({
 			collection: "activity-module-grants",
-			id: existingGrant.docs[0].id,
+			id: existingGrantId,
 			user,
 			req,
 			overrideAccess: true,
@@ -291,13 +286,9 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 		}
 
 		// Use transaction for atomic operation
-		const transactionID = await payload.db.beginTransaction();
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Update owner field using raw update (bypassing access control that prevents owner update)
 			await payload.update({
 				collection: "activity-modules",
@@ -305,8 +296,9 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 				data: {
 					owner: newOwnerId,
 				},
-				overrideAccess: true, // Must override since owner field update is disabled
-				req: { transactionID },
+				user,
+				overrideAccess: true, // ?? Must override since owner field update is disabled
+				req: reqWithTransaction,
 			});
 
 			// Grant access to previous owner if they don't already have it
@@ -320,6 +312,8 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 				},
 				depth: 0,
 				overrideAccess: true,
+				user,
+				req: reqWithTransaction,
 			});
 
 			if (existingGrant.docs.length === 0) {
@@ -332,7 +326,8 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 						grantedAt: new Date().toISOString(),
 					},
 					overrideAccess: true,
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
 				});
 			}
 
@@ -347,18 +342,21 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 				},
 				depth: 0,
 				overrideAccess: true,
-			});
+				user,
+				req: reqWithTransaction,
+			}).then(stripDepth<0, "find">())
 
-			if (newOwnerGrant.docs.length > 0) {
+			const newOwnerGrantId = newOwnerGrant.docs[0]?.id;
+
+			if (newOwnerGrantId) {
 				await payload.delete({
 					collection: "activity-module-grants",
-					id: newOwnerGrant.docs[0].id,
+					id: newOwnerGrantId,
 					overrideAccess: true,
-					req: { transactionID },
+					user,
+					req: reqWithTransaction,
 				});
 			}
-
-			await payload.db.commitTransaction(transactionID);
 
 			// Return updated activity module
 			return await payload.findByID({
@@ -366,11 +364,9 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 				id: activityModuleId,
 				depth: 0,
 				overrideAccess: true,
-			});
-		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
+			}).then(stripDepth<0, "findByID">())
+		});
+		
 	},
 	(error) =>
 		transformError(error) ??
@@ -440,7 +436,7 @@ export const tryCheckActivityModuleAccess = Result.wrap(
 			},
 			depth: 0,
 			overrideAccess: true,
-		});
+		}).then(stripDepth<0, "find">())
 		const isGranted = grant.docs.length > 0;
 
 		const hasAccess = isAdmin || isOwner || isCreator || isGranted;
@@ -481,49 +477,8 @@ export const tryFindGrantsByActivityModule = Result.wrap(
 				pagination: false,
 				overrideAccess: true,
 			})
-			.then((result) => {
-				return result.docs.map((doc) => {
-					const grantedTo = doc.grantedTo;
-					assertZodInternal(
-						"tryFindGrantsByActivityModule: Granted to is required",
-						grantedTo,
-						z.object({
-							id: z.number(),
-						}),
-					);
-					const grantedToAvatar = grantedTo.avatar;
-					assertZodInternal(
-						"tryFindGrantsByActivityModule: Granted to avatar is required",
-						grantedToAvatar,
-						z.number().nullish(),
-					);
-					const grantedBy = doc.grantedBy;
-					assertZodInternal(
-						"tryFindGrantsByActivityModule: Granted by is required",
-						grantedBy,
-						z.object({
-							id: z.number(),
-						}),
-					);
-					const grantedByAvatar = grantedBy.avatar;
-					assertZodInternal(
-						"tryFindGrantsByActivityModule: Granted by avatar is required",
-						grantedByAvatar,
-						z.number().nullish(),
-					);
-					return {
-						...doc,
-						grantedTo: {
-							...grantedTo,
-							avatar: grantedToAvatar,
-						},
-						grantedBy: {
-							...grantedBy,
-							avatar: grantedByAvatar,
-						},
-					};
-				});
-			});
+			.then(stripDepth<1, "find">())
+			.then(result=>result.docs)
 
 		return grants;
 	},
@@ -572,9 +527,9 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				],
 			},
 			depth: 1, // Populate user data
-			limit: 1000, // Get all instructors
+			pagination: false, 
 			overrideAccess: true,
-		});
+		}).then(stripDepth<1, "find">())
 
 		// Extract unique users with their course info
 		const instructorMap = new Map<
@@ -601,33 +556,11 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 		for (const enrollment of enrollments.docs) {
 			// Narrow the user type
 			const user = enrollment.user;
-			assertZodInternal(
-				"tryFindInstructorsForActivityModule: User is required",
-				user,
-				z.object({
-					id: z.number(),
-				}),
-			);
-			const userAvatar = user.avatar;
-			assertZodInternal(
-				"tryFindInstructorsForActivityModule: User avatar is required",
-				userAvatar,
-				z.number().nullish(),
-			);
-			// Narrow the course type
-			const course = enrollment.course;
-			assertZodInternal(
-				"tryFindInstructorsForActivityModule: Course is required",
-				course,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const existing = instructorMap.get(user.id);
 			if (existing) {
 				existing.enrollments.push({
-					courseId: course.id,
+					courseId: enrollment.course.id,
 					role: enrollment.role as "teacher" | "ta",
 				});
 			} else {
@@ -636,9 +569,9 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 					email: user.email,
 					firstName: user.firstName ?? "",
 					lastName: user.lastName ?? "",
-					avatar: userAvatar ?? null,
+					avatar: user.avatar ?? null,
 					enrollments: [
-						{ courseId: course.id, role: enrollment.role as "teacher" | "ta" },
+						{ courseId: enrollment.course.id, role: enrollment.role as "teacher" | "ta" },
 					],
 				});
 			}
@@ -659,7 +592,7 @@ type FindAutoGrantedModulesForInstructorArgs = BaseInternalFunctionArgs & {
 
 export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 	async (args: FindAutoGrantedModulesForInstructorArgs) => {
-		const { payload, userId, user = null, overrideAccess = false } = args;
+		const { payload, userId, user = null, req, overrideAccess = false } = args;
 
 		// get all the enrollments for this user
 		const enrollments = await payload
@@ -674,30 +607,20 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				},
 
 				depth: 0,
-				user,
 				// ! we don't care about pagination and performance for now
 				pagination: false,
+				user,
+				req, 
 				overrideAccess,
+			}).then(stripDepth<0, "find">())
+			.then(result=>result.docs)
+			.catch( error => { 
+				interceptPayloadError(error, "tryFindAutoGrantedModulesForInstructor", "enrollments", args);
+				throw error; 
 			})
-			.then((result) => {
-				return result.docs.map((doc) => {
-					const course = doc.course;
-					assertZodInternal(
-						"tryFindAutoGrantedModulesForInstructor: Course is required",
-						course,
-						z.number(),
-					);
-					return {
-						id: doc.id,
-						course: course,
-					};
-				});
-			});
 
-		// unique
-		const courseIds = enrollments
-			.map((enrollment) => enrollment.course)
-			.filter((courseId, index, self) => self.indexOf(courseId) === index);
+		// unique by course id, these are the courses that the instructor is teaching
+		const courseIds = enrollments.map((enrollment) => enrollment.course).filter((course, index, self) => self.indexOf(course) === index);
 
 		// get all the course-activity-module-links for these courses
 		const links = await payload
@@ -711,113 +634,20 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				user,
 				// ! we don't care about pagination and performance for now
 				pagination: false,
+			}).then(stripDepth<2, "find">())
+			.then( result=> result.docs)
+			// unique by activity module id
+			.then(links=>links.filter((link, index, self) => {
+				return (
+					self.findIndex(
+						(l) => l.activityModule.id === link.activityModule.id,
+					) === index
+				);
+			}))
+			.catch( error => { 
+				interceptPayloadError(error, "tryFindAutoGrantedModulesForInstructor", "links", args);
+				throw error; 
 			})
-			.then((result) => {
-				return result.docs
-					.map((doc) => {
-						const course = doc.course;
-						assertZodInternal(
-							"tryFindAutoGrantedModulesForInstructor: Course is required",
-							course,
-							z.object({
-								id: z.number(),
-							}),
-						);
-						const activityModule = doc.activityModule;
-						assertZodInternal(
-							"tryFindAutoGrantedModulesForInstructor: Activity module is required",
-							activityModule,
-							z.object(
-								{
-									id: z.number(),
-								},
-								{ error: "Activity module is required" },
-							),
-						);
-
-						const activityModuleOwner = activityModule.owner;
-						assertZodInternal(
-							"tryFindAutoGrantedModulesForInstructor: Activity module owner is required",
-							activityModuleOwner,
-							z.object(
-								{
-									id: z.number(),
-								},
-								{ error: "Activity module owner is required" },
-							),
-						);
-
-						const activityModuleOwnerAvatar = activityModuleOwner.avatar;
-						assertZodInternal(
-							"tryFindAutoGrantedModulesForInstructor: Activity module owner avatar is required",
-							activityModuleOwnerAvatar,
-							z
-								.number({ error: "Activity module owner avatar is required" })
-								.nullish(),
-						);
-
-						const activityModuleCreatedBy = activityModule.createdBy;
-						assertZodInternal(
-							"tryFindAutoGrantedModulesForInstructor: Activity module created by is required",
-							activityModuleCreatedBy,
-							z.object(
-								{
-									id: z.number(),
-								},
-								{ error: "Activity module created by is required" },
-							),
-						);
-
-						const activityModuleCreatedByAvatar =
-							activityModuleCreatedBy.avatar;
-						assertZodInternal(
-							"tryFindAutoGrantedModulesForInstructor: Activity module created by avatar is required",
-							activityModuleCreatedByAvatar,
-							z
-								.number({
-									error: "Activity module created by avatar is required",
-								})
-								.nullish(),
-						);
-
-						const activityModuleLinkedCourses =
-							activityModule.linkedCourses?.docs?.map((c) => {
-								assertZodInternal(
-									"tryFindAutoGrantedModulesForInstructor: Activity module linked courses is required",
-									c,
-									z.number(),
-								);
-								return c;
-							}) ?? [];
-
-						return {
-							...doc,
-							course,
-							activityModule: {
-								...activityModule,
-								owner: {
-									...activityModuleOwner,
-									avatar: activityModuleOwnerAvatar,
-								},
-								createdBy: {
-									...activityModuleCreatedBy,
-									avatar: activityModuleCreatedByAvatar,
-								},
-								linkedCourses: activityModuleLinkedCourses,
-							},
-						};
-					})
-					.filter((link, index, self) => {
-						// unique activity module id
-						return (
-							self.findIndex(
-								(l) => l.activityModule.id === link.activityModule.id,
-							) === index
-						);
-					});
-			});
-
-		const autoGrantedCourses = links.map((link) => link.course);
 
 		return links.map((link) => ({
 			...link.activityModule,
