@@ -23,9 +23,9 @@ export const ActivityModules = {
 						},
 					),
 					(user) => {
-						req.payload.logger.error(
-							`Failed to create activity module: user ${user?.role ?? "unauthenticated"} is not allowed to create activity modules`,
-						);
+						// req.payload.logger.error(
+						// 	`Failed to create activity module: user ${user?.role ?? "unauthenticated"} is not allowed to create activity modules`,
+						// );
 						return false;
 					},
 				)
@@ -39,9 +39,9 @@ export const ActivityModules = {
 					// must be logged in to update activity modules
 					P.nullish,
 					() => {
-						req.payload.logger.error(
-							`Failed to update activity module: unauthenticated user is not allowed to update activity modules`,
-						);
+						// req.payload.logger.error(
+						// 	`Failed to update activity module: unauthenticated user is not allowed to update activity modules`,
+						// );
 						return false;
 					},
 				)
@@ -69,9 +69,9 @@ export const ActivityModules = {
 					// must be logged in to delete activity modules
 					P.nullish,
 					() => {
-						req.payload.logger.error(
-							`Failed to delete activity module: unauthenticated user is not allowed to delete activity modules`,
-						);
+						// req.payload.logger.error(
+						// 	`Failed to delete activity module: unauthenticated user is not allowed to delete activity modules`,
+						// );
 						return false;
 					},
 				)

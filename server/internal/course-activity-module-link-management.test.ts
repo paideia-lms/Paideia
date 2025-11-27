@@ -25,7 +25,12 @@ import {
 	tryFindLinksByCourse,
 	tryGetCourseModuleSettings,
 	trySearchCourseActivityModuleLinks,
-	tryUpdateCourseModuleSettings,
+	tryUpdateAssignmentModuleSettings,
+	tryUpdateDiscussionModuleSettings,
+	tryUpdateFileModuleSettings,
+	tryUpdatePageModuleSettings,
+	tryUpdateQuizModuleSettings,
+	tryUpdateWhiteboardModuleSettings,
 } from "./course-activity-module-link-management";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
@@ -801,24 +806,16 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 		});
 
-		describe("tryUpdateCourseModuleSettings", () => {
+		describe("tryUpdateAssignmentModuleSettings", () => {
 			test("should update assignment settings successfully", async () => {
-				const newSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "assignment",
-						name: "Updated Assignment Name",
-						allowSubmissionsFrom: "2025-11-05T00:00:00Z",
-						dueDate: "2025-11-12T23:59:59Z",
-						cutoffDate: "2025-11-15T23:59:59Z",
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateAssignmentModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: assignmentLink.id,
-					settings: newSettings,
+					name: "Updated Assignment Name",
+					allowSubmissionsFrom: "2025-11-05T00:00:00Z",
+					dueDate: "2025-11-12T23:59:59Z",
+					cutoffDate: "2025-11-15T23:59:59Z",
 					overrideAccess: true,
 				});
 
@@ -827,23 +824,17 @@ describe("Course Activity Module Link Management Functions", () => {
 					expect(result.value.settings).toBeDefined();
 				}
 			});
+		});
 
+		describe("tryUpdateQuizModuleSettings", () => {
 			test("should update quiz settings successfully", async () => {
-				const newSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "quiz",
-						name: "Updated Quiz Name",
-						openingTime: "2025-11-20T08:00:00Z",
-						closingTime: "2025-11-20T18:00:00Z",
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateQuizModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: quizLink.id,
-					settings: newSettings,
+					name: "Updated Quiz Name",
+					openingTime: "2025-11-20T08:00:00Z",
+					closingTime: "2025-11-20T18:00:00Z",
 					overrideAccess: true,
 				});
 
@@ -852,23 +843,17 @@ describe("Course Activity Module Link Management Functions", () => {
 					expect(result.value.settings).toBeDefined();
 				}
 			});
+		});
 
+		describe("tryUpdateDiscussionModuleSettings", () => {
 			test("should update discussion settings successfully", async () => {
-				const newSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "discussion",
-						name: "Updated Discussion Name",
-						dueDate: "2025-11-18T23:59:59Z",
-						cutoffDate: "2025-11-21T23:59:59Z",
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateDiscussionModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: discussionLink.id,
-					settings: newSettings,
+					name: "Updated Discussion Name",
+					dueDate: "2025-11-18T23:59:59Z",
+					cutoffDate: "2025-11-21T23:59:59Z",
 					overrideAccess: true,
 				});
 
@@ -882,21 +867,13 @@ describe("Course Activity Module Link Management Functions", () => {
 		describe("tryGetCourseModuleSettings", () => {
 			test("should retrieve settings for a link", async () => {
 				// First update with known settings
-				const settings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "assignment",
-						name: "Test Assignment Settings",
-						dueDate: "2025-12-01T23:59:59Z",
-						cutoffDate: "2025-12-05T23:59:59Z",
-					},
-				};
-
-				await tryUpdateCourseModuleSettings({
+				await tryUpdateAssignmentModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: assignmentLink.id,
-					settings,
+					name: "Test Assignment Settings",
+					dueDate: "2025-12-01T23:59:59Z",
+					cutoffDate: "2025-12-05T23:59:59Z",
 					overrideAccess: true,
 				});
 
@@ -944,21 +921,13 @@ describe("Course Activity Module Link Management Functions", () => {
 
 		describe("Date Validation", () => {
 			test("should reject assignment with due date after cutoff date", async () => {
-				const invalidSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "assignment",
-						name: "Invalid Assignment",
-						dueDate: "2025-11-20T23:59:59Z",
-						cutoffDate: "2025-11-15T23:59:59Z", // Cutoff before due date
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateAssignmentModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: assignmentLink.id,
-					settings: invalidSettings,
+					name: "Invalid Assignment",
+					dueDate: "2025-11-20T23:59:59Z",
+					cutoffDate: "2025-11-15T23:59:59Z", // Cutoff before due date
 					overrideAccess: true,
 				});
 
@@ -971,21 +940,13 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject assignment with allowSubmissionsFrom after due date", async () => {
-				const invalidSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "assignment",
-						name: "Invalid Assignment",
-						allowSubmissionsFrom: "2025-11-20T00:00:00Z",
-						dueDate: "2025-11-15T23:59:59Z", // Due date before submissions open
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateAssignmentModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: assignmentLink.id,
-					settings: invalidSettings,
+					name: "Invalid Assignment",
+					allowSubmissionsFrom: "2025-11-20T00:00:00Z",
+					dueDate: "2025-11-15T23:59:59Z", // Due date before submissions open
 					overrideAccess: true,
 				});
 
@@ -998,21 +959,13 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject assignment with allowSubmissionsFrom after cutoff date", async () => {
-				const invalidSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "assignment",
-						name: "Invalid Assignment",
-						allowSubmissionsFrom: "2025-11-25T00:00:00Z",
-						cutoffDate: "2025-11-20T23:59:59Z", // Cutoff before submissions open
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateAssignmentModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: assignmentLink.id,
-					settings: invalidSettings,
+					name: "Invalid Assignment",
+					allowSubmissionsFrom: "2025-11-25T00:00:00Z",
+					cutoffDate: "2025-11-20T23:59:59Z", // Cutoff before submissions open
 					overrideAccess: true,
 				});
 
@@ -1025,21 +978,13 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject quiz with opening time after closing time", async () => {
-				const invalidSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "quiz",
-						name: "Invalid Quiz",
-						openingTime: "2025-11-15T18:00:00Z",
-						closingTime: "2025-11-15T09:00:00Z", // Closes before opens
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateQuizModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: quizLink.id,
-					settings: invalidSettings,
+					name: "Invalid Quiz",
+					openingTime: "2025-11-15T18:00:00Z",
+					closingTime: "2025-11-15T09:00:00Z", // Closes before opens
 					overrideAccess: true,
 				});
 
@@ -1052,21 +997,13 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should reject discussion with due date after cutoff date", async () => {
-				const invalidSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "discussion",
-						name: "Invalid Discussion",
-						dueDate: "2025-11-20T23:59:59Z",
-						cutoffDate: "2025-11-15T23:59:59Z", // Cutoff before due date
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateDiscussionModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: discussionLink.id,
-					settings: invalidSettings,
+					name: "Invalid Discussion",
+					dueDate: "2025-11-20T23:59:59Z",
+					cutoffDate: "2025-11-15T23:59:59Z", // Cutoff before due date
 					overrideAccess: true,
 				});
 
@@ -1079,22 +1016,14 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should accept valid assignment date ranges", async () => {
-				const validSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "assignment",
-						name: "Valid Assignment",
-						allowSubmissionsFrom: "2025-11-01T00:00:00Z",
-						dueDate: "2025-11-15T23:59:59Z",
-						cutoffDate: "2025-11-20T23:59:59Z",
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateAssignmentModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: assignmentLink.id,
-					settings: validSettings,
+					name: "Valid Assignment",
+					allowSubmissionsFrom: "2025-11-01T00:00:00Z",
+					dueDate: "2025-11-15T23:59:59Z",
+					cutoffDate: "2025-11-20T23:59:59Z",
 					overrideAccess: true,
 				});
 
@@ -1102,21 +1031,13 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should accept valid quiz time range", async () => {
-				const validSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "quiz",
-						name: "Valid Quiz",
-						openingTime: "2025-11-15T09:00:00Z",
-						closingTime: "2025-11-15T17:00:00Z",
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateQuizModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: quizLink.id,
-					settings: validSettings,
+					name: "Valid Quiz",
+					openingTime: "2025-11-15T09:00:00Z",
+					closingTime: "2025-11-15T17:00:00Z",
 					overrideAccess: true,
 				});
 
@@ -1124,21 +1045,13 @@ describe("Course Activity Module Link Management Functions", () => {
 			});
 
 			test("should accept valid discussion date range", async () => {
-				const validSettings: LatestCourseModuleSettings = {
-					version: "v2",
-					settings: {
-						type: "discussion",
-						name: "Valid Discussion",
-						dueDate: "2025-11-15T23:59:59Z",
-						cutoffDate: "2025-11-20T23:59:59Z",
-					},
-				};
-
-				const result = await tryUpdateCourseModuleSettings({
+				const result = await tryUpdateDiscussionModuleSettings({
 					payload,
 					req: mockRequest,
 					linkId: discussionLink.id,
-					settings: validSettings,
+					name: "Valid Discussion",
+					dueDate: "2025-11-15T23:59:59Z",
+					cutoffDate: "2025-11-20T23:59:59Z",
 					overrideAccess: true,
 				});
 

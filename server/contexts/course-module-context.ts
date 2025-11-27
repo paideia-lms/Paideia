@@ -2,7 +2,7 @@ import { formatModuleSettingsForDisplay } from "app/routes/course/module.$id/uti
 import type { BasePayload, PayloadRequest, TypedUser } from "payload";
 import { createContext } from "react-router";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
-import type { LatestQuizConfig } from "server/json";
+import type { LatestCourseModuleSettings, LatestQuizConfig } from "server/json";
 import type { CourseModuleSettingsV1 } from "server/json/course-module-settings/types";
 import { Result } from "typescript-result";
 import {
@@ -327,22 +327,26 @@ export type ModuleSpecificData =
 			// Page/whiteboard/file modules don't have module-specific data
 	  };
 
-export type CourseModuleContext = {
-	module: CourseModule;
-	moduleLinkId: number;
-	moduleLinkCreatedAt: string;
-	moduleLinkUpdatedAt: string;
-	moduleLinkSettings: CourseModuleSettingsV1 | null;
-	formattedModuleSettings: FormattedModuleSettings;
-	previousModuleLinkId: number | null;
-	nextModuleLinkId: number | null;
-	previousModule: PreviousNextModule;
-	nextModule: PreviousNextModule;
-	// Whether user can submit assignments
-	canSubmit: boolean;
-	// Module-specific data based on module type (discriminated union)
-	moduleSpecificData: ModuleSpecificData;
-};
+// export type CourseModuleContext = {
+// 	module: CourseModule;
+// 	moduleLinkId: number;
+// 	moduleLinkCreatedAt: string;
+// 	moduleLinkUpdatedAt: string;
+// 	moduleLinkSettings: LatestCourseModuleSettings | null;
+// 	formattedModuleSettings: FormattedModuleSettings;
+// 	previousModuleLinkId: number | null;
+// 	nextModuleLinkId: number | null;
+// 	previousModule: PreviousNextModule;
+// 	nextModule: PreviousNextModule;
+// 	// Whether user can submit assignments
+// 	canSubmit: boolean;
+// 	// Module-specific data based on module type (discriminated union)
+// 	moduleSpecificData: ModuleSpecificData;
+// };
+
+export type CourseModuleContext = NonNullable<
+	Awaited<ReturnType<typeof tryGetCourseModuleContext>>["value"]
+>;
 
 export const courseModuleContext = createContext<CourseModuleContext | null>(
 	null,
@@ -546,7 +550,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 
 		// Get module link settings
 		const moduleLinkSettings =
-			(moduleLink.settings as unknown as CourseModuleSettingsV1) ?? null;
+			moduleLink.settings as unknown as LatestCourseModuleSettings | null;
 
 		// Format module settings for display (using function from utils.ts)
 		const formattedModuleSettings = formatModuleSettingsForDisplay(
@@ -822,7 +826,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 			nextModule,
 			canSubmit,
 			moduleSpecificData,
-		} satisfies CourseModuleContext;
+		};
 	},
 	(error) =>
 		transformError(error) ??

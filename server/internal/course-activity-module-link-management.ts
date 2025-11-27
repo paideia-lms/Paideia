@@ -1,6 +1,14 @@
 import type { Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
-import type { LatestCourseModuleSettings } from "server/json";
+import type {
+	LatestCourseModuleSettings,
+	LatestAssignmentSettings,
+	LatestWhiteboardSettings,
+	LatestFileSettings,
+	LatestQuizSettings,
+	LatestDiscussionSettings,
+	LatestPageSettings,
+} from "server/json";
 import { Result } from "typescript-result";
 import {
 	DevelopmentError,
@@ -25,36 +33,6 @@ import {
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
-
-type LatestAssignmentSettings = Extract<
-	LatestCourseModuleSettings["settings"],
-	{ type: "assignment" }
->;
-
-type LatestWhiteboardSettings = Extract<
-	LatestCourseModuleSettings["settings"],
-	{ type: "whiteboard" }
->;
-
-type LatestFileSettings = Extract<
-	LatestCourseModuleSettings["settings"],
-	{ type: "file" }
->;
-
-type LatestQuizSettings = Extract<
-	LatestCourseModuleSettings["settings"],
-	{ type: "quiz" }
->;
-
-type LatestDiscussionSettings = Extract<
-	LatestCourseModuleSettings["settings"],
-	{ type: "discussion" }
->;
-
-type LatestPageSettings = Extract<
-	LatestCourseModuleSettings["settings"],
-	{ type: "page" }
->;
 
 /**
  * Course data that can be included in link results
@@ -626,45 +604,61 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 		// Delete associated gradebook items
 		////////////////////////////////////////////////////
 
-		// Find any gradebook items linked to this activity module link
-		const gradebookItems = await payload.find({
-			collection: "gradebook-items",
-			where: {
-				activityModule: {
-					equals: linkId,
-				},
-			},
-			pagination: false,
-			req,
-			overrideAccess,
-			user,
-		});
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		for (const item of gradebookItems.docs) {
-			const deleteResult = await tryDeleteGradebookItem({
-				payload,
-				itemId: item.id,
-				req,
-				overrideAccess,
-				user,
-			});
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			// Find any gradebook items linked to this activity module link
+			const gradebookItems = await payload
+				.find({
+					collection: "gradebook-items",
+					where: {
+						activityModule: {
+							equals: linkId,
+						},
+					},
+					depth: 0,
+					pagination: false,
+					req: reqWithTransaction,
+					overrideAccess,
+					user,
+				})
+				.then(stripDepth<0, "find">());
 
-			if (!deleteResult.ok) {
-				throw deleteResult.error;
+			const deletionResults = await Promise.all(
+				gradebookItems.docs.map((item) =>
+					tryDeleteGradebookItem({
+						payload,
+						itemId: item.id,
+						req: reqWithTransaction,
+						overrideAccess,
+						user,
+					}),
+				),
+			);
+
+			for (const deleteResult of deletionResults) {
+				if (!deleteResult.ok) {
+					throw deleteResult.error;
+				}
 			}
-		}
 
-		////////////////////////////////////////////////////
-		// Delete the link
-		////////////////////////////////////////////////////
+			////////////////////////////////////////////////////
+			// Delete the link
+			////////////////////////////////////////////////////
 
-		const deletedLink = await payload.delete({
-			collection: CourseActivityModuleLinks.slug,
-			id: linkId,
-			req,
+			const deletedLink = await payload
+				.delete({
+					collection: CourseActivityModuleLinks.slug,
+					id: linkId,
+					depth: 0,
+					req: reqWithTransaction,
+					user,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "delete">());
+
+			return deletedLink;
 		});
-
-		return deletedLink;
 	},
 	(error) =>
 		transformError(error) ??
@@ -774,7 +768,16 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 				user,
 				req,
 			})
-			.then(stripDepth<1, "findByID">());
+			.then(stripDepth<1, "findByID">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryFindCourseActivityModuleLinkById",
+					`to find course activity module link by id '${linkId}'`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
 
 		// Get activity module ID
 		const activityModuleRef = link.activityModule;
@@ -808,85 +811,45 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 		}),
 );
 
-export type UpdateCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
+export type UpdatePageModuleSettingsArgs = BaseInternalFunctionArgs & {
 	linkId: number;
-	settings?: LatestCourseModuleSettings;
+	name?: string;
 };
 
 /**
- * Updates course module settings for a specific link
+ * Updates page module settings for a specific link
  */
-export const tryUpdateCourseModuleSettings = Result.wrap(
-	async (args: UpdateCourseModuleSettingsArgs) => {
-		const {
+export const tryUpdatePageModuleSettings = Result.wrap(
+	async (args: UpdatePageModuleSettingsArgs) => {
+		const { payload, linkId, name, req, overrideAccess = false, user } = args;
+
+		// Verify link exists and is a page module
+		const linkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId,
-			settings,
-			req,
-			overrideAccess = false,
 			user,
-		} = args;
-		// Validate date logic and maxAttempts based on module type
-		if (settings?.settings.type === "assignment") {
-			const { allowSubmissionsFrom, dueDate, cutoffDate, maxAttempts } =
-				settings.settings;
+			req,
+			overrideAccess,
+		});
 
-			if (allowSubmissionsFrom && dueDate) {
-				if (new Date(allowSubmissionsFrom) > new Date(dueDate)) {
-					throw new InvalidArgumentError(
-						"Allow submissions from date must be before due date",
-					);
-				}
-			}
-
-			if (dueDate && cutoffDate) {
-				if (new Date(dueDate) > new Date(cutoffDate)) {
-					throw new InvalidArgumentError("Due date must be before cutoff date");
-				}
-			}
-
-			if (allowSubmissionsFrom && cutoffDate) {
-				if (new Date(allowSubmissionsFrom) > new Date(cutoffDate)) {
-					throw new InvalidArgumentError(
-						"Allow submissions from date must be before cutoff date",
-					);
-				}
-			}
-
-			if (maxAttempts !== undefined && maxAttempts < 1) {
-				throw new InvalidArgumentError(
-					"maxAttempts must be greater than or equal to 1",
-				);
-			}
+		if (!linkResult.ok) {
+			throw linkResult.error;
 		}
 
-		if (settings?.settings.type === "quiz") {
-			const { openingTime, closingTime, maxAttempts } = settings.settings;
-
-			if (openingTime && closingTime) {
-				if (new Date(openingTime) > new Date(closingTime)) {
-					throw new InvalidArgumentError(
-						"Opening time must be before closing time",
-					);
-				}
-			}
-
-			if (maxAttempts !== undefined && maxAttempts < 1) {
-				throw new InvalidArgumentError(
-					"maxAttempts must be greater than or equal to 1",
-				);
-			}
+		const link = linkResult.value;
+		if (link.activityModule.type !== "page") {
+			throw new InvalidArgumentError(
+				`Cannot update page settings for a ${link.activityModule.type} module`,
+			);
 		}
 
-		if (settings?.settings.type === "discussion") {
-			const { dueDate, cutoffDate } = settings.settings;
-
-			if (dueDate && cutoffDate) {
-				if (new Date(dueDate) > new Date(cutoffDate)) {
-					throw new InvalidArgumentError("Due date must be before cutoff date");
-				}
-			}
-		}
+		const settings: LatestCourseModuleSettings = {
+			version: "v2",
+			settings: {
+				type: "page",
+				name: name || undefined,
+			},
+		};
 
 		const updatedLink = await payload
 			.update({
@@ -904,8 +867,8 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 			.catch((error) => {
 				interceptPayloadError(
 					error,
-					"tryUpdateCourseModuleSettings",
-					`to update course module settings for link ${linkId}`,
+					"tryUpdatePageModuleSettings",
+					`to update page module settings for link ${linkId}`,
 					{ payload, user, req, overrideAccess },
 				);
 				throw error;
@@ -915,7 +878,466 @@ export const tryUpdateCourseModuleSettings = Result.wrap(
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to update course module settings", {
+		new UnknownError("Failed to update page module settings", {
+			cause: error,
+		}),
+);
+
+export type UpdateWhiteboardModuleSettingsArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+	name?: string;
+};
+
+/**
+ * Updates whiteboard module settings for a specific link
+ */
+export const tryUpdateWhiteboardModuleSettings = Result.wrap(
+	async (args: UpdateWhiteboardModuleSettingsArgs) => {
+		const { payload, linkId, name, req, overrideAccess = false, user } = args;
+
+		// Verify link exists and is a whiteboard module
+		const linkResult = await tryFindCourseActivityModuleLinkById({
+			payload,
+			linkId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!linkResult.ok) {
+			throw linkResult.error;
+		}
+
+		const link = linkResult.value;
+		if (link.activityModule.type !== "whiteboard") {
+			throw new InvalidArgumentError(
+				`Cannot update whiteboard settings for a ${link.activityModule.type} module`,
+			);
+		}
+
+		const settings: LatestCourseModuleSettings = {
+			version: "v2",
+			settings: {
+				type: "whiteboard",
+				name: name || undefined,
+			},
+		};
+
+		const updatedLink = await payload
+			.update({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				data: {
+					settings: settings as unknown as { [key: string]: unknown },
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+				user,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryUpdateWhiteboardModuleSettings",
+					`to update whiteboard module settings for link ${linkId}`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
+
+		return updatedLink;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update whiteboard module settings", {
+			cause: error,
+		}),
+);
+
+export type UpdateFileModuleSettingsArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+	name?: string;
+};
+
+/**
+ * Updates file module settings for a specific link
+ */
+export const tryUpdateFileModuleSettings = Result.wrap(
+	async (args: UpdateFileModuleSettingsArgs) => {
+		const { payload, linkId, name, req, overrideAccess = false, user } = args;
+
+		// Verify link exists and is a file module
+		const linkResult = await tryFindCourseActivityModuleLinkById({
+			payload,
+			linkId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!linkResult.ok) {
+			throw linkResult.error;
+		}
+
+		const link = linkResult.value;
+		if (link.activityModule.type !== "file") {
+			throw new InvalidArgumentError(
+				`Cannot update file settings for a ${link.activityModule.type} module`,
+			);
+		}
+
+		const settings: LatestCourseModuleSettings = {
+			version: "v2",
+			settings: {
+				type: "file",
+				name: name || undefined,
+			},
+		};
+
+		const updatedLink = await payload
+			.update({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				data: {
+					settings: settings as unknown as { [key: string]: unknown },
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+				user,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryUpdateFileModuleSettings",
+					`to update file module settings for link ${linkId}`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
+
+		return updatedLink;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update file module settings", {
+			cause: error,
+		}),
+);
+
+export type UpdateAssignmentModuleSettingsArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+	name?: string;
+	allowSubmissionsFrom?: string;
+	dueDate?: string;
+	cutoffDate?: string;
+	maxAttempts?: number;
+};
+
+/**
+ * Updates assignment module settings for a specific link
+ */
+export const tryUpdateAssignmentModuleSettings = Result.wrap(
+	async (args: UpdateAssignmentModuleSettingsArgs) => {
+		const {
+			payload,
+			linkId,
+			name,
+			allowSubmissionsFrom,
+			dueDate,
+			cutoffDate,
+			maxAttempts,
+			req,
+			overrideAccess = false,
+			user,
+		} = args;
+
+		// Verify link exists and is an assignment module
+		const linkResult = await tryFindCourseActivityModuleLinkById({
+			payload,
+			linkId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!linkResult.ok) {
+			throw linkResult.error;
+		}
+
+		const link = linkResult.value;
+		if (link.activityModule.type !== "assignment") {
+			throw new InvalidArgumentError(
+				`Cannot update assignment settings for a ${link.activityModule.type} module`,
+			);
+		}
+
+		// Validate date logic and maxAttempts
+		if (allowSubmissionsFrom && dueDate) {
+			if (new Date(allowSubmissionsFrom) > new Date(dueDate)) {
+				throw new InvalidArgumentError(
+					"Allow submissions from date must be before due date",
+				);
+			}
+		}
+
+		if (dueDate && cutoffDate) {
+			if (new Date(dueDate) > new Date(cutoffDate)) {
+				throw new InvalidArgumentError("Due date must be before cutoff date");
+			}
+		}
+
+		if (allowSubmissionsFrom && cutoffDate) {
+			if (new Date(allowSubmissionsFrom) > new Date(cutoffDate)) {
+				throw new InvalidArgumentError(
+					"Allow submissions from date must be before cutoff date",
+				);
+			}
+		}
+
+		if (maxAttempts !== undefined && maxAttempts < 1) {
+			throw new InvalidArgumentError(
+				"maxAttempts must be greater than or equal to 1",
+			);
+		}
+
+		const settings: LatestCourseModuleSettings = {
+			version: "v2",
+			settings: {
+				type: "assignment",
+				name: name || undefined,
+				allowSubmissionsFrom: allowSubmissionsFrom || undefined,
+				dueDate: dueDate || undefined,
+				cutoffDate: cutoffDate || undefined,
+				maxAttempts: maxAttempts || undefined,
+			},
+		};
+
+		const updatedLink = await payload
+			.update({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				data: {
+					settings: settings as unknown as { [key: string]: unknown },
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+				user,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryUpdateAssignmentModuleSettings",
+					`to update assignment module settings for link ${linkId}`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
+
+		return updatedLink;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update assignment module settings", {
+			cause: error,
+		}),
+);
+
+export type UpdateQuizModuleSettingsArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+	name?: string;
+	openingTime?: string;
+	closingTime?: string;
+	maxAttempts?: number;
+};
+
+/**
+ * Updates quiz module settings for a specific link
+ */
+export const tryUpdateQuizModuleSettings = Result.wrap(
+	async (args: UpdateQuizModuleSettingsArgs) => {
+		const {
+			payload,
+			linkId,
+			name,
+			openingTime,
+			closingTime,
+			maxAttempts,
+			req,
+			overrideAccess = false,
+			user,
+		} = args;
+
+		// Verify link exists and is a quiz module
+		const linkResult = await tryFindCourseActivityModuleLinkById({
+			payload,
+			linkId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!linkResult.ok) {
+			throw linkResult.error;
+		}
+
+		const link = linkResult.value;
+		if (link.activityModule.type !== "quiz") {
+			throw new InvalidArgumentError(
+				`Cannot update quiz settings for a ${link.activityModule.type} module`,
+			);
+		}
+
+		// Validate date logic and maxAttempts
+		if (openingTime && closingTime) {
+			if (new Date(openingTime) > new Date(closingTime)) {
+				throw new InvalidArgumentError(
+					"Opening time must be before closing time",
+				);
+			}
+		}
+
+		if (maxAttempts !== undefined && maxAttempts < 1) {
+			throw new InvalidArgumentError(
+				"maxAttempts must be greater than or equal to 1",
+			);
+		}
+
+		const settings: LatestCourseModuleSettings = {
+			version: "v2",
+			settings: {
+				type: "quiz",
+				name: name || undefined,
+				openingTime: openingTime || undefined,
+				closingTime: closingTime || undefined,
+				maxAttempts: maxAttempts || undefined,
+			},
+		};
+
+		const updatedLink = await payload
+			.update({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				data: {
+					settings: settings as unknown as { [key: string]: unknown },
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+				user,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryUpdateQuizModuleSettings",
+					`to update quiz module settings for link ${linkId}`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
+
+		return updatedLink;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update quiz module settings", {
+			cause: error,
+		}),
+);
+
+export type UpdateDiscussionModuleSettingsArgs = BaseInternalFunctionArgs & {
+	linkId: number;
+	name?: string;
+	dueDate?: string;
+	cutoffDate?: string;
+};
+
+/**
+ * Updates discussion module settings for a specific link
+ */
+export const tryUpdateDiscussionModuleSettings = Result.wrap(
+	async (args: UpdateDiscussionModuleSettingsArgs) => {
+		const {
+			payload,
+			linkId,
+			name,
+			dueDate,
+			cutoffDate,
+			req,
+			overrideAccess = false,
+			user,
+		} = args;
+
+		// Verify link exists and is a discussion module
+		const linkResult = await tryFindCourseActivityModuleLinkById({
+			payload,
+			linkId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!linkResult.ok) {
+			throw linkResult.error;
+		}
+
+		const link = linkResult.value;
+		if (link.activityModule.type !== "discussion") {
+			throw new InvalidArgumentError(
+				`Cannot update discussion settings for a ${link.activityModule.type} module`,
+			);
+		}
+
+		// Validate date logic
+		if (dueDate && cutoffDate) {
+			if (new Date(dueDate) > new Date(cutoffDate)) {
+				throw new InvalidArgumentError("Due date must be before cutoff date");
+			}
+		}
+
+		const settings: LatestCourseModuleSettings = {
+			version: "v2",
+			settings: {
+				type: "discussion",
+				name: name || undefined,
+				dueDate: dueDate || undefined,
+				cutoffDate: cutoffDate || undefined,
+			},
+		};
+
+		const updatedLink = await payload
+			.update({
+				collection: CourseActivityModuleLinks.slug,
+				id: linkId,
+				data: {
+					settings: settings as unknown as { [key: string]: unknown },
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+				user,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryUpdateDiscussionModuleSettings",
+					`to update discussion module settings for link ${linkId}`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
+			});
+
+		return updatedLink;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to update discussion module settings", {
 			cause: error,
 		}),
 );

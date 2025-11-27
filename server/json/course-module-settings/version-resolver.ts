@@ -13,30 +13,6 @@ import type {
  * Type alias for the current version of course module settings
  */
 export type LatestCourseModuleSettings = CourseModuleSettingsV2;
-export type LatestQuizSettings = Extract<
-	CourseModuleSettingsV2["settings"],
-	{ type: "quiz" }
->;
-export type LatestAssignmentSettings = Extract<
-	CourseModuleSettingsV2["settings"],
-	{ type: "assignment" }
->;
-export type LatestDiscussionSettings = Extract<
-	CourseModuleSettingsV2["settings"],
-	{ type: "discussion" }
->;
-export type LatestPageSettings = Extract<
-	CourseModuleSettingsV2["settings"],
-	{ type: "page" }
->;
-export type LatestWhiteboardSettings = Extract<
-	CourseModuleSettingsV2["settings"],
-	{ type: "whiteboard" }
->;
-export type LatestFileSettings = Extract<
-	CourseModuleSettingsV2["settings"],
-	{ type: "file" }
->;
 
 /**
  * Type guard to check if a config is a valid v1 settings object

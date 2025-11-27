@@ -302,6 +302,40 @@ export function canSeeCourseModuleSettings(
 	};
 }
 
+export function canEditCourseModule(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolments?: {
+		userId: number;
+		role?: Enrollment["role"];
+	}[],
+): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	const allowed =
+		isAdminOrContentManager(user) ||
+		(enrolments?.some(
+			(enrollment) =>
+				enrollment.userId === user.id &&
+				(enrollment.role === "teacher" || enrollment.role === "ta"),
+		) ??
+			false);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can edit this module"
+			: "Only teachers, TAs, admins, and content managers can edit course modules",
+	};
+}
+
 export function canEditCourse(
 	user?: {
 		id: number;
@@ -992,6 +1026,7 @@ export const permissions = {
 		},
 		module: {
 			canSeeSettings: canSeeCourseModuleSettings,
+			canEdit: canEditCourseModule,
 		},
 		canEdit: canEditCourse,
 	},

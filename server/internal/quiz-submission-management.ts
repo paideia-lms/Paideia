@@ -1,6 +1,6 @@
 import type { Payload } from "payload";
 import { QuizSubmissions } from "server/collections";
-import type { LatestQuizSettings } from "server/json/course-module-settings/version-resolver";
+import type { LatestQuizSettings } from "server/json";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { JobQueue } from "server/payload.config";
 import type { QuizSubmission } from "server/payload-types";

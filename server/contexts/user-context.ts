@@ -17,8 +17,8 @@ export type User = PayloadUser;
 export interface UserSession {
 	authenticatedUser: User; // The actual logged-in user (admin)
 	effectiveUser?: User | null; // The user being impersonated, or null when not impersonating
-	authenticatedUserPermissions: string[]; // Permissions for authenticatedUser (admin's real permissions)
-	effectiveUserPermissions?: string[] | null; // Permissions for effectiveUser, or null when not impersonating
+	// authenticatedUserPermissions: string[]; // Permissions for authenticatedUser (admin's real permissions)
+	// effectiveUserPermissions?: string[] | null; // Permissions for effectiveUser, or null when not impersonating
 	isImpersonating: boolean; // true when admin is viewing as another user
 	isAuthenticated: boolean;
 }
@@ -50,7 +50,6 @@ export const tryGetUserContext = async (
 	);
 
 	let effectiveUser: User | null = null;
-	let effectiveUserPermissions: string[] | null = null;
 	let isImpersonating = false;
 
 	// If impersonation cookie exists and user is admin
@@ -59,6 +58,7 @@ export const tryGetUserContext = async (
 			payload,
 			impersonateUserId,
 			authenticatedUser,
+			req: request,
 		});
 
 		if (impersonationResult.ok && impersonationResult.value) {
@@ -66,7 +66,6 @@ export const tryGetUserContext = async (
 				...impersonationResult.value.targetUser,
 				collection: "users",
 			};
-			effectiveUserPermissions = impersonationResult.value.permissions;
 			isImpersonating = true;
 		}
 	}
@@ -81,8 +80,8 @@ export const tryGetUserContext = async (
 			direction: authenticatedUser.direction ?? "ltr",
 		},
 		effectiveUser: effectiveUser,
-		authenticatedUserPermissions: effectiveUserPermissions ?? [],
-		effectiveUserPermissions: effectiveUserPermissions,
+		// authenticatedUserPermissions: effectiveUserPermissions ?? [],
+		// effectiveUserPermissions: effectiveUserPermissions,
 		isImpersonating: isImpersonating,
 		isAuthenticated: true,
 	};

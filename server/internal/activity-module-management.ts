@@ -1546,6 +1546,15 @@ export const tryGetActivityModuleById = Result.wrap(
 					discussion,
 					grants,
 				};
+			})
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryGetActivityModuleById",
+					`to get activity module by id '${id}'`,
+					{ payload, user, req, overrideAccess },
+				);
+				throw error;
 			});
 
 		if (!activityModuleResult) {

@@ -26,7 +26,7 @@ import {
 	getRoleLabel,
 } from "~/components/course-view-utils";
 import { useImpersonate } from "~/routes/user/profile";
-import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants.profile";
 
 // Define search params for user selection
@@ -65,13 +65,13 @@ export const loader = async ({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? canImpersonateUser(
-				userSession.authenticatedUser,
-				{
-					id: userId,
-					role: "student", // Enrolled users are not admins
-				},
-				userSession.isImpersonating,
-			).allowed
+			userSession.authenticatedUser,
+			{
+				id: userId,
+				role: "student", // Enrolled users are not admins
+			},
+			userSession.isImpersonating,
+		).allowed
 		: false;
 
 	return {

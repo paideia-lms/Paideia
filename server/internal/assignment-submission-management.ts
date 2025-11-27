@@ -12,11 +12,7 @@ import {
 import { DEFAULT_ALLOWED_FILE_TYPES } from "~/utils/file-types";
 import { tryFindCourseActivityModuleLinkById } from "./course-activity-module-link-management";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
 	stripDepth,
@@ -176,7 +172,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Check if submission already exists for this attempt
 			const existingSubmission = await payload
 				.find({
@@ -189,7 +185,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 						],
 					},
 					user,
-					req: transactionInfo.reqWithTransaction,
+					req: reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<1, "find">());
@@ -205,7 +201,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 				payload,
 				linkId: courseModuleLinkId,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -239,7 +235,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 						},
 						depth: 1,
 						user,
-						req: transactionInfo.reqWithTransaction,
+						req: reqWithTransaction,
 						overrideAccess,
 					})
 					.then(stripDepth<1, "find">());
@@ -273,7 +269,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 						timeSpent,
 					},
 					user,
-					req: transactionInfo.reqWithTransaction,
+					req: reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<1, "create">());
@@ -287,18 +283,13 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 
 			const enrollment = submission.enrollment;
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return {
 				...submission,
 				courseModuleLink: courseModuleLinkRef,
 				student,
 				enrollment,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -406,14 +397,14 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Get existing submission to access assignment configuration
 			const existingSubmission = await payload.findByID({
 				collection: "assignment-submissions",
 				id,
 				depth: 0,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -436,7 +427,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 						payload,
 						linkId: courseModuleLinkId,
 						user,
-						req: transactionInfo.reqWithTransaction,
+						req: reqWithTransaction,
 						overrideAccess,
 					});
 
@@ -469,7 +460,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 							id: { in: fileIds },
 						},
 						user,
-						req: transactionInfo.reqWithTransaction,
+						req: reqWithTransaction,
 						overrideAccess,
 					});
 
@@ -510,7 +501,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 				id,
 				data: updateData,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -543,18 +534,13 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 				}),
 			);
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return {
 				...updatedSubmission,
 				courseModuleLink: courseModuleLinkRef,
 				student,
 				enrollment,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -587,13 +573,13 @@ export const trySubmitAssignment = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Get the current submission
 			const currentSubmission = await payload.findByID({
 				collection: "assignment-submissions",
 				id: submissionId,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -610,61 +596,37 @@ export const trySubmitAssignment = Result.wrap(
 			}
 
 			// Update status to submitted
-			const updatedSubmission = await payload.update({
-				collection: "assignment-submissions",
-				id: submissionId,
-				data: {
-					status: "submitted",
-					submittedAt: new Date().toISOString(),
-				},
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			const updatedSubmission = await payload
+				.update({
+					collection: "assignment-submissions",
+					id: submissionId,
+					data: {
+						status: "submitted",
+						submittedAt: new Date().toISOString(),
+					},
+					depth: 1,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "update">());
 
 			////////////////////////////////////////////////////
 			// type narrowing
 			////////////////////////////////////////////////////
 
 			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-			assertZodInternal(
-				"trySubmitAssignment: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const student = updatedSubmission.student;
-			assertZodInternal(
-				"trySubmitAssignment: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const enrollment = updatedSubmission.enrollment;
-			assertZodInternal(
-				"trySubmitAssignment: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return {
 				...updatedSubmission,
 				courseModuleLink: courseModuleLinkRef,
 				student,
 				enrollment,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -702,14 +664,14 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Get the current submission with depth to access course module link
 			const currentSubmission = await payload.findByID({
 				collection: AssignmentSubmissions.slug,
 				id,
 				depth: 1,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -734,7 +696,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 				payload,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 				courseModuleLinkId,
 			});
@@ -763,21 +725,21 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 					status: "graded",
 				} as Record<string, unknown>,
 				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
-
-			await commitTransactionIfCreated(payload, transactionInfo);
 
 			// Fetch the updated submission with depth for return value
-			const updatedSubmission = await payload.findByID({
-				collection: AssignmentSubmissions.slug,
-				id,
-				depth: 1,
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			const updatedSubmission = await payload
+				.findByID({
+					collection: AssignmentSubmissions.slug,
+					id,
+					depth: 1,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">());
 
 			if (!updatedSubmission) {
 				throw new NonExistingAssignmentSubmissionError(
@@ -785,36 +747,11 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				);
 			}
 
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
 			const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-			assertZodInternal(
-				"tryGradeAssignmentSubmission: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const student = updatedSubmission.student;
-			assertZodInternal(
-				"tryGradeAssignmentSubmission: Student is required",
-				student,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const enrollment = updatedSubmission.enrollment;
-			assertZodInternal(
-				"tryGradeAssignmentSubmission: Enrollment is required",
-				enrollment,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			return {
 				...updatedSubmission,
@@ -822,10 +759,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				student,
 				enrollment,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -948,21 +882,6 @@ export const tryDeleteAssignmentSubmission = Result.wrap(
 		// Validate ID
 		if (!id) {
 			throw new InvalidArgumentError("Assignment submission ID is required");
-		}
-
-		// Check if submission exists
-		const existingSubmission = await payload.findByID({
-			collection: "assignment-submissions",
-			id,
-			user,
-			req,
-			overrideAccess,
-		});
-
-		if (!existingSubmission) {
-			throw new NonExistingAssignmentSubmissionError(
-				`Assignment submission with id '${id}' not found`,
-			);
 		}
 
 		const deletedSubmission = await payload.delete({

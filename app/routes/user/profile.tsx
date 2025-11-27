@@ -99,7 +99,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			overrideAccess: false,
 		});
 
-		if (!targetUserResult.ok || !targetUserResult.value) {
+		if (!targetUserResult.ok) {
 			return badRequest({ error: "Target user not found" });
 		}
 
@@ -110,6 +110,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 		// Get redirect URL from form data, default to "/"
 		const redirectTo = (formData.get("redirectTo") as string) || "/";
+
 
 		// Set impersonation cookie and redirect
 		throw redirect(redirectTo, {
@@ -148,7 +149,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 // Reusable hook for impersonation functionality
 export const useImpersonate = () => {
-	const fetcher = useFetcher();
+	const fetcher = useFetcher<typeof clientAction>();
 
 	const impersonate = (targetUserId: number, redirectTo?: string) => {
 		const formData = new FormData();
@@ -160,7 +161,7 @@ export const useImpersonate = () => {
 		// Submit to profile route action which handles impersonation
 		fetcher.submit(formData, {
 			method: "POST",
-			action: "/user/profile",
+			action: href('/user/profile/:id?', { id: targetUserId.toString() }),
 		});
 	};
 

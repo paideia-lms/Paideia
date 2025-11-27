@@ -75,7 +75,7 @@ export type RegisterUserArgs = BaseInternalFunctionArgs & {
 	role?: User["role"];
 };
 
-export type HandleImpersonationArgs = BaseInternalFunctionArgs & {
+export type HandleImpersonationArgs = Omit<BaseInternalFunctionArgs, "user"> & {
 	impersonateUserId: string;
 	authenticatedUser: BaseInternalFunctionArgs["user"] | null;
 };
@@ -632,15 +632,15 @@ export const tryHandleImpersonation = Result.wrap(
 		}
 
 		// Get permissions for the target user
-		const accessResults = await getAccessResults({
-			req: { user: targetUser, payload } as PayloadRequest,
-		});
+		// const accessResults = await getAccessResults({
+		// 	req: { user: targetUser, payload } as PayloadRequest,
+		// });
 
-		const permissions = Object.keys(accessResults).filter(
-			(key) => accessResults[key as keyof typeof accessResults],
-		);
+		// const permissions = Object.keys(accessResults).filter(
+		// 	(key) => accessResults[key as keyof typeof accessResults],
+		// );
 
-		return { targetUser, permissions };
+		return { targetUser };
 	},
 	(error) =>
 		transformError(error) ??
