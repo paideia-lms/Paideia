@@ -910,8 +910,8 @@ describe("Course Activity Module Link Management Functions", () => {
 				expect(result.ok).toBe(true);
 				if (result.ok) {
 					expect(result.value.settings).toBeDefined();
-					if (result.value.settings?.settings.type === "assignment") {
-						expect(result.value.settings.settings.name).toBe(
+					if (result.value.settings?.type === "assignment") {
+						expect(result.value.settings.name).toBe(
 							"Test Assignment Settings",
 						);
 					}
@@ -1213,13 +1213,13 @@ describe("Course Activity Module Link Management Functions", () => {
 					if (
 						retrievedLink1.ok &&
 						retrievedLink2.ok &&
-						retrievedLink1.value.settings?.settings.type === "assignment" &&
-						retrievedLink2.value.settings?.settings.type === "assignment"
+						retrievedLink1.value.settings?.type === "assignment" &&
+						retrievedLink2.value.settings?.type === "assignment"
 					) {
-						expect(retrievedLink1.value.settings.settings.name).toBe(
+						expect(retrievedLink1.value.settings.name).toBe(
 							"Learning Journal - Week 1",
 						);
-						expect(retrievedLink2.value.settings.settings.name).toBe(
+						expect(retrievedLink2.value.settings.name).toBe(
 							"Learning Journal - Week 2",
 						);
 					}

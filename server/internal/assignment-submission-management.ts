@@ -178,19 +178,21 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 
 		try {
 			// Check if submission already exists for this attempt
-			const existingSubmission = await payload.find({
-				collection: "assignment-submissions",
-				where: {
-					and: [
-						{ courseModuleLink: { equals: courseModuleLinkId } },
-						{ student: { equals: studentId } },
-						{ attemptNumber: { equals: attemptNumber } },
-					],
-				},
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			const existingSubmission = await payload
+				.find({
+					collection: "assignment-submissions",
+					where: {
+						and: [
+							{ courseModuleLink: { equals: courseModuleLinkId } },
+							{ student: { equals: studentId } },
+							{ attemptNumber: { equals: attemptNumber } },
+						],
+					},
+					user,
+					req: transactionInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "find">());
 
 			if (existingSubmission.docs.length > 0) {
 				throw new InvalidArgumentError(
@@ -229,15 +231,18 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			// Validate file attachments if provided
 			if (attachments && attachments.length > 0) {
 				const mediaFileIds = attachments.map((a) => a.file);
-				const mediaFiles = await payload.find({
-					collection: "media",
-					where: {
-						id: { in: mediaFileIds },
-					},
-					user,
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				});
+				const mediaFiles = await payload
+					.find({
+						collection: "media",
+						where: {
+							id: { in: mediaFileIds },
+						},
+						depth: 1,
+						user,
+						req: transactionInfo.reqWithTransaction,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "find">());
 
 				validateFileAttachments(
 					attachments,
@@ -253,50 +258,34 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 				? new Date() > new Date(assignmentSettings.dueDate)
 				: false;
 
-			const submission = await payload.create({
-				collection: "assignment-submissions",
-				data: {
-					courseModuleLink: courseModuleLinkId,
-					student: studentId,
-					enrollment: enrollmentId,
-					attemptNumber,
-					status: "draft",
-					content,
-					attachments,
-					isLate,
-					timeSpent,
-				},
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
-
+			const submission = await payload
+				.create({
+					collection: "assignment-submissions",
+					data: {
+						courseModuleLink: courseModuleLinkId,
+						student: studentId,
+						enrollment: enrollmentId,
+						attemptNumber,
+						status: "draft",
+						content,
+						attachments,
+						isLate,
+						timeSpent,
+					},
+					user,
+					req: transactionInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "create">());
 			////////////////////////////////////////////////////
 			// type narrowing
 			////////////////////////////////////////////////////
 
 			const courseModuleLinkRef = submission.courseModuleLink;
-			assertZodInternal(
-				"tryCreateAssignmentSubmission: Course module link is required",
-				courseModuleLinkRef,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			const student = submission.student;
-			assertZodInternal(
-				"tryCreateAssignmentSubmission: Student is required",
-				student,
-				z.object({ id: z.number() }),
-			);
 
 			const enrollment = submission.enrollment;
-			assertZodInternal(
-				"tryCreateAssignmentSubmission: Enrollment is required",
-				enrollment,
-				z.object({ id: z.number() }),
-			);
 
 			await commitTransactionIfCreated(payload, transactionInfo);
 

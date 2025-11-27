@@ -1,9 +1,7 @@
 import type { Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import type { LatestCourseModuleSettings } from "server/json";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	DevelopmentError,
 	InvalidArgumentError,
@@ -21,11 +19,42 @@ import {
 	tryGetNextItemSortOrder,
 } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+
+type LatestAssignmentSettings = Extract<
+	LatestCourseModuleSettings["settings"],
+	{ type: "assignment" }
+>;
+
+type LatestWhiteboardSettings = Extract<
+	LatestCourseModuleSettings["settings"],
+	{ type: "whiteboard" }
+>;
+
+type LatestFileSettings = Extract<
+	LatestCourseModuleSettings["settings"],
+	{ type: "file" }
+>;
+
+type LatestQuizSettings = Extract<
+	LatestCourseModuleSettings["settings"],
+	{ type: "quiz" }
+>;
+
+type LatestDiscussionSettings = Extract<
+	LatestCourseModuleSettings["settings"],
+	{ type: "discussion" }
+>;
+
+type LatestPageSettings = Extract<
+	LatestCourseModuleSettings["settings"],
+	{ type: "page" }
+>;
 
 /**
  * Course data that can be included in link results
@@ -56,7 +85,6 @@ type BaseCourseActivityModuleLinkResult = {
 	};
 	section: { id: number };
 	contentOrder: number;
-	settings: LatestCourseModuleSettings | null;
 	createdAt: string;
 	updatedAt: string;
 };
@@ -66,6 +94,7 @@ type BaseCourseActivityModuleLinkResult = {
  */
 type PageModuleLinkResult = BaseCourseActivityModuleLinkResult & {
 	activityModule: Extract<ActivityModuleResult, { type: "page" }>;
+	settings: LatestPageSettings | null;
 };
 
 /**
@@ -73,6 +102,7 @@ type PageModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  */
 type WhiteboardModuleLinkResult = BaseCourseActivityModuleLinkResult & {
 	activityModule: Extract<ActivityModuleResult, { type: "whiteboard" }>;
+	settings: LatestWhiteboardSettings | null;
 };
 
 /**
@@ -80,6 +110,7 @@ type WhiteboardModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  */
 type FileModuleLinkResult = BaseCourseActivityModuleLinkResult & {
 	activityModule: Extract<ActivityModuleResult, { type: "file" }>;
+	settings: LatestFileSettings | null;
 };
 
 /**
@@ -87,6 +118,7 @@ type FileModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  */
 type AssignmentModuleLinkResult = BaseCourseActivityModuleLinkResult & {
 	activityModule: Extract<ActivityModuleResult, { type: "assignment" }>;
+	settings: LatestAssignmentSettings | null;
 };
 
 /**
@@ -94,6 +126,7 @@ type AssignmentModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  */
 type QuizModuleLinkResult = BaseCourseActivityModuleLinkResult & {
 	activityModule: Extract<ActivityModuleResult, { type: "quiz" }>;
+	settings: LatestQuizSettings | null;
 };
 
 /**
@@ -101,6 +134,7 @@ type QuizModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  */
 type DiscussionModuleLinkResult = BaseCourseActivityModuleLinkResult & {
 	activityModule: Extract<ActivityModuleResult, { type: "discussion" }>;
+	settings: LatestDiscussionSettings | null;
 };
 
 /**
@@ -148,134 +182,132 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			user,
 		} = args;
 
-		const newLink = await payload
-			.create({
-				collection: CourseActivityModuleLinks.slug,
-				data: {
-					course,
-					activityModule,
-					section,
-					contentOrder,
-					settings: settings as unknown as { [key: string]: unknown },
-				},
-				req,
-				overrideAccess,
-				user,
-			})
-			.catch((error) => {
-				interceptPayloadError(
-					error,
-					"tryCreateCourseActivityModuleLink",
-					`to create course activity module link`,
-					{ payload, user, req, overrideAccess },
-				);
-				throw error;
-			});
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			const newLink = await payload
+				.create({
+					collection: CourseActivityModuleLinks.slug,
+					data: {
+						course,
+						activityModule,
+						section,
+						contentOrder,
+						settings: settings as unknown as { [key: string]: unknown },
+					},
+					req: reqWithTransaction,
+					overrideAccess,
+					user,
+				})
+				.then(stripDepth<1, "create">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryCreateCourseActivityModuleLink",
+						`to create course activity module link`,
+						{ payload, user, req: reqWithTransaction, overrideAccess },
+					);
+					throw error;
+				});
 
-		const newLinkCourse = newLink.course;
-		assertZodInternal(
-			"tryCreateCourseActivityModuleLink: Course is required",
-			newLinkCourse,
-			z.object({ id: z.number() }),
-		);
+			const newLinkCourse = newLink.course;
+			const newLinkActivityModule = newLink.activityModule;
 
-		const newLinkActivityModule = newLink.activityModule;
-		assertZodInternal(
-			"tryCreateCourseActivityModuleLink: Activity module is required",
-			newLinkActivityModule,
-			z.object({
-				id: z.number(),
-			}),
-		);
+			////////////////////////////////////////////////////
+			// Create gradebook item for gradeable modules
+			////////////////////////////////////////////////////
 
-		////////////////////////////////////////////////////
-		// Create gradebook item for gradeable modules
-		////////////////////////////////////////////////////
+			// Get the full activity module to check its type
+			const activityModuleDoc = await payload
+				.findByID({
+					collection: "activity-modules",
+					id: activityModule,
+					depth: 1,
+					user,
+					req: reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "findByID">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryCreateCourseActivityModuleLink",
+						`to get activity module by id ${activityModule}`,
+						{ payload, user, req: reqWithTransaction, overrideAccess },
+					);
+					throw error;
+				});
 
-		// Get the full activity module to check its type
-		const activityModuleDoc = await payload
-			.findByID({
-				collection: "activity-modules",
-				id: activityModule,
-				user,
-				req,
-				overrideAccess,
-			})
-			.catch((error) => {
-				interceptPayloadError(
-					error,
-					"tryCreateCourseActivityModuleLink",
-					`to get activity module by id ${activityModule}`,
-					{ payload, user, req, overrideAccess },
-				);
-				throw error;
-			});
+			const moduleType = activityModuleDoc.type;
+			const gradeableTypes = ["assignment", "quiz", "discussion"] as const;
 
-		const moduleType = activityModuleDoc.type;
-		const gradeableTypes = ["assignment", "quiz", "discussion"] as const;
+			// Early return if module is not gradeable
+			if (!gradeableTypes.includes(moduleType)) {
+				return {
+					...newLink,
+					course: newLinkCourse,
+					activityModule: newLinkActivityModule,
+				};
+			}
 
-		if (gradeableTypes.includes(moduleType)) {
 			// Try to get the gradebook for this course
 			const gradebookResult = await tryGetGradebookByCourseWithDetails({
 				payload,
 				courseId: course,
 				user,
-				req,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
-			if (gradebookResult.ok) {
-				const gradebook = gradebookResult.value;
-
-				// Get the next sort order for items without a category
-				const nextSortOrderResult = await tryGetNextItemSortOrder(
-					payload,
-					gradebook.id,
-					null,
-				);
-
-				const sortOrder = nextSortOrderResult.ok
-					? nextSortOrderResult.value
-					: 0;
-
-				// Create the gradebook item
-				const createItemResult = await tryCreateGradebookItem({
-					payload,
-					courseId: course,
-					categoryId: null,
-					name: activityModuleDoc.title || "Untitled Activity",
-					description: activityModuleDoc.description || undefined,
-					activityModuleId: newLink.id,
-					maxGrade: 100, // Default max grade
-					minGrade: 0,
-					weight: null, // Auto weighted by default
-					extraCredit: false,
-					sortOrder,
-					user,
-					req,
-					overrideAccess,
-				});
-
-				// If gradebook item creation fails, we should still return the link
-				// but log the error (the transaction will handle rollback if needed)
-				if (!createItemResult.ok) {
-					console.error(
-						"Failed to create gradebook item for activity module link:",
-						createItemResult.error,
-					);
-				}
+			// Early return if gradebook doesn't exist
+			if (!gradebookResult.ok) {
+				return {
+					...newLink,
+					course: newLinkCourse,
+					activityModule: newLinkActivityModule,
+				};
 			}
-		}
 
-		return {
-			...newLink,
-			course: newLinkCourse,
-			activityModule: newLinkActivityModule,
-		};
+			const gradebook = gradebookResult.value;
+
+			// Get the next sort order for items without a category
+			const nextSortOrderResult = await tryGetNextItemSortOrder(
+				payload,
+				gradebook.id,
+				null,
+			);
+
+			const sortOrder = nextSortOrderResult.ok ? nextSortOrderResult.value : 0;
+
+			// Create the gradebook item
+			const createItemResult = await tryCreateGradebookItem({
+				payload,
+				courseId: course,
+				categoryId: null,
+				name: activityModuleDoc.title || "Untitled Activity",
+				description: activityModuleDoc.description || undefined,
+				activityModuleId: newLink.id,
+				maxGrade: 100, // Default max grade
+				minGrade: 0,
+				weight: null, // Auto weighted by default
+				extraCredit: false,
+				sortOrder,
+				user,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
+
+			// ! if the grade item cannot be created, we should abort the whole transaction
+			if (!createItemResult.ok) {
+				throw createItemResult.error;
+			}
+
+			return {
+				...newLink,
+				course: newLinkCourse,
+				activityModule: newLinkActivityModule,
+			};
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -676,7 +708,6 @@ async function buildCourseActivityModuleLinkResult(
 		course,
 		section,
 		contentOrder: link.contentOrder,
-		settings,
 		createdAt: link.createdAt,
 		updatedAt: link.updatedAt,
 	};
@@ -687,32 +718,38 @@ async function buildCourseActivityModuleLinkResult(
 		return {
 			...baseResult,
 			activityModule,
+			settings: settings as LatestPageSettings | null,
 		} satisfies PageModuleLinkResult;
 	} else if (type === "whiteboard") {
 		return {
 			...baseResult,
 			activityModule,
+			settings: settings as LatestWhiteboardSettings | null,
 		} satisfies WhiteboardModuleLinkResult;
 	} else if (type === "file") {
 		return {
 			...baseResult,
 			activityModule,
+			settings: settings as LatestFileSettings | null,
 		} satisfies FileModuleLinkResult;
 	} else if (type === "assignment") {
 		return {
 			...baseResult,
 			activityModule,
+			settings: settings as LatestAssignmentSettings | null,
 		} satisfies AssignmentModuleLinkResult;
 	} else if (type === "quiz") {
 		return {
 			...baseResult,
 			activityModule,
+			settings: settings as LatestQuizSettings | null,
 		} satisfies QuizModuleLinkResult;
 	} else {
 		// discussion
 		return {
 			...baseResult,
 			activityModule,
+			settings: settings as LatestDiscussionSettings | null,
 		} satisfies DiscussionModuleLinkResult;
 	}
 }

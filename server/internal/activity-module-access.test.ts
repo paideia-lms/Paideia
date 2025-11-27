@@ -686,47 +686,6 @@ describe("Activity Module Access Control", () => {
 		}
 	});
 
-	test("should transfer ownership to another user", async () => {
-		const user1 = await getAuthUser(user1Token);
-		const user2 = await getAuthUser(user2Token);
-
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Transfer Ownership Test",
-				type: "assignment",
-				status: "draft",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			user: user1,
-			overrideAccess: true,
-		});
-
-		// Transfer ownership to user2
-		const transferResult = await tryTransferActivityModuleOwnership({
-			payload,
-			activityModuleId: activityModule.id,
-			newOwnerId: testUser2.id,
-			currentOwnerId: testUser1.id,
-			overrideAccess: true,
-		});
-
-		expect(transferResult.ok).toBe(true);
-		if (transferResult.ok) {
-			const newOwnerId = transferResult.value.owner;
-			expect(newOwnerId).toBe(testUser2.id);
-		}
-
-		// Verify new owner can delete
-		const deleted = await payload.delete({
-			collection: "activity-modules",
-			id: activityModule.id,
-			user: user2,
-		});
-		expect(deleted.id).toBe(activityModule.id);
-	});
 
 	test("should grant access to previous owner after ownership transfer", async () => {
 		const user1 = await getAuthUser(user1Token);

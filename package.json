@@ -39,7 +39,7 @@
 		"docker:run": "docker compose -f docker-compose.yml -f docker-compose.paideia.yml up -d",
 		"docker:prune": "docker image prune -f",
 		"typegen": "PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:types && PAYLOAD_CONFIG_PATH=server/payload.config.ts payload generate:db-schema && react-router typegen",
-		"typecheck": "tsgo --noEmit",
+		"typecheck": "tsgo --noEmit --extendedDiagnostics",
 		"lefthook:install": "lefthook install"
 	},
 	"dependencies": {
