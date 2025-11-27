@@ -111,7 +111,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		// Get redirect URL from form data, default to "/"
 		const redirectTo = (formData.get("redirectTo") as string) || "/";
 
-
 		// Set impersonation cookie and redirect
 		throw redirect(redirectTo, {
 			headers: {
@@ -161,7 +160,7 @@ export const useImpersonate = () => {
 		// Submit to profile route action which handles impersonation
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href('/user/profile/:id?', { id: targetUserId.toString() }),
+			action: href("/user/profile/:id?", { id: targetUserId.toString() }),
 		});
 	};
 

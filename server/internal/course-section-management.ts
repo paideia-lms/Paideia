@@ -4,6 +4,7 @@ import {
 	CourseSections,
 } from "server/payload.config";
 import { assertZodInternal } from "server/utils/type-narrowing";
+import { flattenCourseStructureWithModuleInfo } from "server/utils/course-structure-utils";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -22,7 +23,11 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
+import { LatestCourseModuleSettings } from "server/json";
 
 // ============================================================================
 // Basic CRUD Operations
@@ -1822,36 +1827,40 @@ export const tryGetCourseStructure = Result.wrap(
 		}
 
 		// Get all sections for the course
-		const sectionsResult = await payload.find({
-			collection: CourseSections.slug,
-			where: {
-				course: {
-					equals: courseId,
+		const sectionsResult = await payload
+			.find({
+				collection: CourseSections.slug,
+				where: {
+					course: {
+						equals: courseId,
+					},
 				},
-			},
-			sort: "contentOrder",
-			pagination: false,
-			depth: 0,
-			user,
-			req,
-			overrideAccess,
-		});
+				sort: "contentOrder",
+				pagination: false,
+				depth: 0,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "find">());
 
 		// Get all activity module links for the course
-		const activityModuleLinks = await payload.find({
-			collection: CourseActivityModuleLinks.slug,
-			where: {
-				course: {
-					equals: courseId,
+		const activityModuleLinks = await payload
+			.find({
+				collection: CourseActivityModuleLinks.slug,
+				where: {
+					course: {
+						equals: courseId,
+					},
 				},
-			},
-			sort: "contentOrder",
-			pagination: false,
-			depth: 1,
-			user,
-			req,
-			overrideAccess,
-		});
+				sort: "contentOrder",
+				pagination: false,
+				depth: 1,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		// Create maps for efficient lookup
 		const sectionMap = new Map<number, CourseStructureSection>();
@@ -1860,8 +1869,7 @@ export const tryGetCourseStructure = Result.wrap(
 
 		// Group activity modules by section
 		for (const link of activityModuleLinks.docs) {
-			const sectionId =
-				typeof link.section === "number" ? link.section : link.section.id;
+			const sectionId = link.section.id;
 			if (!sectionModulesMap.has(sectionId)) {
 				sectionModulesMap.set(sectionId, []);
 			}
@@ -1890,10 +1898,7 @@ export const tryGetCourseStructure = Result.wrap(
 			const structureSection = sectionMap.get(section.id);
 			if (!structureSection) continue;
 
-			const parentId =
-				typeof section.parentSection === "number"
-					? section.parentSection
-					: (section.parentSection?.id ?? null);
+			const parentId = section.parentSection ?? null;
 
 			// Get activity modules for this section
 			const activityModules = sectionModulesMap.get(section.id) || [];
@@ -1912,7 +1917,7 @@ export const tryGetCourseStructure = Result.wrap(
 				);
 
 				// Use custom name from settings if available, otherwise use module title
-				const linkSettings = link.settings as CourseModuleSettingsV1 | null;
+				const linkSettings = link.settings as LatestCourseModuleSettings | null;
 				const moduleTitle =
 					linkSettings?.settings?.name ?? activityModule.title;
 
@@ -1931,10 +1936,7 @@ export const tryGetCourseStructure = Result.wrap(
 
 			// Add child sections to content
 			for (const childSection of sectionsResult.docs) {
-				const childParentId =
-					typeof childSection.parentSection === "number"
-						? childSection.parentSection
-						: (childSection.parentSection?.id ?? null);
+				const childParentId = childSection.parentSection ?? null;
 
 				if (childParentId === section.id) {
 					const childStructureSection = sectionMap.get(childSection.id);
@@ -2354,6 +2356,99 @@ export const tryGeneralMove = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to perform general move", { cause: error }),
+);
+
+export type GetPreviousNextModuleArgs = BaseInternalFunctionArgs & {
+	courseId: number;
+	moduleLinkId: number;
+};
+
+export type PreviousNextModule = {
+	id: number;
+	title: string;
+	type: PayloadActivityModule["type"];
+} | null;
+
+export type PreviousNextModuleResult = {
+	previousModule: PreviousNextModule;
+	nextModule: PreviousNextModule;
+};
+
+/**
+ * Gets the previous and next modules for navigation
+ * Based on the flattened course structure order
+ */
+export const tryGetPreviousNextModule = Result.wrap(
+	async (args: GetPreviousNextModuleArgs) => {
+		const {
+			payload,
+			courseId,
+			moduleLinkId,
+			user,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		if (!courseId) {
+			throw new InvalidArgumentError("Course ID is required");
+		}
+
+		if (!moduleLinkId) {
+			throw new InvalidArgumentError("Module link ID is required");
+		}
+
+		// Get course structure to determine next/previous modules
+		const courseStructureResult = await tryGetCourseStructure({
+			payload,
+			courseId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!courseStructureResult.ok) {
+			throw courseStructureResult.error;
+		}
+
+		// Get flattened modules with info for previous/next calculation
+		const flattenedModules = flattenCourseStructureWithModuleInfo(
+			courseStructureResult.value,
+		);
+		const currentModuleIndex = flattenedModules.findIndex(
+			(m) => m.moduleLinkId === moduleLinkId,
+		);
+
+		const _previousModule =
+			currentModuleIndex > 0 ? flattenedModules[currentModuleIndex - 1]! : null;
+		const _nextModule =
+			currentModuleIndex < flattenedModules.length - 1
+				? flattenedModules[currentModuleIndex + 1]!
+				: null;
+
+		const previousModule = _previousModule
+			? {
+					id: _previousModule.moduleLinkId,
+					title: _previousModule.title,
+					type: _previousModule.type,
+				}
+			: null;
+
+		const nextModule = _nextModule
+			? {
+					id: _nextModule.moduleLinkId,
+					title: _nextModule.title,
+					type: _nextModule.type,
+				}
+			: null;
+
+		return {
+			previousModule,
+			nextModule,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get previous/next module", { cause: error }),
 );
 
 /**

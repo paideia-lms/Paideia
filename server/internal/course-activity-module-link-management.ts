@@ -1,13 +1,13 @@
 import type { Where } from "payload";
 import { CourseActivityModuleLinks } from "server/collections/course-activity-module-links";
 import type {
-	LatestCourseModuleSettings,
 	LatestAssignmentSettings,
-	LatestWhiteboardSettings,
-	LatestFileSettings,
-	LatestQuizSettings,
+	LatestCourseModuleSettings,
 	LatestDiscussionSettings,
+	LatestFileSettings,
 	LatestPageSettings,
+	LatestQuizSettings,
+	LatestWhiteboardSettings,
 } from "server/json";
 import { Result } from "typescript-result";
 import {
@@ -71,6 +71,7 @@ type BaseCourseActivityModuleLinkResult = {
  * Page module link result
  */
 type PageModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	type: "page";
 	activityModule: Extract<ActivityModuleResult, { type: "page" }>;
 	settings: LatestPageSettings | null;
 };
@@ -79,6 +80,7 @@ type PageModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  * Whiteboard module link result
  */
 type WhiteboardModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	type: "whiteboard";
 	activityModule: Extract<ActivityModuleResult, { type: "whiteboard" }>;
 	settings: LatestWhiteboardSettings | null;
 };
@@ -87,6 +89,7 @@ type WhiteboardModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  * File module link result
  */
 type FileModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	type: "file";
 	activityModule: Extract<ActivityModuleResult, { type: "file" }>;
 	settings: LatestFileSettings | null;
 };
@@ -95,6 +98,7 @@ type FileModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  * Assignment module link result
  */
 type AssignmentModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	type: "assignment";
 	activityModule: Extract<ActivityModuleResult, { type: "assignment" }>;
 	settings: LatestAssignmentSettings | null;
 };
@@ -103,6 +107,7 @@ type AssignmentModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  * Quiz module link result
  */
 type QuizModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	type: "quiz";
 	activityModule: Extract<ActivityModuleResult, { type: "quiz" }>;
 	settings: LatestQuizSettings | null;
 };
@@ -111,6 +116,7 @@ type QuizModuleLinkResult = BaseCourseActivityModuleLinkResult & {
  * Discussion module link result
  */
 type DiscussionModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+	type: "discussion";
 	activityModule: Extract<ActivityModuleResult, { type: "discussion" }>;
 	settings: LatestDiscussionSettings | null;
 };
@@ -711,30 +717,35 @@ async function buildCourseActivityModuleLinkResult(
 	if (type === "page") {
 		return {
 			...baseResult,
+			type: "page",
 			activityModule,
 			settings: settings as LatestPageSettings | null,
 		} satisfies PageModuleLinkResult;
 	} else if (type === "whiteboard") {
 		return {
 			...baseResult,
+			type: "whiteboard",
 			activityModule,
 			settings: settings as LatestWhiteboardSettings | null,
 		} satisfies WhiteboardModuleLinkResult;
 	} else if (type === "file") {
 		return {
 			...baseResult,
+			type: "file",
 			activityModule,
 			settings: settings as LatestFileSettings | null,
 		} satisfies FileModuleLinkResult;
 	} else if (type === "assignment") {
 		return {
 			...baseResult,
+			type: "assignment",
 			activityModule,
 			settings: settings as LatestAssignmentSettings | null,
 		} satisfies AssignmentModuleLinkResult;
 	} else if (type === "quiz") {
 		return {
 			...baseResult,
+			type: "quiz",
 			activityModule,
 			settings: settings as LatestQuizSettings | null,
 		} satisfies QuizModuleLinkResult;
@@ -742,6 +753,7 @@ async function buildCourseActivityModuleLinkResult(
 		// discussion
 		return {
 			...baseResult,
+			type: "discussion",
 			activityModule,
 			settings: settings as LatestDiscussionSettings | null,
 		} satisfies DiscussionModuleLinkResult;

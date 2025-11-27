@@ -69,6 +69,7 @@ interface AssignmentPreviewProps {
 	}) => void | Promise<void>;
 	isSubmitting?: boolean;
 	canSubmit?: boolean;
+	isStudent?: boolean;
 }
 
 interface FileWithId {
@@ -396,12 +397,14 @@ function InstructionsView({
 	submission,
 	onAddSubmission,
 	canSubmit = true,
+	isStudent = false,
 }: {
 	assignment: AssignmentData;
 	allSubmissions: SubmissionData[];
 	submission?: { status: "draft" | "submitted" | "graded" | "returned" } | null;
 	onAddSubmission: () => void;
 	canSubmit?: boolean;
+	isStudent?: boolean;
 }) {
 	const submittedCount = allSubmissions.filter(
 		(s) =>
@@ -409,9 +412,10 @@ function InstructionsView({
 			s.status === "graded" ||
 			s.status === "returned",
 	).length;
-	const maxAttempts = assignment.maxAttempts || null;
+	const maxAttempts = assignment.maxAttempts ?? null;
 	const canSubmitMore = maxAttempts === null || submittedCount < maxAttempts;
 	const hasUnsubmittedDraft = submission?.status === "draft";
+	const shouldShowMaxAttempts = typeof maxAttempts === "number" && maxAttempts > 0;
 
 	return (
 		<Paper withBorder p="xl" radius="md">
@@ -432,13 +436,15 @@ function InstructionsView({
 					)}
 				</Group>
 
-				{canSubmit && maxAttempts && (
+				{shouldShowMaxAttempts && (
 					<Alert
 						color={canSubmitMore ? "blue" : "yellow"}
 						icon={<IconInfoCircle size={16} />}
 					>
-						{submittedCount} of {maxAttempts} attempt
-						{maxAttempts !== 1 ? "s" : ""} used
+						{isStudent
+							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
+							} used`
+							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
 				)}
@@ -472,6 +478,7 @@ export function AssignmentPreview({
 	onSubmit,
 	isSubmitting = false,
 	canSubmit = true,
+	isStudent = false,
 }: AssignmentPreviewProps) {
 	const [action, setAction] = useQueryState("action");
 
@@ -519,6 +526,7 @@ export function AssignmentPreview({
 			submission={submission}
 			onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
 			canSubmit={canSubmit}
+			isStudent={isStudent}
 		/>
 	);
 }

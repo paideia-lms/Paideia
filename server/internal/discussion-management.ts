@@ -5,6 +5,7 @@ import { Result } from "typescript-result";
 import z from "zod";
 import {
 	InvalidArgumentError,
+	NonExistingActivityModuleError,
 	NonExistingDiscussionSubmissionError,
 	transformError,
 	UnknownError,
@@ -418,80 +419,42 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 		const threads = threadsResult.value;
 
 		// Get all replies and comments for this course module link
-		const allRepliesAndCommentsResult = await payload.find({
-			collection: "discussion-submissions",
-			where: {
-				and: [
-					{ courseModuleLink: { equals: courseModuleLinkId } },
-					{
-						or: [
-							{ postType: { equals: "reply" } },
-							{ postType: { equals: "comment" } },
-						],
-					},
-					{ status: { equals: "published" } },
-				],
-			},
-			depth: 1,
-			pagination: false,
-			user,
-			req,
-			overrideAccess,
-		});
+		const allRepliesAndCommentsResult = await payload
+			.find({
+				collection: "discussion-submissions",
+				where: {
+					and: [
+						{ courseModuleLink: { equals: courseModuleLinkId } },
+						{
+							or: [
+								{ postType: { equals: "reply" } },
+								{ postType: { equals: "comment" } },
+							],
+						},
+						{ status: { equals: "published" } },
+					],
+				},
+				depth: 1,
+				pagination: false,
+				user,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		// Process all replies and comments with type narrowing
 		const allRepliesAndComments = allRepliesAndCommentsResult.docs.map(
 			(item) => {
 				// Handle courseModuleLink - can be object or number
-				const courseModuleLinkId =
-					typeof item.courseModuleLink === "object" &&
-					item.courseModuleLink !== null &&
-					"id" in item.courseModuleLink
-						? item.courseModuleLink.id
-						: typeof item.courseModuleLink === "number"
-							? item.courseModuleLink
-							: null;
-
-				if (!courseModuleLinkId) {
-					throw new InvalidArgumentError("Course module link is required");
-				}
-
-				// Handle student - preserve full object if available
-				const student =
-					typeof item.student === "object" && item.student !== null
-						? item.student
-						: null;
-
-				if (!student || !("id" in student)) {
-					throw new InvalidArgumentError("Student is required");
-				}
-
-				// Handle enrollment - preserve full object if available
-				const enrollment =
-					typeof item.enrollment === "object" && item.enrollment !== null
-						? item.enrollment
-						: null;
-
-				if (!enrollment || !("id" in enrollment)) {
-					throw new InvalidArgumentError("Enrollment is required");
-				}
+				const courseModuleLinkId = item.courseModuleLink.id;
 
 				// Get parentThread ID
-				const parentThreadId =
-					typeof item.parentThread === "object" &&
-					item.parentThread !== null &&
-					"id" in item.parentThread
-						? item.parentThread.id
-						: typeof item.parentThread === "number"
-							? item.parentThread
-							: null;
+				const parentThreadId = item.parentThread?.id ?? null;
 
 				return {
 					...item,
 					courseModuleLink: courseModuleLinkId,
-					student,
-					enrollment,
-					parentThreadId,
+					parentThread: parentThreadId,
 				};
 			},
 		);
@@ -513,7 +476,7 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 
 		// Group replies/comments by their parent thread
 		for (const item of allRepliesAndComments) {
-			const parentThreadId = item.parentThreadId;
+			const parentThreadId = item.parentThread;
 			if (parentThreadId) {
 				if (!threadRepliesMap.has(parentThreadId)) {
 					threadRepliesMap.set(parentThreadId, []);
@@ -581,7 +544,7 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 						enrollment: item.enrollment,
 						createdAt: item.createdAt,
 						upvotes: item.upvotes ?? undefined,
-						parentThreadId: item.parentThreadId,
+						parentThreadId: item.parentThread,
 						replies: [],
 					});
 				}
@@ -598,8 +561,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Check if this item's parent is a reply (not the thread)
 				// If parentThreadId is the thread ID, it's a top-level item
 				// If parentThreadId is another reply's ID, it should be nested under that reply
-				if (item.parentThreadId && item.parentThreadId !== thread.id) {
-					const parentItem = itemMap.get(item.parentThreadId);
+				if (item.parentThread && item.parentThread !== thread.id) {
+					const parentItem = itemMap.get(item.parentThread);
 					if (parentItem) {
 						// This item is nested under a reply (could be a reply to reply or a comment to reply)
 						parentItem.replies.push(itemEntry);
@@ -1371,6 +1334,158 @@ export const tryDeleteDiscussionSubmission = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to delete discussion submission", {
+			cause: error,
+		}),
+);
+
+export type DiscussionReply = {
+	id: string;
+	content: string;
+	author: string;
+	authorAvatar: string;
+	authorId: number | null;
+	publishedAt: string;
+	upvotes: number;
+	parentId: string | null;
+	isUpvoted: boolean;
+	replies?: DiscussionReply[];
+};
+
+type tryGetDiscussionThreadWithRepliesArgs = BaseInternalFunctionArgs & {
+	threadId: number;
+	courseModuleLinkId: number;
+};
+
+/**
+ * Get a single discussion thread with all nested replies
+ * This transforms the thread data from tryGetDiscussionThreadsWithAllReplies
+ * into the DiscussionReply format used in the route
+ */
+export const tryGetDiscussionThreadWithReplies = Result.wrap(
+	async (args: tryGetDiscussionThreadWithRepliesArgs) => {
+		const {
+			payload,
+			threadId,
+			courseModuleLinkId,
+			user = null,
+			req,
+			overrideAccess = false,
+		} = args;
+
+		const threadsResult = await tryGetDiscussionThreadsWithAllReplies({
+			payload,
+			courseModuleLinkId,
+			user,
+			req,
+			overrideAccess,
+		});
+
+		if (!threadsResult.ok) {
+			throw threadsResult.error;
+		}
+
+		// Find the specific thread
+		const threadData = threadsResult.value.threads.find(
+			(t) => t.thread.id === threadId,
+		);
+
+		if (!threadData) {
+			throw new NonExistingActivityModuleError(
+				`Thread with id '${threadId}' not found`,
+			);
+		}
+
+		const thread = threadData.thread;
+		const student = thread.student;
+		const authorName = student
+			? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
+				student.email ||
+				"Unknown"
+			: "Unknown";
+		const authorAvatar = student
+			? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
+				student.email?.[0]?.toUpperCase() ||
+				"U"
+			: "U";
+
+		const isUpvoted =
+			thread.upvotes?.some(
+				(upvote: { user: number | { id: number }; upvotedAt: string }) => {
+					const upvoteUser =
+						typeof upvote.user === "object" && upvote.user !== null
+							? upvote.user
+							: null;
+					return upvoteUser?.id === user?.id;
+				},
+			) ?? false;
+
+		// Transform nested replies into DiscussionReply format
+		const transformReply = (
+			reply: (typeof threadData.replies)[number],
+		): DiscussionReply => {
+			const replyStudent = reply.student;
+			const replyAuthorName = replyStudent
+				? `${replyStudent.firstName || ""} ${replyStudent.lastName || ""}`.trim() ||
+					replyStudent.email ||
+					"Unknown"
+				: "Unknown";
+			const replyAuthorAvatar = replyStudent
+				? `${replyStudent.firstName?.[0] || ""}${replyStudent.lastName?.[0] || ""}`.trim() ||
+					replyStudent.email?.[0]?.toUpperCase() ||
+					"U"
+				: "U";
+
+			const replyIsUpvoted =
+				reply.upvotes?.some(
+					(upvote: { user: number | { id: number }; upvotedAt: string }) => {
+						const upvoteUser =
+							typeof upvote.user === "object" && upvote.user !== null
+								? upvote.user
+								: null;
+						return upvoteUser?.id === user?.id;
+					},
+				) ?? false;
+
+			return {
+				id: String(reply.id),
+				content: reply.content,
+				author: replyAuthorName,
+				authorAvatar: replyAuthorAvatar,
+				authorId: replyStudent?.id ?? null,
+				publishedAt: reply.createdAt,
+				upvotes: reply.upvotes?.length ?? 0,
+				parentId:
+					reply.parentThreadId === threadId
+						? null
+						: String(reply.parentThreadId),
+				isUpvoted: replyIsUpvoted,
+				replies: reply.replies.map(transformReply),
+			};
+		};
+
+		// Transform all top-level replies (nested structure is preserved)
+		const transformedReplies = threadData.replies.map(transformReply);
+
+		return {
+			thread: {
+				id: String(thread.id),
+				title: thread.title || "",
+				content: thread.content,
+				author: authorName,
+				authorAvatar,
+				authorId: student?.id ?? null,
+				publishedAt: thread.createdAt,
+				upvotes: thread.upvotes?.length ?? 0,
+				replyCount: threadData.repliesTotal + threadData.commentsTotal,
+				isPinned: thread.isPinned ?? false,
+				isUpvoted,
+			},
+			replies: transformedReplies,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get discussion thread with replies", {
 			cause: error,
 		}),
 );

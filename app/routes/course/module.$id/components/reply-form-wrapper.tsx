@@ -1,7 +1,7 @@
 import { Button, Group, Paper, Stack, Text } from "@mantine/core";
 import { useState } from "react";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
-import { useCreateReply } from "../route";
+import { useCreateReply } from "../hooks";
 
 interface ReplyFormWrapperProps {
 	moduleLinkId: number;

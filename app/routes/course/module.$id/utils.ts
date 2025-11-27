@@ -1,5 +1,10 @@
-import { createLoader, parseAsString, parseAsStringEnum } from "nuqs/server";
-import type { CourseModuleContext } from "server/contexts/course-module-context";
+import {
+	createLoader,
+	parseAsInteger,
+	parseAsString,
+	parseAsStringEnum,
+} from "nuqs/server";
+import type { LatestCourseModuleSettings } from "server/json";
 import {
 	isRegularQuiz,
 	type Question,
@@ -23,7 +28,7 @@ export const courseModuleSearchParams = {
 		...Object.values(QuizActions),
 	]),
 	showQuiz: parseAsString,
-	threadId: parseAsString,
+	threadId: parseAsInteger,
 	replyTo: parseAsString,
 };
 
@@ -44,7 +49,7 @@ const formatDateForDisplay = (dateString: string) => {
 
 // Helper to format module settings with date strings
 export const formatModuleSettingsForDisplay = (
-	moduleSettings: CourseModuleContext["moduleLinkSettings"],
+	moduleSettings: LatestCourseModuleSettings | null,
 ) => {
 	if (!moduleSettings?.settings) return null;
 

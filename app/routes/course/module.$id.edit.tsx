@@ -26,7 +26,6 @@ import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { canEditCourseModule } from "server/utils/permissions";
 import {
 	tryUpdateAssignmentModuleSettings,
 	tryUpdateDiscussionModuleSettings,
@@ -35,6 +34,15 @@ import {
 	tryUpdateQuizModuleSettings,
 	tryUpdateWhiteboardModuleSettings,
 } from "server/internal/course-activity-module-link-management";
+import type {
+	LatestAssignmentSettings,
+	LatestDiscussionSettings,
+	LatestFileSettings,
+	LatestPageSettings,
+	LatestQuizSettings,
+	LatestWhiteboardSettings,
+} from "server/json";
+import { permissions } from "server/utils/permissions";
 import { useDeleteModuleLink } from "~/routes/course.$id.modules";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
@@ -48,8 +56,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/module.$id.edit";
-import type { LatestAssignmentSettings, LatestWhiteboardSettings, LatestFileSettings, LatestQuizSettings, LatestDiscussionSettings, LatestPageSettings } from "server/json";
-import { permissions } from "server/utils/permissions";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -80,21 +86,44 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse(permissionResult.reason);
 	}
 
-	const pageSettings = courseModuleContext.moduleLinkSettings?.settings.type === "page" ? courseModuleContext.moduleLinkSettings.settings : null;
-	const whiteboardSettings = courseModuleContext.moduleLinkSettings?.settings.type === "whiteboard" ? courseModuleContext.moduleLinkSettings.settings : null;
-	const fileSettings = courseModuleContext.moduleLinkSettings?.settings.type === "file" ? courseModuleContext.moduleLinkSettings.settings : null;
-	const assignmentSettings = courseModuleContext.moduleLinkSettings?.settings.type === "assignment" ? courseModuleContext.moduleLinkSettings.settings : null;
-	const quizSettings = courseModuleContext.moduleLinkSettings?.settings.type === "quiz" ? courseModuleContext.moduleLinkSettings.settings : null;
-	const discussionSettings = courseModuleContext.moduleLinkSettings?.settings.type === "discussion" ? courseModuleContext.moduleLinkSettings.settings : null;
+	const pageSettings =
+		courseModuleContext.settings?.type === "page"
+			? courseModuleContext.settings
+			: null;
+	const whiteboardSettings =
+		courseModuleContext.settings?.type === "whiteboard"
+			? courseModuleContext.settings
+			: null;
+	const fileSettings =
+		courseModuleContext.settings?.type === "file"
+			? courseModuleContext.settings
+			: null;
+	const assignmentSettings =
+		courseModuleContext.settings?.type === "assignment"
+			? courseModuleContext.settings
+			: null;
+	const quizSettings =
+		courseModuleContext.settings?.type === "quiz"
+			? courseModuleContext.settings
+			: null;
+	const discussionSettings =
+		courseModuleContext.settings?.type === "discussion"
+			? courseModuleContext.settings
+			: null;
 
 	// Use custom name if available, otherwise use module title
 	const displayName =
-		(pageSettings?.name ?? whiteboardSettings?.name ?? fileSettings?.name ?? assignmentSettings?.name ?? quizSettings?.name ?? discussionSettings?.name) ??
-		courseModuleContext.module.title;
+		pageSettings?.name ??
+		whiteboardSettings?.name ??
+		fileSettings?.name ??
+		assignmentSettings?.name ??
+		quizSettings?.name ??
+		discussionSettings?.name ??
+		courseModuleContext.activityModule.title;
 	return {
 		course: courseContext.course,
-		module: courseModuleContext.module,
-		moduleLinkId: courseModuleContext.moduleLinkId,
+		module: courseModuleContext.activityModule,
+		moduleLinkId: courseModuleContext.id,
 		pageSettings,
 		whiteboardSettings,
 		fileSettings,
@@ -136,7 +165,8 @@ const updatePageSettingsAction = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
-	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -215,7 +245,8 @@ const updateFileSettingsAction = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
-	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -255,7 +286,8 @@ const updateAssignmentSettingsAction = async ({
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
-	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -304,7 +336,8 @@ const updateQuizSettingsAction = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
-	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -323,7 +356,6 @@ const updateQuizSettingsAction = async ({
 		maxAttempts: requestData.maxAttempts || undefined,
 		req: request,
 		user: currentUser,
-
 	});
 
 	if (!result.ok) {
@@ -352,7 +384,8 @@ const updateDiscussionSettingsAction = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
-	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -678,8 +711,7 @@ function PageSettingsFormWrapper({
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			name:
-				settings?.name ?? "",
+			name: settings?.name ?? "",
 		},
 	});
 
@@ -726,8 +758,7 @@ function WhiteboardSettingsFormWrapper({
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			name:
-				settings?.name ?? "",
+			name: settings?.name ?? "",
 		},
 	});
 
@@ -778,8 +809,7 @@ function FileSettingsFormWrapper({
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			name:
-				settings?.name ?? "",
+			name: settings?.name ?? "",
 		},
 	});
 
@@ -922,8 +952,12 @@ function QuizSettingsFormWrapper({
 		mode: "uncontrolled",
 		initialValues: {
 			name: settings?.name ?? "",
-			openingTime: settings?.openingTime ? new Date(settings.openingTime) : null,
-			closingTime: settings?.closingTime ? new Date(settings.closingTime) : null,
+			openingTime: settings?.openingTime
+				? new Date(settings.openingTime)
+				: null,
+			closingTime: settings?.closingTime
+				? new Date(settings.closingTime)
+				: null,
 			maxAttempts: settings?.maxAttempts || null,
 		},
 	});
@@ -1137,10 +1171,19 @@ function DangerZone({
 }
 
 export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
-	const { course, module, moduleLinkId, displayName, pageSettings, whiteboardSettings, fileSettings, assignmentSettings, quizSettings, discussionSettings } = loaderData;
+	const {
+		course,
+		module,
+		moduleLinkId,
+		displayName,
+		pageSettings,
+		whiteboardSettings,
+		fileSettings,
+		assignmentSettings,
+		quizSettings,
+		discussionSettings,
+	} = loaderData;
 	const navigate = useNavigate();
-
-
 
 	const handleCancel = () => {
 		navigate(

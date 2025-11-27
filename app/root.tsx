@@ -79,6 +79,12 @@ import {
 	MaintenanceModeResponse,
 } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
+import { parseAsInteger, createLoader } from "nuqs/server";
+
+const searchParams = {
+	threadId: parseAsInteger,
+};
+export const loadSearchParams = createLoader(searchParams);
 
 export const middleware = [
 	/**
@@ -348,26 +354,26 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-						color: "blue",
-						radius: "sm" as const,
-						logoLight: null,
-						logoDark: null,
-						compactLogoLight: null,
-						compactLogoDark: null,
-						faviconLight: null,
-						faviconDark: null,
-					},
-					analyticsSettings: {
-						additionalJsScripts: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -561,16 +567,16 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext({
-								payload,
-								profileUserId,
-								user: currentUser,
-								req: request,
-								overrideAccess: false,
-							});
+							payload,
+							profileUserId,
+							user: currentUser,
+							req: request,
+							overrideAccess: false,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -617,12 +623,16 @@ export const middleware = [
 
 			// Get module link ID from params
 			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
+				// Extract threadId from URL search params if present
+				const { threadId } = loadSearchParams(request);
+
 				const courseModuleContextResult = await tryGetCourseModuleContext({
 					payload,
 					moduleLinkId: Number(moduleLinkId),
 					courseId: courseContext.courseId,
 					user: currentUser,
 					enrolment: enrolmentContext?.enrolment ?? null,
+					threadId: threadId !== null ? String(threadId) : null,
 					req: request,
 				});
 
@@ -750,17 +760,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				};
+				userSession: userSession,
+				courseContext: context.get(courseContextKey),
+				courseModuleContext: context.get(courseModuleContextKey),
+				courseSectionContext: context.get(courseSectionContextKey),
+				enrolmentContext: context.get(enrolmentContextKey),
+				userModuleContext: context.get(userModuleContextKey),
+				userProfileContext: context.get(userProfileContextKey),
+				userAccessContext: context.get(userAccessContextKey),
+				userContext: context.get(userContextKey),
+				systemGlobals: systemGlobals,
+			};
 
 	return {
 		users: users,

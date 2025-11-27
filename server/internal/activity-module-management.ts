@@ -1,6 +1,9 @@
 import { omit } from "es-toolkit";
 import type { Payload, PayloadRequest, TypedUser } from "payload";
-import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import type {
+	LatestQuizConfig,
+	LatestQuizConfig as QuizConfig,
+} from "server/json/raw-quiz-config/version-resolver";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -291,15 +294,7 @@ type Quiz = {
 	shuffleQuestions?: boolean | null;
 	shuffleAnswers?: boolean | null;
 	showOneQuestionAtATime?: boolean | null;
-	rawQuizConfig?:
-		| {
-				[k: string]: unknown;
-		  }
-		| unknown[]
-		| string
-		| number
-		| boolean
-		| null;
+	rawQuizConfig?: LatestQuizConfig | null;
 	questions?:
 		| {
 				questionText: string;
@@ -1243,7 +1238,8 @@ export const tryCreateQuizModule = Result.wrap(
 				shuffleQuestions: quiz.shuffleQuestions ?? null,
 				shuffleAnswers: quiz.shuffleAnswers ?? null,
 				showOneQuestionAtATime: quiz.showOneQuestionAtATime ?? null,
-				rawQuizConfig: quiz.rawQuizConfig ?? null,
+				rawQuizConfig:
+					(quiz.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
 				questions: quiz.questions ?? null,
 				updatedAt: activityModule.updatedAt,
 				createdAt: activityModule.createdAt,
@@ -1601,7 +1597,14 @@ export const tryGetActivityModuleById = Result.wrap(
 			whiteboard: activityModuleResult.whiteboard,
 			file: activityModuleResult.file,
 			assignment: activityModuleResult.assignment,
-			quiz: activityModuleResult.quiz,
+			quiz: activityModuleResult.quiz
+				? {
+						...activityModuleResult.quiz,
+						rawQuizConfig:
+							(activityModuleResult.quiz
+								.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
+					}
+				: null,
 			discussion: activityModuleResult.discussion,
 		};
 
@@ -2422,7 +2425,8 @@ export const tryUpdateQuizModule = Result.wrap(
 				shuffleQuestions: quizRelation?.shuffleQuestions ?? null,
 				shuffleAnswers: quizRelation?.shuffleAnswers ?? null,
 				showOneQuestionAtATime: quizRelation?.showOneQuestionAtATime ?? null,
-				rawQuizConfig: quizRelation?.rawQuizConfig ?? null,
+				rawQuizConfig:
+					(quizRelation?.rawQuizConfig as unknown as LatestQuizConfig) ?? null,
 				questions: quizRelation?.questions ?? null,
 				updatedAt: updatedModule.updatedAt,
 				createdAt: updatedModule.createdAt,

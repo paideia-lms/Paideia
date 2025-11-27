@@ -15,6 +15,7 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import type { LatestCourseModuleSettings } from "server/json";
 import {
 	canSeeCourseModuleSettings,
 	canSeeModuleSubmissions,
@@ -57,10 +58,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	return {
-		module: courseModuleContext.module,
-		moduleSettings: courseModuleContext.moduleLinkSettings,
+		module: courseModuleContext.activityModule,
+		moduleSettings: courseModuleContext.settings as LatestCourseModuleSettings | null,
 		course: courseContext.course,
-		moduleLinkId: courseModuleContext.moduleLinkId,
+		moduleLinkId: courseModuleContext.id,
 		currentUser: currentUser,
 		pageInfo: pageInfo,
 		enrolment: enrolmentContext?.enrolment,

@@ -1,7 +1,7 @@
 import { ActionIcon, Stack, Text, Tooltip } from "@mantine/core";
 import { IconArrowBigUp, IconArrowBigUpFilled } from "@tabler/icons-react";
 import type { DiscussionThread } from "~/components/activity-modules-preview/discussion-preview";
-import { useRemoveUpvoteThread, useUpvoteThread } from "../route";
+import { useRemoveUpvoteThread, useUpvoteThread } from "../hooks";
 
 interface ThreadUpvoteButtonProps {
 	thread: DiscussionThread;

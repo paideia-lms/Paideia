@@ -2,15 +2,10 @@ import { Button, Container, Group, Stack, Text } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { parseAsString, useQueryState } from "nuqs";
-import { stringify } from "qs";
-import { useEffect } from "react";
-import { href, Link, redirect, useFetcher, useRevalidator } from "react-router";
+import { href, Link, redirect } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import {
 	courseModuleContextKey,
-	type DiscussionThread,
-	tryGetDiscussionThreadWithReplies,
 } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -36,25 +31,14 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
 import {
 	canParticipateInDiscussion,
 	canSubmitAssignment,
 } from "server/utils/permissions";
 import z from "zod";
-import { AssignmentPreview } from "~/components/activity-modules-preview/assignment-preview";
-import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
-import { FileModulePreview } from "~/components/activity-modules-preview/file-module-preview";
-import { PagePreview } from "~/components/activity-modules-preview/page-preview";
-import { QuizInstructionsView } from "~/components/activity-modules-preview/quiz-instructions-view";
-import { QuizPreview } from "~/components/activity-modules-preview/quiz-preview";
-import { WhiteboardPreview } from "~/components/activity-modules-preview/whiteboard-preview";
-import { SubmissionHistory } from "~/components/submission-history";
 import { assertRequestMethod } from "~/utils/assert-request-method";
-import { ContentType } from "~/utils/get-content-type";
 import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
-	AssignmentActions,
 	DiscussionActions,
 	QuizActions,
 } from "~/utils/module-actions";
@@ -67,12 +51,18 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/route";
-import { DiscussionThreadView } from "./components/discussion-thread-view";
+import { loadSearchParams } from "./utils";
+import { PagePreview, WhiteboardPreview, AssignmentPreview } from "app/components/activity-module-forms";
 import { ModuleDatesInfo } from "./components/module-dates-info";
-import {
-	loadSearchParams,
-	transformQuizAnswersToSubmissionFormat,
-} from "./utils";
+import { FilePreview } from "app/components/activity-modules-preview/file-preview";
+import { DiscussionThreadView } from "./components/discussion-thread-view";
+import { SubmissionHistory } from "app/components/submission-history";
+import { useSubmitAssignment, useStartQuizAttempt, useSubmitQuiz } from "./hooks";
+import { QuizPreview } from "app/components/activity-modules-preview/quiz-preview";
+import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
+import { transformQuizAnswersToSubmissionFormat } from "./utils";
+import { parseAsString, useQueryState } from "nuqs";
+import type { QuizAnswers } from "server/json/raw-quiz-config/types.v2";
 
 export const loader = async ({
 	context,
@@ -82,6 +72,7 @@ export const loader = async ({
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
+	const enrolmentContext = context.get(enrolmentContextKey);
 	const { action, threadId } = loadSearchParams(request);
 
 	if (!userSession?.isAuthenticated) {
@@ -104,150 +95,19 @@ export const loader = async ({
 	const currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 
-	// Check permissions
-	if (
-		!courseModuleContext.canSubmit &&
-		action === AssignmentActions.EDIT_SUBMISSION
-	) {
-		throw new ForbiddenResponse("You cannot edit submissions");
-	}
+	// Check if user is a student
+	const isStudent = enrolmentContext?.enrolment?.role === "student";
 
-	// Extract module-specific data from discriminated union
-	const { moduleSpecificData } = courseModuleContext;
-
-	// If this is an assignment module and user cannot submit, they can't see submissions
-	if (
-		courseModuleContext.module.type === "assignment" &&
-		!courseModuleContext.canSubmit
-	) {
-		return {
-			module: courseModuleContext.module,
-			moduleSettings: courseModuleContext.moduleLinkSettings,
-			formattedModuleSettings: courseModuleContext.formattedModuleSettings,
-			course: courseContext.course,
-			previousModule: courseModuleContext.previousModule,
-			nextModule: courseModuleContext.nextModule,
-			userSubmission: null,
-			userSubmissions: [],
-			moduleLinkId: courseModuleContext.moduleLinkId,
-			canSubmit: false,
-			discussionThreads:
-				moduleSpecificData.type === "discussion"
-					? moduleSpecificData.threads
-					: [],
-			discussionThread: null,
-			discussionReplies: [],
-			quizRemainingTime:
-				moduleSpecificData.type === "quiz"
-					? moduleSpecificData.quizRemainingTime
-					: undefined,
-		};
-	}
-
-	// Fetch discussion replies if threadId is provided (threadId-dependent, so stays in loader)
-	let discussionThread: DiscussionThread | null = null;
-	let discussionReplies: DiscussionReply[] = [];
-
-	if (moduleSpecificData.type === "discussion" && threadId) {
-		const payload = context.get(globalContextKey)?.payload;
-		if (!payload) {
-			throw new ForbiddenResponse("Payload not available");
-		}
-
-		const threadIdNum = Number.parseInt(threadId, 10);
-		if (!Number.isNaN(threadIdNum)) {
-			// Find the thread from context
-			const foundThread = moduleSpecificData.threads.find(
-				(t) => t.id === threadId,
-			);
-			if (foundThread) {
-				discussionThread = foundThread;
-
-				// Get the thread with all nested replies using the course module context function
-				const threadResult = await tryGetDiscussionThreadWithReplies({
-					payload,
-					threadId: threadIdNum,
-					courseModuleLinkId: Number(moduleLinkId),
-					user: currentUser,
-					req: request,
-				});
-
-				if (threadResult.ok) {
-					discussionReplies = threadResult.value.replies;
-				}
-			}
-		}
-	}
-
-	// Extract values from discriminated union based on module type
-	const userSubmission =
-		moduleSpecificData.type === "assignment" ||
-		moduleSpecificData.type === "quiz"
-			? moduleSpecificData.userSubmission
-			: null;
-	const userSubmissions =
-		moduleSpecificData.type === "assignment" ||
-		moduleSpecificData.type === "quiz" ||
-		moduleSpecificData.type === "discussion"
-			? moduleSpecificData.userSubmissions
-			: [];
-	const discussionThreads =
-		moduleSpecificData.type === "discussion" ? moduleSpecificData.threads : [];
-
-	// Extract module-specific data based on module type
-	const quizRemainingTime =
-		courseModuleContext.moduleSpecificData.type === "quiz"
-			? courseModuleContext.moduleSpecificData.quizRemainingTime
-			: undefined;
-	const quizSubmissionsForDisplay =
-		courseModuleContext.moduleSpecificData.type === "quiz"
-			? courseModuleContext.moduleSpecificData.quizSubmissionsForDisplay
-			: undefined;
-	const hasActiveQuizAttempt =
-		courseModuleContext.moduleSpecificData.type === "quiz"
-			? courseModuleContext.moduleSpecificData.hasActiveQuizAttempt
-			: undefined;
 
 	return {
-		module: courseModuleContext.module,
-		moduleSettings: courseModuleContext.moduleLinkSettings,
-		formattedModuleSettings: courseModuleContext.formattedModuleSettings,
-		course: courseContext.course,
-		previousModule: courseModuleContext.previousModule,
-		nextModule: courseModuleContext.nextModule,
-		userSubmission,
-		userSubmissions,
-		moduleLinkId: courseModuleContext.moduleLinkId,
-		canSubmit: courseModuleContext.canSubmit,
-		discussionThreads,
-		discussionThread,
-		discussionReplies,
-		quizRemainingTime,
-		quizSubmissionsForDisplay,
-		hasActiveQuizAttempt,
-	};
-};
+		...courseModuleContext,
+		action,
+		threadId,
+		moduleLinkId,
+		isStudent,
+	}
 
-const getActionUrl = (
-	action: string,
-	moduleLinkId: string,
-	additionalParams?: Record<string, string | null>,
-) => {
-	const baseUrl = href("/course/module/:moduleLinkId", {
-		moduleLinkId: String(moduleLinkId),
-	});
-	const params: Record<string, string> = {};
-	if (action) {
-		params.action = action;
-	}
-	if (additionalParams) {
-		for (const [key, value] of Object.entries(additionalParams)) {
-			if (value !== null && value !== undefined) {
-				params[key] = value;
-			}
-		}
-	}
-	return baseUrl + "?" + stringify(params);
+
 };
 
 // Individual action functions
@@ -668,20 +528,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-				questionId: string;
-				questionText: string;
-				questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank";
-				selectedAnswer?: string;
-				multipleChoiceAnswers?: Array<{
-					option: string;
-					isSelected: boolean;
-				}>;
-		  }>
+			questionId: string;
+			questionText: string;
+			questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
+			selectedAnswer?: string;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected: boolean;
+			}>;
+		}>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -849,7 +709,7 @@ const submitAssignmentAction = async ({
 	}
 
 	// Handle assignment submission (existing logic)
-	if (courseModuleContext.module.type !== "assignment") {
+	if (courseModuleContext.type !== "assignment") {
 		return badRequest({ error: "Invalid module type for this action" });
 	}
 
@@ -910,7 +770,7 @@ const submitAssignmentAction = async ({
 
 	// Find existing draft submission
 	// Type guard: ensure we're working with assignment submissions
-	if (courseModuleContext.moduleSpecificData.type !== "assignment") {
+	if (courseModuleContext.type !== "assignment") {
 		await rollbackTransactionIfCreated(payload, transactionInfo);
 		return badRequest({
 			error: "This action is only available for assignment modules",
@@ -918,13 +778,13 @@ const submitAssignmentAction = async ({
 	}
 
 	const existingDraftSubmission =
-		courseModuleContext.moduleSpecificData.submissions.find(
+		courseModuleContext.submissions.find(
 			(sub) => sub.student.id === currentUser.id && sub.status === "draft",
 		);
 
 	// Calculate next attempt number
 	const userSubmissions =
-		courseModuleContext.moduleSpecificData.submissions.filter(
+		courseModuleContext.submissions.filter(
 			(sub): sub is typeof sub & { attemptNumber: unknown } =>
 				sub.student.id === currentUser.id && "attemptNumber" in sub,
 		);
@@ -1133,579 +993,282 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-export const useSubmitAssignment = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const submitAssignment = (textContent: string, files: File[]) => {
-		const formData = new FormData();
-		formData.append("textContent", textContent);
-
-		// Add all files to form data
-		for (const file of files) {
-			formData.append("files", file);
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}),
-			encType: ContentType.MULTIPART,
-		});
-	};
-
-	return {
-		submitAssignment,
-		isSubmitting: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useStartQuizAttempt = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const startQuizAttempt = () => {
-		const formData = new FormData();
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(QuizActions.START_ATTEMPT, String(moduleLinkId)),
-		});
-	};
-
-	return {
-		startQuizAttempt,
-		isStarting: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useSubmitQuiz = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const submitQuiz = (
-		submissionId: number,
-		answers: Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-				| "multiple_choice"
-				| "true_false"
-				| "short_answer"
-				| "essay"
-				| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}>,
-		timeSpent?: number,
-	) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-		formData.append("answers", JSON.stringify(answers));
-		if (timeSpent !== undefined) {
-			formData.append("timeSpent", timeSpent.toString());
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(QuizActions.SUBMIT_QUIZ, String(moduleLinkId)),
-		});
-	};
-
-	return {
-		submitQuiz,
-		isSubmitting: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useCreateThread = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const createThread = (title: string, content: string) => {
-		const formData = new FormData();
-		formData.append("title", title);
-		formData.append("content", content);
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(
-				DiscussionActions.CREATE_THREAD,
-				String(moduleLinkId),
-			),
-		});
-	};
-
-	return {
-		createThread,
-		isCreating: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-		fetcher,
-	};
-};
-
-export const useUpvoteThread = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-	const revalidator = useRevalidator();
-
-	const upvoteThread = (submissionId: number, threadId?: string) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-		if (threadId) {
-			formData.append("threadId", threadId);
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(
-				DiscussionActions.UPVOTE_THREAD,
-				String(moduleLinkId),
-			),
-		});
-	};
-
-	// Revalidate when action completes successfully
-	useEffect(() => {
-		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
-			revalidator.revalidate();
-		}
-	}, [fetcher.data, revalidator]);
-
-	return {
-		upvoteThread,
-		isUpvoting: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useRemoveUpvoteThread = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-	const revalidator = useRevalidator();
-
-	const removeUpvoteThread = (submissionId: number, threadId?: string) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-		if (threadId) {
-			formData.append("threadId", threadId);
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(
-				DiscussionActions.REMOVE_UPVOTE_THREAD,
-				String(moduleLinkId),
-			),
-		});
-	};
-
-	// Revalidate when action completes successfully
-	useEffect(() => {
-		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
-			revalidator.revalidate();
-		}
-	}, [fetcher.data, revalidator]);
-
-	return {
-		removeUpvoteThread,
-		isRemovingUpvote: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useUpvoteReply = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-	const revalidator = useRevalidator();
-
-	const upvoteReply = (submissionId: number, threadId: string) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-		formData.append("threadId", threadId);
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(
-				DiscussionActions.UPVOTE_REPLY,
-				String(moduleLinkId),
-			),
-		});
-	};
-
-	// Revalidate when action completes successfully
-	useEffect(() => {
-		if (fetcher.data && "success" in fetcher.data && fetcher.data.success) {
-			revalidator.revalidate();
-		}
-	}, [fetcher.data, revalidator]);
-
-	return {
-		upvoteReply,
-		isUpvoting: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useRemoveUpvoteReply = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const removeUpvoteReply = (submissionId: number, threadId: string) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-		formData.append("threadId", threadId);
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(
-				DiscussionActions.REMOVE_UPVOTE_REPLY,
-				String(moduleLinkId),
-			),
-		});
-	};
-
-	return {
-		removeUpvoteReply,
-		isRemovingUpvote: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useCreateReply = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const createReply = (
-		content: string,
-		parentThreadId: number,
-		commentId?: string | null,
-	) => {
-		const formData = new FormData();
-		formData.append("content", content);
-		formData.append("parentThread", parentThreadId.toString());
-
-		// Use replyTo URL parameter instead of action=REPLY
-		// replyTo=thread for thread-level replies, replyTo=<commentId> for nested comments
-		const replyToParam = commentId ?? "thread";
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl("", String(moduleLinkId), { replyTo: replyToParam }),
-		});
-	};
-
-	return {
-		createReply,
-		isSubmitting: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
+
+type PreviousNextNavigationProps = {
+	previousModule: Route.ComponentProps["loaderData"]["previousModule"];
+	nextModule: Route.ComponentProps["loaderData"]["nextModule"];
+};
+
+function PreviousNextNavigation({ previousModule, nextModule }: PreviousNextNavigationProps) {
+	return (
+		<Group justify="space-between">
+			{previousModule ? (
+				<Button
+					component={Link}
+					to={href("/course/module/:moduleLinkId", {
+						moduleLinkId: String(previousModule.id),
+					})}
+					leftSection={<IconChevronLeft size={16} />}
+					variant="light"
+				>
+					Previous: {previousModule.title}
+				</Button>
+			) : (
+				<div />
+			)}
+			{nextModule ? (
+				<Button
+					component={Link}
+					to={href("/course/module/:moduleLinkId", {
+						moduleLinkId: String(nextModule.id),
+					})}
+					rightSection={<IconChevronRight size={16} />}
+					variant="light"
+				>
+					Next: {nextModule.title}
+				</Button>
+			) : (
+				<div />
+			)}
+		</Group>
+	);
+}
+type AssignmentModuleViewProps = {
+	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "assignment" }>;
+};
+
+function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
+	const { submitAssignment, isSubmitting } = useSubmitAssignment(loaderData.id);
+
+	return (
+		<>
+			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<AssignmentPreview
+				assignment={loaderData.assignment || null}
+				submission={loaderData.assignmentSubmission}
+				allSubmissions={loaderData.allSubmissionsForDisplay}
+				onSubmit={({ textContent, files }) => {
+					submitAssignment(textContent, files);
+				}}
+				isSubmitting={isSubmitting}
+				canSubmit={loaderData.canSubmit}
+				isStudent={loaderData.isStudent ?? false}
+			/>
+			{loaderData.allSubmissionsForDisplay.length > 0 && (
+				<SubmissionHistory
+					submissions={loaderData.allSubmissionsForDisplay}
+					variant="compact"
+				/>
+			)}
+		</>
+	);
+}
+
+
+type QuizModuleViewProps = {
+	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "quiz" }>;
+};
+
+function QuizModuleView({ loaderData }: QuizModuleViewProps) {
+	const { startQuizAttempt } = useStartQuizAttempt(loaderData.id);
+	const { submitQuiz } = useSubmitQuiz(loaderData.id);
+	const [showQuiz] = useQueryState("showQuiz", parseAsString.withDefault(""));
+
+	const quizConfig = loaderData.quiz?.rawQuizConfig || null;
+	if (!quizConfig) {
+		return <Text c="red">No quiz configuration available</Text>;
+	}
+
+	// Use server-calculated values
+	const allQuizSubmissionsForDisplay = loaderData.allQuizSubmissionsForDisplay ?? [];
+
+	// Show QuizPreview only if showQuiz parameter is true AND there's an active attempt
+	if (showQuiz === "true" && loaderData.hasActiveQuizAttempt) {
+		// Use userSubmission which is already the active in_progress submission
+		const activeSubmission =
+			loaderData.userSubmission &&
+				"status" in loaderData.userSubmission &&
+				loaderData.userSubmission.status === "in_progress"
+				? loaderData.userSubmission
+				: null;
+
+		const handleQuizSubmit = (answers: QuizAnswers) => {
+			if (!activeSubmission) return;
+
+			const transformedAnswers = transformQuizAnswersToSubmissionFormat(
+				quizConfig,
+				answers,
+			);
+
+			// Calculate time spent if startedAt exists
+			let timeSpent: number | undefined;
+			if (
+				activeSubmission &&
+				"startedAt" in activeSubmission &&
+				activeSubmission.startedAt
+			) {
+				const startedAt = new Date(activeSubmission.startedAt);
+				const now = new Date();
+				timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
+			}
+
+			submitQuiz(activeSubmission.id, transformedAnswers, timeSpent);
+		};
+
+		return (
+			<>
+				<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+				<QuizPreview
+					quizConfig={quizConfig}
+					submissionId={activeSubmission?.id}
+					onSubmit={handleQuizSubmit}
+					remainingTime={loaderData.quizRemainingTime}
+				/>
+			</>
+		);
+	}
+
+	// Always show instructions view with start button
+	// The start button will either reuse existing in_progress attempt or create new one
+	return (
+		<>
+			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<QuizInstructionsView
+				quiz={loaderData.quiz}
+				allSubmissions={allQuizSubmissionsForDisplay}
+				onStartQuiz={startQuizAttempt}
+				canSubmit={loaderData.canSubmit}
+				quizRemainingTime={loaderData.quizRemainingTime}
+			/>
+			{allQuizSubmissionsForDisplay.length > 0 && (
+				<SubmissionHistory
+					submissions={allQuizSubmissionsForDisplay.map((sub) => ({
+						id: sub.id,
+						// Map quiz statuses to SubmissionHistory statuses
+						status:
+							sub.status === "in_progress"
+								? "draft"
+								: sub.status === "completed"
+									? "submitted"
+									: sub.status === "graded"
+										? "graded"
+										: "returned",
+						submittedAt: sub.submittedAt,
+						startedAt: sub.startedAt,
+						attemptNumber: sub.attemptNumber,
+					}))}
+					variant="compact"
+				/>
+			)}
+		</>
+	);
+}
+
+type DiscussionModuleViewProps = {
+	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "discussion" }>;
+};
+
+function DiscussionModuleView({ loaderData }: DiscussionModuleViewProps) {
+
+	return (
+		<>
+			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<DiscussionThreadView
+				discussion={loaderData.discussion || null}
+				threads={loaderData.threads}
+				thread={loaderData.thread ?? null}
+				replies={loaderData.replies ?? []}
+				moduleLinkId={Number(loaderData.moduleLinkId)}
+				courseId={loaderData.course.id}
+			/>
+		</>
+	);
+}
+
+type FileModuleViewProps = {
+	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "file" }>;
+};
+
+function FileModuleView({ loaderData }: FileModuleViewProps) {
+	return (
+		<>
+			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<FilePreview files={loaderData.activityModule.media || []} />
+		</>
+	);
+}
+
+type PageModuleViewProps = {
+	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "page" }>;
+};
+
+function PageModuleView({ loaderData }: PageModuleViewProps) {
+	const content = loaderData.activityModule.content;
+	return (
+		<>
+			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<PagePreview content={content || "<p>No content available</p>"} />
+		</>
+	);
+}
+
+type WhiteboardModuleViewProps = {
+	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "whiteboard" }>;
+};
+
+function WhiteboardModuleView({ loaderData }: WhiteboardModuleViewProps) {
+	return (
+		<>
+			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
+			<WhiteboardPreview content={loaderData.activityModule.content ?? ''} />
+		</>
+	);
+}
+
+
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	const {
-		module,
-		moduleSettings,
-		formattedModuleSettings,
+		activityModule,
+		settings,
 		course,
 		previousModule,
 		nextModule,
-		userSubmission,
-		userSubmissions,
-		canSubmit,
-		quizRemainingTime,
-		quizSubmissionsForDisplay,
-		hasActiveQuizAttempt,
+		threadId,
 	} = loaderData;
-	const { submitAssignment, isSubmitting } = useSubmitAssignment(
-		loaderData.moduleLinkId,
-	);
-	const { startQuizAttempt } = useStartQuizAttempt(loaderData.moduleLinkId);
-	const { submitQuiz } = useSubmitQuiz(loaderData.moduleLinkId);
-	const [showQuiz] = useQueryState("showQuiz", parseAsString.withDefault(""));
 
-	// Handle different module types
-	const renderModuleContent = () => {
-		switch (module.type) {
-			case "page": {
-				const pageContent = module.page?.content || null;
-				return (
-					<>
-						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<PagePreview
-							content={pageContent || "<p>No content available</p>"}
-						/>
-					</>
-				);
-			}
-			case "assignment": {
-				// Type guard to ensure we have an assignment submission
-				const assignmentSubmission =
-					userSubmission &&
-					"content" in userSubmission &&
-					"attachments" in userSubmission
-						? {
-								id: userSubmission.id,
-								status: userSubmission.status as
-									| "draft"
-									| "submitted"
-									| "graded"
-									| "returned",
-								content: (userSubmission.content as string) || null,
-								attachments: userSubmission.attachments
-									? userSubmission.attachments.map((att) => ({
-											file:
-												typeof att.file === "object" &&
-												att.file !== null &&
-												"id" in att.file
-													? att.file.id
-													: Number(att.file),
-											description: att.description as string | undefined,
-										}))
-									: null,
-								submittedAt: ("submittedAt" in userSubmission
-									? userSubmission.submittedAt
-									: null) as string | null,
-								attemptNumber: ("attemptNumber" in userSubmission
-									? userSubmission.attemptNumber
-									: 1) as number,
-							}
-						: null;
 
-				// Map all submissions for display - filter assignment submissions only
-				const allSubmissionsForDisplay = userSubmissions
-					.filter(
-						(
-							sub,
-						): sub is typeof sub & {
-							content: unknown;
-							attemptNumber: unknown;
-						} => "content" in sub && "attemptNumber" in sub,
-					)
-					.map((sub) => ({
-						id: sub.id,
-						status: sub.status as "draft" | "submitted" | "graded" | "returned",
-						content: (sub.content as string) || null,
-						submittedAt: ("submittedAt" in sub ? sub.submittedAt : null) as
-							| string
-							| null,
-						attemptNumber: (sub.attemptNumber as number) || 1,
-						attachments:
-							"attachments" in sub && sub.attachments
-								? (sub.attachments as Array<{
-										file: number | { id: number; filename: string };
-										description?: string;
-									}>)
-								: null,
-					}));
 
-				return (
-					<>
-						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<AssignmentPreview
-							assignment={module.assignment || null}
-							submission={assignmentSubmission}
-							allSubmissions={allSubmissionsForDisplay}
-							onSubmit={({ textContent, files }) => {
-								submitAssignment(textContent, files);
-							}}
-							isSubmitting={isSubmitting}
-							canSubmit={canSubmit}
-						/>
-						{allSubmissionsForDisplay.length > 0 && (
-							<SubmissionHistory
-								submissions={allSubmissionsForDisplay}
-								variant="compact"
-							/>
-						)}
-					</>
-				);
-			}
-			case "quiz": {
-				const quizConfig = module.quiz?.rawQuizConfig || null;
-				if (!quizConfig) {
-					return <Text c="red">No quiz configuration available</Text>;
-				}
-
-				// Use server-calculated values
-				const allQuizSubmissionsForDisplay = quizSubmissionsForDisplay ?? [];
-
-				// Show QuizPreview only if showQuiz parameter is true AND there's an active attempt
-				if (showQuiz === "true" && hasActiveQuizAttempt) {
-					// Use userSubmission which is already the active in_progress submission
-					const activeSubmission =
-						userSubmission &&
-						"status" in userSubmission &&
-						userSubmission.status === "in_progress"
-							? userSubmission
-							: null;
-
-					const handleQuizSubmit = (answers: QuizAnswers) => {
-						if (!activeSubmission) return;
-
-						const transformedAnswers = transformQuizAnswersToSubmissionFormat(
-							quizConfig,
-							answers,
-						);
-
-						// Calculate time spent if startedAt exists
-						let timeSpent: number | undefined;
-						if (
-							activeSubmission &&
-							"startedAt" in activeSubmission &&
-							activeSubmission.startedAt
-						) {
-							const startedAt = new Date(activeSubmission.startedAt);
-							const now = new Date();
-							timeSpent = (now.getTime() - startedAt.getTime()) / (1000 * 60); // Convert to minutes
-						}
-
-						submitQuiz(activeSubmission.id, transformedAnswers, timeSpent);
-					};
-
-					return (
-						<>
-							<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-							<QuizPreview
-								quizConfig={quizConfig}
-								submissionId={activeSubmission?.id}
-								onSubmit={handleQuizSubmit}
-								remainingTime={quizRemainingTime}
-							/>
-						</>
-					);
-				}
-
-				// Always show instructions view with start button
-				// The start button will either reuse existing in_progress attempt or create new one
-				return (
-					<>
-						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<QuizInstructionsView
-							quiz={module.quiz}
-							allSubmissions={allQuizSubmissionsForDisplay}
-							onStartQuiz={startQuizAttempt}
-							canSubmit={canSubmit}
-							quizRemainingTime={quizRemainingTime}
-						/>
-						{allQuizSubmissionsForDisplay.length > 0 && (
-							<SubmissionHistory
-								submissions={allQuizSubmissionsForDisplay.map((sub) => ({
-									id: sub.id,
-									// Map quiz statuses to SubmissionHistory statuses
-									status:
-										sub.status === "in_progress"
-											? "draft"
-											: sub.status === "completed"
-												? "submitted"
-												: sub.status === "graded"
-													? "graded"
-													: "returned",
-									submittedAt: sub.submittedAt,
-									startedAt: sub.startedAt,
-									attemptNumber: sub.attemptNumber,
-								}))}
-								variant="compact"
-							/>
-						)}
-					</>
-				);
-			}
-			case "discussion":
-				return (
-					<>
-						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<DiscussionThreadView
-							discussion={module.discussion || null}
-							threads={loaderData.discussionThreads}
-							thread={loaderData.discussionThread}
-							replies={loaderData.discussionReplies}
-							moduleLinkId={loaderData.moduleLinkId}
-							courseId={loaderData.course.id}
-						/>
-					</>
-				);
-			case "whiteboard": {
-				const whiteboardContent = module.whiteboard?.content || null;
-				return (
-					<>
-						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<WhiteboardPreview content={whiteboardContent || "{}"} />
-					</>
-				);
-			}
-			case "file": {
-				return (
-					<>
-						<ModuleDatesInfo moduleSettings={formattedModuleSettings} />
-						<FileModulePreview fileModule={module.file} />
-					</>
-				);
-			}
-			default:
-				return <Text c="red">Unknown module type: {module.type}</Text>;
-		}
-	};
-
-	const title = `${moduleSettings?.settings.name ?? module.title} | ${course.title} | Paideia LMS`;
+	const title = `${settings?.name ?? activityModule.title} | ${course.title} | Paideia LMS`;
 
 	return (
 		<Container size="xl" py="xl">
 			<title>{title}</title>
 			<meta
 				name="description"
-				content={`View ${module.title} in ${course.title}`}
+				content={`View ${activityModule.title} in ${course.title}`}
 			/>
 			<meta property="og:title" content={title} />
 			<meta
 				property="og:description"
-				content={`View ${module.title} in ${course.title}`}
+				content={`View ${activityModule.title} in ${course.title}`}
 			/>
 
 			<Stack gap="xl">
-				{renderModuleContent()}
+				{
+					loaderData.type === "assignment" ? <AssignmentModuleView loaderData={loaderData} /> :
+						loaderData.type === "quiz" ? <QuizModuleView loaderData={loaderData} /> :
+							loaderData.type === "discussion" ? <DiscussionModuleView loaderData={loaderData} /> :
+								loaderData.type === "file" ? <FileModuleView loaderData={loaderData} /> :
+									loaderData.type === "page" ? <PageModuleView loaderData={loaderData} /> :
+										loaderData.type === "whiteboard" ? <WhiteboardModuleView loaderData={loaderData} /> :
+											null
+				}
 
-				{/* Navigation buttons */}
-				<Group justify="space-between">
-					{previousModule ? (
-						<Button
-							component={Link}
-							to={href("/course/module/:moduleLinkId", {
-								moduleLinkId: String(previousModule.id),
-							})}
-							leftSection={<IconChevronLeft size={16} />}
-							variant="light"
-						>
-							Previous: {previousModule.title}
-						</Button>
-					) : (
-						<div />
-					)}
-					{nextModule ? (
-						<Button
-							component={Link}
-							to={href("/course/module/:moduleLinkId", {
-								moduleLinkId: String(nextModule.id),
-							})}
-							rightSection={<IconChevronRight size={16} />}
-							variant="light"
-						>
-							Next: {nextModule.title}
-						</Button>
-					) : (
-						<div />
-					)}
-				</Group>
+				<PreviousNextNavigation previousModule={previousModule} nextModule={nextModule} />
 			</Stack>
 		</Container>
 	);

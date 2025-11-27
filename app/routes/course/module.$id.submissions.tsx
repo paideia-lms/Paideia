@@ -117,7 +117,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		submissionId
 	) {
 		// Determine module type from context
-		const moduleType = courseModuleContext.module.type;
+		const moduleType = courseModuleContext.type;
 
 		if (moduleType === "assignment") {
 			const submissionResult = await tryGetAssignmentSubmissionById({
@@ -135,7 +135,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			const submission = submissionResult.value;
 
 			// Verify the submission belongs to this module
-			if (submission.courseModuleLink.id !== courseModuleContext.moduleLinkId) {
+			if (submission.courseModuleLink.id !== courseModuleContext.id) {
 				throw new ForbiddenResponse(
 					"Submission does not belong to this module",
 				);
@@ -161,7 +161,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 						user: currentUser,
 						req: request,
 						overrideAccess: false,
-						courseModuleLinkId: courseModuleContext.moduleLinkId,
+						courseModuleLinkId: courseModuleContext.id,
 					});
 
 				if (gradebookItemResult.ok) {
@@ -190,7 +190,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			const submission = submissionResult.value;
 
 			// Verify the submission belongs to this module
-			if (submission.courseModuleLink !== courseModuleContext.moduleLinkId) {
+			if (submission.courseModuleLink !== courseModuleContext.id) {
 				throw new ForbiddenResponse(
 					"Submission does not belong to this module",
 				);
@@ -216,7 +216,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 						user: currentUser,
 						req: request,
 						overrideAccess: false,
-						courseModuleLinkId: courseModuleContext.moduleLinkId,
+						courseModuleLinkId: courseModuleContext.id,
 					});
 
 				if (gradebookItemResult.ok) {
@@ -230,10 +230,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				};
 			}
 		} else if (moduleType === "discussion") {
-			if (courseModuleContext.moduleSpecificData.type !== "discussion") {
+			if (courseModuleContext.type !== "discussion") {
 				throw badRequest({ error: "Module type mismatch" });
 			}
-			const allSubmissions = courseModuleContext.moduleSpecificData.submissions;
+			const allSubmissions = courseModuleContext.submissions;
 			const submission = allSubmissions.find(
 				(sub: { id: number }) => sub.id === submissionId,
 			);
@@ -263,7 +263,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+							subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -274,12 +274,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					const author =
 						typeof student === "object" && student !== null
 							? {
-									id: student.id,
-									firstName: student.firstName ?? null,
-									lastName: student.lastName ?? null,
-									email: student.email ?? null,
-									avatar: student.avatar ?? null,
-								}
+								id: student.id,
+								firstName: student.firstName ?? null,
+								lastName: student.lastName ?? null,
+								email: student.email ?? null,
+								avatar: student.avatar ?? null,
+							}
 							: null;
 
 					return [
@@ -316,7 +316,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-						subWithParent.parentThread !== null
+							subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -388,7 +388,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 						user: currentUser,
 						req: request,
 						overrideAccess: false,
-						courseModuleLinkId: courseModuleContext.moduleLinkId,
+						courseModuleLinkId: courseModuleContext.id,
 					});
 
 				if (gradebookItemResult.ok) {
@@ -417,19 +417,19 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		user: currentUser,
 		req: request,
 		overrideAccess: false,
-		courseModuleLinkId: courseModuleContext.moduleLinkId,
+		courseModuleLinkId: courseModuleContext.id,
 	});
 
 	if (gradebookItemResult.ok) {
 		maxGrade = gradebookItemResult.value.maxGrade ?? null;
 	}
 
-	// Extract submissions from discriminated union based on module type
+	// Extract submissions from context based on module type
 	const allSubmissions =
-		courseModuleContext.moduleSpecificData.type === "assignment" ||
-		courseModuleContext.moduleSpecificData.type === "quiz" ||
-		courseModuleContext.moduleSpecificData.type === "discussion"
-			? courseModuleContext.moduleSpecificData.submissions
+		courseModuleContext.type === "assignment" ||
+			courseModuleContext.type === "quiz" ||
+			courseModuleContext.type === "discussion"
+			? courseModuleContext.submissions
 			: [];
 
 	// Map submissions with grades from submission.grade field
@@ -443,24 +443,32 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-				submissionWithGrade.grade !== undefined
+					submissionWithGrade.grade !== undefined
 					? {
-							baseGrade: submissionWithGrade.grade,
-							maxGrade,
-							gradedAt: submissionWithGrade.gradedAt || null,
-							feedback: submissionWithGrade.feedback || null,
-						}
+						baseGrade: submissionWithGrade.grade,
+						maxGrade,
+						gradedAt: submissionWithGrade.gradedAt || null,
+						feedback: submissionWithGrade.feedback || null,
+					}
 					: null,
 		};
 	});
 
+	// Wrap settings back to match what grading views expect
+	const moduleSettings = courseModuleContext.settings
+		? {
+			version: "v2" as const,
+			settings: courseModuleContext.settings,
+		}
+		: null;
+
 	return {
-		module: courseModuleContext.module,
-		moduleSettings: courseModuleContext.moduleLinkSettings,
+		module: courseModuleContext.activityModule,
+		moduleSettings,
 		course: courseContext.course,
 		enrollments,
 		submissions: submissionsWithGrades,
-		moduleLinkId: courseModuleContext.moduleLinkId,
+		moduleLinkId: courseModuleContext.id,
 		canDelete,
 		gradingSubmission,
 		gradingGrade,
@@ -489,7 +497,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 	const formData = await request.formData();
 	const method = request.method;
-	const moduleType = courseModuleContext.module.type;
+	const moduleType = courseModuleContext.type;
 
 	if (method === "DELETE") {
 		assertRequestMethod(request.method, "DELETE");
@@ -624,7 +632,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				user: currentUser,
 				req: request,
 				overrideAccess: false,
-				courseModuleLinkId: courseModuleContext.moduleLinkId,
+				courseModuleLinkId: courseModuleContext.id,
 			});
 
 			if (!gradebookItemResult.ok) {
@@ -821,13 +829,13 @@ type SubmissionType = {
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-					mimeType?: string | null;
-					filesize?: number | null;
-			  };
+		| number
+		| {
+			id: number;
+			filename?: string | null;
+			mimeType?: string | null;
+			filesize?: number | null;
+		};
 		description?: string;
 	}> | null;
 	grade?: {
@@ -1057,7 +1065,8 @@ export default function ModuleSubmissionsPage({
 		}
 	}
 
-	const title = `${moduleSettings?.settings.name ?? module.title} - ${module.type === "quiz" ? "Results" : "Submissions"} | ${course.title} | Paideia LMS`;
+	const moduleName = moduleSettings && "name" in moduleSettings ? moduleSettings.name : null;
+	const title = `${moduleName ?? module.title} - ${module.type === "quiz" ? "Results" : "Submissions"} | ${course.title} | Paideia LMS`;
 
 	const handleSelectRow = (enrollmentId: number, checked: boolean) => {
 		setSelectedRows(

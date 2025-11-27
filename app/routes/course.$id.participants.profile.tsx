@@ -65,13 +65,13 @@ export const loader = async ({
 	// Note: We assume enrolled users are not admins (admins don't need course enrollment)
 	const canImpersonate = userId
 		? canImpersonateUser(
-			userSession.authenticatedUser,
-			{
-				id: userId,
-				role: "student", // Enrolled users are not admins
-			},
-			userSession.isImpersonating,
-		).allowed
+				userSession.authenticatedUser,
+				{
+					id: userId,
+					role: "student", // Enrolled users are not admins
+				},
+				userSession.isImpersonating,
+			).allowed
 		: false;
 
 	return {
