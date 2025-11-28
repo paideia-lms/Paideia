@@ -19,11 +19,10 @@ export type UpdateAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
  */
 export const tryGetAnalyticsSettings = Result.wrap(
 	async (args: GetAnalyticsSettingsArgs) => {
-		const { payload, user = null, req } = args;
+		const { payload, req } = args;
 
 		const raw = await payload.findGlobal({
 			slug: "analytics-settings",
-			user,
 			req,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
@@ -51,7 +50,6 @@ export const tryUpdateAnalyticsSettings = Result.wrap(
 			data: {
 				additionalJsScripts: scripts,
 			},
-			user,
 			req,
 			overrideAccess,
 		});

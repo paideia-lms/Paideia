@@ -15,37 +15,37 @@ import {
 } from "~/utils/error";
 import type { GradebookCategory } from "../payload-types";
 import { tryValidateOverallWeightTotal } from "./gradebook-item-management";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
-export type CreateGradebookCategoryArgs = BaseInternalFunctionArgs & {
+export interface CreateGradebookCategoryArgs extends BaseInternalFunctionArgs {
 	gradebookId: number;
 	parentId?: number | null;
 	name: string;
 	description?: string;
 	sortOrder: number;
-};
+}
 
-export type UpdateGradebookCategoryArgs = BaseInternalFunctionArgs & {
+export interface UpdateGradebookCategoryArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
 	name?: string;
 	description?: string;
 	weight?: number | null;
 	sortOrder?: number;
 	extraCredit?: boolean;
-};
+}
 
-export type DeleteGradebookCategoryArgs = BaseInternalFunctionArgs & {
+export interface DeleteGradebookCategoryArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
-};
+}
 
-export type ValidateNoSubItemAndCategoryArgs = BaseInternalFunctionArgs & {
+export interface ValidateNoSubItemAndCategoryArgs
+	extends BaseInternalFunctionArgs {
 	categoryId: number;
-};
+}
 
 /**
  * Creates a new gradebook category using Payload local API
@@ -59,7 +59,7 @@ export const tryCreateGradebookCategory = Result.wrap(
 			name,
 			description,
 			sortOrder,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -70,13 +70,15 @@ export const tryCreateGradebookCategory = Result.wrap(
 		}
 
 		// Check if gradebook exists
-		const gradebook = await payload.findByID({
-			collection: "gradebooks",
-			id: gradebookId,
-			user,
-			req,
-			overrideAccess,
-		});
+		const gradebook = await payload
+			.findByID({
+				collection: "gradebooks",
+				id: gradebookId,
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "findByID">());
 
 		if (!gradebook) {
 			throw new GradebookNotFoundError(
@@ -86,13 +88,15 @@ export const tryCreateGradebookCategory = Result.wrap(
 
 		// Check if parent category exists (if provided)
 		if (parentId) {
-			const parentCategory = await payload.findByID({
-				collection: GradebookCategories.slug,
-				id: parentId,
-				user,
-				req,
-				overrideAccess,
-			});
+			const parentCategory = await payload
+				.findByID({
+					collection: GradebookCategories.slug,
+					id: parentId,
+					req,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "findByID">());
 
 			if (!parentCategory) {
 				throw new GradebookCategoryNotFoundError(
@@ -102,13 +106,6 @@ export const tryCreateGradebookCategory = Result.wrap(
 
 			// Ensure parent belongs to the same gradebook
 			const parentGradebook = parentCategory.gradebook;
-			assertZodInternal(
-				"tryCreateGradebookCategory: Parent gradebook is required",
-				parentGradebook,
-				z.object({
-					id: z.number(),
-				}),
-			);
 
 			if (parentGradebook.id !== gradebookId) {
 				throw new Error("Parent category must belong to the same gradebook");
@@ -117,45 +114,29 @@ export const tryCreateGradebookCategory = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			const categoryData: {
-				gradebook: number;
-				parent?: number | null;
-				name: string;
-				description?: string | null;
-				weight: null;
-				extraCredit: boolean;
-				sortOrder: number;
-			} = {
-				gradebook: gradebookId,
-				name,
-				weight: null, // Categories always start with weight 0
-				extraCredit: false, // Categories always start as non-extra-credit
-				sortOrder,
-			};
-
-			if (parentId !== undefined) {
-				categoryData.parent = parentId;
-			}
-
-			if (description !== undefined) {
-				categoryData.description = description;
-			}
-
-			const newCategory = await payload.create({
-				collection: GradebookCategories.slug,
-				data: categoryData,
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+		return await transactionInfo.tx(async (txInfo) => {
+			const newCategory = await payload
+				.create({
+					collection: GradebookCategories.slug,
+					data: {
+						gradebook: gradebookId,
+						name,
+						weight: null,
+						extraCredit: false,
+						sortOrder,
+						parent: parentId ? parentId : null,
+						description,
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
 
 			// Note: We don't validate overall weight total for categories because:
 			// 1. Categories don't directly contribute to overall weight - only their child items do
 			// 2. It's valid to have a category with no items (0% total) as an intermediate state
 			// 3. Validation will happen when items are created/updated, which is when overall weight matters
-
-			await commitTransactionIfCreated(payload, transactionInfo);
 
 			// get JSON representation
 			// const jsonRepresentation = await tryGetGradebookJsonRepresentation(
@@ -172,36 +153,8 @@ export const tryCreateGradebookCategory = Result.wrap(
 			// type narrowing
 			////////////////////////////////////////////////////
 
-			const categoryGradebook = newCategory.gradebook;
-			assertZodInternal(
-				"tryCreateGradebookCategory: Category gradebook is required",
-				categoryGradebook,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const categoryParent = newCategory.parent;
-			assertZodInternal(
-				"tryCreateGradebookCategory: Category parent is required",
-				categoryParent,
-				z
-					.object({
-						id: z.number(),
-					})
-					.nullish(),
-			);
-
-			const result = {
-				...newCategory,
-				gradebook: categoryGradebook,
-				parent: categoryParent,
-			};
-			return result;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+			return newCategory;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -222,7 +175,7 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			weight,
 			sortOrder,
 			extraCredit,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -232,41 +185,10 @@ export const tryUpdateGradebookCategory = Result.wrap(
 			.findByID({
 				collection: GradebookCategories.slug,
 				id: categoryId,
-				user,
 				req,
 				overrideAccess,
 			})
-			.then((c) => {
-				const items = c.items?.docs?.map((i) => {
-					assertZodInternal(
-						"tryUpdateGradebookCategory: Item is required",
-						i,
-						z.object({
-							id: z.number(),
-						}),
-					);
-
-					assertZodInternal(
-						"tryUpdateGradebookCategory: Item weight is required",
-						i.weight,
-						z.number().nullable(),
-					);
-					return {
-						...i,
-						weight: i.weight,
-					};
-				});
-				assertZodInternal(
-					"tryUpdateGradebookCategory: Category items are required",
-					c.weight,
-					z.number().nullable(),
-				);
-				return {
-					...c,
-					weight: c.weight,
-					items: items,
-				};
-			});
+			.then(stripDepth<1, "findByID">());
 
 		if (!existingCategory) {
 			throw new GradebookCategoryNotFoundError(
@@ -308,7 +230,7 @@ export const tryUpdateGradebookCategory = Result.wrap(
 		// Check if category has items by checking existing category weight
 		// If weight is 0, the category has no items (categories start with weight 0 and only get weight when they have items)
 		const hasItems =
-			existingCategory.items && existingCategory.items.length > 0;
+			existingCategory.items?.docs && existingCategory.items.docs.length > 0;
 
 		// If category has no items and weight is being updated to something other than 0, throw error
 		if (weight !== undefined && !hasItems) {
@@ -339,16 +261,18 @@ export const tryUpdateGradebookCategory = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Update the category
-			const updatedCategory = await payload.update({
-				collection: GradebookCategories.slug,
-				id: categoryId,
-				data: updateData,
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			const updatedCategory = await payload
+				.update({
+					collection: GradebookCategories.slug,
+					id: categoryId,
+					data: updateData,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
 
 			// Check if weight is being updated - if so, we need to validate overall weights
 			const isWeightUpdate = weight !== updatedCategory.weight;
@@ -358,8 +282,7 @@ export const tryUpdateGradebookCategory = Result.wrap(
 				const validateResult = await tryValidateOverallWeightTotal({
 					payload,
 					courseId: gradebookId,
-					user: user,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 					errorMessagePrefix: "Category weight update",
 				});
@@ -369,13 +292,8 @@ export const tryUpdateGradebookCategory = Result.wrap(
 				}
 			}
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return updatedCategory as GradebookCategory;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -417,7 +335,7 @@ export const tryValidateNoSubItemAndCategory = Result.wrap(
 		const {
 			payload,
 			categoryId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -431,7 +349,6 @@ export const tryValidateNoSubItemAndCategory = Result.wrap(
 				},
 			},
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -451,7 +368,6 @@ export const tryValidateNoSubItemAndCategory = Result.wrap(
 				},
 			},
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -484,7 +400,7 @@ export const tryDeleteGradebookCategory = Result.wrap(
 		const {
 			payload,
 			categoryId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -493,7 +409,6 @@ export const tryDeleteGradebookCategory = Result.wrap(
 		const existingCategory = await payload.findByID({
 			collection: GradebookCategories.slug,
 			id: categoryId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -514,7 +429,6 @@ export const tryDeleteGradebookCategory = Result.wrap(
 		const validateResult = await tryValidateNoSubItemAndCategory({
 			payload,
 			categoryId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -525,13 +439,12 @@ export const tryDeleteGradebookCategory = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Delete the category
 			const deletedCategory = await payload.delete({
 				collection: GradebookCategories.slug,
 				id: categoryId,
-				user,
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -539,8 +452,7 @@ export const tryDeleteGradebookCategory = Result.wrap(
 			const validateResult = await tryValidateOverallWeightTotal({
 				payload,
 				courseId: gradebookId,
-				user: user,
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Category deletion",
 			});
@@ -549,13 +461,8 @@ export const tryDeleteGradebookCategory = Result.wrap(
 				throw validateResult.error;
 			}
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return deletedCategory as GradebookCategory;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -576,7 +483,7 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
 		const {
 			payload,
 			gradebookId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -591,7 +498,6 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
 			depth: 2, // Get subcategories and items
 			limit: 999999,
 			sort: "sortOrder",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -652,7 +558,7 @@ export const tryGetNextSortOrder = Result.wrap(
 			payload,
 			gradebookId,
 			parentId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -681,7 +587,6 @@ export const tryGetNextSortOrder = Result.wrap(
 			where,
 			limit: 1,
 			sort: "-sortOrder",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -710,14 +615,14 @@ export const tryReorderCategories = Result.wrap(
 		const {
 			payload,
 			categoryIds,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Update sort order for each category
 			for (let i = 0; i < categoryIds.length; i++) {
 				await payload.update({
@@ -726,19 +631,13 @@ export const tryReorderCategories = Result.wrap(
 					data: {
 						sortOrder: i,
 					},
-					user,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				});
 			}
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return { success: true };
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??

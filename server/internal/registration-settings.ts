@@ -28,11 +28,10 @@ const registrationSettingsSchema = z.object({
  */
 export const tryGetRegistrationSettings = Result.wrap(
 	async (args: GetRegistrationSettingsArgs): Promise<RegistrationSettings> => {
-		const { payload, user = null, req, overrideAccess = false } = args;
+		const { payload, req, overrideAccess = false } = args;
 
 		const raw = await payload.findGlobal({
 			slug: "registration-settings",
-			user,
 			req,
 			overrideAccess,
 		});

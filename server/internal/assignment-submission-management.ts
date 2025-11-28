@@ -154,7 +154,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			content,
 			attachments,
 			timeSpent,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -303,7 +303,7 @@ export const tryCreateAssignmentSubmission = Result.wrap(
  */
 export const tryGetAssignmentSubmissionById = Result.wrap(
 	async (args: GetAssignmentSubmissionByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -321,7 +321,6 @@ export const tryGetAssignmentSubmissionById = Result.wrap(
 				],
 			},
 			depth: 1, // Fetch related data
-			user,
 			req,
 			overrideAccess,
 		});
@@ -385,7 +384,7 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 			content,
 			attachments,
 			timeSpent,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -561,7 +560,7 @@ export const trySubmitAssignment = Result.wrap(
 		const {
 			payload,
 			submissionId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -648,7 +647,7 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 			grade,
 			feedback,
 			gradedBy,
-			user = null,
+
 			overrideAccess = false,
 		} = args;
 
@@ -781,7 +780,7 @@ export const tryListAssignmentSubmissions = Result.wrap(
 			status,
 			limit = 10,
 			page = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -819,7 +818,6 @@ export const tryListAssignmentSubmissions = Result.wrap(
 			page,
 			sort: "-createdAt",
 			depth: 1, // Fetch related data
-			user,
 			req,
 			overrideAccess,
 		});
@@ -877,7 +875,7 @@ export const tryListAssignmentSubmissions = Result.wrap(
  */
 export const tryDeleteAssignmentSubmission = Result.wrap(
 	async (args: DeleteAssignmentSubmissionArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -887,7 +885,6 @@ export const tryDeleteAssignmentSubmission = Result.wrap(
 		const deletedSubmission = await payload.delete({
 			collection: "assignment-submissions",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});

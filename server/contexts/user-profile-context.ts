@@ -31,14 +31,7 @@ type Course = {
 	description: string;
 	createdAt: string;
 	updatedAt: string;
-	category?: {
-		id: number;
-		name: string;
-		parent?: {
-			id: number;
-			name: string;
-		} | null;
-	} | null;
+	category?: number | null;
 };
 
 type ActivityModule = {
@@ -99,8 +92,7 @@ export const userProfileContext = createContext<UserProfileContext | null>(
 	null,
 );
 
-export const userProfileContextKey =
-	"userProfileContext" as unknown as typeof userProfileContext;
+export { userProfileContextKey } from "./utils/context-keys";
 
 /**
  * Convert UserAccessContext to UserProfileContext
@@ -136,19 +128,18 @@ export const convertUserAccessContextToUserProfileContext = (
 	};
 };
 
-type GetUserProfileContextArgs = BaseInternalFunctionArgs & {
+interface GetUserProfileContextArgs extends BaseInternalFunctionArgs {
 	profileUserId: number;
-};
+}
 
 export const getUserProfileContext = async (
 	args: GetUserProfileContextArgs,
 ): Promise<UserProfileContext | null> => {
-	const { payload, profileUserId, user, req, overrideAccess } = args;
+	const { payload, profileUserId, req, overrideAccess } = args;
 	// Fetch the profile user data
 	const userResult = await tryFindUserById({
 		payload,
 		userId: profileUserId,
-		user,
 		req,
 		overrideAccess,
 	});
@@ -167,7 +158,6 @@ export const getUserProfileContext = async (
 	const result = await tryGetUserActivityModules({
 		payload,
 		userId: profileUserId,
-		user,
 		req,
 		overrideAccess,
 	});
@@ -179,7 +169,6 @@ export const getUserProfileContext = async (
 	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
 		userId: profileUserId,
-		user,
 		req,
 		overrideAccess,
 	});
@@ -237,7 +226,6 @@ export const getUserProfileContext = async (
 	const heatmapResult = await tryGenerateNoteHeatmap({
 		payload,
 		userId: profileUserId,
-		user,
 		req,
 		overrideAccess,
 	});

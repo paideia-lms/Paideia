@@ -27,14 +27,7 @@ type Course = {
 	description: string;
 	createdAt: string;
 	updatedAt: string;
-	category?: {
-		id: number;
-		name: string;
-		parent?: {
-			id: number;
-			name: string;
-		} | null;
-	} | null;
+	category?: number | null;
 	thumbnail?:
 		| number
 		| {
@@ -78,17 +71,16 @@ export interface UserAccessContext {
 
 export const userAccessContext = createContext<UserAccessContext | null>(null);
 
-export const userAccessContextKey =
-	"userAccessContext" as unknown as typeof userAccessContext;
+export { userAccessContextKey } from "./utils/context-keys";
 
-type getUserAccessContextArgs = BaseInternalFunctionArgs & {
+interface GetUserAccessContextArgs extends BaseInternalFunctionArgs {
 	userId: number;
-};
+}
 
 export const getUserAccessContext = async (
-	args: getUserAccessContextArgs,
+	args: GetUserAccessContextArgs,
 ): Promise<UserAccessContext | null> => {
-	const { payload, userId, user, overrideAccess = false, req } = args;
+	const { payload, userId, overrideAccess = false, req } = args;
 	const result = await tryGetUserActivityModules(args);
 
 	if (!result.ok)
@@ -101,49 +93,30 @@ export const getUserAccessContext = async (
 	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
 		userId: userId,
-		user: user,
 		req,
 		overrideAccess,
 	});
 
-	if (!enrollments.ok) throw new Error("Failed to get user enrollments");
+	if (!enrollments.ok) throw enrollments.error;
 
-	const enrollmentsData = enrollments.value.map(
-		(enrollment) =>
-			({
-				id: enrollment.id,
-				role: enrollment.role,
-				status: enrollment.status,
-				enrolledAt: enrollment.enrolledAt,
-				completedAt: enrollment.completedAt,
-				course: {
-					id: enrollment.course.id,
-					title: enrollment.course.title,
-					slug: enrollment.course.slug,
-					status: enrollment.course.status,
-					description: enrollment.course.description,
-					createdAt: enrollment.course.createdAt,
-					updatedAt: enrollment.course.updatedAt,
-					category: enrollment.course.category
-						? typeof enrollment.course.category === "object"
-							? {
-									id: enrollment.course.category.id,
-									name: enrollment.course.category.name,
-									parent:
-										enrollment.course.category.parent &&
-										typeof enrollment.course.category.parent === "object"
-											? {
-													id: enrollment.course.category.parent.id,
-													name: enrollment.course.category.parent.name,
-												}
-											: null,
-								}
-							: null
-						: null,
-					thumbnail: enrollment.course.thumbnail ?? null,
-				},
-			}) satisfies Enrollment,
-	);
+	const enrollmentsData = enrollments.value.map((enrollment) => ({
+		id: enrollment.id,
+		role: enrollment.role,
+		status: enrollment.status,
+		enrolledAt: enrollment.enrolledAt,
+		completedAt: enrollment.completedAt,
+		course: {
+			id: enrollment.course.id,
+			title: enrollment.course.title,
+			slug: enrollment.course.slug,
+			status: enrollment.course.status,
+			description: enrollment.course.description,
+			createdAt: enrollment.course.createdAt,
+			updatedAt: enrollment.course.updatedAt,
+			category: enrollment.course.category ?? null,
+			thumbnail: enrollment.course.thumbnail ?? null,
+		},
+	})) satisfies Enrollment[];
 
 	const activityModules = [
 		...modulesOwnedOrGranted.map((module) => ({
@@ -175,8 +148,8 @@ export const getUserAccessContext = async (
 	const heatmapResult = await tryGenerateNoteHeatmap({
 		payload,
 		userId,
-		user: user,
-		overrideAccess: false,
+		req,
+		overrideAccess,
 	});
 
 	const { notes, heatmapData, availableYears } = heatmapResult.ok

@@ -14,7 +14,7 @@ export type GetSystemGlobalsArgs = BaseInternalFunctionArgs & {};
  */
 export const tryGetSystemGlobals = Result.wrap(
 	async (args: GetSystemGlobalsArgs) => {
-		const { payload, user = null, req, overrideAccess = true } = args;
+		const { payload, req, overrideAccess = true } = args;
 
 		// Fetch all globals in parallel
 		const [

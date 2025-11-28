@@ -1,4 +1,4 @@
-import type { CollectionConfig } from "payload";
+import type { AccessResult, CollectionConfig } from "payload";
 import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-module-settings/version-resolver";
 
 /**
@@ -7,6 +7,13 @@ import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-modul
 export const CourseActivityModuleLinks = {
 	slug: "course-activity-module-links",
 	defaultSort: "-createdAt",
+	access: {
+		read: async ({ req }): Promise<AccessResult> => {
+			if (!req.user) return false;
+			console.log("course-activity-module-links read", req.context);
+			return true;
+		},
+	},
 	fields: [
 		{
 			name: "course",

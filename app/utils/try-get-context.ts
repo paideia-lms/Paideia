@@ -9,5 +9,5 @@ export function tryGetContext<T>(
 	return Result.try(
 		() => context.get(target),
 		(error) => new ContextNotFoundError("Context not found", { cause: error }),
-	);
+	).getOrNull();
 }

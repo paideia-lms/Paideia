@@ -56,7 +56,7 @@ const validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
  */
 export const tryGetAppearanceSettings = Result.wrap(
 	async (args: GetAppearanceSettingsArgs) => {
-		const { payload, user = null, req } = args;
+		const { payload, req } = args;
 
 		const setting = await payload
 			.findGlobal({

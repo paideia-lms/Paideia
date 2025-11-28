@@ -434,7 +434,7 @@ export const tryCreateQuiz = Result.wrap(
  */
 export const tryGetQuizById = Result.wrap(
 	async (args: GetQuizByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -559,7 +559,7 @@ export const tryStartQuizAttempt = Result.wrap(
 			studentId,
 			enrollmentId,
 			attemptNumber = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -736,7 +736,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 			attemptNumber = 1,
 			answers,
 			timeSpent,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -849,7 +849,7 @@ export const tryUpdateQuizSubmission = Result.wrap(
 			status,
 			answers,
 			timeSpent,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -906,7 +906,7 @@ export const tryUpdateQuizSubmission = Result.wrap(
  */
 export const tryGetQuizSubmissionById = Result.wrap(
 	async (args: GetQuizSubmissionByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -959,7 +959,7 @@ export const trySubmitQuiz = Result.wrap(
 		const {
 			payload,
 			submissionId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			bypassTimeLimit = false,
@@ -974,7 +974,6 @@ export const trySubmitQuiz = Result.wrap(
 		const currentSubmission = await payload.findByID({
 			collection: "quiz-submissions",
 			id: submissionId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1106,7 +1105,7 @@ export const tryCalculateQuizGrade = Result.wrap(
 			payload,
 			quizId,
 			answers,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1115,7 +1114,6 @@ export const tryCalculateQuizGrade = Result.wrap(
 		const quiz = await payload.findByID({
 			collection: "quizzes",
 			id: quizId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1320,7 +1318,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 			gradedBy,
 			submittedAt,
 			req,
-			user = null,
+
 			overrideAccess = false,
 		} = args;
 
@@ -1518,7 +1516,7 @@ export const tryListQuizSubmissions = Result.wrap(
 			status,
 			limit = 10,
 			page = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1602,7 +1600,7 @@ export const tryCheckInProgressSubmission = Result.wrap(
 			payload,
 			courseModuleLinkId,
 			studentId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1625,7 +1623,6 @@ export const tryCheckInProgressSubmission = Result.wrap(
 				],
 			},
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1651,7 +1648,7 @@ export const tryGetNextAttemptNumber = Result.wrap(
 			payload,
 			courseModuleLinkId,
 			studentId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1669,7 +1666,6 @@ export const tryGetNextAttemptNumber = Result.wrap(
 			courseModuleLinkId,
 			studentId,
 			limit: 100, // Get all submissions to find max attempt number
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1736,7 +1732,7 @@ export const tryGetQuizGradesReport = Result.wrap(
 		const {
 			payload,
 			courseModuleLinkId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1751,7 +1747,6 @@ export const tryGetQuizGradesReport = Result.wrap(
 			collection: "course-activity-module-links",
 			id: courseModuleLinkId,
 			depth: 2, // Need to get activity module and quiz
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1779,7 +1774,6 @@ export const tryGetQuizGradesReport = Result.wrap(
 			payload,
 			courseModuleLinkId,
 			limit: 1000, // Get all submissions
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1996,7 +1990,7 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 		const {
 			payload,
 			courseModuleLinkId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -2011,7 +2005,6 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 			collection: "course-activity-module-links",
 			id: courseModuleLinkId,
 			depth: 2, // Need to get activity module and quiz
-			user,
 			req,
 			overrideAccess,
 		});
@@ -2039,7 +2032,6 @@ export const tryGetQuizStatisticsReport = Result.wrap(
 			payload,
 			courseModuleLinkId,
 			limit: 1000, // Get all submissions
-			user,
 			req,
 			overrideAccess,
 		});

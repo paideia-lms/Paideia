@@ -16,12 +16,11 @@ export type ValidateFirstUserStateArgs = BaseInternalFunctionArgs & {};
  */
 export const tryCheckFirstUser = Result.wrap(
 	async (args: CheckFirstUserArgs) => {
-		const { payload, user = null, req, overrideAccess = false } = args;
+		const { payload, req, overrideAccess = false } = args;
 
 		const users = await payload.find({
 			collection: "users",
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -43,11 +42,10 @@ export const tryCheckFirstUser = Result.wrap(
  */
 export const tryGetUserCount = Result.wrap(
 	async (args: GetUserCountArgs) => {
-		const { payload, user = null, req, overrideAccess = false } = args;
+		const { payload, req, overrideAccess = false } = args;
 
 		const users = await payload.find({
 			collection: "users",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -71,7 +69,7 @@ export const tryGetUserCount = Result.wrap(
  */
 export const tryValidateFirstUserState = Result.wrap(
 	async (args: ValidateFirstUserStateArgs) => {
-		const { payload, user = null, req, overrideAccess = false } = args;
+		const { payload, req, overrideAccess = false } = args;
 
 		if (!payload.db.connect) {
 			throw new Error("Database connection not established");
@@ -82,7 +80,6 @@ export const tryValidateFirstUserState = Result.wrap(
 
 		const users = await payload.find({
 			collection: "users",
-			user,
 			req,
 			overrideAccess,
 		});

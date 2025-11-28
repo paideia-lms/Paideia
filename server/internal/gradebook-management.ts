@@ -1,4 +1,4 @@
-import { Gradebooks } from "server/payload.config";
+import { GradebookCategories, Gradebooks } from "server/payload.config";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -15,12 +15,12 @@ import {
 	calculateAdjustedWeights,
 	calculateOverallWeights,
 } from "./utils/gradebook-weight-calculations";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+	interceptPayloadError,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 
 export type CreateGradebookArgs = BaseInternalFunctionArgs & {
@@ -109,7 +109,7 @@ export const tryCreateGradebook = Result.wrap(
 			payload,
 			courseId,
 			enabled = true,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -118,7 +118,6 @@ export const tryCreateGradebook = Result.wrap(
 		const course = await payload.findByID({
 			collection: "courses",
 			id: courseId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -136,7 +135,6 @@ export const tryCreateGradebook = Result.wrap(
 				},
 			},
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -149,42 +147,31 @@ export const tryCreateGradebook = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			const newGradebook = await payload.create({
-				collection: Gradebooks.slug,
-				data: {
-					course: courseId,
-					enabled,
-				},
-				user,
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+		return await transactionInfo.tx(async (txInfo) => {
+			const newGradebook = await payload
+				.create({
+					collection: Gradebooks.slug,
+					data: {
+						course: courseId,
+						enabled,
+					},
+					depth: 1,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "create">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryCreateGradebook",
+						"to create gradebook",
+						{ payload, req: txInfo.reqWithTransaction, overrideAccess },
+					);
+					throw error;
+				});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
-			const gradebookCourse = newGradebook.course;
-			assertZodInternal(
-				"tryCreateGradebook: Gradebook course is required",
-				gradebookCourse,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const result = {
-				...newGradebook,
-				course: gradebookCourse,
-			};
-			return result;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+			return newGradebook;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -198,40 +185,29 @@ export const tryCreateGradebook = Result.wrap(
  */
 export const tryUpdateGradebook = Result.wrap(
 	async (args: UpdateGradebookArgs) => {
-		const {
-			payload,
-			gradebookId,
-			enabled,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, gradebookId, enabled, req, overrideAccess = false } = args;
 
-		// Check if gradebook exists
-		const existingGradebook = await payload.findByID({
-			collection: Gradebooks.slug,
-			id: gradebookId,
-			user,
-			req,
-			overrideAccess,
-		});
+		const updatedGradebook = await payload
+			.update({
+				collection: Gradebooks.slug,
+				id: gradebookId,
+				data: { enabled },
+				depth: 1,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryUpdateGradebook",
+					"to update gradebook",
+					{ payload, req, overrideAccess },
+				);
+				throw error;
+			});
 
-		if (!existingGradebook) {
-			throw new GradebookNotFoundError(
-				`Gradebook with ID ${gradebookId} not found`,
-			);
-		}
-
-		const updatedGradebook = await payload.update({
-			collection: Gradebooks.slug,
-			id: gradebookId,
-			data: { enabled },
-			user,
-			req,
-			overrideAccess,
-		});
-
-		return updatedGradebook as Gradebook;
+		return updatedGradebook;
 	},
 	(error) =>
 		transformError(error) ??
@@ -240,23 +216,17 @@ export const tryUpdateGradebook = Result.wrap(
 		}),
 );
 
-// ! we should not delete gradebooks so we don't have the delete function here
-export type GetGradebookByCourseWithDetailsArgs = BaseInternalFunctionArgs & {
+export interface GetGradebookByCourseWithDetailsArgs
+	extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
 /**
  * Gets gradebook by course ID with all details
  */
 export const tryGetGradebookByCourseWithDetails = Result.wrap(
 	async (args: GetGradebookByCourseWithDetailsArgs) => {
-		const {
-			payload,
-			courseId,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, courseId, req, overrideAccess = false } = args;
 
 		const gradebook = await payload
 			.find({
@@ -276,10 +246,10 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 				},
 				depth: 2, // Get categories and items with their details
 				limit: 1,
-				user,
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<2, "find">())
 			.then((g) => {
 				const gradebook = g.docs[0];
 				if (!gradebook)
@@ -288,37 +258,10 @@ export const tryGetGradebookByCourseWithDetails = Result.wrap(
 					);
 
 				// type narrowing
-				assertZodInternal(
-					"tryGetGradebookByCourseWithDetails: Gradebook course should be object",
-					gradebook.course,
-					z.object({
-						id: z.number(),
-					}),
-				);
 
-				const categories =
-					gradebook.categories?.docs?.map((c) => {
-						assertZodInternal(
-							"tryGetGradebookByCourseWithDetails: Category should be object",
-							c,
-							z.object({
-								id: z.number(),
-							}),
-						);
-						return c;
-					}) ?? [];
+				const categories = gradebook.categories?.docs ?? [];
 
-				const items =
-					gradebook.items?.docs?.map((i) => {
-						assertZodInternal(
-							"tryGetGradebookByCourseWithDetails: Item should be object",
-							i,
-							z.object({
-								id: z.number(),
-							}),
-						);
-						return i;
-					}) ?? [];
+				const items = gradebook.items?.docs ?? [];
 
 				return {
 					...gradebook,
@@ -569,20 +512,14 @@ export interface GradebookAllRepresentations {
  */
 export const tryGetGradebookAllRepresentations = Result.wrap(
 	async (args: GetGradebookAllRepresentationsArgs) => {
-		const {
-			payload,
-			courseId,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, courseId, req, overrideAccess = false } = args;
 
 		const gradebookId = courseId;
 
 		// Get all categories for this gradebook (depth 0 to avoid deep nesting)
 		const categoriesPromise = payload
 			.find({
-				collection: "gradebook-categories",
+				collection: GradebookCategories.slug,
 				where: {
 					gradebook: {
 						equals: gradebookId,
@@ -599,32 +536,17 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 				},
 				pagination: false,
 				sort: "sortOrder",
-				user,
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<0, "find">())
 			.then((c) => {
 				const categories = c.docs;
 
 				return categories.map((category) => {
 					const parent = category.parent;
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: Parent is required",
-						parent,
-						z.number().nullish(),
-					);
 					const subcategories = category.subcategories?.docs ?? [];
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: Subcategories are required",
-						subcategories,
-						z.array(z.number()),
-					);
 					const items = category.items?.docs ?? [];
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: Items are required",
-						items,
-						z.array(z.number()),
-					);
 
 					const result = {
 						...category,
@@ -653,50 +575,24 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 				depth: 0,
 				pagination: false,
 				sort: "sortOrder",
-				user,
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<0, "find">())
 			.then((i) => {
 				const items = i.docs;
 				return items.map((item) => {
 					// type narrowing
 					const category = item.category;
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: Category is required",
-						category,
-						z.number().nullish(),
-					);
 
 					const activityModule = item.activityModule;
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: Activity module is required",
-						activityModule,
-						z.number().nullish(),
-					);
 
-					const userGrades = item.userGrades;
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: User grades are required",
-						userGrades,
-						z.undefined(),
-					);
+					// ! we don't have user grades for now
+					const userGrades = undefined;
 
 					const type = item.activityModuleType;
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: Type is required",
-						type,
-						z
-							.enum(["page", "whiteboard", "assignment", "quiz", "discussion"])
-							.nullish(),
-					);
 
 					const activityModuleName = item.activityModuleName;
-					assertZodInternal(
-						"tryGetGradebookAllRepresentations: Activity module name is required",
-						activityModuleName,
-						z.string().nullish(),
-					);
 
 					const result = {
 						...item,

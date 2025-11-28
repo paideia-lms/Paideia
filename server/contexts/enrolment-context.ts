@@ -8,5 +8,4 @@ export interface EnrolmentContext {
 
 export const enrolmentContext = createContext<EnrolmentContext | null>(null);
 
-export const enrolmentContextKey =
-	"enrolmentContext" as unknown as typeof enrolmentContext;
+export { enrolmentContextKey } from "./utils/context-keys";

@@ -104,6 +104,8 @@ async function startServer() {
 				await reactRouter(e, {
 					getLoadContext: ({ request }) => {
 						const c = new RouterContextProvider();
+						// ! patch the request
+						request._c = c;
 						const requestInfo = getRequestInfo(request);
 						const hints = getHints(request);
 

@@ -234,7 +234,7 @@ export function calculateMoveOperation(
 	const adjacentItem = getChildren[targetIndex - 1];
 	const adjacentItem2 = getChildren[targetIndex];
 
-	console.log(getChildren, adjacentItem, adjacentItem2, isInTargetSection);
+	// console.log(getChildren, adjacentItem, adjacentItem2, isInTargetSection);
 
 	// if adjacentItem is defined, use it and location is below
 	if (adjacentItem) {
@@ -264,7 +264,7 @@ export function calculateMoveOperation(
 		}
 	}
 
-	console.log(sourceType, sourceId, targetType, targetIdNum, location);
+	// console.log(sourceType, sourceId, targetType, targetIdNum, location);
 
 	return {
 		sourceType,
@@ -340,16 +340,16 @@ export function CourseStructureTree({
 			const targetChildIndex =
 				"childIndex" in target ? (target.childIndex as number) : undefined;
 
-			console.log(
-				"Moving items:",
-				dragIds,
-				"to",
-				targetId,
-				"at index",
-				targetInsertionIndex,
-				"and child index",
-				targetChildIndex,
-			);
+			// console.log(
+			// 	"Moving items:",
+			// 	dragIds,
+			// 	"to",
+			// 	targetId,
+			// 	"at index",
+			// 	targetInsertionIndex,
+			// 	"and child index",
+			// 	targetChildIndex,
+			// );
 
 			const moveOperation = calculateMoveOperation(
 				{ dragIds, targetId, targetInsertionIndex, targetChildIndex },
@@ -377,33 +377,31 @@ export function CourseStructureTree({
 					? flatData[`s${targetIdNum}`]?.name
 					: flatData[`m${targetIdNum}`]?.module?.title;
 
-			console.log(
-				"sourceType:",
-				sourceType,
-				"sourceId:",
-				sourceId,
-				"targetType:",
-				targetType,
-				"targetId:",
-				targetIdNum,
-				"targetName:",
-				targetName,
-				"location:",
-				location,
-			);
+			// console.log(
+			// 	"sourceType:",
+			// 	sourceType,
+			// 	"sourceId:",
+			// 	sourceId,
+			// 	"targetType:",
+			// 	targetType,
+			// 	"targetId:",
+			// 	targetIdNum,
+			// 	"targetName:",
+			// 	targetName,
+			// 	"location:",
+			// 	location,
+			// );
 
-			try {
-				await updateCourseStructure({
-					courseId: courseId,
-					sourceId: sourceId,
-					sourceType: sourceType,
-					targetId: targetIdNum,
-					targetType: targetType,
-					location,
-				});
-			} catch (error) {
+			await updateCourseStructure({
+				courseId: courseId,
+				sourceId: sourceId,
+				sourceType: sourceType,
+				targetId: targetIdNum,
+				targetType: targetType,
+				location,
+			}).catch((error) => {
 				console.error("Failed to update course structure:", error);
-			}
+			});
 		},
 		indent: 20,
 		dataLoader: {

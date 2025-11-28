@@ -294,7 +294,6 @@ export const tryGetUserCategoryRoles = Result.wrap(
 			},
 			depth: 1,
 			pagination: false,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -324,7 +323,6 @@ export const tryGetCategoryRoleAssignments = Result.wrap(
 			},
 			depth: 1,
 			pagination: false,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -343,14 +341,7 @@ export const tryGetCategoryRoleAssignments = Result.wrap(
  */
 export const tryFindCategoryRoleAssignment = Result.wrap(
 	async (args: FindCategoryRoleAssignmentArgs) => {
-		const {
-			payload,
-			userId,
-			categoryId,
-			user,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, userId, categoryId, req, overrideAccess = false } = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -369,7 +360,6 @@ export const tryFindCategoryRoleAssignment = Result.wrap(
 				],
 			},
 			depth: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -395,7 +385,6 @@ export const tryCheckUserCategoryRole = Result.wrap(
 			userId,
 			categoryId,
 			requiredRole,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -412,7 +401,6 @@ export const tryCheckUserCategoryRole = Result.wrap(
 			payload,
 			userId,
 			categoryId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -440,14 +428,7 @@ export const tryCheckUserCategoryRole = Result.wrap(
  */
 export const tryGetEffectiveCategoryRole = Result.wrap(
 	async (args: GetEffectiveCategoryRoleArgs) => {
-		const {
-			payload,
-			userId,
-			categoryId,
-			user,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, userId, categoryId, req, overrideAccess = false } = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -534,7 +515,6 @@ export const tryGetUserCoursesFromCategories = Result.wrap(
 				user: { equals: userId },
 			},
 			pagination: false,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -581,14 +561,7 @@ export const tryGetUserCoursesFromCategories = Result.wrap(
  */
 export const tryCheckUserCourseAccessViaCategory = Result.wrap(
 	async (args: CheckUserCourseAccessViaCategoryArgs) => {
-		const {
-			payload,
-			userId,
-			courseId,
-			user,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, userId, courseId, req, overrideAccess = false } = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -603,7 +576,6 @@ export const tryCheckUserCourseAccessViaCategory = Result.wrap(
 			collection: Courses.slug,
 			id: courseId,
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -622,7 +594,6 @@ export const tryCheckUserCourseAccessViaCategory = Result.wrap(
 			payload,
 			userId,
 			categoryId: courseCategoryId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -680,7 +651,6 @@ async function getAllDescendantCourses(
 		const nestedCourses = await getAllDescendantCourses({
 			payload,
 			categoryId: subcat.id,
-			user,
 			req,
 			overrideAccess,
 		});

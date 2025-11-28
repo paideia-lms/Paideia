@@ -20,34 +20,37 @@ import {
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import { ActivityModules } from "server/collections";
 
 // Base args that are common to all module types
-type BaseCreateActivityModuleArgs = BaseInternalFunctionArgs & {
+interface BaseCreateActivityModuleArgs extends BaseInternalFunctionArgs {
 	title: string;
 	description?: string;
 	status?: "draft" | "published" | "archived";
 	userId: number;
-};
+}
 
 // Discriminated union for create args
-export type CreatePageModuleArgs = BaseCreateActivityModuleArgs & {
+export interface CreatePageModuleArgs extends BaseCreateActivityModuleArgs {
 	content?: string;
-};
+}
 
-export type CreateWhiteboardModuleArgs = BaseCreateActivityModuleArgs & {
+export interface CreateWhiteboardModuleArgs
+	extends BaseCreateActivityModuleArgs {
 	content?: string;
-};
+}
 
-export type CreateAssignmentModuleArgs = BaseCreateActivityModuleArgs & {
+export interface CreateAssignmentModuleArgs
+	extends BaseCreateActivityModuleArgs {
 	instructions?: string;
 	requireTextSubmission?: boolean;
 	requireFileSubmission?: boolean;
 	allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
 	maxFileSize?: number;
 	maxFiles?: number;
-};
+}
 
-export type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
+export interface CreateQuizModuleArgs extends BaseCreateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
 	points?: number;
@@ -79,9 +82,10 @@ export type CreateQuizModuleArgs = BaseCreateActivityModuleArgs & {
 		explanation?: string;
 		hints?: Array<{ hint: string }>;
 	}>;
-};
+}
 
-export type CreateDiscussionModuleArgs = BaseCreateActivityModuleArgs & {
+export interface CreateDiscussionModuleArgs
+	extends BaseCreateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
 	dueDate?: string;
@@ -98,11 +102,11 @@ export type CreateDiscussionModuleArgs = BaseCreateActivityModuleArgs & {
 	groupDiscussion?: boolean;
 	maxGroupSize?: number;
 	threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
-};
+}
 
-export type CreateFileModuleArgs = BaseCreateActivityModuleArgs & {
+export interface CreateFileModuleArgs extends BaseCreateActivityModuleArgs {
 	media?: number[];
-};
+}
 
 export type CreateActivityModuleArgs =
 	| ({ type: "page" } & CreatePageModuleArgs)
@@ -113,32 +117,34 @@ export type CreateActivityModuleArgs =
 	| ({ type: "discussion" } & CreateDiscussionModuleArgs);
 
 // Base args for update
-export type BaseUpdateActivityModuleArgs = BaseInternalFunctionArgs & {
+export interface BaseUpdateActivityModuleArgs extends BaseInternalFunctionArgs {
 	id: number;
 	title?: string;
 	description?: string;
 	status?: "draft" | "published" | "archived";
-};
+}
 
 // Discriminated union for update args
-export type UpdatePageModuleArgs = BaseUpdateActivityModuleArgs & {
+export interface UpdatePageModuleArgs extends BaseUpdateActivityModuleArgs {
 	content?: string;
-};
+}
 
-export type UpdateWhiteboardModuleArgs = BaseUpdateActivityModuleArgs & {
+export interface UpdateWhiteboardModuleArgs
+	extends BaseUpdateActivityModuleArgs {
 	content?: string;
-};
+}
 
-export type UpdateAssignmentModuleArgs = BaseUpdateActivityModuleArgs & {
+export interface UpdateAssignmentModuleArgs
+	extends BaseUpdateActivityModuleArgs {
 	instructions?: string;
 	requireTextSubmission?: boolean;
 	requireFileSubmission?: boolean;
 	allowedFileTypes?: Array<{ extension: string; mimeType: string }>;
 	maxFileSize?: number;
 	maxFiles?: number;
-};
+}
 
-export type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
+export interface UpdateQuizModuleArgs extends BaseUpdateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
 	points?: number;
@@ -170,9 +176,10 @@ export type UpdateQuizModuleArgs = BaseUpdateActivityModuleArgs & {
 		explanation?: string;
 		hints?: Array<{ hint: string }>;
 	}>;
-};
+}
 
-export type UpdateDiscussionModuleArgs = BaseUpdateActivityModuleArgs & {
+export interface UpdateDiscussionModuleArgs
+	extends BaseUpdateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
 	dueDate?: string;
@@ -189,11 +196,11 @@ export type UpdateDiscussionModuleArgs = BaseUpdateActivityModuleArgs & {
 	groupDiscussion?: boolean;
 	maxGroupSize?: number;
 	threadSorting?: "recent" | "upvoted" | "active" | "alphabetical";
-};
+}
 
-export type UpdateFileModuleArgs = BaseUpdateActivityModuleArgs & {
+export interface UpdateFileModuleArgs extends BaseUpdateActivityModuleArgs {
 	media?: number[];
-};
+}
 
 export type UpdateActivityModuleArgs =
 	| ({ type: "page" } & UpdatePageModuleArgs)
@@ -203,47 +210,47 @@ export type UpdateActivityModuleArgs =
 	| ({ type: "quiz" } & UpdateQuizModuleArgs)
 	| ({ type: "discussion" } & UpdateDiscussionModuleArgs);
 
-export type GetActivityModuleByIdArgs = BaseInternalFunctionArgs & {
+export interface GetActivityModuleByIdArgs extends BaseInternalFunctionArgs {
 	id: number | string;
-};
+}
 
 /**
  * Page type - excludes createdBy as it's handled by BaseActivityModuleResult
  */
-type Page = {
+interface Page {
 	id: number;
 	content?: string | null;
 	media?: number[] | null;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * Whiteboard type - excludes createdBy as it's handled by BaseActivityModuleResult
  */
-type Whiteboard = {
+interface Whiteboard {
 	id: number;
 	content?: string | null;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * Raw File type from Payload - excludes createdBy as it's handled by BaseActivityModuleResult
  * Media is stored as IDs (number[])
  */
-type FileRaw = {
+interface FileRaw {
 	id: number;
 	media?: number[] | null;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * File type for ActivityModuleResult - excludes createdBy as it's handled by BaseActivityModuleResult
  * Media is enriched with full media objects (id, filename, mimeType, filesize)
  */
-type File = {
+interface File {
 	id: number;
 	media?: Array<{
 		id: number;
@@ -253,12 +260,12 @@ type File = {
 	}> | null;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * Assignment type - excludes createdBy as it's handled by BaseActivityModuleResult
  */
-type Assignment = {
+interface Assignment {
 	id: number;
 	title: string;
 	description?: string | null;
@@ -276,12 +283,12 @@ type Assignment = {
 	requireFileSubmission?: boolean | null;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * Quiz type - excludes createdBy as it's handled by BaseActivityModuleResult
  */
-type Quiz = {
+interface Quiz {
 	id: number;
 	title: string;
 	description?: string | null;
@@ -328,12 +335,12 @@ type Quiz = {
 		| null;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * Discussion type - excludes createdBy as it's handled by BaseActivityModuleResult
  */
-type Discussion = {
+interface Discussion {
 	id: number;
 	title: string;
 	description?: string | null;
@@ -362,12 +369,12 @@ type Discussion = {
 		| null;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * Base type for activity module result with common fields
  */
-type BaseActivityModuleResult = {
+interface BaseActivityModuleResult {
 	id: number;
 	title: string;
 	description?: string | null;
@@ -393,49 +400,49 @@ type BaseActivityModuleResult = {
 	}>;
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
 /**
  * Page module result
  */
-type PageModuleResult = BaseActivityModuleResult & {
+interface PageModuleResult extends BaseActivityModuleResult, Page {
 	type: "page";
-} & Page;
+}
 
 /**
  * Whiteboard module result
  */
-type WhiteboardModuleResult = BaseActivityModuleResult & {
+interface WhiteboardModuleResult extends BaseActivityModuleResult, Whiteboard {
 	type: "whiteboard";
-} & Whiteboard;
+}
 
 /**
  * File module result
  */
-type FileModuleResult = BaseActivityModuleResult & {
+interface FileModuleResult extends BaseActivityModuleResult, File {
 	type: "file";
-} & File;
+}
 
 /**
  * Assignment module result
  */
-type AssignmentModuleResult = BaseActivityModuleResult & {
+interface AssignmentModuleResult extends BaseActivityModuleResult, Assignment {
 	type: "assignment";
-} & Assignment;
+}
 
 /**
  * Quiz module result
  */
-type QuizModuleResult = BaseActivityModuleResult & {
+interface QuizModuleResult extends BaseActivityModuleResult, Quiz {
 	type: "quiz";
-} & Quiz;
+}
 
 /**
  * Discussion module result
  */
-type DiscussionModuleResult = BaseActivityModuleResult & {
+interface DiscussionModuleResult extends BaseActivityModuleResult, Discussion {
 	type: "discussion";
-} & Discussion;
+}
 
 /**
  * Discriminated union of all activity module result types
@@ -453,7 +460,7 @@ export type ActivityModuleResult =
  * The related entities come from Payload and may have createdBy: number | User
  * but we'll exclude it when building the discriminated union
  */
-type ActivityModuleData = {
+interface ActivityModuleData {
 	id: number;
 	title: string;
 	description?: string | null;
@@ -488,7 +495,7 @@ type ActivityModuleData = {
 	discussion?:
 		| (Discussion & { createdBy?: number | TypedUser | unknown })
 		| null;
-};
+}
 
 /**
  * Enriches media IDs to full media objects
@@ -496,7 +503,6 @@ type ActivityModuleData = {
 async function enrichMedia(
 	mediaIds: number[] | null | undefined,
 	payload: Payload,
-	user: TypedUser | null | undefined,
 	req: Partial<PayloadRequest> | undefined,
 	overrideAccess: boolean,
 ): Promise<Array<{
@@ -518,7 +524,6 @@ async function enrichMedia(
 				},
 			},
 			limit: mediaIds.length,
-			user: user ?? null,
 			req,
 			depth: 0,
 			overrideAccess,
@@ -545,7 +550,6 @@ async function buildDiscriminatedUnionResult(
 	baseResult: BaseActivityModuleResult,
 	data: ActivityModuleData,
 	payload: Payload,
-	user: TypedUser | null,
 	req: Partial<PayloadRequest> | undefined,
 	overrideAccess: boolean,
 ): Promise<ActivityModuleResult> {
@@ -590,7 +594,6 @@ async function buildDiscriminatedUnionResult(
 		const enrichedMedia = await enrichMedia(
 			fileData.media ?? null,
 			payload,
-			user,
 			req,
 			overrideAccess,
 		);
@@ -668,7 +671,7 @@ export const tryCreatePageModule = Result.wrap(
 			description,
 			status = "draft",
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			content,
@@ -695,7 +698,6 @@ export const tryCreatePageModule = Result.wrap(
 						content: content || "",
 						createdBy: userId,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -715,7 +717,6 @@ export const tryCreatePageModule = Result.wrap(
 						owner: userId,
 						page: page.id,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -773,7 +774,7 @@ export const tryCreateWhiteboardModule = Result.wrap(
 			description,
 			status = "draft",
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			content,
@@ -800,7 +801,6 @@ export const tryCreateWhiteboardModule = Result.wrap(
 						content: content || "",
 						createdBy: userId,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -820,7 +820,6 @@ export const tryCreateWhiteboardModule = Result.wrap(
 						owner: userId,
 						whiteboard: whiteboard.id,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -877,7 +876,7 @@ export const tryCreateFileModule = Result.wrap(
 			description,
 			status = "draft",
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			media,
@@ -904,7 +903,6 @@ export const tryCreateFileModule = Result.wrap(
 						media: media || [],
 						createdBy: userId,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -924,7 +922,6 @@ export const tryCreateFileModule = Result.wrap(
 						owner: userId,
 						file: file.id,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -940,7 +937,6 @@ export const tryCreateFileModule = Result.wrap(
 			const enrichedMedia = await enrichMedia(
 				fileMediaIds,
 				payload,
-				(user as TypedUser | null) ?? null,
 				reqWithTransaction,
 				overrideAccess,
 			);
@@ -991,7 +987,7 @@ export const tryCreateAssignmentModule = Result.wrap(
 			description,
 			status = "draft",
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			instructions,
@@ -1030,8 +1026,8 @@ export const tryCreateAssignmentModule = Result.wrap(
 						maxFiles: maxFiles,
 						createdBy: userId,
 					},
-					user,
 					req: reqWithTransaction,
+					context: req?.context,
 					overrideAccess,
 					depth: 0,
 				})
@@ -1059,7 +1055,6 @@ export const tryCreateAssignmentModule = Result.wrap(
 						owner: userId,
 						assignment: assignment.id,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -1130,7 +1125,7 @@ export const tryCreateQuizModule = Result.wrap(
 			description,
 			status = "draft",
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			instructions,
@@ -1179,7 +1174,6 @@ export const tryCreateQuizModule = Result.wrap(
 						questions: questions,
 						createdBy: userId,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -1199,7 +1193,6 @@ export const tryCreateQuizModule = Result.wrap(
 						owner: userId,
 						quiz: quiz.id,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -1266,7 +1259,7 @@ export const tryCreateDiscussionModule = Result.wrap(
 			description,
 			status = "draft",
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			instructions,
@@ -1323,7 +1316,6 @@ export const tryCreateDiscussionModule = Result.wrap(
 						threadSorting: threadSorting || "recent",
 						createdBy: userId,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -1343,7 +1335,6 @@ export const tryCreateDiscussionModule = Result.wrap(
 						owner: userId,
 						discussion: discussion.id,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -1454,7 +1445,7 @@ export const tryCreateDiscussionModule = Result.wrap(
  */
 export const tryGetActivityModuleById = Result.wrap(
 	async (args: GetActivityModuleByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -1464,7 +1455,7 @@ export const tryGetActivityModuleById = Result.wrap(
 		// Fetch the activity module with related data
 		const activityModuleResult = await payload
 			.find({
-				collection: "activity-modules",
+				collection: ActivityModules.slug,
 				where: {
 					and: [
 						{
@@ -1480,9 +1471,10 @@ export const tryGetActivityModuleById = Result.wrap(
 						limit: MOCK_INFINITY,
 					},
 				},
+				pagination: false,
 				depth: 1, // Fetch related assignment/quiz/discussion data
-				user,
 				req,
+				context: req?.context,
 				overrideAccess,
 			})
 			.then(stripDepth<1, "find">())
@@ -1548,7 +1540,7 @@ export const tryGetActivityModuleById = Result.wrap(
 					error,
 					"tryGetActivityModuleById",
 					`to get activity module by id '${id}'`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -1612,7 +1604,6 @@ export const tryGetActivityModuleById = Result.wrap(
 			baseResult,
 			moduleData,
 			payload,
-			user as TypedUser | null,
 			req,
 			overrideAccess,
 		);
@@ -1635,7 +1626,7 @@ export const tryUpdatePageModule = Result.wrap(
 			title,
 			description,
 			status,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			content,
@@ -1651,7 +1642,6 @@ export const tryUpdatePageModule = Result.wrap(
 			.findByID({
 				collection: "activity-modules",
 				id,
-				user,
 				req,
 				depth: 0,
 				overrideAccess,
@@ -1691,7 +1681,6 @@ export const tryUpdatePageModule = Result.wrap(
 					data: {
 						content: content,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -1710,7 +1699,6 @@ export const tryUpdatePageModule = Result.wrap(
 					collection: "activity-modules",
 					id,
 					data: updateData,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -1722,7 +1710,6 @@ export const tryUpdatePageModule = Result.wrap(
 				.findByID({
 					collection: "activity-modules",
 					id,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -1787,7 +1774,7 @@ export const tryUpdateWhiteboardModule = Result.wrap(
 			title,
 			description,
 			status,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			content,
@@ -1803,7 +1790,6 @@ export const tryUpdateWhiteboardModule = Result.wrap(
 			.findByID({
 				collection: "activity-modules",
 				id,
-				user,
 				req,
 				depth: 0,
 				overrideAccess,
@@ -1843,7 +1829,6 @@ export const tryUpdateWhiteboardModule = Result.wrap(
 					data: {
 						content: content,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -1862,7 +1847,6 @@ export const tryUpdateWhiteboardModule = Result.wrap(
 					collection: "activity-modules",
 					id,
 					data: updateData,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -1874,7 +1858,6 @@ export const tryUpdateWhiteboardModule = Result.wrap(
 				.findByID({
 					collection: "activity-modules",
 					id,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -1938,7 +1921,7 @@ export const tryUpdateFileModule = Result.wrap(
 			title,
 			description,
 			status,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			media,
@@ -1954,7 +1937,6 @@ export const tryUpdateFileModule = Result.wrap(
 			.findByID({
 				collection: "activity-modules",
 				id,
-				user,
 				req,
 				depth: 0,
 				overrideAccess,
@@ -1994,7 +1976,6 @@ export const tryUpdateFileModule = Result.wrap(
 					data: {
 						media: media,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -2013,7 +1994,6 @@ export const tryUpdateFileModule = Result.wrap(
 					collection: "activity-modules",
 					id,
 					data: updateData,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -2025,7 +2005,6 @@ export const tryUpdateFileModule = Result.wrap(
 				.findByID({
 					collection: "activity-modules",
 					id,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -2048,7 +2027,6 @@ export const tryUpdateFileModule = Result.wrap(
 			const enrichedMedia = await enrichMedia(
 				fileMediaIds,
 				payload,
-				(user as TypedUser | null) ?? null,
 				reqWithTransaction,
 				overrideAccess,
 			);
@@ -2099,7 +2077,7 @@ export const tryUpdateAssignmentModule = Result.wrap(
 			title,
 			description,
 			status,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			instructions,
@@ -2120,7 +2098,6 @@ export const tryUpdateAssignmentModule = Result.wrap(
 			.findByID({
 				collection: "activity-modules",
 				id,
-				user,
 				req,
 				depth: 0,
 				overrideAccess,
@@ -2168,9 +2145,9 @@ export const tryUpdateAssignmentModule = Result.wrap(
 						maxFileSize: maxFileSize,
 						maxFiles: maxFiles,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
+					context: req?.context,
 					depth: 0,
 				})
 				.then(stripDepth<0, "update">());
@@ -2187,7 +2164,6 @@ export const tryUpdateAssignmentModule = Result.wrap(
 					collection: "activity-modules",
 					id,
 					data: updateData,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -2199,7 +2175,6 @@ export const tryUpdateAssignmentModule = Result.wrap(
 				.findByID({
 					collection: "activity-modules",
 					id,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -2270,7 +2245,7 @@ export const tryUpdateQuizModule = Result.wrap(
 			title,
 			description,
 			status,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			instructions,
@@ -2295,7 +2270,6 @@ export const tryUpdateQuizModule = Result.wrap(
 			.findByID({
 				collection: "activity-modules",
 				id,
-				user,
 				req,
 				depth: 0,
 				overrideAccess,
@@ -2348,7 +2322,6 @@ export const tryUpdateQuizModule = Result.wrap(
 						},
 						questions: questions,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -2367,7 +2340,6 @@ export const tryUpdateQuizModule = Result.wrap(
 					collection: "activity-modules",
 					id,
 					data: updateData,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -2379,7 +2351,6 @@ export const tryUpdateQuizModule = Result.wrap(
 				.findByID({
 					collection: "activity-modules",
 					id,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -2453,7 +2424,7 @@ export const tryUpdateDiscussionModule = Result.wrap(
 			title,
 			description,
 			status,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			instructions,
@@ -2483,7 +2454,6 @@ export const tryUpdateDiscussionModule = Result.wrap(
 			.findByID({
 				collection: "activity-modules",
 				id,
-				user,
 				req,
 				depth: 0,
 				overrideAccess,
@@ -2539,7 +2509,6 @@ export const tryUpdateDiscussionModule = Result.wrap(
 						maxGroupSize: maxGroupSize,
 						threadSorting: threadSorting,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -2558,7 +2527,6 @@ export const tryUpdateDiscussionModule = Result.wrap(
 					collection: "activity-modules",
 					id,
 					data: updateData,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 0,
@@ -2570,7 +2538,6 @@ export const tryUpdateDiscussionModule = Result.wrap(
 				.findByID({
 					collection: "activity-modules",
 					id,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 					depth: 1,
@@ -2685,12 +2652,8 @@ export const tryUpdateDiscussionModule = Result.wrap(
 // 		}),
 // );
 
-export interface DeleteActivityModuleArgs {
-	payload: Payload;
+export interface DeleteActivityModuleArgs extends BaseInternalFunctionArgs {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 /**
@@ -2698,7 +2661,7 @@ export interface DeleteActivityModuleArgs {
  */
 export const tryDeleteActivityModule = Result.wrap(
 	async (args: DeleteActivityModuleArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 		// Validate ID
 		if (!id) {
 			throw new InvalidArgumentError("Activity module ID is required");
@@ -2713,7 +2676,6 @@ export const tryDeleteActivityModule = Result.wrap(
 				},
 			},
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -2734,10 +2696,9 @@ export const tryDeleteActivityModule = Result.wrap(
 		}
 
 		// Handle transaction ID
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Delete related entity first
 			const moduleType = existingModule.type as string;
 			if (moduleType === "file" && existingModule.file) {
@@ -2746,7 +2707,6 @@ export const tryDeleteActivityModule = Result.wrap(
 					await payload.delete({
 						collection: "files",
 						id: fileId.id,
-						user,
 						req: reqWithTransaction,
 						overrideAccess,
 					});
@@ -2761,8 +2721,8 @@ export const tryDeleteActivityModule = Result.wrap(
 					await payload.delete({
 						collection: "assignments",
 						id: assignmentId.id,
-						user,
 						req: reqWithTransaction,
+						context: req?.context,
 						overrideAccess,
 					});
 				}
@@ -2772,7 +2732,6 @@ export const tryDeleteActivityModule = Result.wrap(
 					await payload.delete({
 						collection: "quizzes",
 						id: quizId.id,
-						user,
 						req: reqWithTransaction,
 						overrideAccess,
 					});
@@ -2787,7 +2746,6 @@ export const tryDeleteActivityModule = Result.wrap(
 					await payload.delete({
 						collection: "discussions",
 						id: discussionId.id,
-						user,
 						req: reqWithTransaction,
 						overrideAccess,
 					});
@@ -2798,24 +2756,12 @@ export const tryDeleteActivityModule = Result.wrap(
 			const deletedActivityModule = await payload.delete({
 				collection: "activity-modules",
 				id,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit the transaction only if we created it
-			if (isTransactionCreated && transactionID) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
 			return deletedActivityModule;
-		} catch (error) {
-			// Rollback the transaction on error only if we created it
-			if (isTransactionCreated && transactionID) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -2827,16 +2773,12 @@ export const tryDeleteActivityModule = Result.wrap(
 /**
  * Lists activity modules with optional filtering
  */
-export interface ListActivityModulesArgs {
-	payload: Payload;
+export interface ListActivityModulesArgs extends BaseInternalFunctionArgs {
 	userId?: number;
 	type?: "page" | "whiteboard" | "file" | "assignment" | "quiz" | "discussion";
 	status?: "draft" | "published" | "archived";
 	limit?: number;
 	page?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 export const tryListActivityModules = Result.wrap(
@@ -2848,7 +2790,7 @@ export const tryListActivityModules = Result.wrap(
 			status,
 			limit = 10,
 			page = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -2879,7 +2821,6 @@ export const tryListActivityModules = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -2911,7 +2852,7 @@ type GetUserActivityModulesArgs = BaseInternalFunctionArgs & {
  */
 export const tryGetUserActivityModules = Result.wrap(
 	async (args: GetUserActivityModulesArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		// Validate user ID
 		if (!userId) {
@@ -2940,7 +2881,6 @@ export const tryGetUserActivityModules = Result.wrap(
 				// ! we don't care about pagination and performance for now
 				pagination: false,
 				overrideAccess,
-				user,
 				req,
 			})
 			.then((result) => {
@@ -3026,7 +2966,6 @@ export const tryGetUserActivityModules = Result.wrap(
 		const autoGrantedModules = await tryFindAutoGrantedModulesForInstructor({
 			payload,
 			userId,
-			user,
 			req,
 			overrideAccess,
 		});

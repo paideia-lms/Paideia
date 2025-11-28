@@ -27,6 +27,7 @@ import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/registration";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export async function loader({ context }: Route.LoaderArgs) {
 	const { payload, envVars } = context.get(globalContextKey);
@@ -103,8 +104,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 		userSession?.effectiveUser ?? userSession?.authenticatedUser;
 	const settingsResult = await tryGetRegistrationSettings({
 		payload,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 		// ! this has override access because it is a system request, we don't care about access control
 		overrideAccess: true,
 	});

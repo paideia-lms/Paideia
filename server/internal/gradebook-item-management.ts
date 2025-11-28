@@ -1,6 +1,6 @@
 import type { Payload, PayloadRequest } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
-import { assertZodInternal } from "server/utils/type-narrowing";
+import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
@@ -16,6 +16,7 @@ import { tryGetGradebookAllRepresentations } from "./gradebook-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
+	Depth,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
@@ -73,7 +74,6 @@ export const tryCreateGradebookItem = Result.wrap(
 			weight,
 			extraCredit = false,
 			sortOrder,
-			user = null,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -113,81 +113,37 @@ export const tryCreateGradebookItem = Result.wrap(
 		const transactionInfo = await handleTransactionId(payload, req);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const newItem = await payload.create({
-				collection: GradebookItems.slug,
-				data: {
-					gradebook: courseId,
-					category: categoryId,
-					name,
-					description,
-					activityModule: activityModuleId,
-					maxGrade,
-					minGrade,
-					weight,
-					extraCredit,
-					sortOrder,
-				},
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			const newItem = await payload
+				.create({
+					collection: GradebookItems.slug,
+					data: {
+						gradebook: courseId,
+						category: categoryId,
+						name,
+						description,
+						activityModule: activityModuleId,
+						maxGrade,
+						minGrade,
+						weight,
+						extraCredit,
+						sortOrder,
+					},
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">());
 
 			// Validate overall weight total after creation
-			const validateResult = await tryValidateOverallWeightTotal({
+			await tryValidateOverallWeightTotal({
 				payload,
 				courseId,
-				user: user ?? null,
 				req: reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Item creation",
-			});
+			}).getOrThrow();
 
-			if (!validateResult.ok) {
-				throw validateResult.error;
-			}
-
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
-			const itemGradebook = newItem.gradebook;
-			assertZodInternal(
-				"tryCreateGradebookItem: Item gradebook is required",
-				itemGradebook,
-				z.object({
-					id: z.number(),
-				}),
-			);
-
-			const itemCategory = newItem.category;
-			assertZodInternal(
-				"tryCreateGradebookItem: Item category is required",
-				itemCategory,
-				z
-					.object({
-						id: z.number(),
-					})
-					.nullish(),
-			);
-
-			const itemActivityModule = newItem.activityModule;
-			assertZodInternal(
-				"tryCreateGradebookItem: Item activity module is required",
-				itemActivityModule,
-				z
-					.object({
-						id: z.number(),
-					})
-					.nullish(),
-			);
-
-			const result = {
-				...newItem,
-				gradebook: itemGradebook,
-				category: itemCategory,
-				activityModule: itemActivityModule,
-			};
-			return result;
+			return newItem;
 		});
 	},
 	(error) =>
@@ -209,7 +165,7 @@ export const tryValidateOverallWeightTotal = Result.wrap(
 		const {
 			payload,
 			courseId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 			errorMessagePrefix = "Operation",
@@ -218,16 +174,11 @@ export const tryValidateOverallWeightTotal = Result.wrap(
 		const allRepsResult = await tryGetGradebookAllRepresentations({
 			payload,
 			courseId,
-			user: user,
 			req,
 			overrideAccess,
-		});
+		}).getOrThrow();
 
-		if (!allRepsResult.ok) {
-			throw allRepsResult.error;
-		}
-
-		const setup = allRepsResult.value.ui;
+		const setup = allRepsResult.ui;
 
 		// Validate weights at course level and all category levels recursively
 		validateGradebookWeights(
@@ -264,19 +215,21 @@ export const tryUpdateGradebookItem = Result.wrap(
 			weight,
 			extraCredit,
 			sortOrder,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
 
 		// Check if item exists
-		const existingItem = await payload.findByID({
-			collection: GradebookItems.slug,
-			id: itemId,
-			user,
-			req,
-			overrideAccess,
-		});
+		const existingItem = await payload
+			.findByID({
+				collection: GradebookItems.slug,
+				id: itemId,
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "findByID">());
 
 		if (!existingItem) {
 			throw new GradebookItemNotFoundError(`Item with ID ${itemId} not found`);
@@ -326,21 +279,6 @@ export const tryUpdateGradebookItem = Result.wrap(
 			throw new InvalidSortOrderError("Sort order must be non-negative");
 		}
 
-		// Check if activity module exists (if being updated)
-		// if (args.activityModuleId !== undefined && args.activityModuleId !== null) {
-		// 	const activityModule = await payload.findByID({
-		// 		collection: CourseActivityModuleLinks.slug,
-		// 		id: args.activityModuleId,
-		// 		req: request,
-		// 	});
-
-		// 	if (!activityModule) {
-		// 		throw new Error(
-		// 			`Activity module with ID ${args.activityModuleId} not found`,
-		// 		);
-		// 	}
-		// }
-
 		// Get gradebook ID from existing item
 		const gradebookId =
 			typeof existingItem.gradebook === "number"
@@ -382,29 +320,26 @@ export const tryUpdateGradebookItem = Result.wrap(
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Update the item
-			const updatedItem = await payload.update({
-				collection: GradebookItems.slug,
-				id: itemId,
-				data: updateData,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			const updatedItem = await payload
+				.update({
+					collection: GradebookItems.slug,
+					id: itemId,
+					data: updateData,
+					req: reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "update">());
 
-			const validateResult = await tryValidateOverallWeightTotal({
+			await tryValidateOverallWeightTotal({
 				payload,
 				courseId: gradebookId,
-				user: user ?? null,
 				req: reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Weight update",
-			});
+			}).getOrThrow();
 
-			if (!validateResult.ok) {
-				throw validateResult.error;
-			}
-
-			return updatedItem as GradebookItem;
+			return updatedItem;
 		});
 	},
 	(error) =>
@@ -414,26 +349,38 @@ export const tryUpdateGradebookItem = Result.wrap(
 		}),
 );
 
+interface TryFindGradebookItemByIdArgs extends BaseInternalFunctionArgs {
+	itemId: number;
+}
+
 /**
  * Finds a gradebook item by ID
  */
 export const tryFindGradebookItemById = Result.wrap(
-	async (payload: Payload, itemId: number) => {
-		const item = await payload.findByID({
-			collection: GradebookItems.slug,
-			id: itemId,
-		});
+	async (args: TryFindGradebookItemByIdArgs) => {
+		const { payload, itemId, req, overrideAccess = false } = args;
+
+		const item = await payload
+			.findByID({
+				collection: GradebookItems.slug,
+				id: itemId,
+				depth: 1,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "findByID">());
 
 		if (!item) {
 			throw new GradebookItemNotFoundError(`Item with ID ${itemId} not found`);
 		}
 
-		return item as GradebookItem;
+		return item;
 	},
 	(error) =>
-		new Error(
-			`Failed to find gradebook item by ID: ${error instanceof Error ? error.message : String(error)}`,
-		),
+		transformError(error) ??
+		new UnknownError("Failed to find gradebook item by ID", {
+			cause: error,
+		}),
 );
 
 /**
@@ -442,7 +389,7 @@ export const tryFindGradebookItemById = Result.wrap(
  */
 export const tryDeleteGradebookItem = Result.wrap(
 	async (args: DeleteGradebookItemArgs) => {
-		const { payload, itemId, user = null, req, overrideAccess = false } = args;
+		const { payload, itemId, req, overrideAccess = false } = args;
 
 		// Check if item exists and get gradebook ID
 		const existingItem = await payload
@@ -450,7 +397,6 @@ export const tryDeleteGradebookItem = Result.wrap(
 				collection: GradebookItems.slug,
 				id: itemId,
 				depth: 0,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -481,7 +427,6 @@ export const tryDeleteGradebookItem = Result.wrap(
 					collection: GradebookItems.slug,
 					id: itemId,
 					depth: 0,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 				})
@@ -497,18 +442,13 @@ export const tryDeleteGradebookItem = Result.wrap(
 				});
 
 			// After deletion, validate that overall weights sum to exactly 100%
-			const validateResult = await tryValidateOverallWeightTotal({
+			await tryValidateOverallWeightTotal({
 				payload,
 				courseId: gradebookId,
-				user: user ?? null,
 				req: reqWithTransaction,
 				overrideAccess,
 				errorMessagePrefix: "Deletion",
-			});
-
-			if (!validateResult.ok) {
-				throw validateResult.error;
-			}
+			}).getOrThrow();
 
 			return deletedItem;
 		});
@@ -520,24 +460,38 @@ export const tryDeleteGradebookItem = Result.wrap(
 		}),
 );
 
+type TryGetGradebookItemsInOrderArgs = BaseInternalFunctionArgs & {
+	gradebookId: number;
+};
+
 /**
  * Gets all items for a gradebook in order
  */
 export const tryGetGradebookItemsInOrder = Result.wrap(
-	async (payload: Payload, gradebookId: number) => {
-		const items = await payload.find({
-			collection: GradebookItems.slug,
-			where: {
-				gradebook: {
-					equals: gradebookId,
-				},
-			},
-			depth: 1, // Get category and activity module details
-			limit: 999999,
-			sort: "sortOrder",
-		});
+	async (args: TryGetGradebookItemsInOrderArgs) => {
+		const { payload, gradebookId, req, overrideAccess = false } = args;
 
-		return items.docs as GradebookItem[];
+		const items = await payload
+			.find({
+				collection: GradebookItems.slug,
+				where: {
+					gradebook: {
+						equals: gradebookId,
+					},
+				},
+				depth: 1, // Get category and activity module details
+				limit: MOCK_INFINITY,
+				pagination: false,
+				sort: "sortOrder",
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">())
+			.then((items) => {
+				return items.docs;
+			});
+
+		return items;
 	},
 	(error) =>
 		new Error(
@@ -545,24 +499,33 @@ export const tryGetGradebookItemsInOrder = Result.wrap(
 		),
 );
 
+interface TryGetCategoryItemsArgs extends BaseInternalFunctionArgs {
+	categoryId: number;
+}
+
 /**
  * Gets items for a specific category
  */
 export const tryGetCategoryItems = Result.wrap(
-	async (payload: Payload, categoryId: number) => {
-		const items = await payload.find({
-			collection: GradebookItems.slug,
-			where: {
-				category: {
-					equals: categoryId,
+	async (args: TryGetCategoryItemsArgs) => {
+		const { payload, categoryId, req, overrideAccess = false } = args;
+		const items = await payload
+			.find({
+				collection: GradebookItems.slug,
+				where: {
+					category: {
+						equals: categoryId,
+					},
 				},
-			},
-			depth: 1, // Get activity module details
-			limit: 999999,
-			sort: "sortOrder",
-		});
+				depth: 1, // Get activity module details
+				limit: 999999,
+				sort: "sortOrder",
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
-		return items.docs as GradebookItem[];
+		return items.docs;
 	},
 	(error) =>
 		transformError(error) ??
@@ -574,11 +537,23 @@ export const tryGetCategoryItems = Result.wrap(
 		),
 );
 
+interface TryGetNextItemSortOrderArgs extends BaseInternalFunctionArgs {
+	gradebookId: number;
+	categoryId?: number | null;
+}
+
 /**
  * Gets next available sort order for an item within its category context
  */
 export const tryGetNextItemSortOrder = Result.wrap(
-	async (payload: Payload, gradebookId: number, categoryId?: number | null) => {
+	async (args: TryGetNextItemSortOrderArgs) => {
+		const {
+			payload,
+			gradebookId,
+			categoryId,
+			req,
+			overrideAccess = false,
+		} = args;
 		const where: {
 			gradebook: { equals: number };
 			category?: { equals: number | null };
@@ -598,18 +573,22 @@ export const tryGetNextItemSortOrder = Result.wrap(
 			};
 		}
 
-		const items = await payload.find({
-			collection: GradebookItems.slug,
-			where,
-			limit: 1,
-			sort: "-sortOrder",
-		});
+		const items = await payload
+			.find({
+				collection: GradebookItems.slug,
+				where,
+				limit: 1,
+				sort: "-sortOrder",
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
-		if (items.docs.length === 0) {
+		const lastItem = items.docs[0];
+
+		if (!lastItem) {
 			return 0; // First item
 		}
-
-		const lastItem = items.docs[0] as GradebookItem;
 		return lastItem.sortOrder + 1;
 	},
 	(error) =>
@@ -618,28 +597,36 @@ export const tryGetNextItemSortOrder = Result.wrap(
 		),
 );
 
+export interface TryReorderItemsArgs extends BaseInternalFunctionArgs {
+	itemIds: number[];
+}
+
 /**
  * Reorders items within a category context
  */
 export const tryReorderItems = Result.wrap(
-	async (payload: Payload, request: Request, itemIds: number[]) => {
-		const transactionInfo = await handleTransactionId(
-			payload,
-			request as Partial<PayloadRequest>,
-		);
+	async (args: TryReorderItemsArgs) => {
+		const { payload, req, overrideAccess = false, itemIds } = args;
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Update sort order for each item
-			for (let i = 0; i < itemIds.length; i++) {
-				await payload.update({
-					collection: GradebookItems.slug,
-					id: itemIds[i]!,
-					data: {
-						sortOrder: i,
-					},
-					req: reqWithTransaction,
-				});
-			}
+			// Update sort order for each item using Promise.all for concurrent updates
+			await Promise.all(
+				itemIds.map((itemId, i) =>
+					payload
+						.update({
+							collection: GradebookItems.slug,
+							id: itemId,
+							data: {
+								sortOrder: i,
+							},
+							req: reqWithTransaction,
+							overrideAccess,
+							depth: 1,
+						})
+						.then(stripDepth<1, "update">()),
+				),
+			);
 
 			return { success: true };
 		});
@@ -654,11 +641,23 @@ export const tryReorderItems = Result.wrap(
 		),
 );
 
+interface TryGetItemsWithUserGradesArgs extends BaseInternalFunctionArgs {
+	gradebookId: number;
+	enrollmentId: number;
+}
+
 /**
  * Gets items with their grades for a specific enrollment
  */
 export const tryGetItemsWithUserGrades = Result.wrap(
-	async (payload: Payload, gradebookId: number, enrollmentId: number) => {
+	async (args: TryGetItemsWithUserGradesArgs) => {
+		const {
+			payload,
+			gradebookId,
+			enrollmentId,
+			req,
+			overrideAccess = false,
+		} = args;
 		const items = await payload
 			.find({
 				collection: GradebookItems.slug,
@@ -667,37 +666,27 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 						equals: gradebookId,
 					},
 				},
+				joins: {
+					userGrades: {
+						limit: MOCK_INFINITY,
+					},
+				},
 				depth: 2, // Get user grades
-				limit: 999999,
+				limit: MOCK_INFINITY,
 				pagination: false,
 				sort: "sortOrder",
+				req,
+				overrideAccess,
 			})
+			.then(stripDepth<2, "find">())
 			.then((items) => {
-				////////////////////////////////////////////////////
-				// type narrowing
-				////////////////////////////////////////////////////
-
+				console.log(JSON.stringify(items.docs, null, 2));
 				return items.docs.map((item) => {
 					const userGrades = item.userGrades?.docs;
-					// user grade should be object
-					assertZodInternal(
-						"tryGetItemsWithUserGrades: User grades is required",
-						userGrades,
-						z.array(
-							z.object({
-								id: z.number(),
-								enrollment: z.object({
-									id: z.number(),
-								}),
-							}),
-						),
-					);
 
 					const result = {
 						...item,
-						userGrades: userGrades as (Omit<UserGrade, "enrollment"> & {
-							enrollment: Enrollment;
-						})[],
+						userGrades: userGrades ?? [],
 					};
 					return result;
 				});
@@ -706,8 +695,10 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 		// Filter items to only include those with grades for the specific enrollment
 		const itemsWithGrades = items.filter((item) => {
 			const gradebookItem = item;
+			console.log("gradebookItem.userGrades", gradebookItem.userGrades);
 			return gradebookItem.userGrades?.some((grade) => {
-				return grade.enrollment?.id === enrollmentId;
+				// ?? not sure
+				return grade.enrollment === enrollmentId;
 			});
 		});
 
@@ -733,34 +724,32 @@ export type FindGradebookItemByCourseModuleLinkArgs =
  */
 export const tryFindGradebookItemByCourseModuleLink = Result.wrap(
 	async (args: FindGradebookItemByCourseModuleLinkArgs) => {
-		const {
-			payload,
-			user,
-			req,
-			overrideAccess = false,
-			courseModuleLinkId,
-		} = args;
+		const { payload, req, overrideAccess = false, courseModuleLinkId } = args;
 
-		const items = await payload.find({
-			collection: GradebookItems.slug,
-			where: {
-				activityModule: {
-					equals: courseModuleLinkId,
+		const items = await payload
+			.find({
+				collection: GradebookItems.slug,
+				where: {
+					activityModule: {
+						equals: courseModuleLinkId,
+					},
 				},
-			},
-			limit: 1,
-			user,
-			req,
-			overrideAccess,
-		});
+				limit: 1,
+				depth: 1,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
-		if (items.docs.length === 0) {
+		const item = items.docs[0];
+
+		if (!item) {
 			throw new GradebookItemNotFoundError(
 				`Gradebook item not found for course module link ${courseModuleLinkId}`,
 			);
 		}
 
-		return items.docs[0] as GradebookItem;
+		return item;
 	},
 	(error) =>
 		transformError(error) ??

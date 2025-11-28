@@ -8,9 +8,14 @@ import {
 	type Payload,
 	type TypedUser as PayloadUser,
 	parseCookies,
+	RequestContext,
 } from "payload";
 import { createContext } from "react-router";
 import { tryHandleImpersonation } from "server/internal/user-management";
+import {
+	BaseInternalFunctionArgs,
+	createLocalReq,
+} from "server/internal/utils/internal-function-utils";
 
 export type User = PayloadUser;
 
@@ -25,15 +30,16 @@ export interface UserSession {
 
 export const userContext = createContext<UserSession | null>(null);
 
-export const userContextKey = "userContext" as unknown as typeof userContext;
+export { userContextKey } from "./utils/context-keys";
 
 export const tryGetUserContext = async (
-	payload: Payload,
-	request: Request,
+	args: Pick<BaseInternalFunctionArgs, "payload" | "req">,
 ): Promise<UserSession | null> => {
+	const { payload, req } = args;
+	const headers = req?.headers ?? new Headers();
 	// Get the authenticated user
 	const { user: authenticatedUser } = await executeAuthStrategies({
-		headers: request.headers,
+		headers,
 		canSetHeaders: true,
 		payload,
 	});
@@ -44,7 +50,7 @@ export const tryGetUserContext = async (
 	}
 
 	// Check for impersonation cookie
-	const cookies = parseCookies(request.headers);
+	const cookies = parseCookies(headers);
 	const impersonateUserId = cookies.get(
 		`${payload.config.cookiePrefix}-impersonate`,
 	);
@@ -57,8 +63,7 @@ export const tryGetUserContext = async (
 		const impersonationResult = await tryHandleImpersonation({
 			payload,
 			impersonateUserId,
-			authenticatedUser,
-			req: request,
+			req,
 		});
 
 		if (impersonationResult.ok && impersonationResult.value) {

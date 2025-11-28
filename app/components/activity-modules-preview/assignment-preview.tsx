@@ -320,7 +320,7 @@ function SubmissionForm({
 	};
 
 	const handleConfirmSubmit = async () => {
-		const textContent = form.getValues().textContent;
+		const { textContent } = form.getValues();
 		const fileData = files.map((f) => f.file);
 		await onSubmit({ textContent, files: fileData });
 		setConfirmModalOpened(false);

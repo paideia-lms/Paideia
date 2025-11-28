@@ -1,4 +1,10 @@
+import { tryGetContext } from "app/utils/try-get-context";
 import type { AccessResult, CollectionConfig } from "payload";
+import { stripDepth } from "server/internal/utils/internal-function-utils";
+import {
+	courseContextKey,
+	enrolmentContextKey,
+} from "server/contexts/utils/context-keys";
 
 // Assignments collection - assignment-specific configuration
 export const Assignments = {
@@ -9,31 +15,38 @@ export const Assignments = {
 			if (!req.user) return false;
 			if (req.user.role === "admin") return true;
 
+			console.log("req", req.url);
+			console.log("req", req.headers);
+
+			const context = req.context.routerContext ?? req._c;
+			if (context) {
+				const courseContext = tryGetContext(context, courseContextKey);
+				const enrolmentContext = tryGetContext(context, enrolmentContextKey);
+
+				if (courseContext && enrolmentContext) {
+					// the user has an enrolment to this course
+					// TODO: do something, for now, we just let it pass
+					return true;
+				}
+			}
+
 			// Allow access if user created it or has access to any activity module using this assignment
-			const activityModules = await req.payload.find({
-				collection: "activity-modules",
-				where: {
-					assignment: { exists: true },
-				},
-				depth: 0,
-			});
+			const activityModules = await req.payload
+				.find({
+					collection: "activity-modules",
+					where: {
+						assignment: { exists: true },
+					},
+					depth: 0,
+				})
+				.then(stripDepth<0, "find">());
 
 			const accessibleModuleIds = activityModules.docs
 				.filter((mod) => {
-					const owner =
-						typeof mod.owner === "number" ? mod.owner : mod.owner?.id;
-					const createdBy =
-						typeof mod.createdBy === "number"
-							? mod.createdBy
-							: mod.createdBy?.id;
-					return owner === req.user?.id || createdBy === req.user?.id;
+					return mod.owner === req.user?.id || mod.createdBy === req.user?.id;
 				})
-				.map((mod) =>
-					typeof mod.assignment === "number"
-						? mod.assignment
-						: mod.assignment?.id,
-				)
-				.filter((id): id is number => id !== undefined);
+				.map((mod) => mod.assignment)
+				.filter(Boolean);
 
 			return {
 				or: [
@@ -46,30 +59,22 @@ export const Assignments = {
 			if (!req.user) return false;
 			if (req.user.role === "admin") return true;
 
-			const activityModules = await req.payload.find({
-				collection: "activity-modules",
-				where: {
-					assignment: { exists: true },
-				},
-				depth: 0,
-			});
+			const activityModules = await req.payload
+				.find({
+					collection: "activity-modules",
+					where: {
+						assignment: { exists: true },
+					},
+					depth: 0,
+				})
+				.then(stripDepth<0, "find">());
 
 			const accessibleModuleIds = activityModules.docs
 				.filter((mod) => {
-					const owner =
-						typeof mod.owner === "number" ? mod.owner : mod.owner?.id;
-					const createdBy =
-						typeof mod.createdBy === "number"
-							? mod.createdBy
-							: mod.createdBy?.id;
-					return owner === req.user?.id || createdBy === req.user?.id;
+					return mod.owner === req.user?.id || mod.createdBy === req.user?.id;
 				})
-				.map((mod) =>
-					typeof mod.assignment === "number"
-						? mod.assignment
-						: mod.assignment?.id,
-				)
-				.filter((id): id is number => id !== undefined);
+				.map((mod) => mod.assignment)
+				.filter(Boolean);
 
 			return {
 				or: [

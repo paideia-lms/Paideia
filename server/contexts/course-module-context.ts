@@ -30,20 +30,22 @@ import {
 import { tryListQuizSubmissions } from "../internal/quiz-submission-management";
 
 import { canSubmitAssignment } from "../utils/permissions";
+export { courseModuleContextKey } from "./utils/context-keys";
 
-export type ModuleDateInfo = {
+export interface ModuleDateInfo {
 	label: string;
 	value: string;
 	isOverdue: boolean;
-};
+}
 
-export type FormattedModuleSettings = {
+export interface BaseFormattedModuleSettings {
 	type: "assignment" | "quiz" | "discussion";
 	name: string | undefined;
 	dates: ModuleDateInfo[];
-} | null;
+}
+export type FormattedModuleSettings = BaseFormattedModuleSettings | null;
 
-export type DiscussionThread = {
+export interface DiscussionThread {
 	id: string;
 	title: string;
 	content: string;
@@ -55,7 +57,7 @@ export type DiscussionThread = {
 	replyCount: number;
 	isPinned: boolean;
 	isUpvoted: boolean;
-};
+}
 
 // type CourseModuleContext = {
 // 	module: CourseModule;
@@ -78,18 +80,15 @@ export const courseModuleContext = createContext<CourseModuleContext | null>(
 	null,
 );
 
-export const courseModuleContextKey =
-	"courseModuleContext" as unknown as typeof courseModuleContext;
-
-export type DiscussionData = {
+export interface DiscussionData {
 	id: number;
 	instructions: string | null;
 	requireThread: boolean | null;
 	requireReplies: boolean | null;
 	minReplies: number | null;
-};
+}
 
-export type AssignmentData = {
+export interface AssignmentData {
 	id: number;
 	instructions: string | null;
 	dueDate?: string | null;
@@ -102,9 +101,9 @@ export type AssignmentData = {
 		extension: string;
 		mimeType: string;
 	}> | null;
-};
+}
 
-export type AssignmentSubmissionData = {
+export interface AssignmentSubmissionData {
 	id: number;
 	status: "draft" | "submitted" | "graded" | "returned";
 	content?: string | null;
@@ -114,9 +113,9 @@ export type AssignmentSubmissionData = {
 	}> | null;
 	submittedAt?: string | null;
 	attemptNumber: number;
-};
+}
 
-export type QuizData = {
+export interface QuizData {
 	id: number;
 	instructions: string | null;
 	dueDate: string | null;
@@ -124,44 +123,47 @@ export type QuizData = {
 	timeLimit: number | null; // in minutes
 	points: number | null;
 	rawQuizConfig: LatestQuizConfig | null;
-};
+}
 
-export type QuizSubmissionData = {
+export interface QuizSubmissionData {
 	id: number;
 	status: "in_progress" | "completed" | "graded" | "returned";
 	submittedAt?: string | null;
 	startedAt?: string | null;
 	attemptNumber: number;
-};
+}
 
-export type tryGetCourseModuleContextArgs = BaseInternalFunctionArgs & {
+export interface TryGetCourseModuleContextArgs
+	extends BaseInternalFunctionArgs {
 	moduleLinkId: number;
 	courseId: number;
 	enrolment: { role?: "student" | "teacher" | "ta" | "manager" } | null;
 	threadId?: string | null;
-};
+}
 
 /**
  * Get course module context for a given module link ID
  * This includes the full module data and next/previous navigation
  */
 export const tryGetCourseModuleContext = Result.wrap(
-	async (args: tryGetCourseModuleContextArgs) => {
+	async (args: TryGetCourseModuleContextArgs) => {
 		const {
 			payload,
 			moduleLinkId,
 			courseId,
 			enrolment,
 			threadId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
+
+		const user = req?.user;
+
 		// Fetch the module link
 		const moduleLinkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId: moduleLinkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -186,7 +188,6 @@ export const tryGetCourseModuleContext = Result.wrap(
 			payload,
 			courseId,
 			moduleLinkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -203,7 +204,6 @@ export const tryGetCourseModuleContext = Result.wrap(
 				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
-				user,
 				req,
 				overrideAccess,
 			});
@@ -333,9 +333,8 @@ export const tryGetCourseModuleContext = Result.wrap(
 			const submissionsResult = await tryListQuizSubmissions({
 				payload,
 				courseModuleLinkId: moduleLinkId,
-				studentId: isStudent ? user?.id : undefined,
+				studentId: isStudent ? req?.user?.id : undefined,
 				limit: 1000,
-				user,
 				req,
 				overrideAccess,
 			});
@@ -349,7 +348,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 			// regardless of role (for display in module page)
 			// submissions field contains all submissions (for admin/teacher view in submissions table)
 			const userSubmissions = allSubmissions.filter(
-				(sub) => sub.student.id === user?.id,
+				(sub) => sub.student.id === req?.user?.id,
 			);
 
 			// Get the latest submission (in_progress or most recent)
@@ -458,7 +457,6 @@ export const tryGetCourseModuleContext = Result.wrap(
 				payload,
 				courseModuleLinkId: moduleLinkId,
 				limit: 1000,
-				user,
 				req,
 				overrideAccess,
 			});
@@ -468,7 +466,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 
 			// For discussions, userSubmissions are empty (discussions use threads instead)
 			const userSubmissions = allSubmissions.filter(
-				(sub) => sub.student.id === user?.id,
+				(sub) => sub.student.id === req?.user?.id,
 			);
 
 			// Fetch discussion threads
@@ -476,7 +474,6 @@ export const tryGetCourseModuleContext = Result.wrap(
 			const threadsResult = await tryGetDiscussionThreadsWithAllReplies({
 				payload,
 				courseModuleLinkId: moduleLinkId,
-				user,
 				req,
 				overrideAccess,
 			});
@@ -506,7 +503,7 @@ export const tryGetCourseModuleContext = Result.wrap(
 								typeof upvote.user === "object" && upvote.user !== null
 									? upvote.user
 									: null;
-							return upvoteUser?.id === user?.id;
+							return upvoteUser?.id === req?.user?.id;
 						},
 					) ?? false;
 
@@ -549,7 +546,6 @@ export const tryGetCourseModuleContext = Result.wrap(
 						payload,
 						threadId: threadIdNumber,
 						courseModuleLinkId: moduleLinkId,
-						user,
 						req,
 						overrideAccess,
 					});

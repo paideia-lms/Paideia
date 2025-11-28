@@ -75,9 +75,8 @@ export type RegisterUserArgs = BaseInternalFunctionArgs & {
 	role?: User["role"];
 };
 
-export type HandleImpersonationArgs = Omit<BaseInternalFunctionArgs, "user"> & {
+export type HandleImpersonationArgs = BaseInternalFunctionArgs & {
 	impersonateUserId: string;
-	authenticatedUser: BaseInternalFunctionArgs["user"] | null;
 };
 
 /**
@@ -100,7 +99,7 @@ export const tryCreateUser = Result.wrap(
 				theme,
 				direction,
 			},
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -114,7 +113,6 @@ export const tryCreateUser = Result.wrap(
 				},
 			},
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -139,7 +137,6 @@ export const tryCreateUser = Result.wrap(
 					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},
-				user,
 				req,
 				overrideAccess,
 			})
@@ -166,7 +163,7 @@ export const tryUpdateUser = Result.wrap(
 			payload,
 			userId,
 			data,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -176,7 +173,6 @@ export const tryUpdateUser = Result.wrap(
 				collection: "users",
 				id: userId,
 				data,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -198,7 +194,7 @@ export const tryUpdateUser = Result.wrap(
  */
 export const tryFindUserByEmail = Result.wrap(
 	async (args: FindUserByEmailArgs) => {
-		const { payload, email, user = null, req, overrideAccess = false } = args;
+		const { payload, email, req, overrideAccess = false } = args;
 
 		const foundUser = await payload
 			.find({
@@ -209,7 +205,6 @@ export const tryFindUserByEmail = Result.wrap(
 					},
 				},
 				limit: 1,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -237,14 +232,13 @@ export const tryFindUserByEmail = Result.wrap(
  */
 export const tryFindUserById = Result.wrap(
 	async (args: FindUserByIdArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		const foundUser = await payload
 			.findByID({
 				collection: "users",
 				id: userId,
 				depth: 0,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -266,13 +260,12 @@ export const tryFindUserById = Result.wrap(
  */
 export const tryDeleteUser = Result.wrap(
 	async (args: DeleteUserArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		const deletedUser = await payload
 			.delete({
 				collection: "users",
 				id: userId,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -300,7 +293,7 @@ export const tryFindAllUsers = Result.wrap(
 			page = 1,
 			sort = "-createdAt",
 			query,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -364,7 +357,6 @@ export const tryFindAllUsers = Result.wrap(
 				page,
 				sort,
 				depth: 1,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -528,7 +520,6 @@ export const tryRegisterUser = Result.wrap(
 			lastName,
 			role = "student",
 			req,
-			user = null,
 		} = args;
 
 		// Ensure not already exists
@@ -536,7 +527,6 @@ export const tryRegisterUser = Result.wrap(
 			collection: "users",
 			where: { email: { equals: email } },
 			limit: 1,
-			user,
 			req,
 			// ! this has override access because it is a system request, we don't care about access control
 			overrideAccess: true,
@@ -562,7 +552,6 @@ export const tryRegisterUser = Result.wrap(
 					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},
-				user,
 				req: reqWithTransaction,
 				// ! this has override access because it is a system request, we don't care about access control
 				overrideAccess: true,
@@ -597,13 +586,7 @@ export const tryRegisterUser = Result.wrap(
  */
 export const tryHandleImpersonation = Result.wrap(
 	async (args: HandleImpersonationArgs) => {
-		const {
-			payload,
-			impersonateUserId,
-			authenticatedUser,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, impersonateUserId, req, overrideAccess = false } = args;
 
 		const targetUserId = Number(impersonateUserId);
 
@@ -615,7 +598,6 @@ export const tryHandleImpersonation = Result.wrap(
 		const targetUserResult = await tryFindUserById({
 			payload,
 			userId: targetUserId,
-			user: authenticatedUser,
 			overrideAccess,
 			req,
 		});

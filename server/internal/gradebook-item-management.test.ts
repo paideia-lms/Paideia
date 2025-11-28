@@ -10,6 +10,7 @@ import {
 } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
+import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import {
 	tryCreateGradebookItem,
@@ -24,6 +25,7 @@ import {
 	tryUpdateGradebookItem,
 } from "./gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "./gradebook-management";
+import { tryCreateUserGrade } from "./user-grade-management";
 import type { CreateUserArgs } from "./user-management";
 import { tryCreateUser } from "./user-management";
 
@@ -32,6 +34,7 @@ describe("Gradebook Item Management", () => {
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let student: TryResultValue<typeof tryCreateUser>;
 	let testCourse: TryResultValue<typeof tryCreateCourse>;
+	let testEnrollment: TryResultValue<typeof tryCreateEnrollment>;
 	let testGradebook: TryResultValue<typeof tryGetGradebookByCourseWithDetails>;
 	let testCategory: TryResultValue<typeof tryCreateGradebookCategory>;
 	let testItem: TryResultValue<typeof tryCreateGradebookItem>;
@@ -105,11 +108,27 @@ describe("Gradebook Item Management", () => {
 
 		testCourse = courseResult.value;
 
+		// Create enrollment for student in the course
+		const enrollmentResult = await tryCreateEnrollment({
+			payload,
+			userId: student.id,
+			course: testCourse.id,
+			role: "student",
+			status: "active",
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(enrollmentResult.ok).toBe(true);
+		if (!enrollmentResult.ok) {
+			throw new Error("Failed to create test enrollment");
+		}
+		testEnrollment = enrollmentResult.value;
+
 		// Get the gradebook created by the course
 		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -126,7 +145,6 @@ describe("Gradebook Item Management", () => {
 			gradebookId: testGradebook.id,
 			description: "Test Category Description",
 			sortOrder: 0,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -161,7 +179,6 @@ describe("Gradebook Item Management", () => {
 			weight: null, // Auto-weighted initially
 			extraCredit: false,
 			sortOrder: 0,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -184,7 +201,6 @@ describe("Gradebook Item Management", () => {
 			weight: null, // Auto-weighted initially
 			extraCredit: false,
 			sortOrder: 1,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -200,7 +216,6 @@ describe("Gradebook Item Management", () => {
 			payload,
 			itemId: testItem.id,
 			weight: 50,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -215,7 +230,6 @@ describe("Gradebook Item Management", () => {
 			payload,
 			itemId: testItem2.id,
 			weight: 50,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -241,7 +255,6 @@ describe("Gradebook Item Management", () => {
 			minGrade: 100, // Invalid: min > max
 			weight: 25,
 			sortOrder: 1,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -257,7 +270,6 @@ describe("Gradebook Item Management", () => {
 			name: "Invalid Weight Item",
 			weight: 150, // Invalid: > 100
 			sortOrder: 1,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -272,7 +284,6 @@ describe("Gradebook Item Management", () => {
 			categoryId: testCategory.id,
 			name: "Invalid Sort Item",
 			sortOrder: -1, // Invalid: negative
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -281,7 +292,12 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should find gradebook item by ID", async () => {
-		const result = await tryFindGradebookItemById(payload, testItem.id);
+		const result = await tryFindGradebookItemById({
+			payload,
+			itemId: testItem.id,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -304,7 +320,6 @@ describe("Gradebook Item Management", () => {
 			itemId: testItem.id,
 			name: "Updated Test Item",
 			weight: null,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -317,13 +332,12 @@ describe("Gradebook Item Management", () => {
 		// Update the other item in the category to 40% to make total 100%
 		if (testItem2) {
 			const update2Result = await tryUpdateGradebookItem({
-				payload,
-				itemId: testItem2.id,
-				weight: 40,
-				user: null,
-				req: undefined,
-				overrideAccess: true,
-			});
+			payload,
+			itemId: testItem2.id,
+			weight: 40,
+			req: undefined,
+			overrideAccess: true,
+		});
 			expect(update2Result.ok).toBe(true);
 		}
 	});
@@ -335,7 +349,6 @@ describe("Gradebook Item Management", () => {
 			gradebookId: testGradebook.id,
 			name: "Test Validation Category",
 			sortOrder: 40,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -355,7 +368,6 @@ describe("Gradebook Item Management", () => {
 			name: "Category Item 1",
 			weight: null, // Auto-weighted initially
 			sortOrder: 0,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -373,7 +385,6 @@ describe("Gradebook Item Management", () => {
 			name: "Category Item 2",
 			weight: null, // Auto-weighted initially
 			sortOrder: 1,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -388,7 +399,6 @@ describe("Gradebook Item Management", () => {
 			payload,
 			itemId: item1Result.value.id,
 			weight: 40,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -400,7 +410,6 @@ describe("Gradebook Item Management", () => {
 			payload,
 			itemId: item2Result.value.id,
 			weight: 60,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -413,7 +422,6 @@ describe("Gradebook Item Management", () => {
 			payload,
 			itemId: item2Result.value.id,
 			weight: 70,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -435,13 +443,12 @@ describe("Gradebook Item Management", () => {
 				payload,
 				courseId: testCourse.id,
 				categoryId: testCategory.id,
-				name: "Test Item 2",
-				weight: null, // Auto-weighted to avoid validation issues
-				sortOrder: 1,
-				user: null,
-				req: undefined,
-				overrideAccess: true,
-			});
+			name: "Test Item 2",
+			weight: null, // Auto-weighted to avoid validation issues
+			sortOrder: 1,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 			expect(item2Result.ok).toBe(true);
 			if (!item2Result.ok) {
@@ -450,7 +457,12 @@ describe("Gradebook Item Management", () => {
 			testItem2 = item2Result.value;
 		}
 
-		const result = await tryGetGradebookItemsInOrder(payload, testGradebook.id);
+		const result = await tryGetGradebookItemsInOrder({
+			payload,
+			gradebookId: testGradebook.id,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -462,7 +474,12 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should get category items", async () => {
-		const result = await tryGetCategoryItems(payload, testCategory.id);
+		const result = await tryGetCategoryItems({
+			payload,
+			categoryId: testCategory.id,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -471,11 +488,13 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should get next item sort order", async () => {
-		const result = await tryGetNextItemSortOrder(
+		const result = await tryGetNextItemSortOrder({
 			payload,
-			testGradebook.id,
-			testCategory.id,
-		);
+			gradebookId: testGradebook.id,
+			categoryId: testCategory.id,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -484,10 +503,12 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should reorder items", async () => {
-		const result = await tryReorderItems(payload, {} as Request, [
-			testItem2.id,
-			testItem.id,
-		]);
+		const result = await tryReorderItems({
+			payload,
+			req: undefined,
+			overrideAccess: true,
+			itemIds: [testItem2.id, testItem.id],
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -496,15 +517,81 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should get items with user grades", async () => {
-		const result = await tryGetItemsWithUserGrades(
+		const result = await tryGetItemsWithUserGrades({
 			payload,
-			testGradebook.id,
-			student.id,
-		);
+			gradebookId: testGradebook.id,
+			enrollmentId: testEnrollment.id,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(Array.isArray(result.value)).toBe(true);
+		}
+	});
+
+	it("should get items with non-empty userGrades array", async () => {
+		// Ensure testItem exists
+		if (!testItem) {
+			throw new Error("testItem not initialized");
+		}
+
+		// Create a user grade for the test item
+		const userGradeResult = await tryCreateUserGrade({
+			payload,
+			enrollmentId: testEnrollment.id,
+			gradebookItemId: testItem.id,
+			baseGrade: 85,
+			baseGradeSource: "manual",
+			feedback: "Great work!",
+			gradedBy: instructor.id,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(userGradeResult.ok).toBe(true);
+		if (!userGradeResult.ok) {
+			throw new Error("Failed to create user grade");
+		}
+
+		// Get items with user grades
+		const result = await tryGetItemsWithUserGrades({
+			payload,
+			gradebookId: testGradebook.id,
+			enrollmentId: testEnrollment.id,
+			req: undefined,
+			overrideAccess: true,
+		});
+
+		expect(result.ok).toBe(true);
+		if (result.ok) {
+			expect(Array.isArray(result.value)).toBe(true);
+			expect(result.value.length).toBeGreaterThan(0);
+
+			// Find the item we created a grade for
+			const itemWithGrade = result.value.find(
+				(item) => item.id === testItem.id,
+			);
+			expect(itemWithGrade).toBeDefined();
+			if (itemWithGrade) {
+				// Access userGrades - it should be an array after transformation
+				const userGrades = itemWithGrade.userGrades;
+				console.log("gradebookItem.userGrades", userGrades);
+				expect(userGrades).toBeDefined();
+				
+				// Check if userGrades is an array (after transformation in tryGetItemsWithUserGrades)
+				// It might be the Payload response type with docs property, or already transformed to array
+				const userGradesArray = Array.isArray(userGrades) 
+					? userGrades 
+					: (userGrades as { docs?: unknown[] })?.docs ?? [];
+				
+				expect(userGradesArray.length).toBeGreaterThan(0);
+				if (userGradesArray.length > 0) {
+					const firstGrade = userGradesArray[0] as { enrollment?: { id?: number } };
+					expect(firstGrade?.enrollment?.id).toBe(testEnrollment.id);
+				}
+			}
 		}
 	});
 
@@ -519,8 +606,9 @@ describe("Gradebook Item Management", () => {
 				name: "Temp Item to Delete",
 				weight: null, // Auto-weighted
 				sortOrder: 100,
-				user: instructor as typeof instructor & { collection: "users" },
-				req: undefined,
+				req: {
+					user: instructor as typeof instructor & { collection: "users" },
+				},
 				overrideAccess: true,
 			});
 
@@ -534,7 +622,6 @@ describe("Gradebook Item Management", () => {
 		const result = await tryDeleteGradebookItem({
 			payload,
 			itemId: testItem2.id,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -546,7 +633,12 @@ describe("Gradebook Item Management", () => {
 	});
 
 	it("should not find deleted item", async () => {
-		const result = await tryFindGradebookItemById(payload, testItem2.id);
+		const result = await tryFindGradebookItemById({
+			payload,
+			itemId: testItem2.id,
+			req: undefined,
+			overrideAccess: true,
+		});
 
 		expect(result.ok).toBe(false);
 	});
@@ -563,7 +655,6 @@ describe("Gradebook Item Management", () => {
 			weight: 10, // This will be added to the total weight, potentially exceeding 100%
 			extraCredit: true,
 			sortOrder: 2,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -589,7 +680,6 @@ describe("Gradebook Item Management", () => {
 			weight: 0, // Zero weight extra credit
 			extraCredit: true,
 			sortOrder: 3,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -605,8 +695,10 @@ describe("Gradebook Item Management", () => {
 		// This test would require user grades to be created and calculated
 		// For now, we'll just verify the items exist
 		const allItems = await tryGetGradebookItemsInOrder(
-			payload,
-			testGradebook.id,
+			{payload,
+			gradebookId: testGradebook.id,
+			req: undefined,
+			overrideAccess: true,}
 		);
 		expect(allItems.ok).toBe(true);
 
@@ -627,7 +719,6 @@ describe("Gradebook Item Management", () => {
 	it("should fail to find gradebook item for non-existent course module link", async () => {
 		const result = await tryFindGradebookItemByCourseModuleLink({
 			payload,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 			courseModuleLinkId: 99999, // Non-existent course module link ID

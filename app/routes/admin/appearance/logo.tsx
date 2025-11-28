@@ -24,13 +24,8 @@ import {
 	tryGetAppearanceSettings,
 	tryUpdateAppearanceSettings,
 } from "server/internal/appearance-settings";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import type { Media } from "server/payload-types";
-import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
 import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
@@ -43,6 +38,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/logo";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 enum Action {
 	Clear = "clear",
@@ -135,9 +131,8 @@ const clearAction = async ({
 
 	const clearResult = await tryClearLogo({
 		payload,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 		field,
-		overrideAccess: false,
 	});
 
 	if (!clearResult.ok) {
@@ -155,7 +150,7 @@ const uploadAction = async ({
 	context,
 	searchParams,
 }: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
-	const { field } = searchParams;
+	const { field: _field } = searchParams;
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -173,99 +168,102 @@ const uploadAction = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	let logoField: LogoField | null = null;
-
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
+	const transactionInfo = await handleTransactionId(
 		payload,
-		request,
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		maxFiles: 1,
-		fields: [
-			{
-				fieldName: (fieldName) => {
-					const validFields: LogoField[] = [
-						"logoLight",
-						"logoDark",
-						"compactLogoLight",
-						"compactLogoDark",
-						"faviconLight",
-						"faviconDark",
-					];
-					return validFields.includes(fieldName as LogoField);
-				},
-				alt: (fieldName) => `${fieldName} image`,
-				onUpload: (fieldName, _mediaId, _filename) => {
-					logoField = fieldName as LogoField;
-				},
-			},
-		],
-		validateFile: (fileUpload) => {
-			// Validate MIME type is an image
-			if (!fileUpload.type.startsWith("image/")) {
-				throw new Error("File must be an image");
-			}
-		},
-	});
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
+	return await transactionInfo.tx(async (txInfo) => {
+		let logoField: LogoField | null = null;
+
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			req: txInfo.reqWithTransaction,
 			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
+			maxFiles: 1,
+			fields: [
+				{
+					fieldName: (fieldName) => {
+						const validFields: LogoField[] = [
+							"logoLight",
+							"logoDark",
+							"compactLogoLight",
+							"compactLogoDark",
+							"faviconLight",
+							"faviconDark",
+						];
+						return validFields.includes(fieldName as LogoField);
+					},
+					alt: (fieldName) => `${fieldName} image`,
+					onUpload: (fieldName, _mediaId, _filename) => {
+						logoField = fieldName as LogoField;
+					},
+				},
+			],
+			validateFile: (fileUpload) => {
+				// Validate MIME type is an image
+				if (!fileUpload.type.startsWith("image/")) {
+					throw new Error("File must be an image");
+				}
+			},
+		});
 
-	const { uploadedMedia } = parseResult.value;
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
 
-	if (uploadedMedia.length === 0 || !logoField) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({ error: "No file uploaded or invalid field name" });
-	}
+		const { uploadedMedia } = parseResult.value;
 
-	// Get current appearance settings
-	const currentSettings = await tryGetAppearanceSettings({
-		payload,
-		overrideAccess: true,
-		req: transactionInfo.reqWithTransaction,
-	});
+		if (uploadedMedia.length === 0 || !logoField) {
+			return badRequest({
+				error: "No file uploaded or invalid field name",
+			});
+		}
 
-	if (!currentSettings.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({ error: "Failed to get current settings" });
-	}
+		// Get current appearance settings
+		const currentSettings = await tryGetAppearanceSettings({
+			payload,
+			overrideAccess: true,
+			req: txInfo.reqWithTransaction,
+		});
 
-	// Update appearance settings with the new logo
-	const updateData: {
-		[K in LogoField]?: number | null;
-	} = {
-		[logoField]: uploadedMedia[0]!.mediaId,
-	};
+		if (!currentSettings.ok) {
+			return badRequest({ error: "Failed to get current settings" });
+		}
 
-	const updateResult = await tryUpdateAppearanceSettings({
-		payload,
-		user: currentUser,
-		data: updateData,
-		req: transactionInfo.reqWithTransaction,
-		overrideAccess: false,
-	});
+		// Update appearance settings with the new logo
+		const updateData: {
+			[K in LogoField]?: number | null;
+		} = {
+			[logoField]: uploadedMedia[0]!.mediaId,
+		};
 
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({ error: updateResult.error.message });
-	}
+		const updateResult = await tryUpdateAppearanceSettings({
+			payload,
+			data: updateData,
+			req: txInfo.reqWithTransaction,
+			overrideAccess: false,
+		});
 
-	await commitTransactionIfCreated(payload, transactionInfo);
+		if (!updateResult.ok) {
+			return badRequest({ error: updateResult.error.message });
+		}
 
-	return ok({
-		message: "Logo uploaded successfully",
-		logoField,
+		return ok({
+			message: "Logo uploaded successfully",
+			logoField,
+		});
 	});
 };
 
@@ -383,8 +381,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: logo.filename,
-			})
+			filenameOrId: logo.filename,
+		})
 		: null;
 
 	return (

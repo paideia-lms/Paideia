@@ -4,8 +4,7 @@ import { parseAsString, useQueryState } from "nuqs";
 import { href, Outlet, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
-import { tryGetContext } from "~/utils/try-get-context";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/server-admin-layout";
 import classes from "./header-tabs.module.css";
 
@@ -22,12 +21,6 @@ enum AdminTab {
 }
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
-	const contextResult = tryGetContext(context, globalContextKey);
-
-	if (!contextResult.ok) {
-		throw new BadRequestResponse("Context not found");
-	}
-
 	const { pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 

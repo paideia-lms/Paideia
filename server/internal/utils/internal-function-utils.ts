@@ -1,14 +1,28 @@
-import type { BasePayload, PayloadRequest, TypedUser } from "payload";
+import type {
+	BasePayload,
+	PayloadRequest,
+	RequestContext,
+	TypedUser,
+} from "payload";
 import { Forbidden } from "payload";
 import { ActivityModule } from "server/payload-types";
 import type { Simplify, Subtract, Sum, Tagged } from "type-fest";
 
-export type BaseInternalFunctionArgs = {
+interface BaseUser extends Omit<TypedUser, "avatar"> {}
+
+interface BaseRequest extends Omit<Partial<PayloadRequest>, "user"> {
+	user?: BaseUser | null;
+}
+
+/**
+ * only need either req or user
+ */
+export interface BaseInternalFunctionArgs {
 	payload: BasePayload;
-	user?: Partial<TypedUser> | null;
-	req?: Partial<PayloadRequest>;
+	// user?: Partial<TypedUser> | null;
+	req?: BaseRequest;
 	overrideAccess?: boolean;
-};
+}
 
 /**
  * Intercepts errors from Payload operations and logs them with consistent logging.
@@ -25,7 +39,8 @@ export function interceptPayloadError(
 	context: string,
 	args: BaseInternalFunctionArgs,
 ) {
-	const { payload, user } = args;
+	const { payload, req } = args;
+	const user = req?.user;
 	if (error instanceof Forbidden) {
 		payload.logger.error(
 			`${functionName}: Failed ${context} by user: ${user ? `id ${user.id}` : "unauthenticated"}`,
@@ -34,6 +49,43 @@ export function interceptPayloadError(
 		payload.logger.error(
 			`${functionName}: Failed ${context} by user: ${user ? `id ${user.id}` : "unauthenticated"}`,
 		);
+}
+
+export function createLocalReq({
+	request,
+	user,
+	context,
+}: {
+	request: Request;
+	user?: TypedUser | null;
+	context?: Partial<RequestContext>;
+}): Partial<PayloadRequest> {
+	console.log("test", ...Object.keys(request));
+	return {
+		// need to break down the object
+		url: request.url,
+		headers: request.headers,
+		method: request.method,
+		body: request.body,
+		cache: request.cache,
+		_c: request._c,
+		arrayBuffer: request.arrayBuffer,
+		formData: request.formData,
+		json: request.json,
+		text: request.text,
+		blob: request.blob,
+		clone: request.clone,
+		redirect: request.redirect,
+		referrer: request.referrer,
+		signal: request.signal,
+		destination: request.destination,
+		referrerPolicy: request.referrerPolicy,
+		mode: request.mode,
+		integrity: request.integrity,
+		keepalive: request.keepalive,
+		user,
+		context,
+	};
 }
 
 /**

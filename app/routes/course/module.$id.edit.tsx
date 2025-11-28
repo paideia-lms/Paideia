@@ -56,6 +56,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/module.$id.edit";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -99,7 +100,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 			? courseModuleContext.settings
 			: null;
 	const assignmentSettings =
-		courseModuleContext.settings?.type === "assignment"
+		courseModuleContext.type === "assignment"
 			? courseModuleContext.settings
 			: null;
 	const quizSettings =
@@ -177,8 +178,7 @@ const updatePageSettingsAction = async ({
 		payload,
 		linkId: Number(moduleLinkId),
 		name: requestData.name || undefined,
-		req: request,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!result.ok) {
@@ -257,8 +257,7 @@ const updateFileSettingsAction = async ({
 		payload,
 		linkId: Number(moduleLinkId),
 		name: requestData.name || undefined,
-		req: request,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!result.ok) {
@@ -306,8 +305,7 @@ const updateAssignmentSettingsAction = async ({
 		dueDate: requestData.dueDate || undefined,
 		cutoffDate: requestData.cutoffDate || undefined,
 		maxAttempts: requestData.maxAttempts || undefined,
-		req: request,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!result.ok) {
@@ -354,8 +352,7 @@ const updateQuizSettingsAction = async ({
 		openingTime: requestData.openingTime || undefined,
 		closingTime: requestData.closingTime || undefined,
 		maxAttempts: requestData.maxAttempts || undefined,
-		req: request,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!result.ok) {
@@ -400,8 +397,7 @@ const updateDiscussionSettingsAction = async ({
 		name: requestData.name || undefined,
 		dueDate: requestData.dueDate || undefined,
 		cutoffDate: requestData.cutoffDate || undefined,
-		req: request,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!result.ok) {
@@ -878,49 +874,50 @@ function AssignmentSettingsFormWrapper({
 				}),
 			)}
 		>
+
 			<Stack gap="md">
 				<TextInput
+					{...form.getInputProps("name")}
 					label="Custom Module Name"
 					placeholder="Leave empty to use default module name"
 					disabled={isLoading}
 					description="Override the module name for this course"
-					{...form.getInputProps("name")}
 				/>
 
 				<DateTimePicker
+					{...form.getInputProps("allowSubmissionsFrom")}
 					label="Allow Submissions From"
 					placeholder="Select date and time"
 					disabled={isLoading}
 					clearable
 					description="When students can start submitting"
-					{...form.getInputProps("allowSubmissionsFrom")}
 				/>
 
 				<DateTimePicker
+					{...form.getInputProps("dueDate")}
 					label="Due Date"
 					placeholder="Select date and time"
 					disabled={isLoading}
 					clearable
 					description="Assignment due date"
-					{...form.getInputProps("dueDate")}
 				/>
 
 				<DateTimePicker
+					{...form.getInputProps("cutoffDate")}
 					label="Cutoff Date"
 					placeholder="Select date and time"
 					disabled={isLoading}
 					clearable
 					description="Latest possible submission time"
-					{...form.getInputProps("cutoffDate")}
 				/>
 
 				<NumberInput
+					{...form.getInputProps("maxAttempts")}
 					label="Maximum Attempts"
 					placeholder="Leave empty for unlimited"
 					disabled={isLoading}
 					min={1}
 					description="Maximum number of submission attempts allowed"
-					{...form.getInputProps("maxAttempts")}
 				/>
 
 				<Group justify="flex-end" mt="md">

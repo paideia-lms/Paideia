@@ -59,7 +59,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 
 	return {
 		module: courseModuleContext.activityModule,
-		moduleSettings: courseModuleContext.settings as LatestCourseModuleSettings | null,
+		moduleSettings: courseModuleContext.settings,
 		course: courseContext.course,
 		moduleLinkId: courseModuleContext.id,
 		currentUser: currentUser,
@@ -139,7 +139,7 @@ export default function CourseModuleLayout({
 						<div>
 							<Group gap="xs" mb="xs">
 								<Title order={2}>
-									{moduleSettings?.settings.name ?? module.title}
+									{moduleSettings?.name ?? module.title}
 								</Title>
 								<Badge
 									color={getStatusBadgeColor(module.status)}

@@ -31,6 +31,7 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	canParticipateInDiscussion,
 	canSubmitAssignment,
@@ -39,6 +40,7 @@ import z from "zod";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
+	AssignmentActions,
 	DiscussionActions,
 	QuizActions,
 } from "~/utils/module-actions";
@@ -220,8 +222,7 @@ const upvoteThreadAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!upvoteResult.ok) {
@@ -268,8 +269,7 @@ const removeUpvoteThreadAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!removeUpvoteResult.ok) {
@@ -316,8 +316,7 @@ const upvoteReplyAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!upvoteResult.ok) {
@@ -362,8 +361,7 @@ const removeUpvoteReplyAction = async ({
 
 	const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
 		payload,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 		submissionId,
 		userId: currentUser.id,
 	});
@@ -461,6 +459,7 @@ const createReplyAction = async ({
 		postType,
 		content: content.trim(),
 		parentThread: actualParentThread,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!createResult.ok) {
@@ -568,7 +567,7 @@ const submitQuizAction = async ({
 		submissionId,
 		answers,
 		timeSpent,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 		overrideAccess: false,
 	});
 
@@ -619,7 +618,7 @@ const startQuizAttemptAction = async ({
 		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 		overrideAccess: false,
 	});
 
@@ -642,7 +641,7 @@ const startQuizAttemptAction = async ({
 		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
-		user: currentUser,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 		overrideAccess: false,
 	});
 
@@ -656,8 +655,7 @@ const startQuizAttemptAction = async ({
 		studentId: currentUser.id,
 		enrollmentId: enrolmentContext.enrolment.id,
 		attemptNumber: nextAttemptResult.value,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 		overrideAccess: false,
 	});
 
@@ -723,7 +721,6 @@ const submitAssignmentAction = async ({
 		payload,
 		request,
 		userId: currentUser.id,
-		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
 		maxFileSize,
 		fields: [
@@ -807,7 +804,6 @@ const submitAssignmentAction = async ({
 			content: textContent ?? "",
 			attachments: attachments.length > 0 ? attachments : undefined,
 			status: "draft",
-			user: currentUser,
 			req: transactionInfo.reqWithTransaction,
 			overrideAccess: false,
 		});
@@ -828,7 +824,6 @@ const submitAssignmentAction = async ({
 			content: textContent ?? "",
 			attachments: attachments.length > 0 ? attachments : undefined,
 			attemptNumber: nextAttemptNumber,
-			user: currentUser,
 			req: transactionInfo.reqWithTransaction,
 			overrideAccess: false,
 		});
@@ -845,7 +840,6 @@ const submitAssignmentAction = async ({
 	const submitResult = await trySubmitAssignment({
 		payload,
 		submissionId,
-		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
 		overrideAccess: false,
 	});
@@ -951,13 +945,18 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-	// Default to assignment submission if no action specified
-	return submitAssignmentAction({
-		...args,
-		searchParams: {
-			action: actionParam,
-		},
-	});
+	if (actionParam === AssignmentActions.SUBMIT_ASSIGNMENT) {
+		return submitAssignmentAction({
+			...args,
+			searchParams: {
+				action: actionParam,
+			},
+		});
+	}
+
+
+	return badRequest({ error: "Invalid action" });
+
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {

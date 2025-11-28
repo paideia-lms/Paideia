@@ -33,7 +33,7 @@ export const tryCreateFile = Result.wrap(
 			payload,
 			media,
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -77,7 +77,7 @@ export const tryUpdateFile = Result.wrap(
 			payload,
 			id,
 			media,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -90,7 +90,6 @@ export const tryUpdateFile = Result.wrap(
 		const existingFile = await payload.findByID({
 			collection: "files",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -132,7 +131,7 @@ export const tryUpdateFile = Result.wrap(
 
 export const tryDeleteFile = Result.wrap(
 	async (args: DeleteFileArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("File ID is required");
@@ -142,7 +141,6 @@ export const tryDeleteFile = Result.wrap(
 		const existingFile = await payload.findByID({
 			collection: "files",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -154,7 +152,6 @@ export const tryDeleteFile = Result.wrap(
 		await payload.delete({
 			collection: "files",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -166,7 +163,7 @@ export const tryDeleteFile = Result.wrap(
 
 export const tryGetFileById = Result.wrap(
 	async (args: GetFileByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("File ID is required");
@@ -175,7 +172,6 @@ export const tryGetFileById = Result.wrap(
 		const file = await payload.findByID({
 			collection: "files",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});

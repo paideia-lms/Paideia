@@ -724,7 +724,6 @@ describe("Course Management Functions", () => {
 				course: course2Id,
 				role: "student",
 				status: "active",
-				user: null,
 				overrideAccess: true,
 			});
 
@@ -933,7 +932,6 @@ describe("Course Management Functions", () => {
 				course: ownedCourseResult.value.id,
 				role: "teacher",
 				status: "active",
-				user: null,
 				overrideAccess: true,
 			});
 			expect(enrollmentResult.ok).toBe(true);
@@ -1138,7 +1136,6 @@ describe("Course Management Functions", () => {
 				course: course3Id,
 				role: "student",
 				status: "active",
-				user: null,
 				overrideAccess: true,
 			});
 
@@ -1165,16 +1162,6 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: testUserId,
-				user: testUser
-					? {
-							...testUser,
-							collection: "users",
-							avatar:
-								typeof testUser.avatar === "number"
-									? testUser.avatar
-									: (testUser.avatar?.id ?? undefined),
-						}
-					: null,
 				overrideAccess: false,
 			});
 
@@ -1217,16 +1204,6 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: otherUserId,
-				user: testUser
-					? {
-							...testUser,
-							collection: "users",
-							avatar:
-								typeof testUser.avatar === "number"
-									? testUser.avatar
-									: (testUser.avatar?.id ?? undefined),
-						}
-					: null,
 				overrideAccess: true,
 			});
 
@@ -1272,16 +1249,14 @@ describe("Course Management Functions", () => {
 				const result = await tryGetUserAccessibleCourses({
 					payload,
 					userId: noCoursesUserResult.value.id,
-					user: noCoursesUser
+					req: { 
+						user: noCoursesUser
 						? {
 								...noCoursesUser,
 								collection: "users",
-								avatar:
-									typeof noCoursesUser.avatar === "number"
-										? noCoursesUser.avatar
-										: (noCoursesUser.avatar?.id ?? undefined),
 							}
 						: null,
+					},
 					overrideAccess: false,
 				});
 
@@ -1320,7 +1295,6 @@ describe("Course Management Functions", () => {
 				course: ownedCourseResult.value.id,
 				role: "teacher",
 				status: "active",
-				user: null,
 				overrideAccess: true,
 			});
 			expect(enrollmentResult.ok).toBe(true);
@@ -1335,16 +1309,12 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: testUserId,
-				user: testUser
-					? {
-							...testUser,
-							collection: "users",
-							avatar:
-								typeof testUser.avatar === "number"
-									? testUser.avatar
-									: (testUser.avatar?.id ?? undefined),
-						}
-					: null,
+				req: { 
+					user : {
+						...testUser,
+						collection: "users",
+					}
+				}, 
 				overrideAccess: false,
 			});
 

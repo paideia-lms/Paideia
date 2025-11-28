@@ -17,7 +17,7 @@ import {
 import { tryFindLinksByActivityModule } from "../internal/course-activity-module-link-management";
 import type { Course } from "../payload-types";
 
-export type UserModuleUser = {
+export interface UserModuleUser {
 	id: number;
 	email: string;
 	firstName?: string | null;
@@ -29,16 +29,16 @@ export type UserModuleUser = {
 				filename?: string;
 		  }
 		| null;
-};
+}
 
-export type UserModuleGrant = {
+export interface UserModuleGrant {
 	id: number;
 	grantedTo: UserModuleUser;
 	grantedBy: UserModuleUser;
 	grantedAt: string;
-};
+}
 
-export type Instructor = {
+export interface Instructor {
 	id: number;
 	email: string;
 	firstName: string | null;
@@ -54,9 +54,9 @@ export type Instructor = {
 		courseId: number;
 		role: "teacher" | "ta";
 	}[];
-};
+}
 
-export type UserModuleContext = {
+export interface UserModuleContext {
 	module: ActivityModuleResult;
 	accessType: "owned" | "granted" | "readonly";
 	linkedCourses: {
@@ -71,35 +71,32 @@ export type UserModuleContext = {
 	grants: UserModuleGrant[];
 	instructors: Instructor[];
 	links: ReturnType<typeof tryFindLinksByActivityModule>["$inferValue"];
-};
+}
 
 export const userModuleContext = createContext<UserModuleContext | null>();
 
-export const userModuleContextKey =
-	"userModuleContext" as unknown as typeof userModuleContext;
+export { userModuleContextKey } from "./utils/context-keys";
 
-type TryGetUserModuleContextArgs = BaseInternalFunctionArgs & {
+interface TryGetUserModuleContextArgs extends BaseInternalFunctionArgs {
 	moduleId: number;
-};
+}
 /**
  * Get user module context for a given module ID
  * This includes the module data, linked courses, grants, and instructors
  */
 export const tryGetUserModuleContext = Result.wrap(
-	async (args: TryGetUserModuleContextArgs) => {
-		const {
-			payload,
-			moduleId,
-			user: currentUser,
-			req,
-			overrideAccess = false,
-		} = args;
+	async ({
+		payload,
+		req,
+		overrideAccess = false,
+		moduleId,
+	}: TryGetUserModuleContextArgs) => {
+		const currentUser = req?.user;
 
 		// Fetch the activity module
 		const moduleResult = await tryGetActivityModuleById({
 			payload,
 			id: moduleId,
-			user: currentUser,
 			req,
 			overrideAccess,
 		});
@@ -115,7 +112,6 @@ export const tryGetUserModuleContext = Result.wrap(
 		const linksResult = await tryFindLinksByActivityModule({
 			payload,
 			activityModuleId: module.id,
-			user: currentUser,
 			req,
 			overrideAccess,
 		});
@@ -126,7 +122,6 @@ export const tryGetUserModuleContext = Result.wrap(
 		const grantsResult = await tryFindGrantsByActivityModule({
 			payload,
 			activityModuleId: module.id,
-			user: currentUser,
 			req,
 			overrideAccess,
 		});
@@ -135,7 +130,6 @@ export const tryGetUserModuleContext = Result.wrap(
 		const instructorsResult = await tryFindInstructorsForActivityModule({
 			payload,
 			activityModuleId: module.id,
-			user: currentUser,
 			req,
 			overrideAccess,
 		});

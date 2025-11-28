@@ -34,7 +34,7 @@ export const tryCreatePage = Result.wrap(
 			payload,
 			content,
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -116,7 +116,7 @@ export const tryUpdatePage = Result.wrap(
 			payload,
 			id,
 			content,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -129,7 +129,6 @@ export const tryUpdatePage = Result.wrap(
 		const existingPage = await payload.findByID({
 			collection: "pages",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -215,7 +214,7 @@ export const tryUpdatePage = Result.wrap(
 
 export const tryDeletePage = Result.wrap(
 	async (args: DeletePageArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Page ID is required");
@@ -225,7 +224,6 @@ export const tryDeletePage = Result.wrap(
 		const existingPage = await payload.findByID({
 			collection: "pages",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -237,7 +235,6 @@ export const tryDeletePage = Result.wrap(
 		await payload.delete({
 			collection: "pages",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -249,7 +246,7 @@ export const tryDeletePage = Result.wrap(
 
 export const tryGetPageById = Result.wrap(
 	async (args: GetPageByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Page ID is required");
@@ -258,7 +255,6 @@ export const tryGetPageById = Result.wrap(
 		const page = await payload.findByID({
 			collection: "pages",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});

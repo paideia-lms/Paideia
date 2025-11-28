@@ -1,61 +1,62 @@
 import dayjs from "dayjs";
 import { Notes } from "server/collections";
-import { assertZodInternal } from "server/utils/type-narrowing";
+import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
 
-export type CreateNoteArgs = BaseInternalFunctionArgs & {
+export interface CreateNoteArgs extends BaseInternalFunctionArgs {
 	data: {
 		content: string;
 		createdBy: number;
 		isPublic?: boolean;
 	};
-};
+}
 
-export type UpdateNoteArgs = BaseInternalFunctionArgs & {
+export interface UpdateNoteArgs extends BaseInternalFunctionArgs {
 	noteId: number;
 	data: {
 		content?: string;
 		isPublic?: boolean;
 	};
-};
+}
 
-export type FindNoteByIdArgs = BaseInternalFunctionArgs & {
+export interface FindNoteByIdArgs extends BaseInternalFunctionArgs {
 	noteId: number;
-};
+}
 
-export type SearchNotesArgs = BaseInternalFunctionArgs & {
+export interface SearchNotesArgs extends BaseInternalFunctionArgs {
 	filters?: {
 		createdBy?: number;
 		content?: string;
 		limit?: number;
 		page?: number;
 	};
-};
+}
 
-export type DeleteNoteArgs = BaseInternalFunctionArgs & {
+export interface DeleteNoteArgs extends BaseInternalFunctionArgs {
 	noteId: number;
-};
+}
 
-export type FindNotesByUserArgs = BaseInternalFunctionArgs & {
+export interface FindNotesByUserArgs extends BaseInternalFunctionArgs {
 	userId: number;
 	limit?: number;
-};
+}
 
 /**
  * Creates a new note using Payload local API
- * When user is provided, access control is enforced based on that user
- * When overrideAccess is true, bypasses all access control
  */
 export const tryCreateNote = Result.wrap(
 	async (args: CreateNoteArgs) => {
 		const {
 			payload,
 			data: { content, createdBy, isPublic = false },
-			user = null,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -65,145 +66,37 @@ export const tryCreateNote = Result.wrap(
 			throw new Error("Note content cannot be empty");
 		}
 
-		// Verify user exists
-		const userExists = await payload.findByID({
-			collection: "users",
-			id: createdBy,
-			overrideAccess: true, // Always allow checking if user exists
-		});
+		// Handle transaction
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!userExists) {
-			throw new Error(`User with ID ${createdBy} not found`);
-		}
+		return await transactionInfo.tx(async (txInfo) => {
+			// Parse media from HTML content
+			const mediaParseResult = tryParseMediaFromHtml(
+				content.trim(),
+			).getOrThrow();
 
-		// Parse media from HTML content
-		const mediaParseResult = tryParseMediaFromHtml(content.trim());
-
-		if (!mediaParseResult.ok) {
-			throw mediaParseResult.error;
-		}
-
-		const { ids: parsedIds, filenames } = mediaParseResult.value;
-
-		// Resolve filenames to IDs in a single query
-		let resolvedIds: number[] = [];
-		if (filenames.length > 0) {
-			try {
-				const mediaResult = await payload.find({
-					collection: "media",
-					where: {
-						filename: {
-							in: filenames,
-						},
-					},
-					limit: filenames.length,
-					depth: 0,
-					pagination: false,
-					overrideAccess: true,
-					req,
-				});
-
-				resolvedIds = mediaResult.docs.map((doc) => doc.id);
-			} catch (error) {
-				// If media lookup fails, log warning but continue
-				console.warn(`Failed to resolve media filenames to IDs:`, error);
-			}
-		}
-
-		// Combine parsed IDs and resolved IDs
-		const mediaIds = [...parsedIds, ...resolvedIds];
-
-		// Create note with access control
-		const newNote = await payload.create({
-			collection: "notes",
-			data: {
-				content: content.trim(),
-				createdBy,
-				isPublic,
-				media: mediaIds.length > 0 ? mediaIds : undefined,
-			},
-			user,
-			req,
-			overrideAccess,
-		});
-
-		return newNote;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to create note", {
-			cause: error,
-		}),
-);
-
-/**
- * Updates an existing note using Payload local API
- * When user is provided, access control is enforced based on that user
- * When overrideAccess is true, bypasses all access control
- */
-export const tryUpdateNote = Result.wrap(
-	async (args: UpdateNoteArgs) => {
-		const {
-			payload,
-			noteId,
-			data,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
-
-		// Check if note exists and user has permission to update it
-		const existingNote = await payload.findByID({
-			collection: "notes",
-			id: noteId,
-			user,
-			req,
-			overrideAccess,
-		});
-
-		if (!existingNote) {
-			throw new Error(`Note with ID ${noteId} not found`);
-		}
-
-		// Validate content if provided
-		if (data.content !== undefined) {
-			if (!data.content || data.content.trim().length === 0) {
-				throw new Error("Note content cannot be empty");
-			}
-		}
-
-		const updateData: Record<string, string | boolean | number[] | undefined> =
-			{};
-		if (data.content !== undefined) {
-			updateData.content = data.content.trim();
-
-			// Parse media from updated HTML content
-			const mediaParseResult = tryParseMediaFromHtml(data.content.trim());
-
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
-
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
+			const { ids: parsedIds, filenames } = mediaParseResult;
 
 			// Resolve filenames to IDs in a single query
 			let resolvedIds: number[] = [];
 			if (filenames.length > 0) {
 				try {
-					const mediaResult = await payload.find({
-						collection: "media",
-						where: {
-							filename: {
-								in: filenames,
+					const mediaResult = await payload
+						.find({
+							collection: "media",
+							where: {
+								filename: {
+									in: filenames,
+								},
 							},
-						},
-						limit: filenames.length,
-						depth: 0,
-						pagination: false,
-						overrideAccess: true,
-						user,
-						req,
-					});
+							limit: filenames.length,
+							depth: 0,
+							pagination: false,
+							// ! this is a system request so should be safe
+							overrideAccess: true,
+							req: txInfo.reqWithTransaction,
+						})
+						.then(stripDepth<0, "find">());
 
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);
 				} catch (error) {
@@ -214,22 +107,109 @@ export const tryUpdateNote = Result.wrap(
 
 			// Combine parsed IDs and resolved IDs
 			const mediaIds = [...parsedIds, ...resolvedIds];
-			updateData.media = mediaIds.length > 0 ? mediaIds : [];
-		}
-		if (data.isPublic !== undefined) {
-			updateData.isPublic = data.isPublic;
-		}
 
-		const updatedNote = await payload.update({
-			collection: "notes",
-			id: noteId,
-			data: updateData,
-			user,
-			req,
-			overrideAccess,
+			// Create note with access control
+			const newNote = await payload
+				.create({
+					collection: "notes",
+					data: {
+						content: content.trim(),
+						createdBy,
+						isPublic,
+						media: mediaIds.length > 0 ? mediaIds : undefined,
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
+
+			return newNote;
 		});
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to create note", {
+			cause: error,
+		}),
+);
 
-		return updatedNote;
+/**
+ * Updates an existing note using Payload local API
+ */
+export const tryUpdateNote = Result.wrap(
+	async (args: UpdateNoteArgs) => {
+		const { payload, noteId, data, req, overrideAccess = false } = args;
+
+		// Handle transaction
+		const transactionInfo = await handleTransactionId(payload, req);
+
+		return await transactionInfo.tx(async (txInfo) => {
+			// Validate content if provided
+			if (data.content !== undefined) {
+				if (!data.content || data.content.trim().length === 0) {
+					throw new Error("Note content cannot be empty");
+				}
+			}
+
+			const updateData: Record<
+				string,
+				string | boolean | number[] | undefined
+			> = {};
+			if (data.content !== undefined) {
+				updateData.content = data.content.trim();
+
+				// Parse media from updated HTML content
+				const mediaParseResult = tryParseMediaFromHtml(
+					data.content.trim(),
+				).getOrThrow();
+
+				const { ids: parsedIds, filenames } = mediaParseResult;
+
+				// Resolve filenames to IDs in a single query
+				let resolvedIds: number[] = [];
+				if (filenames.length > 0) {
+					const mediaResult = await payload
+						.find({
+							collection: "media",
+							where: {
+								filename: {
+									in: filenames,
+								},
+							},
+							limit: filenames.length,
+							depth: 0,
+							pagination: false,
+							// ! this is a system request so should be safe
+							overrideAccess: true,
+							req: txInfo.reqWithTransaction,
+						})
+						.then(stripDepth<0, "find">());
+
+					resolvedIds = mediaResult.docs.map((doc) => doc.id);
+				}
+
+				// Combine parsed IDs and resolved IDs
+				const mediaIds = [...parsedIds, ...resolvedIds];
+				updateData.media = mediaIds.length > 0 ? mediaIds : [];
+			}
+			if (data.isPublic !== undefined) {
+				updateData.isPublic = data.isPublic;
+			}
+
+			const updatedNote = await payload
+				.update({
+					collection: "notes",
+					id: noteId,
+					data: updateData,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
+
+			return updatedNote;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -245,38 +225,18 @@ export const tryUpdateNote = Result.wrap(
  */
 export const tryFindNoteById = Result.wrap(
 	async (args: FindNoteByIdArgs) => {
-		const { payload, noteId, user = null, req, overrideAccess = false } = args;
+		const { payload, noteId, req, overrideAccess = false } = args;
 
 		// Find note with access control
 		const note = await payload
 			.findByID({
 				collection: Notes.slug,
 				id: noteId,
-				user,
 				req,
 				overrideAccess,
+				depth: 1,
 			})
-			.then((n) => {
-				const createdBy = n.createdBy;
-				assertZodInternal(
-					"tryFindNoteById: Note createdBy is required",
-					createdBy,
-					z.object({ id: z.number() }, { error: "Note createdBy is required" }),
-				);
-				const avatar = createdBy.avatar;
-				assertZodInternal(
-					"tryFindNoteById: Note createdBy avatar is required",
-					avatar,
-					z.number({ error: "Note createdBy avatar is required" }).nullish(),
-				);
-				return {
-					...n,
-					createdBy: {
-						...createdBy,
-						avatar,
-					},
-				};
-			});
+			.then(stripDepth<1, "findByID">());
 
 		return note;
 	},
@@ -297,7 +257,7 @@ export const trySearchNotes = Result.wrap(
 		const {
 			payload,
 			filters = {},
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -325,7 +285,6 @@ export const trySearchNotes = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -354,13 +313,12 @@ export const trySearchNotes = Result.wrap(
  */
 export const tryDeleteNote = Result.wrap(
 	async (args: DeleteNoteArgs) => {
-		const { payload, noteId, user = null, req, overrideAccess = false } = args;
+		const { payload, noteId, req, overrideAccess = false } = args;
 
 		// Delete note with access control
 		const deletedNote = await payload.delete({
 			collection: "notes",
 			id: noteId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -385,7 +343,7 @@ export const tryFindNotesByUser = Result.wrap(
 			payload,
 			userId,
 			limit = 10,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -400,7 +358,6 @@ export const tryFindNotesByUser = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -426,20 +383,21 @@ export type GenerateNoteHeatmapArgs = BaseInternalFunctionArgs & {
  */
 export const tryGenerateNoteHeatmap = Result.wrap(
 	async (args: GenerateNoteHeatmapArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		// Fetch all notes for the user
-		const notes = await payload.find({
-			collection: "notes",
-			where: {
-				createdBy: { equals: userId },
-			},
-			limit: 1000,
-			sort: "-createdAt",
-			user,
-			req,
-			overrideAccess,
-		});
+		const notes = await payload
+			.find({
+				collection: "notes",
+				where: {
+					createdBy: { equals: userId },
+				},
+				limit: MOCK_INFINITY,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		const heatmapData: Record<string, number> = {};
 		const availableYears: number[] = [];

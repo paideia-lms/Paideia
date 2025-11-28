@@ -25,11 +25,10 @@ const maintenanceSettingsSchema = z.object({
  */
 export const tryGetMaintenanceSettings = Result.wrap(
 	async (args: GetMaintenanceSettingsArgs): Promise<MaintenanceSettings> => {
-		const { payload, user = null, req } = args;
+		const { payload, req } = args;
 
 		const raw = await payload.findGlobal({
 			slug: "maintenance-settings",
-			user,
 			req,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,

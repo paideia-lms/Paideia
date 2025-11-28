@@ -1,12 +1,14 @@
 import { Result } from "typescript-result";
 import { EmailSendError } from "~/utils/error";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { z } from "zod";
 
-export type TrySendEmailArgs = BaseInternalFunctionArgs & {
+const emailSchema = z.email();
+export interface TrySendEmailArgs extends BaseInternalFunctionArgs {
 	to: string;
 	subject: string;
 	html: string;
-};
+}
 
 /**
  * Send an email using Payload's email adapter
@@ -18,7 +20,7 @@ export const trySendEmail = Result.wrap(
 		to,
 		subject,
 		html,
-		user,
+		req,
 		overrideAccess,
 	}: TrySendEmailArgs): Promise<void> => {
 		if (!to || to.trim() === "") {
@@ -26,8 +28,8 @@ export const trySendEmail = Result.wrap(
 		}
 
 		// Basic email validation
-		const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-		if (!emailRegex.test(to)) {
+		const emailResult = emailSchema.safeParse(to);
+		if (!emailResult.success) {
 			throw new Error("Invalid email format");
 		}
 
@@ -41,7 +43,7 @@ export const trySendEmail = Result.wrap(
 			subject,
 			html,
 			overrideAccess,
-			user,
+			user: req?.user,
 		});
 	},
 	(error) => {

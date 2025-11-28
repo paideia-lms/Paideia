@@ -2,7 +2,7 @@ import { createContext } from "react-router";
 import type { CourseSection } from "server/payload-types";
 import { Result } from "typescript-result";
 import type { tryFindSectionById } from "../internal/course-section-management";
-
+export { courseSectionContextKey } from "./utils/context-keys";
 export type CourseSectionContext = {
 	section: CourseSection;
 };
@@ -13,9 +13,6 @@ export type CourseSectionContext = {
  */
 export const courseSectionContext =
 	createContext<CourseSectionContext | null>();
-
-export const courseSectionContextKey =
-	"courseSectionContext" as unknown as typeof courseSectionContext;
 
 /**
  * Get course section context for a section

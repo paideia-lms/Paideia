@@ -33,7 +33,7 @@ export const tryCreateWhiteboard = Result.wrap(
 			payload,
 			content,
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -78,7 +78,7 @@ export const tryUpdateWhiteboard = Result.wrap(
 			payload,
 			id,
 			content,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -91,7 +91,6 @@ export const tryUpdateWhiteboard = Result.wrap(
 		const existingWhiteboard = await payload.findByID({
 			collection: "whiteboards",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -106,7 +105,6 @@ export const tryUpdateWhiteboard = Result.wrap(
 			data: {
 				content,
 			},
-			user,
 			req,
 			overrideAccess,
 		});
@@ -119,7 +117,7 @@ export const tryUpdateWhiteboard = Result.wrap(
 
 export const tryDeleteWhiteboard = Result.wrap(
 	async (args: DeleteWhiteboardArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Whiteboard ID is required");
@@ -129,7 +127,6 @@ export const tryDeleteWhiteboard = Result.wrap(
 		const existingWhiteboard = await payload.findByID({
 			collection: "whiteboards",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -141,7 +138,6 @@ export const tryDeleteWhiteboard = Result.wrap(
 		await payload.delete({
 			collection: "whiteboards",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -154,7 +150,7 @@ export const tryDeleteWhiteboard = Result.wrap(
 
 export const tryGetWhiteboardById = Result.wrap(
 	async (args: GetWhiteboardByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Whiteboard ID is required");

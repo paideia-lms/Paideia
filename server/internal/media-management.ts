@@ -93,7 +93,6 @@ export const tryCreateMedia = Result.wrap(
 			alt,
 			caption,
 			userId,
-			user = null,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -133,14 +132,12 @@ export const tryCreateMedia = Result.wrap(
 						size: file.length,
 						mimetype: mimeType,
 					},
-					user,
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.catch((error) => {
 					interceptPayloadError(error, "tryCreateMedia", `to create media`, {
 						payload,
-						user,
 						req,
 						overrideAccess,
 					});
@@ -174,7 +171,7 @@ export const tryCreateMedia = Result.wrap(
  */
 export const tryGetMediaById = Result.wrap(
 	async (args: GetMediaByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -187,7 +184,6 @@ export const tryGetMediaById = Result.wrap(
 				collection: "media",
 				id,
 				depth: 1,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -197,7 +193,7 @@ export const tryGetMediaById = Result.wrap(
 					error,
 					"tryGetMediaById",
 					`to get media by id ${id}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -222,7 +218,7 @@ export const tryGetMediaByFilename = Result.wrap(
 		const {
 			payload,
 			filename,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -240,7 +236,7 @@ export const tryGetMediaByFilename = Result.wrap(
 					filename: { equals: filename },
 				},
 				depth: 1,
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -250,7 +246,7 @@ export const tryGetMediaByFilename = Result.wrap(
 					error,
 					"tryGetMediaByFilename",
 					`to get media by filename ${filename}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -278,7 +274,7 @@ type GetMediaByIdsArgs = BaseInternalFunctionArgs & {
 
 export const tryGetMediaByIds = Result.wrap(
 	async (args: GetMediaByIdsArgs) => {
-		const { payload, ids, user = null, req, overrideAccess = false } = args;
+		const { payload, ids, req, overrideAccess = false } = args;
 		return await payload
 			.find({
 				collection: "media",
@@ -288,7 +284,7 @@ export const tryGetMediaByIds = Result.wrap(
 				depth: 0,
 				limit: MOCK_INFINITY,
 				pagination: false,
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -298,7 +294,7 @@ export const tryGetMediaByIds = Result.wrap(
 					error,
 					"tryGetMediaByIds",
 					`to get media by ids ${ids}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -325,7 +321,7 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 			payload,
 			s3Client,
 			filename,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -339,7 +335,6 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
 		const mediaResult = await tryGetMediaByFilename({
 			payload,
 			filename,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -393,7 +388,7 @@ export const tryGetMediaBufferFromFilename = Result.wrap(
  */
 export const tryGetMediaBufferFromId = Result.wrap(
 	async (args: GetMediaBufferFromIdArgs) => {
-		const { payload, s3Client, id, user = null, overrideAccess = false } = args;
+		const { payload, s3Client, id, overrideAccess = false } = args;
 
 		// Validate ID
 		if (!id) {
@@ -404,7 +399,7 @@ export const tryGetMediaBufferFromId = Result.wrap(
 		const mediaResult = await tryGetMediaById({
 			payload,
 			id,
-			user,
+
 			overrideAccess,
 		});
 
@@ -470,7 +465,7 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
 			s3Client,
 			filename,
 			range,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -484,7 +479,6 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
 		const mediaResult = await tryGetMediaByFilename({
 			payload,
 			filename,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -569,7 +563,7 @@ export const tryGetMediaStreamFromId = Result.wrap(
 			s3Client,
 			id,
 			range,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -583,7 +577,6 @@ export const tryGetMediaStreamFromId = Result.wrap(
 		const mediaResult = await tryGetMediaById({
 			payload,
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -675,7 +668,7 @@ export const tryGetAllMedia = Result.wrap(
 			page = 1,
 			sort = "-createdAt",
 			where = {},
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -699,7 +692,7 @@ export const tryGetAllMedia = Result.wrap(
 				limit,
 				page,
 				sort,
-				user,
+
 				req,
 				overrideAccess,
 				// ! TODO: we don't care about pagination for now
@@ -708,7 +701,7 @@ export const tryGetAllMedia = Result.wrap(
 			.catch((error) => {
 				interceptPayloadError(error, "tryGetAllMedia", `to get all media`, {
 					payload,
-					user,
+
 					req,
 					overrideAccess,
 				});
@@ -760,7 +753,7 @@ export const tryDeleteMedia = Result.wrap(
 			payload,
 			s3Client,
 			id,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -789,7 +782,7 @@ export const tryDeleteMedia = Result.wrap(
 						},
 					},
 					limit: ids.length,
-					user,
+
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				})
@@ -798,7 +791,7 @@ export const tryDeleteMedia = Result.wrap(
 						error,
 						"tryDeleteMedia",
 						`to get media before deletion`,
-						{ payload, user, req, overrideAccess },
+						{ payload, req, overrideAccess },
 					);
 					throw error;
 				});
@@ -827,7 +820,7 @@ export const tryDeleteMedia = Result.wrap(
 					tryFindMediaUsages({
 						payload,
 						mediaId: media.id,
-						user,
+
 						req: transactionInfo.reqWithTransaction,
 						overrideAccess,
 					}).then((usagesResult) => ({
@@ -885,7 +878,7 @@ export const tryDeleteMedia = Result.wrap(
 						.delete({
 							collection: "media",
 							id: mediaId,
-							user,
+
 							req: transactionInfo.reqWithTransaction,
 							overrideAccess,
 						})
@@ -894,7 +887,7 @@ export const tryDeleteMedia = Result.wrap(
 								error,
 								"tryDeleteMedia",
 								`to delete media`,
-								{ payload, user, req, overrideAccess },
+								{ payload, req, overrideAccess },
 							);
 							throw error;
 						}),
@@ -935,7 +928,7 @@ export const tryGetMediaByMimeType = Result.wrap(
 			limit = 10,
 			page = 1,
 			depth = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -964,7 +957,6 @@ export const tryGetMediaByMimeType = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1011,7 +1003,7 @@ export const tryFindMediaByUser = Result.wrap(
 			page = 1,
 			depth = 1,
 			sort = "-createdAt",
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1037,7 +1029,6 @@ export const tryFindMediaByUser = Result.wrap(
 			page,
 			depth,
 			sort,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1091,7 +1082,7 @@ export const tryRenameMedia = Result.wrap(
 			id,
 			newFilename,
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1116,7 +1107,7 @@ export const tryRenameMedia = Result.wrap(
 			const mediaResult = await tryGetMediaById({
 				payload,
 				id,
-				user,
+
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
@@ -1146,7 +1137,7 @@ export const tryRenameMedia = Result.wrap(
 			const existingMediaResult = await tryGetMediaByFilename({
 				payload,
 				filename: newFilename,
-				user,
+
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
@@ -1183,7 +1174,7 @@ export const tryRenameMedia = Result.wrap(
 						filename: newFilename,
 					},
 					depth: 0,
-					user,
+
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				})
@@ -1215,7 +1206,7 @@ export type GetUserMediaStatsArgs = BaseInternalFunctionArgs & {
  */
 export const tryGetUserMediaStats = Result.wrap(
 	async (args: GetUserMediaStatsArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		// Fetch all media for the user (no pagination limit)
 		const mediaResult = await payload.find({
@@ -1227,7 +1218,6 @@ export const tryGetUserMediaStats = Result.wrap(
 			},
 			limit: 10000, // Large limit to get all media
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1320,14 +1310,13 @@ export type GetSystemMediaStatsArgs = BaseInternalFunctionArgs;
  */
 export const tryGetSystemMediaStats = Result.wrap(
 	async (args: GetSystemMediaStatsArgs) => {
-		const { payload, user = null, req, overrideAccess = false } = args;
+		const { payload, req, overrideAccess = false } = args;
 
 		// Fetch all media in the system (no pagination limit)
 		const mediaResult = await payload.find({
 			collection: "media",
 			limit: 10000, // Large limit to get all media
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1449,7 +1438,7 @@ export const tryGetOrphanedMedia = Result.wrap(
 			s3Client,
 			limit = 20,
 			page = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1468,7 +1457,6 @@ export const tryGetOrphanedMedia = Result.wrap(
 			collection: "media",
 			limit: 10000, // Large limit to get all media filenames
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1569,7 +1557,7 @@ export const tryGetAllOrphanedFilenames = Result.wrap(
 		const {
 			payload,
 			s3Client,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1578,7 +1566,6 @@ export const tryGetAllOrphanedFilenames = Result.wrap(
 			collection: "media",
 			limit: 10000, // Large limit to get all media filenames
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1659,7 +1646,7 @@ export const tryPruneAllOrphanedMedia = Result.wrap(
 		const {
 			payload,
 			s3Client,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1668,7 +1655,6 @@ export const tryPruneAllOrphanedMedia = Result.wrap(
 			collection: "media",
 			limit: 10000, // Large limit to get all media filenames
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1816,7 +1802,7 @@ export const tryDeleteOrphanedMedia = Result.wrap(
 			payload,
 			s3Client,
 			filenames,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1836,7 +1822,6 @@ export const tryDeleteOrphanedMedia = Result.wrap(
 			},
 			limit: filenames.length,
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1958,7 +1943,7 @@ export interface FindMediaUsagesResult {
  */
 export const tryFindMediaUsages = Result.wrap(
 	async (args: FindMediaUsagesArgs) => {
-		const { payload, mediaId, user, req, overrideAccess = false } = args;
+		const { payload, mediaId, req, overrideAccess = false } = args;
 
 		// Validate media ID
 		if (!mediaId) {
@@ -1977,7 +1962,6 @@ export const tryFindMediaUsages = Result.wrap(
 		const mediaResult = await tryGetMediaById({
 			payload,
 			id: mediaId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -2018,7 +2002,7 @@ export const tryFindMediaUsages = Result.wrap(
 				},
 				depth: 0,
 				limit: 10000,
-				user,
+
 				req,
 				overrideAccess,
 			}),
@@ -2032,7 +2016,7 @@ export const tryFindMediaUsages = Result.wrap(
 				},
 				depth: 0,
 				limit: 10000,
-				user,
+
 				req,
 				overrideAccess,
 			}),
@@ -2041,7 +2025,7 @@ export const tryFindMediaUsages = Result.wrap(
 				collection: "assignment-submissions",
 				depth: 0,
 				limit: 10000,
-				user,
+
 				req,
 				overrideAccess,
 			}),
@@ -2050,7 +2034,6 @@ export const tryFindMediaUsages = Result.wrap(
 				collection: "discussion-submissions",
 				depth: 0,
 				limit: 10000,
-				user,
 				req,
 				overrideAccess,
 			}),
@@ -2059,7 +2042,6 @@ export const tryFindMediaUsages = Result.wrap(
 				collection: "notes",
 				depth: 0,
 				limit: 10000,
-				user,
 				req,
 				overrideAccess,
 			}),
@@ -2068,7 +2050,7 @@ export const tryFindMediaUsages = Result.wrap(
 				collection: "pages",
 				depth: 0,
 				limit: 10000,
-				user,
+
 				req,
 				overrideAccess,
 			}),
@@ -2077,7 +2059,7 @@ export const tryFindMediaUsages = Result.wrap(
 				collection: "courses",
 				depth: 0,
 				limit: 10000,
-				user,
+
 				req,
 				overrideAccess,
 			}),
@@ -2086,14 +2068,14 @@ export const tryFindMediaUsages = Result.wrap(
 				collection: "files",
 				depth: 0,
 				limit: 10000,
-				user,
+
 				req,
 				overrideAccess,
 			}),
 			// Search appearance-settings global for logo fields
 			payload.findGlobal({
 				slug: "appearance-settings",
-				user,
+
 				req,
 				overrideAccess,
 			}),

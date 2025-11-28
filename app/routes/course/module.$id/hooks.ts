@@ -2,7 +2,11 @@ import { stringify } from "qs";
 import { useEffect } from "react";
 import { href, useFetcher, useRevalidator } from "react-router";
 import { ContentType } from "~/utils/get-content-type";
-import { DiscussionActions, QuizActions } from "~/utils/module-actions";
+import {
+	AssignmentActions,
+	DiscussionActions,
+	QuizActions,
+} from "~/utils/module-actions";
 import type { clientAction } from "./route";
 
 export const getActionUrl = (
@@ -41,9 +45,10 @@ export const useSubmitAssignment = (moduleLinkId: number) => {
 
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
-			}),
+			action: getActionUrl(
+				AssignmentActions.SUBMIT_ASSIGNMENT,
+				String(moduleLinkId),
+			),
 			encType: ContentType.MULTIPART,
 		});
 	};

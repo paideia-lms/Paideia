@@ -201,7 +201,6 @@ export const tryFindCategoryById = Result.wrap(
 			collection: CourseCategories.slug,
 			id: categoryId,
 			depth: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -226,7 +225,6 @@ export const tryGetCategoryTree = Result.wrap(
 			collection: CourseCategories.slug,
 			pagination: false,
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -422,7 +420,6 @@ export const tryGetTotalNestedCoursesCount = Result.wrap(
 					equals: categoryId,
 				},
 			},
-			user,
 			req,
 			overrideAccess,
 		});
@@ -439,7 +436,6 @@ export const tryGetTotalNestedCoursesCount = Result.wrap(
 			},
 			pagination: false,
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -489,7 +485,6 @@ export const tryFindRootCategories = Result.wrap(
 			},
 			limit,
 			sort: "name",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -515,7 +510,6 @@ export const tryFindSubcategories = Result.wrap(
 			payload,
 			parentId,
 			limit = 100,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -533,7 +527,6 @@ export const tryFindSubcategories = Result.wrap(
 			},
 			limit,
 			sort: "name",
-			user,
 			req,
 			overrideAccess,
 		});

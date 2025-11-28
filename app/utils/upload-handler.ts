@@ -5,11 +5,7 @@ import type {
 import { Glob } from "bun";
 import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { tryCreateMedia } from "server/internal/media-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "./error";
 import { parseFormDataWithFallback } from "./parse-form-data-with-fallback";
@@ -35,8 +31,8 @@ export interface MediaUploadFieldConfig {
 export interface MediaUploadConfig {
 	payload: Payload;
 	userId: number;
-	user: TypedUser;
 	req: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
 	fields: MediaUploadFieldConfig[];
 	/**
 	 * Optional callback to validate the file before uploading
@@ -61,7 +57,7 @@ export function createMediaUploadHandler(
 	config: MediaUploadConfig,
 	uploadedMedia?: UploadedMediaInfo[],
 ): FileUploadHandler {
-	const { payload, userId, user, req, fields, validateFile } = config;
+	const { payload, userId, req, fields, validateFile, overrideAccess } = config;
 
 	return async (fileUpload: FileUpload) => {
 		// Find matching field configuration
@@ -108,8 +104,8 @@ export function createMediaUploadHandler(
 			mimeType: fileUpload.type || "application/octet-stream",
 			alt,
 			userId,
-			user,
 			req,
+			overrideAccess,
 		});
 
 		if (!mediaResult.ok) {
@@ -142,12 +138,12 @@ export interface ParseFormDataWithMediaUploadOptions {
 	payload: Payload;
 	request: Request;
 	userId: number;
-	user: TypedUser;
 	req?: Partial<PayloadRequest>;
 	maxFileSize?: number;
 	maxFiles?: number;
 	fields: MediaUploadFieldConfig[];
 	validateFile?: (fileUpload: FileUpload) => void | Promise<void>;
+	overrideAccess?: boolean;
 }
 
 export interface ParseFormDataWithMediaUploadResult {
@@ -177,26 +173,26 @@ export const tryParseFormDataWithMediaUpload = Result.wrap(
 			payload,
 			request,
 			userId,
-			user,
 			req,
 			maxFileSize,
 			maxFiles,
 			fields,
 			validateFile,
+			overrideAccess,
 		} = options;
 
 		// Handle transaction ID using the same pattern as internal functions
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			const uploadedMedia: UploadedMediaInfo[] = [];
 
 			const uploadHandler = createMediaUploadHandler(
 				{
 					payload,
 					userId,
-					user,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
 					fields,
 					validateFile,
 				},
@@ -208,18 +204,11 @@ export const tryParseFormDataWithMediaUpload = Result.wrap(
 				...(maxFiles !== undefined && { maxFiles }),
 			});
 
-			// Commit transaction only if we created it
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return {
 				formData,
 				uploadedMedia,
 			};
-		} catch (error) {
-			// Rollback transaction only if we created it
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??

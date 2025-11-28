@@ -33,6 +33,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/appearance";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 type AppearanceGlobal = {
 	id: number;
@@ -97,11 +98,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateAppearanceSettings({
 		payload,
-		user: currentUser,
 		data: {
 			additionalCssStylesheets,
 		},
-		overrideAccess: false,
+		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 	});
 
 	if (!updateResult.ok) {
@@ -226,7 +226,7 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 							key={`${url}-${
 								// biome-ignore lint/suspicious/noArrayIndexKey: url may not be unique, index is needed
 								index
-							}`}
+								}`}
 							align="flex-start"
 							wrap="nowrap"
 						>
@@ -237,9 +237,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 								style={{ flex: 1 }}
 								error={
 									form.getValues().stylesheets[index]?.url &&
-									!form
-										.getValues()
-										.stylesheets[index]?.url.match(/^https?:\/\/.+/)
+										!form
+											.getValues()
+											.stylesheets[index]?.url.match(/^https?:\/\/.+/)
 										? "Must be a valid HTTP or HTTPS URL"
 										: undefined
 								}

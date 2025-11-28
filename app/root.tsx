@@ -33,6 +33,7 @@ import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
 import "@gfazioli/mantine-json-tree/styles.css";
 import "@gfazioli/mantine-clock/styles.css";
+import { omit, pick } from "es-toolkit";
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -80,6 +81,7 @@ import {
 } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const searchParams = {
 	threadId: parseAsInteger,
@@ -331,7 +333,10 @@ export const middleware = [
 	async ({ request, context }) => {
 		const { payload } = context.get(globalContextKey);
 
-		const userSession = await tryGetUserContext(payload, request);
+		const userSession = await tryGetUserContext({
+			payload,
+			req: createLocalReq({ request, context: { routerContext: context } }),
+		});
 
 		// Set the user context
 		context.set(userContextKey, userSession);
@@ -428,8 +433,7 @@ export const middleware = [
 				const moduleContext = await tryFindCourseActivityModuleLinkById({
 					payload,
 					linkId: Number(moduleLinkId),
-					user: currentUser,
-					req: request,
+					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 				});
 
 				if (!moduleContext.ok) return;
@@ -450,8 +454,7 @@ export const middleware = [
 				const sectionContext = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					user: currentUser,
-					req: request,
+					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 				});
 
 				if (!sectionContext.ok) return;
@@ -497,8 +500,7 @@ export const middleware = [
 				const sectionResult = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					user: currentUser,
-					req: request,
+					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 				});
 
 				if (sectionResult.ok) {
@@ -536,8 +538,7 @@ export const middleware = [
 			const userAccessContext = await getUserAccessContext({
 				payload,
 				userId: currentUser.id,
-				user: typedUser,
-				req: request,
+				req: createLocalReq({ request, user: typedUser, context: { routerContext: context } }),
 			});
 			context.set(userAccessContextKey, userAccessContext);
 		}
@@ -573,8 +574,7 @@ export const middleware = [
 						: await getUserProfileContext({
 							payload,
 							profileUserId,
-							user: currentUser,
-							req: request,
+							req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 							overrideAccess: false,
 						});
 				context.set(userProfileContextKey, userProfileContext);
@@ -626,14 +626,18 @@ export const middleware = [
 				// Extract threadId from URL search params if present
 				const { threadId } = loadSearchParams(request);
 
+
 				const courseModuleContextResult = await tryGetCourseModuleContext({
 					payload,
 					moduleLinkId: Number(moduleLinkId),
 					courseId: courseContext.courseId,
-					user: currentUser,
 					enrolment: enrolmentContext?.enrolment ?? null,
 					threadId: threadId !== null ? String(threadId) : null,
-					req: request,
+					req: createLocalReq({
+						request, user: currentUser, context: {
+							routerContext: context
+						}
+					}),
 				});
 
 				if (courseModuleContextResult.ok) {
@@ -664,8 +668,7 @@ export const middleware = [
 				const userModuleContextResult = await tryGetUserModuleContext({
 					payload,
 					moduleId,
-					user: currentUser,
-					req: request,
+					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
 				});
 
 				if (userModuleContextResult.ok) {

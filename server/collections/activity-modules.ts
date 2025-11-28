@@ -8,7 +8,9 @@ export const ActivityModules = {
 	slug,
 	defaultSort: "-createdAt",
 	access: {
-		read: (): AccessResult => {
+		read: ({ req }): AccessResult => {
+			if (!req.user) return false;
+			console.log("activity-modules read", req.context);
 			return true;
 		},
 		create: ({ req }): AccessResult => {
@@ -228,9 +230,6 @@ export const ActivityModules = {
 		},
 		{
 			fields: ["whiteboard"],
-		},
-		{
-			fields: ["assignment"],
 		},
 		{
 			fields: ["quiz"],

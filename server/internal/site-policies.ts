@@ -28,11 +28,10 @@ const sitePoliciesSchema = z.object({
  */
 export const tryGetSitePolicies = Result.wrap(
 	async (args: GetSitePoliciesArgs): Promise<SitePolicies> => {
-		const { payload, user = null, req } = args;
+		const { payload, req } = args;
 
 		const raw = await payload.findGlobal({
 			slug: "site-policies",
-			user,
 			req,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,

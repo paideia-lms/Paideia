@@ -52,8 +52,25 @@ import { envVars } from "./env";
 import { autoSubmitQuiz } from "./tasks/auto-submit-quiz";
 import { sandboxReset } from "./tasks/sandbox-reset";
 import { customTranslations } from "./utils/db/custom-translations";
+import { RouterContextProvider } from "react-router";
 
 export * from "./collections";
+
+
+// extends the RequestContext type from payload 
+declare module "payload" {
+	interface RequestContext {
+		// intent?: string ; 
+		routerContext?: Readonly<RouterContextProvider>;
+	}
+}
+
+// extends the Request type for global
+declare global {
+	interface Request {
+		_c?: Readonly<RouterContextProvider>;
+	}
+}
 
 /**
  * Queue names used for Payload job scheduling

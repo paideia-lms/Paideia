@@ -65,7 +65,7 @@ export const tryGrantAccessToActivityModule = Result.wrap(
 			activityModuleId,
 			grantedToUserId,
 			grantedByUserId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -178,7 +178,7 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 			payload,
 			activityModuleId,
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -222,7 +222,6 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 		const deletedGrant = await payload.delete({
 			collection: "activity-module-grants",
 			id: existingGrantId,
-			user,
 			req,
 			overrideAccess: true,
 		});
@@ -248,7 +247,7 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 			activityModuleId,
 			newOwnerId,
 			currentOwnerId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -614,7 +613,7 @@ type FindAutoGrantedModulesForInstructorArgs = BaseInternalFunctionArgs & {
 
 export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 	async (args: FindAutoGrantedModulesForInstructorArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		// get all the enrollments for this user
 		const enrollments = await payload

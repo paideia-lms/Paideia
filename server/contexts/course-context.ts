@@ -4,7 +4,6 @@
  * this context is available when user is in a course
  */
 
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { createContext } from "react-router";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
 import { tryFindCourseById } from "server/internal/course-management";
@@ -33,21 +32,22 @@ import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
 } from "../utils/course-structure-tree";
-import type { User } from "./user-context";
+import { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+export { courseContextKey } from "./utils/context-keys";
 
-type Group = {
+interface Group {
 	id: number;
 	name: string;
 	path: string;
 	description?: string | null;
 	color?: string | null;
 	parent?: number | null;
-};
+}
 
 /**
  * all the user enrollments, the name, id, email, role, status, enrolledAt, completedAt
  */
-export type Enrollment = {
+export interface Enrollment {
 	name: string;
 	id: number;
 	userId: number;
@@ -64,18 +64,18 @@ export type Enrollment = {
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	groups: Group[];
-};
+}
 
-type Category = {
+interface Category {
 	id: number;
 	name: string;
 	parent?: {
 		id: number;
 		name: string;
 	} | null;
-};
+}
 
-type ActivityModule = {
+interface ActivityModule {
 	id: number;
 	title: string;
 	description: string;
@@ -96,9 +96,9 @@ type ActivityModule = {
 	};
 	updatedAt: string;
 	createdAt: string;
-};
+}
 
-type CourseActivityModuleLink = {
+interface CourseActivityModuleLink {
 	id: number;
 	activityModule: ActivityModule;
 	settings?: {
@@ -111,12 +111,12 @@ type CourseActivityModuleLink = {
 	} | null;
 	createdAt: string;
 	updatedAt: string;
-};
+}
 
-export type GradebookData = Gradebook & {
+export interface GradebookData extends Omit<Gradebook, "categories" | "items"> {
 	categories: GradebookCategory[];
 	items: GradebookItem[];
-};
+}
 
 export interface Course {
 	id: number;
@@ -149,13 +149,13 @@ export interface Course {
 	moduleLinks: CourseActivityModuleLink[];
 }
 
-export type FlattenedCategory = {
+export interface FlattenedCategory {
 	id: number;
 	name: string;
 	parentId: number | null;
 	depth: number;
 	path: string; // Full path like "Parent > Child > Grandchild"
-};
+}
 
 export interface CourseContext {
 	course: Course;
@@ -173,26 +173,27 @@ export interface CourseContext {
 
 export const courseContext = createContext<CourseContext | null>(null);
 
-export const courseContextKey =
-	"courseContext" as unknown as typeof courseContext;
+export interface TryGetCourseContextArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+}
 
-export const tryGetCourseContext = async (
-	payload: Payload,
-	courseId: number,
-	user?: TypedUser | null,
-	req?: Partial<PayloadRequest>,
-) => {
+// export const courseContextKey =
+// 	"courseContext" as unknown as typeof courseContext;
+
+export const tryGetCourseContext = async ({
+	payload,
+	req,
+	courseId,
+}: TryGetCourseContextArgs) => {
+	const user = req?.user;
 	// Get course
 	const courseResult = await tryFindCourseById({
 		payload,
 		courseId: courseId,
-		user: user,
 		req,
 	});
 
-	if (!courseResult.ok) {
-		return Result.error(courseResult.error);
-	}
+	if (!courseResult.ok) return courseResult;
 
 	const course = courseResult.value;
 
@@ -226,84 +227,77 @@ export const tryGetCourseContext = async (
 		);
 	}
 
-	// Transform course data to match the Course interface
-	const courseData: Course = {
-		id: course.id,
-		title: course.title,
-		slug: course.slug,
-		description: course.description,
-		status: course.status,
-		createdBy: {
-			id: course.createdBy.id,
-			email: course.createdBy.email,
-			firstName: course.createdBy.firstName,
-			lastName: course.createdBy.lastName,
-			avatar: course.createdBy.avatar
-				? {
-						id: course.createdBy.avatar.id,
-						filename: course.createdBy.avatar.filename,
-					}
-				: null,
-		},
-		category: course.category
-			? {
-					id: course.category.id,
-					name: course.category.name,
-					parent: course.category.parent
-						? {
-								id: course.category.parent.id,
-								name: course.category.parent.name,
-							}
-						: null,
-				}
-			: null,
-		thumbnail: course.thumbnail
-			? typeof course.thumbnail === "object"
-				? {
-						id: course.thumbnail.id,
-						filename: course.thumbnail.filename,
-					}
-				: course.thumbnail
-			: null,
-		updatedAt: course.updatedAt,
-		createdAt: course.createdAt,
-		groups: course.groups.map((g) => ({
-			id: g.id,
-			name: g.name,
-			path: g.path,
-			description: g.description,
-			color: g.color,
-			parent: g.parent?.id,
-		})),
-		enrollments: course.enrollments.map(
-			(e) =>
-				({
-					name: `${e.user.firstName} ${e.user.lastName}`.trim(),
-					id: e.id,
-					userId: e.user.id,
-					email: e.user.email,
-					role: e.role,
-					status: e.status,
-					avatar: e.user.avatar ?? null,
-					enrolledAt: e.enrolledAt,
-					completedAt: e.completedAt,
-					groups: e.groups.map((g) => ({
-						id: g.id,
-						name: g.name,
-						path: g.path,
-						description: g.description,
-						color: g.color,
-						parent: g.parent,
-					})),
-				}) satisfies Enrollment,
-		),
-		moduleLinks: [],
-	};
+	// // Transform course data to match the Course interface
+	// const courseData: Course = {
+	// 	id: course.id,
+	// 	title: course.title,
+	// 	slug: course.slug,
+	// 	description: course.description,
+	// 	status: course.status,
+	// 	createdBy: {
+	// 		id: course.createdBy.id,
+	// 		email: course.createdBy.email,
+	// 		firstName: course.createdBy.firstName,
+	// 		lastName: course.createdBy.lastName,
+	// 		avatar: course.createdBy.avatar
+	// 			? {
+	// 					id: course.createdBy.avatar.id,
+	// 					filename: course.createdBy.avatar.filename,
+	// 				}
+	// 			: null,
+	// 	},
+	// 	category: course.category ?? null,
+	// 	thumbnail: course.thumbnail
+	// 		? typeof course.thumbnail === "object"
+	// 			? {
+	// 					id: course.thumbnail.id,
+	// 					filename: course.thumbnail.filename,
+	// 				}
+	// 			: course.thumbnail
+	// 		: null,
+	// 	updatedAt: course.updatedAt,
+	// 	createdAt: course.createdAt,
+	// 	groups: course.groups.map((g) => ({
+	// 		id: g.id,
+	// 		name: g.name,
+	// 		path: g.path,
+	// 		description: g.description,
+	// 		color: g.color,
+	// 		parent: g.parent?.id,
+	// 	})),
+	// 	enrollments: course.enrollments.map(
+	// 		(e) =>
+	// 			({
+	// 				name: `${e.user.firstName} ${e.user.lastName}`.trim(),
+	// 				id: e.id,
+	// 				userId: e.user.id,
+	// 				email: e.user.email,
+	// 				role: e.role,
+	// 				status: e.status,
+	// 				avatar: e.user.avatar ?? null,
+	// 				enrolledAt: e.enrolledAt,
+	// 				completedAt: e.completedAt,
+	// 				groups: e.groups.map((g) => ({
+	// 					id: g.id,
+	// 					name: g.name,
+	// 					path: g.path,
+	// 					description: g.description,
+	// 					color: g.color,
+	// 					parent: g.parent,
+	// 				})),
+	// 			}) satisfies Enrollment,
+	// 	),
+	// 	moduleLinks: [],
+	// };
 
 	// console.log("courseData", courseData);
 
 	// Fetch existing course-activity-module links and populate moduleLinks
-	const linksResult = await tryFindLinksByCourse({ payload, courseId });
+	const linksResult = await tryFindLinksByCourse({
+		payload,
+		courseId,
+		req,
+	});
 	const moduleLinks = linksResult.ok
 		? linksResult.value.map((link) => ({
 				id: link.id,
@@ -331,7 +325,7 @@ export const tryGetCourseContext = async (
 					updatedAt: link.activityModule.updatedAt,
 					createdAt: link.activityModule.createdAt,
 				},
-				settings: link.settings as CourseActivityModuleLink["settings"],
+				settings: link.settings,
 				createdAt: link.createdAt,
 				updatedAt: link.updatedAt,
 			}))
@@ -339,7 +333,7 @@ export const tryGetCourseContext = async (
 
 	// Update course with moduleLinks
 	const courseWithModuleLinks = {
-		...courseData,
+		...course,
 		moduleLinks,
 	};
 
@@ -347,19 +341,11 @@ export const tryGetCourseContext = async (
 	const courseStructureResult = await tryGetCourseStructure({
 		payload,
 		courseId: course.id,
-		user: user,
 		req,
 		overrideAccess: false,
 	});
 
-	if (!courseStructureResult.ok) {
-		return Result.error(
-			new CourseStructureNotFoundError(
-				`Failed to get course structure for course ${courseId}: ${courseStructureResult.error.message}`,
-				{ cause: courseStructureResult.error },
-			),
-		);
-	}
+	if (!courseStructureResult.ok) return courseStructureResult;
 
 	const courseStructure = courseStructureResult.value;
 
@@ -377,44 +363,40 @@ export const tryGetCourseContext = async (
 	const gradebookResult = await tryGetGradebookByCourseWithDetails({
 		payload,
 		courseId,
-		user: user,
+		req,
+	});
+
+	if (!gradebookResult.ok) return gradebookResult;
+
+	// let gradebookData: GradebookData | null = null;
+	// let gradebookJsonData: GradebookJsonRepresentation | null = null;
+	// let gradebookYamlData: string | null = null;
+	// let gradebookMarkdownData: string | null = null;
+	// let gradebookSetupForUIData: GradebookSetupForUI | null = null;
+	// let flattenedCategoriesData: FlattenedCategory[] = [];
+
+	const gradebook = gradebookResult.value;
+
+	// Fetch all gradebook representations in a single call (more efficient)
+	const allRepresentationsResult = await tryGetGradebookAllRepresentations({
+		payload,
+		courseId,
 		req,
 		overrideAccess: false,
 	});
 
-	let gradebookData: GradebookData | null = null;
-	let gradebookJsonData: GradebookJsonRepresentation | null = null;
-	let gradebookYamlData: string | null = null;
-	let gradebookMarkdownData: string | null = null;
-	let gradebookSetupForUIData: GradebookSetupForUI | null = null;
-	let flattenedCategoriesData: FlattenedCategory[] = [];
+	if (!allRepresentationsResult.ok) return allRepresentationsResult;
 
-	if (gradebookResult.ok) {
-		const gradebook = gradebookResult.value;
-		gradebookData = gradebook as GradebookData;
+	const allReps = allRepresentationsResult.value;
+	const gradebookJsonData = allReps.json;
+	const gradebookYamlData = allReps.yaml;
+	const gradebookMarkdownData = allReps.markdown;
+	const gradebookSetupForUIData = allReps.ui;
 
-		// Fetch all gradebook representations in a single call (more efficient)
-		const allRepresentationsResult = await tryGetGradebookAllRepresentations({
-			payload,
-			courseId,
-			user: user,
-			req,
-			overrideAccess: false,
-		});
-
-		if (allRepresentationsResult.ok) {
-			const allReps = allRepresentationsResult.value;
-			gradebookJsonData = allReps.json;
-			gradebookYamlData = allReps.yaml;
-			gradebookMarkdownData = allReps.markdown;
-			gradebookSetupForUIData = allReps.ui;
-
-			// Flatten categories from gradebook setup
-			flattenedCategoriesData = flattenGradebookCategories(
-				gradebookSetupForUIData.gradebook_setup.items,
-			);
-		}
-	}
+	// Flatten categories from gradebook setup
+	const flattenedCategoriesData = flattenGradebookCategories(
+		gradebookSetupForUIData.gradebook_setup.items,
+	);
 
 	if (!gradebookSetupForUIData) {
 		return Result.error(
@@ -428,7 +410,7 @@ export const tryGetCourseContext = async (
 		courseStructure,
 		courseStructureTree,
 		courseStructureTreeSimple,
-		gradebook: gradebookData,
+		gradebook,
 		gradebookJson: gradebookJsonData,
 		gradebookYaml: gradebookYamlData,
 		gradebookMarkdown: gradebookMarkdownData,

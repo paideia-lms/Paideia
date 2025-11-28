@@ -389,7 +389,7 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 		const {
 			payload,
 			courseModuleLinkId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -407,7 +407,6 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 			status: "published",
 			limit: MOCK_INFINITY,
 			page: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -712,7 +711,7 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 	async (args: RemoveUpvoteDiscussionSubmissionArgs) => {
 		const {
 			payload,
-			user = null,
+
 			req,
 			submissionId,
 			userId,
@@ -731,7 +730,6 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		const submission = await payload.findByID({
 			collection: "discussion-submissions",
 			id: submissionId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -761,7 +759,6 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 			data: {
 				upvotes: filteredUpvotes,
 			},
-			user,
 			req,
 			overrideAccess,
 		});
@@ -827,7 +824,7 @@ export const tryListDiscussionSubmissions = Result.wrap(
 			sortBy = "recent",
 			limit = 10,
 			page = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -980,7 +977,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			grade,
 			feedback,
 			gradedBy,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1308,7 +1305,7 @@ type DeleteDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
  */
 export const tryDeleteDiscussionSubmission = Result.wrap(
 	async (args: DeleteDiscussionSubmissionArgs) => {
-		const { payload, user = null, req, id, overrideAccess = false } = args;
+		const { payload, req, id, overrideAccess = false } = args;
 
 		const deletedSubmission = await payload
 			.delete({
@@ -1367,7 +1364,7 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 			payload,
 			threadId,
 			courseModuleLinkId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1375,7 +1372,6 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 		const threadsResult = await tryGetDiscussionThreadsWithAllReplies({
 			payload,
 			courseModuleLinkId,
-			user,
 			req,
 			overrideAccess,
 		});

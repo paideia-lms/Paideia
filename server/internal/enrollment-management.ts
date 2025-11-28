@@ -8,11 +8,15 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Enrollment } from "../payload-types";
+import type { Course, Enrollment } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	Depth,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
-export type CreateEnrollmentArgs = BaseInternalFunctionArgs & {
+export interface CreateEnrollmentArgs extends BaseInternalFunctionArgs {
 	userId: number; // User ID
 	course: number; // Course ID
 	role: "student" | "teacher" | "ta" | "manager";
@@ -20,26 +24,26 @@ export type CreateEnrollmentArgs = BaseInternalFunctionArgs & {
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
-};
+}
 
-export type UpdateEnrollmentArgs = BaseInternalFunctionArgs & {
+export interface UpdateEnrollmentArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	role?: "student" | "teacher" | "ta" | "manager";
 	status?: "active" | "inactive" | "completed" | "dropped";
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
-};
+}
 
-export type DeleteEnrollmentArgs = BaseInternalFunctionArgs & {
+export interface DeleteEnrollmentArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
-};
+}
 
-export type FindEnrollmentByIdArgs = BaseInternalFunctionArgs & {
+export interface FindEnrollmentByIdArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
-};
+}
 
-export type SearchEnrollmentsArgs = BaseInternalFunctionArgs & {
+export interface SearchEnrollmentsArgs extends BaseInternalFunctionArgs {
 	userId?: number;
 	course?: number;
 	role?: "student" | "teacher" | "ta" | "manager";
@@ -47,47 +51,49 @@ export type SearchEnrollmentsArgs = BaseInternalFunctionArgs & {
 	groupId?: number; // Filter by group ID
 	limit?: number;
 	page?: number;
-};
+}
 
-export type FindEnrollmentsByUserArgs = BaseInternalFunctionArgs & {
+export interface FindEnrollmentsByUserArgs extends BaseInternalFunctionArgs {
 	userId: number;
-};
+}
 
-export type FindEnrollmentsByCourseArgs = BaseInternalFunctionArgs & {
+export interface FindEnrollmentsByCourseArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 	limit?: number;
-};
+}
 
-export type FindUserEnrollmentInCourseArgs = BaseInternalFunctionArgs & {
+export interface FindUserEnrollmentInCourseArgs
+	extends BaseInternalFunctionArgs {
 	userId: number;
 	courseId: number;
-};
+}
 
-export type FindActiveEnrollmentsArgs = BaseInternalFunctionArgs & {
+export interface FindActiveEnrollmentsArgs extends BaseInternalFunctionArgs {
 	limit?: number;
 	page?: number;
-};
+}
 
-export type UpdateEnrollmentStatusArgs = BaseInternalFunctionArgs & {
+export interface UpdateEnrollmentStatusArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	status: "active" | "inactive" | "completed" | "dropped";
 	completedAt?: string;
-};
+}
 
-export type AddGroupsToEnrollmentArgs = BaseInternalFunctionArgs & {
+export interface AddGroupsToEnrollmentArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	groupIds: number[];
-};
+}
 
-export type RemoveGroupsFromEnrollmentArgs = BaseInternalFunctionArgs & {
+export interface RemoveGroupsFromEnrollmentArgs
+	extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	groupIds: number[];
-};
+}
 
-export type FindEnrollmentsByGroupArgs = BaseInternalFunctionArgs & {
+export interface FindEnrollmentsByGroupArgs extends BaseInternalFunctionArgs {
 	groupId: number;
 	limit?: number;
-};
+}
 
 /**
  * Creates a new enrollment using Payload local API
@@ -103,7 +109,7 @@ export const tryCreateEnrollment = Result.wrap(
 			enrolledAt,
 			completedAt,
 			groups = [],
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -122,58 +128,32 @@ export const tryCreateEnrollment = Result.wrap(
 		}
 
 		// Handle transaction
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			// Verify user exists
-			const userExists = await payload.findByID({
-				collection: "users",
-				id: userId,
-				user,
-				req: reqWithTransaction,
-				overrideAccess: true, // Always allow checking if user exists
-			});
-
-			if (!userExists) {
-				throw new InvalidArgumentError(`User with ID ${userId} not found`);
-			}
-
-			// Verify course exists
-			const courseExists = await payload.findByID({
-				collection: "courses",
-				id: course,
-				user,
-				req: reqWithTransaction,
-				overrideAccess: true, // Always allow checking if course exists
-			});
-
-			if (!courseExists) {
-				throw new InvalidArgumentError(`Course with ID ${course} not found`);
-			}
-
+		return await transactionInfo.tx(async (txInfo) => {
 			// Check if enrollment already exists
-			const existingEnrollments = await payload.find({
-				collection: "enrollments",
-				where: {
-					and: [
-						{
-							user: {
-								equals: userId,
+			const existingEnrollments = await payload
+				.find({
+					collection: "enrollments",
+					where: {
+						and: [
+							{
+								user: {
+									equals: userId,
+								},
 							},
-						},
-						{
-							course: {
-								equals: course,
+							{
+								course: {
+									equals: course,
+								},
 							},
-						},
-					],
-				},
-				limit: 1,
-				user,
-				req: reqWithTransaction,
-				overrideAccess: true, // Always allow checking if enrollment exists
-			});
+						],
+					},
+					limit: 1,
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true, // Always allow checking if enrollment exists
+				})
+				.then(stripDepth<1, "find">());
 
 			if (existingEnrollments.docs.length > 0) {
 				throw new DuplicateEnrollmentError(
@@ -181,35 +161,26 @@ export const tryCreateEnrollment = Result.wrap(
 				);
 			}
 
-			const newEnrollment = await payload.create({
-				collection: "enrollments",
-				data: {
-					user: userId,
-					course,
-					role,
-					status,
-					enrolledAt: enrolledAt || new Date().toISOString(),
-					completedAt,
-					groups,
-				},
-				user: user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			const newEnrollment = await payload
+				.create({
+					collection: "enrollments",
+					data: {
+						user: userId,
+						course,
+						role,
+						status,
+						enrolledAt: enrolledAt ?? new Date().toISOString(),
+						completedAt,
+						groups,
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
 
-			// Commit transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
-			return newEnrollment as Enrollment;
-		} catch (error) {
-			// Rollback transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+			return newEnrollment;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -231,7 +202,7 @@ export const tryUpdateEnrollment = Result.wrap(
 			enrolledAt,
 			completedAt,
 			groups,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -242,38 +213,28 @@ export const tryUpdateEnrollment = Result.wrap(
 		}
 
 		// Handle transaction
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			const updatedEnrollment = await payload.update({
-				collection: "enrollments",
-				id: enrollmentId,
-				data: {
-					role,
-					status,
-					enrolledAt,
-					completedAt,
-					groups,
-				},
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			// Commit transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.commitTransaction(transactionID);
-			}
+		return await transactionInfo.tx(async (txInfo) => {
+			const updatedEnrollment = await payload
+				.update({
+					collection: "enrollments",
+					id: enrollmentId,
+					data: {
+						role,
+						status,
+						enrolledAt,
+						completedAt,
+						groups,
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
 
 			return updatedEnrollment;
-		} catch (error) {
-			// Rollback transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -287,26 +248,22 @@ export const tryUpdateEnrollment = Result.wrap(
  */
 export const tryFindEnrollmentById = Result.wrap(
 	async (args: FindEnrollmentByIdArgs) => {
-		const {
-			payload,
-			enrollmentId,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, enrollmentId, req, overrideAccess = false } = args;
 
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
 
-		const enrollment = await payload.findByID({
-			collection: "enrollments",
-			id: enrollmentId,
-			user,
-			req: req || {},
-			overrideAccess,
-		});
+		const enrollment = await payload
+			.findByID({
+				collection: "enrollments",
+				id: enrollmentId,
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "findByID">());
 
 		return enrollment;
 	},
@@ -331,53 +288,28 @@ export const trySearchEnrollments = Result.wrap(
 			groupId,
 			limit = 10,
 			page = 1,
-			user = null,
 			req,
 			overrideAccess = false,
 		} = args;
 
-		const where: Record<string, any> = {};
-
-		if (userId) {
-			where.user = {
-				equals: userId,
-			};
-		}
-
-		if (course) {
-			where.course = {
-				equals: course,
-			};
-		}
-
-		if (role) {
-			where.role = {
-				equals: role,
-			};
-		}
-
-		if (status) {
-			where.status = {
-				equals: status,
-			};
-		}
-
-		if (groupId) {
-			where.groups = {
-				equals: groupId,
-			};
-		}
-
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where,
-			limit,
-			page,
-			sort: "-createdAt",
-			user,
-			req: req || {},
-			overrideAccess,
-		});
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					...(userId ? { user: { equals: userId } } : {}),
+					...(course ? { course: { equals: course } } : {}),
+					...(role ? { role: { equals: role } } : {}),
+					...(status ? { status: { equals: status } } : {}),
+					...(groupId ? { groups: { equals: groupId } } : {}),
+				},
+				limit,
+				page,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "find">());
 
 		return {
 			docs: enrollments.docs as Enrollment[],
@@ -404,7 +336,7 @@ export const tryDeleteEnrollment = Result.wrap(
 		const {
 			payload,
 			enrollmentId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -415,31 +347,21 @@ export const tryDeleteEnrollment = Result.wrap(
 		}
 
 		// Handle transaction
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			const deletedEnrollment = await payload.delete({
-				collection: "enrollments",
-				id: enrollmentId,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			// Commit transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.commitTransaction(transactionID);
-			}
+		return await transactionInfo.tx(async (txInfo) => {
+			const deletedEnrollment = await payload
+				.delete({
+					collection: "enrollments",
+					id: enrollmentId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "delete">());
 
 			return deletedEnrollment;
-		} catch (error) {
-			// Rollback transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -453,7 +375,7 @@ export const tryDeleteEnrollment = Result.wrap(
  */
 export const tryFindEnrollmentsByUser = Result.wrap(
 	async (args: FindEnrollmentsByUserArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		// Validate required fields
 		if (!userId) {
@@ -468,42 +390,34 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 						equals: userId,
 					},
 				},
+				populate: {
+					courses: {
+						gradeTable: false,
+						sections: false,
+						enrollments: false,
+						groups: false,
+					},
+				},
 				sort: "-createdAt",
 				pagination: false,
-				user,
-				req: req || {},
+				req,
 				overrideAccess,
+				depth: 1,
 			})
+			.then(stripDepth<1, "find">())
 			.then((result) => {
+				console.log(
+					"result find enrollments by user",
+					JSON.stringify(result.docs, null, 2),
+				);
 				return result.docs.map((doc) => {
 					const userDoc = doc.user;
-					assertZodInternal(
-						"tryFindEnrollmentsByUser: User is required",
-						userDoc,
-						z.object({
-							id: z.number(),
-						}),
-					);
-					const course = doc.course;
-					assertZodInternal(
-						"tryFindEnrollmentsByUser: Course is required",
-						course,
-						z.object({
-							id: z.number(),
-						}),
-					);
+					const course = doc.course as Depth<
+						Omit<Course, "sections" | "gradeTable" | "enrollments" | "groups">,
+						0
+					>;
 
-					const groups =
-						doc.groups?.map((group) => {
-							assertZodInternal(
-								"tryFindEnrollmentsByUser: Group is required",
-								group,
-								z.object({
-									id: z.number(),
-								}),
-							);
-							return group;
-						}) ?? [];
+					const groups = doc.groups ?? [];
 					return {
 						...doc,
 						user: userDoc.id,
@@ -531,7 +445,7 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
 			payload,
 			courseId,
 			limit = 10,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -541,21 +455,25 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
 			throw new InvalidArgumentError("Course ID is required");
 		}
 
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where: {
-				course: {
-					equals: courseId,
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					course: {
+						equals: courseId,
+					},
 				},
-			},
-			limit,
-			sort: "-createdAt",
-			user,
-			req: req || {},
-			overrideAccess,
-		});
+				limit,
+				sort: "-createdAt",
+				// ! we don't care about performance for now
+				pagination: false,
+				req: req || {},
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "find">());
 
-		return enrollments.docs as Enrollment[];
+		return enrollments.docs;
 	},
 	(error) =>
 		transformError(error) ??
@@ -573,7 +491,7 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
 			payload,
 			userId,
 			courseId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -604,7 +522,6 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
 				],
 			},
 			limit: 1,
-			user,
 			req: req || {},
 			overrideAccess,
 		});
@@ -629,7 +546,7 @@ export const tryFindActiveEnrollments = Result.wrap(
 			payload,
 			limit = 10,
 			page = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -644,7 +561,6 @@ export const tryFindActiveEnrollments = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
-			user,
 			req: req || {},
 			overrideAccess,
 		});
@@ -676,7 +592,7 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 			enrollmentId,
 			status,
 			completedAt,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -694,7 +610,6 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 			payload,
 			enrollmentId,
 			status,
-			user,
 			req,
 			overrideAccess,
 		};
@@ -727,7 +642,7 @@ export const tryAddGroupsToEnrollment = Result.wrap(
 			payload,
 			enrollmentId,
 			groupIds,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -741,16 +656,14 @@ export const tryAddGroupsToEnrollment = Result.wrap(
 		}
 
 		// Handle transaction
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get current enrollment
 			const enrollment = await payload.findByID({
 				collection: "enrollments",
 				id: enrollmentId,
-				user,
-				req: reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true, // Always allow reading enrollment for group management
 			});
 
@@ -775,24 +688,12 @@ export const tryAddGroupsToEnrollment = Result.wrap(
 				data: {
 					groups: allGroupIds,
 				},
-				user,
-				req: reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
 			return updatedEnrollment;
-		} catch (error) {
-			// Rollback transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -810,7 +711,7 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
 			payload,
 			enrollmentId,
 			groupIds,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -824,16 +725,14 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
 		}
 
 		// Handle transaction
-		const { transactionID, isTransactionCreated, reqWithTransaction } =
-			await handleTransactionId(payload, req);
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get current enrollment
 			const enrollment = await payload.findByID({
 				collection: "enrollments",
 				id: enrollmentId,
-				user,
-				req: reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true, // Always allow reading enrollment for group management
 			});
 
@@ -861,24 +760,12 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
 				data: {
 					groups: remainingGroupIds,
 				},
-				user,
-				req: reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
 			return updatedEnrollment;
-		} catch (error) {
-			// Rollback transaction if we created it
-			if (isTransactionCreated) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -896,7 +783,7 @@ export const tryFindEnrollmentsByGroup = Result.wrap(
 			payload,
 			groupId,
 			limit = 10,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -914,7 +801,6 @@ export const tryFindEnrollmentsByGroup = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
-			user,
 			req: req || {},
 			overrideAccess,
 		});

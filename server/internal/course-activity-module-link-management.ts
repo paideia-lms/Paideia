@@ -37,7 +37,7 @@ import {
 /**
  * Course data that can be included in link results
  */
-type CourseLinkData = {
+interface CourseLinkData {
 	id: number;
 	title: string;
 	slug: string;
@@ -45,12 +45,12 @@ type CourseLinkData = {
 	status: "draft" | "published" | "archived";
 	createdAt: string;
 	updatedAt: string;
-};
+}
 
 /**
  * Base type for course activity module link result with common fields
  */
-type BaseCourseActivityModuleLinkResult = {
+interface BaseCourseActivityModuleLinkResult {
 	id: number;
 	course: {
 		id: number;
@@ -65,61 +65,64 @@ type BaseCourseActivityModuleLinkResult = {
 	contentOrder: number;
 	createdAt: string;
 	updatedAt: string;
-};
+}
 
 /**
  * Page module link result
  */
-type PageModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+interface PageModuleLinkResult extends BaseCourseActivityModuleLinkResult {
 	type: "page";
 	activityModule: Extract<ActivityModuleResult, { type: "page" }>;
 	settings: LatestPageSettings | null;
-};
+}
 
 /**
  * Whiteboard module link result
  */
-type WhiteboardModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+interface WhiteboardModuleLinkResult
+	extends BaseCourseActivityModuleLinkResult {
 	type: "whiteboard";
 	activityModule: Extract<ActivityModuleResult, { type: "whiteboard" }>;
 	settings: LatestWhiteboardSettings | null;
-};
+}
 
 /**
  * File module link result
  */
-type FileModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+interface FileModuleLinkResult extends BaseCourseActivityModuleLinkResult {
 	type: "file";
 	activityModule: Extract<ActivityModuleResult, { type: "file" }>;
 	settings: LatestFileSettings | null;
-};
+}
 
 /**
  * Assignment module link result
  */
-type AssignmentModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+interface AssignmentModuleLinkResult
+	extends BaseCourseActivityModuleLinkResult {
 	type: "assignment";
 	activityModule: Extract<ActivityModuleResult, { type: "assignment" }>;
 	settings: LatestAssignmentSettings | null;
-};
+}
 
 /**
  * Quiz module link result
  */
-type QuizModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+interface QuizModuleLinkResult extends BaseCourseActivityModuleLinkResult {
 	type: "quiz";
 	activityModule: Extract<ActivityModuleResult, { type: "quiz" }>;
 	settings: LatestQuizSettings | null;
-};
+}
 
 /**
  * Discussion module link result
  */
-type DiscussionModuleLinkResult = BaseCourseActivityModuleLinkResult & {
+interface DiscussionModuleLinkResult
+	extends BaseCourseActivityModuleLinkResult {
 	type: "discussion";
 	activityModule: Extract<ActivityModuleResult, { type: "discussion" }>;
 	settings: LatestDiscussionSettings | null;
-};
+}
 
 /**
  * Discriminated union of all course activity module link result types
@@ -132,21 +135,23 @@ export type CourseActivityModuleLinkResult =
 	| QuizModuleLinkResult
 	| DiscussionModuleLinkResult;
 
-export type CreateCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
+export interface CreateCourseActivityModuleLinkArgs
+	extends BaseInternalFunctionArgs {
 	course: number;
 	activityModule: number;
 	section: number;
 	order?: number;
 	contentOrder?: number;
 	settings?: LatestCourseModuleSettings;
-};
+}
 
-export type SearchCourseActivityModuleLinksArgs = BaseInternalFunctionArgs & {
+export interface SearchCourseActivityModuleLinksArgs
+	extends BaseInternalFunctionArgs {
 	course?: number;
 	activityModule?: number;
 	limit?: number;
 	page?: number;
-};
+}
 
 /**
  * Creates a new course-activity-module-link using Payload local API
@@ -163,7 +168,6 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			settings,
 			req,
 			overrideAccess = false,
-			user,
 		} = args;
 
 		const transactionInfo = await handleTransactionId(payload, req);
@@ -181,7 +185,6 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 					},
 					req: reqWithTransaction,
 					overrideAccess,
-					user,
 				})
 				.then(stripDepth<1, "create">())
 				.catch((error) => {
@@ -189,7 +192,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 						error,
 						"tryCreateCourseActivityModuleLink",
 						`to create course activity module link`,
-						{ payload, user, req: reqWithTransaction, overrideAccess },
+						{ payload, req: reqWithTransaction, overrideAccess },
 					);
 					throw error;
 				});
@@ -207,7 +210,6 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 					collection: "activity-modules",
 					id: activityModule,
 					depth: 1,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 				})
@@ -217,7 +219,7 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 						error,
 						"tryCreateCourseActivityModuleLink",
 						`to get activity module by id ${activityModule}`,
-						{ payload, user, req: reqWithTransaction, overrideAccess },
+						{ payload, req: reqWithTransaction, overrideAccess },
 					);
 					throw error;
 				});
@@ -238,7 +240,6 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			const gradebookResult = await tryGetGradebookByCourseWithDetails({
 				payload,
 				courseId: course,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -255,11 +256,13 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 			const gradebook = gradebookResult.value;
 
 			// Get the next sort order for items without a category
-			const nextSortOrderResult = await tryGetNextItemSortOrder(
+			const nextSortOrderResult = await tryGetNextItemSortOrder({
 				payload,
-				gradebook.id,
-				null,
-			);
+				gradebookId: gradebook.id,
+				categoryId: null,
+				req: reqWithTransaction,
+				overrideAccess,
+			});
 
 			const sortOrder = nextSortOrderResult.ok ? nextSortOrderResult.value : 0;
 
@@ -276,7 +279,6 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				weight: null, // Auto weighted by default
 				extraCredit: false,
 				sortOrder,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -300,9 +302,9 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 		}),
 );
 
-export type FindLinksByCourseArgs = BaseInternalFunctionArgs & {
+export interface FindLinksByCourseArgs extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
 /**
  * Finds course-activity-module-links by course ID
@@ -310,7 +312,7 @@ export type FindLinksByCourseArgs = BaseInternalFunctionArgs & {
  */
 export const tryFindLinksByCourse = Result.wrap(
 	async (args: FindLinksByCourseArgs) => {
-		const { payload, courseId, overrideAccess = false, user, req } = args;
+		const { payload, courseId, overrideAccess = false, req } = args;
 		const linksResult = await payload
 			.find({
 				collection: CourseActivityModuleLinks.slug,
@@ -323,8 +325,8 @@ export const tryFindLinksByCourse = Result.wrap(
 				pagination: false,
 				sort: "-createdAt",
 				overrideAccess,
-				user,
 				req,
+				context: req?.context,
 			})
 			.then(stripDepth<2, "find">());
 
@@ -354,12 +356,9 @@ export const tryFindLinksByCourse = Result.wrap(
 			});
 		}
 
-		// Strip depth for other fields
-		const links = await stripDepth<1, "find">()(linksResult);
-
 		// Transform each link to discriminated union
 		const results: CourseActivityModuleLinkResult[] = [];
-		for (const link of links.docs) {
+		for (const link of linksResult.docs) {
 			const activityModuleId = link.activityModule.id;
 			const courseData = courseDataMap.get(link.id);
 
@@ -372,7 +371,6 @@ export const tryFindLinksByCourse = Result.wrap(
 			const activityModuleResult = await tryGetActivityModuleById({
 				payload,
 				id: activityModuleId,
-				user,
 				req,
 				overrideAccess,
 			});
@@ -401,9 +399,10 @@ export const tryFindLinksByCourse = Result.wrap(
 		}),
 );
 
-export type FindLinksByActivityModuleArgs = BaseInternalFunctionArgs & {
+export interface FindLinksByActivityModuleArgs
+	extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-};
+}
 
 /**
  * Finds course-activity-module-links by activity module ID
@@ -411,19 +410,12 @@ export type FindLinksByActivityModuleArgs = BaseInternalFunctionArgs & {
  */
 export const tryFindLinksByActivityModule = Result.wrap(
 	async (args: FindLinksByActivityModuleArgs) => {
-		const {
-			payload,
-			activityModuleId,
-			overrideAccess = false,
-			user,
-			req,
-		} = args;
+		const { payload, activityModuleId, overrideAccess = false, req } = args;
 
 		// Get activity module once (all links share the same activity module)
 		const activityModuleResult = await tryGetActivityModuleById({
 			payload,
 			id: activityModuleId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -446,7 +438,6 @@ export const tryFindLinksByActivityModule = Result.wrap(
 				pagination: false,
 				sort: "-createdAt",
 				overrideAccess,
-				user,
 				req,
 			})
 			.then(stripDepth<1, "find">());
@@ -521,7 +512,6 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 			limit = 10,
 			page = 1,
 			overrideAccess = false,
-			user,
 			req,
 		} = args;
 		const where: Where = {};
@@ -547,7 +537,6 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 				sort: "-createdAt",
 				depth: 1,
 				overrideAccess,
-				user,
 				req,
 			})
 			.then(stripDepth<1, "find">());
@@ -561,7 +550,6 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 			const activityModuleResult = await tryGetActivityModuleById({
 				payload,
 				id: activityModuleId,
-				user,
 				req,
 				overrideAccess,
 			});
@@ -595,9 +583,10 @@ export const trySearchCourseActivityModuleLinks = Result.wrap(
 		}),
 );
 
-export type DeleteCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
+export interface DeleteCourseActivityModuleLinkArgs
+	extends BaseInternalFunctionArgs {
 	linkId: number;
-};
+}
 
 /**
  * Deletes a course-activity-module-link by ID
@@ -605,7 +594,7 @@ export type DeleteCourseActivityModuleLinkArgs = BaseInternalFunctionArgs & {
  */
 export const tryDeleteCourseActivityModuleLink = Result.wrap(
 	async (args: DeleteCourseActivityModuleLinkArgs) => {
-		const { payload, linkId, req, overrideAccess = false, user } = args;
+		const { payload, linkId, req, overrideAccess = false } = args;
 		////////////////////////////////////////////////////
 		// Delete associated gradebook items
 		////////////////////////////////////////////////////
@@ -626,7 +615,6 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 					pagination: false,
 					req: reqWithTransaction,
 					overrideAccess,
-					user,
 				})
 				.then(stripDepth<0, "find">());
 
@@ -637,7 +625,6 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 						itemId: item.id,
 						req: reqWithTransaction,
 						overrideAccess,
-						user,
 					}),
 				),
 			);
@@ -658,7 +645,6 @@ export const tryDeleteCourseActivityModuleLink = Result.wrap(
 					id: linkId,
 					depth: 0,
 					req: reqWithTransaction,
-					user,
 					overrideAccess,
 				})
 				.then(stripDepth<0, "delete">());
@@ -719,35 +705,35 @@ async function buildCourseActivityModuleLinkResult(
 			...baseResult,
 			type: "page",
 			activityModule,
-			settings: settings as LatestPageSettings | null,
+			settings: settings?.settings as LatestPageSettings | null,
 		} satisfies PageModuleLinkResult;
 	} else if (type === "whiteboard") {
 		return {
 			...baseResult,
 			type: "whiteboard",
 			activityModule,
-			settings: settings as LatestWhiteboardSettings | null,
+			settings: settings?.settings as LatestWhiteboardSettings | null,
 		} satisfies WhiteboardModuleLinkResult;
 	} else if (type === "file") {
 		return {
 			...baseResult,
 			type: "file",
 			activityModule,
-			settings: settings as LatestFileSettings | null,
+			settings: settings?.settings as LatestFileSettings | null,
 		} satisfies FileModuleLinkResult;
 	} else if (type === "assignment") {
 		return {
 			...baseResult,
 			type: "assignment",
 			activityModule,
-			settings: settings as LatestAssignmentSettings | null,
+			settings: settings?.settings as LatestAssignmentSettings | null,
 		} satisfies AssignmentModuleLinkResult;
 	} else if (type === "quiz") {
 		return {
 			...baseResult,
 			type: "quiz",
 			activityModule,
-			settings: settings as LatestQuizSettings | null,
+			settings: settings?.settings as LatestQuizSettings | null,
 		} satisfies QuizModuleLinkResult;
 	} else {
 		// discussion
@@ -755,14 +741,15 @@ async function buildCourseActivityModuleLinkResult(
 			...baseResult,
 			type: "discussion",
 			activityModule,
-			settings: settings as LatestDiscussionSettings | null,
+			settings: settings?.settings as LatestDiscussionSettings | null,
 		} satisfies DiscussionModuleLinkResult;
 	}
 }
 
-export type FindCourseActivityModuleLinkByIdArgs = BaseInternalFunctionArgs & {
+export interface FindCourseActivityModuleLinkByIdArgs
+	extends BaseInternalFunctionArgs {
 	linkId: number;
-};
+}
 
 /**
  * Finds a course-activity-module-link by ID
@@ -770,15 +757,15 @@ export type FindCourseActivityModuleLinkByIdArgs = BaseInternalFunctionArgs & {
  */
 export const tryFindCourseActivityModuleLinkById = Result.wrap(
 	async (args: FindCourseActivityModuleLinkByIdArgs) => {
-		const { payload, linkId, overrideAccess = false, user, req } = args;
+		const { payload, linkId, overrideAccess = false, req } = args;
 		const link = await payload
 			.findByID({
 				collection: CourseActivityModuleLinks.slug,
 				id: linkId,
 				depth: 1,
 				overrideAccess,
-				user,
 				req,
+				context: req?.context,
 			})
 			.then(stripDepth<1, "findByID">())
 			.catch((error) => {
@@ -786,7 +773,7 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 					error,
 					"tryFindCourseActivityModuleLinkById",
 					`to find course activity module link by id '${linkId}'`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -799,7 +786,6 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 		const activityModuleResult = await tryGetActivityModuleById({
 			payload,
 			id: activityModuleId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -823,23 +809,22 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 		}),
 );
 
-export type UpdatePageModuleSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdatePageModuleSettingsArgs extends BaseInternalFunctionArgs {
 	linkId: number;
 	name?: string;
-};
+}
 
 /**
  * Updates page module settings for a specific link
  */
 export const tryUpdatePageModuleSettings = Result.wrap(
 	async (args: UpdatePageModuleSettingsArgs) => {
-		const { payload, linkId, name, req, overrideAccess = false, user } = args;
+		const { payload, linkId, name, req, overrideAccess = false } = args;
 
 		// Verify link exists and is a page module
 		const linkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -873,7 +858,6 @@ export const tryUpdatePageModuleSettings = Result.wrap(
 				depth: 1,
 				req,
 				overrideAccess,
-				user,
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
@@ -881,7 +865,7 @@ export const tryUpdatePageModuleSettings = Result.wrap(
 					error,
 					"tryUpdatePageModuleSettings",
 					`to update page module settings for link ${linkId}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -895,23 +879,23 @@ export const tryUpdatePageModuleSettings = Result.wrap(
 		}),
 );
 
-export type UpdateWhiteboardModuleSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdateWhiteboardModuleSettingsArgs
+	extends BaseInternalFunctionArgs {
 	linkId: number;
 	name?: string;
-};
+}
 
 /**
  * Updates whiteboard module settings for a specific link
  */
 export const tryUpdateWhiteboardModuleSettings = Result.wrap(
 	async (args: UpdateWhiteboardModuleSettingsArgs) => {
-		const { payload, linkId, name, req, overrideAccess = false, user } = args;
+		const { payload, linkId, name, req, overrideAccess = false } = args;
 
 		// Verify link exists and is a whiteboard module
 		const linkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -945,7 +929,6 @@ export const tryUpdateWhiteboardModuleSettings = Result.wrap(
 				depth: 1,
 				req,
 				overrideAccess,
-				user,
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
@@ -953,7 +936,7 @@ export const tryUpdateWhiteboardModuleSettings = Result.wrap(
 					error,
 					"tryUpdateWhiteboardModuleSettings",
 					`to update whiteboard module settings for link ${linkId}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -967,23 +950,22 @@ export const tryUpdateWhiteboardModuleSettings = Result.wrap(
 		}),
 );
 
-export type UpdateFileModuleSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdateFileModuleSettingsArgs extends BaseInternalFunctionArgs {
 	linkId: number;
 	name?: string;
-};
+}
 
 /**
  * Updates file module settings for a specific link
  */
 export const tryUpdateFileModuleSettings = Result.wrap(
 	async (args: UpdateFileModuleSettingsArgs) => {
-		const { payload, linkId, name, req, overrideAccess = false, user } = args;
+		const { payload, linkId, name, req, overrideAccess = false } = args;
 
 		// Verify link exists and is a file module
 		const linkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1017,7 +999,6 @@ export const tryUpdateFileModuleSettings = Result.wrap(
 				depth: 1,
 				req,
 				overrideAccess,
-				user,
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
@@ -1025,7 +1006,7 @@ export const tryUpdateFileModuleSettings = Result.wrap(
 					error,
 					"tryUpdateFileModuleSettings",
 					`to update file module settings for link ${linkId}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -1039,14 +1020,15 @@ export const tryUpdateFileModuleSettings = Result.wrap(
 		}),
 );
 
-export type UpdateAssignmentModuleSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdateAssignmentModuleSettingsArgs
+	extends BaseInternalFunctionArgs {
 	linkId: number;
 	name?: string;
 	allowSubmissionsFrom?: string;
 	dueDate?: string;
 	cutoffDate?: string;
 	maxAttempts?: number;
-};
+}
 
 /**
  * Updates assignment module settings for a specific link
@@ -1063,14 +1045,12 @@ export const tryUpdateAssignmentModuleSettings = Result.wrap(
 			maxAttempts,
 			req,
 			overrideAccess = false,
-			user,
 		} = args;
 
 		// Verify link exists and is an assignment module
 		const linkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1137,7 +1117,6 @@ export const tryUpdateAssignmentModuleSettings = Result.wrap(
 				depth: 1,
 				req,
 				overrideAccess,
-				user,
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
@@ -1145,7 +1124,7 @@ export const tryUpdateAssignmentModuleSettings = Result.wrap(
 					error,
 					"tryUpdateAssignmentModuleSettings",
 					`to update assignment module settings for link ${linkId}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -1159,13 +1138,13 @@ export const tryUpdateAssignmentModuleSettings = Result.wrap(
 		}),
 );
 
-export type UpdateQuizModuleSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdateQuizModuleSettingsArgs extends BaseInternalFunctionArgs {
 	linkId: number;
 	name?: string;
 	openingTime?: string;
 	closingTime?: string;
 	maxAttempts?: number;
-};
+}
 
 /**
  * Updates quiz module settings for a specific link
@@ -1181,14 +1160,12 @@ export const tryUpdateQuizModuleSettings = Result.wrap(
 			maxAttempts,
 			req,
 			overrideAccess = false,
-			user,
 		} = args;
 
 		// Verify link exists and is a quiz module
 		const linkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1240,7 +1217,6 @@ export const tryUpdateQuizModuleSettings = Result.wrap(
 				depth: 1,
 				req,
 				overrideAccess,
-				user,
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
@@ -1248,7 +1224,7 @@ export const tryUpdateQuizModuleSettings = Result.wrap(
 					error,
 					"tryUpdateQuizModuleSettings",
 					`to update quiz module settings for link ${linkId}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -1262,12 +1238,13 @@ export const tryUpdateQuizModuleSettings = Result.wrap(
 		}),
 );
 
-export type UpdateDiscussionModuleSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdateDiscussionModuleSettingsArgs
+	extends BaseInternalFunctionArgs {
 	linkId: number;
 	name?: string;
 	dueDate?: string;
 	cutoffDate?: string;
-};
+}
 
 /**
  * Updates discussion module settings for a specific link
@@ -1282,14 +1259,12 @@ export const tryUpdateDiscussionModuleSettings = Result.wrap(
 			cutoffDate,
 			req,
 			overrideAccess = false,
-			user,
 		} = args;
 
 		// Verify link exists and is a discussion module
 		const linkResult = await tryFindCourseActivityModuleLinkById({
 			payload,
 			linkId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1332,7 +1307,6 @@ export const tryUpdateDiscussionModuleSettings = Result.wrap(
 				depth: 1,
 				req,
 				overrideAccess,
-				user,
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
@@ -1340,7 +1314,7 @@ export const tryUpdateDiscussionModuleSettings = Result.wrap(
 					error,
 					"tryUpdateDiscussionModuleSettings",
 					`to update discussion module settings for link ${linkId}`,
-					{ payload, user, req, overrideAccess },
+					{ payload, req, overrideAccess },
 				);
 				throw error;
 			});
@@ -1354,9 +1328,9 @@ export const tryUpdateDiscussionModuleSettings = Result.wrap(
 		}),
 );
 
-export type GetCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
+export interface GetCourseModuleSettingsArgs extends BaseInternalFunctionArgs {
 	linkId: number;
-};
+}
 
 /**
  * Retrieves course module settings for a specific link
@@ -1364,14 +1338,13 @@ export type GetCourseModuleSettingsArgs = BaseInternalFunctionArgs & {
  */
 export const tryGetCourseModuleSettings = Result.wrap(
 	async (args: GetCourseModuleSettingsArgs) => {
-		const { payload, linkId, overrideAccess = false, user, req } = args;
+		const { payload, linkId, overrideAccess = false, req } = args;
 		const link = await payload
 			.findByID({
 				collection: CourseActivityModuleLinks.slug,
 				id: linkId,
 				depth: 1,
 				overrideAccess,
-				user,
 				req,
 			})
 			.then(stripDepth<1, "findByID">());
@@ -1384,7 +1357,6 @@ export const tryGetCourseModuleSettings = Result.wrap(
 		const activityModuleResult = await tryGetActivityModuleById({
 			payload,
 			id: activityModuleId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1408,11 +1380,11 @@ export const tryGetCourseModuleSettings = Result.wrap(
 		}),
 );
 
-export type CheckCourseActivityModuleLinkExistsArgs =
-	BaseInternalFunctionArgs & {
-		courseId: number;
-		activityModuleId: number;
-	};
+export interface CheckCourseActivityModuleLinkExistsArgs
+	extends BaseInternalFunctionArgs {
+	courseId: number;
+	activityModuleId: number;
+}
 
 /**
  * Checks if a course-activity-module link already exists
@@ -1424,7 +1396,6 @@ export const tryCheckCourseActivityModuleLinkExists = Result.wrap(
 			courseId,
 			activityModuleId,
 			overrideAccess = false,
-			user,
 			req,
 		} = args;
 		const links = await payload
@@ -1445,7 +1416,6 @@ export const tryCheckCourseActivityModuleLinkExists = Result.wrap(
 					],
 				},
 				overrideAccess,
-				user,
 				req,
 			})
 			.catch((error) => {

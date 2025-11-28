@@ -163,14 +163,7 @@ export const tryCreateSection = Result.wrap(
  */
 export const tryUpdateSection = Result.wrap(
 	async (args: UpdateSectionArgs) => {
-		const {
-			payload,
-			sectionId,
-			data,
-			user,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, sectionId, data, req, overrideAccess = false } = args;
 
 		if (!sectionId) {
 			throw new InvalidArgumentError("Section ID is required");
@@ -499,7 +492,6 @@ export const tryFindSectionsByCourse = Result.wrap(
 			},
 			sort: "contentOrder",
 			pagination: false,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -539,7 +531,6 @@ export const tryFindRootSections = Result.wrap(
 				],
 			},
 			sort: "contentOrder",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -556,13 +547,7 @@ export const tryFindRootSections = Result.wrap(
  */
 export const tryFindChildSections = Result.wrap(
 	async (args: FindChildSectionsArgs) => {
-		const {
-			payload,
-			parentSectionId,
-			user,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, parentSectionId, req, overrideAccess = false } = args;
 
 		if (!parentSectionId) {
 			throw new InvalidArgumentError("Parent section ID is required");
@@ -576,7 +561,6 @@ export const tryFindChildSections = Result.wrap(
 				},
 			},
 			sort: "contentOrder",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -609,7 +593,6 @@ export const tryGetSectionTree = Result.wrap(
 			sort: "contentOrder",
 			pagination: false,
 			depth: 0,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -773,7 +756,6 @@ export const tryReorderSection = Result.wrap(
 			payload,
 			sectionId,
 			newContentOrder,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -930,7 +912,6 @@ export const tryNestSection = Result.wrap(
 			payload,
 			sectionId,
 			newParentSectionId,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1143,7 +1124,6 @@ export const tryMoveSection = Result.wrap(
 			sectionId,
 			newParentSectionId,
 			newOrder,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1308,7 +1288,6 @@ export const tryAddActivityModuleToSection = Result.wrap(
 			activityModuleId,
 			sectionId,
 			order,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1495,14 +1474,7 @@ export const tryRemoveActivityModuleFromSection = Result.wrap(
  */
 export const tryReorderActivityModulesInSection = Result.wrap(
 	async (args: ReorderActivityModulesInSectionArgs) => {
-		const {
-			payload,
-			sectionId,
-			linkIds,
-			user,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, sectionId, linkIds, req, overrideAccess = false } = args;
 
 		if (!sectionId) {
 			throw new InvalidArgumentError("Section ID is required");
@@ -1552,7 +1524,6 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
 			linkId,
 			newSectionId,
 			newOrder,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1736,7 +1707,6 @@ export const tryGetSectionModulesCount = Result.wrap(
 					equals: sectionId,
 				},
 			},
-			user,
 			req,
 			overrideAccess,
 		});
@@ -2055,7 +2025,6 @@ export const tryGeneralMove = Result.wrap(
 			source,
 			target,
 			location,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -2384,7 +2353,6 @@ export const tryGetPreviousNextModule = Result.wrap(
 			payload,
 			courseId,
 			moduleLinkId,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -2401,7 +2369,6 @@ export const tryGetPreviousNextModule = Result.wrap(
 		const courseStructureResult = await tryGetCourseStructure({
 			payload,
 			courseId,
-			user,
 			req,
 			overrideAccess,
 		});
