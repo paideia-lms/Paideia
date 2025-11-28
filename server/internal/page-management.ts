@@ -122,28 +122,14 @@ export const tryUpdatePage = Result.wrap(
 			throw new InvalidArgumentError("Page ID is required");
 		}
 
-		// Check if page exists
-		const existingPage = await payload.findByID({
-			collection: "pages",
-			id,
-			req,
-			overrideAccess,
-		});
-
-		if (!existingPage) {
-			throw new NonExistingPageError("Page not found");
-		}
-
 		// Parse media from HTML content if content is provided
 		let mediaIds: number[] = [];
 		if (content !== undefined) {
-			const mediaParseResult = tryParseMediaFromHtml(content || "");
+			const mediaParseResult = tryParseMediaFromHtml(
+				content || "",
+			).getOrThrow();
 
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
-
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
+			const { ids: parsedIds, filenames } = mediaParseResult;
 
 			// Resolve filenames to IDs in a single query
 			let resolvedIds: number[] = [];
@@ -189,6 +175,7 @@ export const tryUpdatePage = Result.wrap(
 				},
 				req,
 				overrideAccess,
+				depth: 0,
 			})
 			.then(stripDepth<0, "update">())
 			.catch((error) => {

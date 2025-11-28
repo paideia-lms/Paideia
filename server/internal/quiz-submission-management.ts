@@ -644,9 +644,9 @@ export const tryStartQuizAttempt = Result.wrap(
 
 		const quiz = activityModule.quiz;
 		const quizSettings =
-			courseModuleLink.settings as unknown as LatestQuizSettings;
+			courseModuleLink.settings as unknown as LatestQuizSettings | null;
 
-		const isLate = quizSettings.closingTime
+		const isLate = quizSettings?.closingTime
 			? new Date() > new Date(quizSettings.closingTime)
 			: false;
 

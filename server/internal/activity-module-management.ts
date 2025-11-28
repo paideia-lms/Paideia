@@ -1183,7 +1183,16 @@ export const tryCreateQuizModule = Result.wrap(
 					overrideAccess,
 					depth: 0,
 				})
-				.then(stripDepth<0, "create">());
+				.then(stripDepth<0, "create">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryCreateQuizModule",
+						`to create quiz`,
+						args,
+					);
+					throw error;
+				});
 
 			// Create the activity module
 			const activityModule = await payload
@@ -1202,7 +1211,16 @@ export const tryCreateQuizModule = Result.wrap(
 					overrideAccess,
 					depth: 1,
 				})
-				.then(stripDepth<1, "create">());
+				.then(stripDepth<1, "create">())
+				.catch((error) => {
+					interceptPayloadError(
+						error,
+						"tryCreateQuizModule",
+						`to create activity module`,
+						args,
+					);
+					throw error;
+				});
 
 			// Build result directly since we know the type
 			const createdBy = activityModule.createdBy;

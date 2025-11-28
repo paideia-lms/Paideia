@@ -10,30 +10,18 @@ export const ActivityModules = {
 	access: {
 		read: ({ req }): AccessResult => {
 			if (!req.user) return false;
-			console.log("activity-modules read", req.context);
 			return true;
 		},
 		create: ({ req }): AccessResult => {
-			return match(req.user)
-				.with(
-					P.union(
-						// must be logged in to create activity modules
-						P.nullish,
-						// only admin, instructor, and content manager can create activity modules
-						{
-							role: P.not(P.union("admin", "instructor", "content-manager")),
-						},
-					),
-					(user) => {
-						// req.payload.logger.error(
-						// 	`Failed to create activity module: user ${user?.role ?? "unauthenticated"} is not allowed to create activity modules`,
-						// );
-						return false;
-					},
-				)
-				.otherwise(() => {
-					return true;
-				});
+			if (!req.user) return false;
+			if (
+				req.user.role === "admin" ||
+				req.user.role === "instructor" ||
+				req.user.role === "content-manager"
+			) {
+				return true;
+			}
+			return false;
 		},
 		update: ({ req }): AccessResult => {
 			return match(req.user)

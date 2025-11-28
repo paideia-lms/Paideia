@@ -10,7 +10,6 @@ export const CourseActivityModuleLinks = {
 	access: {
 		read: async ({ req }): Promise<AccessResult> => {
 			if (!req.user) return false;
-			console.log("course-activity-module-links read", req.context);
 			return true;
 		},
 	},

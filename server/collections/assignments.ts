@@ -15,9 +15,6 @@ export const Assignments = {
 			if (!req.user) return false;
 			if (req.user.role === "admin") return true;
 
-			console.log("req", req.url);
-			console.log("req", req.headers);
-
 			const context = req.context.routerContext ?? req._c;
 			if (context) {
 				const courseContext = tryGetContext(context, courseContextKey);

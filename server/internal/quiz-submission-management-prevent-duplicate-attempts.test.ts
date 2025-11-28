@@ -10,30 +10,28 @@ import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,
 } from "./course-activity-module-link-management";
-import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
+import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
-import {
-	type CreateEnrollmentArgs,
-	tryCreateEnrollment,
-} from "./enrollment-management";
+import { tryCreateEnrollment } from "./enrollment-management";
 import {
 	type StartQuizAttemptArgs,
 	tryStartQuizAttempt,
 } from "./quiz-submission-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
-
-const year = new Date().getFullYear();
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
-	let teacherId: number;
-	let studentId: number;
-	let courseId: number;
-	let enrollmentId: number;
-	let courseActivityModuleLinkId: number;
-	let sectionId: number;
+	let teacher: TryResultValue<typeof tryCreateUser>;
+	let student: TryResultValue<typeof tryCreateUser>;
+	let course: TryResultValue<typeof tryCreateCourse>;
+	let enrollment: TryResultValue<typeof tryCreateEnrollment>;
+	let section: TryResultValue<typeof tryCreateSection>;
+	let courseActivityModuleLink: TryResultValue<
+		typeof tryCreateCourseActivityModuleLink
+	>;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -50,87 +48,67 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 
 		mockRequest = new Request("http://localhost:3000/test");
 
-		// Create teacher user
-		const teacherArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-duplicate-teacher@example.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Teacher",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
+		// Create teacher and student users in parallel
+		const [teacherResult, studentResult] = await Promise.all([
+			tryCreateUser({
+				payload,
+				data: {
+					email: "quiz-duplicate-teacher@example.com",
+					password: "password123",
+					firstName: "John",
+					lastName: "Teacher",
+					role: "instructor",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+			tryCreateUser({
+				payload,
+				data: {
+					email: "quiz-duplicate-student@example.com",
+					password: "password123",
+					firstName: "Jane",
+					lastName: "Student",
+					role: "student",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+		]);
 
-		const teacherResult = await tryCreateUser(teacherArgs);
-		if (!teacherResult.ok) {
-			throw new Error("Test Error: Failed to create test teacher");
-		}
-		teacherId = teacherResult.value.id;
-
-		// Create student user
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-duplicate-student@example.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const studentResult = await tryCreateUser(studentArgs);
-		if (!studentResult.ok) {
-			throw new Error("Test Error: Failed to create test student");
-		}
-		studentId = studentResult.value.id;
+		teacher = teacherResult;
+		student = studentResult;
 
 		// Create course
-		const courseArgs: CreateCourseArgs = {
+		course = await tryCreateCourse({
 			payload,
 			data: {
 				title: "Quiz Duplicate Test Course",
 				description: "A test course for duplicate attempts",
 				slug: "quiz-duplicate-test-course",
-				createdBy: teacherId,
+				createdBy: teacher.id,
 			},
 			overrideAccess: true,
-		};
-
-		const courseResult = await tryCreateCourse(courseArgs);
-		if (!courseResult.ok) {
-			throw new Error("Test Error: Failed to create test course");
-		}
-		courseId = courseResult.value.id;
+		}).getOrThrow();
 
 		// Create enrollment
-		const enrollmentArgs: CreateEnrollmentArgs = {
+		enrollment = await tryCreateEnrollment({
 			payload,
-			userId: studentId,
-			course: courseId,
+			userId: student.id,
+			course: course.id,
 			role: "student",
 			status: "active",
 			overrideAccess: true,
-		};
-
-		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
-		if (!enrollmentResult.ok) {
-			throw new Error("Test Error: Failed to create test enrollment");
-		}
-		enrollmentId = enrollmentResult.value.id;
+		}).getOrThrow();
 
 		// Create activity module with quiz
-		const activityModuleArgs: CreateQuizModuleArgs = {
+		const activityModuleResult = await tryCreateQuizModule({
 			payload,
 			title: "Test Quiz",
 			description: "A test quiz for duplicate attempts",
 			status: "published",
-			req: createLocalReq({ request: mockRequest, user: { 
-				id: teacherId,
-			}  as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			instructions: "Complete this quiz",
 			points: 100,
 			gradingType: "automatic",
@@ -145,47 +123,36 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 					],
 				},
 			],
-		};
+		})
 
-		const activityModuleResult = await tryCreateQuizModule(activityModuleArgs);
 		if (!activityModuleResult.ok) {
 			throw new Error("Test Error: Failed to create test activity module");
 		}
 		const activityModuleId = activityModuleResult.value.id;
 
 		// Create a section for the course
-		const sectionResult = await tryCreateSection({
+		section = await tryCreateSection({
 			payload,
 			data: {
-				course: courseId,
+				course: course.id,
 				title: "Test Section",
 				description: "Test section",
 			},
 			overrideAccess: true,
-		});
-
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
-		sectionId = sectionResult.value.id;
+		}).getOrThrow();
 
 		// Create course-activity-module-link
-		const linkArgs: CreateCourseActivityModuleLinkArgs = {
+		courseActivityModuleLink = await tryCreateCourseActivityModuleLink({
 			payload,
-			req: mockRequest,
-			course: courseId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			course: course.id,
 			activityModule: activityModuleId,
-			section: sectionId,
+			section: section.id,
 			order: 0,
-		};
-
-		const linkResult = await tryCreateCourseActivityModuleLink(linkArgs);
-		if (!linkResult.ok) {
-			throw new Error(
-				"Test Error: Failed to create course-activity-module-link",
-			);
-		}
-		courseActivityModuleLinkId = linkResult.value.id;
+		}).getOrThrow();
 	});
 
 	afterAll(async () => {
@@ -198,9 +165,13 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 		// Start first attempt
 		const startArgs1: StartQuizAttemptArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 1,
 			overrideAccess: true,
 		};
@@ -212,9 +183,13 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 		// Try to start a second attempt while first is in_progress
 		const startArgs2: StartQuizAttemptArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 2,
 			overrideAccess: true,
 		};

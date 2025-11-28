@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
@@ -10,12 +10,9 @@ import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,
 } from "./course-activity-module-link-management";
-import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
+import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
-import {
-	type CreateEnrollmentArgs,
-	tryCreateEnrollment,
-} from "./enrollment-management";
+import { tryCreateEnrollment } from "./enrollment-management";
 import {
 	type CreateQuizArgs,
 	type StartQuizAttemptArgs,
@@ -23,18 +20,18 @@ import {
 	tryStartQuizAttempt,
 	trySubmitQuiz,
 } from "./quiz-submission-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
-
-const year = new Date().getFullYear();
+import { tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("Quiz Submission Management - Time Limit", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
-	let teacherId: number;
-	let studentId: number;
-	let courseId: number;
-	let enrollmentId: number;
-	let sectionId: number;
+	let teacher: TryResultValue<typeof tryCreateUser>;
+	let student: TryResultValue<typeof tryCreateUser>;
+	let course: TryResultValue<typeof tryCreateCourse>;
+	let enrollment: TryResultValue<typeof tryCreateEnrollment>;
+	let section: TryResultValue<typeof tryCreateSection>;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -51,93 +48,67 @@ describe("Quiz Submission Management - Time Limit", () => {
 
 		mockRequest = new Request("http://localhost:3000/test");
 
-		// Create teacher user
-		const teacherArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-timelimit-teacher@example.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Teacher",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
+		// Create teacher and student users in parallel
+		const [teacherResult, studentResult] = await Promise.all([
+			tryCreateUser({
+				payload,
+				data: {
+					email: "quiz-timelimit-teacher@example.com",
+					password: "password123",
+					firstName: "John",
+					lastName: "Teacher",
+					role: "student",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+			tryCreateUser({
+				payload,
+				data: {
+					email: "quiz-timelimit-student@example.com",
+					password: "password123",
+					firstName: "Jane",
+					lastName: "Student",
+					role: "student",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+		]);
 
-		const teacherResult = await tryCreateUser(teacherArgs);
-		if (!teacherResult.ok) {
-			throw new Error("Test Error: Failed to create test teacher");
-		}
-		teacherId = teacherResult.value.id;
-
-		// Create student user
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-timelimit-student@example.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const studentResult = await tryCreateUser(studentArgs);
-		if (!studentResult.ok) {
-			throw new Error("Test Error: Failed to create test student");
-		}
-		studentId = studentResult.value.id;
+		teacher = teacherResult;
+		student = studentResult;
 
 		// Create course
-		const courseArgs: CreateCourseArgs = {
+		course = await tryCreateCourse({
 			payload,
 			data: {
 				title: "Quiz Time Limit Test Course",
 				description: "A test course for time limit",
 				slug: "quiz-timelimit-test-course",
-				createdBy: teacherId,
+				createdBy: teacher.id,
 			},
 			overrideAccess: true,
-		};
-
-		const courseResult = await tryCreateCourse(courseArgs);
-		if (!courseResult.ok) {
-			throw new Error("Test Error: Failed to create test course");
-		}
-		courseId = courseResult.value.id;
+		}).getOrThrow();
 
 		// Create enrollment
-		const enrollmentArgs: CreateEnrollmentArgs = {
+		enrollment = await tryCreateEnrollment({
 			payload,
-			userId: studentId,
-			course: courseId,
+			userId: student.id,
+			course: course.id,
 			role: "student",
 			status: "active",
 			overrideAccess: true,
-		};
-
-		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
-		if (!enrollmentResult.ok) {
-			throw new Error("Test Error: Failed to create test enrollment");
-		}
-		enrollmentId = enrollmentResult.value.id;
+		}).getOrThrow();
 
 		// Create a section for the course
-		const sectionResult = await tryCreateSection({
+		section = await tryCreateSection({
 			payload,
 			data: {
-				course: courseId,
+				course: course.id,
 				title: "Test Section",
 				description: "Test section",
 			},
 			overrideAccess: true,
-		});
-
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
-		sectionId = sectionResult.value.id;
+		}).getOrThrow();
 	});
 
 	afterAll(async () => {
@@ -149,7 +120,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Create a quiz with a very short time limit (1 minute = 60 seconds)
 		const quickQuizArgs: CreateQuizArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq( { request: mockRequest, user: teacher as TypedUser }),
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
 			instructions: "Complete quickly",
@@ -195,7 +166,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 					],
 				},
 			],
-			createdBy: teacherId,
+			createdBy: teacher.id,
 		};
 
 		const quickQuizResult = await tryCreateQuiz(quickQuizArgs);
@@ -205,7 +176,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Create activity module with this quiz
 		const quickActivityModuleArgs: CreateActivityModuleArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq( { request: mockRequest, user: teacher as TypedUser }),
 			title: "Quick Quiz Module",
 			description: "Module with quick quiz",
 			type: "quiz",
@@ -253,6 +224,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 					],
 				},
 			],
+			overrideAccess: true,
 		};
 
 		const quickActivityModuleResult = await tryCreateQuizModule(
@@ -266,10 +238,10 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Create course-activity-module-link
 		const quickLinkArgs: CreateCourseActivityModuleLinkArgs = {
 			payload,
-			req: mockRequest,
-			course: courseId,
+			req: createLocalReq( { request: mockRequest, user: teacher as TypedUser }),
+			course: course.id,
 			activityModule: quickActivityModuleId,
-			section: sectionId,
+			section: section.id,
 			order: 0,
 		};
 
@@ -283,10 +255,10 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Start quiz attempt
 		const quickStartArgs: StartQuizAttemptArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq( { request: mockRequest, user: student as TypedUser }),
 			courseModuleLinkId: quickCourseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 1,
 			overrideAccess: true,
 		};
