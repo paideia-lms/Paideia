@@ -22,3 +22,4 @@ references/
 
 # Paideia data directory
 /paideia_data
+/tests/reports/
