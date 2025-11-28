@@ -14,36 +14,39 @@ import {
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";
+import { ActivityModules } from "server/collections";
 
-export type GrantAccessArgs = BaseInternalFunctionArgs & {
+export interface GrantAccessArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	grantedToUserId: number;
 	grantedByUserId: number;
-};
+}
 
-export type RevokeAccessArgs = BaseInternalFunctionArgs & {
+export interface RevokeAccessArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	userId: number;
-};
+}
 
-export type TransferOwnershipArgs = BaseInternalFunctionArgs & {
+export interface TransferOwnershipArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	newOwnerId: number;
 	currentOwnerId: number;
-};
+}
 
-export type CheckAccessArgs = BaseInternalFunctionArgs & {
+export interface CheckAccessArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	userId: number;
-};
+}
 
-export type FindGrantsByActivityModuleArgs = BaseInternalFunctionArgs & {
+export interface FindGrantsByActivityModuleArgs
+	extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-};
+}
 
-export type FindInstructorsForActivityModuleArgs = BaseInternalFunctionArgs & {
+export interface FindInstructorsForActivityModuleArgs
+	extends BaseInternalFunctionArgs {
 	activityModuleId: number;
-};
+}
 
 export interface AccessCheckResult {
 	hasAccess: boolean;
@@ -152,7 +155,6 @@ export const tryGrantAccessToActivityModule = Result.wrap(
 					grantedAt: new Date().toISOString(),
 				},
 				depth: 0,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -194,7 +196,6 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 					],
 				},
 				depth: 0,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -301,31 +302,34 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Update owner field using raw update (bypassing access control that prevents owner update)
-			await payload.update({
-				collection: "activity-modules",
-				id: activityModuleId,
-				data: {
-					owner: newOwnerId,
-				},
-				user,
-				overrideAccess: true, // ?? Must override since owner field update is disabled
-				req: reqWithTransaction,
-			});
+			await payload
+				.update({
+					collection: ActivityModules.slug,
+					id: activityModuleId,
+					data: {
+						owner: newOwnerId,
+					},
+					depth: 1,
+					overrideAccess: true, // ?? Must override since owner field update is disabled
+					req: reqWithTransaction,
+				})
+				.then(stripDepth<1, "update">());
 
 			// Grant access to previous owner if they don't already have it
-			const existingGrant = await payload.find({
-				collection: "activity-module-grants",
-				where: {
-					and: [
-						{ activityModule: { equals: activityModuleId } },
-						{ grantedTo: { equals: currentOwnerId } },
-					],
-				},
-				depth: 0,
-				overrideAccess: true,
-				user,
-				req: reqWithTransaction,
-			});
+			const existingGrant = await payload
+				.find({
+					collection: "activity-module-grants",
+					where: {
+						and: [
+							{ activityModule: { equals: activityModuleId } },
+							{ grantedTo: { equals: currentOwnerId } },
+						],
+					},
+					depth: 0,
+					overrideAccess: true,
+					req: reqWithTransaction,
+				})
+				.then(stripDepth<0, "find">());
 
 			if (existingGrant.docs.length === 0) {
 				await payload.create({
@@ -337,7 +341,6 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 						grantedAt: new Date().toISOString(),
 					},
 					overrideAccess: true,
-					user,
 					req: reqWithTransaction,
 				});
 			}
@@ -354,7 +357,6 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 					},
 					depth: 0,
 					overrideAccess: true,
-					user,
 					req: reqWithTransaction,
 				})
 				.then(stripDepth<0, "find">());
@@ -366,7 +368,6 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 					collection: "activity-module-grants",
 					id: newOwnerGrantId,
 					overrideAccess: true,
-					user,
 					req: reqWithTransaction,
 				});
 			}
@@ -630,7 +631,6 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				depth: 0,
 				// ! we don't care about pagination and performance for now
 				pagination: false,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -660,7 +660,6 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				},
 				overrideAccess,
 				depth: 2,
-				user,
 				// ! we don't care about pagination and performance for now
 				pagination: false,
 			})

@@ -35,6 +35,7 @@ import {
 	type UpdateQuizSubmissionArgs,
 } from "./quiz-submission-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
 
 const year = new Date().getFullYear();
 
@@ -294,8 +295,7 @@ describe("Quiz Management - Full Workflow", () => {
 			maxGrade: 100,
 			weight: 25,
 			sortOrder: 1,
-			user: null,
-			req: mockRequest,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		if (!gradebookItemResult.ok) {

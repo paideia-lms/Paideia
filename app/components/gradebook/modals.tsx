@@ -27,14 +27,14 @@ import {
 	useUpdateGradeItem,
 } from "./hooks";
 
-export type CreateGradeItemModalHandle = {
+export interface CreateGradeItemModalHandle {
 	open: () => void;
-};
+}
 
-type CreateGradeItemModalProps = {
+interface CreateGradeItemModalProps {
 	categoryOptions: Array<{ value: string; label: string }>;
 	courseId: number;
-};
+}
 
 export const CreateGradeItemModal = forwardRef<
 	CreateGradeItemModalHandle,
@@ -406,13 +406,13 @@ export function UpdateGradeItemModal({
 	);
 }
 
-export type CreateCategoryModalHandle = {
+export interface CreateCategoryModalHandle {
 	open: () => void;
-};
+}
 
-type CreateCategoryModalProps = {
+export interface CreateCategoryModalProps {
 	parentOptions: Array<{ value: string; label: string }>;
-};
+}
 
 export const CreateCategoryModal = forwardRef<
 	CreateCategoryModalHandle,

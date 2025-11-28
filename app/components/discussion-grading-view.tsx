@@ -29,7 +29,7 @@ interface GradingFormValues {
 	feedback: string;
 }
 
-type DiscussionSubmissionItem = {
+interface DiscussionSubmissionItem {
 	id: number;
 	status: "draft" | "published" | "hidden" | "deleted";
 	postType: "thread" | "reply" | "comment";
@@ -56,7 +56,7 @@ type DiscussionSubmissionItem = {
 			  }
 			| null;
 	} | null;
-};
+}
 
 export interface DiscussionGradingViewProps {
 	submission: {

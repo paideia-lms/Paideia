@@ -18,7 +18,8 @@
 			"!**/*.json",
 			"!**/*.config.ts",
 			"!**/*.test.ts",
-			"!node_modules"
+			"!node_modules",
+			"!src/payload-generated-schema.ts"
 		]
 	},
 	"formatter": {

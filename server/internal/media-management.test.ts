@@ -1173,7 +1173,7 @@ describe("Media Management", () => {
 			course: courseId,
 			role: "student",
 			status: "active",
-			user: null,
+			req: { user: null },
 			overrideAccess: true,
 		});
 

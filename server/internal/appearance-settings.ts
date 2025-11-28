@@ -1,12 +1,14 @@
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
+import { AppearanceSettings } from "server/collections/globals";
 
-export type GetAppearanceSettingsArgs = BaseInternalFunctionArgs & {};
+export interface GetAppearanceSettingsArgs extends BaseInternalFunctionArgs {}
 
-export type UpdateAppearanceSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdateAppearanceSettingsArgs extends BaseInternalFunctionArgs {
 	data: {
 		additionalCssStylesheets?: Array<{ url: string }>;
 		color?: string;
@@ -18,19 +20,7 @@ export type UpdateAppearanceSettingsArgs = BaseInternalFunctionArgs & {
 		faviconLight?: number | null;
 		faviconDark?: number | null;
 	};
-};
-
-export type AppearanceSettings = {
-	additionalCssStylesheets: { url: string; id?: string | null }[];
-	color: string;
-	radius: "xs" | "sm" | "md" | "lg" | "xl";
-	logoLight?: number | null;
-	logoDark?: number | null;
-	compactLogoLight?: number | null;
-	compactLogoDark?: number | null;
-	faviconLight?: number | null;
-	faviconDark?: number | null;
-};
+}
 
 const validColors = [
 	"blue",
@@ -56,58 +46,17 @@ const validRadius = ["xs", "sm", "md", "lg", "xl"] as const;
  */
 export const tryGetAppearanceSettings = Result.wrap(
 	async (args: GetAppearanceSettingsArgs) => {
-		const { payload, req } = args;
+		const { payload, req, overrideAccess = false } = args;
 
 		const setting = await payload
 			.findGlobal({
-				slug: "appearance-settings",
-				user,
+				slug: AppearanceSettings.slug,
 				req,
-				// ! this is a system request, we don't care about access control
-				overrideAccess: true,
+				overrideAccess,
+				depth: 1,
 			})
+			.then(stripDepth<1, "findGlobal">())
 			.then((raw) => {
-				// type narrow down the raw to AppearanceSetting
-				assertZodInternal(
-					"tryGetAppearanceSettings: Color",
-					raw.color,
-					z.enum([...validColors] as [string, ...string[]]).nullish(),
-				);
-				assertZodInternal(
-					"tryGetAppearanceSettings: Radius",
-					raw.radius,
-					z.enum([...validRadius] as [string, ...string[]]).nullish(),
-				);
-				assertZodInternal(
-					"tryGetAppearanceSettings: Logo",
-					raw.logoLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetAppearanceSettings: Logo",
-					raw.logoDark,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetAppearanceSettings: Logo",
-					raw.compactLogoLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetAppearanceSettings: Logo",
-					raw.compactLogoDark,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetAppearanceSettings: Logo",
-					raw.faviconLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryGetAppearanceSettings: Logo",
-					raw.faviconDark,
-					z.object({ id: z.number() }).nullish(),
-				);
 				return {
 					...raw,
 					additionalCssStylesheets: raw.additionalCssStylesheets ?? [],
@@ -132,82 +81,25 @@ export const tryGetAppearanceSettings = Result.wrap(
 /**
  * Clear a logo field in appearance settings (set to null).
  */
-export type ClearLogoArgs = BaseInternalFunctionArgs & {
+export interface ClearLogoArgs extends BaseInternalFunctionArgs {
 	field: LogoField;
-};
+}
 
 export const tryClearLogo = Result.wrap(
 	async (args: ClearLogoArgs) => {
-		const { payload, user, field, req, overrideAccess = false } = args;
-
-		const updateData: {
-			[K in LogoField]?: number | null;
-		} = {
-			[field]: null,
-		};
+		const { payload, field, req, overrideAccess = false } = args;
 
 		const updated = await payload
 			.updateGlobal({
-				slug: "appearance-settings",
-				data: updateData,
-				user,
+				slug: AppearanceSettings.slug,
+				data: {
+					[field]: null,
+				},
 				req,
 				overrideAccess,
+				depth: 1,
 			})
-			.then((raw) => {
-				assertZodInternal(
-					"tryClearLogo: Color",
-					raw.color,
-					z.enum([...validColors] as [string, ...string[]]).nullish(),
-				);
-				assertZodInternal(
-					"tryClearLogo: Radius",
-					raw.radius,
-					z.enum([...validRadius] as [string, ...string[]]).nullish(),
-				);
-				assertZodInternal(
-					"tryClearLogo: Logo",
-					raw.logoLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryClearLogo: Logo",
-					raw.logoDark,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryClearLogo: Logo",
-					raw.compactLogoLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryClearLogo: Logo",
-					raw.compactLogoDark,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryClearLogo: Logo",
-					raw.faviconLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryClearLogo: Logo",
-					raw.faviconDark,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...raw,
-					additionalCssStylesheets: raw.additionalCssStylesheets ?? [],
-					color: raw.color ?? "blue",
-					radius: raw.radius ?? "sm",
-					logoLight: raw.logoLight ?? null,
-					logoDark: raw.logoDark ?? null,
-					compactLogoLight: raw.compactLogoLight ?? null,
-					compactLogoDark: raw.compactLogoDark ?? null,
-					faviconLight: raw.faviconLight ?? null,
-					faviconDark: raw.faviconDark ?? null,
-				};
-			});
+			.then(stripDepth<1, "updateGlobal">());
 
 		return updated;
 	},
@@ -229,7 +121,7 @@ type LogoField =
  */
 export const tryUpdateAppearanceSettings = Result.wrap(
 	async (args: UpdateAppearanceSettingsArgs) => {
-		const { payload, user, data, req, overrideAccess = false } = args;
+		const { payload, data, req, overrideAccess = false } = args;
 
 		// Validate URLs before saving
 		const stylesheets = data.additionalCssStylesheets ?? [];
@@ -311,51 +203,12 @@ export const tryUpdateAppearanceSettings = Result.wrap(
 			.updateGlobal({
 				slug: "appearance-settings",
 				data: updateData,
-				user,
 				req,
 				overrideAccess,
+				depth: 1,
 			})
+			.then(stripDepth<1, "updateGlobal">())
 			.then((raw) => {
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Color",
-					raw.color,
-					z.enum([...validColors] as [string, ...string[]]).nullish(),
-				);
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Radius",
-					raw.radius,
-					z.enum([...validRadius] as [string, ...string[]]).nullish(),
-				);
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Logo",
-					raw.logoLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Logo",
-					raw.logoDark,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Logo",
-					raw.compactLogoLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Logo",
-					raw.compactLogoDark,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Logo",
-					raw.faviconLight,
-					z.object({ id: z.number() }).nullish(),
-				);
-				assertZodInternal(
-					"tryUpdateAppearanceSettings: Logo",
-					raw.faviconDark,
-					z.object({ id: z.number() }).nullish(),
-				);
 				return {
 					...raw,
 					additionalCssStylesheets: raw.additionalCssStylesheets ?? [],

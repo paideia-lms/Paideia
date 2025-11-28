@@ -2411,7 +2411,7 @@ describe("Course Section Management Functions", () => {
 				description: "First root section",
 				contentOrder: 1,
 			},
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2423,7 +2423,7 @@ describe("Course Section Management Functions", () => {
 				description: "Second root section",
 				contentOrder: 2,
 			},
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2444,7 +2444,7 @@ describe("Course Section Management Functions", () => {
 				parentSection: rootSection1.id,
 				contentOrder: 1,
 			},
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2457,7 +2457,7 @@ describe("Course Section Management Functions", () => {
 				parentSection: rootSection1.id,
 				contentOrder: 2,
 			},
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2500,7 +2500,7 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: activityModule1.id,
 			sectionId: rootSection1.id,
 			order: 0,
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2509,7 +2509,7 @@ describe("Course Section Management Functions", () => {
 			activityModuleId: activityModule2.id,
 			sectionId: childSection1.id,
 			order: 0,
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2526,7 +2526,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: link1.id, type: "activity-module" },
 			target: { id: childSection1.id, type: "section" },
 			location: "above",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2551,7 +2551,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: childSection2.id, type: "section" },
 			target: { id: childSection1.id, type: "section" },
 			location: "above",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2583,7 +2583,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: childSection2.id, type: "section" },
 			target: { id: childSection1.id, type: "section" },
 			location: "below",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2614,7 +2614,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: childSection2.id, type: "section" },
 			target: { id: rootSection2.id, type: "section" },
 			location: "inside",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2649,7 +2649,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: link1.id, type: "activity-module" },
 			target: { id: childSection1.id, type: "section" },
 			location: "above",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2682,7 +2682,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: link1.id, type: "activity-module" },
 			target: { id: childSection1.id, type: "section" },
 			location: "below",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2716,7 +2716,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: link1.id, type: "activity-module" },
 			target: { id: link2.id, type: "activity-module" },
 			location: "above",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2748,7 +2748,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: childSection1.id, type: "section" },
 			target: { id: link1.id, type: "activity-module" },
 			location: "inside",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2769,7 +2769,7 @@ describe("Course Section Management Functions", () => {
 			source: { id: rootSection1.id, type: "section" },
 			target: { id: childSection1.id, type: "section" },
 			location: "inside",
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 
@@ -2786,7 +2786,7 @@ describe("Course Section Management Functions", () => {
 		const finalStructureResult = await tryGetCourseStructure({
 			payload,
 			courseId: complexCourse.id,
-			user: testUser as any,
+			req: { user: testUser as any },
 			overrideAccess: true,
 		});
 

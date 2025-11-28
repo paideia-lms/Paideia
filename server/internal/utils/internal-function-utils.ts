@@ -359,7 +359,14 @@ export type Depth<T, D extends number = 2> = Simplify<
 
 export function stripDepth<
 	D extends number,
-	f extends "find" | "findByID" | "create" | "update" | "delete" = "findByID",
+	f extends
+		| "find"
+		| "findByID"
+		| "create"
+		| "update"
+		| "delete"
+		| "updateGlobal"
+		| "findGlobal" = "findByID",
 >() {
 	return <T>(data: T): Depth<T, f extends "find" ? Sum<D, 1> : D> =>
 		data as any;

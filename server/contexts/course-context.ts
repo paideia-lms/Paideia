@@ -32,7 +32,7 @@ import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
 } from "../utils/course-structure-tree";
-import { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 export { courseContextKey } from "./utils/context-keys";
 
 interface Group {

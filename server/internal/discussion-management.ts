@@ -1,4 +1,3 @@
-import type { Payload } from "payload";
 import { DiscussionSubmissions } from "server/collections";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
@@ -11,11 +10,7 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
 	interceptPayloadError,
@@ -420,7 +415,7 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 		// Get all replies and comments for this course module link
 		const allRepliesAndCommentsResult = await payload
 			.find({
-				collection: "discussion-submissions",
+				collection: DiscussionSubmissions.slug,
 				where: {
 					and: [
 						{ courseModuleLink: { equals: courseModuleLinkId } },
@@ -435,7 +430,6 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				},
 				depth: 1,
 				pagination: false,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -458,38 +452,19 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 			},
 		);
 
+		type Reply = (typeof allRepliesAndComments)[number];
+
 		// Build a map of thread ID to its replies/comments
-		const threadRepliesMap = new Map<
-			number,
-			Array<{
-				id: number;
-				postType: "reply" | "comment";
-				content: string;
-				student: (typeof allRepliesAndComments)[number]["student"];
-				enrollment: (typeof allRepliesAndComments)[number]["enrollment"];
-				createdAt: string;
-				upvotes?: Array<{ user: number | { id: number }; upvotedAt: string }>;
-				parentThreadId: number | null;
-			}>
-		>();
+		const threadRepliesMap = new Map<number, Reply[]>();
 
 		// Group replies/comments by their parent thread
 		for (const item of allRepliesAndComments) {
 			const parentThreadId = item.parentThread;
 			if (parentThreadId) {
 				if (!threadRepliesMap.has(parentThreadId)) {
-					threadRepliesMap.set(parentThreadId, []);
+					threadRepliesMap.set(parentThreadId, [] as unknown as Reply[]);
 				}
-				threadRepliesMap.get(parentThreadId)?.push({
-					id: item.id,
-					postType: item.postType as "reply" | "comment",
-					content: item.content,
-					student: item.student,
-					enrollment: item.enrollment,
-					createdAt: item.createdAt,
-					upvotes: item.upvotes ?? undefined,
-					parentThreadId,
-				});
+				threadRepliesMap.get(parentThreadId)?.push(item);
 			}
 		}
 
@@ -882,10 +857,10 @@ export const tryListDiscussionSubmissions = Result.wrap(
 						limit: MOCK_INFINITY,
 					},
 				},
-				user,
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<1, "find">())
 			.then((result) => {
 				return result.docs.map((doc) => {
 					assertZodInternal(
@@ -994,14 +969,13 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Get the current submission with depth to access course module link
 			const currentSubmission = await payload.findByID({
 				collection: DiscussionSubmissions.slug,
 				id,
 				depth: 1,
-				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1025,8 +999,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 
 			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 				payload,
-				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 				courseModuleLinkId,
 			});
@@ -1053,20 +1026,16 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 					gradedBy,
 					gradedAt: now,
 				} as Record<string, unknown>,
-				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
-
-			await commitTransactionIfCreated(payload, transactionInfo);
 
 			// Fetch the updated submission with depth for return value
 			const updatedSubmission = await payload.findByID({
 				collection: DiscussionSubmissions.slug,
 				id,
 				depth: 1,
-				user,
-				req: transactionInfo.reqWithTransaction,
+				req: reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1113,10 +1082,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 				student,
 				enrollment,
 			};
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1136,7 +1102,14 @@ type CalculateDiscussionGradeArgs = BaseInternalFunctionArgs & {
  */
 export const calculateDiscussionGrade = Result.wrap(
 	async (args: CalculateDiscussionGradeArgs) => {
-		const { payload, courseModuleLinkId, studentId, enrollmentId } = args;
+		const {
+			payload,
+			req,
+			overrideAccess = false,
+			courseModuleLinkId,
+			studentId,
+			enrollmentId,
+		} = args;
 		// Get all discussion submissions for this student in this course module link
 		const submissions = await payload
 			.find({
@@ -1149,9 +1122,12 @@ export const calculateDiscussionGrade = Result.wrap(
 						{ status: { equals: "published" } },
 					],
 				},
+				req,
+				overrideAccess,
 				pagination: false,
 				depth: 1,
 			})
+			.then(stripDepth<1, "find">())
 			.then((result) => {
 				// type narrowing
 				return result.docs.map((doc) => {
@@ -1212,8 +1188,7 @@ export const calculateDiscussionGrade = Result.wrap(
 		// Get gradebook item to determine maxGrade
 		const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 			payload,
-			user: null,
-			req: undefined,
+			req,
 			overrideAccess: true,
 			courseModuleLinkId,
 		});
@@ -1311,7 +1286,6 @@ export const tryDeleteDiscussionSubmission = Result.wrap(
 			.delete({
 				collection: "discussion-submissions",
 				id,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -1369,6 +1343,8 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 			overrideAccess = false,
 		} = args;
 
+		const user = req?.user;
+
 		const threadsResult = await tryGetDiscussionThreadsWithAllReplies({
 			payload,
 			courseModuleLinkId,
@@ -1405,15 +1381,9 @@ export const tryGetDiscussionThreadWithReplies = Result.wrap(
 			: "U";
 
 		const isUpvoted =
-			thread.upvotes?.some(
-				(upvote: { user: number | { id: number }; upvotedAt: string }) => {
-					const upvoteUser =
-						typeof upvote.user === "object" && upvote.user !== null
-							? upvote.user
-							: null;
-					return upvoteUser?.id === user?.id;
-				},
-			) ?? false;
+			thread.upvotes?.some((upvote) => {
+				return upvote.user === user?.id;
+			}) ?? false;
 
 		// Transform nested replies into DiscussionReply format
 		const transformReply = (

@@ -23,8 +23,13 @@ import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images"
 import { badRequest, NotFoundResponse, StatusCode } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/note-edit";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 
@@ -38,7 +43,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const note = await tryFindNoteById({
 		payload,
 		noteId: Number(params.noteId),
-		user: currentUser,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -89,14 +98,20 @@ export const action = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
 	// Parse form data with media upload handler
 	const parseResult = await tryParseFormDataWithMediaUpload({
 		payload,
 		request,
 		userId: currentUser.id,
-		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
 		maxFileSize,
 		fields: [
@@ -141,7 +156,6 @@ export const action = async ({
 			content,
 			isPublic,
 		},
-		user: currentUser,
 		req: transactionInfo.reqWithTransaction,
 		overrideAccess: false,
 	});

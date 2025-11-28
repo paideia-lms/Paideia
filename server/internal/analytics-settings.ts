@@ -1,17 +1,18 @@
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { AnalyticsSettings } from "server/collections/globals";
+import { stripDepth } from "./utils/internal-function-utils";
+export interface GetAnalyticsSettingsArgs extends BaseInternalFunctionArgs {}
 
-export type GetAnalyticsSettingsArgs = BaseInternalFunctionArgs & {};
-
-export type UpdateAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
+export interface UpdateAnalyticsSettingsArgs extends BaseInternalFunctionArgs {
 	data: {
 		additionalJsScripts?: Array<{
 			src: string;
 			defer?: boolean;
 		}>;
 	};
-};
+}
 
 /**
  * Read analytics settings from the AnalyticsSettings global.
@@ -19,14 +20,15 @@ export type UpdateAnalyticsSettingsArgs = BaseInternalFunctionArgs & {
  */
 export const tryGetAnalyticsSettings = Result.wrap(
 	async (args: GetAnalyticsSettingsArgs) => {
-		const { payload, req } = args;
+		const { payload, req, overrideAccess = false } = args;
 
-		const raw = await payload.findGlobal({
-			slug: "analytics-settings",
-			req,
-			// ! this is a system request, we don't care about access control
-			overrideAccess: true,
-		});
+		const raw = await payload
+			.findGlobal({
+				slug: AnalyticsSettings.slug,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findGlobal">());
 
 		return raw;
 	},
@@ -41,18 +43,20 @@ export const tryGetAnalyticsSettings = Result.wrap(
  */
 export const tryUpdateAnalyticsSettings = Result.wrap(
 	async (args: UpdateAnalyticsSettingsArgs) => {
-		const { payload, user, data, req, overrideAccess = false } = args;
+		const { payload, data, req, overrideAccess = false } = args;
 
 		const scripts = data.additionalJsScripts ?? [];
 
-		const updated = await payload.updateGlobal({
-			slug: "analytics-settings",
-			data: {
-				additionalJsScripts: scripts,
-			},
-			req,
-			overrideAccess,
-		});
+		const updated = await payload
+			.updateGlobal({
+				slug: AnalyticsSettings.slug,
+				data: {
+					additionalJsScripts: scripts,
+				},
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "updateGlobal">());
 
 		return updated;
 	},

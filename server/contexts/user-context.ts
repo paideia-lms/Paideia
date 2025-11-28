@@ -13,7 +13,7 @@ import {
 import { createContext } from "react-router";
 import { tryHandleImpersonation } from "server/internal/user-management";
 import {
-	BaseInternalFunctionArgs,
+	type BaseInternalFunctionArgs,
 	createLocalReq,
 } from "server/internal/utils/internal-function-utils";
 

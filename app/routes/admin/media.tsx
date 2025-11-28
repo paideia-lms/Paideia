@@ -45,6 +45,7 @@ import { useEffect, useRef, useState } from "react";
 import { href, Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	tryDeleteMedia,
 	tryDeleteOrphanedMedia,
@@ -126,7 +127,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			limit,
 			page,
 			depth: 1, // Include createdBy user info
-			user: currentUser,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: true,
 		});
 
@@ -134,15 +139,22 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		statsResult = await tryGetUserMediaStats({
 			payload,
 			userId,
-			user: currentUser,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: true,
 		});
 
 		// Also get system-wide stats for comparison
 		systemStatsResult = await tryGetSystemMediaStats({
 			payload,
-			user: currentUser,
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 		});
 	} else {
 		// Fetch all media in the system
@@ -150,15 +162,21 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			payload,
 			limit,
 			page,
-			user: currentUser,
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 		});
 
 		// Get system-wide media stats
 		statsResult = await tryGetSystemMediaStats({
 			payload,
-			user: currentUser,
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 		});
 	}
 
@@ -181,8 +199,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		limit: 100,
 		page: 1,
 		sort: "-createdAt",
-		user: currentUser,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	const userOptions = usersResult.ok
@@ -199,8 +220,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		s3Client,
 		limit,
 		page: orphanedPage,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	const orphanedMedia = orphanedMediaResult.ok
@@ -288,8 +312,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					id: mediaId,
 					newFilename,
 					userId: currentUser.id,
-					user: currentUser,
-					req: { transactionID },
+					req: {
+						...createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
+						transactionID,
+					},
 				});
 
 				if (!renameResult.ok) {
@@ -375,8 +405,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				s3Client,
 				id: mediaIds,
 				userId: currentUser.id,
-				user: currentUser,
-				req: { transactionID },
+				req: {
+					...createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
+					transactionID,
+				},
 			});
 
 			if (!result.ok) {
@@ -425,8 +461,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					payload,
 					s3Client,
 					filenames,
-					user: currentUser,
-					req: { transactionID },
+					req: {
+						...createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
+						transactionID,
+					},
 					overrideAccess: true,
 				});
 
@@ -446,8 +488,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				const result = await tryPruneAllOrphanedMedia({
 					payload,
 					s3Client,
-					user: currentUser,
-					req: { transactionID },
+					req: {
+						...createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
+						transactionID,
+					},
 					overrideAccess: true,
 				});
 

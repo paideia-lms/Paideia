@@ -32,7 +32,11 @@ import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/user-modules-layout";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
@@ -61,8 +65,6 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 			"You don't have permission to access this page",
 		);
 	}
-
-
 
 	// Fetch the target user
 	// const userResult = await tryFindUserById({
@@ -254,19 +256,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 																12,
 															)}
 														>

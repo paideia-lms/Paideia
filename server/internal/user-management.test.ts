@@ -17,10 +17,12 @@ import {
 	tryUpdateUser,
 	type UpdateUserArgs,
 } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
 
 describe("User Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let adminToken: string;
+	const mockRequest = new Request("http://localhost:3000/test");
 
 	// Helper to get authenticated user from token
 	const getAuthUser = async (token: string): Promise<TypedUser | null> => {
@@ -176,7 +178,7 @@ describe("User Management Functions", () => {
 					firstName: "Created",
 					lastName: "ByAdmin",
 				},
-				user: adminUser,
+				req: { user: adminUser },
 				overrideAccess: false,
 			};
 
@@ -539,7 +541,7 @@ describe("User Management Functions", () => {
 				const deleteArgs: DeleteUserArgs = {
 					payload,
 					userId: createResult.value.id,
-					user: adminUser,
+					req: { user: adminUser },
 					overrideAccess: false,
 				};
 
@@ -639,7 +641,7 @@ describe("User Management Functions", () => {
 
 			const findArgs: FindAllUsersArgs = {
 				payload,
-				user: adminUser,
+				req: { user: adminUser },
 				overrideAccess: false,
 			};
 
@@ -846,7 +848,7 @@ describe("User Management Functions", () => {
 			const adminSearch = await tryFindAllUsers({
 				payload,
 				query: "Alice",
-				user: adminUser,
+				req: { user: adminUser },
 				overrideAccess: false,
 			});
 
@@ -1017,7 +1019,7 @@ describe("User Management Functions", () => {
 			const result = await tryHandleImpersonation({
 				payload,
 				impersonateUserId: String(anotherAdminResult.value.id),
-				authenticatedUser: adminUser,
+				req: createLocalReq({ request: mockRequest ,  user: adminUser }),
 			});
 
 			expect(result.ok).toBe(true);
@@ -1035,7 +1037,7 @@ describe("User Management Functions", () => {
 			const result = await tryHandleImpersonation({
 				payload,
 				impersonateUserId: "invalid",
-				authenticatedUser: adminUser,
+				req: createLocalReq({ request: mockRequest ,  user: adminUser }),
 			});
 
 			expect(result.ok).toBe(true);
@@ -1046,7 +1048,7 @@ describe("User Management Functions", () => {
 			const result = await tryHandleImpersonation({
 				payload,
 				impersonateUserId: "99999",
-				authenticatedUser: adminUser,
+				req: createLocalReq({ request: mockRequest ,  user: adminUser }),
 			});
 
 			expect(result.ok).toBe(true);

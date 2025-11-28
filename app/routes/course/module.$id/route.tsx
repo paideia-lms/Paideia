@@ -4,9 +4,7 @@ import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Link, redirect } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
-import {
-	courseModuleContextKey,
-} from "server/contexts/course-module-context";
+import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -54,12 +52,20 @@ import {
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/route";
 import { loadSearchParams } from "./utils";
-import { PagePreview, WhiteboardPreview, AssignmentPreview } from "app/components/activity-module-forms";
+import {
+	PagePreview,
+	WhiteboardPreview,
+	AssignmentPreview,
+} from "app/components/activity-module-forms";
 import { ModuleDatesInfo } from "./components/module-dates-info";
 import { FilePreview } from "app/components/activity-modules-preview/file-preview";
 import { DiscussionThreadView } from "./components/discussion-thread-view";
 import { SubmissionHistory } from "app/components/submission-history";
-import { useSubmitAssignment, useStartQuizAttempt, useSubmitQuiz } from "./hooks";
+import {
+	useSubmitAssignment,
+	useStartQuizAttempt,
+	useSubmitQuiz,
+} from "./hooks";
 import { QuizPreview } from "app/components/activity-modules-preview/quiz-preview";
 import { QuizInstructionsView } from "app/components/activity-modules-preview/quiz-instructions-view";
 import { transformQuizAnswersToSubmissionFormat } from "./utils";
@@ -100,16 +106,13 @@ export const loader = async ({
 	// Check if user is a student
 	const isStudent = enrolmentContext?.enrolment?.role === "student";
 
-
 	return {
 		...courseModuleContext,
 		action,
 		threadId,
 		moduleLinkId,
 		isStudent,
-	}
-
-
+	};
 };
 
 // Individual action functions
@@ -222,7 +225,11 @@ const upvoteThreadAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!upvoteResult.ok) {
@@ -269,7 +276,11 @@ const removeUpvoteThreadAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!removeUpvoteResult.ok) {
@@ -316,7 +327,11 @@ const upvoteReplyAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!upvoteResult.ok) {
@@ -361,7 +376,11 @@ const removeUpvoteReplyAction = async ({
 
 	const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
 		payload,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		submissionId,
 		userId: currentUser.id,
 	});
@@ -459,7 +478,11 @@ const createReplyAction = async ({
 		postType,
 		content: content.trim(),
 		parentThread: actualParentThread,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!createResult.ok) {
@@ -527,20 +550,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}>
+				questionId: string;
+				questionText: string;
+				questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank";
+				selectedAnswer?: string;
+				multipleChoiceAnswers?: Array<{
+					option: string;
+					isSelected: boolean;
+				}>;
+		  }>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -567,7 +590,11 @@ const submitQuizAction = async ({
 		submissionId,
 		answers,
 		timeSpent,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -618,7 +645,11 @@ const startQuizAttemptAction = async ({
 		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -641,7 +672,11 @@ const startQuizAttemptAction = async ({
 		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -655,7 +690,11 @@ const startQuizAttemptAction = async ({
 		studentId: currentUser.id,
 		enrollmentId: enrolmentContext.enrolment.id,
 		attemptNumber: nextAttemptResult.value,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -774,17 +813,15 @@ const submitAssignmentAction = async ({
 		});
 	}
 
-	const existingDraftSubmission =
-		courseModuleContext.submissions.find(
-			(sub) => sub.student.id === currentUser.id && sub.status === "draft",
-		);
+	const existingDraftSubmission = courseModuleContext.submissions.find(
+		(sub) => sub.student.id === currentUser.id && sub.status === "draft",
+	);
 
 	// Calculate next attempt number
-	const userSubmissions =
-		courseModuleContext.submissions.filter(
-			(sub): sub is typeof sub & { attemptNumber: unknown } =>
-				sub.student.id === currentUser.id && "attemptNumber" in sub,
-		);
+	const userSubmissions = courseModuleContext.submissions.filter(
+		(sub): sub is typeof sub & { attemptNumber: unknown } =>
+			sub.student.id === currentUser.id && "attemptNumber" in sub,
+	);
 	const maxAttemptNumber =
 		userSubmissions.length > 0
 			? Math.max(...userSubmissions.map((sub) => sub.attemptNumber as number))
@@ -954,9 +991,7 @@ export const action = async (args: Route.ActionArgs) => {
 		});
 	}
 
-
 	return badRequest({ error: "Invalid action" });
-
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -996,13 +1031,15 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-
 type PreviousNextNavigationProps = {
 	previousModule: Route.ComponentProps["loaderData"]["previousModule"];
 	nextModule: Route.ComponentProps["loaderData"]["nextModule"];
 };
 
-function PreviousNextNavigation({ previousModule, nextModule }: PreviousNextNavigationProps) {
+function PreviousNextNavigation({
+	previousModule,
+	nextModule,
+}: PreviousNextNavigationProps) {
 	return (
 		<Group justify="space-between">
 			{previousModule ? (
@@ -1037,7 +1074,10 @@ function PreviousNextNavigation({ previousModule, nextModule }: PreviousNextNavi
 	);
 }
 type AssignmentModuleViewProps = {
-	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "assignment" }>;
+	loaderData: Extract<
+		Route.ComponentProps["loaderData"],
+		{ type: "assignment" }
+	>;
 };
 
 function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
@@ -1067,7 +1107,6 @@ function AssignmentModuleView({ loaderData }: AssignmentModuleViewProps) {
 	);
 }
 
-
 type QuizModuleViewProps = {
 	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "quiz" }>;
 };
@@ -1083,15 +1122,16 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 	}
 
 	// Use server-calculated values
-	const allQuizSubmissionsForDisplay = loaderData.allQuizSubmissionsForDisplay ?? [];
+	const allQuizSubmissionsForDisplay =
+		loaderData.allQuizSubmissionsForDisplay ?? [];
 
 	// Show QuizPreview only if showQuiz parameter is true AND there's an active attempt
 	if (showQuiz === "true" && loaderData.hasActiveQuizAttempt) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-				"status" in loaderData.userSubmission &&
-				loaderData.userSubmission.status === "in_progress"
+			"status" in loaderData.userSubmission &&
+			loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 
@@ -1168,11 +1208,13 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 }
 
 type DiscussionModuleViewProps = {
-	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "discussion" }>;
+	loaderData: Extract<
+		Route.ComponentProps["loaderData"],
+		{ type: "discussion" }
+	>;
 };
 
 function DiscussionModuleView({ loaderData }: DiscussionModuleViewProps) {
-
 	return (
 		<>
 			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
@@ -1216,18 +1258,20 @@ function PageModuleView({ loaderData }: PageModuleViewProps) {
 }
 
 type WhiteboardModuleViewProps = {
-	loaderData: Extract<Route.ComponentProps["loaderData"], { type: "whiteboard" }>;
+	loaderData: Extract<
+		Route.ComponentProps["loaderData"],
+		{ type: "whiteboard" }
+	>;
 };
 
 function WhiteboardModuleView({ loaderData }: WhiteboardModuleViewProps) {
 	return (
 		<>
 			<ModuleDatesInfo moduleSettings={loaderData.formattedModuleSettings} />
-			<WhiteboardPreview content={loaderData.activityModule.content ?? ''} />
+			<WhiteboardPreview content={loaderData.activityModule.content ?? ""} />
 		</>
 	);
 }
-
 
 export default function ModulePage({ loaderData }: Route.ComponentProps) {
 	const {
@@ -1238,8 +1282,6 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 		nextModule,
 		threadId,
 	} = loaderData;
-
-
 
 	const title = `${settings?.name ?? activityModule.title} | ${course.title} | Paideia LMS`;
 
@@ -1257,17 +1299,24 @@ export default function ModulePage({ loaderData }: Route.ComponentProps) {
 			/>
 
 			<Stack gap="xl">
-				{
-					loaderData.type === "assignment" ? <AssignmentModuleView loaderData={loaderData} /> :
-						loaderData.type === "quiz" ? <QuizModuleView loaderData={loaderData} /> :
-							loaderData.type === "discussion" ? <DiscussionModuleView loaderData={loaderData} /> :
-								loaderData.type === "file" ? <FileModuleView loaderData={loaderData} /> :
-									loaderData.type === "page" ? <PageModuleView loaderData={loaderData} /> :
-										loaderData.type === "whiteboard" ? <WhiteboardModuleView loaderData={loaderData} /> :
-											null
-				}
+				{loaderData.type === "assignment" ? (
+					<AssignmentModuleView loaderData={loaderData} />
+				) : loaderData.type === "quiz" ? (
+					<QuizModuleView loaderData={loaderData} />
+				) : loaderData.type === "discussion" ? (
+					<DiscussionModuleView loaderData={loaderData} />
+				) : loaderData.type === "file" ? (
+					<FileModuleView loaderData={loaderData} />
+				) : loaderData.type === "page" ? (
+					<PageModuleView loaderData={loaderData} />
+				) : loaderData.type === "whiteboard" ? (
+					<WhiteboardModuleView loaderData={loaderData} />
+				) : null}
 
-				<PreviousNextNavigation previousModule={previousModule} nextModule={nextModule} />
+				<PreviousNextNavigation
+					previousModule={previousModule}
+					nextModule={nextModule}
+				/>
 			</Stack>
 		</Container>
 	);

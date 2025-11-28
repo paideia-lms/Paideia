@@ -60,7 +60,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -74,7 +74,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -99,7 +99,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -112,7 +112,7 @@ describe("Activity Module Access Control", () => {
 				role: role,
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -339,7 +339,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -370,7 +370,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -378,7 +378,7 @@ describe("Activity Module Access Control", () => {
 		const result = await payload.findByID({
 			collection: "activity-modules",
 			id: activityModule.id,
-			user: user1,
+			req: { user: user1 },
 		});
 
 		expect(result.id).toBe(activityModule.id);
@@ -397,7 +397,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -408,7 +408,7 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Updated Title",
 			},
-			user: user1,
+			req: { user: user1 },
 		});
 
 		expect(updated.title).toBe("Updated Title");
@@ -427,7 +427,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -435,7 +435,7 @@ describe("Activity Module Access Control", () => {
 		const deleted = await payload.delete({
 			collection: "activity-modules",
 			id: activityModule.id,
-			user: user1,
+			req: { user: user1 },
 		});
 
 		expect(deleted.id).toBe(activityModule.id);
@@ -454,7 +454,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -485,7 +485,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -525,7 +525,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -562,7 +562,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -602,7 +602,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -642,7 +642,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -700,7 +700,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -717,7 +717,7 @@ describe("Activity Module Access Control", () => {
 		const result = await payload.findByID({
 			collection: "activity-modules",
 			id: activityModule.id,
-			user: user1,
+			req: { user: user1 },
 		});
 		expect(result.id).toBe(activityModule.id);
 
@@ -728,7 +728,7 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Updated by Previous Owner",
 			},
-			user: user1,
+			req: { user: user1 },
 		});
 		expect(updated.title).toBe("Updated by Previous Owner");
 
@@ -737,7 +737,7 @@ describe("Activity Module Access Control", () => {
 			await payload.delete({
 				collection: "activity-modules",
 				id: activityModule.id,
-				user: user1,
+				req: { user: user1 },
 			});
 			expect(true).toBe(false); // Should not reach here
 		} catch (error) {
@@ -758,7 +758,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -792,7 +792,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -835,7 +835,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -869,7 +869,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -904,7 +904,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -949,7 +949,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -987,7 +987,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1018,7 +1018,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1082,7 +1082,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1138,7 +1138,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1152,7 +1152,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1177,7 +1177,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1190,7 +1190,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1203,7 +1203,7 @@ describe("Activity Module Access Control", () => {
 				role: "ta",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1252,7 +1252,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1266,7 +1266,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1279,7 +1279,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1314,7 +1314,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: section1Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1323,7 +1323,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: section2Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1336,7 +1336,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1348,7 +1348,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1385,7 +1385,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1414,7 +1414,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1529,7 +1529,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1542,7 +1542,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1556,7 +1556,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1569,7 +1569,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1604,7 +1604,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule1.id,
 			sectionId: section1Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1613,7 +1613,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule2.id,
 			sectionId: section2Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1626,7 +1626,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1638,7 +1638,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1697,7 +1697,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1711,7 +1711,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1736,7 +1736,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1749,7 +1749,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "inactive",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1783,7 +1783,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1797,7 +1797,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1822,7 +1822,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1835,7 +1835,7 @@ describe("Activity Module Access Control", () => {
 				role: "student",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1886,7 +1886,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1899,7 +1899,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 

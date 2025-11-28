@@ -334,7 +334,6 @@ async function createEnrollment(
 		course: courseId,
 		role,
 		status,
-		user: null,
 		req,
 		overrideAccess: true,
 	});

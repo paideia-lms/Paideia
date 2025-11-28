@@ -22,7 +22,7 @@ import { canImpersonateUser } from "server/utils/permissions";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
-	getRoleBadgeColor,
+	getEnrolmentRoleBadgeColor,
 	getRoleLabel,
 } from "~/components/course-view-utils";
 import { useImpersonate } from "~/routes/user/profile";
@@ -213,7 +213,7 @@ export default function CourseParticipantsProfilePage({
 										Role
 									</Text>
 									<Badge
-										color={getRoleBadgeColor(selectedEnrollment.role)}
+										color={getEnrolmentRoleBadgeColor(selectedEnrollment.role)}
 										variant="light"
 										size="lg"
 									>

@@ -399,7 +399,7 @@ describe("First User Check Functions - With Access Control", () => {
 
 			const args: CheckFirstUserArgs = {
 				payload,
-				user: adminUser,
+				req: { user: adminUser },
 				overrideAccess: false,
 			};
 
@@ -417,7 +417,7 @@ describe("First User Check Functions - With Access Control", () => {
 
 			const args: CheckFirstUserArgs = {
 				payload,
-				user: regularUser,
+				req: { user: regularUser },
 				overrideAccess: false,
 			};
 
@@ -445,7 +445,7 @@ describe("First User Check Functions - With Access Control", () => {
 
 			const args: GetUserCountArgs = {
 				payload,
-				user: adminUser,
+				req: { user: adminUser },
 				overrideAccess: false,
 			};
 
@@ -462,7 +462,7 @@ describe("First User Check Functions - With Access Control", () => {
 
 			const args: GetUserCountArgs = {
 				payload,
-				user: regularUser,
+				req: { user: regularUser },
 				overrideAccess: false,
 			};
 
@@ -490,7 +490,7 @@ describe("First User Check Functions - With Access Control", () => {
 
 			const args: ValidateFirstUserStateArgs = {
 				payload,
-				user: adminUser,
+				req: { user: adminUser },
 				overrideAccess: false,
 			};
 
@@ -509,7 +509,7 @@ describe("First User Check Functions - With Access Control", () => {
 
 			const args: ValidateFirstUserStateArgs = {
 				payload,
-				user: regularUser,
+				req: { user: regularUser },
 				overrideAccess: false,
 			};
 

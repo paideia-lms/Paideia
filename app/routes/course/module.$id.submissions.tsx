@@ -9,6 +9,7 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	tryDeleteAssignmentSubmission,
 	tryGetAssignmentSubmissionById,
@@ -123,8 +124,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			const submissionResult = await tryGetAssignmentSubmissionById({
 				payload,
 				id: submissionId,
-				user: currentUser,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				overrideAccess: false,
 			});
 
@@ -158,8 +162,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const gradebookItemResult =
 					await tryFindGradebookItemByCourseModuleLink({
 						payload,
-						user: currentUser,
-						req: request,
+						req: createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
 						overrideAccess: false,
 						courseModuleLinkId: courseModuleContext.id,
 					});
@@ -178,8 +185,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			const submissionResult = await tryGetQuizSubmissionById({
 				payload,
 				id: submissionId,
-				user: currentUser,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				overrideAccess: false,
 			});
 
@@ -213,8 +223,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const gradebookItemResult =
 					await tryFindGradebookItemByCourseModuleLink({
 						payload,
-						user: currentUser,
-						req: request,
+						req: createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
 						overrideAccess: false,
 						courseModuleLinkId: courseModuleContext.id,
 					});
@@ -263,7 +276,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-							subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -274,12 +287,12 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					const author =
 						typeof student === "object" && student !== null
 							? {
-								id: student.id,
-								firstName: student.firstName ?? null,
-								lastName: student.lastName ?? null,
-								email: student.email ?? null,
-								avatar: student.avatar ?? null,
-							}
+									id: student.id,
+									firstName: student.firstName ?? null,
+									lastName: student.lastName ?? null,
+									email: student.email ?? null,
+									avatar: student.avatar ?? null,
+								}
 							: null;
 
 					return [
@@ -316,7 +329,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 					};
 					const parentThreadId =
 						typeof subWithParent.parentThread === "object" &&
-							subWithParent.parentThread !== null
+						subWithParent.parentThread !== null
 							? subWithParent.parentThread.id
 							: typeof subWithParent.parentThread === "number"
 								? subWithParent.parentThread
@@ -385,8 +398,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 				const gradebookItemResult =
 					await tryFindGradebookItemByCourseModuleLink({
 						payload,
-						user: currentUser,
-						req: request,
+						req: createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
 						overrideAccess: false,
 						courseModuleLinkId: courseModuleContext.id,
 					});
@@ -414,8 +430,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	let maxGrade: number | null = null;
 	const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 		payload,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 		courseModuleLinkId: courseModuleContext.id,
 	});
@@ -427,8 +446,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Extract submissions from context based on module type
 	const allSubmissions =
 		courseModuleContext.type === "assignment" ||
-			courseModuleContext.type === "quiz" ||
-			courseModuleContext.type === "discussion"
+		courseModuleContext.type === "quiz" ||
+		courseModuleContext.type === "discussion"
 			? courseModuleContext.submissions
 			: [];
 
@@ -443,13 +462,13 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			...submission,
 			grade:
 				submissionWithGrade.grade !== null &&
-					submissionWithGrade.grade !== undefined
+				submissionWithGrade.grade !== undefined
 					? {
-						baseGrade: submissionWithGrade.grade,
-						maxGrade,
-						gradedAt: submissionWithGrade.gradedAt || null,
-						feedback: submissionWithGrade.feedback || null,
-					}
+							baseGrade: submissionWithGrade.grade,
+							maxGrade,
+							gradedAt: submissionWithGrade.gradedAt || null,
+							feedback: submissionWithGrade.feedback || null,
+						}
 					: null,
 		};
 	});
@@ -457,9 +476,9 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// Wrap settings back to match what grading views expect
 	const moduleSettings = courseModuleContext.settings
 		? {
-			version: "v2" as const,
-			settings: courseModuleContext.settings,
-		}
+				version: "v2" as const,
+				settings: courseModuleContext.settings,
+			}
 		: null;
 
 	return {
@@ -530,8 +549,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const deleteResult = await tryDeleteAssignmentSubmission({
 			payload,
 			id,
-			user: currentUser,
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: false,
 		});
 
@@ -586,13 +608,16 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		if (moduleType === "assignment") {
 			const gradeResult = await tryGradeAssignmentSubmission({
 				payload,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				id,
 				grade: scoreValue,
 				feedback:
 					feedback && typeof feedback === "string" ? feedback : undefined,
 				gradedBy: currentUser.id,
-				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -611,8 +636,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			const submissionResult = await tryGetQuizSubmissionById({
 				payload,
 				id,
-				user: currentUser,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				overrideAccess: false,
 			});
 
@@ -629,8 +657,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			// Get gradebook item
 			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 				payload,
-				user: currentUser,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				overrideAccess: false,
 				courseModuleLinkId: courseModuleContext.id,
 			});
@@ -665,13 +696,16 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			// Grade the discussion submission
 			const gradeResult = await tryGradeDiscussionSubmission({
 				payload,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				id,
 				grade: scoreValue,
 				feedback:
 					feedback && typeof feedback === "string" ? feedback : undefined,
 				gradedBy: currentUser.id,
-				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -737,8 +771,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		if (moduleType === "assignment") {
 			releaseResult = await tryReleaseAssignmentGrade({
 				payload,
-				user: currentUser,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				overrideAccess: false,
 				courseActivityModuleLinkId: courseModuleLinkIdValue,
 				enrollmentId: enrollmentIdValue,
@@ -746,8 +783,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		} else if (moduleType === "discussion") {
 			releaseResult = await tryReleaseDiscussionGrade({
 				payload,
-				user: currentUser,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				overrideAccess: false,
 				courseActivityModuleLinkId: courseModuleLinkIdValue,
 				enrollmentId: enrollmentIdValue,
@@ -755,8 +795,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		} else if (moduleType === "quiz") {
 			releaseResult = await tryReleaseQuizGrade({
 				payload,
-				user: currentUser,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 				overrideAccess: false,
 				courseActivityModuleLinkId: courseModuleLinkIdValue,
 				enrollmentId: enrollmentIdValue,
@@ -829,13 +872,13 @@ type SubmissionType = {
 	attemptNumber: number;
 	attachments?: Array<{
 		file:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-			mimeType?: string | null;
-			filesize?: number | null;
-		};
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+					mimeType?: string | null;
+					filesize?: number | null;
+			  };
 		description?: string;
 	}> | null;
 	grade?: {
@@ -1065,7 +1108,8 @@ export default function ModuleSubmissionsPage({
 		}
 	}
 
-	const moduleName = moduleSettings && "name" in moduleSettings ? moduleSettings.name : null;
+	const moduleName =
+		moduleSettings && "name" in moduleSettings ? moduleSettings.name : null;
 	const title = `${moduleName ?? module.title} - ${module.type === "quiz" ? "Results" : "Submissions"} | ${course.title} | Paideia LMS`;
 
 	const handleSelectRow = (enrollmentId: number, checked: boolean) => {

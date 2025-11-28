@@ -25,6 +25,12 @@ import { tryFindAllUsers } from "server/internal/user-management";
 import type { User } from "server/payload-types";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/users";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import {
+	getEnrolmentRoleBadgeColor,
+	getUserRoleBadgeColor,
+	getUserRoleLabel,
+} from "app/components/course-view-utils";
 
 // Define search params
 export const usersSearchParams = {
@@ -59,7 +65,11 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit: 10,
 		page,
 		sort: "-createdAt",
-		user: currentUser,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -74,14 +84,11 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	}
 
 	const users = usersResult.value.docs.map((user) => {
-		let avatarUrl: string | null = null;
-		if (user.avatar) {
-			if (typeof user.avatar === "object" && user.avatar.filename) {
-				avatarUrl = href(`/api/media/file/:filenameOrId`, {
-					filenameOrId: user.avatar.filename,
-				});
-			}
-		}
+		const avatarUrl = user.avatar
+			? href(`/api/media/file/:filenameOrId`, {
+					filenameOrId: user.avatar.id.toString(),
+				})
+			: null;
 
 		return {
 			id: user.id,
@@ -132,32 +139,6 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 	// Handle page change
 	const handlePageChange = (newPage: number) => {
 		setPage(newPage);
-	};
-
-	const getRoleBadgeColor = (role: User["role"]) => {
-		switch (role) {
-			case "admin":
-				return "red";
-			case "content-manager":
-				return "blue";
-			case "analytics-viewer":
-				return "green";
-			default:
-				return "gray";
-		}
-	};
-
-	const getRoleLabel = (role: User["role"]) => {
-		switch (role) {
-			case "admin":
-				return "Admin";
-			case "content-manager":
-				return "Content Manager";
-			case "analytics-viewer":
-				return "Analytics Viewer";
-			default:
-				return "User";
-		}
 	};
 
 	return (
@@ -239,8 +220,11 @@ export default function UsersPage({ loaderData }: Route.ComponentProps) {
 												<Text size="sm">{user.email}</Text>
 											</Table.Td>
 											<Table.Td>
-												<Badge color={getRoleBadgeColor(user.role)} size="sm">
-													{getRoleLabel(user.role)}
+												<Badge
+													color={getUserRoleBadgeColor(user.role)}
+													size="sm"
+												>
+													{getUserRoleLabel(user.role)}
 												</Badge>
 											</Table.Td>
 											<Table.Td>

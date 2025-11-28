@@ -433,7 +433,11 @@ export const middleware = [
 				const moduleContext = await tryFindCourseActivityModuleLinkById({
 					payload,
 					linkId: Number(moduleLinkId),
-					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 				});
 
 				if (!moduleContext.ok) return;
@@ -454,7 +458,11 @@ export const middleware = [
 				const sectionContext = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 				});
 
 				if (!sectionContext.ok) return;
@@ -465,13 +473,20 @@ export const middleware = [
 			}
 
 			const courseContextResult = await tryGetCourseContext(
-				payload,
-				Number(courseId),
-				currentUser || null,
-			);
+				{
+					payload,
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
+					courseId: Number(courseId),
+				}
+			)
 
 			// Only set the course context if successful
 			if (courseContextResult.ok) {
+				// FIXME: fix this type error
 				context.set(courseContextKey, courseContextResult.value);
 			} else {
 				console.error(courseContextResult.error);
@@ -500,7 +515,11 @@ export const middleware = [
 				const sectionResult = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 				});
 
 				if (sectionResult.ok) {
@@ -526,19 +545,14 @@ export const middleware = [
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		if (userSession?.isAuthenticated && currentUser) {
-			const typedUser = {
-				...currentUser,
-				collection: "users" as const,
-				avatar: currentUser.avatar
-					? typeof currentUser.avatar === "number"
-						? currentUser.avatar
-						: currentUser.avatar.id
-					: undefined,
-			};
 			const userAccessContext = await getUserAccessContext({
 				payload,
 				userId: currentUser.id,
-				req: createLocalReq({ request, user: typedUser, context: { routerContext: context } }),
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 			});
 			context.set(userAccessContextKey, userAccessContext);
 		}
@@ -574,7 +588,11 @@ export const middleware = [
 						: await getUserProfileContext({
 							payload,
 							profileUserId,
-							req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+							req: createLocalReq({
+								request,
+								user: currentUser,
+								context: { routerContext: context },
+							}),
 							overrideAccess: false,
 						});
 				context.set(userProfileContextKey, userProfileContext);
@@ -626,7 +644,6 @@ export const middleware = [
 				// Extract threadId from URL search params if present
 				const { threadId } = loadSearchParams(request);
 
-
 				const courseModuleContextResult = await tryGetCourseModuleContext({
 					payload,
 					moduleLinkId: Number(moduleLinkId),
@@ -634,9 +651,11 @@ export const middleware = [
 					enrolment: enrolmentContext?.enrolment ?? null,
 					threadId: threadId !== null ? String(threadId) : null,
 					req: createLocalReq({
-						request, user: currentUser, context: {
-							routerContext: context
-						}
+						request,
+						user: currentUser,
+						context: {
+							routerContext: context,
+						},
 					}),
 				});
 
@@ -668,7 +687,11 @@ export const middleware = [
 				const userModuleContextResult = await tryGetUserModuleContext({
 					payload,
 					moduleId,
-					req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 				});
 
 				if (userModuleContextResult.ok) {

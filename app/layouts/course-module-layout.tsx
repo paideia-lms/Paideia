@@ -138,9 +138,7 @@ export default function CourseModuleLayout({
 					<Group justify="space-between">
 						<div>
 							<Group gap="xs" mb="xs">
-								<Title order={2}>
-									{moduleSettings?.name ?? module.title}
-								</Title>
+								<Title order={2}>{moduleSettings?.name ?? module.title}</Title>
 								<Badge
 									color={getStatusBadgeColor(module.status)}
 									variant="light"

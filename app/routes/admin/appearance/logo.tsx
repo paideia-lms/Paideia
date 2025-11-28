@@ -131,7 +131,11 @@ const clearAction = async ({
 
 	const clearResult = await tryClearLogo({
 		payload,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		field,
 	});
 
@@ -381,8 +385,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: logo.filename,
-		})
+				filenameOrId: logo.filename,
+			})
 		: null;
 
 	return (

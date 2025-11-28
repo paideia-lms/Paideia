@@ -178,7 +178,11 @@ const updatePageSettingsAction = async ({
 		payload,
 		linkId: Number(moduleLinkId),
 		name: requestData.name || undefined,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {
@@ -257,7 +261,11 @@ const updateFileSettingsAction = async ({
 		payload,
 		linkId: Number(moduleLinkId),
 		name: requestData.name || undefined,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {
@@ -305,7 +313,11 @@ const updateAssignmentSettingsAction = async ({
 		dueDate: requestData.dueDate || undefined,
 		cutoffDate: requestData.cutoffDate || undefined,
 		maxAttempts: requestData.maxAttempts || undefined,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {
@@ -352,7 +364,11 @@ const updateQuizSettingsAction = async ({
 		openingTime: requestData.openingTime || undefined,
 		closingTime: requestData.closingTime || undefined,
 		maxAttempts: requestData.maxAttempts || undefined,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {
@@ -397,7 +413,11 @@ const updateDiscussionSettingsAction = async ({
 		name: requestData.name || undefined,
 		dueDate: requestData.dueDate || undefined,
 		cutoffDate: requestData.cutoffDate || undefined,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {
@@ -874,7 +894,6 @@ function AssignmentSettingsFormWrapper({
 				}),
 			)}
 		>
-
 			<Stack gap="md">
 				<TextInput
 					{...form.getInputProps("name")}

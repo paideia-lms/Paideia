@@ -31,6 +31,7 @@ export function assertZodInternal<T>(
 
 // export { assertZod };
 
+// biome-ignore lint/suspicious/noExplicitAny: this is okay because it is generic function
 export type TryResultValue<T extends (...args: any) => any> = Exclude<
 	NonNullable<Awaited<ReturnType<T>>>["value"],
 	undefined

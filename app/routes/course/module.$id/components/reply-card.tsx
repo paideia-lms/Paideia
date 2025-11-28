@@ -86,8 +86,8 @@ export function ReplyCardWithUpvote({
 								to={
 									courseId && reply.authorId
 										? href("/course/:courseId/participants/profile", {
-											courseId: String(courseId),
-										}) + `?userId=${reply.authorId}`
+												courseId: String(courseId),
+											}) + `?userId=${reply.authorId}`
 										: "#"
 								}
 								style={{ textDecoration: "none", color: "inherit" }}

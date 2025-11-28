@@ -36,7 +36,7 @@ import type { Enrollment } from "server/contexts/course-context";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
-	getRoleBadgeColor,
+	getEnrolmentRoleBadgeColor,
 	getRoleLabel,
 } from "./course-view-utils";
 
@@ -432,7 +432,7 @@ export function EnrollmentsSection({
 												</Table.Td>
 												<Table.Td>
 													<Badge
-														color={getRoleBadgeColor(enrollment.role)}
+														color={getEnrolmentRoleBadgeColor(enrollment.role)}
 														variant="light"
 													>
 														{getRoleLabel(enrollment.role)}

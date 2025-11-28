@@ -27,7 +27,11 @@ enum UserTab {
 	Media = "media",
 }
 
-export const loader = async ({ context, params, request }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -50,7 +54,11 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -63,8 +71,8 @@ export const loader = async ({ context, params, request }: Route.LoaderArgs) => 
 	// Handle avatar - could be Media object or just ID
 	const avatarUrl = targetUser.avatar
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: targetUser.avatar.toString(),
-		})
+				filenameOrId: targetUser.avatar.toString(),
+			})
 		: null;
 
 	const canSeeModules = canSeeUserModules(currentUser);

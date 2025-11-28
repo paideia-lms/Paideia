@@ -31,7 +31,7 @@ import {
 } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
-	Depth,
+	type Depth,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";

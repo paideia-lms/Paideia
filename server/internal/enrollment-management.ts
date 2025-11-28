@@ -11,7 +11,7 @@ import {
 import type { Course, Enrollment } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
-	Depth,
+	type Depth,
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";

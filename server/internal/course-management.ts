@@ -29,7 +29,7 @@ import {
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
 import {
-	Depth,
+	type Depth,
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,

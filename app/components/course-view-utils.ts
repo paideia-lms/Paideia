@@ -1,4 +1,9 @@
-import type { Course } from "server/payload-types";
+import type {
+	ActivityModule,
+	Course,
+	Enrollment,
+	User,
+} from "server/payload-types";
 
 export const getStatusBadgeColor = (status: Course["status"]) => {
 	switch (status) {
@@ -26,7 +31,7 @@ export const getStatusLabel = (status: Course["status"]) => {
 	}
 };
 
-export const getTypeLabel = (type: string) => {
+export const getTypeLabel = (type: ActivityModule["type"]) => {
 	switch (type) {
 		case "page":
 			return "Page";
@@ -43,7 +48,7 @@ export const getTypeLabel = (type: string) => {
 	}
 };
 
-export const getRoleBadgeColor = (role: string) => {
+export const getEnrolmentRoleBadgeColor = (role: Enrollment["role"]) => {
 	switch (role) {
 		case "student":
 			return "blue";
@@ -58,7 +63,7 @@ export const getRoleBadgeColor = (role: string) => {
 	}
 };
 
-export const getRoleLabel = (role: string) => {
+export const getRoleLabel = (role: Enrollment["role"]) => {
 	switch (role) {
 		case "student":
 			return "Student";
@@ -73,7 +78,7 @@ export const getRoleLabel = (role: string) => {
 	}
 };
 
-export const getEnrollmentStatusBadgeColor = (status: string) => {
+export const getEnrollmentStatusBadgeColor = (status: Enrollment["status"]) => {
 	switch (status) {
 		case "active":
 			return "green";
@@ -88,7 +93,7 @@ export const getEnrollmentStatusBadgeColor = (status: string) => {
 	}
 };
 
-export const getEnrollmentStatusLabel = (status: string) => {
+export const getEnrollmentStatusLabel = (status: Enrollment["status"]) => {
 	switch (status) {
 		case "active":
 			return "Active";
@@ -103,6 +108,28 @@ export const getEnrollmentStatusLabel = (status: string) => {
 	}
 };
 
-export const getUserId = (user: number | { id: number }) => {
-	return typeof user === "object" ? user.id : user;
+export const getUserRoleBadgeColor = (role: User["role"]) => {
+	switch (role) {
+		case "admin":
+			return "red";
+		case "content-manager":
+			return "blue";
+		case "analytics-viewer":
+			return "green";
+		default:
+			return "gray";
+	}
+};
+
+export const getUserRoleLabel = (role: User["role"]) => {
+	switch (role) {
+		case "admin":
+			return "Admin";
+		case "content-manager":
+			return "Content Manager";
+		case "analytics-viewer":
+			return "Analytics Viewer";
+		default:
+			return "User";
+	}
 };

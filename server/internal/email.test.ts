@@ -28,13 +28,17 @@ describe("Email Management", () => {
 			to: "",
 			subject: "Test Subject",
 			html: "<p>Test Body</p>",
-			user: {
-				id: 1,
-				email: "test@example.com",
-				role: "admin",
-				collection: "users",
-				updatedAt: new Date().toISOString(),
-				createdAt: new Date().toISOString(),
+			req: {
+				user: {
+					id: 1,
+					email: "test@example.com",
+					role: "admin",
+					collection: "users",
+					theme: "light",
+					direction: "ltr",
+					updatedAt: new Date().toISOString(),
+					createdAt: new Date().toISOString(),
+				},
 			},
 			overrideAccess: true,
 		});
@@ -51,13 +55,17 @@ describe("Email Management", () => {
 			to: "invalid-email",
 			subject: "Test Subject",
 			html: "<p>Test Body</p>",
-			user: {
-				id: 1,
-				email: "test@example.com",
-				role: "admin",
-				collection: "users",
-				updatedAt: new Date().toISOString(),
-				createdAt: new Date().toISOString(),
+			req: {
+				user: {
+					id: 1,
+					email: "test@example.com",
+					role: "admin",
+					collection: "users",
+					theme: "light",
+					direction: "ltr",
+					updatedAt: new Date().toISOString(),
+					createdAt: new Date().toISOString(),
+				},
 			},
 			overrideAccess: true,
 		});

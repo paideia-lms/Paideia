@@ -184,7 +184,6 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 							{ attemptNumber: { equals: attemptNumber } },
 						],
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 				})
@@ -200,7 +199,6 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 			const courseModuleLinkResult = await tryFindCourseActivityModuleLinkById({
 				payload,
 				linkId: courseModuleLinkId,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -234,7 +232,6 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 							id: { in: mediaFileIds },
 						},
 						depth: 1,
-						user,
 						req: reqWithTransaction,
 						overrideAccess,
 					})
@@ -268,7 +265,6 @@ export const tryCreateAssignmentSubmission = Result.wrap(
 						isLate,
 						timeSpent,
 					},
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 				})
@@ -402,7 +398,6 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 				collection: "assignment-submissions",
 				id,
 				depth: 0,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -425,7 +420,6 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 					await tryFindCourseActivityModuleLinkById({
 						payload,
 						linkId: courseModuleLinkId,
-						user,
 						req: reqWithTransaction,
 						overrideAccess,
 					});
@@ -458,7 +452,6 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 						where: {
 							id: { in: fileIds },
 						},
-						user,
 						req: reqWithTransaction,
 						overrideAccess,
 					});
@@ -499,7 +492,6 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 				collection: "assignment-submissions",
 				id,
 				data: updateData,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -577,7 +569,6 @@ export const trySubmitAssignment = Result.wrap(
 			const currentSubmission = await payload.findByID({
 				collection: "assignment-submissions",
 				id: submissionId,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -604,7 +595,6 @@ export const trySubmitAssignment = Result.wrap(
 						submittedAt: new Date().toISOString(),
 					},
 					depth: 1,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 				})
@@ -669,7 +659,6 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 				collection: AssignmentSubmissions.slug,
 				id,
 				depth: 1,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -694,7 +683,6 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 
 			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 				payload,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 				courseModuleLinkId,
@@ -723,7 +711,6 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 					gradedAt: now,
 					status: "graded",
 				} as Record<string, unknown>,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -734,7 +721,6 @@ export const tryGradeAssignmentSubmission = Result.wrap(
 					collection: AssignmentSubmissions.slug,
 					id,
 					depth: 1,
-					user,
 					req: reqWithTransaction,
 					overrideAccess,
 				})

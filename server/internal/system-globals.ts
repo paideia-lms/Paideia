@@ -25,25 +25,21 @@ export const tryGetSystemGlobals = Result.wrap(
 		] = await Promise.all([
 			tryGetMaintenanceSettings({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),
 			tryGetSitePolicies({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),
 			tryGetAppearanceSettings({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),
 			tryGetAnalyticsSettings({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),

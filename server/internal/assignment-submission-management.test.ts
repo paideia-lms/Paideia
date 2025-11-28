@@ -126,7 +126,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			course: courseId,
 			role: "student",
 			status: "active",
-			user: null,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
@@ -245,7 +245,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			maxGrade: 100,
 			weight: 25,
 			sortOrder: 1,
-			user: null,
 			req: mockRequest,
 			overrideAccess: true,
 		});
@@ -281,16 +280,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			content:
 				"This is my first attempt at the assignment. I will write about the importance of education.",
 			timeSpent: 30,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const result = await tryCreateAssignmentSubmission({
 			...args,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -321,16 +318,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 2,
 			content: "Initial draft content",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const createResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(createResult.ok).toBe(true);
@@ -344,16 +339,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			id: submissionId,
 			content: "Updated content with more detailed analysis of the topic",
 			timeSpent: 45,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const updateResult = await tryUpdateAssignmentSubmission({
 			...updateArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(updateResult.ok).toBe(true);
@@ -374,16 +367,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 3,
 			content: "Final submission ready for grading",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const createResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(createResult.ok).toBe(true);
@@ -395,8 +386,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const submitResult = await trySubmitAssignment({
 			payload,
 			submissionId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(submitResult.ok).toBe(true);
@@ -420,16 +410,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			attemptNumber: 4,
 			content:
 				"This is a well-written essay that demonstrates good understanding of the topic.",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const createResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(createResult.ok).toBe(true);
@@ -441,8 +429,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const submitResult = await trySubmitAssignment({
 			payload,
 			submissionId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(submitResult.ok).toBe(true);
@@ -457,7 +444,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			feedback:
 				"Good work! Your analysis was thorough and well-structured. Consider adding more examples in the conclusion.",
 			gradedBy: teacherId,
-			user: null,
 			overrideAccess: true,
 		});
 
@@ -489,7 +475,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		);
 		const userGradeResult = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			user: null,
 			req: mockRequest,
 			overrideAccess: true,
 			enrollmentId,
@@ -507,16 +492,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 6,
 			content: "Submission for get by ID test",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const createResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(createResult.ok).toBe(true);
@@ -528,8 +511,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const getResult = await tryGetAssignmentSubmissionById({
 			payload,
 			id: submissionId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -607,16 +589,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 7,
 			content: "This is a late submission",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const result = await tryCreateAssignmentSubmission({
 			...lateArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -638,8 +618,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 8,
 			content: "First submission for attempt 8",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
@@ -647,8 +626,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const firstResult = await tryCreateAssignmentSubmission({
 			...args,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(firstResult.ok).toBe(true);
@@ -657,8 +635,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const duplicateResult = await tryCreateAssignmentSubmission({
 			...args,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(duplicateResult.ok).toBe(false);
@@ -673,16 +650,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 9,
 			content: "Submission for grade validation test",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const createResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(createResult.ok).toBe(true);
@@ -694,8 +669,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const submitResult = await trySubmitAssignment({
 			payload,
 			submissionId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(submitResult.ok).toBe(true);
@@ -709,7 +683,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			grade: -10,
 			feedback: "Invalid grade",
 			gradedBy: teacherId,
-			user: null,
 			overrideAccess: true,
 		});
 
@@ -723,7 +696,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			grade: 150,
 			feedback: "Grade too high",
 			gradedBy: teacherId,
-			user: null,
 			overrideAccess: true,
 		});
 
@@ -739,16 +711,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 10,
 			content: "Draft submission that should not be gradable",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const createResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(createResult.ok).toBe(true);
@@ -764,7 +734,6 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			grade: 80,
 			feedback: "Should not be able to grade draft",
 			gradedBy: teacherId,
-			user: null,
 			overrideAccess: true,
 		});
 
@@ -780,16 +749,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			enrollmentId,
 			attemptNumber: 11,
 			content: "Submission to be deleted",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const createResult = await tryCreateAssignmentSubmission({
 			...createArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(createResult.ok).toBe(true);
@@ -801,8 +768,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const deleteResult = await tryDeleteAssignmentSubmission({
 			payload,
 			id: submissionId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(deleteResult.ok).toBe(true);
@@ -811,8 +777,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const getResult = await tryGetAssignmentSubmissionById({
 			payload,
 			id: submissionId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(getResult.ok).toBe(false);
@@ -828,16 +793,13 @@ describe("Assignment Submission Management - Full Workflow", () => {
 				enrollmentId,
 				attemptNumber: 20 + i,
 				content: `Pagination test submission ${i + 1}`,
-				user: null,
-				req: undefined,
+				req: { user: null },
 				overrideAccess: true,
 			};
 
 			const createResult = await tryCreateAssignmentSubmission({
 				...createArgs,
 				payload,
-				user: null,
-				req: undefined,
 				overrideAccess: true,
 			});
 			expect(createResult.ok).toBe(true);
@@ -869,16 +831,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			courseModuleLinkId: undefined as never,
 			studentId,
 			enrollmentId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const result1 = await tryCreateAssignmentSubmission({
 			...invalidArgs1,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(result1.ok).toBe(false);
@@ -889,16 +849,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId: undefined as never,
 			enrollmentId,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const result2 = await tryCreateAssignmentSubmission({
 			...invalidArgs2,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(result2.ok).toBe(false);
@@ -909,16 +867,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			courseModuleLinkId: courseActivityModuleLinkId,
 			studentId,
 			enrollmentId: undefined as never,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const result3 = await tryCreateAssignmentSubmission({
 			...invalidArgs3,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(result3.ok).toBe(false);
@@ -928,8 +884,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const result = await tryGetAssignmentSubmissionById({
 			payload,
 			id: 99999,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -941,16 +896,14 @@ describe("Assignment Submission Management - Full Workflow", () => {
 			payload,
 			id: 99999,
 			content: "Updated content",
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		};
 
 		const result = await tryUpdateAssignmentSubmission({
 			...updateArgs,
 			payload,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(result.ok).toBe(false);
@@ -960,8 +913,7 @@ describe("Assignment Submission Management - Full Workflow", () => {
 		const result = await tryDeleteAssignmentSubmission({
 			payload,
 			id: 99999,
-			user: null,
-			req: undefined,
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(result.ok).toBe(false);

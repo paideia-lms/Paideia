@@ -415,7 +415,8 @@ function InstructionsView({
 	const maxAttempts = assignment.maxAttempts ?? null;
 	const canSubmitMore = maxAttempts === null || submittedCount < maxAttempts;
 	const hasUnsubmittedDraft = submission?.status === "draft";
-	const shouldShowMaxAttempts = typeof maxAttempts === "number" && maxAttempts > 0;
+	const shouldShowMaxAttempts =
+		typeof maxAttempts === "number" && maxAttempts > 0;
 
 	return (
 		<Paper withBorder p="xl" radius="md">
@@ -442,8 +443,9 @@ function InstructionsView({
 						icon={<IconInfoCircle size={16} />}
 					>
 						{isStudent
-							? `${submittedCount} of ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""
-							} used`
+							? `${submittedCount} of ${maxAttempts} attempt${
+									maxAttempts !== 1 ? "s" : ""
+								} used`
 							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>

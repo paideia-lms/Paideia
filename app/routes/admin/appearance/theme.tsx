@@ -19,6 +19,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/theme";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 type AppearanceGlobal = {
 	id: number;
@@ -97,7 +98,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateAppearanceSettings({
 		payload,
-		user: currentUser,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		data: {
 			color,
 			radius: radius as "xs" | "sm" | "md" | "lg" | "xl" | undefined,

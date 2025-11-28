@@ -34,6 +34,8 @@ we only use mantine form uncontrolled mode for all forms. never use `cascadeUpda
 
 after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
 
+use interface but not type for component props.
+
 
 ## Routing
 
@@ -114,6 +116,7 @@ use `then(stripDepth<depth, operation>())` to strip the depth from the payload r
 
 should not accept `depth` as an arg for internal functions but we should always use explicit `depth` for the payload function call.
 
+use interface but not type for Args type.
 
 ## Changelog
 

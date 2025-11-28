@@ -104,7 +104,11 @@ export async function action({ request, context }: Route.ActionArgs) {
 		userSession?.effectiveUser ?? userSession?.authenticatedUser;
 	const settingsResult = await tryGetRegistrationSettings({
 		payload,
-		req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		// ! this has override access because it is a system request, we don't care about access control
 		overrideAccess: true,
 	});
