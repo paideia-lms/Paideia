@@ -27,6 +27,7 @@ import {
 	ok,
 } from "~/utils/responses";
 import type { Route } from "./+types/preference";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -115,9 +116,11 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			theme,
 			direction,
 		},
-		user: currentUser,
-		req: request,
-		overrideAccess: false,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!updateResult.ok) {

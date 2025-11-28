@@ -30,6 +30,11 @@ import {
 import { AssignmentActions } from "~/utils/module-actions";
 import { groupSubmissionsByStudent } from "./helpers";
 
+import type { Route } from "app/routes/course/module.$id.submissions";
+type Enrollment = NonNullable<
+	Route.ComponentProps["loaderData"]["enrollments"]
+>[number];
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -41,13 +46,6 @@ type SubmissionType = SubmissionData & {
 		lastName?: string | null;
 		email?: string | null;
 	};
-};
-
-type Enrollment = {
-	id: number;
-	userId: number;
-	name: string;
-	email?: string | null;
 };
 
 // ============================================================================
@@ -80,7 +78,7 @@ function StudentSubmissionRow({
 	const [opened, { toggle }] = useDisclosure(false);
 
 	const latestSubmission = studentSubmissions?.[0];
-	const email = enrollment.email || "-";
+	const email = enrollment.userEmail || "-";
 
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
@@ -133,11 +131,11 @@ function StudentSubmissionRow({
 								to={
 									href("/course/:courseId/participants/profile", {
 										courseId: String(courseId),
-									}) + `?userId=${enrollment.userId}`
+									}) + `?userId=${enrollment.user.id}`
 								}
 								size="sm"
 							>
-								{enrollment.name}
+								{enrollment.user.firstName} {enrollment.user.lastName}
 							</Anchor>
 						</div>
 					</Group>
@@ -344,7 +342,7 @@ export function AssignmentSubmissionTable({
 					<Table.Tbody>
 						{enrollments.map((enrollment) => {
 							const studentSubmissions = submissionsByStudent.get(
-								enrollment.userId,
+								enrollment.user.id,
 							);
 
 							return (

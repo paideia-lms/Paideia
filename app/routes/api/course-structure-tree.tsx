@@ -11,6 +11,7 @@ import z from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/course-structure-tree";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	courseId: z.number(),
@@ -47,28 +48,27 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		`Moving ${sourceType} ${sourceId} to ${location} ${targetType} ${targetId}`,
 	);
 
-	try {
-		// Call tryGeneralMove with the parsed parameters
-		const result = await tryGeneralMove({
-			payload,
-			source: { id: sourceId, type: sourceType },
-			target: { id: targetId, type: targetType },
-			location,
+	// Call tryGeneralMove with the parsed parameters
+	const result = await tryGeneralMove({
+		payload,
+		source: { id: sourceId, type: sourceType },
+		target: { id: targetId, type: targetType },
+		location,
+		req: createLocalReq({
+			request,
 			user: currentUser,
-		});
+			context: { routerContext: context },
+		}),
+	});
 
-		if (!result.ok) {
-			return badRequest({ error: result.error.message });
-		}
-
-		return ok({
-			success: true,
-			message: "Course structure updated successfully",
-		});
-	} catch (error) {
-		console.error("Failed to update course structure:", error);
-		return badRequest({ error: "Failed to update course structure" });
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
 	}
+
+	return ok({
+		success: true,
+		message: "Course structure updated successfully",
+	});
 };
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();

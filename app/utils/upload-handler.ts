@@ -166,9 +166,7 @@ export interface ParseFormDataWithMediaUploadResult {
  * @returns Result containing parsed FormData and uploaded media information
  */
 export const tryParseFormDataWithMediaUpload = Result.wrap(
-	async (
-		options: ParseFormDataWithMediaUploadOptions,
-	): Promise<ParseFormDataWithMediaUploadResult> => {
+	async (options: ParseFormDataWithMediaUploadOptions) => {
 		const {
 			payload,
 			request,
@@ -207,7 +205,7 @@ export const tryParseFormDataWithMediaUpload = Result.wrap(
 			return {
 				formData,
 				uploadedMedia,
-			};
+			} satisfies ParseFormDataWithMediaUploadResult;
 		});
 	},
 	(error) =>

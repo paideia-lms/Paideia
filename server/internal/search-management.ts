@@ -36,11 +36,11 @@ export function parseQuery(query: string) {
 	};
 }
 
-export type SearchArgs = BaseInternalFunctionArgs & {
+export interface SearchArgs extends BaseInternalFunctionArgs {
 	query?: string;
 	limit?: number;
 	page?: number;
-};
+}
 
 export interface SearchResult {
 	doc: {

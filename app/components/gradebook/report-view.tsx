@@ -11,6 +11,7 @@ import {
 import { href, Link } from "react-router";
 import type { UserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { getModuleIcon } from "../../utils/module-helper";
+import type { Route } from "app/routes/course.$id.grades";
 
 // ============================================================================
 // Gradebook Report Types
@@ -248,7 +249,11 @@ function buildHeadersRecursive(
 	return currentColumn;
 }
 
-export function GraderReportView({ data }: { data: GraderReportData }) {
+export function GraderReportView({
+	data,
+}: {
+	data: Route.ComponentProps["loaderData"];
+}) {
 	const { enrollments, gradebookJson, userGrades, totalMaxGrade } = data;
 
 	if (!gradebookJson) {
@@ -461,14 +466,15 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 										<Table.Td>
 											<Group gap="sm">
 												<Avatar size="sm" radius="xl" color="blue">
-													{enrollment.name.charAt(0)}
+													{enrollment.user.firstName?.charAt(0)}
 												</Avatar>
 												<div>
 													<Text size="sm" fw={500}>
-														{enrollment.name}
+														{enrollment.user.firstName}{" "}
+														{enrollment.user.lastName}
 													</Text>
 													<Text size="xs" c="dimmed">
-														{enrollment.email}
+														{enrollment.user.email}
 													</Text>
 												</div>
 											</Group>

@@ -23,15 +23,15 @@ import {
 } from "./utils/internal-function-utils";
 import { prettifyMarkdown } from "./utils/markdown-prettify";
 
-export type CreateGradebookArgs = BaseInternalFunctionArgs & {
+export interface CreateGradebookArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 	enabled?: boolean;
-};
+}
 
-export type UpdateGradebookArgs = BaseInternalFunctionArgs & {
+export interface UpdateGradebookArgs extends BaseInternalFunctionArgs {
 	gradebookId: number;
 	enabled?: boolean;
-};
+}
 
 export interface SearchGradebooksArgs {
 	courseId?: number;
@@ -495,9 +495,10 @@ function buildFullBreakdownRows(
 	return rows;
 }
 
-export type GetGradebookAllRepresentationsArgs = BaseInternalFunctionArgs & {
+export interface GetGradebookAllRepresentationsArgs
+	extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
 export interface GradebookAllRepresentations {
 	json: GradebookJsonRepresentation;

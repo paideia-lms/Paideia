@@ -36,12 +36,15 @@ after using hook to update server data, we don't need to use `useRevalidator` to
 
 use interface but not type for component props.
 
+in the loader, we should always throw ErrorResponse if fail, unless it is a non component route. in action, we return error response from `utils/responses` instead of throwing error.
 
 ## Routing
 
 we should use `href` from `react-router` to create hrefs for the routes.
 
 in the `routes.ts`, we use `:id` to define the user id parameter. when it is not userId or in special case, we should always specify the type of `:noteId` or `:moduleId`. 
+
+when a route has search param defined by loader Params, it is better to expose a getRouteUrl function to get the route url with the search params.
 
 ### styling
 

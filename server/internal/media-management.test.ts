@@ -5,7 +5,8 @@ import {
 	PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import {  getPayload, TypedUser } from "payload";
+import { createLocalReq } from "./utils/internal-function-utils";
 import { envVars } from "../env";
 import config from "../payload.config";
 import { s3Client } from "../utils/s3-client";
@@ -1200,13 +1201,17 @@ describe("Media Management", () => {
 		}
 		const sectionId = sectionResult.value.id;
 
+		const mockRequest = new Request("http://localhost:3000/test");
+
 		// 5. Create activity module with assignment
 		const activityModuleResult = await tryCreateAssignmentModule({
 			payload,
 			title: "Test Assignment",
 			description: "A test assignment",
 			status: "published",
-			userId: testUserId,
+			req: createLocalReq({ request: mockRequest, user: { 
+				id: testUserId,
+			}  as TypedUser}),
 			instructions: "Complete this assignment",
 			requireFileSubmission: true,
 			requireTextSubmission: false,
@@ -1220,7 +1225,6 @@ describe("Media Management", () => {
 		const activityModuleId = activityModuleResult.value.id;
 
 		// 6. Create course activity module link
-		const mockRequest = new Request("http://localhost:3000/test");
 		const linkResult = await tryCreateCourseActivityModuleLink({
 			payload,
 			req: mockRequest,
@@ -1270,7 +1274,9 @@ describe("Media Management", () => {
 			title: "Test Discussion",
 			description: "A test discussion",
 			status: "published",
-			userId: testUserId,
+			req: createLocalReq({ request: mockRequest, user: { 
+				id: testUserId,
+			}  as TypedUser}),
 			instructions: "Participate in this discussion",
 			allowAttachments: true,
 			overrideAccess: true,

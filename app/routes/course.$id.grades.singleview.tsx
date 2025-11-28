@@ -32,6 +32,7 @@ import { tryGetAdjustedSingleUserGrades } from "server/internal/user-grade-manag
 import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -59,22 +60,14 @@ export const loader = async ({
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
+	if (!userSession?.isAuthenticated) {
+		throw new ForbiddenResponse("Unauthorized");
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
 	// Prepare user object for internal functions
-	const currentUser = userSession?.isAuthenticated
-		? userSession.effectiveUser || userSession.authenticatedUser
-		: null;
-
-	const user = currentUser
-		? {
-				...currentUser,
-				avatar:
-					typeof currentUser.avatar === "object" && currentUser.avatar !== null
-						? currentUser.avatar.id
-						: currentUser.avatar,
-				collection: "users" as const,
-			}
-		: null;
-
 	// Get selected user from search params
 	const { userId } = loadSearchParams(request);
 
@@ -83,38 +76,44 @@ export const loader = async ({
 		(e) => e.role === "student",
 	);
 
-	// Fetch single user grades if userId is provided
-	let singleUserGrades = null;
-	let singleUserGradesYaml = null;
-	let singleUserGradesMarkdown = null;
-	if (userId) {
-		// Find enrollment for the selected user (only from students)
-		const enrollment = studentEnrollments.find((e) => e.userId === userId);
+	// Find enrollment for the selected user (only from students)
+	const enrollment = studentEnrollments.find((e) => e.user.id === userId);
 
-		if (enrollment) {
-			const singleUserGradesResult = await tryGetAdjustedSingleUserGrades({
-				payload,
-				user,
-				req: request,
-				overrideAccess: false,
-				courseId: Number(courseId),
-				enrollmentId: enrollment.id,
-			});
+	const defaultSingleUserGradesResult = {
+		singleUserGrades: null,
+		singleUserGradesYaml: null,
+		singleUserGradesMarkdown: null,
+	};
 
-			if (singleUserGradesResult.ok) {
-				singleUserGrades = singleUserGradesResult.value.json;
-				singleUserGradesYaml = singleUserGradesResult.value.yaml;
-				singleUserGradesMarkdown = singleUserGradesResult.value.markdown;
-			}
-		}
-	}
+	const singleUserGradesResult =
+		userId && enrollment
+			? await tryGetAdjustedSingleUserGrades({
+					payload,
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
+					overrideAccess: false,
+					courseId: Number(courseId),
+					enrollmentId: enrollment.id,
+				}).then((result) => {
+					return result.ok
+						? {
+								singleUserGrades: result.value.json,
+								singleUserGradesYaml: result.value.yaml,
+								singleUserGradesMarkdown: result.value.markdown,
+							}
+						: defaultSingleUserGradesResult;
+				})
+			: defaultSingleUserGradesResult;
 
 	return {
 		course: courseContext.course,
 		enrollments: studentEnrollments,
-		singleUserGrades,
-		singleUserGradesYaml,
-		singleUserGradesMarkdown,
+		singleUserGrades: singleUserGradesResult.singleUserGrades,
+		singleUserGradesYaml: singleUserGradesResult.singleUserGradesYaml,
+		singleUserGradesMarkdown: singleUserGradesResult.singleUserGradesMarkdown,
 		selectedUserId: userId,
 		timeZone,
 		gradebookSetupForUI: courseContext.gradebookSetupForUI,
@@ -143,8 +142,8 @@ export default function CourseGradesSingleViewPage({
 
 	// Prepare user select options
 	const userOptions = enrollments.map((enrollment) => ({
-		value: enrollment.userId.toString(),
-		label: enrollment.name || enrollment.email,
+		value: enrollment.user.id.toString(),
+		label: enrollment.user.firstName + " " + enrollment.user.lastName,
 	}));
 
 	const title = `Single User Grade View | ${loaderData.course.title} | Paideia LMS`;

@@ -6,7 +6,7 @@ import { tryGetMaintenanceSettings } from "./maintenance-settings";
 import { tryGetSitePolicies } from "./site-policies";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export type GetSystemGlobalsArgs = BaseInternalFunctionArgs & {};
+export interface GetSystemGlobalsArgs extends BaseInternalFunctionArgs {}
 
 /**
  * Fetch all system globals in a single call.

@@ -23,6 +23,11 @@ import {
 	groupAndSortDiscussionSubmissions,
 	sortSubmissionsByDate,
 } from "./helpers";
+import type { Route } from "app/routes/course/module.$id.submissions";
+
+type Enrollment = NonNullable<
+	Route.ComponentProps["loaderData"]["enrollments"]
+>[number];
 
 // ============================================================================
 // Types
@@ -50,13 +55,6 @@ type DiscussionSubmissionType = {
 	} | null;
 };
 
-type Enrollment = {
-	id: number;
-	userId: number;
-	name: string;
-	email?: string | null;
-};
-
 // ============================================================================
 // Components
 // ============================================================================
@@ -82,7 +80,7 @@ function DiscussionStudentSubmissionRow({
 
 	const hasSubmissions = sortedSubmissions.length > 0;
 	const latestSubmission = sortedSubmissions[0];
-	const email = enrollment.email || "-";
+	const email = enrollment.userEmail || "-";
 
 	// Count posts by type
 	const {
@@ -103,11 +101,11 @@ function DiscussionStudentSubmissionRow({
 					to={
 						href("/course/:courseId/participants/profile", {
 							courseId: String(courseId),
-						}) + `?userId=${enrollment.userId}`
+						}) + `?userId=${enrollment.user.id}`
 					}
 					size="sm"
 				>
-					{enrollment.name}
+					{enrollment.user.firstName} {enrollment.user.lastName}
 				</Anchor>
 			</Table.Td>
 			<Table.Td>{email}</Table.Td>
@@ -253,7 +251,7 @@ export function DiscussionSubmissionTable({
 					<Table.Tbody>
 						{enrollments.map((enrollment) => {
 							const studentSubmissions = discussionSubmissionsByStudent.get(
-								enrollment.userId,
+								enrollment.user.id,
 							);
 
 							return (

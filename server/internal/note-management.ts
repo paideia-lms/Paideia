@@ -371,9 +371,9 @@ export const tryFindNotesByUser = Result.wrap(
 		}),
 );
 
-export type GenerateNoteHeatmapArgs = BaseInternalFunctionArgs & {
+export interface GenerateNoteHeatmapArgs extends BaseInternalFunctionArgs {
 	userId: number;
-};
+}
 
 /**
  * Generates heatmap data for user's note activity

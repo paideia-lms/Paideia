@@ -1,54 +1,41 @@
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
+import { SitePolicies } from "server/collections/globals";
 
-export type GetSitePoliciesArgs = BaseInternalFunctionArgs & {};
+export interface GetSitePoliciesArgs extends BaseInternalFunctionArgs {}
 
-export type UpdateSitePoliciesArgs = BaseInternalFunctionArgs & {
+export interface UpdateSitePoliciesArgs extends BaseInternalFunctionArgs {
 	data: {
 		userMediaStorageTotal?: number | null;
 		siteUploadLimit?: number | null;
 	};
-};
-
-export type SitePolicies = {
-	userMediaStorageTotal: number | null;
-	siteUploadLimit: number | null;
-};
-
-const sitePoliciesSchema = z.object({
-	userMediaStorageTotal: z.number().min(0).nullable().optional(),
-	siteUploadLimit: z.number().min(0).nullable().optional(),
-});
+}
 
 /**
  * Read site policies from the SitePolicies global.
  * Falls back to sensible defaults when unset/partial.
  */
 export const tryGetSitePolicies = Result.wrap(
-	async (args: GetSitePoliciesArgs): Promise<SitePolicies> => {
-		const { payload, req } = args;
+	async (args: GetSitePoliciesArgs) => {
+		const { payload, req, overrideAccess = false } = args;
 
-		const raw = await payload.findGlobal({
-			slug: "site-policies",
-			req,
-			// ! this is a system request, we don't care about access control
-			overrideAccess: true,
-		});
-
-		const parsed = sitePoliciesSchema.safeParse(raw);
-
-		if (!parsed.success) {
-			return {
-				userMediaStorageTotal: null,
-				siteUploadLimit: null,
-			};
-		}
+		const raw = await payload
+			.findGlobal({
+				slug: SitePolicies.slug,
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "findGlobal">());
 
 		return {
-			userMediaStorageTotal: parsed.data.userMediaStorageTotal ?? null,
-			siteUploadLimit: parsed.data.siteUploadLimit ?? null,
+			userMediaStorageTotal: raw.userMediaStorageTotal ?? null,
+			siteUploadLimit: raw.siteUploadLimit ?? null,
 		};
 	},
 	(error) =>
@@ -60,31 +47,25 @@ export const tryGetSitePolicies = Result.wrap(
  * Update site policies in the SitePolicies global.
  */
 export const tryUpdateSitePolicies = Result.wrap(
-	async (args: UpdateSitePoliciesArgs): Promise<SitePolicies> => {
-		const { payload, user, data, overrideAccess = false } = args;
+	async (args: UpdateSitePoliciesArgs) => {
+		const { payload, data, req, overrideAccess = false } = args;
 
-		const updated = await payload.updateGlobal({
-			slug: "site-policies",
-			data: {
-				userMediaStorageTotal: data.userMediaStorageTotal ?? null,
-				siteUploadLimit: data.siteUploadLimit ?? null,
-			},
-			user,
-			overrideAccess,
-		});
-
-		const parsed = sitePoliciesSchema.safeParse(updated);
-
-		if (!parsed.success) {
-			return {
-				userMediaStorageTotal: null,
-				siteUploadLimit: null,
-			};
-		}
+		const updated = await payload
+			.updateGlobal({
+				slug: SitePolicies.slug,
+				data: {
+					userMediaStorageTotal: data.userMediaStorageTotal ?? null,
+					siteUploadLimit: data.siteUploadLimit ?? null,
+				},
+				overrideAccess,
+				req,
+				depth: 0,
+			})
+			.then(stripDepth<0, "updateGlobal">());
 
 		return {
-			userMediaStorageTotal: parsed.data.userMediaStorageTotal ?? null,
-			siteUploadLimit: parsed.data.siteUploadLimit ?? null,
+			userMediaStorageTotal: updated.userMediaStorageTotal ?? null,
+			siteUploadLimit: updated.siteUploadLimit ?? null,
 		};
 	},
 	(error) =>

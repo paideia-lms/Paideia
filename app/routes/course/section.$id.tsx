@@ -67,7 +67,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Section not found or access denied");
 	}
 
-	const section = courseSectionContext.section;
+	const section = courseSectionContext;
 
 	// Find the section in the course structure to get its content
 	const structureSection = findSectionInStructure(

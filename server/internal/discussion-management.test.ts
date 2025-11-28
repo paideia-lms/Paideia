@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
@@ -33,6 +33,7 @@ import {
 	tryCreateEnrollment,
 } from "./enrollment-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
 
 const year = new Date().getFullYear();
 
@@ -145,8 +146,9 @@ describe("Discussion Management - Full Workflow", () => {
 			title: "Test Discussion",
 			description: "A test discussion for submission workflow",
 			status: "published",
-			userId: teacherId,
-
+			req: createLocalReq({ request: mockRequest, user: { 
+				id: teacherId,
+			}  as TypedUser}),
 			instructions:
 				"Participate in this discussion by creating threads and replies",
 			dueDate: `${year}-12-31T23:59:59Z`,

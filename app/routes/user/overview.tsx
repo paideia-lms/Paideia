@@ -32,17 +32,13 @@ import { stringify } from "qs";
 import { useEffect, useState } from "react";
 import { href, Link, useFetcher, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { type User, userContextKey } from "server/contexts/user-context";
+import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import {
 	tryFindUserById,
 	tryUpdateUser,
 } from "server/internal/user-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
 	canEditOtherAdmin,
 	canEditProfileAvatar,
@@ -51,6 +47,7 @@ import {
 	canEditProfileFirstName,
 	canEditProfileLastName,
 	canEditProfileRole,
+	canImpersonate,
 } from "server/utils/permissions";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
@@ -66,6 +63,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/overview";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({
 	context,
@@ -100,8 +98,11 @@ export const loader = async ({
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -118,12 +119,13 @@ export const loader = async ({
 			})
 		: null;
 
-	// Check if user can impersonate (admin viewing someone else's profile, not an admin, and not already impersonating)
-	const canImpersonate =
-		userSession.authenticatedUser.role === "admin" &&
-		userId !== userSession.authenticatedUser.id &&
-		profileUser.role !== "admin" &&
-		!userSession.isImpersonating;
+	// Check if user can impersonate
+	const impersonatePermission = canImpersonate(
+		userSession.authenticatedUser,
+		userId,
+		profileUser.role,
+		userSession.isImpersonating,
+	);
 
 	// Check if this is the first user (id === 1)
 	const isFirstUser = profileUser.id === 1;
@@ -184,7 +186,7 @@ export const loader = async ({
 		},
 		isOwnData: userId === currentUser.id,
 		isAdmin: currentUser.role === "admin",
-		canImpersonate,
+		canImpersonate: impersonatePermission.allowed,
 		isFirstUser,
 		isProfileUserAdmin,
 		isSandboxMode,
@@ -266,105 +268,106 @@ const updateAction = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
+	const transactionInfo = await handleTransactionId(
 		payload,
-		request,
-		userId: userId,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		fields: [
-			{
-				fieldName: "avatar",
-				alt: "User avatar",
-			},
-		],
-	});
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
+	return await transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: userId,
+			req: txInfo.reqWithTransaction,
 			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
-
-	const { formData } = parseResult.value;
-
-	const isAdmin = currentUser.role === "admin";
-	const isFirstUser = userId === 1;
-
-	const parsed = inputSchema.safeParse({
-		firstName: formData.get("firstName"),
-		lastName: formData.get("lastName"),
-		bio: formData.get("bio"),
-		avatar: formData.get("avatar"),
-		email: formData.get("email"),
-		role: formData.get("role"),
-	});
-
-	if (!parsed.success) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: parsed.error.message,
+			fields: [
+				{
+					fieldName: "avatar",
+					alt: "User avatar",
+				},
+			],
 		});
-	}
 
-	// Prevent first user from changing their admin role
-	if (isFirstUser && parsed.data.role && parsed.data.role !== "admin") {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: "The first user cannot change their admin role",
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
+
+		const { formData } = parseResult.value;
+
+		const isAdmin = currentUser.role === "admin";
+		const isFirstUser = userId === 1;
+
+		const parsed = inputSchema.safeParse({
+			firstName: formData.get("firstName"),
+			lastName: formData.get("lastName"),
+			bio: formData.get("bio"),
+			avatar: formData.get("avatar"),
+			email: formData.get("email"),
+			role: formData.get("role"),
 		});
-	}
 
-	// Build update data
-	const updateData = {
-		firstName: parsed.data.firstName,
-		lastName: parsed.data.lastName,
-		email: parsed.data.email ?? undefined,
-		bio: parsed.data.bio,
-		avatar: parsed.data.avatar ?? undefined,
-		role: parsed.data.role ?? undefined,
-	};
+		if (!parsed.success) {
+			return badRequest({
+				success: false,
+				error: parsed.error.message,
+			});
+		}
 
-	// Only admins can update email and role
-	if (
-		isAdmin &&
-		parsed.data.email !== null &&
-		parsed.data.email !== undefined
-	) {
-		updateData.email = parsed.data.email;
-	}
+		// Prevent first user from changing their admin role
+		if (isFirstUser && parsed.data.role && parsed.data.role !== "admin") {
+			return badRequest({
+				success: false,
+				error: "The first user cannot change their admin role",
+			});
+		}
 
-	const updateResult = await tryUpdateUser({
-		payload,
-		userId: userId,
-		data: updateData,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		overrideAccess: false,
-	});
+		// Build update data
+		const updateData = {
+			firstName: parsed.data.firstName,
+			lastName: parsed.data.lastName,
+			email: parsed.data.email ?? undefined,
+			bio: parsed.data.bio,
+			avatar: parsed.data.avatar ?? undefined,
+			role: parsed.data.role ?? undefined,
+		};
 
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+		// Only admins can update email and role
+		if (
+			isAdmin &&
+			parsed.data.email !== null &&
+			parsed.data.email !== undefined
+		) {
+			updateData.email = parsed.data.email;
+		}
+
+		const updateResult = await tryUpdateUser({
+			payload,
+			userId: userId,
+			data: updateData,
+			req: txInfo.reqWithTransaction,
+			overrideAccess: false,
 		});
-	}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
+		if (!updateResult.ok) {
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
 
-	return ok({
-		success: true,
-		message: "Profile updated successfully",
+		return ok({
+			success: true,
+			message: "Profile updated successfully",
+		});
 	});
 };
 
@@ -473,12 +476,9 @@ const useUpdateUser = () => {
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const {
 		user,
-		currentUser,
 		isOwnData,
 		isAdmin,
 		canImpersonate,
-		isFirstUser,
-		isSandboxMode,
 		userProfile,
 		firstNamePermission,
 		lastNamePermission,
@@ -486,7 +486,6 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 		bioPermission,
 		avatarPermission,
 		rolePermission,
-		otherAdminCheck,
 		isEditingOtherAdminUser,
 	} = loaderData;
 	const { updateUser, fetcher } = useUpdateUser();
@@ -562,8 +561,6 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const moduleCount = userProfile?.activityModules.length ?? 0;
 	const enrollmentCount = userProfile?.enrollments.length ?? 0;
-
-	const targetUser = { id: user.id, role: user.role };
 
 	const title = `${fullName} | Profile | Paideia LMS`;
 

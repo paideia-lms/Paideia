@@ -112,7 +112,6 @@ describe("Activity Module Management", () => {
 			title: "Test Page Module",
 			description: "This is a test page module",
 			status: "draft",
-			userId: testUserId,
 			req: {user : testUser ?? undefined},
 			content: "<p>This is test page content</p>",
 		} satisfies CreatePageModuleArgs;
@@ -140,7 +139,7 @@ describe("Activity Module Management", () => {
 			title: "Test Assignment",
 			description: "This is a test assignment",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Complete this assignment",
 			allowedFileTypes: [
@@ -182,7 +181,7 @@ describe("Activity Module Management", () => {
 			title: "Test Quiz",
 			description: "This is a test quiz",
 			status: "draft",
-			userId: testUserId,
+			
 			req: {user : testUser ?? undefined},
 			instructions: "Answer all questions",
 			points: 100,
@@ -231,7 +230,7 @@ describe("Activity Module Management", () => {
 			title: "Test File Module",
 			description: "This is a test file module",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			media: [],
 		} satisfies CreateFileModuleArgs;
@@ -260,7 +259,7 @@ describe("Activity Module Management", () => {
 			title: "Test Discussion",
 			description: "This is a test discussion",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Participate in this discussion",
 			dueDate: "2024-12-31",
@@ -300,7 +299,7 @@ describe("Activity Module Management", () => {
 		const args = {
 			payload,
 			title: "Test Activity Module 2",
-			userId: testUserId,
+			
 			req: {user : testUser ?? undefined},
 			content: JSON.stringify({ shapes: [], bindings: [] }),
 		} satisfies CreateWhiteboardModuleArgs;
@@ -319,35 +318,35 @@ describe("Activity Module Management", () => {
 			tryCreatePageModule({
 				payload,
 				title: "page module",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				content: "<p>Test page content</p>",
 			}),
 			tryCreateWhiteboardModule({
 				payload,
 				title: "whiteboard module",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				content: JSON.stringify({ shapes: [], bindings: [] }),
 			}),
 			tryCreateFileModule({
 				payload,
 				title: "file module",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				media: [],
 			}),
 			tryCreateAssignmentModule({
 				payload,
 				title: "assignment module",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				instructions: "Complete this assignment",
 			}),
 			tryCreateQuizModule({
 				payload,
 				title: "quiz module",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				instructions: "Answer all questions",
 				points: 100,
@@ -355,7 +354,7 @@ describe("Activity Module Management", () => {
 			tryCreateDiscussionModule({
 				payload,
 				title: "discussion module",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				instructions: "Participate in this discussion",
 				minReplies: 1,
@@ -381,7 +380,7 @@ describe("Activity Module Management", () => {
 		const args = {
 			payload,
 			title: "Get Test Module",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			content: "<p>Get test content</p>",
 		} satisfies CreatePageModuleArgs;
@@ -414,7 +413,7 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Update Test Page Module",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			content: "<p>Original content</p>",
 		} satisfies CreatePageModuleArgs;
@@ -451,7 +450,7 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Update Test Assignment",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Original instructions",
 		} satisfies CreateAssignmentModuleArgs;
@@ -489,7 +488,7 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Update Test Quiz",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Original quiz instructions",
 			points: 50,
@@ -531,7 +530,7 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Update Test File Module",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			media: [],
 		} satisfies CreateFileModuleArgs;
@@ -568,7 +567,7 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Update Test Discussion",
 			status: "draft",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Original discussion instructions",
 			minReplies: 1,
@@ -612,7 +611,7 @@ describe("Activity Module Management", () => {
 		const args = {
 			payload,
 			title: "Delete Test Page Module",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			content: "<p>Delete test content</p>",
 		} satisfies CreatePageModuleArgs;
@@ -643,7 +642,7 @@ describe("Activity Module Management", () => {
 		const args = {
 			payload,
 			title: "Delete Test Assignment",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Complete this assignment",
 		} satisfies CreateAssignmentModuleArgs;
@@ -676,7 +675,7 @@ describe("Activity Module Management", () => {
 		const args = {
 			payload,
 			title: "Delete Test Quiz",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Answer all questions",
 			points: 100,
@@ -711,7 +710,7 @@ describe("Activity Module Management", () => {
 		const args = {
 			payload,
 			title: "Delete Test File Module",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			media: [],
 		} satisfies CreateFileModuleArgs;
@@ -745,7 +744,7 @@ describe("Activity Module Management", () => {
 		const args = {
 			payload,
 			title: "Delete Test Discussion",
-			userId: testUserId,
+			
 			req: { user: testUser ?? undefined },
 			instructions: "Participate in this discussion",
 			minReplies: 2,
@@ -784,7 +783,7 @@ describe("Activity Module Management", () => {
 				payload,
 				title: "List Test Module 1",
 				status: "published",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				content: "<p>List test 1</p>",
 			}),
@@ -792,7 +791,7 @@ describe("Activity Module Management", () => {
 				payload,
 				title: "List Test Module 2",
 				status: "draft",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				instructions: "Complete this assignment",
 			}),
@@ -800,7 +799,7 @@ describe("Activity Module Management", () => {
 				payload,
 				title: "List Test Module 3",
 				status: "published",
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				instructions: "Answer all questions",
 				points: 100,
@@ -810,7 +809,7 @@ describe("Activity Module Management", () => {
 		// Test listing all modules
 		const listResult = await tryListActivityModules({
 			payload,
-			userId: testUserId,
+			
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -822,7 +821,7 @@ describe("Activity Module Management", () => {
 		// Test filtering by type
 		const pageModulesResult = await tryListActivityModules({
 			payload,
-			userId: testUserId,
+			
 			type: "page",
 		});
 
@@ -836,7 +835,7 @@ describe("Activity Module Management", () => {
 		// Test filtering by file type
 		const fileModulesResult = await tryListActivityModules({
 			payload,
-			userId: testUserId,
+			
 			type: "file",
 		});
 
@@ -850,7 +849,7 @@ describe("Activity Module Management", () => {
 		// Test filtering by status
 		const publishedModulesResult = await tryListActivityModules({
 			payload,
-			userId: testUserId,
+			
 			status: "published",
 		});
 
@@ -868,7 +867,7 @@ describe("Activity Module Management", () => {
 			const args = {
 				payload,
 				title: `Pagination Test Module ${i + 1}`,
-				userId: testUserId,
+				
 				req: { user: testUser ?? undefined },
 				content: `<p>Pagination test ${i + 1}</p>`,
 			} satisfies CreatePageModuleArgs;
@@ -880,7 +879,7 @@ describe("Activity Module Management", () => {
 		// Test pagination
 		const page1Result = await tryListActivityModules({
 			payload,
-			userId: testUserId,
+			
 			limit: 2,
 			page: 1,
 		});
@@ -900,7 +899,7 @@ describe("Activity Module Management", () => {
 		const invalidArgs1: CreatePageModuleArgs = {
 			payload,
 			title: "",
-			userId: testUserId,
+			
 			content: "<p>Test</p>",
 		};
 
@@ -911,7 +910,6 @@ describe("Activity Module Management", () => {
 		const invalidArgs3: CreatePageModuleArgs = {
 			payload,
 			title: "Test",
-			userId: undefined as never,
 			content: "<p>Test</p>",
 		};
 

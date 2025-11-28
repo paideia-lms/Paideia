@@ -27,6 +27,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/sitepolicies";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 type SitePoliciesGlobal = {
 	id: number;
@@ -34,7 +35,7 @@ type SitePoliciesGlobal = {
 	siteUploadLimit?: number | null;
 };
 
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ context, request }: Route.LoaderArgs) {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -49,8 +50,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 	const settings = await tryGetSitePolicies({
 		payload,
-		// ! this is a system request, we don't care about access control
-		overrideAccess: true,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!settings.ok) {
@@ -104,12 +108,15 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateSitePolicies({
 		payload,
-		user: currentUser,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		data: {
 			userMediaStorageTotal,
 			siteUploadLimit,
 		},
-		overrideAccess: false,
 	});
 
 	if (!updateResult.ok) {
@@ -172,18 +179,6 @@ export function useUpdateSitePolicies() {
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 	return <DefaultErrorBoundary error={error} />;
-}
-
-// Helper function to format bytes to human-readable format
-function formatBytes(bytes: number): string {
-	const units = ["B", "KB", "MB", "GB", "TB"];
-	let size = bytes;
-	let unitIndex = 0;
-	while (size >= 1024 && unitIndex < units.length - 1) {
-		size /= 1024;
-		unitIndex++;
-	}
-	return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
 // Storage options (in bytes)

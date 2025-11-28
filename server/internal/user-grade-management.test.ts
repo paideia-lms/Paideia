@@ -936,7 +936,6 @@ describe("User Grade Management", () => {
 			title: "Programming Exercise: Calculator",
 			description: "Build a calculator application",
 			status: "published",
-			userId: instructor.id,
 			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
 			overrideAccess: false,
 			instructions: "Create a calculator that can perform basic operations",
@@ -1161,7 +1160,6 @@ describe("User Grade Management", () => {
 			title: "Class Discussion: Design Patterns",
 			description: "Discuss various design patterns",
 			status: "published",
-			userId: instructor.id,
 			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
 			overrideAccess: false,
 			instructions:

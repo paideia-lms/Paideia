@@ -12,17 +12,12 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { CourseModuleSettingsV1 } from "../json/course-module-settings/types";
 import type {
 	CourseActivityModuleLink,
 	CourseSection,
 	ActivityModule as PayloadActivityModule,
 } from "../payload-types";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
@@ -82,14 +77,14 @@ export const tryCreateSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// If parent section is specified, verify it exists and belongs to same course
 			if (data.parentSection) {
 				const parentSection = await payload
 					.findByID({
 						collection: CourseSections.slug,
 						id: data.parentSection,
-						req: transactionInfo.reqWithTransaction,
+						req: txInfo.reqWithTransaction,
 						depth: 0,
 						overrideAccess,
 					})
@@ -115,7 +110,7 @@ export const tryCreateSection = Result.wrap(
 						contentOrder: 999999, // Temporary value, will be recalculated
 					},
 					depth: 1,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<0, "create">());
@@ -124,7 +119,7 @@ export const tryCreateSection = Result.wrap(
 			await recalculateSectionContentOrder({
 				payload,
 				sectionId: data.parentSection ?? null,
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -133,19 +128,14 @@ export const tryCreateSection = Result.wrap(
 				.findByID({
 					collection: CourseSections.slug,
 					id: newSection.id,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 					depth: 0,
 				})
 				.then(stripDepth<0, "findByID">());
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return finalSection;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -165,13 +155,13 @@ export const tryUpdateSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get existing section
 			const existingSection = await payload
 				.findByID({
 					collection: CourseSections.slug,
 					id: sectionId,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess: true,
 				})
 				.then(stripDepth<0, "findByID">());
@@ -187,7 +177,7 @@ export const tryUpdateSection = Result.wrap(
 						.findByID({
 							collection: CourseSections.slug,
 							id: data.parentSection,
-							req: transactionInfo.reqWithTransaction,
+							req: txInfo.reqWithTransaction,
 							overrideAccess: true,
 						})
 						.then(stripDepth<0, "findByID">());
@@ -210,7 +200,7 @@ export const tryUpdateSection = Result.wrap(
 						payload,
 						sectionId,
 						data.parentSection,
-						transactionInfo.reqWithTransaction,
+						txInfo.reqWithTransaction,
 					);
 
 					if (hasCircularRef) {
@@ -225,7 +215,7 @@ export const tryUpdateSection = Result.wrap(
 				collection: CourseSections.slug,
 				id: sectionId,
 				data,
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -239,7 +229,7 @@ export const tryUpdateSection = Result.wrap(
 					await recalculateSectionContentOrder({
 						payload,
 						sectionId: oldParentSectionId,
-						req: transactionInfo.reqWithTransaction,
+						req: txInfo.reqWithTransaction,
 						overrideAccess: true,
 					});
 				}
@@ -248,7 +238,7 @@ export const tryUpdateSection = Result.wrap(
 				await recalculateSectionContentOrder({
 					payload,
 					sectionId: data.parentSection,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess: true,
 				});
 			}
@@ -258,17 +248,12 @@ export const tryUpdateSection = Result.wrap(
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return finalSection as CourseSection;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -316,14 +301,14 @@ export const tryDeleteSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the section to access its course
 			const section = await payload
 				.findByID({
 					collection: CourseSections.slug,
 					id: sectionId,
 
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess: true,
 					depth: 0,
 				})
@@ -341,7 +326,7 @@ export const tryDeleteSection = Result.wrap(
 						},
 					},
 					depth: 1,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					// ! system request, we don't care about access control here
 					overrideAccess: true,
 				}),
@@ -352,7 +337,7 @@ export const tryDeleteSection = Result.wrap(
 							equals: sectionId,
 						},
 					},
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					// ! system request, we don't care about access control here
 					overrideAccess: true,
 				}),
@@ -378,7 +363,7 @@ export const tryDeleteSection = Result.wrap(
 						equals: courseId,
 					},
 				},
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				// ! this is a system request, we don't care about access control here
 				overrideAccess: true,
 			});
@@ -393,19 +378,14 @@ export const tryDeleteSection = Result.wrap(
 				.delete({
 					collection: CourseSections.slug,
 					id: sectionId,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 					depth: 0,
 				})
 				.then(stripDepth<0, "delete">());
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return deletedSection;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -416,29 +396,29 @@ export const tryDeleteSection = Result.wrap(
 // Section Tree Operations
 // ============================================================================
 
-export type FindSectionsByCourseArgs = BaseInternalFunctionArgs & {
+export interface FindSectionsByCourseArgs extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
-export type FindRootSectionsArgs = BaseInternalFunctionArgs & {
+export interface FindRootSectionsArgs extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
-export type FindChildSectionsArgs = BaseInternalFunctionArgs & {
+export interface FindChildSectionsArgs extends BaseInternalFunctionArgs {
 	parentSectionId: number;
-};
+}
 
-export type GetSectionTreeArgs = BaseInternalFunctionArgs & {
+export interface GetSectionTreeArgs extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
-export type GetSectionAncestorsArgs = BaseInternalFunctionArgs & {
+export interface GetSectionAncestorsArgs extends BaseInternalFunctionArgs {
 	sectionId: number;
-};
+}
 
-export type GetSectionDepthArgs = BaseInternalFunctionArgs & {
+export interface GetSectionDepthArgs extends BaseInternalFunctionArgs {
 	sectionId: number;
-};
+}
 
 export interface SectionTreeNode {
 	id: number;
@@ -462,18 +442,21 @@ export const tryFindSectionsByCourse = Result.wrap(
 			throw new InvalidArgumentError("Course ID is required");
 		}
 
-		const sections = await payload.find({
-			collection: CourseSections.slug,
-			where: {
-				course: {
-					equals: courseId,
+		const sections = await payload
+			.find({
+				collection: CourseSections.slug,
+				where: {
+					course: {
+						equals: courseId,
+					},
 				},
-			},
-			sort: "contentOrder",
-			pagination: false,
-			req,
-			overrideAccess,
-		});
+				sort: "contentOrder",
+				pagination: false,
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "find">());
 
 		return sections.docs as CourseSection[];
 	},
@@ -687,19 +670,18 @@ export const tryGetSectionDepth = Result.wrap(
 		let currentId: number | null = sectionId;
 
 		while (currentId !== null) {
-			const section: CourseSection = await payload.findByID({
-				collection: CourseSections.slug,
-				id: currentId,
-				depth: 0,
+			const section: { id: number; parentSection?: number | null } =
+				await payload
+					.findByID({
+						collection: CourseSections.slug,
+						id: currentId,
+						depth: 0,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<0, "findByID">());
 
-				req,
-				overrideAccess,
-			});
-
-			currentId =
-				typeof section.parentSection === "number"
-					? section.parentSection
-					: (section.parentSection?.id ?? null);
+			currentId = section.parentSection ?? null;
 
 			if (currentId !== null) {
 				depth++;
@@ -717,14 +699,14 @@ export const tryGetSectionDepth = Result.wrap(
 // Section Ordering Operations
 // ============================================================================
 
-export type ReorderSectionArgs = BaseInternalFunctionArgs & {
+export interface ReorderSectionArgs extends BaseInternalFunctionArgs {
 	sectionId: number;
 	newContentOrder: number;
-};
+}
 
-export type ReorderSectionsArgs = BaseInternalFunctionArgs & {
+export interface ReorderSectionsArgs extends BaseInternalFunctionArgs {
 	sectionIds: number[];
-};
+}
 
 /**
  * Changes order of a section within its parent
@@ -749,13 +731,13 @@ export const tryReorderSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the section to find its parent
 			const section = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -770,33 +752,29 @@ export const tryReorderSection = Result.wrap(
 				id: sectionId,
 				data: { contentOrder: newContentOrder },
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
 			// Recalculate contentOrder for the parent section (this will normalize all orders)
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
-				parentSectionId,
-				transactionInfo.reqWithTransaction,
-			);
+				sectionId: parentSectionId,
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
 			// Get the final updated section
 			const updatedSection = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return updatedSection as CourseSection;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -816,13 +794,13 @@ export const tryReorderSections = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the first section to determine the parent
 			const firstSection = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionIds[0]!,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -838,25 +816,21 @@ export const tryReorderSections = Result.wrap(
 					id: sectionId,
 					data: { contentOrder: 999999 },
 
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess: true,
 				});
 			}
 
 			// Recalculate contentOrder for the parent section
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
-				parentSectionId,
-				transactionInfo.reqWithTransaction,
-			);
-
-			await commitTransactionIfCreated(payload, transactionInfo);
+				sectionId: parentSectionId,
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
 			return { success: true, reorderedCount: sectionIds.length };
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -867,20 +841,20 @@ export const tryReorderSections = Result.wrap(
 // Section Nesting Operations
 // ============================================================================
 
-export type NestSectionArgs = BaseInternalFunctionArgs & {
+export interface NestSectionArgs extends BaseInternalFunctionArgs {
 	sectionId: number;
 	newParentSectionId: number;
-};
+}
 
-export type UnnestSectionArgs = BaseInternalFunctionArgs & {
+export interface UnnestSectionArgs extends BaseInternalFunctionArgs {
 	sectionId: number;
-};
+}
 
-export type MoveSectionArgs = BaseInternalFunctionArgs & {
+export interface MoveSectionArgs extends BaseInternalFunctionArgs {
 	sectionId: number;
 	newParentSectionId: number | null;
 	newOrder: number;
-};
+}
 
 /**
  * Moves section under a new parent (validate no circular refs)
@@ -905,37 +879,35 @@ export const tryNestSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the section
-			const section = await payload.findByID({
-				collection: CourseSections.slug,
-				id: sectionId,
+			const section = await payload
+				.findByID({
+					collection: CourseSections.slug,
+					id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess: true,
-			});
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true,
+					depth: 0,
+				})
+				.then(stripDepth<0, "findByID">());
 
-			const courseId =
-				typeof section.course === "number" ? section.course : section.course.id;
+			const courseId = section.course;
 
-			const oldParentSectionId =
-				typeof section.parentSection === "number"
-					? section.parentSection
-					: (section.parentSection?.id ?? null);
+			const oldParentSectionId = section.parentSection ?? null;
 
 			// Get the new parent section
-			const parentSection = await payload.findByID({
-				collection: CourseSections.slug,
-				id: newParentSectionId,
+			const parentSection = await payload
+				.findByID({
+					collection: CourseSections.slug,
+					id: newParentSectionId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true,
+					depth: 0,
+				})
+				.then(stripDepth<0, "findByID">());
 
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess: true,
-			});
-
-			const parentCourseId =
-				typeof parentSection.course === "number"
-					? parentSection.course
-					: parentSection.course.id;
+			const parentCourseId = parentSection.course;
 
 			// Verify both sections belong to same course
 			if (courseId !== parentCourseId) {
@@ -954,7 +926,7 @@ export const tryNestSection = Result.wrap(
 				payload,
 				sectionId,
 				newParentSectionId,
-				transactionInfo.reqWithTransaction,
+				txInfo.reqWithTransaction,
 			);
 
 			if (hasCircularRef) {
@@ -964,50 +936,50 @@ export const tryNestSection = Result.wrap(
 			}
 
 			// Update the section with temporary contentOrder (will be recalculated)
-			await payload.update({
-				collection: CourseSections.slug,
-				id: sectionId,
-				data: {
-					parentSection: newParentSectionId,
-					contentOrder: 999999, // Temporary value
-				},
-
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			await payload
+				.update({
+					collection: CourseSections.slug,
+					id: sectionId,
+					data: {
+						parentSection: newParentSectionId,
+						contentOrder: 999999, // Temporary value
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
 
 			// Recalculate contentOrder for old parent section
 			if (oldParentSectionId !== null) {
-				await recalculateSectionContentOrder(
+				await recalculateSectionContentOrder({
 					payload,
-					oldParentSectionId,
-					transactionInfo.reqWithTransaction,
-				);
+					sectionId: oldParentSectionId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true,
+				});
 			}
 
 			// Recalculate contentOrder for new parent section
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
-				newParentSectionId,
-				transactionInfo.reqWithTransaction,
-			);
+				sectionId: newParentSectionId,
+				req: txInfo.reqWithTransaction,
+				// ! this system request
+				overrideAccess: true,
+			});
 
 			// Get the final section with correct contentOrder
 			const finalSection = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return finalSection as CourseSection;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1027,13 +999,13 @@ export const tryUnnestSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the section
 			const section = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -1051,42 +1023,39 @@ export const tryUnnestSection = Result.wrap(
 					contentOrder: 999999, // Temporary value
 				},
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
 			// Recalculate contentOrder for old parent section
 			if (oldParentSectionId !== null) {
-				await recalculateSectionContentOrder(
+				await recalculateSectionContentOrder({
 					payload,
-					oldParentSectionId,
-					transactionInfo.reqWithTransaction,
-				);
+					sectionId: oldParentSectionId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true,
+				});
 			}
 
 			// Recalculate contentOrder for root level
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
-				null, // Root level
-				transactionInfo.reqWithTransaction,
-			);
+				sectionId: null, // Root level
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
 			// Get the final section with correct contentOrder
 			const finalSection = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return finalSection as CourseSection;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1117,13 +1086,13 @@ export const tryMoveSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the section
 			const section = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -1141,7 +1110,7 @@ export const tryMoveSection = Result.wrap(
 					collection: CourseSections.slug,
 					id: newParentSectionId,
 
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess: true,
 				});
 
@@ -1168,7 +1137,7 @@ export const tryMoveSection = Result.wrap(
 					payload,
 					sectionId,
 					newParentSectionId,
-					transactionInfo.reqWithTransaction,
+					txInfo.reqWithTransaction,
 				);
 
 				if (hasCircularRef) {
@@ -1187,7 +1156,7 @@ export const tryMoveSection = Result.wrap(
 					contentOrder: 999999, // Temporary value, will be recalculated
 				},
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1196,36 +1165,33 @@ export const tryMoveSection = Result.wrap(
 				oldParentSectionId !== null &&
 				oldParentSectionId !== newParentSectionId
 			) {
-				await recalculateSectionContentOrder(
+				await recalculateSectionContentOrder({
 					payload,
-					oldParentSectionId,
-					transactionInfo.reqWithTransaction,
-				);
+					sectionId: oldParentSectionId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true,
+				});
 			}
 
 			// Recalculate contentOrder for new parent section
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
-				newParentSectionId,
-				transactionInfo.reqWithTransaction,
-			);
+				sectionId: newParentSectionId,
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
 			// Get the final section with correct contentOrder
 			const finalSection = await payload.findByID({
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return finalSection as CourseSection;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1236,26 +1202,30 @@ export const tryMoveSection = Result.wrap(
 // Activity Module Link Operations
 // ============================================================================
 
-export type AddActivityModuleToSectionArgs = BaseInternalFunctionArgs & {
+export interface AddActivityModuleToSectionArgs
+	extends BaseInternalFunctionArgs {
 	activityModuleId: number;
 	sectionId: number;
 	order?: number;
-};
+}
 
-export type RemoveActivityModuleFromSectionArgs = BaseInternalFunctionArgs & {
+export interface RemoveActivityModuleFromSectionArgs
+	extends BaseInternalFunctionArgs {
 	linkId: number;
-};
+}
 
-export type ReorderActivityModulesInSectionArgs = BaseInternalFunctionArgs & {
+export interface ReorderActivityModulesInSectionArgs
+	extends BaseInternalFunctionArgs {
 	sectionId: number;
 	linkIds: number[];
-};
+}
 
-export type MoveActivityModuleBetweenSectionsArgs = BaseInternalFunctionArgs & {
+export interface MoveActivityModuleBetweenSectionsArgs
+	extends BaseInternalFunctionArgs {
 	linkId: number;
 	newSectionId: number;
 	newOrder?: number;
-};
+}
 
 /**
  * Creates link between activity module and section
@@ -1281,13 +1251,13 @@ export const tryAddActivityModuleToSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Verify activity module exists
 			await payload.findByID({
 				collection: "activity-modules",
 				id: activityModuleId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -1296,7 +1266,7 @@ export const tryAddActivityModuleToSection = Result.wrap(
 				collection: CourseSections.slug,
 				id: sectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -1304,27 +1274,29 @@ export const tryAddActivityModuleToSection = Result.wrap(
 				typeof section.course === "number" ? section.course : section.course.id;
 
 			// Check if link already exists
-			const existingLinks = await payload.find({
-				collection: CourseActivityModuleLinks.slug,
-				where: {
-					and: [
-						{
-							activityModule: {
-								equals: activityModuleId,
+			const existingLinks = await payload
+				.find({
+					collection: CourseActivityModuleLinks.slug,
+					where: {
+						and: [
+							{
+								activityModule: {
+									equals: activityModuleId,
+								},
 							},
-						},
-						{
-							section: {
-								equals: sectionId,
+							{
+								section: {
+									equals: sectionId,
+								},
 							},
-						},
-					],
-				},
-				limit: 1,
+						],
+					},
+					limit: 1,
 
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess: true,
-			});
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true,
+				})
+				.then(stripDepth<1, "find">());
 
 			if (existingLinks.docs.length > 0) {
 				throw new InvalidArgumentError(
@@ -1335,20 +1307,20 @@ export const tryAddActivityModuleToSection = Result.wrap(
 			// Get next order number if not provided
 			let linkOrder = order ?? 0;
 			if (linkOrder === 0) {
-				const existingModules = await payload.find({
-					collection: CourseActivityModuleLinks.slug,
-					where: {
-						section: {
-							equals: sectionId,
+				const existingModules = await payload
+					.find({
+						collection: CourseActivityModuleLinks.slug,
+						where: {
+							section: {
+								equals: sectionId,
+							},
 						},
-					},
-					limit: 1,
-					sort: "-contentOrder",
-
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess: true,
-				});
-
+						limit: 1,
+						sort: "-contentOrder",
+						req: txInfo.reqWithTransaction,
+						overrideAccess: true,
+					})
+					.then(stripDepth<1, "find">());
 				linkOrder =
 					existingModules.docs.length > 0
 						? (existingModules.docs[0]!.contentOrder ?? 0) + 1
@@ -1356,34 +1328,31 @@ export const tryAddActivityModuleToSection = Result.wrap(
 			}
 
 			// Create the link with temporary contentOrder (will be recalculated)
-			const newLink = await payload.create({
-				collection: CourseActivityModuleLinks.slug,
-				data: {
-					course: courseId,
-					activityModule: activityModuleId,
-					section: sectionId,
-					contentOrder: 999999, // Temporary value, will be recalculated
-				},
-				depth: 1,
-
-				req: transactionInfo.reqWithTransaction,
-				overrideAccess,
-			});
+			const newLink = await payload
+				.create({
+					collection: CourseActivityModuleLinks.slug,
+					data: {
+						course: courseId,
+						activityModule: activityModuleId,
+						section: sectionId,
+						contentOrder: 999999, // Temporary value, will be recalculated
+					},
+					depth: 1,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "create">());
 
 			// Recalculate contentOrder for the section
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
 				sectionId,
-				transactionInfo.reqWithTransaction,
-			);
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			return newLink as CourseActivityModuleLink;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+			return newLink;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1405,13 +1374,13 @@ export const tryRemoveActivityModuleFromSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the link to find its section before deleting
 			const link = await payload.findByID({
 				collection: CourseActivityModuleLinks.slug,
 				id: linkId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true,
 			});
 
@@ -1422,24 +1391,20 @@ export const tryRemoveActivityModuleFromSection = Result.wrap(
 				collection: CourseActivityModuleLinks.slug,
 				id: linkId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
 			// Recalculate contentOrder for the section
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
 				sectionId,
-				transactionInfo.reqWithTransaction,
-			);
-
-			await commitTransactionIfCreated(payload, transactionInfo);
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
 			return deletedLink;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1465,7 +1430,7 @@ export const tryReorderActivityModulesInSection = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Update each link with its new order
 			for (let i = 0; i < linkIds.length; i++) {
 				await payload.update({
@@ -1473,18 +1438,13 @@ export const tryReorderActivityModulesInSection = Result.wrap(
 					id: linkIds[i]!,
 					data: { contentOrder: i },
 
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				});
 			}
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return { success: true, reorderedCount: linkIds.length };
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1517,13 +1477,13 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get the existing link
 			const existingLink = await payload.findByID({
 				collection: CourseActivityModuleLinks.slug,
 				id: linkId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1542,7 +1502,7 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
 				collection: CourseSections.slug,
 				id: newSectionId,
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1570,7 +1530,7 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
 					limit: 1,
 					sort: "-contentOrder",
 
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess: true,
 				});
 
@@ -1589,33 +1549,30 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
 					contentOrder: 999999, // Temporary value, will be recalculated
 				},
 
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
 			// Recalculate contentOrder for old section
 			if (oldSectionId !== newSectionId) {
-				await recalculateSectionContentOrder(
+				await recalculateSectionContentOrder({
 					payload,
-					oldSectionId,
-					transactionInfo.reqWithTransaction,
-				);
+					sectionId: oldSectionId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true,
+				});
 			}
 
 			// Recalculate contentOrder for new section
-			await recalculateSectionContentOrder(
+			await recalculateSectionContentOrder({
 				payload,
-				newSectionId,
-				transactionInfo.reqWithTransaction,
-			);
-
-			await commitTransactionIfCreated(payload, transactionInfo);
+				sectionId: newSectionId,
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true,
+			});
 
 			return updatedLink as CourseActivityModuleLink;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1628,14 +1585,15 @@ export const tryMoveActivityModuleBetweenSections = Result.wrap(
 // Validation & Utilities
 // ============================================================================
 
-export type ValidateNoCircularReferenceArgs = BaseInternalFunctionArgs & {
+export interface ValidateNoCircularReferenceArgs
+	extends BaseInternalFunctionArgs {
 	sectionId: number;
 	newParentSectionId: number;
-};
+}
 
-export type GetSectionModulesCountArgs = BaseInternalFunctionArgs & {
+export interface GetSectionModulesCountArgs extends BaseInternalFunctionArgs {
 	sectionId: number;
-};
+}
 
 /**
  * Ensures parent change won't create circular reference
@@ -1735,9 +1693,9 @@ export interface CourseStructure {
 	sections: CourseStructureSection[];
 }
 
-export type GetCourseStructureArgs = BaseInternalFunctionArgs & {
+export interface GetCourseStructureArgs extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
 /**
  * recursively assert the content order is correct
@@ -1961,7 +1919,7 @@ async function checkCircularReference(
 			return true; // Circular reference found
 		}
 
-		const section = await payload
+		const section: { id: number; parentSection?: number | null } = await payload
 			.findByID({
 				collection: CourseSections.slug,
 				id: currentId,
@@ -1978,7 +1936,7 @@ async function checkCircularReference(
 	return false; // No circular reference
 }
 
-export type GeneralMoveArgs = BaseInternalFunctionArgs & {
+export interface GeneralMoveArgs extends BaseInternalFunctionArgs {
 	source: {
 		id: number;
 		type: "section" | "activity-module";
@@ -1990,7 +1948,7 @@ export type GeneralMoveArgs = BaseInternalFunctionArgs & {
 	};
 	// we need the inside operation because it is possible that the target is a empty section and we have no reference for below or above
 	location: "below" | "above" | "inside";
-};
+}
 
 /**
  * General move function that handles moving sections and activity modules with automatic order/contentOrder calculation
@@ -2023,7 +1981,7 @@ export const tryGeneralMove = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get source item
 			const sourceItem =
 				source.type === "section"
@@ -2032,7 +1990,7 @@ export const tryGeneralMove = Result.wrap(
 								collection: CourseSections.slug,
 								id: source.id,
 
-								req: transactionInfo.reqWithTransaction,
+								req: txInfo.reqWithTransaction,
 								overrideAccess: true,
 							})
 							.then((result) => {
@@ -2059,7 +2017,7 @@ export const tryGeneralMove = Result.wrap(
 								collection: CourseActivityModuleLinks.slug,
 								id: source.id,
 
-								req: transactionInfo.reqWithTransaction,
+								req: txInfo.reqWithTransaction,
 								overrideAccess: true,
 							})
 							.then((result) => {
@@ -2090,7 +2048,7 @@ export const tryGeneralMove = Result.wrap(
 								collection: CourseSections.slug,
 								id: target.id,
 
-								req: transactionInfo.reqWithTransaction,
+								req: txInfo.reqWithTransaction,
 								overrideAccess: true,
 							})
 							.then((result) => {
@@ -2117,7 +2075,7 @@ export const tryGeneralMove = Result.wrap(
 								collection: CourseActivityModuleLinks.slug,
 								id: target.id,
 
-								req: transactionInfo.reqWithTransaction,
+								req: txInfo.reqWithTransaction,
 								overrideAccess: true,
 							})
 							.then((result) => {
@@ -2182,7 +2140,7 @@ export const tryGeneralMove = Result.wrap(
 						payload,
 						source.id,
 						newParentSectionId,
-						transactionInfo.reqWithTransaction,
+						txInfo.reqWithTransaction,
 					);
 
 					if (hasCircularRef) {
@@ -2231,7 +2189,7 @@ export const tryGeneralMove = Result.wrap(
 						// Temporary contentOrder, will be recalculated
 						contentOrder: newContentOrder,
 					},
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				});
 			} else {
@@ -2250,7 +2208,7 @@ export const tryGeneralMove = Result.wrap(
 						// Temporary contentOrder, will be recalculated
 						contentOrder: newContentOrder,
 					},
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				});
 			}
@@ -2261,7 +2219,7 @@ export const tryGeneralMove = Result.wrap(
 				await recalculateSectionContentOrder({
 					payload,
 					sectionId: oldParentSectionId,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					// ! we might not need to check access here
 					overrideAccess: true,
 				});
@@ -2271,7 +2229,7 @@ export const tryGeneralMove = Result.wrap(
 			await recalculateSectionContentOrder({
 				payload,
 				sectionId: newParentSectionId,
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				// ! we might not need to check access here
 				overrideAccess: true,
 			});
@@ -2282,22 +2240,18 @@ export const tryGeneralMove = Result.wrap(
 					? await payload.findByID({
 							collection: CourseSections.slug,
 							id: source.id,
-							req: transactionInfo.reqWithTransaction,
+							req: txInfo.reqWithTransaction,
 							overrideAccess: true,
 						})
 					: await payload.findByID({
 							collection: CourseActivityModuleLinks.slug,
 							id: source.id,
-							req: transactionInfo.reqWithTransaction,
+							req: txInfo.reqWithTransaction,
 							overrideAccess: true,
 						});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
 			return finalResult;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??

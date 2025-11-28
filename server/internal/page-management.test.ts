@@ -93,7 +93,7 @@ describe("Page Management Functions", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.content).toBe(createArgs.content);
-			expect(result.value.createdBy.id).toBe(testUser.id);
+			expect(result.value.createdBy).toBe(testUser.id);
 			// Media array should be empty when no media references in HTML
 			expect(result.value.media).toBeDefined();
 			if (Array.isArray(result.value.media)) {
@@ -227,10 +227,7 @@ describe("Page Management Functions", () => {
 			expect(result.value.media).toBeDefined();
 			if (Array.isArray(result.value.media)) {
 				expect(result.value.media.length).toBe(1);
-				const mediaId =
-					typeof result.value.media[0] === "number"
-						? result.value.media[0]
-						: result.value.media[0]?.id;
+				const mediaId =result.value.media[0] 
 				expect(mediaId).toBe(testMediaId);
 			}
 		}
@@ -266,10 +263,8 @@ describe("Page Management Functions", () => {
 				expect(updateResult.value.media).toBeDefined();
 				if (Array.isArray(updateResult.value.media)) {
 					expect(updateResult.value.media.length).toBe(1);
-					const mediaId =
-						typeof updateResult.value.media[0] === "number"
-							? updateResult.value.media[0]
-							: updateResult.value.media[0]?.id;
+					const mediaId =updateResult.value.media[0]
+							
 					expect(mediaId).toBe(testMediaId);
 				}
 			}

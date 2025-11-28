@@ -14,7 +14,6 @@ import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useQueryState } from "nuqs";
 import { createLoader, parseAsInteger } from "nuqs/server";
 import { href, Link } from "react-router";
-import type { Enrollment } from "server/contexts/course-context";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -28,6 +27,9 @@ import {
 import { useImpersonate } from "~/routes/user/profile";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants.profile";
+import { stringify } from "qs";
+
+export type { Route };
 
 // Define search params for user selection
 export const profileSearchParams = {
@@ -35,6 +37,16 @@ export const profileSearchParams = {
 };
 
 export const loadSearchParams = createLoader(profileSearchParams);
+
+export function getRouteUrl(courseId: number, userId?: number) {
+	return (
+		href("/course/:courseId/participants/profile", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ userId })
+	);
+}
 
 export const loader = async ({
 	request,
@@ -109,25 +121,15 @@ export default function CourseParticipantsProfilePage({
 	);
 
 	// Find selected enrollment
-	const selectedEnrollment: Enrollment | undefined = selectedUserId
-		? course.enrollments.find((e) => e.userId === selectedUserId)
+	const selectedEnrollment = selectedUserId
+		? course.enrollments.find((e) => e.user.id === selectedUserId)
 		: undefined;
 
 	// Prepare user select options
 	const userOptions = course.enrollments.map((enrollment) => ({
-		value: enrollment.userId.toString(),
-		label: enrollment.name || enrollment.email,
+		value: enrollment.user.id.toString(),
+		label: enrollment.user.firstName + " " + enrollment.user.lastName,
 	}));
-
-	// Get avatar URL
-	const getAvatarUrl = (enrollment: Enrollment) => {
-		if (!enrollment.avatar) return undefined;
-		const avatarId =
-			typeof enrollment.avatar === "object"
-				? enrollment.avatar.id
-				: enrollment.avatar;
-		return `/api/media/file/${avatarId}`;
-	};
 
 	return (
 		<Stack gap="lg">
@@ -166,7 +168,7 @@ export default function CourseParticipantsProfilePage({
 								<Button
 									component={Link}
 									to={href("/user/profile/:id?", {
-										id: selectedEnrollment.userId.toString(),
+										id: selectedEnrollment.user.id.toString(),
 									})}
 								>
 									View Public Profile
@@ -176,7 +178,7 @@ export default function CourseParticipantsProfilePage({
 										variant="light"
 										color="orange"
 										onClick={() =>
-											impersonate(selectedEnrollment.userId, redirectPath)
+											impersonate(selectedEnrollment.user.id, redirectPath)
 										}
 										loading={isLoading}
 										leftSection={<IconUserCheck size={16} />}
@@ -186,17 +188,30 @@ export default function CourseParticipantsProfilePage({
 								)}
 							</Group>
 							<Avatar
-								src={getAvatarUrl(selectedEnrollment)}
-								alt={selectedEnrollment.name}
+								src={
+									selectedEnrollment.user.avatar
+										? href(`/api/media/file/:filenameOrId`, {
+												filenameOrId:
+													selectedEnrollment.user.avatar.id.toString(),
+											})
+										: undefined
+								}
+								alt={
+									selectedEnrollment.user.firstName +
+									" " +
+									selectedEnrollment.user.lastName
+								}
 								size={120}
 								radius={120}
 							/>
 							<div style={{ textAlign: "center" }}>
 								<Title order={2} mb="xs">
-									{selectedEnrollment.name || "Unknown"}
+									{selectedEnrollment.user.firstName +
+										" " +
+										selectedEnrollment.user.lastName}
 								</Title>
 								<Text size="sm" c="dimmed">
-									{selectedEnrollment.email}
+									{selectedEnrollment.user.email}
 								</Text>
 							</div>
 						</Stack>

@@ -328,12 +328,6 @@ export class NotImplementedError extends Error {
 }
 
 export function transformError(error: unknown) {
-	if (
-		process.env.NODE_ENV === "development" ||
-		process.env.NODE_ENV === "test"
-	) {
-		console.error(error);
-	}
 	/**
 	 * list of our system error
 	 */
@@ -383,5 +377,14 @@ export function transformError(error: unknown) {
 	else if (error instanceof NotImplementedError) return error;
 	else if (error instanceof UnknownError) return error;
 	// ! we let user handle the unknown error
-	else return undefined;
+	else {
+		// we don't know the error so we want to it log it out in development and test environments
+		if (
+			process.env.NODE_ENV === "development" ||
+			process.env.NODE_ENV === "test"
+		) {
+			console.error(error);
+		}
+		return undefined;
+	}
 }

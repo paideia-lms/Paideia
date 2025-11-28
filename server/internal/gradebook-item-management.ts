@@ -22,12 +22,13 @@ import {
 } from "./utils/internal-function-utils";
 import { validateGradebookWeights } from "./utils/validate-gradebook-weights";
 
-export type ValidateOverallWeightTotalArgs = BaseInternalFunctionArgs & {
+export interface ValidateOverallWeightTotalArgs
+	extends BaseInternalFunctionArgs {
 	courseId: number;
 	errorMessagePrefix?: string;
-};
+}
 
-export type CreateGradebookItemArgs = BaseInternalFunctionArgs & {
+export interface CreateGradebookItemArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 	categoryId?: number | null;
 	name: string;
@@ -38,9 +39,9 @@ export type CreateGradebookItemArgs = BaseInternalFunctionArgs & {
 	weight?: number | null;
 	extraCredit?: boolean;
 	sortOrder: number;
-};
+}
 
-export type UpdateGradebookItemArgs = BaseInternalFunctionArgs & {
+export interface UpdateGradebookItemArgs extends BaseInternalFunctionArgs {
 	itemId: number;
 	name?: string;
 	description?: string;
@@ -51,11 +52,11 @@ export type UpdateGradebookItemArgs = BaseInternalFunctionArgs & {
 	weight?: number | null;
 	extraCredit?: boolean;
 	sortOrder?: number;
-};
+}
 
-export type DeleteGradebookItemArgs = BaseInternalFunctionArgs & {
+export interface DeleteGradebookItemArgs extends BaseInternalFunctionArgs {
 	itemId: number;
-};
+}
 
 /**
  * Creates a new gradebook item using Payload local API
@@ -459,10 +460,10 @@ export const tryDeleteGradebookItem = Result.wrap(
 			cause: error,
 		}),
 );
-
-type TryGetGradebookItemsInOrderArgs = BaseInternalFunctionArgs & {
+export interface TryGetGradebookItemsInOrderArgs
+	extends BaseInternalFunctionArgs {
 	gradebookId: number;
-};
+}
 
 /**
  * Gets all items for a gradebook in order
@@ -499,7 +500,7 @@ export const tryGetGradebookItemsInOrder = Result.wrap(
 		),
 );
 
-interface TryGetCategoryItemsArgs extends BaseInternalFunctionArgs {
+export interface TryGetCategoryItemsArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
 }
 
@@ -714,10 +715,10 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 		),
 );
 
-export type FindGradebookItemByCourseModuleLinkArgs =
-	BaseInternalFunctionArgs & {
-		courseModuleLinkId: number;
-	};
+export interface FindGradebookItemByCourseModuleLinkArgs
+	extends BaseInternalFunctionArgs {
+	courseModuleLinkId: number;
+}
 
 /**
  * Finds a gradebook item by course module link (course-activity-module-link)

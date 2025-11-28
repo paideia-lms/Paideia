@@ -51,6 +51,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/edit-setting";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -128,7 +129,14 @@ const updatePageAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload);
+		const transactionInfo = await handleTransactionId(
+			payload,
+			createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -159,7 +167,6 @@ const updatePageAction = serverOnly$(
 				status: parsedData.status,
 				content: pageData.content,
 				req: reqWithTransaction,
-				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -213,7 +220,14 @@ const updateWhiteboardAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload);
+		const transactionInfo = await handleTransactionId(
+			payload,
+			createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -244,7 +258,6 @@ const updateWhiteboardAction = serverOnly$(
 				status: parsedData.status,
 				content: whiteboardData.content,
 				req: reqWithTransaction,
-				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -300,7 +313,14 @@ const updateFileAction = serverOnly$(
 		const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload);
+		const transactionInfo = await handleTransactionId(
+			payload,
+			createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Parse form data with media upload handler
@@ -308,7 +328,6 @@ const updateFileAction = serverOnly$(
 				payload,
 				request,
 				userId: currentUser.id,
-				user: currentUser,
 				req: reqWithTransaction,
 				maxFileSize,
 				fields: [
@@ -367,7 +386,6 @@ const updateFileAction = serverOnly$(
 				status: parsedData.status,
 				media: allMediaIds.length > 0 ? allMediaIds : undefined,
 				req: reqWithTransaction,
-				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -421,7 +439,14 @@ const updateAssignmentAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload);
+		const transactionInfo = await handleTransactionId(
+			payload,
+			createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -457,8 +482,6 @@ const updateAssignmentAction = serverOnly$(
 				maxFileSize: assignmentData.maxFileSize,
 				maxFiles: assignmentData.maxFiles,
 				req: reqWithTransaction,
-				user: currentUser,
-				overrideAccess: false,
 			});
 
 			if (!updateResult.ok) {
@@ -511,7 +534,14 @@ const updateQuizAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload);
+		const transactionInfo = await handleTransactionId(
+			payload,
+			createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -546,7 +576,6 @@ const updateQuizAction = serverOnly$(
 				gradingType: quizData.gradingType,
 				rawQuizConfig: quizData.rawQuizConfig,
 				req: reqWithTransaction,
-				user: currentUser,
 				overrideAccess: false,
 			});
 
@@ -600,7 +629,14 @@ const updateDiscussionAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(payload);
+		const transactionInfo = await handleTransactionId(
+			payload,
+			createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -635,8 +671,6 @@ const updateDiscussionAction = serverOnly$(
 				requireReplies: discussionData.requireReplies,
 				minReplies: discussionData.minReplies,
 				req: reqWithTransaction,
-				user: currentUser,
-				overrideAccess: false,
 			});
 
 			if (!updateResult.ok) {

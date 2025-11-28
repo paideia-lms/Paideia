@@ -42,24 +42,14 @@ import { stringify } from "qs";
 import { useEffect, useId, useRef, useState } from "react";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	convertUserAccessContextToUserProfileContext,
-	getUserProfileContext,
-	type UserProfileContext,
-} from "server/contexts/user-profile-context";
 import {
 	tryDeleteMedia,
 	tryFindMediaByUser,
 	tryGetUserMediaStats,
 	tryRenameMedia,
 } from "server/internal/media-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import type { Media } from "server/payload-types";
 import { canDeleteMedia } from "server/utils/permissions";
 import { useMediaUsageData } from "~/routes/api/media-usage";
@@ -85,6 +75,8 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/media";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { userProfileContextKey } from "server/contexts/user-profile-context";
 
 export const loader = async ({
 	context,
@@ -93,9 +85,14 @@ export const loader = async ({
 }: Route.LoaderArgs) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
+	const userProfileContext = context.get(userProfileContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
+	}
+
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User not found");
 	}
 
 	const currentUser =
@@ -117,39 +114,6 @@ export const loader = async ({
 	const storageLimit = systemGlobals.sitePolicies.userMediaStorageTotal;
 	const uploadLimit = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	// Get user profile context
-	let userProfileContext: UserProfileContext | null = null;
-	if (userId === currentUser.id) {
-		// If viewing own profile, use userAccessContext if available
-		const userAccessContext = context.get(userAccessContextKey);
-		if (userAccessContext) {
-			userProfileContext = convertUserAccessContextToUserProfileContext(
-				userAccessContext,
-				currentUser,
-			);
-		} else {
-			// Fallback to fetching directly
-			userProfileContext = await getUserProfileContext({
-				payload,
-				profileUserId: userId,
-				user: currentUser,
-				req: request,
-			});
-		}
-	} else {
-		// Viewing another user's profile
-		userProfileContext = await getUserProfileContext({
-			payload,
-			profileUserId: userId,
-			user: currentUser,
-			req: request,
-		});
-	}
-
-	if (!userProfileContext) {
-		throw new NotFoundResponse("User not found");
-	}
-
 	// Fetch media for the user
 	const mediaResult = await tryFindMediaByUser({
 		payload,
@@ -157,8 +121,11 @@ export const loader = async ({
 		limit: 20,
 		page: 1,
 		depth: 0,
-		user: currentUser,
-		overrideAccess: false,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!mediaResult.ok) {
@@ -167,11 +134,7 @@ export const loader = async ({
 
 	// Check permissions for each media item
 	const mediaWithPermissions = mediaResult.value.docs.map((file) => {
-		const createdById =
-			typeof file.createdBy === "object" && file.createdBy !== null
-				? file.createdBy.id
-				: file.createdBy;
-		const deletePermission = canDeleteMedia(currentUser, createdById);
+		const deletePermission = canDeleteMedia(currentUser, file.createdBy.id);
 		return {
 			...file,
 			deletePermission,
@@ -182,8 +145,11 @@ export const loader = async ({
 	const statsResult = await tryGetUserMediaStats({
 		payload,
 		userId,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -248,9 +214,6 @@ const updateAction = async ({
 		return unauthorized({ error: "You can only manage your own media" });
 	}
 
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
 	const formData = await request.formData();
 	const mediaIdParam = formData.get("mediaId");
 	const newFilename = formData.get("newFilename")?.toString();
@@ -258,85 +221,83 @@ const updateAction = async ({
 	const caption = formData.get("caption")?.toString();
 
 	if (!mediaIdParam) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
 		return badRequest({ error: "Media ID is required" });
 	}
 
 	const mediaId = Number(mediaIdParam);
 	if (Number.isNaN(mediaId)) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
 		return badRequest({ error: "Invalid media ID" });
 	}
 
-	// Fetch media record to check permissions
-	const mediaRecord = await payload.findByID({
-		collection: "media",
-		id: mediaId,
-		depth: 0,
-		req: transactionInfo.reqWithTransaction,
-	});
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
 
-	if (!mediaRecord) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({ error: "Media not found" });
-	}
-
-	// Check permissions
-	const createdById =
-		typeof mediaRecord.createdBy === "object" && mediaRecord.createdBy !== null
-			? mediaRecord.createdBy.id
-			: mediaRecord.createdBy;
-	const deletePermission = canDeleteMedia(currentUser, createdById);
-
-	if (!deletePermission.allowed) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return unauthorized({
-			error:
-				deletePermission.reason ||
-				"You don't have permission to update this media",
-		});
-	}
-
-	// If newFilename is provided, rename the file
-	if (newFilename) {
-		const renameResult = await tryRenameMedia({
-			payload,
-			s3Client,
-			id: mediaId,
-			newFilename,
-			userId: currentUser.id,
-			user: currentUser,
-			req: transactionInfo.reqWithTransaction,
-		});
-
-		if (!renameResult.ok) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			return badRequest({ error: renameResult.error.message });
-		}
-	}
-
-	// Update alt and caption if provided
-	if (alt !== undefined || caption !== undefined) {
-		const updateData: Partial<Media> = {};
-		if (alt !== undefined) {
-			updateData.alt = alt;
-		}
-		if (caption !== undefined) {
-			updateData.caption = caption;
-		}
-
-		await payload.update({
+	return await transactionInfo.tx(async (txInfo) => {
+		// Fetch media record to check permissions
+		const mediaRecord = await payload.findByID({
 			collection: "media",
 			id: mediaId,
-			data: updateData,
-			req: transactionInfo.reqWithTransaction,
+			depth: 0,
+			req: txInfo.reqWithTransaction,
 		});
-	}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
+		if (!mediaRecord) {
+			return badRequest({ error: "Media not found" });
+		}
 
-	return ok({
-		message: "Media updated successfully",
+		// Check permissions
+		const createdById =
+			typeof mediaRecord.createdBy === "object" &&
+			mediaRecord.createdBy !== null
+				? mediaRecord.createdBy.id
+				: mediaRecord.createdBy;
+		const deletePermission = canDeleteMedia(currentUser, createdById);
+
+		if (!deletePermission.allowed) {
+			return unauthorized({
+				error:
+					deletePermission.reason ||
+					"You don't have permission to update this media",
+			});
+		}
+
+		// If newFilename is provided, rename the file
+		if (newFilename) {
+			const renameResult = await tryRenameMedia({
+				payload,
+				s3Client,
+				id: mediaId,
+				newFilename,
+				userId: currentUser.id,
+				req: txInfo.reqWithTransaction,
+			});
+
+			if (!renameResult.ok) {
+				return badRequest({ error: renameResult.error.message });
+			}
+		}
+
+		// Update alt and caption if provided
+		if (alt !== undefined || caption !== undefined) {
+			const updateData: Partial<Media> = {};
+			if (alt !== undefined) {
+				updateData.alt = alt;
+			}
+			if (caption !== undefined) {
+				updateData.caption = caption;
+			}
+
+			await payload.update({
+				collection: "media",
+				id: mediaId,
+				data: updateData,
+				req: txInfo.reqWithTransaction,
+			});
+		}
+
+		return ok({
+			message: "Media updated successfully",
+		});
 	});
 };
 
@@ -366,14 +327,10 @@ const deleteAction = async ({
 		return unauthorized({ error: "You can only manage your own media" });
 	}
 
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
 	const formData = await request.formData();
 	const mediaIdsParam = formData.get("mediaIds");
 
 	if (!mediaIdsParam) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
 		return badRequest({ error: "Media IDs are required" });
 	}
 
@@ -385,77 +342,74 @@ const deleteAction = async ({
 			.map((id) => Number(id.trim()))
 			.filter((id) => !Number.isNaN(id));
 	} else {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
 		return badRequest({ error: "Invalid media IDs format" });
 	}
 
 	if (mediaIds.length === 0) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
 		return badRequest({ error: "At least one media ID is required" });
 	}
 
-	// Fetch media records to check permissions
-	const mediaRecords = await payload.find({
-		collection: "media",
-		where: {
-			id: {
-				in: mediaIds,
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	return await transactionInfo.tx(async (txInfo) => {
+		// Fetch media records to check permissions
+		const mediaRecords = await payload.find({
+			collection: "media",
+			where: {
+				id: {
+					in: mediaIds,
+				},
 			},
-		},
-		limit: mediaIds.length,
-		depth: 0,
-		req: transactionInfo.reqWithTransaction,
-	});
+			limit: mediaIds.length,
+			depth: 0,
+			req: txInfo.reqWithTransaction,
+		});
 
-	// Check permissions for each media item
-	for (const media of mediaRecords.docs) {
-		const createdById =
-			typeof media.createdBy === "object" && media.createdBy !== null
-				? media.createdBy.id
-				: media.createdBy;
-		const deletePermission = canDeleteMedia(currentUser, createdById);
+		// Check permissions for each media item
+		for (const media of mediaRecords.docs) {
+			const createdById =
+				typeof media.createdBy === "object" && media.createdBy !== null
+					? media.createdBy.id
+					: media.createdBy;
+			const deletePermission = canDeleteMedia(currentUser, createdById);
 
-		if (!deletePermission.allowed) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			return unauthorized({
-				error:
-					deletePermission.reason ||
-					"You don't have permission to delete this media",
+			if (!deletePermission.allowed) {
+				return unauthorized({
+					error:
+						deletePermission.reason ||
+						"You don't have permission to delete this media",
+				});
+			}
+		}
+
+		// Verify all media records were found
+		if (mediaRecords.docs.length !== mediaIds.length) {
+			const foundIds = mediaRecords.docs.map((m) => m.id);
+			const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
+			return badRequest({
+				error: `Media records not found: ${missingIds.join(", ")}`,
 			});
 		}
-	}
 
-	// Verify all media records were found
-	if (mediaRecords.docs.length !== mediaIds.length) {
-		const foundIds = mediaRecords.docs.map((m) => m.id);
-		const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			error: `Media records not found: ${missingIds.join(", ")}`,
+		const result = await tryDeleteMedia({
+			payload,
+			s3Client,
+			id: mediaIds,
+			userId: currentUser.id,
+			req: txInfo.reqWithTransaction,
 		});
-	}
 
-	const result = await tryDeleteMedia({
-		payload,
-		s3Client,
-		id: mediaIds,
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-	});
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
+		}
 
-	if (!result.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({ error: result.error.message });
-	}
-
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		message:
-			mediaIds.length === 1
-				? "Media deleted successfully"
-				: `${mediaIds.length} media files deleted successfully`,
+		return ok({
+			message:
+				mediaIds.length === 1
+					? "Media deleted successfully"
+					: `${mediaIds.length} media files deleted successfully`,
+		});
 	});
 };
 
@@ -491,57 +445,55 @@ const uploadAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload);
 
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
-		payload,
-		request,
-		userId: userId,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		maxFiles: 1, // Only one file at a time
-		fields: [
-			{
-				fieldName: "file",
-			},
-		],
-	});
-
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
+	return await transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: userId,
+			req: txInfo.reqWithTransaction,
 			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
+			maxFiles: 1, // Only one file at a time
+			fields: [
+				{
+					fieldName: "file",
+				},
+			],
+		});
 
-	const { formData: parsedFormData, uploadedMedia } = parseResult.value;
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
 
-	// Update alt and caption if provided (optional fields)
-	if (uploadedMedia.length > 0) {
-		const alt = parsedFormData.get("alt")?.toString();
-		const caption = parsedFormData.get("caption")?.toString();
+		const { formData: parsedFormData, uploadedMedia } = parseResult.value;
 
-		if (alt || caption) {
-			for (const media of uploadedMedia) {
-				await payload.update({
-					collection: "media",
-					id: media.mediaId,
-					data: {
-						...(alt && { alt }),
-						...(caption && { caption }),
-					},
-					req: transactionInfo.reqWithTransaction,
-				});
+		// Update alt and caption if provided (optional fields)
+		if (uploadedMedia.length > 0) {
+			const alt = parsedFormData.get("alt")?.toString();
+			const caption = parsedFormData.get("caption")?.toString();
+
+			if (alt || caption) {
+				for (const media of uploadedMedia) {
+					await payload.update({
+						collection: "media",
+						id: media.mediaId,
+						data: {
+							...(alt && { alt }),
+							...(caption && { caption }),
+						},
+						req: txInfo.reqWithTransaction,
+					});
+				}
 			}
 		}
-	}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
-
-	return ok({
-		message: "Media uploaded successfully",
+		return ok({
+			message: "Media uploaded successfully",
+		});
 	});
 };
 

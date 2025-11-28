@@ -108,13 +108,11 @@ describe("File Management Functions", () => {
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
-			expect(result.value.createdBy.id).toBe(testUser.id);
+			expect(result.value.createdBy).toBe(testUser.id);
 			expect(result.value.media).toBeDefined();
 			if (Array.isArray(result.value.media)) {
 				expect(result.value.media.length).toBe(2);
-				const mediaIds = result.value.media.map((m) =>
-					typeof m === "number" ? m : m.id,
-				);
+				const mediaIds = result.value.media;
 				expect(mediaIds).toContain(testMediaId1);
 				expect(mediaIds).toContain(testMediaId2);
 			}
@@ -133,7 +131,7 @@ describe("File Management Functions", () => {
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
-			expect(result.value.createdBy.id).toBe(testUser.id);
+			expect(result.value.createdBy).toBe(testUser.id);
 			expect(result.value.media).toBeDefined();
 			if (Array.isArray(result.value.media)) {
 				expect(result.value.media.length).toBe(0);
@@ -152,7 +150,7 @@ describe("File Management Functions", () => {
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
-			expect(result.value.createdBy.id).toBe(testUser.id);
+			expect(result.value.createdBy).toBe(testUser.id);
 		}
 	});
 
@@ -248,10 +246,7 @@ describe("File Management Functions", () => {
 				expect(updateResult.value.media).toBeDefined();
 				if (Array.isArray(updateResult.value.media)) {
 					expect(updateResult.value.media.length).toBe(1);
-					const mediaId =
-						typeof updateResult.value.media[0] === "number"
-							? updateResult.value.media[0]
-							: updateResult.value.media[0]?.id;
+					const mediaId = updateResult.value.media[0];
 					expect(mediaId).toBe(testMediaId2);
 				}
 			}

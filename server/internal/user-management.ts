@@ -8,7 +8,7 @@ import { handleTransactionId } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { stripDepth } from "./utils/internal-function-utils";
 
-export type CreateUserArgs = BaseInternalFunctionArgs & {
+export interface CreateUserArgs extends BaseInternalFunctionArgs {
 	data: {
 		email: string;
 		password: string;
@@ -20,9 +20,9 @@ export type CreateUserArgs = BaseInternalFunctionArgs & {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-};
+}
 
-export type UpdateUserArgs = BaseInternalFunctionArgs & {
+export interface UpdateUserArgs extends BaseInternalFunctionArgs {
 	userId: number;
 	data: {
 		firstName?: string;
@@ -34,50 +34,50 @@ export type UpdateUserArgs = BaseInternalFunctionArgs & {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-};
+}
 
-export type FindUserByEmailArgs = BaseInternalFunctionArgs & {
+export interface FindUserByEmailArgs extends BaseInternalFunctionArgs {
 	email: string;
-};
+}
 
-export type FindUserByIdArgs = BaseInternalFunctionArgs & {
+export interface FindUserByIdArgs extends BaseInternalFunctionArgs {
 	userId: number;
-};
+}
 
-export type DeleteUserArgs = BaseInternalFunctionArgs & {
+export interface DeleteUserArgs extends BaseInternalFunctionArgs {
 	userId: number;
-};
+}
 
-export type FindAllUsersArgs = BaseInternalFunctionArgs & {
+export interface FindAllUsersArgs extends BaseInternalFunctionArgs {
 	limit?: number;
 	page?: number;
 	sort?: string;
 	query?: string;
-};
+}
 
-export type LoginArgs = BaseInternalFunctionArgs & {
+export interface LoginArgs extends BaseInternalFunctionArgs {
 	email: string;
 	password: string;
-};
+}
 
-export type RegisterFirstUserArgs = BaseInternalFunctionArgs & {
+export interface RegisterFirstUserArgs extends BaseInternalFunctionArgs {
 	email: string;
 	password: string;
 	firstName: string;
 	lastName: string;
-};
+}
 
-export type RegisterUserArgs = BaseInternalFunctionArgs & {
+export interface RegisterUserArgs extends BaseInternalFunctionArgs {
 	email: string;
 	password: string;
 	firstName: string;
 	lastName: string;
 	role?: User["role"];
-};
+}
 
-export type HandleImpersonationArgs = BaseInternalFunctionArgs & {
+export interface HandleImpersonationArgs extends BaseInternalFunctionArgs {
 	impersonateUserId: string;
-};
+}
 
 /**
  * Creates a new user using Payload local API

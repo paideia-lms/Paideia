@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateQuizModuleArgs,
@@ -21,6 +21,7 @@ import {
 	tryStartQuizAttempt,
 } from "./quiz-submission-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
 
 const year = new Date().getFullYear();
 
@@ -124,11 +125,12 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 		// Create activity module with quiz
 		const activityModuleArgs: CreateQuizModuleArgs = {
 			payload,
-			req: mockRequest,
 			title: "Test Quiz",
 			description: "A test quiz for duplicate attempts",
 			status: "published",
-			userId: teacherId,
+			req: createLocalReq({ request: mockRequest, user: { 
+				id: teacherId,
+			}  as TypedUser}),
 			instructions: "Complete this quiz",
 			points: 100,
 			gradingType: "automatic",

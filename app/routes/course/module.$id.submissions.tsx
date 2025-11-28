@@ -50,6 +50,8 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/module.$id.submissions";
 
+export type { Route };
+
 // Define search params
 export const submissionsSearchParams = {
 	action: parseAsString,

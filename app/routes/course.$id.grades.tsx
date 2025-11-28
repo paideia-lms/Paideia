@@ -26,6 +26,7 @@ import { GradebookSetupView } from "~/components/gradebook/setup-view";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades";
+export type { Route };
 
 export const loader = async ({
 	context,

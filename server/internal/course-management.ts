@@ -35,6 +35,7 @@ import {
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
+import { href } from "react-router";
 
 export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -1257,9 +1258,9 @@ export const tryFindRootGroups = Result.wrap(
 // User Course Access Functions
 // ============================================================================
 
-export type GetUserAccessibleCoursesArgs = BaseInternalFunctionArgs & {
+export interface GetUserAccessibleCoursesArgs extends BaseInternalFunctionArgs {
 	userId: number;
-};
+}
 
 export interface UserAccessibleCourse {
 	id: number;
@@ -1291,29 +1292,29 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 		const coursesMap = new Map<number, UserAccessibleCourse>();
 
 		// 1. Get courses created by user (owner)
-		const createdCourses = await payload.find({
-			collection: "courses",
-			where: {
-				createdBy: {
-					equals: userId,
+		const createdCourses = await payload
+			.find({
+				collection: "courses",
+				where: {
+					createdBy: {
+						equals: userId,
+					},
 				},
-			},
-			depth: 1,
-			pagination: false,
-			req,
-			overrideAccess,
-		});
+				depth: 1,
+				pagination: false,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		for (const course of createdCourses.docs) {
-			const categoryName =
-				typeof course.category === "object" && course.category
-					? course.category.name
-					: null;
+			const categoryName = course.category ? course.category.name : null;
 
-			const thumbnailUrl =
-				typeof course.thumbnail === "object" && course.thumbnail
-					? `/api/media/file/${course.thumbnail.filename}`
-					: null;
+			const thumbnailUrl = course.thumbnail
+				? href(`/api/media/file/:filenameOrId`, {
+						filenameOrId: course.thumbnail.id.toString(),
+					})
+				: null;
 
 			coursesMap.set(course.id, {
 				id: course.id,
@@ -1338,29 +1339,25 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 		if (enrollmentsResult.ok) {
 			for (const enrollment of enrollmentsResult.value) {
 				// Get course details
-				const courseId =
-					typeof enrollment.course === "number"
-						? enrollment.course
-						: enrollment.course.id;
-				const course = await payload.findByID({
-					collection: "courses",
-					id: courseId,
-					depth: 1,
-
-					req,
-					overrideAccess,
-				});
+				const courseId = enrollment.course.id;
+				const course = await payload
+					.findByID({
+						collection: "courses",
+						id: courseId,
+						depth: 1,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "findByID">());
 
 				if (course) {
-					const categoryName =
-						typeof course.category === "object" && course.category
-							? course.category.name
-							: null;
+					const categoryName = course.category?.name ?? null;
 
-					const thumbnailUrl =
-						typeof course.thumbnail === "object" && course.thumbnail
-							? `/api/media/file/${course.thumbnail.filename}`
-							: null;
+					const thumbnailUrl = course.thumbnail
+						? href(`/api/media/file/:filenameOrId`, {
+								filenameOrId: course.thumbnail.id.toString(),
+							})
+						: null;
 
 					// If course already exists in map (from owner), update with enrollment info
 					if (coursesMap.has(course.id)) {

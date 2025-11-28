@@ -1,31 +1,32 @@
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingFileError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
-export type CreateFileArgs = BaseInternalFunctionArgs & {
+export interface CreateFileArgs extends BaseInternalFunctionArgs {
 	media?: number[];
 	userId: number;
-};
+}
 
-export type UpdateFileArgs = BaseInternalFunctionArgs & {
+export interface UpdateFileArgs extends BaseInternalFunctionArgs {
 	id: number;
 	media?: number[];
-};
+}
 
-export type DeleteFileArgs = BaseInternalFunctionArgs & {
+export interface DeleteFileArgs extends BaseInternalFunctionArgs {
 	id: number;
-};
+}
 
-export type GetFileByIdArgs = BaseInternalFunctionArgs & {
+export interface GetFileByIdArgs extends BaseInternalFunctionArgs {
 	id: number;
-};
+}
 
 export const tryCreateFile = Result.wrap(
 	async (args: CreateFileArgs) => {
@@ -49,22 +50,11 @@ export const tryCreateFile = Result.wrap(
 					media: media && media.length > 0 ? media : undefined,
 					createdBy: userId,
 				},
-				user,
 				req,
 				overrideAccess,
+				depth: 0,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryCreateFile: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
-			});
+			.then(stripDepth<0, "create">());
 
 		return file;
 	},
@@ -107,22 +97,10 @@ export const tryUpdateFile = Result.wrap(
 						media: media && media.length > 0 ? media : [],
 					}),
 				},
-				user,
 				req,
 				overrideAccess,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryUpdateFile: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
-			});
+			.then(stripDepth<0, "update">());
 
 		return file;
 	},

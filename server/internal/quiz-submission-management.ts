@@ -22,7 +22,7 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 
-export type CreateQuizArgs = BaseInternalFunctionArgs & {
+export interface CreateQuizArgs extends BaseInternalFunctionArgs {
 	title: string;
 	description?: string;
 	instructions?: string;
@@ -58,9 +58,9 @@ export type CreateQuizArgs = BaseInternalFunctionArgs & {
 		}>;
 	}>;
 	createdBy: number;
-};
+}
 
-export type UpdateQuizArgs = BaseInternalFunctionArgs & {
+export interface UpdateQuizArgs extends BaseInternalFunctionArgs {
 	id: number;
 	title?: string;
 	description?: string;
@@ -96,9 +96,9 @@ export type UpdateQuizArgs = BaseInternalFunctionArgs & {
 			hint: string;
 		}>;
 	}>;
-};
+}
 
-export type CreateQuizSubmissionArgs = BaseInternalFunctionArgs & {
+export interface CreateQuizSubmissionArgs extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -119,16 +119,16 @@ export type CreateQuizSubmissionArgs = BaseInternalFunctionArgs & {
 		}>;
 	}>;
 	timeSpent?: number;
-};
+}
 
-export type StartQuizAttemptArgs = BaseInternalFunctionArgs & {
+export interface StartQuizAttemptArgs extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
 	attemptNumber?: number;
-};
+}
 
-export type UpdateQuizSubmissionArgs = BaseInternalFunctionArgs & {
+export interface UpdateQuizSubmissionArgs extends BaseInternalFunctionArgs {
 	id: number;
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	answers?: Array<{
@@ -147,25 +147,25 @@ export type UpdateQuizSubmissionArgs = BaseInternalFunctionArgs & {
 		}>;
 	}>;
 	timeSpent?: number;
-};
+}
 
-export type GradeQuizSubmissionArgs = BaseInternalFunctionArgs & {
+export interface GradeQuizSubmissionArgs extends BaseInternalFunctionArgs {
 	id: number;
 	enrollmentId: number;
 	gradebookItemId: number;
 	gradedBy: number;
 	submittedAt?: string | number;
-};
+}
 
-export type GetQuizByIdArgs = BaseInternalFunctionArgs & {
+export interface GetQuizByIdArgs extends BaseInternalFunctionArgs {
 	id: number | string;
-};
+}
 
-export type GetQuizSubmissionByIdArgs = BaseInternalFunctionArgs & {
+export interface GetQuizSubmissionByIdArgs extends BaseInternalFunctionArgs {
 	id: number | string;
-};
+}
 
-export type ListQuizSubmissionsArgs = BaseInternalFunctionArgs & {
+export interface ListQuizSubmissionsArgs extends BaseInternalFunctionArgs {
 	courseModuleLinkId?: number;
 	/**
 	 * The student ID to filter by. If not provided, all students will be included.
@@ -175,19 +175,20 @@ export type ListQuizSubmissionsArgs = BaseInternalFunctionArgs & {
 	status?: "in_progress" | "completed" | "graded" | "returned";
 	limit?: number;
 	page?: number;
-};
+}
 
-export type CheckInProgressSubmissionArgs = BaseInternalFunctionArgs & {
+export interface CheckInProgressSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
-};
+}
 
-export type GetNextAttemptNumberArgs = BaseInternalFunctionArgs & {
+export interface GetNextAttemptNumberArgs extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
-};
+}
 
-export type SubmitQuizArgs = BaseInternalFunctionArgs & {
+export interface SubmitQuizArgs extends BaseInternalFunctionArgs {
 	submissionId: number;
 	answers?: Array<{
 		questionId: string;
@@ -209,7 +210,7 @@ export type SubmitQuizArgs = BaseInternalFunctionArgs & {
 	 * If true, bypasses the time limit check (useful for auto-submit)
 	 */
 	bypassTimeLimit?: boolean;
-};
+}
 
 export interface QuizGradingResult {
 	totalScore: number;
@@ -229,9 +230,9 @@ export interface QuizGradingResult {
 	feedback: string;
 }
 
-export type GetQuizGradesReportArgs = BaseInternalFunctionArgs & {
+export interface GetQuizGradesReportArgs extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
-};
+}
 
 export interface QuizGradesReport {
 	courseModuleLinkId: number;
@@ -280,9 +281,9 @@ export interface QuizGradesReport {
 	};
 }
 
-export type GetQuizStatisticsReportArgs = BaseInternalFunctionArgs & {
+export interface GetQuizStatisticsReportArgs extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
-};
+}
 
 export interface QuizStatisticsReport {
 	courseModuleLinkId: number;
@@ -338,6 +339,8 @@ export const tryCreateQuiz = Result.wrap(
 			rawQuizConfig,
 			questions,
 			createdBy,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
@@ -385,42 +388,35 @@ export const tryCreateQuiz = Result.wrap(
 			}
 		}
 
-		const quiz = await payload.create({
-			collection: "quizzes",
-			data: {
-				title,
-				description,
-				instructions,
-				points,
-				gradingType,
-				showCorrectAnswers,
-				allowMultipleAttempts,
-				shuffleQuestions,
-				shuffleAnswers,
-				showOneQuestionAtATime,
-				rawQuizConfig: rawQuizConfig as { [x: string]: unknown },
-				questions,
-				createdBy,
-			},
-		});
+		const quiz = await payload
+			.create({
+				collection: "quizzes",
+				data: {
+					title,
+					description,
+					instructions,
+					points,
+					gradingType,
+					showCorrectAnswers,
+					allowMultipleAttempts,
+					shuffleQuestions,
+					shuffleAnswers,
+					showOneQuestionAtATime,
+					rawQuizConfig: rawQuizConfig as { [x: string]: unknown },
+					questions,
+					createdBy,
+				},
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "create">())
+			.catch((error) => {
+				interceptPayloadError(error, "tryCreateQuiz", "to create quiz", args);
+				throw error;
+			});
 
-		////////////////////////////////////////////////////
-		// type narrowing
-		////////////////////////////////////////////////////
-
-		const createdByUser = quiz.createdBy;
-		assertZodInternal(
-			"tryCreateQuiz: Created by user is required",
-			createdByUser,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		return {
-			...quiz,
-			createdBy: createdByUser,
-		};
+		return quiz;
 	},
 	(error) =>
 		transformError(error) ??
@@ -442,28 +438,24 @@ export const tryGetQuizById = Result.wrap(
 		}
 
 		// Fetch the quiz
-		const quizResult = await payload
-			.find({
+		const quiz = await payload
+			.findByID({
 				collection: "quizzes",
-				where: {
-					and: [
-						{
-							id: { equals: id },
-						},
-					],
-				},
+				id,
 				depth: 1, // Fetch related data
-				user,
 				req,
 				overrideAccess,
 			})
-			.then(stripDepth<1, "find">());
-
-		const quiz = quizResult.docs[0];
-
-		if (!quiz) {
-			throw new InvalidArgumentError(`Quiz with id '${id}' not found`);
-		}
+			.then(stripDepth<1, "findByID">())
+			.catch((error) => {
+				interceptPayloadError(
+					error,
+					"tryGetQuizById",
+					"to get quiz by id",
+					args,
+				);
+				throw error;
+			});
 
 		return quiz;
 	},
@@ -495,6 +487,8 @@ export const tryUpdateQuiz = Result.wrap(
 			showOneQuestionAtATime,
 			rawQuizConfig,
 			questions,
+			req,
+			overrideAccess = false,
 		} = args;
 
 		// Validate ID
@@ -535,8 +529,15 @@ export const tryUpdateQuiz = Result.wrap(
 				collection: "quizzes",
 				id,
 				data: updateData,
+				req,
+				overrideAccess,
+				depth: 1,
 			})
-			.then(stripDepth<1, "update">());
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError(error, "tryUpdateQuiz", "to update quiz", args);
+				throw error;
+			});
 
 		return updatedQuiz;
 	},
@@ -559,7 +560,6 @@ export const tryStartQuizAttempt = Result.wrap(
 			studentId,
 			enrollmentId,
 			attemptNumber = 1,
-
 			req,
 			overrideAccess = false,
 		} = args;
@@ -591,7 +591,6 @@ export const tryStartQuizAttempt = Result.wrap(
 					],
 				},
 				depth: 1,
-				user,
 				req,
 				overrideAccess,
 			})
@@ -615,7 +614,7 @@ export const tryStartQuizAttempt = Result.wrap(
 					],
 				},
 				depth: 1,
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -672,7 +671,7 @@ export const tryStartQuizAttempt = Result.wrap(
 					isLate,
 				},
 				depth: 1,
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -768,7 +767,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 						{ attemptNumber: { equals: attemptNumber } },
 					],
 				},
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -786,7 +785,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 				collection: "course-activity-module-links",
 				id: courseModuleLinkId,
 				depth: 1, // Need to get activity module and quiz
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -816,7 +815,7 @@ export const tryCreateQuizSubmission = Result.wrap(
 					isLate,
 					timeSpent,
 				},
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -883,7 +882,7 @@ export const tryUpdateQuizSubmission = Result.wrap(
 				id,
 				data: updateData,
 				depth: 1,
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -925,7 +924,7 @@ export const tryGetQuizSubmissionById = Result.wrap(
 					],
 				},
 				depth: 1, // Fetch related data
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -1001,7 +1000,7 @@ export const trySubmitQuiz = Result.wrap(
 						? currentSubmission.courseModuleLink.id
 						: (currentSubmission.courseModuleLink as number),
 				depth: 2,
-				user,
+
 				req,
 				overrideAccess,
 			});
@@ -1059,7 +1058,7 @@ export const trySubmitQuiz = Result.wrap(
 				collection: "quiz-submissions",
 				id: submissionId,
 				data: updateData,
-				user,
+
 				req,
 				overrideAccess,
 			})
@@ -1348,7 +1347,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 					collection: QuizSubmissions.slug,
 					id,
 					req: reqWithTransaction,
-					user,
+
 					overrideAccess,
 					depth: 0,
 				})
@@ -1382,7 +1381,7 @@ export const tryGradeQuizSubmission = Result.wrap(
 					id: currentSubmission.courseModuleLink,
 					depth: 2,
 					req: transactionInfo.reqWithTransaction,
-					user,
+
 					overrideAccess,
 				})
 				.then(stripDepth<2, "findByID">());
@@ -1421,7 +1420,6 @@ export const tryGradeQuizSubmission = Result.wrap(
 				payload,
 				quizId: quiz.id,
 				answers: validAnswers,
-				user,
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
 			});
@@ -1447,7 +1445,6 @@ export const tryGradeQuizSubmission = Result.wrap(
 						autoGraded: true,
 					},
 					depth: 1,
-					user,
 					req: transactionInfo.reqWithTransaction,
 					overrideAccess,
 				})
@@ -1462,9 +1459,8 @@ export const tryGradeQuizSubmission = Result.wrap(
 						: undefined;
 			const userGradeResult = await tryCreateUserGrade({
 				payload,
-				user: null,
 				req: transactionInfo.reqWithTransaction,
-				overrideAccess: false,
+				overrideAccess,
 				enrollmentId,
 				gradebookItemId,
 				baseGrade: gradeData.totalScore,
@@ -1558,7 +1554,7 @@ export const tryListQuizSubmissions = Result.wrap(
 				page,
 				sort: "-createdAt",
 				depth: 1, // Fetch related data
-				user,
+
 				req,
 				overrideAccess,
 			})

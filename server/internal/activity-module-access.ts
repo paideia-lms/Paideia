@@ -580,6 +580,7 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 			if (existing) {
 				existing.enrollments.push({
 					courseId: enrollment.course.id,
+					// ! we are only getting teacher and ta roles in the query
 					role: enrollment.role as "teacher" | "ta",
 				});
 			} else {
@@ -592,6 +593,7 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 					enrollments: [
 						{
 							courseId: enrollment.course.id,
+							// ! we are only getting teacher and ta roles in the query
 							role: enrollment.role as "teacher" | "ta",
 						},
 					],

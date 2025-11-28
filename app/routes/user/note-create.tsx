@@ -1,7 +1,7 @@
 import { Container, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useState } from "react";
-import { redirect, useFetcher, useNavigate } from "react-router";
+import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateNote } from "server/internal/note-management";
@@ -24,6 +24,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/note-create";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -69,73 +70,80 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
+	const transactionInfo = await handleTransactionId(
 		payload,
-		request,
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		fields: [
-			{
-				fieldName: "image-*",
-				alt: "Note image",
-			},
-		],
-	});
-
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
+	return await transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			req: txInfo.reqWithTransaction,
 			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
-
-	const { formData, uploadedMedia } = parseResult.value;
-
-	// Extract and validate form data
-	let content = formData.get("content") as string;
-	const isPublic = formData.get("isPublic") === "true";
-
-	if (!content || content.trim().length === 0) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			error: "Note content cannot be empty",
+			fields: [
+				{
+					fieldName: "image-*",
+					alt: "Note image",
+				},
+			],
 		});
-	}
 
-	// Replace base64 images with actual media URLs
-	content = replaceBase64ImagesWithMediaUrls(content, uploadedMedia, formData);
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
 
-	// Create note with updated content
-	// Pass transaction context so filename resolution can see uncommitted media
-	const result = await tryCreateNote({
-		payload,
-		data: {
+		const { formData, uploadedMedia } = parseResult.value;
+
+		// Extract and validate form data
+		let content = formData.get("content") as string;
+		const isPublic = formData.get("isPublic") === "true";
+
+		if (!content || content.trim().length === 0) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return badRequest({
+				error: "Note content cannot be empty",
+			});
+		}
+
+		// Replace base64 images with actual media URLs
+		content = replaceBase64ImagesWithMediaUrls(
 			content,
-			createdBy: currentUser.id,
-			isPublic,
-		},
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		overrideAccess: false,
-	});
+			uploadedMedia,
+			formData,
+		);
 
-	if (!result.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			error: result.error.message,
+		// Create note with updated content
+		// Pass transaction context so filename resolution can see uncommitted media
+		const result = await tryCreateNote({
+			payload,
+			data: {
+				content,
+				createdBy: currentUser.id,
+				isPublic,
+			},
+			req: txInfo.reqWithTransaction,
+			overrideAccess: false,
 		});
-	}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
+		if (!result.ok) {
+			return badRequest({
+				error: result.error.message,
+			});
+		}
 
-	return redirect("/user/notes");
+		// redirect on the server side
+		throw redirect(href("/user/notes/:id?", { id: "" }));
+	});
 };
 
 export const clientAction = async ({

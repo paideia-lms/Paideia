@@ -359,26 +359,26 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-					color: "blue",
-					radius: "sm" as const,
-					logoLight: null,
-					logoDark: null,
-					compactLogoLight: null,
-					compactLogoDark: null,
-					faviconLight: null,
-					faviconDark: null,
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
+					maintenanceSettings: { maintenanceMode: false },
+					sitePolicies: {
+						userMediaStorageTotal: null,
+						siteUploadLimit: null,
+					},
+					appearanceSettings: {
+						additionalCssStylesheets: [],
+						color: "blue",
+						radius: "sm" as const,
+						logoLight: null,
+						logoDark: null,
+						compactLogoLight: null,
+						compactLogoDark: null,
+						faviconLight: null,
+						faviconDark: null,
+					},
+					analyticsSettings: {
+						additionalJsScripts: [],
+					},
+				};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -472,17 +472,15 @@ export const middleware = [
 				courseId = String(section.course);
 			}
 
-			const courseContextResult = await tryGetCourseContext(
-				{
-					payload,
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
-					courseId: Number(courseId),
-				}
-			)
+			const courseContextResult = await tryGetCourseContext({
+				payload,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
+				courseId: Number(courseId),
+			});
 
 			// Only set the course context if successful
 			if (courseContextResult.ok) {
@@ -512,26 +510,21 @@ export const middleware = [
 			if (Number.isNaN(sectionId)) return;
 
 			if (courseContext) {
-				const sectionResult = await tryFindSectionById({
+				const courseSectionContextResult = await tryGetCourseSectionContext({
 					payload,
-					sectionId: Number(sectionId),
 					req: createLocalReq({
 						request,
 						user: currentUser,
 						context: { routerContext: context },
 					}),
+					sectionId: Number(sectionId),
 				});
 
-				if (sectionResult.ok) {
-					const courseSectionContextResult =
-						await tryGetCourseSectionContext(sectionResult);
-
-					if (courseSectionContextResult.ok) {
-						context.set(
-							courseSectionContextKey,
-							courseSectionContextResult.value,
-						);
-					}
+				if (courseSectionContextResult.ok) {
+					context.set(
+						courseSectionContextKey,
+						courseSectionContextResult.value,
+					);
 				}
 			}
 		}
@@ -582,19 +575,19 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext({
-							payload,
-							profileUserId,
-							req: createLocalReq({
-								request,
-								user: currentUser,
-								context: { routerContext: context },
-							}),
-							overrideAccess: false,
-						});
+								payload,
+								profileUserId,
+								req: createLocalReq({
+									request,
+									user: currentUser,
+									context: { routerContext: context },
+								}),
+								overrideAccess: false,
+							});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -608,7 +601,7 @@ export const middleware = [
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
 			const enrollment = courseContext.course.enrollments.find(
-				(e) => e.userId === currentUser?.id,
+				(e) => e.user.id === currentUser?.id,
 			);
 
 			// set the enrolment context
@@ -786,17 +779,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-				userSession: userSession,
-				courseContext: context.get(courseContextKey),
-				courseModuleContext: context.get(courseModuleContextKey),
-				courseSectionContext: context.get(courseSectionContextKey),
-				enrolmentContext: context.get(enrolmentContextKey),
-				userModuleContext: context.get(userModuleContextKey),
-				userProfileContext: context.get(userProfileContextKey),
-				userAccessContext: context.get(userAccessContextKey),
-				userContext: context.get(userContextKey),
-				systemGlobals: systemGlobals,
-			};
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				};
 
 	return {
 		users: users,

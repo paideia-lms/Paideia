@@ -11,18 +11,22 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	Depth,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
-export type CreateCategoryArgs = BaseInternalFunctionArgs & {
+export interface CreateCategoryArgs extends BaseInternalFunctionArgs {
 	name: string;
 	parent?: number;
-};
+}
 
-export type UpdateCategoryArgs = BaseInternalFunctionArgs & {
+export interface UpdateCategoryArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
 	name?: string;
 	parent?: number;
-};
+}
 
 export interface CategoryTreeNode {
 	id: number;
@@ -108,9 +112,9 @@ export const tryUpdateCategory = Result.wrap(
 		new UnknownError("Failed to update category", { cause: error }),
 );
 
-export type DeleteCategoryArgs = BaseInternalFunctionArgs & {
+export interface DeleteCategoryArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
-};
+}
 
 /**
  * Deletes a course category
@@ -182,16 +186,16 @@ export const tryDeleteCategory = Result.wrap(
 		new UnknownError("Failed to delete category", { cause: error }),
 );
 
-export type FindCategoryByIdArgs = BaseInternalFunctionArgs & {
+export interface FindCategoryByIdArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
-};
+}
 
 /**
  * Finds a category by ID
  */
 export const tryFindCategoryById = Result.wrap(
 	async (args: FindCategoryByIdArgs) => {
-		const { payload, categoryId, user, req, overrideAccess = false } = args;
+		const { payload, categoryId, req, overrideAccess = false } = args;
 
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
@@ -212,79 +216,82 @@ export const tryFindCategoryById = Result.wrap(
 		new UnknownError("Failed to find category by ID", { cause: error }),
 );
 
-export type GetCategoryTreeArgs = BaseInternalFunctionArgs & {};
+export interface GetCategoryTreeArgs extends BaseInternalFunctionArgs {}
 
 /**
  * Gets all categories as a tree structure
  */
 export const tryGetCategoryTree = Result.wrap(
 	async (args: GetCategoryTreeArgs) => {
-		const { payload, user, req, overrideAccess = false } = args;
+		const { payload, req, overrideAccess = false } = args;
 
-		const allCategories = await payload.find({
-			collection: CourseCategories.slug,
-			pagination: false,
-			depth: 0,
-			req,
-			overrideAccess,
-		});
+		const allCategories = await payload
+			.find({
+				collection: CourseCategories.slug,
+				pagination: false,
+				depth: 0,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "find">());
+
+		type CategoryTreeNode = {
+			id: number;
+			name: string;
+			parent: number | null;
+			directCoursesCount: number;
+			directSubcategoriesCount: number;
+			totalNestedCoursesCount: number;
+			subcategories: CategoryTreeNode[];
+		};
 
 		// Build tree structure
 		const categoryMap = new Map<number, CategoryTreeNode>();
 		const rootCategories: CategoryTreeNode[] = [];
 
+		// TODO: optimize this, this is for loop in for loop !!!!
 		// First pass: create all nodes
 		for (const cat of allCategories.docs) {
-			const directCoursesCountResult = await payload.count({
-				collection: Courses.slug,
-				where: {
-					category: {
-						equals: cat.id,
+			const [
+				directCoursesCountResult,
+				directSubcategoriesCountResult,
+				totalNestedCoursesCount,
+			] = await Promise.all([
+				payload.count({
+					collection: Courses.slug,
+					where: {
+						category: {
+							equals: cat.id,
+						},
 					},
-				},
-				user,
-				req,
-				overrideAccess,
-			});
-
-			const directSubcategoriesCountResult = await payload.count({
-				collection: CourseCategories.slug,
-				where: {
-					parent: {
-						equals: cat.id,
-					},
-				},
-				user,
-				req,
-				overrideAccess,
-			});
-
-			const totalNestedCoursesCountResult = await tryGetTotalNestedCoursesCount(
-				{
-					payload,
-					categoryId: cat.id,
-					user,
 					req,
 					overrideAccess,
-				},
-			);
-
-			if (!totalNestedCoursesCountResult.ok) {
-				throw totalNestedCoursesCountResult.error;
-			}
-
-			const totalNestedCoursesCount = totalNestedCoursesCountResult.value;
+				}),
+				payload.count({
+					collection: CourseCategories.slug,
+					where: {
+						parent: {
+							equals: cat.id,
+						},
+					},
+					req,
+					overrideAccess,
+				}),
+				tryGetTotalNestedCoursesCount({
+					payload,
+					categoryId: cat.id,
+					req,
+					overrideAccess,
+				}).then((result) => result.getOrThrow()),
+			]);
 
 			const directCoursesCount = directCoursesCountResult.totalDocs;
 			const directSubcategoriesCount = directSubcategoriesCountResult.totalDocs;
 
-			const node: CategoryTreeNode = {
+			const node = {
 				id: cat.id,
 				name: cat.name,
-				parent:
-					typeof cat.parent === "number"
-						? cat.parent
-						: (cat.parent?.id ?? null),
+				parent: cat.parent ?? null,
 				directCoursesCount,
 				directSubcategoriesCount,
 				totalNestedCoursesCount,
@@ -313,16 +320,16 @@ export const tryGetCategoryTree = Result.wrap(
 		new UnknownError("Failed to get category tree", { cause: error }),
 );
 
-export type GetCategoryAncestorsArgs = BaseInternalFunctionArgs & {
+export interface GetCategoryAncestorsArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
-};
+}
 
 /**
  * Gets all ancestors of a category from root to the category
  */
 export const tryGetCategoryAncestors = Result.wrap(
 	async (args: GetCategoryAncestorsArgs) => {
-		const { payload, categoryId, user, req, overrideAccess = false } = args;
+		const { payload, categoryId, req, overrideAccess = false } = args;
 
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
@@ -336,7 +343,7 @@ export const tryGetCategoryAncestors = Result.wrap(
 				collection: CourseCategories.slug,
 				id: currentId,
 				depth: 0,
-				user,
+
 				req,
 				overrideAccess,
 			});
@@ -356,16 +363,16 @@ export const tryGetCategoryAncestors = Result.wrap(
 		new UnknownError("Failed to get category ancestors", { cause: error }),
 );
 
-export type GetCategoryDepthArgs = BaseInternalFunctionArgs & {
+export interface GetCategoryDepthArgs extends BaseInternalFunctionArgs {
 	categoryId: number;
-};
+}
 
 /**
  * Calculates the depth of a category (0 for root, 1 for first level, etc.)
  */
 export const tryGetCategoryDepth = Result.wrap(
 	async (args: GetCategoryDepthArgs) => {
-		const { payload, categoryId, user, req, overrideAccess = false } = args;
+		const { payload, categoryId, req, overrideAccess = false } = args;
 
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
@@ -379,7 +386,7 @@ export const tryGetCategoryDepth = Result.wrap(
 				collection: CourseCategories.slug,
 				id: currentId,
 				depth: 0,
-				user,
+
 				req,
 				overrideAccess,
 			});
@@ -401,16 +408,17 @@ export const tryGetCategoryDepth = Result.wrap(
 		new UnknownError("Failed to calculate category depth", { cause: error }),
 );
 
-export type GetTotalNestedCoursesCountArgs = BaseInternalFunctionArgs & {
+export interface GetTotalNestedCoursesCountArgs
+	extends BaseInternalFunctionArgs {
 	categoryId: number;
-};
+}
 
 /**
  * Gets total count of courses in a category and all its subcategories recursively
  */
 export const tryGetTotalNestedCoursesCount = Result.wrap(
 	async (args: GetTotalNestedCoursesCountArgs) => {
-		const { payload, categoryId, user, req, overrideAccess = false } = args;
+		const { payload, categoryId, req, overrideAccess = false } = args;
 
 		// Count direct courses
 		const directCountResult = await payload.count({
@@ -446,7 +454,7 @@ export const tryGetTotalNestedCoursesCount = Result.wrap(
 			const result = await tryGetTotalNestedCoursesCount({
 				payload,
 				categoryId: subcat.id,
-				user,
+
 				req,
 				overrideAccess,
 			});
@@ -465,16 +473,16 @@ export const tryGetTotalNestedCoursesCount = Result.wrap(
 		new UnknownError("Failed to count nested courses", { cause: error }),
 );
 
-export type FindRootCategoriesArgs = BaseInternalFunctionArgs & {
+export interface FindRootCategoriesArgs extends BaseInternalFunctionArgs {
 	limit?: number;
-};
+}
 
 /**
  * Finds root-level categories (categories without parents)
  */
 export const tryFindRootCategories = Result.wrap(
 	async (args: FindRootCategoriesArgs) => {
-		const { payload, limit = 100, user, req, overrideAccess = false } = args;
+		const { payload, limit = 100, req, overrideAccess = false } = args;
 
 		const categories = await payload.find({
 			collection: CourseCategories.slug,
@@ -496,10 +504,10 @@ export const tryFindRootCategories = Result.wrap(
 		new UnknownError("Failed to find root categories", { cause: error }),
 );
 
-export type FindSubcategoriesArgs = BaseInternalFunctionArgs & {
+export interface FindSubcategoriesArgs extends BaseInternalFunctionArgs {
 	parentId: number;
 	limit?: number;
-};
+}
 
 /**
  * Finds direct subcategories of a parent category
@@ -540,14 +548,14 @@ export const tryFindSubcategories = Result.wrap(
 
 // This page no longer handles action; API route handles reorder
 
-export type FlatNode = {
+export interface FlatNode {
 	id: string; // "c{id}"
 	name: string;
 	parentId: string | null; // "c{id}" or null
 	children?: string[];
 	directCoursesCount: number;
 	totalNestedCoursesCount: number;
-};
+}
 
 export function flattenCategories(
 	categories: CategoryTreeNode[],

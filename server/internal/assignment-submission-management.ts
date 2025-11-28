@@ -23,7 +23,8 @@ type AssignmentSettings = Extract<
 	{ type: "assignment" }
 >;
 
-export type CreateAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
+export interface CreateAssignmentSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -34,9 +35,10 @@ export type CreateAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
 		description?: string;
 	}>;
 	timeSpent?: number;
-};
+}
 
-export type UpdateAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
+export interface UpdateAssignmentSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	id: number;
 	status?: "draft" | "submitted" | "graded" | "returned";
 	content?: string;
@@ -48,31 +50,35 @@ export type UpdateAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
 		  }
 	>;
 	timeSpent?: number;
-};
+}
 
-export type GradeAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
+export interface GradeAssignmentSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	id: number;
 	grade: number;
 	feedback?: string;
 	gradedBy: number;
-};
+}
 
-export type GetAssignmentSubmissionByIdArgs = BaseInternalFunctionArgs & {
+export interface GetAssignmentSubmissionByIdArgs
+	extends BaseInternalFunctionArgs {
 	id: number | string;
-};
+}
 
-export type DeleteAssignmentSubmissionArgs = BaseInternalFunctionArgs & {
+export interface DeleteAssignmentSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	id: number;
-};
+}
 
-export type ListAssignmentSubmissionsArgs = BaseInternalFunctionArgs & {
+export interface ListAssignmentSubmissionsArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
 	status?: "draft" | "submitted" | "graded" | "returned";
 	limit?: number;
 	page?: number;
-};
+}
 
 /**
  * Validates file attachments against assignment configuration
@@ -540,9 +546,9 @@ export const tryUpdateAssignmentSubmission = Result.wrap(
 		}),
 );
 
-export type SubmitAssignmentArgs = BaseInternalFunctionArgs & {
+export interface SubmitAssignmentArgs extends BaseInternalFunctionArgs {
 	submissionId: number;
-};
+}
 
 /**
  * Submits an assignment (changes status from draft to submitted)

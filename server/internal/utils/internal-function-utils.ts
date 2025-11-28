@@ -5,8 +5,7 @@ import type {
 	TypedUser,
 } from "payload";
 import { Forbidden } from "payload";
-import { ActivityModule } from "server/payload-types";
-import type { Simplify, Subtract, Sum, Tagged } from "type-fest";
+import type { Simplify, Subtract, Sum } from "type-fest";
 
 interface BaseUser extends Omit<TypedUser, "avatar"> {}
 

@@ -10,16 +10,16 @@ import {
 } from "server/internal/registration-settings";
 import { z } from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { ForbiddenResponse } from "~/utils/responses";
+import {
+	forbidden,
+	ForbiddenResponse,
+	ok,
+	StatusCode,
+} from "~/utils/responses";
 import type { Route } from "./+types/registration";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-type RegistrationGlobal = {
-	id: number;
-	disableRegistration?: boolean;
-	showRegistrationButton?: boolean;
-};
-
-export async function loader({ context }: Route.LoaderArgs) {
+export async function loader({ context, request }: Route.LoaderArgs) {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -34,8 +34,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 	const settings = await tryGetRegistrationSettings({
 		payload,
-		// ! this is a system request, we don't care about access control
-		overrideAccess: true,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!settings.ok) {
@@ -64,24 +67,28 @@ export async function action({ request, context }: Route.ActionArgs) {
 	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
+		return forbidden({ error: "Unauthorized" });
 	}
 	const currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can access this area");
+		return forbidden({ error: "Only admins can access this area" });
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const parsed = inputSchema.safeParse(data);
 	if (!parsed.success) {
-		throw new ForbiddenResponse("Invalid payload");
+		return forbidden({ error: "Invalid payload" });
 	}
 	const { disableRegistration, showRegistrationButton } = parsed.data;
 
 	const updateResult = await tryUpdateRegistrationSettings({
 		payload,
-		user: currentUser as unknown as import("server/payload-types").User,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		data: {
 			disableRegistration,
 			showRegistrationButton,
@@ -90,27 +97,27 @@ export async function action({ request, context }: Route.ActionArgs) {
 	});
 
 	if (!updateResult.ok) {
-		throw new ForbiddenResponse(updateResult.error.message);
+		return forbidden({ error: updateResult.error.message });
 	}
 
-	return {
+	return ok({
 		success: true as const,
-		settings: updateResult.value as unknown as RegistrationGlobal,
-	};
+		settings: updateResult.value,
+	});
 }
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const res = await serverAction();
-	if (res?.success) {
+	if (res?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Registration settings updated",
 			message: "Your changes have been saved.",
 			color: "green",
 		});
-	} else {
+	} else if (res?.status === StatusCode.Forbidden) {
 		notifications.show({
 			title: "Failed to update",
-			message: "Unexpected error",
+			message: res?.error || "Failed to update registration settings",
 			color: "red",
 		});
 	}

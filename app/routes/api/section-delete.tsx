@@ -7,6 +7,7 @@ import z from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/section-delete";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	sectionId: z.number(),
@@ -34,30 +35,24 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 	const { sectionId, courseId } = parsed.data;
 
-	console.log(`Deleting section ${sectionId}`);
-
-	try {
-		// Call tryDeleteSection with the parsed parameters
-		const result = await tryDeleteSection({
-			payload,
-			sectionId,
+	// Call tryDeleteSection with the parsed parameters
+	const result = await tryDeleteSection({
+		payload,
+		sectionId,
+		req: createLocalReq({
+			request,
 			user: currentUser,
-			overrideAccess: false,
-		});
+			context: { routerContext: context },
+		}),
+		overrideAccess: false,
+	});
 
-		if (!result.ok) {
-			return badRequest({ error: result.error.message });
-		}
-
-		// Redirect to course root after successful deletion
-		throw redirect(
-			href("/course/:courseId", { courseId: courseId.toString() }),
-		);
-	} catch (error) {
-		if (error instanceof Response) throw error;
-		console.error("Failed to delete section:", error);
-		return badRequest({ error: "Failed to delete section" });
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
 	}
+
+	// Redirect to course root after successful deletion
+	throw redirect(href("/course/:courseId", { courseId: courseId.toString() }));
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {

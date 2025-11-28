@@ -12,6 +12,8 @@ export const StatusCode = {
 	Created: 201 as const,
 	// indicates that the request has been accepted for processing, but the processing has not been completed
 	Accepted: 202 as const,
+	// indicates that the response is a partial content, which is the result of a range request
+	PartialContent: 206 as const,
 	BadRequest: 400 as const,
 	Unauthorized: 401 as const,
 	Forbidden: 403 as const,
@@ -32,6 +34,13 @@ export function created<T>(value: T, init?: ResponseInitWithoutStatus) {
 	return data(
 		{ ...value, status: StatusCode.Created },
 		{ ...init, status: StatusCode.Created },
+	);
+}
+
+export function partialContent<T>(value: T, init?: ResponseInitWithoutStatus) {
+	return data(
+		{ ...value, status: StatusCode.PartialContent },
+		{ ...init, status: StatusCode.PartialContent },
 	);
 }
 

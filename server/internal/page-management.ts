@@ -7,26 +7,30 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	interceptPayloadError,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
 
-export type CreatePageArgs = BaseInternalFunctionArgs & {
+export interface CreatePageArgs extends BaseInternalFunctionArgs {
 	content?: string;
 	userId: number;
-};
+}
 
-export type UpdatePageArgs = BaseInternalFunctionArgs & {
+export interface UpdatePageArgs extends BaseInternalFunctionArgs {
 	id: number;
 	content?: string;
-};
+}
 
-export type DeletePageArgs = BaseInternalFunctionArgs & {
+export interface DeletePageArgs extends BaseInternalFunctionArgs {
 	id: number;
-};
+}
 
-export type GetPageByIdArgs = BaseInternalFunctionArgs & {
+export interface GetPageByIdArgs extends BaseInternalFunctionArgs {
 	id: number;
-};
+}
 
 export const tryCreatePage = Result.wrap(
 	async (args: CreatePageArgs) => {
@@ -88,21 +92,14 @@ export const tryCreatePage = Result.wrap(
 					createdBy: userId,
 					media: mediaIds.length > 0 ? mediaIds : undefined,
 				},
-				user,
 				req,
 				overrideAccess,
+				depth: 0,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryUpdatePage: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
+			.then(stripDepth<0, "create">())
+			.catch((error) => {
+				interceptPayloadError(error, "tryCreatePage", "to create page", args);
+				throw error;
 			});
 
 		return page;
@@ -190,21 +187,13 @@ export const tryUpdatePage = Result.wrap(
 						media: mediaIds.length > 0 ? mediaIds : [],
 					}),
 				},
-				user,
 				req,
 				overrideAccess,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryUpdatePage: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
+			.then(stripDepth<0, "update">())
+			.catch((error) => {
+				interceptPayloadError(error, "tryUpdatePage", "to update page", args);
+				throw error;
 			});
 
 		return page;

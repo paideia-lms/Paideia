@@ -24,6 +24,11 @@ import {
 import { href, Link } from "react-router";
 import { QuizActions } from "~/utils/module-actions";
 import { groupSubmissionsByStudent } from "./helpers";
+import type { Route } from "app/routes/course/module.$id.submissions";
+
+type Enrollment = NonNullable<
+	Route.ComponentProps["loaderData"]["enrollments"]
+>[number];
 
 // ============================================================================
 // Types
@@ -47,12 +52,12 @@ type QuizSubmissionType = {
 	};
 };
 
-type Enrollment = {
-	id: number;
-	userId: number;
-	name: string;
-	email?: string | null;
-};
+// type Enrollment = {
+// 	id: number;
+// 	userId: number;
+// 	name: string;
+// 	email?: string | null;
+// };
 
 // ============================================================================
 // Components
@@ -158,7 +163,7 @@ function QuizStudentSubmissionRow({
 	const [opened, { toggle }] = useDisclosure(false);
 
 	const latestSubmission = studentSubmissions?.[0];
-	const email = enrollment.email || "-";
+	const email = enrollment.userEmail || "-";
 
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
@@ -225,11 +230,11 @@ function QuizStudentSubmissionRow({
 								to={
 									href("/course/:courseId/participants/profile", {
 										courseId: String(courseId),
-									}) + `?userId=${enrollment.userId}`
+									}) + `?userId=${enrollment.user.id}`
 								}
 								size="sm"
 							>
-								{enrollment.name}
+								{enrollment.user.firstName} {enrollment.user.lastName}
 							</Anchor>
 						</div>
 					</Group>
@@ -450,7 +455,7 @@ export function QuizSubmissionTable({
 					<Table.Tbody>
 						{enrollments.map((enrollment) => {
 							const studentSubmissions = quizSubmissionsByStudent.get(
-								enrollment.userId,
+								enrollment.user.id,
 							);
 
 							return (

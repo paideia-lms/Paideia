@@ -30,6 +30,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	convertUserAccessContextToUserProfileContext,
 	getUserProfileContext,
+	userProfileContextKey,
 	type UserProfileContext,
 } from "server/contexts/user-profile-context";
 import { tryDeleteNote } from "server/internal/note-management";
@@ -45,6 +46,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/notes";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 // Define search params for date selection
 export const notesSearchParams = {
@@ -60,7 +62,12 @@ export const loader = async ({
 }: Route.LoaderArgs) => {
 	const { payload, hints } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
+	const userProfileContext = context.get(userProfileContextKey);
 	const { id } = params;
+
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User not found");
+	}
 
 	// Get client hints for timezone
 	const timeZone = hints.timeZone;
@@ -80,37 +87,6 @@ export const loader = async ({
 	const userId = id ? Number(id) : currentUser.id;
 
 	// Get user profile context
-	let userProfileContext: UserProfileContext | null = null;
-	if (userId === currentUser.id) {
-		// If viewing own profile, use userAccessContext if available
-		const userAccessContext = context.get(userAccessContextKey);
-		if (userAccessContext) {
-			userProfileContext = convertUserAccessContextToUserProfileContext(
-				userAccessContext,
-				currentUser,
-			);
-		} else {
-			// Fallback to fetching directly
-			userProfileContext = await getUserProfileContext({
-				payload,
-				profileUserId: userId,
-				user: currentUser,
-				req: request,
-			});
-		}
-	} else {
-		// Viewing another user's profile
-		userProfileContext = await getUserProfileContext({
-			payload,
-			profileUserId: userId,
-			user: currentUser,
-			req: request,
-		});
-	}
-
-	if (!userProfileContext) {
-		throw new NotFoundResponse("User not found");
-	}
 
 	// user can create notes if he is the user of this profile
 	const canCreateNotes = userId === currentUser.id;
@@ -173,9 +149,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const result = await tryDeleteNote({
 		payload,
 		noteId,
-		user: currentUser,
-		req: request,
-		overrideAccess: false,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {

@@ -29,51 +29,53 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 
-export type CreateMediaArgs = BaseInternalFunctionArgs & {
+export interface CreateMediaArgs extends BaseInternalFunctionArgs {
 	file: Buffer;
 	filename: string;
 	mimeType: string;
 	alt?: string;
 	caption?: string;
 	userId: number;
-};
+}
 
-export type GetMediaByIdArgs = BaseInternalFunctionArgs & {
+export interface GetMediaByIdArgs extends BaseInternalFunctionArgs {
 	id: number | string;
-};
+}
 
-export type GetMediaByFilenameArgs = BaseInternalFunctionArgs & {
+export interface GetMediaByFilenameArgs extends BaseInternalFunctionArgs {
 	filename: string;
-};
+}
 
-export type GetMediaBufferFromFilenameArgs = BaseInternalFunctionArgs & {
+export interface GetMediaBufferFromFilenameArgs
+	extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	filename: string;
-};
+}
 
-export type GetAllMediaArgs = BaseInternalFunctionArgs & {
+export interface GetAllMediaArgs extends BaseInternalFunctionArgs {
 	limit?: number;
 	page?: number;
 	sort?: string;
 	where?: Record<string, unknown>;
-};
+}
 
-export type GetMediaBufferFromIdArgs = BaseInternalFunctionArgs & {
+export interface GetMediaBufferFromIdArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	id: number | string;
-};
+}
 
-export type GetMediaStreamFromFilenameArgs = BaseInternalFunctionArgs & {
+export interface GetMediaStreamFromFilenameArgs
+	extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	filename: string;
 	range?: { start: number; end?: number };
-};
+}
 
-export type GetMediaStreamFromIdArgs = BaseInternalFunctionArgs & {
+export interface GetMediaStreamFromIdArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	id: number | string;
 	range?: { start: number; end?: number };
-};
+}
 
 /**
  * Creates a new media record
@@ -268,9 +270,9 @@ export const tryGetMediaByFilename = Result.wrap(
 		}),
 );
 
-type GetMediaByIdsArgs = BaseInternalFunctionArgs & {
+interface GetMediaByIdsArgs extends BaseInternalFunctionArgs {
 	ids: number[];
-};
+}
 
 export const tryGetMediaByIds = Result.wrap(
 	async (args: GetMediaByIdsArgs) => {
@@ -728,11 +730,11 @@ export const tryGetAllMedia = Result.wrap(
 		}),
 );
 
-export type DeleteMediaArgs = BaseInternalFunctionArgs & {
+export interface DeleteMediaArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	id: number | number[];
 	userId: number;
-};
+}
 
 export interface DeleteMediaResult {
 	deletedMedia: Media[];
@@ -908,12 +910,12 @@ export const tryDeleteMedia = Result.wrap(
 		}),
 );
 
-export type GetMediaByMimeTypeArgs = BaseInternalFunctionArgs & {
+export interface GetMediaByMimeTypeArgs extends BaseInternalFunctionArgs {
 	mimeType: string;
 	limit?: number;
 	page?: number;
 	depth?: number;
-};
+}
 
 /**
  * Gets media records filtered by MIME type
@@ -981,13 +983,13 @@ export const tryGetMediaByMimeType = Result.wrap(
 		}),
 );
 
-export type FindMediaByUserArgs = BaseInternalFunctionArgs & {
+export interface FindMediaByUserArgs extends BaseInternalFunctionArgs {
 	userId: number;
 	limit?: number;
 	page?: number;
 	depth?: number;
 	sort?: string;
-};
+}
 
 /**
  * Finds media by user ID
@@ -1018,20 +1020,22 @@ export const tryFindMediaByUser = Result.wrap(
 		}
 
 		// Find media with access control
-		const mediaResult = await payload.find({
-			collection: "media",
-			where: {
-				createdBy: {
-					equals: userId,
+		const mediaResult = await payload
+			.find({
+				collection: "media",
+				where: {
+					createdBy: {
+						equals: userId,
+					},
 				},
-			},
-			limit,
-			page,
-			depth,
-			sort,
-			req,
-			overrideAccess,
-		});
+				limit,
+				page,
+				depth,
+				sort,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		return {
 			docs: mediaResult.docs,
@@ -1053,12 +1057,12 @@ export const tryFindMediaByUser = Result.wrap(
 		}),
 );
 
-export type RenameMediaArgs = BaseInternalFunctionArgs & {
+export interface RenameMediaArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	id: number | string;
 	newFilename: string;
 	userId: number;
-};
+}
 
 export interface RenameMediaResult {
 	media: Media;
@@ -1192,9 +1196,9 @@ export const tryRenameMedia = Result.wrap(
 		}),
 );
 
-export type GetUserMediaStatsArgs = BaseInternalFunctionArgs & {
+export interface GetUserMediaStatsArgs extends BaseInternalFunctionArgs {
 	userId: number;
-};
+}
 
 /**
  * Gets media drive statistics for a user
@@ -1298,7 +1302,7 @@ export const tryGetUserMediaStats = Result.wrap(
 		}),
 );
 
-export type GetSystemMediaStatsArgs = BaseInternalFunctionArgs;
+export interface GetSystemMediaStatsArgs extends BaseInternalFunctionArgs {}
 
 /**
  * Gets media drive statistics for the entire system
@@ -1403,11 +1407,11 @@ export interface OrphanedMediaFile {
 	lastModified?: Date;
 }
 
-export type GetOrphanedMediaArgs = BaseInternalFunctionArgs & {
+export interface GetOrphanedMediaArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	limit?: number;
 	page?: number;
-};
+}
 
 export interface GetOrphanedMediaResult {
 	files: OrphanedMediaFile[];
@@ -1538,9 +1542,9 @@ export const tryGetOrphanedMedia = Result.wrap(
 		}),
 );
 
-export type GetAllOrphanedFilenamesArgs = BaseInternalFunctionArgs & {
+export interface GetAllOrphanedFilenamesArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
-};
+}
 
 export interface GetAllOrphanedFilenamesResult {
 	filenames: string[];
@@ -1637,9 +1641,9 @@ export interface PruneAllOrphanedMediaResult {
  * 4. Deletes all orphaned files from S3 in batches
  * 5. Returns results with any errors
  */
-export type PruneAllOrphanedMediaArgs = BaseInternalFunctionArgs & {
+export interface PruneAllOrphanedMediaArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
-};
+}
 
 export const tryPruneAllOrphanedMedia = Result.wrap(
 	async (args: PruneAllOrphanedMediaArgs) => {
@@ -1777,10 +1781,10 @@ export const tryPruneAllOrphanedMedia = Result.wrap(
 		}),
 );
 
-export type DeleteOrphanedMediaArgs = BaseInternalFunctionArgs & {
+export interface DeleteOrphanedMediaArgs extends BaseInternalFunctionArgs {
 	s3Client: S3Client;
 	filenames: string[];
-};
+}
 
 export interface DeleteOrphanedMediaResult {
 	deletedCount: number;
@@ -1923,9 +1927,9 @@ export interface MediaUsage {
 	fieldPath: string; // e.g., "avatar", "thumbnail", "attachments.0.file"
 }
 
-export type FindMediaUsagesArgs = BaseInternalFunctionArgs & {
+export interface FindMediaUsagesArgs extends BaseInternalFunctionArgs {
 	mediaId: number | string;
-};
+}
 
 export interface FindMediaUsagesResult {
 	usages: MediaUsage[];

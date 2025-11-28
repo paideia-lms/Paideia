@@ -21,6 +21,7 @@ import {
 	tryCreateSection,
 	tryFindSectionsByCourse,
 } from "server/internal/course-section-management";
+import { canEditCourseSection } from "server/utils/permissions";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
 	badRequest,
@@ -29,6 +30,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/section-new";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 // Define search params for parent section prefill
 export const sectionNewSearchParams = {
@@ -61,20 +63,17 @@ export const loader = async ({
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Check if user can edit
-	const canEdit =
-		currentUser.role === "admin" ||
-		currentUser.role === "content-manager" ||
-		courseContext.course.enrollments.some(
-			(enrollment) =>
-				enrollment.userId === currentUser.id &&
-				(enrollment.role === "teacher" || enrollment.role === "ta"),
-		);
+	// Check if user can edit sections
+	const editPermission = canEditCourseSection(
+		currentUser,
+		courseContext.course.enrollments.map((enrollment) => ({
+			userId: enrollment.user.id,
+			role: enrollment.role,
+		})),
+	);
 
-	if (!canEdit) {
-		throw new ForbiddenResponse(
-			"You don't have permission to create sections in this course",
-		);
+	if (!editPermission.allowed) {
+		throw new ForbiddenResponse(editPermission.reason);
 	}
 
 	// Get search params for parent section prefill
@@ -85,8 +84,12 @@ export const loader = async ({
 	const sectionsResult = await tryFindSectionsByCourse({
 		payload,
 		courseId: Number(courseId),
-		user: currentUser,
-		req: request,
+
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -149,8 +152,11 @@ export const action = async ({
 			description: description.trim(),
 			parentSection: parentSectionId,
 		},
-		user: currentUser,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 

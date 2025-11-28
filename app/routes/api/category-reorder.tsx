@@ -8,6 +8,7 @@ import z from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/category-reorder";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	sourceId: z.number(),
@@ -57,8 +58,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		payload,
 		categoryId: sourceId,
 		parent: newParentId,
-		req: request,
-		user: currentUser,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 	if (!result.ok) {
 		return badRequest({ error: result.error.message });

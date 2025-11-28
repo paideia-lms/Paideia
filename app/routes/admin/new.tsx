@@ -43,6 +43,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -123,84 +124,87 @@ const createAction = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
+	const transactionInfo = await handleTransactionId(
 		payload,
-		request,
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		fields: [
-			{
-				fieldName: "avatar",
-				alt: "User avatar",
-			},
-		],
-	});
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
+	return transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			req: txInfo.reqWithTransaction,
 			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
-
-	const { formData } = parseResult.value;
-
-	const parsed = inputSchema.safeParse({
-		email: formData.get("email"),
-		password: formData.get("password"),
-		firstName: formData.get("firstName"),
-		lastName: formData.get("lastName"),
-		bio: formData.get("bio"),
-		role: formData.get("role"),
-		avatar: formData.get("avatar"),
-	});
-
-	if (!parsed.success) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: parsed.error.message,
+			fields: [
+				{
+					fieldName: "avatar",
+					alt: "User avatar",
+				},
+			],
 		});
-	}
 
-	// Create user within the same transaction
-	const createResult = await tryCreateUser({
-		payload,
-		data: {
-			email: parsed.data.email,
-			password: parsed.data.password,
-			firstName: parsed.data.firstName,
-			lastName: parsed.data.lastName,
-			bio: parsed.data.bio,
-			role: parsed.data.role,
-			avatar: parsed.data.avatar ?? undefined,
-		},
-		user: currentUser,
-		overrideAccess: false,
-		req: transactionInfo.reqWithTransaction,
-	});
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
 
-	if (!createResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: createResult.error.message,
+		const { formData } = parseResult.value;
+
+		const parsed = inputSchema.safeParse({
+			email: formData.get("email"),
+			password: formData.get("password"),
+			firstName: formData.get("firstName"),
+			lastName: formData.get("lastName"),
+			bio: formData.get("bio"),
+			role: formData.get("role"),
+			avatar: formData.get("avatar"),
 		});
-	}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
+		if (!parsed.success) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return badRequest({
+				success: false,
+				error: parsed.error.message,
+			});
+		}
 
-	return ok({
-		success: true,
-		message: "User created successfully",
-		id: createResult.value.id,
+		// Create user within the same transaction
+		const createResult = await tryCreateUser({
+			payload,
+			data: {
+				email: parsed.data.email,
+				password: parsed.data.password,
+				firstName: parsed.data.firstName,
+				lastName: parsed.data.lastName,
+				bio: parsed.data.bio,
+				role: parsed.data.role,
+				avatar: parsed.data.avatar ?? undefined,
+			},
+			overrideAccess: false,
+			req: txInfo.reqWithTransaction,
+		});
+
+		if (!createResult.ok) {
+			return badRequest({
+				success: false,
+				error: createResult.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: "User created successfully",
+			id: createResult.value.id,
+		});
 	});
 };
 

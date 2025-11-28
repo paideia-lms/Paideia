@@ -18,11 +18,15 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
 import { href, Link, useFetcher } from "react-router";
-import type { Enrollment } from "server/contexts/course-context";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -33,19 +37,41 @@ import {
 } from "server/internal/course-management";
 import { canManageCourseGroups } from "server/utils/permissions";
 import {
-	BadRequestResponse,
 	badRequest,
 	ForbiddenResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.groups";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-interface GroupMemberListProps {
-	members: Enrollment[];
+export type { Route };
+
+type Enrollment = NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>;
+
+enum Action {
+	CreateGroup = "createGroup",
+	DeleteGroup = "deleteGroup",
 }
 
-function GroupMemberList({ members }: GroupMemberListProps) {
+// Define search params for group actions
+export const groupSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(groupSearchParams);
+
+const getActionUrl = (action: Action, courseId: number) => {
+	return (
+		href("/course/:courseId/groups", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
+
+function GroupMemberList({ members }: { members: Enrollment[] }) {
 	if (members.length === 0) {
 		return (
 			<Text size="sm" c="dimmed">
@@ -62,17 +88,22 @@ function GroupMemberList({ members }: GroupMemberListProps) {
 		<Group gap="xs">
 			<Avatar.Group spacing="sm">
 				{displayMembers.map((member) => (
-					<Tooltip key={member.id} label={member.name} withArrow>
+					<Tooltip
+						key={member.id}
+						label={member.user.firstName + " " + member.user.lastName}
+						withArrow
+					>
 						<Avatar
 							component={Link}
 							to={href("/user/profile/:id?", {
-								id: String(member.userId),
+								id: String(member.user.id),
 							})}
 							size="sm"
 							color="blue"
 							radius="xl"
 						>
-							{member.name.charAt(0)}
+							{member.user.firstName?.charAt(0) ??
+								member.user.lastName?.charAt(0)}
 						</Avatar>
 					</Tooltip>
 				))}
@@ -86,11 +117,10 @@ function GroupMemberList({ members }: GroupMemberListProps) {
 	);
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -112,12 +142,12 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({
+const createGroupAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
@@ -128,89 +158,108 @@ export const action = async ({
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	// Get user's enrollment for this course
-	const enrollments = await payload.find({
-		collection: "enrollments",
-		where: {
-			and: [
-				{ user: { equals: currentUser.id } },
-				{ course: { equals: courseId } },
-			],
-		},
-		limit: 1,
+	const formData = await request.formData();
+	const name = formData.get("name") as string;
+	const description = formData.get("description") as string;
+	const parentId = formData.get("parent");
+	const color = formData.get("color") as string;
+	const maxMembers = formData.get("maxMembers");
+
+	if (!name) {
+		return badRequest({ error: "Group name is required" });
+	}
+
+	const createResult = await tryCreateGroup({
+		payload,
+		name,
+		course: Number(courseId),
+		parent: parentId ? Number(parentId) : undefined,
+		description: description || undefined,
+		color: color || undefined,
+		maxMembers: maxMembers ? Number(maxMembers) : undefined,
+		isActive: true,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
-	const enrollment = enrollments.docs[0];
-
-	// Check if user has management access to this course
-	if (
-		!canManageCourseGroups(
-			currentUser,
-			enrollment
-				? {
-						role: enrollment.role,
-					}
-				: undefined,
-		).allowed
-	) {
-		return unauthorized({
-			error: "You don't have permission to manage this course",
-		});
+	if (!createResult.ok) {
+		return badRequest({ error: createResult.error.message });
 	}
+
+	return ok({ success: true, message: "Group created successfully" });
+};
+
+const deleteGroupAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const formData = await request.formData();
-	const intent = formData.get("intent");
-
-	if (intent === "create-group") {
-		const name = formData.get("name") as string;
-		const description = formData.get("description") as string;
-		const parentId = formData.get("parent");
-		const color = formData.get("color") as string;
-		const maxMembers = formData.get("maxMembers");
-
-		if (!name) {
-			return badRequest({ error: "Group name is required" });
-		}
-
-		const createResult = await tryCreateGroup({
-			payload,
-			name,
-			course: Number(courseId),
-			parent: parentId ? Number(parentId) : undefined,
-			description: description || undefined,
-			color: color || undefined,
-			maxMembers: maxMembers ? Number(maxMembers) : undefined,
-			isActive: true,
-			req: request,
-		});
-
-		if (!createResult.ok) {
-			return badRequest({ error: createResult.error.message });
-		}
-
-		return ok({ success: true, message: "Group created successfully" });
+	const groupId = Number(formData.get("groupId"));
+	if (Number.isNaN(groupId)) {
+		return badRequest({ error: "Invalid group ID" });
 	}
 
-	if (intent === "delete-group") {
-		const groupId = Number(formData.get("groupId"));
-		if (Number.isNaN(groupId)) {
-			return badRequest({ error: "Invalid group ID" });
-		}
+	const deleteResult = await tryDeleteGroup({
+		payload,
+		groupId,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
 
-		const deleteResult = await tryDeleteGroup({
-			payload,
-			groupId,
-			req: request,
-		});
-
-		if (!deleteResult.ok) {
-			return badRequest({ error: deleteResult.error.message });
-		}
-
-		return ok({ success: true, message: "Group deleted successfully" });
+	if (!deleteResult.ok) {
+		return badRequest({ error: deleteResult.error.message });
 	}
 
-	return badRequest({ error: "Invalid intent" });
+	return ok({ success: true, message: "Group deleted successfully" });
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
+		});
+	}
+
+	if (actionType === Action.CreateGroup) {
+		return createGroupAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.DeleteGroup) {
+		return deleteGroupAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -241,17 +290,20 @@ export const useCreateGroup = () => {
 		parent: string,
 		color: string,
 		maxMembers: number,
+		courseId: number,
 	) => {
 		fetcher.submit(
 			{
-				intent: "create-group",
 				name,
 				description,
 				parent,
 				color,
 				maxMembers: maxMembers.toString(),
 			},
-			{ method: "post" },
+			{
+				method: "post",
+				action: getActionUrl(Action.CreateGroup, courseId),
+			},
 		);
 	};
 
@@ -265,13 +317,15 @@ export const useCreateGroup = () => {
 export const useDeleteGroup = () => {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const deleteGroup = (groupId: number) => {
+	const deleteGroup = (groupId: number, courseId: number) => {
 		fetcher.submit(
 			{
-				intent: "delete-group",
 				groupId: groupId.toString(),
 			},
-			{ method: "post" },
+			{
+				method: "post",
+				action: getActionUrl(Action.DeleteGroup, courseId),
+			},
 		);
 	};
 
@@ -324,6 +378,7 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 			groupParent || "",
 			groupColor,
 			Number(groupMaxMembers),
+			course.id,
 		);
 		closeCreateModal();
 		setGroupName("");
@@ -340,7 +395,7 @@ export default function CourseGroupsPage({ loaderData }: Route.ComponentProps) {
 
 	const handleConfirmDeleteGroup = () => {
 		if (deletingGroupId) {
-			deleteGroup(deletingGroupId);
+			deleteGroup(deletingGroupId, course.id);
 			closeDeleteModal();
 			setDeletingGroupId(null);
 		}

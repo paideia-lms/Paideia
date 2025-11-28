@@ -57,11 +57,13 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/module.$id.edit";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
+	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -78,59 +80,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Check if user can edit
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-	const permissionResult = permissions.course.module.canEdit(
+	const canEdit = permissions.course.module.canEdit(
 		currentUser,
-		courseContext.course.enrollments,
+		enrolmentContext?.enrolment
+			? [
+					{
+						userId: enrolmentContext.enrolment.user.id,
+						role: enrolmentContext.enrolment.role,
+					},
+				]
+			: undefined,
 	);
 
-	if (!permissionResult.allowed) {
-		throw new ForbiddenResponse(permissionResult.reason);
+	if (!canEdit.allowed) {
+		throw new ForbiddenResponse(canEdit.reason);
 	}
-
-	const pageSettings =
-		courseModuleContext.settings?.type === "page"
-			? courseModuleContext.settings
-			: null;
-	const whiteboardSettings =
-		courseModuleContext.settings?.type === "whiteboard"
-			? courseModuleContext.settings
-			: null;
-	const fileSettings =
-		courseModuleContext.settings?.type === "file"
-			? courseModuleContext.settings
-			: null;
-	const assignmentSettings =
-		courseModuleContext.type === "assignment"
-			? courseModuleContext.settings
-			: null;
-	const quizSettings =
-		courseModuleContext.settings?.type === "quiz"
-			? courseModuleContext.settings
-			: null;
-	const discussionSettings =
-		courseModuleContext.settings?.type === "discussion"
-			? courseModuleContext.settings
-			: null;
 
 	// Use custom name if available, otherwise use module title
 	const displayName =
-		pageSettings?.name ??
-		whiteboardSettings?.name ??
-		fileSettings?.name ??
-		assignmentSettings?.name ??
-		quizSettings?.name ??
-		discussionSettings?.name ??
+		courseModuleContext.settings?.name ??
 		courseModuleContext.activityModule.title;
 	return {
 		course: courseContext.course,
 		module: courseModuleContext.activityModule,
 		moduleLinkId: courseModuleContext.id,
-		pageSettings,
-		whiteboardSettings,
-		fileSettings,
-		assignmentSettings,
-		quizSettings,
-		discussionSettings,
+		settings: courseModuleContext.settings,
 		displayName,
 	};
 };
@@ -1187,18 +1161,7 @@ function DangerZone({
 }
 
 export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
-	const {
-		course,
-		module,
-		moduleLinkId,
-		displayName,
-		pageSettings,
-		whiteboardSettings,
-		fileSettings,
-		assignmentSettings,
-		quizSettings,
-		discussionSettings,
-	} = loaderData;
+	const { course, module, moduleLinkId, displayName, settings } = loaderData;
 	const navigate = useNavigate();
 
 	const handleCancel = () => {
@@ -1235,44 +1198,44 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 
 				<Paper shadow="sm" p="xl" withBorder>
 					{/* TODO: we should not check two value but for now the type is not right */}
-					{module.type === "page" && (
+					{settings?.type === "page" && (
 						<PageSettingsFormWrapper
-							settings={pageSettings}
+							settings={settings}
 							moduleLinkId={moduleLinkId}
 							onCancel={handleCancel}
 						/>
 					)}
-					{module.type === "whiteboard" && (
+					{settings?.type === "whiteboard" && (
 						<WhiteboardSettingsFormWrapper
-							settings={whiteboardSettings}
+							settings={settings}
 							moduleLinkId={moduleLinkId}
 							onCancel={handleCancel}
 						/>
 					)}
-					{module.type === "file" && (
+					{settings?.type === "file" && (
 						<FileSettingsFormWrapper
-							settings={fileSettings}
+							settings={settings}
 							moduleLinkId={moduleLinkId}
 							onCancel={handleCancel}
 						/>
 					)}
-					{module.type === "assignment" && (
+					{settings?.type === "assignment" && (
 						<AssignmentSettingsFormWrapper
-							settings={assignmentSettings}
+							settings={settings}
 							moduleLinkId={moduleLinkId}
 							onCancel={handleCancel}
 						/>
 					)}
-					{module.type === "quiz" && (
+					{settings?.type === "quiz" && (
 						<QuizSettingsFormWrapper
-							settings={quizSettings}
+							settings={settings}
 							moduleLinkId={moduleLinkId}
 							onCancel={handleCancel}
 						/>
 					)}
-					{module.type === "discussion" && (
+					{settings?.type === "discussion" && (
 						<DiscussionSettingsFormWrapper
-							settings={discussionSettings}
+							settings={settings}
 							moduleLinkId={moduleLinkId}
 							onCancel={handleCancel}
 						/>

@@ -57,6 +57,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -116,7 +117,14 @@ const createPageAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -144,8 +152,6 @@ const createPageAction = async ({
 			title: parsedData.title,
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
-			userId: currentUser.id,
-			user: currentUser,
 			req: reqWithTransaction,
 			...pageData,
 		} satisfies CreatePageModuleArgs;
@@ -188,7 +194,14 @@ const createWhiteboardAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -211,18 +224,14 @@ const createWhiteboardAction = async ({
 			});
 		}
 
-		const createArgs = {
+		const createResult = await tryCreateWhiteboardModule({
+			...whiteboardData,
 			payload,
 			title: parsedData.title,
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
-			userId: currentUser.id,
-			user: currentUser,
 			req: reqWithTransaction,
-			...whiteboardData,
-		} satisfies CreateWhiteboardModuleArgs;
-
-		const createResult = await tryCreateWhiteboardModule(createArgs);
+		});
 
 		if (!createResult.ok) {
 			return badRequest({
@@ -262,7 +271,14 @@ const createFileAction = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Parse form data with media upload handler
@@ -270,7 +286,6 @@ const createFileAction = async ({
 			payload,
 			request,
 			userId: currentUser.id,
-			user: currentUser,
 			req: reqWithTransaction,
 			maxFileSize,
 			fields: [
@@ -330,18 +345,14 @@ const createFileAction = async ({
 			});
 		}
 
-		const createArgs = {
+		const createResult = await tryCreateFileModule({
+			...finalFileData,
 			payload,
 			title: parsedData.title,
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
-			userId: currentUser.id,
-			user: currentUser,
 			req: reqWithTransaction,
-			...finalFileData,
-		} satisfies CreateFileModuleArgs;
-
-		const createResult = await tryCreateFileModule(createArgs);
+		});
 
 		if (!createResult.ok) {
 			return badRequest({
@@ -379,7 +390,14 @@ const createAssignmentAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -407,8 +425,6 @@ const createAssignmentAction = async ({
 			title: parsedData.title,
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
-			userId: currentUser.id,
-			user: currentUser,
 			req: reqWithTransaction,
 			...assignmentData,
 		} satisfies CreateAssignmentModuleArgs;
@@ -451,7 +467,14 @@ const createQuizAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -479,8 +502,6 @@ const createQuizAction = async ({
 			title: parsedData.title,
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
-			userId: currentUser.id,
-			user: currentUser,
 			req: reqWithTransaction,
 			...quizData,
 		} satisfies CreateQuizModuleArgs;
@@ -523,7 +544,14 @@ const createDiscussionAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -551,8 +579,6 @@ const createDiscussionAction = async ({
 			title: parsedData.title,
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
-			userId: currentUser.id,
-			user: currentUser,
 			req: reqWithTransaction,
 			...discussionData,
 		} satisfies CreateDiscussionModuleArgs;

@@ -42,7 +42,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	return ok({
-		section: courseSectionContext.section,
+		section: courseSectionContext,
 		course: courseContext.course,
 	});
 };

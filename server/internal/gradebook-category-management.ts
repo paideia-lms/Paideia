@@ -471,9 +471,10 @@ export const tryDeleteGradebookCategory = Result.wrap(
 		}),
 );
 
-export type GetGradebookCategoriesHierarchyArgs = BaseInternalFunctionArgs & {
+export interface GetGradebookCategoriesHierarchyArgs
+	extends BaseInternalFunctionArgs {
 	gradebookId: number;
-};
+}
 
 /**
  * Gets all categories for a gradebook in hierarchical order
@@ -544,10 +545,10 @@ export const tryGetGradebookCategoriesHierarchy = Result.wrap(
 		}),
 );
 
-export type GetNextSortOrderArgs = BaseInternalFunctionArgs & {
+export interface GetNextSortOrderArgs extends BaseInternalFunctionArgs {
 	gradebookId: number;
 	parentId?: number | null;
-};
+}
 
 /**
  * Gets next available sort order for a category within its parent context
@@ -603,9 +604,9 @@ export const tryGetNextSortOrder = Result.wrap(
 		new UnknownError("Failed to get next sort order", { cause: error }),
 );
 
-export type ReorderCategoriesArgs = BaseInternalFunctionArgs & {
+export interface ReorderCategoriesArgs extends BaseInternalFunctionArgs {
 	categoryIds: number[];
-};
+}
 
 /**
  * Reorders categories within a parent context

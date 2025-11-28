@@ -5,9 +5,7 @@
  * it stores all the enrollments of this users
  * it stores all the notes created by this user with heatmap data
  */
-import type { Payload, TypedUser } from "payload";
 import { createContext } from "react-router";
-import type { User } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
@@ -28,13 +26,6 @@ type Course = {
 	createdAt: string;
 	updatedAt: string;
 	category?: number | null;
-	thumbnail?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
 };
 
 type ActivityModule = {
@@ -61,13 +52,17 @@ export type Enrollment = {
 	course: Course;
 };
 
-export interface UserAccessContext {
-	activityModules: ActivityModule[];
-	enrollments: Enrollment[];
-	notes: Note[];
-	heatmapData: Record<string, number>;
-	availableYears: number[];
-}
+// export interface UserAccessContext {
+// 	activityModules: ActivityModule[];
+// 	enrollments: Enrollment[];
+// 	notes: Note[];
+// 	heatmapData: Record<string, number>;
+// 	availableYears: number[];
+// }
+
+export type UserAccessContext = NonNullable<
+	Awaited<ReturnType<typeof getUserAccessContext>>
+>;
 
 export const userAccessContext = createContext<UserAccessContext | null>(null);
 
@@ -77,9 +72,7 @@ interface GetUserAccessContextArgs extends BaseInternalFunctionArgs {
 	userId: number;
 }
 
-export const getUserAccessContext = async (
-	args: GetUserAccessContextArgs,
-): Promise<UserAccessContext | null> => {
+export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 	const { payload, userId, overrideAccess = false, req } = args;
 	const result = await tryGetUserActivityModules(args);
 

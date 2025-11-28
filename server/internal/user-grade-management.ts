@@ -455,9 +455,9 @@ export const tryUpdateUserGrade = Result.wrap(
 	},
 );
 
-export type FindUserGradeByIdArgs = BaseInternalFunctionArgs & {
+export interface FindUserGradeByIdArgs extends BaseInternalFunctionArgs {
 	gradeId: number;
-};
+}
 
 /**
  * Finds a user grade by ID
@@ -489,10 +489,11 @@ export const tryFindUserGradeById = Result.wrap(
 	},
 );
 
-export type FindUserGradeByEnrollmentAndItemArgs = BaseInternalFunctionArgs & {
+export interface FindUserGradeByEnrollmentAndItemArgs
+	extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	gradebookItemId: number;
-};
+}
 
 /**
  * Finds a user grade by enrollment and gradebook item
@@ -544,10 +545,11 @@ export const tryFindUserGradeByEnrollmentAndItem = Result.wrap(
 	},
 );
 
-export type FindUserGradesBySubmissionIdsArgs = BaseInternalFunctionArgs & {
+export interface FindUserGradesBySubmissionIdsArgs
+	extends BaseInternalFunctionArgs {
 	submissionIds: number[];
 	submissionType: "assignment" | "quiz" | "discussion";
-};
+}
 
 /**
  * Finds user grades by submission IDs
@@ -636,9 +638,9 @@ export const tryFindUserGradesBySubmissionIds = Result.wrap(
 		}),
 );
 
-export type DeleteUserGradeArgs = BaseInternalFunctionArgs & {
+export interface DeleteUserGradeArgs extends BaseInternalFunctionArgs {
 	gradeId: number;
-};
+}
 
 /**
  * Deletes a user grade by ID
@@ -663,10 +665,11 @@ export const tryDeleteUserGrade = Result.wrap(
 		}),
 );
 
-export type GetUserGradesForGradebookArgs = BaseInternalFunctionArgs & {
+export interface GetUserGradesForGradebookArgs
+	extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	gradebookId: number;
-};
+}
 
 /**
  * Gets all grades for a specific enrollment in a gradebook
@@ -747,9 +750,9 @@ export const tryGetUserGradesForGradebook = Result.wrap(
 		}),
 );
 
-export type GetGradesForItemArgs = BaseInternalFunctionArgs & {
+export interface GetGradesForItemArgs extends BaseInternalFunctionArgs {
 	gradebookItemId: number;
-};
+}
 
 /**
  * Gets all grades for a specific gradebook item
@@ -786,10 +789,10 @@ export const tryGetGradesForItem = Result.wrap(
 		}),
 );
 
-export type CalculateUserFinalGradeArgs = BaseInternalFunctionArgs & {
+export interface CalculateUserFinalGradeArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	gradebookId: number;
-};
+}
 
 /**
  * Calculates final grade for a user in a gradebook
@@ -1079,7 +1082,8 @@ export const tryToggleAdjustment = Result.wrap(
 		}),
 );
 
-export type BuildUserGradeRepresentationArgs = BaseInternalFunctionArgs & {
+export interface BuildUserGradeRepresentationArgs
+	extends BaseInternalFunctionArgs {
 	enrollment: {
 		id: number;
 		userId: number;
@@ -1089,7 +1093,7 @@ export type BuildUserGradeRepresentationArgs = BaseInternalFunctionArgs & {
 	gradesByEnrollment:
 		| Map<number, Depth<UserGrade, 2>[]>
 		| Map<number, Depth<UserGrade, 1>[]>;
-};
+}
 
 /**
  * Builds a single user's grade representation
@@ -1240,9 +1244,10 @@ const tryBuildUserGradeRepresentation = Result.wrap(
 		}),
 );
 
-export type GetUserGradesJsonRepresentationArgs = BaseInternalFunctionArgs & {
+export interface GetUserGradesJsonRepresentationArgs
+	extends BaseInternalFunctionArgs {
 	courseId: number;
-};
+}
 
 /**
  * Constructs a JSON representation of user grades for a course
@@ -1353,11 +1358,11 @@ export const tryGetUserGradesJsonRepresentation = Result.wrap(
 		}),
 );
 
-export type GetSingleUserGradesJsonRepresentationArgs =
-	BaseInternalFunctionArgs & {
-		courseId: number;
-		enrollmentId: number;
-	};
+export interface GetSingleUserGradesJsonRepresentationArgs
+	extends BaseInternalFunctionArgs {
+	courseId: number;
+	enrollmentId: number;
+}
 
 /**
  * Constructs a JSON representation of a single user's grades in a course
@@ -1517,21 +1522,21 @@ export const tryGetSingleUserGradesJsonRepresentation = Result.wrap(
 		}),
 );
 
-export type GetAdjustedSingleUserGradesJsonRepresentationArgs =
-	BaseInternalFunctionArgs & {
-		courseId: number;
-		enrollmentId: number;
-	};
+export interface GetAdjustedSingleUserGradesJsonRepresentationArgs
+	extends BaseInternalFunctionArgs {
+	courseId: number;
+	enrollmentId: number;
+}
 
 /**
- * Helper type for recursive item search
+ * Helper interface for recursive item search
  */
-type SearchableItem = {
+interface SearchableItem {
 	id: number;
 	type: string;
 	overall_weight?: number | null;
 	grade_items?: SearchableItem[];
-};
+}
 
 /**
  * Helper function to recursively find an item by ID in GradebookSetupItemWithCalculations tree
@@ -1645,10 +1650,11 @@ export const tryGetAdjustedSingleUserGradesJsonRepresentation = Result.wrap(
 		),
 );
 
-export type GetAdjustedSingleUserGradesArgs = BaseInternalFunctionArgs & {
+export interface GetAdjustedSingleUserGradesArgs
+	extends BaseInternalFunctionArgs {
 	courseId: number;
 	enrollmentId: number;
-};
+}
 
 export interface AdjustedSingleUserGradesResult {
 	json: SingleUserGradesJsonRepresentation;
@@ -1845,10 +1851,10 @@ export const tryGetAdjustedSingleUserGrades = Result.wrap(
 		}),
 );
 
-export type ReleaseAssignmentGradeArgs = BaseInternalFunctionArgs & {
+export interface ReleaseAssignmentGradeArgs extends BaseInternalFunctionArgs {
 	courseActivityModuleLinkId: number;
 	enrollmentId: number;
-};
+}
 
 /**
  * Releases a grade from the latest assignment submission to the user-grade
@@ -2048,10 +2054,10 @@ export const tryReleaseAssignmentGrade = Result.wrap(
 		}),
 );
 
-export type ReleaseDiscussionGradeArgs = BaseInternalFunctionArgs & {
+export interface ReleaseDiscussionGradeArgs extends BaseInternalFunctionArgs {
 	courseActivityModuleLinkId: number;
 	enrollmentId: number;
-};
+}
 
 /**
  * Releases discussion grades to the user-grade
@@ -2271,10 +2277,10 @@ export const tryReleaseDiscussionGrade = Result.wrap(
 		}),
 );
 
-export type ReleaseQuizGradeArgs = BaseInternalFunctionArgs & {
+export interface ReleaseQuizGradeArgs extends BaseInternalFunctionArgs {
 	courseActivityModuleLinkId: number;
 	enrollmentId: number;
-};
+}
 
 /**
  * Releases quiz grade to the user-grade

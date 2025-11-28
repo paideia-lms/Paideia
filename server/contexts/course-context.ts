@@ -35,119 +35,119 @@ import {
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 export { courseContextKey } from "./utils/context-keys";
 
-interface Group {
-	id: number;
-	name: string;
-	path: string;
-	description?: string | null;
-	color?: string | null;
-	parent?: number | null;
-}
+// interface Group {
+// 	id: number;
+// 	name: string;
+// 	path: string;
+// 	description?: string | null;
+// 	color?: string | null;
+// 	parent?: number | null;
+// }
 
-/**
- * all the user enrollments, the name, id, email, role, status, enrolledAt, completedAt
- */
-export interface Enrollment {
-	name: string;
-	id: number;
-	userId: number;
-	email: string;
-	role: "student" | "teacher" | "ta" | "manager";
-	status: "active" | "inactive" | "completed" | "dropped";
-	avatar:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
-	enrolledAt?: string | null;
-	completedAt?: string | null;
-	groups: Group[];
-}
+// /**
+//  * all the user enrollments, the name, id, email, role, status, enrolledAt, completedAt
+//  */
+// export interface Enrollment {
+// 	name: string;
+// 	id: number;
+// 	userId: number;
+// 	email: string;
+// 	role: "student" | "teacher" | "ta" | "manager";
+// 	status: "active" | "inactive" | "completed" | "dropped";
+// 	avatar:
+// 		| number
+// 		| {
+// 				id: number;
+// 				filename?: string | null;
+// 		  }
+// 		| null;
+// 	enrolledAt?: string | null;
+// 	completedAt?: string | null;
+// 	groups: Group[];
+// }
 
-interface Category {
-	id: number;
-	name: string;
-	parent?: {
-		id: number;
-		name: string;
-	} | null;
-}
+// interface Category {
+// 	id: number;
+// 	name: string;
+// 	parent?: {
+// 		id: number;
+// 		name: string;
+// 	} | null;
+// }
 
-interface ActivityModule {
-	id: number;
-	title: string;
-	description: string;
-	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
-	status: "draft" | "published" | "archived";
-	createdBy: {
-		id: number;
-		email: string;
-		firstName?: string | null;
-		lastName?: string | null;
-		avatar:
-			| number
-			| {
-					id: number;
-					filename?: string | null;
-			  }
-			| null;
-	};
-	updatedAt: string;
-	createdAt: string;
-}
+// interface ActivityModule {
+// 	id: number;
+// 	title: string;
+// 	description: string;
+// 	type: "page" | "whiteboard" | "assignment" | "quiz" | "discussion";
+// 	status: "draft" | "published" | "archived";
+// 	createdBy: {
+// 		id: number;
+// 		email: string;
+// 		firstName?: string | null;
+// 		lastName?: string | null;
+// 		avatar:
+// 			| number
+// 			| {
+// 					id: number;
+// 					filename?: string | null;
+// 			  }
+// 			| null;
+// 	};
+// 	updatedAt: string;
+// 	createdAt: string;
+// }
 
-interface CourseActivityModuleLink {
-	id: number;
-	activityModule: ActivityModule;
-	settings?: {
-		version: "v1";
-		settings: {
-			type: string;
-			name?: string;
-			[key: string]: unknown;
-		};
-	} | null;
-	createdAt: string;
-	updatedAt: string;
-}
+// interface CourseActivityModuleLink {
+// 	id: number;
+// 	activityModule: ActivityModule;
+// 	settings?: {
+// 		version: "v1";
+// 		settings: {
+// 			type: string;
+// 			name?: string;
+// 			[key: string]: unknown;
+// 		};
+// 	} | null;
+// 	createdAt: string;
+// 	updatedAt: string;
+// }
 
-export interface GradebookData extends Omit<Gradebook, "categories" | "items"> {
-	categories: GradebookCategory[];
-	items: GradebookItem[];
-}
+// export interface GradebookData extends Omit<Gradebook, "categories" | "items"> {
+// 	categories: GradebookCategory[];
+// 	items: GradebookItem[];
+// }
 
-export interface Course {
-	id: number;
-	title: string;
-	slug: string;
-	description: string;
-	status: "draft" | "published" | "archived";
-	createdBy: {
-		id: number;
-		email: string;
-		firstName?: string | null;
-		lastName?: string | null;
-		avatar: {
-			id: number;
-			filename?: string | null;
-		} | null;
-	};
-	category?: Category | null;
-	thumbnail?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
-	updatedAt: string;
-	createdAt: string;
-	enrollments: Enrollment[];
-	groups: Group[];
-	moduleLinks: CourseActivityModuleLink[];
-}
+// export interface Course {
+// 	id: number;
+// 	title: string;
+// 	slug: string;
+// 	description: string;
+// 	status: "draft" | "published" | "archived";
+// 	createdBy: {
+// 		id: number;
+// 		email: string;
+// 		firstName?: string | null;
+// 		lastName?: string | null;
+// 		avatar: {
+// 			id: number;
+// 			filename?: string | null;
+// 		} | null;
+// 	};
+// 	category?: Category | null;
+// 	thumbnail?:
+// 		| number
+// 		| {
+// 				id: number;
+// 				filename?: string | null;
+// 		  }
+// 		| null;
+// 	updatedAt: string;
+// 	createdAt: string;
+// 	enrollments: Enrollment[];
+// 	groups: Group[];
+// 	moduleLinks: CourseActivityModuleLink[];
+// }
 
 export interface FlattenedCategory {
 	id: number;
@@ -157,20 +157,23 @@ export interface FlattenedCategory {
 	path: string; // Full path like "Parent > Child > Grandchild"
 }
 
-export interface CourseContext {
-	course: Course;
-	courseId: number;
-	courseStructure: CourseStructure;
-	courseStructureTree: string;
-	courseStructureTreeSimple: string;
-	gradebook: GradebookData | null;
-	gradebookJson: GradebookJsonRepresentation | null;
-	gradebookYaml: string | null;
-	gradebookMarkdown: string | null;
-	gradebookSetupForUI: GradebookSetupForUI;
-	flattenedCategories: FlattenedCategory[];
-}
+// export interface CourseContext {
+// 	course: Course;
+// 	courseId: number;
+// 	courseStructure: CourseStructure;
+// 	courseStructureTree: string;
+// 	courseStructureTreeSimple: string;
+// 	gradebook: GradebookData | null;
+// 	gradebookJson: GradebookJsonRepresentation | null;
+// 	gradebookYaml: string | null;
+// 	gradebookMarkdown: string | null;
+// 	gradebookSetupForUI: GradebookSetupForUI;
+// 	flattenedCategories: FlattenedCategory[];
+// }
 
+export type CourseContext = NonNullable<
+	Awaited<ReturnType<typeof tryGetCourseContext>>["value"]
+>;
 export const courseContext = createContext<CourseContext | null>(null);
 
 export interface TryGetCourseContextArgs extends BaseInternalFunctionArgs {

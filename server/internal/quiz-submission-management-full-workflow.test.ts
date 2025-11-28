@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, TypedUser } from "payload";
 import sanitizedConfig, { JobQueue } from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
@@ -151,7 +151,6 @@ describe("Quiz Management - Full Workflow", () => {
 			description: "A test quiz for submission workflow",
 			type: "quiz",
 			status: "published",
-			userId: teacherId,
 			instructions: "Complete this quiz by answering all questions",
 			points: 100,
 			gradingType: "automatic",
@@ -195,6 +194,9 @@ describe("Quiz Management - Full Workflow", () => {
 					explanation: "This question requires manual grading",
 				},
 			],
+			req: createLocalReq({ request: mockRequest, user: { 
+				id: teacherId,
+			}  as TypedUser}),
 			overrideAccess: true,
 		};
 
@@ -1224,12 +1226,13 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create activity module with this quiz
 		const quickActivityModuleArgs: CreateActivityModuleArgs = {
 			payload,
-			req: mockRequest,
 			title: "Quick Quiz Module",
 			description: "Module with quick quiz",
 			type: "quiz",
 			status: "published",
-			userId: teacherId,
+			req: createLocalReq({ request: mockRequest, user: { 
+				id: teacherId,
+			}  as TypedUser}),
 			instructions: "Complete quickly",
 			points: 100,
 			gradingType: "automatic",
@@ -1396,12 +1399,13 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create activity module with this quiz
 		const autoSubmitActivityModuleArgs: CreateActivityModuleArgs = {
 			payload,
-			req: mockRequest,
 			title: "Auto Submit Quiz Module",
 			description: "Module with auto-submit quiz",
 			type: "quiz",
 			status: "published",
-			userId: teacherId,
+			req: createLocalReq({ request: mockRequest, user: { 
+				id: teacherId,
+			}  as TypedUser}),
 			instructions: "Will auto-submit",
 			points: 100,
 			gradingType: "automatic",

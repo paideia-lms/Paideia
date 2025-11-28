@@ -17,7 +17,8 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 
-export type CreateDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+export interface CreateDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -25,28 +26,32 @@ export type CreateDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
 	title?: string; // Required for threads
 	content: string;
 	parentThread?: number; // Required for replies and comments
-};
+}
 
-export type UpdateDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+export interface UpdateDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	id: number;
 	title?: string;
 	content?: string;
 	isPinned?: boolean;
 	isLocked?: boolean;
-};
+}
 
-export type GradeDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+export interface GradeDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	id: number;
 	grade: number;
 	feedback?: string;
 	gradedBy: number;
-};
+}
 
-export type GetDiscussionSubmissionByIdArgs = BaseInternalFunctionArgs & {
+export interface GetDiscussionSubmissionByIdArgs
+	extends BaseInternalFunctionArgs {
 	id: number | string;
-};
+}
 
-export type ListDiscussionSubmissionsArgs = BaseInternalFunctionArgs & {
+export interface ListDiscussionSubmissionsArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
@@ -56,24 +61,26 @@ export type ListDiscussionSubmissionsArgs = BaseInternalFunctionArgs & {
 	limit?: number;
 	page?: number;
 	sortBy?: "recent" | "upvoted" | "active" | "alphabetical";
-};
+}
 
-export type GetDiscussionThreadsWithAllRepliesArgs =
-	BaseInternalFunctionArgs & {
-		courseModuleLinkId: number;
-	};
+export interface GetDiscussionThreadsWithAllRepliesArgs
+	extends BaseInternalFunctionArgs {
+	courseModuleLinkId: number;
+}
 
-export type UpvoteDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+export interface UpvoteDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	submissionId: number;
 	userId: number;
-};
+}
 
-export type RemoveUpvoteDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+export interface RemoveUpvoteDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	submissionId: number;
 	userId: number;
-};
+}
 
-export type DiscussionGradingResult = BaseInternalFunctionArgs & {
+export interface DiscussionGradingResult extends BaseInternalFunctionArgs {
 	totalScore: number;
 	maxScore: number;
 	percentage: number;
@@ -87,7 +94,7 @@ export type DiscussionGradingResult = BaseInternalFunctionArgs & {
 		gradedAt: string;
 	}>;
 	feedback: string;
-};
+}
 
 /**
  * Creates a new discussion submission (thread, reply, or comment)
@@ -1309,7 +1316,7 @@ export const tryDeleteDiscussionSubmission = Result.wrap(
 		}),
 );
 
-export type DiscussionReply = {
+export interface DiscussionReply {
 	id: string;
 	content: string;
 	author: string;
@@ -1320,7 +1327,7 @@ export type DiscussionReply = {
 	parentId: string | null;
 	isUpvoted: boolean;
 	replies?: DiscussionReply[];
-};
+}
 
 type tryGetDiscussionThreadWithRepliesArgs = BaseInternalFunctionArgs & {
 	threadId: number;

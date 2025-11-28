@@ -5,6 +5,7 @@ import { userContextKey } from "server/contexts/user-context";
 import { tryFindUserById } from "server/internal/user-management";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/grades";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({
 	context,
@@ -34,9 +35,11 @@ export const loader = async ({
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: currentUser,
-		req: request,
-		overrideAccess: false,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!userResult.ok) {

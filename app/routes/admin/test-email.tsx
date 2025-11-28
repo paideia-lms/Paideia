@@ -34,6 +34,7 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/test-email";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { envVars } = context.get(globalContextKey);
@@ -169,8 +170,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		to: parsed.data.recipient,
 		subject,
 		html: body,
-		user: currentUser,
-		overrideAccess: false,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {

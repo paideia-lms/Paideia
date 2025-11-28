@@ -27,7 +27,7 @@ interface BaseCreateActivityModuleArgs extends BaseInternalFunctionArgs {
 	title: string;
 	description?: string;
 	status?: "draft" | "published" | "archived";
-	userId: number;
+	userId?: number;
 }
 
 // Discriminated union for create args
@@ -670,11 +670,10 @@ export const tryCreatePageModule = Result.wrap(
 			title,
 			description,
 			status = "draft",
-			userId,
-
 			req,
 			overrideAccess = false,
 			content,
+			userId: _userId,
 		} = args;
 
 		// Validate required fields
@@ -682,8 +681,11 @@ export const tryCreatePageModule = Result.wrap(
 			throw new InvalidArgumentError("Title is required");
 		}
 
+		const currentUser = req?.user;
+		const userId = _userId ?? currentUser?.id;
+
 		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
+			throw new InvalidArgumentError("User is required");
 		}
 
 		// Handle transaction ID
@@ -773,11 +775,10 @@ export const tryCreateWhiteboardModule = Result.wrap(
 			title,
 			description,
 			status = "draft",
-			userId,
-
 			req,
 			overrideAccess = false,
 			content,
+			userId: _userId,
 		} = args;
 
 		// Validate required fields
@@ -785,8 +786,10 @@ export const tryCreateWhiteboardModule = Result.wrap(
 			throw new InvalidArgumentError("Title is required");
 		}
 
+		const currentUser = req?.user;
+		const userId = _userId ?? currentUser?.id;
 		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
+			throw new InvalidArgumentError("User is required");
 		}
 
 		// Handle transaction ID
@@ -875,11 +878,10 @@ export const tryCreateFileModule = Result.wrap(
 			title,
 			description,
 			status = "draft",
-			userId,
-
 			req,
 			overrideAccess = false,
 			media,
+			userId: _userId,
 		} = args;
 
 		// Validate required fields
@@ -887,8 +889,10 @@ export const tryCreateFileModule = Result.wrap(
 			throw new InvalidArgumentError("Title is required");
 		}
 
+		const currentUser = req?.user;
+		const userId = _userId ?? currentUser?.id;
 		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
+			throw new InvalidArgumentError("User is required");
 		}
 
 		// Handle transaction ID
@@ -986,8 +990,6 @@ export const tryCreateAssignmentModule = Result.wrap(
 			title,
 			description,
 			status = "draft",
-			userId,
-
 			req,
 			overrideAccess = false,
 			instructions,
@@ -996,6 +998,7 @@ export const tryCreateAssignmentModule = Result.wrap(
 			allowedFileTypes,
 			maxFileSize,
 			maxFiles,
+			userId: _userId,
 		} = args;
 
 		// Validate required fields
@@ -1003,8 +1006,10 @@ export const tryCreateAssignmentModule = Result.wrap(
 			throw new InvalidArgumentError("Title is required");
 		}
 
+		const currentUser = req?.user;
+		const userId = _userId ?? currentUser?.id;
 		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
+			throw new InvalidArgumentError("User is required");
 		}
 
 		// Handle transaction ID
@@ -1124,8 +1129,6 @@ export const tryCreateQuizModule = Result.wrap(
 			title,
 			description,
 			status = "draft",
-			userId,
-
 			req,
 			overrideAccess = false,
 			instructions,
@@ -1138,6 +1141,7 @@ export const tryCreateQuizModule = Result.wrap(
 			showOneQuestionAtATime,
 			rawQuizConfig,
 			questions,
+			userId: _userId,
 		} = args;
 
 		// Validate required fields
@@ -1145,10 +1149,11 @@ export const tryCreateQuizModule = Result.wrap(
 			throw new InvalidArgumentError("Title is required");
 		}
 
+		const currentUser = req?.user;
+		const userId = _userId ?? currentUser?.id;
 		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
+			throw new InvalidArgumentError("User is required");
 		}
-
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, req);
 
@@ -1258,8 +1263,6 @@ export const tryCreateDiscussionModule = Result.wrap(
 			title,
 			description,
 			status = "draft",
-			userId,
-
 			req,
 			overrideAccess = false,
 			instructions,
@@ -1277,6 +1280,7 @@ export const tryCreateDiscussionModule = Result.wrap(
 			groupDiscussion,
 			maxGroupSize,
 			threadSorting,
+			userId: _userId,
 		} = args;
 
 		// Validate required fields
@@ -1284,10 +1288,11 @@ export const tryCreateDiscussionModule = Result.wrap(
 			throw new InvalidArgumentError("Title is required");
 		}
 
+		const currentUser = req?.user;
+		const userId = _userId ?? currentUser?.id;
 		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
+			throw new InvalidArgumentError("User is required");
 		}
-
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(payload, req);
 
@@ -2790,7 +2795,6 @@ export const tryListActivityModules = Result.wrap(
 			status,
 			limit = 10,
 			page = 1,
-
 			req,
 			overrideAccess = false,
 		} = args;

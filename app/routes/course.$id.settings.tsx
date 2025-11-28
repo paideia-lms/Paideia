@@ -46,6 +46,7 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/course.$id.settings";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -85,8 +86,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
 	const categoriesResult = await tryGetCategoryTree({
 		payload,
-		req: request,
-		user: currentUser,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
@@ -103,9 +107,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	// Handle thumbnail - could be Media object, just ID, or null
 	const thumbnailFileNameOrId = course.thumbnail
-		? typeof course.thumbnail === "object"
-			? course.thumbnail.filename || course.thumbnail.id?.toString()
-			: course.thumbnail.toString()
+		? String(course.thumbnail.id)
 		: null;
 
 	const thumbnailUrl = thumbnailFileNameOrId
@@ -196,95 +198,106 @@ export const action = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
-
-	// Store thumbnail media ID
-	let thumbnailMediaId: number | undefined;
-
-	// Parse form data with media upload handler
-	const parseResult = await tryParseFormDataWithMediaUpload({
+	const transactionInfo = await handleTransactionId(
 		payload,
-		request,
-		userId: currentUser.id,
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		maxFileSize,
-		fields: [
-			{
-				fieldName: "thumbnail",
-				alt: "Course thumbnail",
-				onUpload: (_fieldName, mediaId) => {
-					thumbnailMediaId = mediaId;
-				},
-			},
-			{
-				fieldName: "image-*",
-				alt: "Course description image",
-			},
-		],
-	});
-
-	if (!parseResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return handleUploadError(
-			parseResult.error,
-			maxFileSize,
-			"Failed to parse form data",
-		);
-	}
-
-	const { formData, uploadedMedia } = parseResult.value;
-
-	const parsed = inputSchema.safeParse(formData);
-
-	if (!parsed.success) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: parsed.error.issues[0]?.message ?? "Validation error",
-		});
-	}
-
-	let description = parsed.data.description;
-
-	// Replace base64 images with actual media URLs
-	description = replaceBase64ImagesWithMediaUrls(
-		description,
-		uploadedMedia,
-		formData,
+		createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	);
 
-	// Update course (within the same transaction)
-	const updateResult = await tryUpdateCourse({
-		payload,
-		courseId: Number(courseId),
-		data: {
-			title: parsed.data.title,
-			description,
-			status: parsed.data.status,
-			thumbnail: thumbnailMediaId,
-			category: parsed.data.category,
-		},
-		user: currentUser,
-		req: transactionInfo.reqWithTransaction,
-		overrideAccess: true,
-	});
-
-	if (!updateResult.ok) {
-		await rollbackTransactionIfCreated(payload, transactionInfo);
-		return badRequest({
-			success: false,
-			error: updateResult.error.message,
+	return await transactionInfo.tx(async (txInfo) => {
+		let thumbnailMediaId: number | undefined;
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			maxFileSize,
+			fields: [
+				{
+					fieldName: "thumbnail",
+					alt: "Course thumbnail",
+					onUpload: (_fieldName, mediaId) => {
+						thumbnailMediaId = mediaId;
+					},
+				},
+				{
+					fieldName: "image-*",
+					alt: "Course description image",
+				},
+			],
 		});
-	}
 
-	await commitTransactionIfCreated(payload, transactionInfo);
+		if (!parseResult.ok) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
 
-	return ok({
-		success: true,
-		message: "Course updated successfully",
-		id: courseId,
-		redirectTo: parsed.data.redirectTo ?? null,
+		const { formData, uploadedMedia } = parseResult.value;
+
+		const parsed = inputSchema.safeParse(formData);
+
+		if (!parsed.success) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return badRequest({
+				success: false,
+				error: parsed.error.issues[0]?.message ?? "Validation error",
+			});
+		}
+
+		let description = parsed.data.description;
+
+		// Replace base64 images with actual media URLs
+		description = replaceBase64ImagesWithMediaUrls(
+			description,
+			uploadedMedia,
+			formData,
+		);
+
+		// Update course (within the same transaction)
+		const updateResult = await tryUpdateCourse({
+			payload,
+			courseId: Number(courseId),
+			data: {
+				title: parsed.data.title,
+				description,
+				status: parsed.data.status,
+				thumbnail: thumbnailMediaId,
+				category: parsed.data.category,
+			},
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: true,
+		});
+
+		if (!updateResult.ok) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return badRequest({
+				success: false,
+				error: updateResult.error.message,
+			});
+		}
+
+		return ok({
+			success: true,
+			message: "Course updated successfully",
+			id: courseId,
+			redirectTo: parsed.data.redirectTo ?? null,
+		});
 	});
 };
 

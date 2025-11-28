@@ -6,15 +6,9 @@ import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/search-users";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export type SearchUser = {
-	id: number;
-	email: string;
-	firstName: string;
-	lastName: string;
-	role: string | null | undefined;
-	createdAt: string;
-};
+export type { Route };
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -43,7 +37,11 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit,
 		page: 1,
 		sort: "-createdAt",
-		user: currentUser,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -54,16 +52,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		});
 	}
 
-	const users = usersResult.value.docs.map((user) => ({
-		id: user.id,
-		email: user.email,
-		firstName: user.firstName ?? "",
-		lastName: user.lastName ?? "",
-		role: user.role,
-		createdAt: user.createdAt,
-	}));
-
-	return { users };
+	return { users: usersResult.value.docs };
 };
 
 export interface UseSearchUsersOptions {
@@ -127,6 +116,9 @@ export function useSearchUsers(options: UseSearchUsersOptions = {}) {
 	};
 }
 
+export type SearchUser = NonNullable<
+	Route.ComponentProps["loaderData"]["users"]
+>[number];
 export interface SearchUserComboboxProps {
 	value: SearchUser[];
 	onChange: (users: SearchUser[]) => void;
@@ -169,6 +161,7 @@ export function SearchUserCombobox({
 	// Convert selected users to string array for TagsInput
 	const selectedValues = value.map((user) => getDisplayName(user));
 
+	// FIXME: this feels wierd that we use names instead of ids in the handleChange args
 	const handleChange = (selectedNames: string[]) => {
 		// Convert selected names back to user objects
 		const selectedUsers = selectedNames
@@ -176,15 +169,7 @@ export function SearchUserCombobox({
 				// Find user by display name
 				return users.find((user) => getDisplayName(user) === name);
 			})
-			.filter((user): user is NonNullable<typeof user> => user !== undefined)
-			.map((user) => ({
-				id: user.id,
-				email: user.email,
-				firstName: user.firstName,
-				lastName: user.lastName,
-				role: user.role,
-				createdAt: user.createdAt,
-			}));
+			.filter(Boolean);
 
 		onChange(selectedUsers);
 	};

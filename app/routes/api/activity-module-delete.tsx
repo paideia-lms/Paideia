@@ -7,6 +7,7 @@ import z from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/activity-module-delete";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	moduleId: z.number(),
@@ -37,8 +38,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const result = await tryDeleteActivityModule({
 		payload,
 		id: moduleId,
-		user: currentUser,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {

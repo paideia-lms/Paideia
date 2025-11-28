@@ -147,9 +147,7 @@ describe("Course Section Management Functions", () => {
 		if (childResult.ok) {
 			expect(childResult.value.title).toBe("Section 1.1");
 			expect(
-				typeof childResult.value.parentSection === "number"
-					? childResult.value.parentSection
-					: childResult.value.parentSection?.id,
+				 childResult.value.parentSection
 			).toBe(parentResult.value.id);
 		}
 	});
@@ -200,9 +198,7 @@ describe("Course Section Management Functions", () => {
 		if (level3Result.ok) {
 			expect(level3Result.value.title).toBe("Sub-topic A.1");
 			expect(
-				typeof level3Result.value.parentSection === "number"
-					? level3Result.value.parentSection
-					: level3Result.value.parentSection?.id,
+				level3Result.value.parentSection,
 			).toBe(level2Result.value.id);
 		}
 	});

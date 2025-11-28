@@ -5,8 +5,7 @@
  * all functions in this file will only return true or false and a reason
  */
 
-import type { Enrollment } from "server/contexts/course-context";
-import type { User } from "server/payload-types";
+import type { Enrollment, User } from "server/payload-types";
 
 // ============================================================================
 // Types and Interfaces
@@ -105,11 +104,16 @@ export function canSeeCourseGrades(
 		id: number;
 		role?: User["role"];
 	},
-	enrolment?: {
-		id: number;
-		userId: number;
-		role?: Enrollment["role"];
-	},
+	enrolment?:
+		| {
+				id: number;
+				userId: number;
+				role?: Enrollment["role"];
+		  }
+		| {
+				id: number;
+				role?: Enrollment["role"];
+		  },
 ): PermissionResult {
 	if (enrolment) {
 		const allowed = isTeachingStaff(enrolment);
@@ -137,7 +141,6 @@ export function canSeeCourseModules(
 	},
 	enrolment?: {
 		id: number;
-		userId: number;
 		role?: Enrollment["role"];
 	},
 ): PermissionResult {
@@ -279,6 +282,40 @@ export function canSeeCourseSectionSettings(
 		reason: allowed
 			? "You can view course section settings"
 			: "Only teachers, managers, admins, and content managers can view course section settings",
+	};
+}
+
+export function canEditCourseSection(
+	user?: {
+		id: number;
+		role?: User["role"];
+	},
+	enrolments?: {
+		userId: number;
+		role?: Enrollment["role"];
+	}[],
+): PermissionResult {
+	if (!user) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	const allowed =
+		isAdminOrContentManager(user) ||
+		(enrolments?.some(
+			(enrollment) =>
+				enrollment.userId === user.id &&
+				(enrollment.role === "teacher" || enrollment.role === "ta"),
+		) ??
+			false);
+
+	return {
+		allowed,
+		reason: allowed
+			? "You can edit course sections"
+			: "Only teachers, TAs, admins, and content managers can edit course sections",
 	};
 }
 
@@ -549,6 +586,134 @@ export function canEditUserProfile(
 	return {
 		allowed: false,
 		reason: "You can only edit your own profile",
+	};
+}
+
+/**
+ * Checks if the current user can edit a profile (simpler check for profile page).
+ * This is a simpler version that doesn't consider sandbox mode.
+ *
+ * Permission Rules:
+ * - Users can edit their own profile
+ * - Admins can edit any profile
+ *
+ * @param currentUser - The user attempting to edit (current logged-in user)
+ * @param targetUserId - The ID of the user whose profile is being edited
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canEditProfile(
+	currentUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	targetUserId?: number,
+): PermissionResult {
+	if (!currentUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	if (targetUserId === undefined || targetUserId === null) {
+		return {
+			allowed: false,
+			reason: "Target user ID is missing",
+		};
+	}
+
+	const isOwnProfile = currentUser.id === targetUserId;
+	const isAdmin = currentUser.role === "admin";
+
+	if (isOwnProfile || isAdmin) {
+		return {
+			allowed: true,
+			reason: isOwnProfile
+				? "You can edit your own profile"
+				: "Admins can edit any profile",
+		};
+	}
+
+	return {
+		allowed: false,
+		reason: "You can only edit your own profile",
+	};
+}
+
+/**
+ * Checks if the current user can impersonate another user.
+ * This is a simpler version for profile page usage.
+ *
+ * Permission Rules:
+ * - Only admins can impersonate
+ * - Cannot impersonate yourself
+ * - Cannot impersonate other admins
+ * - Cannot impersonate while already impersonating
+ *
+ * @param authenticatedUser - The authenticated user (not effective user)
+ * @param targetUserId - The ID of the user to impersonate
+ * @param targetUserRole - The role of the user to impersonate
+ * @param isImpersonating - Whether the user is currently impersonating
+ * @returns Permission result with allowed boolean and reason string
+ */
+export function canImpersonate(
+	authenticatedUser?: {
+		id: number;
+		role?: User["role"];
+	},
+	targetUserId?: number,
+	targetUserRole?: User["role"],
+	isImpersonating?: boolean,
+): PermissionResult {
+	if (!authenticatedUser) {
+		return {
+			allowed: false,
+			reason: "User information is missing",
+		};
+	}
+
+	if (targetUserId === undefined || targetUserId === null) {
+		return {
+			allowed: false,
+			reason: "Target user ID is missing",
+		};
+	}
+
+	const isAdmin = authenticatedUser.role === "admin";
+	const isOwnProfile = authenticatedUser.id === targetUserId;
+	const isTargetAdmin = targetUserRole === "admin";
+
+	if (!isAdmin) {
+		return {
+			allowed: false,
+			reason: "Only admins can impersonate users",
+		};
+	}
+
+	if (isOwnProfile) {
+		return {
+			allowed: false,
+			reason: "You cannot impersonate yourself",
+		};
+	}
+
+	if (isTargetAdmin) {
+		return {
+			allowed: false,
+			reason: "Cannot impersonate admin users",
+		};
+	}
+
+	if (isImpersonating) {
+		return {
+			allowed: false,
+			reason: "Cannot impersonate while already impersonating",
+		};
+	}
+
+	return {
+		allowed: true,
+		reason: "You can impersonate this user",
 	};
 }
 
@@ -1023,6 +1188,7 @@ export const permissions = {
 		canAccess: canAccessCourse,
 		section: {
 			canSeeSettings: canSeeCourseSectionSettings,
+			canEdit: canEditCourseSection,
 		},
 		module: {
 			canSeeSettings: canSeeCourseModuleSettings,
@@ -1033,8 +1199,10 @@ export const permissions = {
 	user: {
 		canSeeModules: canSeeUserModules,
 		canEditModule: canEditUserModule,
+		canImpersonate: canImpersonate,
 		profile: {
-			canEdit: canEditUserProfile,
+			canEdit: canEditProfile,
+			canEditFull: canEditUserProfile,
 			canEditOtherAdmin: canEditOtherAdmin,
 			fields: {
 				canEdit: canEditProfileFields,
