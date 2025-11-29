@@ -16,11 +16,11 @@ import {
 import type { UseFormReturnType } from "@mantine/form";
 import { IconPlus, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
-import type { NestedQuizConfig } from "server/json/raw-quiz-config.types.v2";
+import type { NestedQuizConfig } from "server/json/raw-quiz-config/types.v2";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import z from "zod";
+import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
-import type { ActivityModuleFormValues } from "../activity-module-form";
 import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 
 // ============================================================================
@@ -28,7 +28,7 @@ import { GradingConfigEditor, QuestionsList, ResourcesList } from "./others";
 // ============================================================================
 
 interface RegularQuizBuilderProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 }
 
 export function RegularQuizBuilder({ form }: RegularQuizBuilderProps) {
@@ -138,7 +138,7 @@ export function RegularQuizBuilder({ form }: RegularQuizBuilderProps) {
 // ============================================================================
 
 interface NestedQuizTabProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	quizIndex: number;
 }
 
@@ -220,7 +220,7 @@ function NestedQuizTab({ form, quizIndex }: NestedQuizTabProps) {
 // ============================================================================
 
 interface ContainerQuizBuilderProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 }
 
 export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {
@@ -268,11 +268,11 @@ export function ContainerQuizBuilder({ form }: ContainerQuizBuilderProps) {
 			value.filter((_, i) => i !== index),
 			{ forceUpdate: false },
 		);
-		if (activeTab === nestedQuizzes[index].id && nestedQuizzes.length > 1) {
+		if (activeTab === nestedQuizzes[index]!.id && nestedQuizzes.length > 1) {
 			setActiveTab(
-				nestedQuizzes[0].id === nestedQuizzes[index].id
-					? nestedQuizzes[1].id
-					: nestedQuizzes[0].id,
+				nestedQuizzes[0]!.id === nestedQuizzes[index]!.id
+					? nestedQuizzes[1]!.id
+					: nestedQuizzes[0]!.id,
 			);
 		}
 	};

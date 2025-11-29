@@ -1,5 +1,5 @@
 import { CreateThreadForm } from "~/components/activity-modules-preview/discussion-preview";
-import { useCreateThread } from "../route";
+import { useCreateThread } from "../hooks";
 
 interface CreateThreadFormWrapperProps {
 	moduleLinkId: number;

@@ -6,7 +6,7 @@
  * and re-run `payload generate:db-schema` to regenerate this file.
  */
 
-import type { } from "@payloadcms/db-postgres";
+import type {} from "@payloadcms/db-postgres";
 import {
   pgTable,
   index,
@@ -59,6 +59,7 @@ export const enum_enrollments_status = pgEnum("enum_enrollments_status", [
 export const enum_activity_modules_type = pgEnum("enum_activity_modules_type", [
   "page",
   "whiteboard",
+  "file",
   "assignment",
   "quiz",
   "discussion",
@@ -569,6 +570,9 @@ export const activity_modules = pgTable(
     discussion: integer("discussion_id").references(() => discussions.id, {
       onDelete: "set null",
     }),
+    file: integer("file_id").references(() => files.id, {
+      onDelete: "set null",
+    }),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -592,6 +596,7 @@ export const activity_modules = pgTable(
     index("activity_modules_assignment_idx").on(columns.assignment),
     index("activity_modules_quiz_idx").on(columns.quiz),
     index("activity_modules_discussion_idx").on(columns.discussion),
+    index("activity_modules_file_idx").on(columns.file),
     index("activity_modules_updated_at_idx").on(columns.updatedAt),
     index("activity_modules_created_at_idx").on(columns.createdAt),
     index("owner_idx").on(columns.owner),
@@ -600,9 +605,9 @@ export const activity_modules = pgTable(
     index("status_idx").on(columns.status),
     index("page_idx").on(columns.page),
     index("whiteboard_idx").on(columns.whiteboard),
-    index("assignment_idx").on(columns.assignment),
     index("quiz_idx").on(columns.quiz),
     index("discussion_idx").on(columns.discussion),
+    index("file_idx").on(columns.file),
   ],
 );
 
@@ -666,12 +671,12 @@ export const pages = pgTable(
   "pages",
   {
     id: serial("id").primaryKey(),
-    content: varchar("content"),
     createdBy: integer("created_by_id")
       .notNull()
       .references(() => users.id, {
         onDelete: "set null",
       }),
+    content: varchar("content"),
     updatedAt: timestamp("updated_at", {
       mode: "string",
       withTimezone: true,
@@ -782,13 +787,6 @@ export const assignments = pgTable(
     title: varchar("title").notNull(),
     description: varchar("description"),
     instructions: varchar("instructions"),
-    dueDate: timestamp("due_date", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    maxAttempts: numeric("max_attempts", { mode: "number" }).default(1),
-    allowLateSubmissions: boolean("allow_late_submissions").default(false),
     maxFileSize: numeric("max_file_size", { mode: "number" }).default(10),
     maxFiles: numeric("max_files", { mode: "number" }).default(1),
     requireTextSubmission: boolean("require_text_submission").default(true),
@@ -818,7 +816,6 @@ export const assignments = pgTable(
     index("assignments_updated_at_idx").on(columns.updatedAt),
     index("assignments_created_at_idx").on(columns.createdAt),
     index("createdBy_3_idx").on(columns.createdBy),
-    index("dueDate_idx").on(columns.dueDate),
   ],
 );
 
@@ -893,13 +890,6 @@ export const quizzes = pgTable(
     title: varchar("title").notNull(),
     description: varchar("description"),
     instructions: varchar("instructions"),
-    dueDate: timestamp("due_date", {
-      mode: "string",
-      withTimezone: true,
-      precision: 3,
-    }),
-    maxAttempts: numeric("max_attempts", { mode: "number" }).default(1),
-    allowLateSubmissions: boolean("allow_late_submissions").default(false),
     points: numeric("points", { mode: "number" }).default(100),
     gradingType: enum_quizzes_grading_type("grading_type").default("automatic"),
     showCorrectAnswers: boolean("show_correct_answers").default(false),
@@ -935,7 +925,6 @@ export const quizzes = pgTable(
     index("quizzes_updated_at_idx").on(columns.updatedAt),
     index("quizzes_created_at_idx").on(columns.createdAt),
     index("createdBy_4_idx").on(columns.createdBy),
-    index("dueDate_1_idx").on(columns.dueDate),
   ],
 );
 
@@ -1027,7 +1016,7 @@ export const discussions = pgTable(
     index("discussions_updated_at_idx").on(columns.updatedAt),
     index("discussions_created_at_idx").on(columns.createdAt),
     index("createdBy_5_idx").on(columns.createdBy),
-    index("dueDate_2_idx").on(columns.dueDate),
+    index("dueDate_idx").on(columns.dueDate),
     index("threadSorting_idx").on(columns.threadSorting),
   ],
 );
@@ -1965,6 +1954,65 @@ export const user_grades_rels = pgTable(
   ],
 );
 
+export const files = pgTable(
+  "files",
+  {
+    id: serial("id").primaryKey(),
+    createdBy: integer("created_by_id")
+      .notNull()
+      .references(() => users.id, {
+        onDelete: "set null",
+      }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    })
+      .defaultNow()
+      .notNull(),
+  },
+  (columns) => [
+    index("files_created_by_idx").on(columns.createdBy),
+    index("files_updated_at_idx").on(columns.updatedAt),
+    index("files_created_at_idx").on(columns.createdAt),
+    index("createdBy_7_idx").on(columns.createdBy),
+  ],
+);
+
+export const files_rels = pgTable(
+  "files_rels",
+  {
+    id: serial("id").primaryKey(),
+    order: integer("order"),
+    parent: integer("parent_id").notNull(),
+    path: varchar("path").notNull(),
+    mediaID: integer("media_id"),
+  },
+  (columns) => [
+    index("files_rels_order_idx").on(columns.order),
+    index("files_rels_parent_idx").on(columns.parent),
+    index("files_rels_path_idx").on(columns.path),
+    index("files_rels_media_id_idx").on(columns.mediaID),
+    foreignKey({
+      columns: [columns["parent"]],
+      foreignColumns: [files.id],
+      name: "files_rels_parent_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["mediaID"]],
+      foreignColumns: [media.id],
+      name: "files_rels_media_fk",
+    }).onDelete("cascade"),
+  ],
+);
+
 export const search = pgTable(
   "search",
   {
@@ -2182,6 +2230,7 @@ export const payload_locked_documents_rels = pgTable(
     "course-grade-tablesID": integer("course_grade_tables_id"),
     groupsID: integer("groups_id"),
     "user-gradesID": integer("user_grades_id"),
+    filesID: integer("files_id"),
     searchID: integer("search_id"),
   },
   (columns) => [
@@ -2249,6 +2298,7 @@ export const payload_locked_documents_rels = pgTable(
     index("payload_locked_documents_rels_user_grades_id_idx").on(
       columns["user-gradesID"],
     ),
+    index("payload_locked_documents_rels_files_id_idx").on(columns.filesID),
     index("payload_locked_documents_rels_search_id_idx").on(columns.searchID),
     foreignKey({
       columns: [columns["parent"]],
@@ -2379,6 +2429,11 @@ export const payload_locked_documents_rels = pgTable(
       columns: [columns["user-gradesID"]],
       foreignColumns: [user_grades.id],
       name: "payload_locked_documents_rels_user_grades_fk",
+    }).onDelete("cascade"),
+    foreignKey({
+      columns: [columns["filesID"]],
+      foreignColumns: [files.id],
+      name: "payload_locked_documents_rels_files_fk",
     }).onDelete("cascade"),
     foreignKey({
       columns: [columns["searchID"]],
@@ -2583,21 +2638,60 @@ export const appearance_settings_additional_css_stylesheets = pgTable(
   ],
 );
 
-export const appearance_settings = pgTable("appearance_settings", {
-  id: serial("id").primaryKey(),
-  color: enum_appearance_settings_color("color").default("blue"),
-  radius: enum_appearance_settings_radius("radius").default("sm"),
-  updatedAt: timestamp("updated_at", {
-    mode: "string",
-    withTimezone: true,
-    precision: 3,
-  }),
-  createdAt: timestamp("created_at", {
-    mode: "string",
-    withTimezone: true,
-    precision: 3,
-  }),
-});
+export const appearance_settings = pgTable(
+  "appearance_settings",
+  {
+    id: serial("id").primaryKey(),
+    color: enum_appearance_settings_color("color").default("blue"),
+    radius: enum_appearance_settings_radius("radius").default("sm"),
+    logoLight: integer("logo_light_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    logoDark: integer("logo_dark_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    compactLogoLight: integer("compact_logo_light_id").references(
+      () => media.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    compactLogoDark: integer("compact_logo_dark_id").references(
+      () => media.id,
+      {
+        onDelete: "set null",
+      },
+    ),
+    faviconLight: integer("favicon_light_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    faviconDark: integer("favicon_dark_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
+    updatedAt: timestamp("updated_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+    createdAt: timestamp("created_at", {
+      mode: "string",
+      withTimezone: true,
+      precision: 3,
+    }),
+  },
+  (columns) => [
+    index("appearance_settings_logo_light_idx").on(columns.logoLight),
+    index("appearance_settings_logo_dark_idx").on(columns.logoDark),
+    index("appearance_settings_compact_logo_light_idx").on(
+      columns.compactLogoLight,
+    ),
+    index("appearance_settings_compact_logo_dark_idx").on(
+      columns.compactLogoDark,
+    ),
+    index("appearance_settings_favicon_light_idx").on(columns.faviconLight),
+    index("appearance_settings_favicon_dark_idx").on(columns.faviconDark),
+  ],
+);
 
 export const analytics_settings_additional_js_scripts = pgTable(
   "analytics_settings_additional_js_scripts",
@@ -2834,6 +2928,11 @@ export const relations_activity_modules = relations(
       fields: [activity_modules.discussion],
       references: [discussions.id],
       relationName: "discussion",
+    }),
+    file: one(files, {
+      fields: [activity_modules.file],
+      references: [files.id],
+      relationName: "file",
     }),
   }),
 );
@@ -3341,6 +3440,28 @@ export const relations_user_grades = relations(
     }),
   }),
 );
+export const relations_files_rels = relations(files_rels, ({ one }) => ({
+  parent: one(files, {
+    fields: [files_rels.parent],
+    references: [files.id],
+    relationName: "_rels",
+  }),
+  mediaID: one(media, {
+    fields: [files_rels.mediaID],
+    references: [media.id],
+    relationName: "media",
+  }),
+}));
+export const relations_files = relations(files, ({ one, many }) => ({
+  createdBy: one(users, {
+    fields: [files.createdBy],
+    references: [users.id],
+    relationName: "createdBy",
+  }),
+  _rels: many(files_rels, {
+    relationName: "_rels",
+  }),
+}));
 export const relations_search_rels = relations(search_rels, ({ one }) => ({
   parent: one(search, {
     fields: [search_rels.parent],
@@ -3512,6 +3633,11 @@ export const relations_payload_locked_documents_rels = relations(
       references: [user_grades.id],
       relationName: "user-grades",
     }),
+    filesID: one(files, {
+      fields: [payload_locked_documents_rels.filesID],
+      references: [files.id],
+      relationName: "files",
+    }),
     searchID: one(search, {
       fields: [payload_locked_documents_rels.searchID],
       references: [search.id],
@@ -3591,13 +3717,43 @@ export const relations_appearance_settings_additional_css_stylesheets =
   }));
 export const relations_appearance_settings = relations(
   appearance_settings,
-  ({ many }) => ({
+  ({ one, many }) => ({
     additionalCssStylesheets: many(
       appearance_settings_additional_css_stylesheets,
       {
         relationName: "additionalCssStylesheets",
       },
     ),
+    logoLight: one(media, {
+      fields: [appearance_settings.logoLight],
+      references: [media.id],
+      relationName: "logoLight",
+    }),
+    logoDark: one(media, {
+      fields: [appearance_settings.logoDark],
+      references: [media.id],
+      relationName: "logoDark",
+    }),
+    compactLogoLight: one(media, {
+      fields: [appearance_settings.compactLogoLight],
+      references: [media.id],
+      relationName: "compactLogoLight",
+    }),
+    compactLogoDark: one(media, {
+      fields: [appearance_settings.compactLogoDark],
+      references: [media.id],
+      relationName: "compactLogoDark",
+    }),
+    faviconLight: one(media, {
+      fields: [appearance_settings.faviconLight],
+      references: [media.id],
+      relationName: "faviconLight",
+    }),
+    faviconDark: one(media, {
+      fields: [appearance_settings.faviconDark],
+      references: [media.id],
+      relationName: "faviconDark",
+    }),
   }),
 );
 export const relations_analytics_settings_additional_js_scripts = relations(
@@ -3694,6 +3850,8 @@ type DatabaseSchema = {
   user_grades_adjustments: typeof user_grades_adjustments;
   user_grades: typeof user_grades;
   user_grades_rels: typeof user_grades_rels;
+  files: typeof files;
+  files_rels: typeof files_rels;
   search: typeof search;
   search_rels: typeof search_rels;
   payload_kv: typeof payload_kv;
@@ -3758,6 +3916,8 @@ type DatabaseSchema = {
   relations_user_grades_adjustments: typeof relations_user_grades_adjustments;
   relations_user_grades_rels: typeof relations_user_grades_rels;
   relations_user_grades: typeof relations_user_grades;
+  relations_files_rels: typeof relations_files_rels;
+  relations_files: typeof relations_files;
   relations_search_rels: typeof relations_search_rels;
   relations_search: typeof relations_search;
   relations_payload_kv: typeof relations_payload_kv;

@@ -20,14 +20,6 @@ import {
 import { useForm } from "@mantine/form";
 import { usePrevious } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
 import {
 	IconDots,
 	IconDownload,
@@ -44,30 +36,26 @@ import {
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import dayjs from "dayjs";
 import { DataTable } from "mantine-datatable";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
 import prettyBytes from "pretty-bytes";
+import { stringify } from "qs";
 import { useEffect, useId, useRef, useState } from "react";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import {
-	convertUserAccessContextToUserProfileContext,
-	getUserProfileContext,
-	type UserProfileContext,
-} from "server/contexts/user-profile-context";
-import {
-	tryCreateMedia,
 	tryDeleteMedia,
 	tryFindMediaByUser,
 	tryGetUserMediaStats,
 	tryRenameMedia,
 } from "server/internal/media-management";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import type { Media } from "server/payload-types";
 import { canDeleteMedia } from "server/utils/permissions";
 import { useMediaUsageData } from "~/routes/api/media-usage";
-import { assertRequestMethod } from "~/utils/assert-request-method";
 import { PRESET_FILE_TYPE_OPTIONS } from "~/utils/file-types";
 import { ContentType } from "~/utils/get-content-type";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	canPreview,
 	getFileIcon,
@@ -77,7 +65,6 @@ import {
 	isPdf,
 	isVideo,
 } from "~/utils/media-helpers";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -86,18 +73,30 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/media";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { userProfileContextKey } from "server/contexts/user-profile-context";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
+	const userProfileContext = context.get(userProfileContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new NotFoundResponse("Unauthorized");
 	}
 
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User not found");
+	}
+
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
@@ -115,37 +114,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const storageLimit = systemGlobals.sitePolicies.userMediaStorageTotal;
 	const uploadLimit = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	// Get user profile context
-	let userProfileContext: UserProfileContext | null = null;
-	if (userId === currentUser.id) {
-		// If viewing own profile, use userAccessContext if available
-		const userAccessContext = context.get(userAccessContextKey);
-		if (userAccessContext) {
-			userProfileContext = convertUserAccessContextToUserProfileContext(
-				userAccessContext,
-				currentUser,
-			);
-		} else {
-			// Fallback to fetching directly
-			userProfileContext = await getUserProfileContext(
-				payload,
-				userId,
-				currentUser,
-			);
-		}
-	} else {
-		// Viewing another user's profile
-		userProfileContext = await getUserProfileContext(
-			payload,
-			userId,
-			currentUser,
-		);
-	}
-
-	if (!userProfileContext) {
-		throw new NotFoundResponse("User not found");
-	}
-
 	// Fetch media for the user
 	const mediaResult = await tryFindMediaByUser({
 		payload,
@@ -153,12 +121,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		limit: 20,
 		page: 1,
 		depth: 0,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
-		overrideAccess: false,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!mediaResult.ok) {
@@ -167,11 +134,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	// Check permissions for each media item
 	const mediaWithPermissions = mediaResult.value.docs.map((file) => {
-		const createdById =
-			typeof file.createdBy === "object" && file.createdBy !== null
-				? file.createdBy.id
-				: file.createdBy;
-		const deletePermission = canDeleteMedia(currentUser, createdById);
+		const deletePermission = canDeleteMedia(currentUser, file.createdBy.id);
 		return {
 			...file,
 			deletePermission,
@@ -182,11 +145,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const statsResult = await tryGetUserMediaStats({
 		payload,
 		userId,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -212,12 +175,25 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({
+enum Action {
+	Upload = "upload",
+	Update = "update",
+	Delete = "delete",
+}
+
+// Define search params for media actions
+export const mediaSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(mediaSearchParams);
+
+const updateAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs) => {
-	const { payload, systemGlobals, s3Client } = context.get(globalContextKey);
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload, s3Client } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -225,7 +201,7 @@ export const action = async ({
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
 		return unauthorized({ error: "Unauthorized" });
@@ -238,294 +214,326 @@ export const action = async ({
 		return unauthorized({ error: "You can only manage your own media" });
 	}
 
-	const transactionID = await payload.db.beginTransaction();
+	const formData = await request.formData();
+	const mediaIdParam = formData.get("mediaId");
+	const newFilename = formData.get("newFilename")?.toString();
+	const alt = formData.get("alt")?.toString();
+	const caption = formData.get("caption")?.toString();
 
-	if (!transactionID) {
-		return badRequest({ error: "Failed to begin transaction" });
+	if (!mediaIdParam) {
+		return badRequest({ error: "Media ID is required" });
 	}
 
-	// Get upload limit from system globals
-	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+	const mediaId = Number(mediaIdParam);
+	if (Number.isNaN(mediaId)) {
+		return badRequest({ error: "Invalid media ID" });
+	}
 
-	try {
-		// For PATCH requests (update/rename), we can read formData directly
-		if (request.method === "PATCH") {
-			assertRequestMethod(request.method, "PATCH");
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
 
-			const formData = await request.formData();
-			const mediaIdParam = formData.get("mediaId");
-			const newFilename = formData.get("newFilename")?.toString();
-			const alt = formData.get("alt")?.toString();
-			const caption = formData.get("caption")?.toString();
+	return await transactionInfo.tx(async (txInfo) => {
+		// Fetch media record to check permissions
+		const mediaRecord = await payload.findByID({
+			collection: "media",
+			id: mediaId,
+			depth: 0,
+			req: txInfo.reqWithTransaction,
+		});
 
-			if (!mediaIdParam) {
-				return badRequest({ error: "Media ID is required" });
-			}
+		if (!mediaRecord) {
+			return badRequest({ error: "Media not found" });
+		}
 
-			const mediaId = Number(mediaIdParam);
-			if (Number.isNaN(mediaId)) {
-				return badRequest({ error: "Invalid media ID" });
-			}
+		// Check permissions
+		const createdById =
+			typeof mediaRecord.createdBy === "object" &&
+			mediaRecord.createdBy !== null
+				? mediaRecord.createdBy.id
+				: mediaRecord.createdBy;
+		const deletePermission = canDeleteMedia(currentUser, createdById);
 
-			// Fetch media record to check permissions
-			const mediaRecord = await payload.findByID({
-				collection: "media",
+		if (!deletePermission.allowed) {
+			return unauthorized({
+				error:
+					deletePermission.reason ||
+					"You don't have permission to update this media",
+			});
+		}
+
+		// If newFilename is provided, rename the file
+		if (newFilename) {
+			const renameResult = await tryRenameMedia({
+				payload,
+				s3Client,
 				id: mediaId,
-				depth: 0,
+				newFilename,
+				userId: currentUser.id,
+				req: txInfo.reqWithTransaction,
 			});
 
-			if (!mediaRecord) {
-				return badRequest({ error: "Media not found" });
+			if (!renameResult.ok) {
+				return badRequest({ error: renameResult.error.message });
+			}
+		}
+
+		// Update alt and caption if provided
+		if (alt !== undefined || caption !== undefined) {
+			const updateData: Partial<Media> = {};
+			if (alt !== undefined) {
+				updateData.alt = alt;
+			}
+			if (caption !== undefined) {
+				updateData.caption = caption;
 			}
 
-			// Check permissions
+			await payload.update({
+				collection: "media",
+				id: mediaId,
+				data: updateData,
+				req: txInfo.reqWithTransaction,
+			});
+		}
+
+		return ok({
+			message: "Media updated successfully",
+		});
+	});
+};
+
+const deleteAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload, s3Client } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const userId = params.id ? Number(params.id) : currentUser.id;
+
+	// Check if user can access this data
+	if (userId !== currentUser.id && currentUser.role !== "admin") {
+		return unauthorized({ error: "You can only manage your own media" });
+	}
+
+	const formData = await request.formData();
+	const mediaIdsParam = formData.get("mediaIds");
+
+	if (!mediaIdsParam) {
+		return badRequest({ error: "Media IDs are required" });
+	}
+
+	// Parse media IDs - can be a single ID or comma-separated IDs
+	let mediaIds: number[];
+	if (typeof mediaIdsParam === "string") {
+		mediaIds = mediaIdsParam
+			.split(",")
+			.map((id) => Number(id.trim()))
+			.filter((id) => !Number.isNaN(id));
+	} else {
+		return badRequest({ error: "Invalid media IDs format" });
+	}
+
+	if (mediaIds.length === 0) {
+		return badRequest({ error: "At least one media ID is required" });
+	}
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	return await transactionInfo.tx(async (txInfo) => {
+		// Fetch media records to check permissions
+		const mediaRecords = await payload.find({
+			collection: "media",
+			where: {
+				id: {
+					in: mediaIds,
+				},
+			},
+			limit: mediaIds.length,
+			depth: 0,
+			req: txInfo.reqWithTransaction,
+		});
+
+		// Check permissions for each media item
+		for (const media of mediaRecords.docs) {
 			const createdById =
-				typeof mediaRecord.createdBy === "object" &&
-				mediaRecord.createdBy !== null
-					? mediaRecord.createdBy.id
-					: mediaRecord.createdBy;
+				typeof media.createdBy === "object" && media.createdBy !== null
+					? media.createdBy.id
+					: media.createdBy;
 			const deletePermission = canDeleteMedia(currentUser, createdById);
 
 			if (!deletePermission.allowed) {
 				return unauthorized({
 					error:
 						deletePermission.reason ||
-						"You don't have permission to update this media",
+						"You don't have permission to delete this media",
 				});
 			}
+		}
 
-			// If newFilename is provided, rename the file
-			if (newFilename) {
-				const renameResult = await tryRenameMedia({
-					payload,
-					s3Client,
-					id: mediaId,
-					newFilename,
-					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
-					req: { transactionID },
-				});
-
-				if (!renameResult.ok) {
-					await payload.db.rollbackTransaction(transactionID);
-					return badRequest({ error: renameResult.error.message });
-				}
-			}
-
-			// Update alt and caption if provided
-			if (alt !== undefined || caption !== undefined) {
-				const updateData: Partial<Media> = {};
-				if (alt !== undefined) {
-					updateData.alt = alt;
-				}
-				if (caption !== undefined) {
-					updateData.caption = caption;
-				}
-
-				await payload.update({
-					collection: "media",
-					id: mediaId,
-					data: updateData,
-					req: { transactionID },
-				});
-			}
-
-			await payload.db.commitTransaction(transactionID);
-
-			return ok({
-				message: "Media updated successfully",
+		// Verify all media records were found
+		if (mediaRecords.docs.length !== mediaIds.length) {
+			const foundIds = mediaRecords.docs.map((m) => m.id);
+			const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
+			return badRequest({
+				error: `Media records not found: ${missingIds.join(", ")}`,
 			});
 		}
 
-		// For DELETE requests, we can read formData directly (no file uploads)
-		if (request.method === "DELETE") {
-			assertRequestMethod(request.method, "DELETE");
+		const result = await tryDeleteMedia({
+			payload,
+			s3Client,
+			id: mediaIds,
+			userId: currentUser.id,
+			req: txInfo.reqWithTransaction,
+		});
 
-			const formData = await request.formData();
-			const mediaIdsParam = formData.get("mediaIds");
-
-			if (!mediaIdsParam) {
-				return badRequest({ error: "Media IDs are required" });
-			}
-
-			// Parse media IDs - can be a single ID or comma-separated IDs
-			let mediaIds: number[];
-			if (typeof mediaIdsParam === "string") {
-				mediaIds = mediaIdsParam
-					.split(",")
-					.map((id) => Number(id.trim()))
-					.filter((id) => !Number.isNaN(id));
-			} else {
-				return badRequest({ error: "Invalid media IDs format" });
-			}
-
-			if (mediaIds.length === 0) {
-				return badRequest({ error: "At least one media ID is required" });
-			}
-
-			// Fetch media records to check permissions
-			const mediaRecords = await payload.find({
-				collection: "media",
-				where: {
-					id: {
-						in: mediaIds,
-					},
-				},
-				limit: mediaIds.length,
-				depth: 0,
-			});
-
-			// Check permissions for each media item
-			for (const media of mediaRecords.docs) {
-				const createdById =
-					typeof media.createdBy === "object" && media.createdBy !== null
-						? media.createdBy.id
-						: media.createdBy;
-				const deletePermission = canDeleteMedia(currentUser, createdById);
-
-				if (!deletePermission.allowed) {
-					return unauthorized({
-						error:
-							deletePermission.reason ||
-							"You don't have permission to delete this media",
-					});
-				}
-			}
-
-			// Verify all media records were found
-			if (mediaRecords.docs.length !== mediaIds.length) {
-				const foundIds = mediaRecords.docs.map((m) => m.id);
-				const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
-				return badRequest({
-					error: `Media records not found: ${missingIds.join(", ")}`,
-				});
-			}
-
-			const result = await tryDeleteMedia({
-				payload,
-				s3Client,
-				id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
-				userId: currentUser.id,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
-				},
-				req: { transactionID },
-			});
-
-			if (!result.ok) {
-				await payload.db.rollbackTransaction(transactionID);
-				return badRequest({ error: result.error.message });
-			}
-
-			await payload.db.commitTransaction(transactionID);
-
-			return ok({
-				message:
-					mediaIds.length === 1
-						? "Media deleted successfully"
-						: `${mediaIds.length} media files deleted successfully`,
-			});
+		if (!result.ok) {
+			return badRequest({ error: result.error.message });
 		}
 
-		// For POST requests (upload), we must use parseFormDataWithFallback first
-		// to avoid locking the ReadableStream
-		const uploadedMediaIds: number[] = [];
+		return ok({
+			message:
+				mediaIds.length === 1
+					? "Media deleted successfully"
+					: `${mediaIds.length} media files deleted successfully`,
+		});
+	});
+};
 
-		const uploadHandler = async (fileUpload: FileUpload) => {
-			if (fileUpload.fieldName === "file") {
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
+const uploadAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload, systemGlobals } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
 
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					userId: userId,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
-					req: { transactionID },
-				});
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
 
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
-				const mediaId = mediaResult.value.media.id;
-				uploadedMediaIds.push(mediaId);
-				return mediaId;
-			}
-		};
+	if (!currentUser) {
+		return unauthorized({ error: "Unauthorized" });
+	}
 
-		// For POST requests (upload), we must use parseFormDataWithFallback first
-		// to avoid locking the ReadableStream
-		assertRequestMethod(request.method, "POST");
+	const userId = params.id ? Number(params.id) : currentUser.id;
 
-		const parsedFormData = await parseFormDataWithFallback(
+	// Check if user can access this data
+	if (userId !== currentUser.id && currentUser.role !== "admin") {
+		return unauthorized({ error: "You can only manage your own media" });
+	}
+
+	// Get upload limit from system globals
+	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
+
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(payload);
+
+	return await transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
 			request,
-			uploadHandler as FileUploadHandler,
-			{
-				...(maxFileSize !== undefined && { maxFileSize }),
-				maxFiles: 1, // Only one file at a time
-			},
-		);
+			userId: userId,
+			req: txInfo.reqWithTransaction,
+			maxFileSize,
+			maxFiles: 1, // Only one file at a time
+			fields: [
+				{
+					fieldName: "file",
+				},
+			],
+		});
+
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
+
+		const { formData: parsedFormData, uploadedMedia } = parseResult.value;
 
 		// Update alt and caption if provided (optional fields)
-		if (uploadedMediaIds.length > 0) {
+		if (uploadedMedia.length > 0) {
 			const alt = parsedFormData.get("alt")?.toString();
 			const caption = parsedFormData.get("caption")?.toString();
 
 			if (alt || caption) {
-				for (const mediaId of uploadedMediaIds) {
+				for (const media of uploadedMedia) {
 					await payload.update({
 						collection: "media",
-						id: mediaId,
+						id: media.mediaId,
 						data: {
 							...(alt && { alt }),
 							...(caption && { caption }),
 						},
-						req: { transactionID },
+						req: txInfo.reqWithTransaction,
 					});
 				}
 			}
 		}
 
-		await payload.db.commitTransaction(transactionID);
-
 		return ok({
 			message: "Media uploaded successfully",
 		});
-	} catch (error) {
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("Media action error:", error);
+	});
+};
 
-		// Handle file size and count limit errors
-		if (error instanceof MaxFileSizeExceededError) {
-			return badRequest({
-				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
-			});
-		}
+const getActionUrl = (action: Action, userId?: number) => {
+	const baseUrl = href("/user/media/:id?", {
+		id: userId ? userId.toString() : undefined,
+	});
+	return baseUrl + "?" + stringify({ action });
+};
 
-		if (error instanceof MaxFilesExceededError) {
-			return badRequest({
-				error: error.message,
-			});
-		}
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
 
-		return badRequest({
-			error:
-				error instanceof Error ? error.message : "Failed to process request",
-		});
+	if (!actionType) {
+		return badRequest({ error: "Action is required" });
 	}
+
+	if (actionType === Action.Upload) {
+		return uploadAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	} else if (actionType === Action.Update) {
+		return updateAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	} else if (actionType === Action.Delete) {
+		return deleteAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	} else return badRequest({ error: "Invalid action" });
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -552,13 +560,16 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
 
-export function useDeleteMedia() {
+export function useDeleteMedia(userId?: number) {
 	const fetcher = useFetcher<typeof clientAction>();
 	const deleteMedia = async (mediaIds: number | number[]) => {
 		const formData = new FormData();
 		const ids = Array.isArray(mediaIds) ? mediaIds : [mediaIds];
 		formData.append("mediaIds", ids.join(","));
-		fetcher.submit(formData, { method: "DELETE" });
+		fetcher.submit(formData, {
+			method: "POST",
+			action: getActionUrl(Action.Delete, userId),
+		});
 	};
 	return {
 		deleteMedia,
@@ -581,7 +592,7 @@ export function useDownloadMedia() {
 	return { downloadMedia };
 }
 
-export function useUploadMedia() {
+export function useUploadMedia(userId?: number) {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const uploadMedia = (file: File, alt?: string, caption?: string) => {
@@ -596,6 +607,7 @@ export function useUploadMedia() {
 		fetcher.submit(formData, {
 			method: "POST",
 			encType: ContentType.MULTIPART,
+			action: getActionUrl(Action.Upload, userId),
 		});
 	};
 
@@ -606,14 +618,17 @@ export function useUploadMedia() {
 	};
 }
 
-export function useRenameMedia() {
+export function useRenameMedia(userId?: number) {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const renameMedia = (mediaId: number, newFilename: string) => {
 		const formData = new FormData();
 		formData.append("mediaId", mediaId.toString());
 		formData.append("newFilename", newFilename);
-		fetcher.submit(formData, { method: "PATCH" });
+		fetcher.submit(formData, {
+			method: "POST",
+			action: getActionUrl(Action.Update, userId),
+		});
 	};
 
 	return {
@@ -1503,10 +1518,10 @@ export default function MediaPage({ loaderData }: Route.ComponentProps) {
 	const [usageFile, setUsageFile] = useState<Media | null>(null);
 	const fileInputId = useId();
 	const fileInputRef = useRef<HTMLInputElement>(null);
-	const { deleteMedia } = useDeleteMedia();
+	const { deleteMedia } = useDeleteMedia(user.id);
 	const { downloadMedia } = useDownloadMedia();
-	const { uploadMedia } = useUploadMedia();
-	const { renameMedia } = useRenameMedia();
+	const { uploadMedia } = useUploadMedia(user.id);
+	const { renameMedia } = useRenameMedia(user.id);
 
 	const handleDownload = (file: Media) => {
 		downloadMedia(file);

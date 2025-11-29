@@ -17,6 +17,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
+import { canEditProfile, canImpersonate } from "server/utils/permissions";
 import { setImpersonationCookie } from "~/utils/cookie";
 import {
 	badRequest,
@@ -25,6 +26,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/profile";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -46,21 +48,22 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userId = params.id ? Number(params.id) : currentUser.id;
 
 	// Check if user can edit this profile
-	const canEdit = userId === currentUser.id || currentUser.role === "admin";
+	const editPermission = canEditProfile(currentUser, userId);
 
-	// Check if user can impersonate (admin viewing someone else's profile, not an admin, and not already impersonating)
-	const canImpersonate =
-		userSession.authenticatedUser.role === "admin" &&
-		userId !== userSession.authenticatedUser.id &&
-		userProfileContext.profileUser.role !== "admin" &&
-		!userSession.isImpersonating;
+	// Check if user can impersonate
+	const impersonatePermission = canImpersonate(
+		userSession.authenticatedUser,
+		userId,
+		userProfileContext.profileUser.role,
+		userSession.isImpersonating,
+	);
 
 	return {
 		user: userProfileContext.profileUser,
 		enrollments: userProfileContext.enrollments,
 		isOwnProfile: userId === currentUser.id,
-		canEdit,
-		canImpersonate,
+		canEdit: editPermission.allowed,
+		canImpersonate: impersonatePermission.allowed,
 		isImpersonating: userSession.isImpersonating,
 		authenticatedUser: userSession.authenticatedUser,
 	};
@@ -94,14 +97,15 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const targetUserResult = await tryFindUserById({
 			payload,
 			userId: targetUserId,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			overrideAccess: true,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: false,
 		});
 
-		if (!targetUserResult.ok || !targetUserResult.value) {
+		if (!targetUserResult.ok) {
 			return badRequest({ error: "Target user not found" });
 		}
 
@@ -114,7 +118,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const redirectTo = (formData.get("redirectTo") as string) || "/";
 
 		// Set impersonation cookie and redirect
-		throw redirect(redirectTo, {
+		return redirect(redirectTo, {
 			headers: {
 				"Set-Cookie": setImpersonationCookie(
 					targetUserId,
@@ -150,7 +154,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 // Reusable hook for impersonation functionality
 export const useImpersonate = () => {
-	const fetcher = useFetcher();
+	const fetcher = useFetcher<typeof clientAction>();
 
 	const impersonate = (targetUserId: number, redirectTo?: string) => {
 		const formData = new FormData();
@@ -162,7 +166,7 @@ export const useImpersonate = () => {
 		// Submit to profile route action which handles impersonation
 		fetcher.submit(formData, {
 			method: "POST",
-			action: "/user/profile",
+			action: href("/user/profile/:id?", { id: targetUserId.toString() }),
 		});
 	};
 

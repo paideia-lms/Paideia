@@ -22,7 +22,7 @@ export function generateCourseStructureTree(
 
 	// Generate tree for each root section
 	for (let i = 0; i < courseStructure.sections.length; i++) {
-		const section = courseStructure.sections[i];
+		const section = courseStructure.sections[i]!;
 		const isLast = i === courseStructure.sections.length - 1;
 
 		generateSectionTree(section, "", isLast, lines);
@@ -49,7 +49,7 @@ function generateSectionTree(
 	const newPrefix = prefix + (isLast ? "    " : "│   ");
 
 	for (let i = 0; i < section.content.length; i++) {
-		const item = section.content[i];
+		const item = section.content[i]!;
 		const isLastItem = i === section.content.length - 1;
 
 		if (item.type === "activity-module") {
@@ -92,7 +92,7 @@ export function generateSimpleCourseStructureTree(
 
 	// Generate tree for each root section
 	for (let i = 0; i < courseStructure.sections.length; i++) {
-		const section = courseStructure.sections[i];
+		const section = courseStructure.sections[i]!;
 		const isLast = i === courseStructure.sections.length - 1;
 
 		generateSimpleSectionTree(section, "", isLast, lines);
@@ -119,7 +119,7 @@ function generateSimpleSectionTree(
 	const newPrefix = prefix + (isLast ? "    " : "│   ");
 
 	for (let i = 0; i < section.content.length; i++) {
-		const item = section.content[i];
+		const item = section.content[i]!;
 		const isLastItem = i === section.content.length - 1;
 
 		if (item.type === "activity-module") {

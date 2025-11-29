@@ -75,7 +75,9 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 		}
 
-		const createResult = await tryCreateCategory(payload, request, {
+		const createResult = await tryCreateCategory({
+			payload,
+			req: request,
 			name: parsed.data.name,
 			parent: parsed.data.parent ?? undefined,
 		});
@@ -102,7 +104,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: "The category has been created",
 			color: "green",
 		});
-		throw redirect(href("/admin/categories"));
+		return redirect(href("/admin/categories"));
 	}
 	if (actionData && "error" in actionData) {
 		notifications.show({
@@ -117,7 +119,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 import { href } from "react-router";
 
 export default function NewCategoryPage({ loaderData }: Route.ComponentProps) {
-	const fetcher = useFetcher<typeof action>();
+	const fetcher = useFetcher<typeof clientAction>();
 
 	const form = useForm({
 		mode: "uncontrolled",

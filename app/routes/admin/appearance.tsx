@@ -33,6 +33,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/appearance";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 type AppearanceGlobal = {
 	id: number;
@@ -97,14 +98,14 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateAppearanceSettings({
 		payload,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
 		data: {
 			additionalCssStylesheets,
 		},
-		overrideAccess: false,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!updateResult.ok) {
@@ -162,7 +163,9 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			stylesheets: additionalCssStylesheets.map((url) => ({ url })),
+			stylesheets: additionalCssStylesheets.map((sheet) => ({
+				url: sheet.url,
+			})),
 		},
 	});
 
@@ -178,11 +181,11 @@ export default function AdminAppearance({ loaderData }: Route.ComponentProps) {
 
 	const moveStylesheet = (index: number, direction: "up" | "down") => {
 		if (direction === "up" && index > 0) {
-			const item = stylesheets[index];
+			const item = stylesheets[index]!;
 			form.removeListItem("stylesheets", index);
 			form.insertListItem("stylesheets", item, index - 1);
 		} else if (direction === "down" && index < stylesheets.length - 1) {
-			const item = stylesheets[index];
+			const item = stylesheets[index]!;
 			form.removeListItem("stylesheets", index);
 			form.insertListItem("stylesheets", item, index + 1);
 		}

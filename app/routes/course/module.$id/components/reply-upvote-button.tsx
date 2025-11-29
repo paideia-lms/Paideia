@@ -1,7 +1,8 @@
 import { ActionIcon, Group, Text } from "@mantine/core";
 import { IconArrowBigUp, IconArrowBigUpFilled } from "@tabler/icons-react";
 import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
-import { useRemoveUpvoteReply, useUpvoteReply } from "../route";
+import { useRemoveUpvoteReply } from "../hooks";
+import { useUpvoteReply } from "../hooks";
 
 interface ReplyUpvoteButtonProps {
 	reply: DiscussionReply;

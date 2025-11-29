@@ -139,7 +139,10 @@ export function WeightDisplay({
 	);
 
 	// Always show tooltip if adjusted weight exists and is different from weight, or if auto-weighted-0
-	if (autoWeightedZero || (hasAdjustedWeight && (!hasWeight || !weightsMatch))) {
+	if (
+		autoWeightedZero ||
+		(hasAdjustedWeight && (!hasWeight || !weightsMatch))
+	) {
 		return (
 			<Tooltip label={tooltipContent} withArrow multiline w={300}>
 				<Box style={{ cursor: "help" }}>{weightContent}</Box>

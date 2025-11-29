@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import { tryCreateMedia } from "./media-management";
 import {
@@ -26,10 +26,12 @@ describe("Note Management Functions", () => {
 
 	// Helper to get authenticated user from token
 	const getAuthUser = async (token: string): Promise<TypedUser | null> => {
-		const authResult = await payload.auth({
+		const authResult = await executeAuthStrategies({
 			headers: new Headers({
 				Authorization: `Bearer ${token}`,
 			}),
+			canSetHeaders: true,
+			payload,
 		});
 		return authResult.user;
 	};
@@ -197,11 +199,7 @@ describe("Note Management Functions", () => {
 			if (result.ok) {
 				expect(result.value.content).toBe("This is my first note!");
 				// Handle both depth 0 (ID) and depth 1 (object) cases
-				if (typeof result.value.createdBy === "object") {
-					expect(result.value.createdBy.id).toBe(testUser.id);
-				} else {
-					expect(result.value.createdBy).toBe(testUser.id);
-				}
+				expect(result.value.createdBy).toBe(testUser.id);
 				expect(result.value.id).toBeDefined();
 				expect(result.value.createdAt).toBeDefined();
 				// Media array should be empty when no media references
@@ -228,11 +226,7 @@ describe("Note Management Functions", () => {
 					"I'm learning about [[math-101-a-fa-2025]] and it's great!",
 				);
 				// Handle both depth 0 (ID) and depth 1 (object) cases
-				if (typeof result.value.createdBy === "object") {
-					expect(result.value.createdBy.id).toBe(testUser.id);
-				} else {
-					expect(result.value.createdBy).toBe(testUser.id);
-				}
+				expect(result.value.createdBy).toBe(testUser.id);
 			}
 		});
 
@@ -354,9 +348,7 @@ describe("Note Management Functions", () => {
 				if (Array.isArray(result.value.media)) {
 					expect(result.value.media.length).toBe(1);
 					const mediaId =
-						typeof result.value.media[0] === "number"
-							? result.value.media[0]
-							: result.value.media[0]?.id;
+result.value.media[0]
 					expect(mediaId).toBe(testMediaId);
 				}
 			}
@@ -398,9 +390,7 @@ describe("Note Management Functions", () => {
 				if (Array.isArray(updateResult.value.media)) {
 					expect(updateResult.value.media.length).toBe(1);
 					const mediaId =
-						typeof updateResult.value.media[0] === "number"
-							? updateResult.value.media[0]
-							: updateResult.value.media[0]?.id;
+						updateResult.value.media[0];
 					expect(mediaId).toBe(testMediaId);
 				}
 			}
@@ -962,7 +952,7 @@ describe("Note Management Functions", () => {
 				const result = await tryFindNoteById({
 					payload,
 					noteId: user1PrivateNote.id,
-					user: user1,
+					req: { user: user1 },
 					overrideAccess: false,
 				});
 
@@ -978,7 +968,7 @@ describe("Note Management Functions", () => {
 				const result = await tryFindNoteById({
 					payload,
 					noteId: user1PublicNote.id,
-					user: user2,
+					req: { user: user2 },
 					overrideAccess: false,
 				});
 
@@ -1006,13 +996,13 @@ describe("Note Management Functions", () => {
 				const result1 = await tryFindNoteById({
 					payload,
 					noteId: user1PrivateNote.id,
-					user: adminUser,
+					req: { user: adminUser },
 					overrideAccess: false,
 				});
 				const result2 = await tryFindNoteById({
 					payload,
 					noteId: user2PrivateNote.id,
-					user: adminUser,
+					req: { user: adminUser },
 					overrideAccess: false,
 				});
 
@@ -1104,7 +1094,7 @@ describe("Note Management Functions", () => {
 				expect(result.value.availableYears.length).toBeGreaterThan(0);
 
 				// Check heatmap data format
-				const firstDate = Object.keys(result.value.heatmapData)[0];
+				const firstDate = Object.keys(result.value.heatmapData)[0]!;
 				expect(firstDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
 				expect(typeof result.value.heatmapData[firstDate]).toBe("number");
 			}
@@ -1135,7 +1125,7 @@ describe("Note Management Functions", () => {
 				mimeType: "image/png",
 				alt: "Paideia logo test",
 				userId: testUser.id,
-				user,
+				req: { user },
 			});
 
 			expect(createMediaResult.ok).toBe(true);
@@ -1173,9 +1163,7 @@ describe("Note Management Functions", () => {
 			if (Array.isArray(result.value.media)) {
 				expect(result.value.media.length).toBe(1);
 				const mediaId =
-					typeof result.value.media[0] === "number"
-						? result.value.media[0]
-						: result.value.media[0]?.id;
+result.value.media[0]
 				expect(mediaId).toBe(createdMedia.id);
 			} else {
 				throw new Error("Media should be an array");
@@ -1212,8 +1200,7 @@ describe("Note Management Functions", () => {
 					mimeType: "image/png",
 					alt: "Gem test",
 					userId: testUser.id,
-					user,
-					req: { transactionID },
+					req: { user, transactionID },
 				});
 
 				expect(createMediaResult.ok).toBe(true);
@@ -1254,10 +1241,7 @@ describe("Note Management Functions", () => {
 				expect(result.value.media).toBeDefined();
 				if (Array.isArray(result.value.media)) {
 					expect(result.value.media.length).toBe(1);
-					const mediaId =
-						typeof result.value.media[0] === "number"
-							? result.value.media[0]
-							: result.value.media[0]?.id;
+					const mediaId =result.value.media[0]
 					expect(mediaId).toBe(createdMedia.id);
 				} else {
 					throw new Error("Media should be an array");

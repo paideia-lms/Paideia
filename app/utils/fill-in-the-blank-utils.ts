@@ -55,7 +55,7 @@ export interface ParsedFillInTheBlank {
 export function parseFillInTheBlank(prompt: string): ParsedFillInTheBlank {
 	// Extract all blank IDs from {{...}} markers
 	const blankMatches = Array.from(prompt.matchAll(/\{\{([^}]+)\}\}/g));
-	const blankIds = blankMatches.map((match) => match[1].trim());
+	const blankIds = blankMatches.map((match) => match[1]!.trim());
 
 	// Get unique blank IDs in order of first appearance
 	const uniqueBlankIds: string[] = [];
@@ -106,7 +106,7 @@ export function splitPromptIntoParts(prompt: string): Array<{
 			if (blankMatch) {
 				return {
 					type: "blank" as const,
-					content: blankMatch[1].trim(),
+					content: blankMatch[1]!.trim(),
 				};
 			}
 			return {

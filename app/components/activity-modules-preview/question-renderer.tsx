@@ -61,7 +61,7 @@ import type {
 	ShortAnswerQuestion,
 	SingleSelectionMatrixQuestion,
 	WhiteboardQuestion,
-} from "server/json/raw-quiz-config.types.v2";
+} from "server/json/raw-quiz-config/types.v2";
 import { splitPromptIntoParts } from "~/utils/fill-in-the-blank-utils";
 import { useWhiteboardData } from "../activity-module-forms/useWhiteboardData";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
@@ -516,7 +516,7 @@ function RankingRenderer({
 
 			const newItems = [...items];
 			const [movedItem] = newItems.splice(oldIndex, 1);
-			newItems.splice(newIndex, 0, movedItem);
+			newItems.splice(newIndex, 0, movedItem!);
 
 			onChange(newItems);
 		}
@@ -546,7 +546,7 @@ function RankingRenderer({
 							<SortableItem
 								key={itemKey}
 								id={itemKey}
-								item={question.items[itemKey]}
+								item={question.items[itemKey]!}
 								index={index}
 								disabled={disabled}
 							/>

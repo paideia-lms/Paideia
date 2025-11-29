@@ -4,6 +4,7 @@ import {
 	Container,
 	Divider,
 	Group,
+	NumberInput,
 	Paper,
 	Stack,
 	Text,
@@ -15,13 +16,33 @@ import { useForm } from "@mantine/form";
 import { modals } from "@mantine/modals";
 import { notifications } from "@mantine/notifications";
 import { IconTrash } from "@tabler/icons-react";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateCourseModuleSettings } from "server/internal/course-activity-module-link-management";
-import type { CourseModuleSettingsV1 } from "server/json/course-module-settings.types";
+import {
+	tryUpdateAssignmentModuleSettings,
+	tryUpdateDiscussionModuleSettings,
+	tryUpdateFileModuleSettings,
+	tryUpdatePageModuleSettings,
+	tryUpdateQuizModuleSettings,
+	tryUpdateWhiteboardModuleSettings,
+} from "server/internal/course-activity-module-link-management";
+import type {
+	LatestAssignmentSettings,
+	LatestDiscussionSettings,
+	LatestFileSettings,
+	LatestPageSettings,
+	LatestQuizSettings,
+	LatestWhiteboardSettings,
+} from "server/json";
+import { permissions } from "server/utils/permissions";
 import { useDeleteModuleLink } from "~/routes/course.$id.modules";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import {
@@ -35,12 +56,14 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/module.$id.edit";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
-	const { moduleLinkId } = params;
+	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -57,34 +80,101 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	// Check if user can edit
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
-	const canEdit =
-		currentUser.role === "admin" ||
-		currentUser.role === "content-manager" ||
-		courseContext.course.enrollments.some(
-			(enrollment: { userId: number; role: string }) =>
-				enrollment.userId === currentUser.id &&
-				(enrollment.role === "teacher" || enrollment.role === "ta"),
-		);
+	const canEdit = permissions.course.module.canEdit(
+		currentUser,
+		enrolmentContext?.enrolment
+			? [
+				{
+					userId: enrolmentContext.enrolment.user.id,
+					role: enrolmentContext.enrolment.role,
+				},
+			]
+			: undefined,
+	);
 
-	if (!canEdit) {
-		throw new ForbiddenResponse(
-			"You don't have permission to edit this module",
-		);
+	if (!canEdit.allowed) {
+		throw new ForbiddenResponse(canEdit.reason);
 	}
+
+	// Use custom name if available, otherwise use module title
+	const displayName =
+		courseModuleContext.settings?.name ??
+		courseModuleContext.activityModule.title;
+
 
 	return {
 		course: courseContext.course,
-		module: courseModuleContext.module,
-		moduleLinkId: courseModuleContext.moduleLinkId,
-		settings: courseModuleContext.moduleLinkSettings,
+		module: courseModuleContext,
+		displayName,
 	};
 };
 
-export const action = async ({
+enum Action {
+	UpdatePage = "updatePage",
+	UpdateWhiteboard = "updateWhiteboard",
+	UpdateFile = "updateFile",
+	UpdateAssignment = "updateAssignment",
+	UpdateQuiz = "updateQuiz",
+	UpdateDiscussion = "updateDiscussion",
+}
+
+// Define search params for module settings update
+export const moduleSettingsSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(moduleSettingsSearchParams);
+
+const updatePageSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs) => {
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+	};
+
+	const result = await tryUpdatePageModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		name: requestData.name || undefined,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateWhiteboardSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
 	assertRequestMethod(request.method, "POST");
 
 	const { payload } = context.get(globalContextKey);
@@ -97,98 +187,301 @@ export const action = async ({
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
-		moduleType: string;
 		name?: string | null;
-		allowSubmissionsFrom?: string | null;
-		dueDate?: string | null;
-		cutoffDate?: string | null;
-		openingTime?: string | null;
-		closingTime?: string | null;
 	};
 
-	if (!requestData.moduleType) {
-		return badRequest({ error: "Module type is required" });
-	}
-
-	const { moduleType, name, ...dateFields } = requestData;
-
-	// Build settings based on module type
-	let settings: CourseModuleSettingsV1;
-
-	switch (moduleType) {
-		case "page":
-		case "whiteboard":
-			settings = {
-				version: "v1",
-				settings: {
-					type: moduleType,
-					name: name || undefined,
-				},
-			};
-			break;
-
-		case "assignment": {
-			settings = {
-				version: "v1",
-				settings: {
-					type: "assignment",
-					name: name || undefined,
-					allowSubmissionsFrom: dateFields.allowSubmissionsFrom || undefined,
-					dueDate: dateFields.dueDate || undefined,
-					cutoffDate: dateFields.cutoffDate || undefined,
-				},
-			};
-			break;
-		}
-
-		case "quiz": {
-			settings = {
-				version: "v1",
-				settings: {
-					type: "quiz",
-					name: name || undefined,
-					openingTime: dateFields.openingTime || undefined,
-					closingTime: dateFields.closingTime || undefined,
-				},
-			};
-			break;
-		}
-
-		case "discussion": {
-			settings = {
-				version: "v1",
-				settings: {
-					type: "discussion",
-					name: name || undefined,
-					dueDate: dateFields.dueDate || undefined,
-					cutoffDate: dateFields.cutoffDate || undefined,
-				},
-			};
-			break;
-		}
-
-		default:
-			return badRequest({ error: "Invalid module type" });
-	}
-
-	// Update the settings
-	const result = await tryUpdateCourseModuleSettings(
+	const result = await tryUpdateWhiteboardModuleSettings({
 		payload,
-		request,
-		Number(moduleLinkId),
-		settings,
-	);
+		linkId: Number(moduleLinkId),
+		name: requestData.name || undefined,
+		req: request,
+	});
 
 	if (!result.ok) {
 		return badRequest({ error: result.error.message });
 	}
 
-	// Redirect to the module page
 	return redirect(
 		href("/course/module/:moduleLinkId", {
 			moduleLinkId: String(moduleLinkId),
 		}),
 	);
+};
+
+const updateFileSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+	};
+
+	const result = await tryUpdateFileModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		name: requestData.name || undefined,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateAssignmentSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+		allowSubmissionsFrom?: string | null;
+		dueDate?: string | null;
+		cutoffDate?: string | null;
+		maxAttempts?: number | null;
+	};
+
+	const result = await tryUpdateAssignmentModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		name: requestData.name || undefined,
+		allowSubmissionsFrom: requestData.allowSubmissionsFrom || undefined,
+		dueDate: requestData.dueDate || undefined,
+		cutoffDate: requestData.cutoffDate || undefined,
+		maxAttempts: requestData.maxAttempts || undefined,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateQuizSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+		openingTime?: string | null;
+		closingTime?: string | null;
+		maxAttempts?: number | null;
+	};
+
+	const result = await tryUpdateQuizModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		name: requestData.name || undefined,
+		openingTime: requestData.openingTime || undefined,
+		closingTime: requestData.closingTime || undefined,
+		maxAttempts: requestData.maxAttempts || undefined,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const updateDiscussionSettingsAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	assertRequestMethod(request.method, "POST");
+
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { moduleLinkId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		name?: string | null;
+		dueDate?: string | null;
+		cutoffDate?: string | null;
+	};
+
+	const result = await tryUpdateDiscussionModuleSettings({
+		payload,
+		linkId: Number(moduleLinkId),
+		name: requestData.name || undefined,
+		dueDate: requestData.dueDate || undefined,
+		cutoffDate: requestData.cutoffDate || undefined,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
+
+	if (!result.ok) {
+		return badRequest({ error: result.error.message });
+	}
+
+	return redirect(
+		href("/course/module/:moduleLinkId", {
+			moduleLinkId: String(moduleLinkId),
+		}),
+	);
+};
+
+const getActionUrl = (action: Action, moduleLinkId: string) => {
+	return (
+		href("/course/module/:moduleLinkId/edit", {
+			moduleLinkId,
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
+		});
+	}
+
+	if (actionType === Action.UpdatePage) {
+		return updatePageSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateWhiteboard) {
+		return updateWhiteboardSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateFile) {
+		return updateFileSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateAssignment) {
+		return updateAssignmentSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateQuiz) {
+		return updateQuizSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.UpdateDiscussion) {
+		return updateDiscussionSettingsAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -208,22 +501,71 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
-type UpdateModuleValues = {
-	moduleType: string;
-	name?: string;
-	// Assignment fields
-	allowSubmissionsFrom?: Date | string | null;
-	assignmentDueDate?: Date | string | null;
-	assignmentCutoffDate?: Date | string | null;
-	// Quiz fields
-	quizOpeningTime?: Date | string | null;
-	quizClosingTime?: Date | string | null;
-	// Discussion fields
-	discussionDueDate?: Date | string | null;
-	discussionCutoffDate?: Date | string | null;
-};
+// Custom hooks for updating module settings
+function useUpdatePageSettings(moduleLinkId: string) {
+	const fetcher = useFetcher<typeof action>();
 
-const useUpdateCourseModule = () => {
+	const updatePageSettings = (name?: string | null) => {
+		fetcher.submit(
+			{ name: name || null },
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdatePage, moduleLinkId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
+
+	return {
+		updatePageSettings,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+function useUpdateWhiteboardSettings(moduleLinkId: string) {
+	const fetcher = useFetcher<typeof action>();
+
+	const updateWhiteboardSettings = (name?: string | null) => {
+		fetcher.submit(
+			{ name: name || null },
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateWhiteboard, moduleLinkId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
+
+	return {
+		updateWhiteboardSettings,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+function useUpdateFileSettings(moduleLinkId: string) {
+	const fetcher = useFetcher<typeof action>();
+
+	const updateFileSettings = (name?: string | null) => {
+		fetcher.submit(
+			{ name: name || null },
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateFile, moduleLinkId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
+
+	return {
+		updateFileSettings,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+function useUpdateAssignmentSettings(moduleLinkId: string) {
 	const fetcher = useFetcher<typeof action>();
 
 	const toISOStringOrNull = (
@@ -235,97 +577,520 @@ const useUpdateCourseModule = () => {
 		return null;
 	};
 
-	const updateModule = (values: UpdateModuleValues) => {
-		const payload: Record<string, string | null> = {
-			moduleType: values.moduleType,
-			name: values.name || null,
-		};
-
-		// Add module-specific fields
-		if (values.moduleType === "assignment") {
-			payload.allowSubmissionsFrom = toISOStringOrNull(
-				values.allowSubmissionsFrom,
-			);
-			payload.dueDate = toISOStringOrNull(values.assignmentDueDate);
-			payload.cutoffDate = toISOStringOrNull(values.assignmentCutoffDate);
-		} else if (values.moduleType === "quiz") {
-			payload.openingTime = toISOStringOrNull(values.quizOpeningTime);
-			payload.closingTime = toISOStringOrNull(values.quizClosingTime);
-		} else if (values.moduleType === "discussion") {
-			payload.dueDate = toISOStringOrNull(values.discussionDueDate);
-			payload.cutoffDate = toISOStringOrNull(values.discussionCutoffDate);
-		}
-
-		fetcher.submit(payload, {
-			method: "POST",
-			encType: ContentType.JSON,
-		});
+	const updateAssignmentSettings = (values: {
+		name?: string | null;
+		allowSubmissionsFrom?: Date | string | null;
+		dueDate?: Date | string | null;
+		cutoffDate?: Date | string | null;
+		maxAttempts?: number | null;
+	}) => {
+		fetcher.submit(
+			{
+				name: values.name || null,
+				allowSubmissionsFrom: toISOStringOrNull(values.allowSubmissionsFrom),
+				dueDate: toISOStringOrNull(values.dueDate),
+				cutoffDate: toISOStringOrNull(values.cutoffDate),
+				maxAttempts: values.maxAttempts || null,
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateAssignment, moduleLinkId),
+				encType: ContentType.JSON,
+			},
+		);
 	};
 
 	return {
-		updateModule,
+		updateAssignmentSettings,
 		isLoading: fetcher.state !== "idle",
-		state: fetcher.state,
 		data: fetcher.data,
 	};
-};
+}
 
-export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
-	const { course, module, moduleLinkId, settings } = loaderData;
-	const navigate = useNavigate();
-	const { updateModule, isLoading } = useUpdateCourseModule();
-	const { deleteModuleLink, isLoading: isDeleting } = useDeleteModuleLink();
+function useUpdateQuizSettings(moduleLinkId: string) {
+	const fetcher = useFetcher<typeof action>();
 
-	// Parse existing settings
-	const existingSettings = settings?.settings;
+	const toISOStringOrNull = (
+		value: Date | string | null | undefined,
+	): string | null => {
+		if (!value) return null;
+		if (value instanceof Date) return value.toISOString();
+		if (typeof value === "string") return value;
+		return null;
+	};
 
-	// Use custom name if available, otherwise use module title
-	const displayName = existingSettings?.name ?? module.title;
+	const updateQuizSettings = (values: {
+		name?: string | null;
+		openingTime?: Date | string | null;
+		closingTime?: Date | string | null;
+		maxAttempts?: number | null;
+	}) => {
+		fetcher.submit(
+			{
+				name: values.name || null,
+				openingTime: toISOStringOrNull(values.openingTime),
+				closingTime: toISOStringOrNull(values.closingTime),
+				maxAttempts: values.maxAttempts || null,
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateQuiz, moduleLinkId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
 
-	// Initialize form with existing values
+	return {
+		updateQuizSettings,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+function useUpdateDiscussionSettings(moduleLinkId: string) {
+	const fetcher = useFetcher<typeof action>();
+
+	const toISOStringOrNull = (
+		value: Date | string | null | undefined,
+	): string | null => {
+		if (!value) return null;
+		if (value instanceof Date) return value.toISOString();
+		if (typeof value === "string") return value;
+		return null;
+	};
+
+	const updateDiscussionSettings = (values: {
+		name?: string | null;
+		dueDate?: Date | string | null;
+		cutoffDate?: Date | string | null;
+	}) => {
+		fetcher.submit(
+			{
+				name: values.name || null,
+				dueDate: toISOStringOrNull(values.dueDate),
+				cutoffDate: toISOStringOrNull(values.cutoffDate),
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.UpdateDiscussion, moduleLinkId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
+
+	return {
+		updateDiscussionSettings,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+// Form wrappers that use their respective hooks
+function PageSettingsFormWrapper({
+	settings,
+	moduleLinkId,
+	onCancel,
+}: {
+	settings: LatestPageSettings | null;
+	moduleLinkId: number;
+	onCancel: () => void;
+}) {
+	const { updatePageSettings, isLoading } = useUpdatePageSettings(
+		String(moduleLinkId),
+	);
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
-			moduleType: module.type,
-			name: existingSettings?.name || "",
-			// Assignment fields
-			allowSubmissionsFrom:
-				existingSettings?.type === "assignment" &&
-				existingSettings.allowSubmissionsFrom
-					? new Date(existingSettings.allowSubmissionsFrom)
-					: null,
-			assignmentDueDate:
-				existingSettings?.type === "assignment" && existingSettings.dueDate
-					? new Date(existingSettings.dueDate)
-					: null,
-			assignmentCutoffDate:
-				existingSettings?.type === "assignment" && existingSettings.cutoffDate
-					? new Date(existingSettings.cutoffDate)
-					: null,
-			// Quiz fields
-			quizOpeningTime:
-				existingSettings?.type === "quiz" && existingSettings.openingTime
-					? new Date(existingSettings.openingTime)
-					: null,
-			quizClosingTime:
-				existingSettings?.type === "quiz" && existingSettings.closingTime
-					? new Date(existingSettings.closingTime)
-					: null,
-			// Discussion fields
-			discussionDueDate:
-				existingSettings?.type === "discussion" && existingSettings.dueDate
-					? new Date(existingSettings.dueDate)
-					: null,
-			discussionCutoffDate:
-				existingSettings?.type === "discussion" && existingSettings.cutoffDate
-					? new Date(existingSettings.cutoffDate)
-					: null,
+			name: settings?.name ?? "",
 		},
 	});
 
-	const handleSubmit = (values: typeof form.values) => {
-		updateModule(values);
-	};
+	return (
+		<form onSubmit={form.onSubmit((values) => updatePageSettings(values.name))}>
+			<Stack gap="md">
+				<TextInput
+					label="Custom Module Name"
+					placeholder="Leave empty to use default module name"
+					disabled={isLoading}
+					description="Override the module name for this course"
+					{...form.getInputProps("name")}
+				/>
+
+				<Text c="dimmed" size="sm">
+					Only custom name can be configured for page modules.
+				</Text>
+
+				<Group justify="flex-end" mt="md">
+					<Button variant="subtle" onClick={onCancel} disabled={isLoading}>
+						Cancel
+					</Button>
+					<Button type="submit" loading={isLoading}>
+						Save Settings
+					</Button>
+				</Group>
+			</Stack>
+		</form>
+	);
+}
+
+function WhiteboardSettingsFormWrapper({
+	settings,
+	moduleLinkId,
+	onCancel,
+}: {
+	settings: LatestWhiteboardSettings | null;
+	moduleLinkId: number;
+	onCancel: () => void;
+}) {
+	const { updateWhiteboardSettings, isLoading } = useUpdateWhiteboardSettings(
+		String(moduleLinkId),
+	);
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			name: settings?.name ?? "",
+		},
+	});
+
+	return (
+		<form
+			onSubmit={form.onSubmit((values) =>
+				updateWhiteboardSettings(values.name),
+			)}
+		>
+			<Stack gap="md">
+				<TextInput
+					label="Custom Module Name"
+					placeholder="Leave empty to use default module name"
+					disabled={isLoading}
+					description="Override the module name for this course"
+					{...form.getInputProps("name")}
+				/>
+
+				<Text c="dimmed" size="sm">
+					Only custom name can be configured for whiteboard modules.
+				</Text>
+
+				<Group justify="flex-end" mt="md">
+					<Button variant="subtle" onClick={onCancel} disabled={isLoading}>
+						Cancel
+					</Button>
+					<Button type="submit" loading={isLoading}>
+						Save Settings
+					</Button>
+				</Group>
+			</Stack>
+		</form>
+	);
+}
+
+function FileSettingsFormWrapper({
+	settings,
+	moduleLinkId,
+	onCancel,
+}: {
+	settings: LatestFileSettings | null;
+	moduleLinkId: number;
+	onCancel: () => void;
+}) {
+	const { updateFileSettings, isLoading } = useUpdateFileSettings(
+		String(moduleLinkId),
+	);
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			name: settings?.name ?? "",
+		},
+	});
+
+	return (
+		<form onSubmit={form.onSubmit((values) => updateFileSettings(values.name))}>
+			<Stack gap="md">
+				<TextInput
+					{...form.getInputProps("name")}
+					label="Custom Module Name"
+					placeholder="Leave empty to use default module name"
+					disabled={isLoading}
+					description="Override the module name for this course"
+				/>
+
+				<Text c="dimmed" size="sm">
+					Only custom name can be configured for file modules.
+				</Text>
+
+				<Group justify="flex-end" mt="md">
+					<Button variant="subtle" onClick={onCancel} disabled={isLoading}>
+						Cancel
+					</Button>
+					<Button type="submit" loading={isLoading}>
+						Save Settings
+					</Button>
+				</Group>
+			</Stack>
+		</form>
+	);
+}
+
+function AssignmentSettingsFormWrapper({
+	settings,
+	moduleLinkId,
+	onCancel,
+}: {
+	settings: LatestAssignmentSettings | null;
+	moduleLinkId: number;
+	onCancel: () => void;
+}) {
+	const { updateAssignmentSettings, isLoading } = useUpdateAssignmentSettings(
+		String(moduleLinkId),
+	);
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			name: settings?.name ?? "",
+			allowSubmissionsFrom: settings?.allowSubmissionsFrom
+				? new Date(settings.allowSubmissionsFrom)
+				: null,
+			dueDate: settings?.dueDate ? new Date(settings.dueDate) : null,
+			cutoffDate: settings?.cutoffDate ? new Date(settings.cutoffDate) : null,
+			maxAttempts: settings?.maxAttempts || null,
+		},
+	});
+
+	return (
+		<form
+			onSubmit={form.onSubmit((values) =>
+				updateAssignmentSettings({
+					name: values.name,
+					allowSubmissionsFrom: values.allowSubmissionsFrom,
+					dueDate: values.dueDate,
+					cutoffDate: values.cutoffDate,
+					maxAttempts: values.maxAttempts,
+				}),
+			)}
+		>
+			<Stack gap="md">
+				<TextInput
+					{...form.getInputProps("name")}
+					label="Custom Module Name"
+					placeholder="Leave empty to use default module name"
+					disabled={isLoading}
+					description="Override the module name for this course"
+				/>
+
+				<DateTimePicker
+					{...form.getInputProps("allowSubmissionsFrom")}
+					label="Allow Submissions From"
+					placeholder="Select date and time"
+					disabled={isLoading}
+					clearable
+					description="When students can start submitting"
+				/>
+
+				<DateTimePicker
+					{...form.getInputProps("dueDate")}
+					label="Due Date"
+					placeholder="Select date and time"
+					disabled={isLoading}
+					clearable
+					description="Assignment due date"
+				/>
+
+				<DateTimePicker
+					{...form.getInputProps("cutoffDate")}
+					label="Cutoff Date"
+					placeholder="Select date and time"
+					disabled={isLoading}
+					clearable
+					description="Latest possible submission time"
+				/>
+
+				<NumberInput
+					{...form.getInputProps("maxAttempts")}
+					label="Maximum Attempts"
+					placeholder="Leave empty for unlimited"
+					disabled={isLoading}
+					min={1}
+					description="Maximum number of submission attempts allowed"
+				/>
+
+				<Group justify="flex-end" mt="md">
+					<Button variant="subtle" onClick={onCancel} disabled={isLoading}>
+						Cancel
+					</Button>
+					<Button type="submit" loading={isLoading}>
+						Save Settings
+					</Button>
+				</Group>
+			</Stack>
+		</form>
+	);
+}
+
+function QuizSettingsFormWrapper({
+	settings,
+	moduleLinkId,
+	onCancel,
+}: {
+	settings: LatestQuizSettings | null;
+	moduleLinkId: number;
+	onCancel: () => void;
+}) {
+	const { updateQuizSettings, isLoading } = useUpdateQuizSettings(
+		String(moduleLinkId),
+	);
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			name: settings?.name ?? "",
+			openingTime: settings?.openingTime
+				? new Date(settings.openingTime)
+				: null,
+			closingTime: settings?.closingTime
+				? new Date(settings.closingTime)
+				: null,
+			maxAttempts: settings?.maxAttempts || null,
+		},
+	});
+
+	return (
+		<form
+			onSubmit={form.onSubmit((values) =>
+				updateQuizSettings({
+					name: values.name,
+					openingTime: values.openingTime,
+					closingTime: values.closingTime,
+					maxAttempts: values.maxAttempts,
+				}),
+			)}
+		>
+			<Stack gap="md">
+				<TextInput
+					label="Custom Module Name"
+					placeholder="Leave empty to use default module name"
+					disabled={isLoading}
+					description="Override the module name for this course"
+					{...form.getInputProps("name")}
+				/>
+
+				<DateTimePicker
+					label="Opening Time"
+					placeholder="Select date and time"
+					disabled={isLoading}
+					clearable
+					description="When quiz becomes available"
+					{...form.getInputProps("openingTime")}
+				/>
+
+				<DateTimePicker
+					label="Closing Time"
+					placeholder="Select date and time"
+					disabled={isLoading}
+					clearable
+					description="When quiz closes"
+					{...form.getInputProps("closingTime")}
+				/>
+
+				<NumberInput
+					label="Maximum Attempts"
+					placeholder="Leave empty for unlimited"
+					disabled={isLoading}
+					min={1}
+					description="Maximum number of attempt attempts allowed"
+					{...form.getInputProps("maxAttempts")}
+				/>
+
+				<Group justify="flex-end" mt="md">
+					<Button variant="subtle" onClick={onCancel} disabled={isLoading}>
+						Cancel
+					</Button>
+					<Button type="submit" loading={isLoading}>
+						Save Settings
+					</Button>
+				</Group>
+			</Stack>
+		</form>
+	);
+}
+
+function DiscussionSettingsFormWrapper({
+	settings,
+	moduleLinkId,
+	onCancel,
+}: {
+	settings: LatestDiscussionSettings | null;
+	moduleLinkId: number;
+	onCancel: () => void;
+}) {
+	const { updateDiscussionSettings, isLoading } = useUpdateDiscussionSettings(
+		String(moduleLinkId),
+	);
+	const form = useForm({
+		mode: "uncontrolled",
+		initialValues: {
+			name: settings?.name ?? "",
+			dueDate: settings?.dueDate ? new Date(settings.dueDate) : null,
+			cutoffDate: settings?.cutoffDate ? new Date(settings.cutoffDate) : null,
+		},
+	});
+
+	return (
+		<form
+			onSubmit={form.onSubmit((values) =>
+				updateDiscussionSettings({
+					name: values.name,
+					dueDate: values.dueDate,
+					cutoffDate: values.cutoffDate,
+				}),
+			)}
+		>
+			<Stack gap="md">
+				<TextInput
+					label="Custom Module Name"
+					placeholder="Leave empty to use default module name"
+					disabled={isLoading}
+					description="Override the module name for this course"
+					{...form.getInputProps("name")}
+				/>
+
+				<DateTimePicker
+					label="Due Date"
+					placeholder="Select date and time"
+					disabled={isLoading}
+					clearable
+					description="Discussion due date"
+					{...form.getInputProps("dueDate")}
+				/>
+
+				<DateTimePicker
+					label="Cutoff Date"
+					placeholder="Select date and time"
+					disabled={isLoading}
+					clearable
+					description="Discussion cutoff date"
+					{...form.getInputProps("cutoffDate")}
+				/>
+
+				<Group justify="flex-end" mt="md">
+					<Button variant="subtle" onClick={onCancel} disabled={isLoading}>
+						Cancel
+					</Button>
+					<Button type="submit" loading={isLoading}>
+						Save Settings
+					</Button>
+				</Group>
+			</Stack>
+		</form>
+	);
+}
+
+function DangerZone({
+	moduleLinkId,
+	courseId,
+}: {
+	moduleLinkId: number;
+	courseId: number;
+}) {
+	const { deleteModuleLink, isLoading: isDeleting } = useDeleteModuleLink();
 
 	const handleDelete = () => {
 		modals.openConfirmModal({
@@ -342,11 +1107,69 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 			onConfirm: () => {
 				deleteModuleLink(
 					moduleLinkId,
-					course.id,
-					href("/course/:courseId", { courseId: String(course.id) }),
+					courseId,
+					href("/course/:courseId", { courseId: String(courseId) }),
 				);
 			},
 		});
+	};
+
+	return (
+		<Paper
+			withBorder
+			shadow="sm"
+			p="xl"
+			style={{ borderColor: "var(--mantine-color-red-6)" }}
+		>
+			<Stack gap="md">
+				<div>
+					<Title order={3} c="red">
+						Danger Zone
+					</Title>
+					<Text size="sm" c="dimmed" mt="xs">
+						Irreversible and destructive actions
+					</Text>
+				</div>
+
+				<Divider color="red" />
+
+				<Group justify="space-between" align="flex-start">
+					<div style={{ flex: 1 }}>
+						<Text fw={500} mb="xs">
+							Remove module from course
+						</Text>
+						<Text size="sm" c="dimmed">
+							Once you remove this module from the course, there is no going
+							back. This will only remove the link between the module and the
+							course, not delete the module itself.
+						</Text>
+					</div>
+					<Button
+						color="red"
+						variant="light"
+						leftSection={<IconTrash size={16} />}
+						onClick={handleDelete}
+						loading={isDeleting}
+						style={{ minWidth: "150px" }}
+					>
+						Remove Module
+					</Button>
+				</Group>
+			</Stack>
+		</Paper>
+	);
+}
+
+export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
+	const { course, module, displayName } = loaderData;
+	const navigate = useNavigate();
+
+	const handleCancel = () => {
+		navigate(
+			href("/course/module/:moduleLinkId", {
+				moduleLinkId: String(module.id),
+			}),
+		);
 	};
 
 	const title = `Edit Module Settings | ${displayName} | ${course.title} | Paideia LMS`;
@@ -374,162 +1197,52 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 				</Group>
 
 				<Paper shadow="sm" p="xl" withBorder>
-					<form onSubmit={form.onSubmit(handleSubmit)}>
-						<Stack gap="md">
-							<TextInput
-								label="Custom Module Name"
-								placeholder="Leave empty to use default module name"
-								disabled={isLoading}
-								description="Override the module name for this course"
-								{...form.getInputProps("name")}
-							/>
-
-							{module.type === "assignment" && (
-								<>
-									<DateTimePicker
-										label="Allow Submissions From"
-										placeholder="Select date and time"
-										disabled={isLoading}
-										clearable
-										description="When students can start submitting"
-										{...form.getInputProps("allowSubmissionsFrom")}
-									/>
-
-									<DateTimePicker
-										label="Due Date"
-										placeholder="Select date and time"
-										disabled={isLoading}
-										clearable
-										description="Assignment due date"
-										{...form.getInputProps("assignmentDueDate")}
-									/>
-
-									<DateTimePicker
-										label="Cutoff Date"
-										placeholder="Select date and time"
-										disabled={isLoading}
-										clearable
-										description="Latest possible submission time"
-										{...form.getInputProps("assignmentCutoffDate")}
-									/>
-								</>
-							)}
-
-							{module.type === "quiz" && (
-								<>
-									<DateTimePicker
-										label="Opening Time"
-										placeholder="Select date and time"
-										disabled={isLoading}
-										clearable
-										description="When quiz becomes available"
-										{...form.getInputProps("quizOpeningTime")}
-									/>
-
-									<DateTimePicker
-										label="Closing Time"
-										placeholder="Select date and time"
-										disabled={isLoading}
-										clearable
-										description="When quiz closes"
-										{...form.getInputProps("quizClosingTime")}
-									/>
-								</>
-							)}
-
-							{module.type === "discussion" && (
-								<>
-									<DateTimePicker
-										label="Due Date"
-										placeholder="Select date and time"
-										disabled={isLoading}
-										clearable
-										description="Discussion due date"
-										{...form.getInputProps("discussionDueDate")}
-									/>
-
-									<DateTimePicker
-										label="Cutoff Date"
-										placeholder="Select date and time"
-										disabled={isLoading}
-										clearable
-										description="Discussion cutoff date"
-										{...form.getInputProps("discussionCutoffDate")}
-									/>
-								</>
-							)}
-
-							{(module.type === "page" || module.type === "whiteboard") && (
-								<Text c="dimmed" size="sm">
-									Only custom name can be configured for {module.type} modules.
-								</Text>
-							)}
-
-							<Group justify="flex-end" mt="md">
-								<Button
-									variant="subtle"
-									onClick={() =>
-										navigate(
-											href("/course/module/:moduleLinkId", {
-												moduleLinkId: String(moduleLinkId),
-											}),
-										)
-									}
-									disabled={isLoading}
-								>
-									Cancel
-								</Button>
-								<Button type="submit" loading={isLoading}>
-									Save Settings
-								</Button>
-							</Group>
-						</Stack>
-					</form>
+					{/* TODO: we should not check two value but for now the type is not right */}
+					{module.type === "page" && (
+						<PageSettingsFormWrapper
+							settings={module.settings}
+							moduleLinkId={module.id}
+							onCancel={handleCancel}
+						/>
+					)}
+					{module.type === "whiteboard" && (
+						<WhiteboardSettingsFormWrapper
+							settings={module.settings}
+							moduleLinkId={module.id}
+							onCancel={handleCancel}
+						/>
+					)}
+					{module.type === "file" && (
+						<FileSettingsFormWrapper
+							settings={module.settings}
+							moduleLinkId={module.id}
+							onCancel={handleCancel}
+						/>
+					)}
+					{module.type === "assignment" && (
+						<AssignmentSettingsFormWrapper
+							settings={module.settings}
+							moduleLinkId={module.id}
+							onCancel={handleCancel}
+						/>
+					)}
+					{module.type === "quiz" && (
+						<QuizSettingsFormWrapper
+							settings={module.settings}
+							moduleLinkId={module.id}
+							onCancel={handleCancel}
+						/>
+					)}
+					{module.type === "discussion" && (
+						<DiscussionSettingsFormWrapper
+							settings={module.settings}
+							moduleLinkId={module.id}
+							onCancel={handleCancel}
+						/>
+					)}
 				</Paper>
 
-				{/* Danger Zone */}
-				<Paper
-					withBorder
-					shadow="sm"
-					p="xl"
-					style={{ borderColor: "var(--mantine-color-red-6)" }}
-				>
-					<Stack gap="md">
-						<div>
-							<Title order={3} c="red">
-								Danger Zone
-							</Title>
-							<Text size="sm" c="dimmed" mt="xs">
-								Irreversible and destructive actions
-							</Text>
-						</div>
-
-						<Divider color="red" />
-
-						<Group justify="space-between" align="flex-start">
-							<div style={{ flex: 1 }}>
-								<Text fw={500} mb="xs">
-									Remove module from course
-								</Text>
-								<Text size="sm" c="dimmed">
-									Once you remove this module from the course, there is no going
-									back. This will only remove the link between the module and
-									the course, not delete the module itself.
-								</Text>
-							</div>
-							<Button
-								color="red"
-								variant="light"
-								leftSection={<IconTrash size={16} />}
-								onClick={handleDelete}
-								loading={isDeleting}
-								style={{ minWidth: "150px" }}
-							>
-								Remove Module
-							</Button>
-						</Group>
-					</Stack>
-				</Paper>
+				<DangerZone moduleLinkId={module.id} courseId={course.id} />
 			</Stack>
 		</Container>
 	);

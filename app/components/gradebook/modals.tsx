@@ -11,30 +11,30 @@ import {
 	Textarea,
 	TextInput,
 } from "@mantine/core";
-import { useForm, type UseFormReturnType } from "@mantine/form";
+import { type UseFormReturnType, useForm } from "@mantine/form";
+import { IconPencil } from "@tabler/icons-react";
 import {
 	type FormEventHandler,
 	forwardRef,
 	useImperativeHandle,
 	useState,
 } from "react";
+import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import {
 	useCreateCategory,
 	useCreateGradeItem,
 	useUpdateGradeCategory,
 	useUpdateGradeItem,
 } from "./hooks";
-import { IconPencil } from "@tabler/icons-react";
-import { useFormWatchForceUpdate } from "~/utils/form-utils";
 
-export type CreateGradeItemModalHandle = {
+export interface CreateGradeItemModalHandle {
 	open: () => void;
-};
+}
 
-type CreateGradeItemModalProps = {
+interface CreateGradeItemModalProps {
 	categoryOptions: Array<{ value: string; label: string }>;
 	courseId: number;
-};
+}
 
 export const CreateGradeItemModal = forwardRef<
 	CreateGradeItemModalHandle,
@@ -85,9 +85,7 @@ export const CreateGradeItemModal = forwardRef<
 			minGrade: values.minGrade
 				? Number.parseFloat(values.minGrade)
 				: undefined,
-			weight: values.overrideWeight && values.weight
-				? Number.parseFloat(values.weight)
-				: null,
+			weight: values.overrideWeight ? Number.parseFloat(values.weight) : null,
 			extraCredit: values.overrideWeight ? values.extraCredit : false,
 		});
 		form.reset();
@@ -169,7 +167,11 @@ export const CreateGradeItemModal = forwardRef<
 					)}
 
 					<Group justify="flex-end" gap="xs">
-						<Button variant="default" onClick={() => setOpened(false)} type="button">
+						<Button
+							variant="default"
+							onClick={() => setOpened(false)}
+							type="button"
+						>
 							Cancel
 						</Button>
 						<Button type="submit" loading={isLoading}>
@@ -209,7 +211,6 @@ export function UpdateGradeItemButton({
 
 	const [opened, setOpened] = useState(false);
 
-
 	const form = useForm({
 		mode: "uncontrolled",
 		initialValues: {
@@ -219,7 +220,7 @@ export function UpdateGradeItemButton({
 			maxGrade: item.maxGrade ? String(item.maxGrade) : "",
 			minGrade: item.minGrade ? String(item.minGrade) : "",
 			overrideWeight: item.weight !== null,
-			weight: item.weight ? String(item.weight) : String(item.adjustedWeight),
+			weight: item.weight ? item.weight : item.adjustedWeight,
 			extraCredit: item.extraCredit ?? false,
 		},
 		validate: {
@@ -232,7 +233,7 @@ export function UpdateGradeItemButton({
 		const categoryId = values.category
 			? Number.parseInt(values.category, 10)
 			: null;
-		updateGradeItem(courseId, item.id, {
+		const data = {
 			name: values.name,
 			description: values.description || undefined,
 			categoryId: categoryId && !Number.isNaN(categoryId) ? categoryId : null,
@@ -242,31 +243,35 @@ export function UpdateGradeItemButton({
 			minGrade: values.minGrade
 				? Number.parseFloat(values.minGrade)
 				: undefined,
-			weight: values.overrideWeight && values.weight
-				? Number.parseFloat(values.weight)
-				: null,
+			weight: values.overrideWeight ? (values.weight ?? 0) : null,
 
 			extraCredit: values.overrideWeight ? values.extraCredit : false,
-		});
+		};
+
+		updateGradeItem(courseId, item.id, data);
 		setOpened(false);
 	});
 
 	return (
 		<>
-			<ActionIcon onClick={() => {
-				form.setInitialValues({
-					name: item.name,
-					description: item.description ?? "",
-					category: item.categoryId ? String(item.categoryId) : "",
-					maxGrade: item.maxGrade ? String(item.maxGrade) : "",
-					minGrade: item.minGrade ? String(item.minGrade) : "",
-					overrideWeight: item.weight !== null,
-					weight: item.weight ? String(item.weight) : String(item.adjustedWeight),
-					extraCredit: item.extraCredit ?? false,
-				});
-				form.reset();
-				setOpened(true);
-			}} loading={isLoading} variant="subtle">
+			<ActionIcon
+				onClick={() => {
+					form.setInitialValues({
+						name: item.name,
+						description: item.description ?? "",
+						category: item.categoryId ? String(item.categoryId) : "",
+						maxGrade: item.maxGrade ? String(item.maxGrade) : "",
+						minGrade: item.minGrade ? String(item.minGrade) : "",
+						overrideWeight: item.weight !== null,
+						weight: item.weight ? item.weight : item.adjustedWeight,
+						extraCredit: item.extraCredit ?? false,
+					});
+					form.reset();
+					setOpened(true);
+				}}
+				loading={isLoading}
+				variant="subtle"
+			>
 				<IconPencil />
 			</ActionIcon>
 			<UpdateGradeItemModal
@@ -294,7 +299,7 @@ type UpdateGradeItemModalProps = {
 		maxGrade: string;
 		minGrade: string;
 		overrideWeight: boolean;
-		weight: string;
+		weight: number | null;
 		extraCredit: boolean;
 	}>;
 	onSubmit: FormEventHandler<HTMLFormElement>;
@@ -401,13 +406,13 @@ export function UpdateGradeItemModal({
 	);
 }
 
-export type CreateCategoryModalHandle = {
+export interface CreateCategoryModalHandle {
 	open: () => void;
-};
+}
 
-type CreateCategoryModalProps = {
+export interface CreateCategoryModalProps {
 	parentOptions: Array<{ value: string; label: string }>;
-};
+}
 
 export const CreateCategoryModal = forwardRef<
 	CreateCategoryModalHandle,
@@ -438,9 +443,7 @@ export const CreateCategoryModal = forwardRef<
 	}));
 
 	const handleSubmit = form.onSubmit((values) => {
-		const parentId = values.parent
-			? Number.parseInt(values.parent, 10)
-			: null;
+		const parentId = values.parent ? Number.parseInt(values.parent, 10) : null;
 
 		createCategory({
 			name: values.name,
@@ -486,7 +489,11 @@ export const CreateCategoryModal = forwardRef<
 					/>
 
 					<Group justify="flex-end" gap="xs">
-						<Button variant="default" onClick={() => setOpened(false)} type="button">
+						<Button
+							variant="default"
+							onClick={() => setOpened(false)}
+							type="button"
+						>
 							Cancel
 						</Button>
 						<Button type="submit" loading={isLoading}>
@@ -501,8 +508,6 @@ export const CreateCategoryModal = forwardRef<
 
 CreateCategoryModal.displayName = "CreateCategoryModal";
 
-
-
 type UpdateGradeCategoryButtonProps = {
 	category: {
 		id: number;
@@ -512,9 +517,11 @@ type UpdateGradeCategoryButtonProps = {
 		extraCredit: boolean;
 		hasItems: boolean;
 	};
-}
+};
 
-export function UpdateGradeCategoryButton({ category }: UpdateGradeCategoryButtonProps) {
+export function UpdateGradeCategoryButton({
+	category,
+}: UpdateGradeCategoryButtonProps) {
 	const { updateGradeCategory, isLoading } = useUpdateGradeCategory();
 
 	const [opened, setOpened] = useState(false);
@@ -538,34 +545,44 @@ export function UpdateGradeCategoryButton({ category }: UpdateGradeCategoryButto
 		await updateGradeCategory(category.id, {
 			name: values.name,
 			description: values.description || undefined,
-			weight: values.overrideWeight && values.weight
-				? Number.parseFloat(values.weight)
-				: null,
+			weight: values.overrideWeight ? Number.parseFloat(values.weight) : null,
 			extraCredit: values.overrideWeight ? values.extraCredit : false,
 		});
 		setOpened(false);
 	});
 
-
-	return <>
-		<ActionIcon onClick={() => {
-			// reset the form to initial values
-			form.setInitialValues({
-				name: category.name,
-				description: category.description ?? "",
-				overrideWeight: category.weight !== null,
-				weight: category.weight ? String(category.weight) : "",
-				extraCredit: category.extraCredit ?? false,
-			});
-			form.reset();
-			setOpened(true);
-		}} loading={isLoading} variant="subtle">
-			<IconPencil />
-		</ActionIcon>
-		<UpdateGradeCategoryModal opened={opened} onClose={() => setOpened(false)} onExitTransitionEnd={() => form.reset()} category={category} form={form} onSubmit={handleSubmit} isLoading={isLoading} />
-	</>;
+	return (
+		<>
+			<ActionIcon
+				onClick={() => {
+					// reset the form to initial values
+					form.setInitialValues({
+						name: category.name,
+						description: category.description ?? "",
+						overrideWeight: category.weight !== null,
+						weight: category.weight ? String(category.weight) : "",
+						extraCredit: category.extraCredit ?? false,
+					});
+					form.reset();
+					setOpened(true);
+				}}
+				loading={isLoading}
+				variant="subtle"
+			>
+				<IconPencil />
+			</ActionIcon>
+			<UpdateGradeCategoryModal
+				opened={opened}
+				onClose={() => setOpened(false)}
+				onExitTransitionEnd={() => form.reset()}
+				category={category}
+				form={form}
+				onSubmit={handleSubmit}
+				isLoading={isLoading}
+			/>
+		</>
+	);
 }
-
 
 type UpdateGradeCategoryModalProps = {
 	opened: boolean;
@@ -585,7 +602,15 @@ type UpdateGradeCategoryModalProps = {
 	isLoading: boolean;
 };
 
-export function UpdateGradeCategoryModal({ opened, onClose, onExitTransitionEnd, category, form, onSubmit, isLoading }: UpdateGradeCategoryModalProps) {
+export function UpdateGradeCategoryModal({
+	opened,
+	onClose,
+	onExitTransitionEnd,
+	category,
+	form,
+	onSubmit,
+	isLoading,
+}: UpdateGradeCategoryModalProps) {
 	const overrideWeight = useFormWatchForceUpdate(form, "overrideWeight");
 
 	return (

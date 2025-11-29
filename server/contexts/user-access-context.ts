@@ -5,37 +5,27 @@
  * it stores all the enrollments of this users
  * it stores all the notes created by this user with heatmap data
  */
-import type { Payload } from "payload";
 import { createContext } from "react-router";
-import type { User } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
-import type { Note } from "server/payload-types";
+import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+import type {
+	Note,
+	ActivityModule as PayloadActivityModule,
+	Course as PayloadCourse,
+	Enrollment as PayloadEnrollment,
+} from "server/payload-types";
 
 type Course = {
 	id: number;
 	title: string;
 	slug: string;
-	status: "draft" | "published" | "archived";
+	status: PayloadCourse["status"];
 	description: string;
 	createdAt: string;
 	updatedAt: string;
-	category?: {
-		id: number;
-		name: string;
-		parent?: {
-			id: number;
-			name: string;
-		} | null;
-	} | null;
-	thumbnail?:
-		| number
-		| {
-				id: number;
-				filename?: string | null;
-		  }
-		| null;
+	category?: number | null;
 };
 
 type ActivityModule = {
@@ -44,8 +34,8 @@ type ActivityModule = {
 	description: string;
 	createdAt: string;
 	updatedAt: string;
-	type: "quiz" | "assignment" | "discussion" | "page" | "whiteboard";
-	status: "draft" | "published" | "archived";
+	type: PayloadActivityModule["type"];
+	status: PayloadActivityModule["status"];
 	linkedCourses: number[];
 	accessType: "owned" | "granted" | "readonly";
 };
@@ -55,102 +45,63 @@ type ActivityModule = {
  */
 export type Enrollment = {
 	id: number;
-	role: "student" | "teacher" | "ta" | "manager";
-	status: "active" | "inactive" | "completed" | "dropped";
+	role: PayloadEnrollment["role"];
+	status: PayloadEnrollment["status"];
 	enrolledAt?: string | null;
 	completedAt?: string | null;
 	course: Course;
 };
 
-export interface UserAccessContext {
-	activityModules: ActivityModule[];
-	enrollments: Enrollment[];
-	notes: Note[];
-	heatmapData: Record<string, number>;
-	availableYears: number[];
-}
+// export interface UserAccessContext {
+// 	activityModules: ActivityModule[];
+// 	enrollments: Enrollment[];
+// 	notes: Note[];
+// 	heatmapData: Record<string, number>;
+// 	availableYears: number[];
+// }
+
+export type UserAccessContext = NonNullable<
+	Awaited<ReturnType<typeof getUserAccessContext>>
+>;
 
 export const userAccessContext = createContext<UserAccessContext | null>(null);
 
-export const userAccessContextKey =
-	"userAccessContext" as unknown as typeof userAccessContext;
+export { userAccessContextKey } from "./utils/context-keys";
 
-export const getUserAccessContext = async (
-	payload: Payload,
-	/**
-	 * the target user id
-	 */
-	userId: number,
-	/**
-	 * the current user, need to verify the access
-	 */
-	user: User,
-): Promise<UserAccessContext | null> => {
-	const result = await tryGetUserActivityModules(payload, {
-		userId: userId,
-		user: {
-			...user,
-			collection: "users",
-		},
-		overrideAccess: true,
-	});
+interface GetUserAccessContextArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
 
-	if (!result.ok)
-		throw new Error(result.error.message, {
-			cause: result.error,
-		});
+export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
+	const { payload, userId, overrideAccess = false, req } = args;
+	const { modulesOwnedOrGranted, autoGrantedModules } =
+		await tryGetUserActivityModules(args).getOrThrow();
 
-	const { modulesOwnedOrGranted, autoGrantedModules } = result.value;
-
-	const enrollments = await tryFindEnrollmentsByUser(
+	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
-		user.id,
-		{
-			...user,
-			avatar: user.avatar?.id,
+		userId: userId,
+		req,
+		overrideAccess,
+	}).getOrThrow();
+
+	const enrollmentsData = enrollments.map((enrollment) => ({
+		id: enrollment.id,
+		role: enrollment.role,
+		status: enrollment.status,
+		enrolledAt: enrollment.enrolledAt,
+		completedAt: enrollment.completedAt,
+		course: {
+			id: enrollment.course.id,
+			title: enrollment.course.title,
+			slug: enrollment.course.slug,
+			status: enrollment.course.status,
+			description: enrollment.course.description,
+			createdAt: enrollment.course.createdAt,
+			updatedAt: enrollment.course.updatedAt,
+			category: enrollment.course.category ?? null,
+			thumbnail: enrollment.course.thumbnail ?? null,
 		},
-		undefined,
-		true,
-	);
-
-	if (!enrollments.ok) throw new Error("Failed to get user enrollments");
-
-	const enrollmentsData = enrollments.value.map(
-		(enrollment) =>
-			({
-				id: enrollment.id,
-				role: enrollment.role,
-				status: enrollment.status,
-				enrolledAt: enrollment.enrolledAt,
-				completedAt: enrollment.completedAt,
-				course: {
-					id: enrollment.course.id,
-					title: enrollment.course.title,
-					slug: enrollment.course.slug,
-					status: enrollment.course.status,
-					description: enrollment.course.description,
-					createdAt: enrollment.course.createdAt,
-					updatedAt: enrollment.course.updatedAt,
-					category: enrollment.course.category
-						? typeof enrollment.course.category === "object"
-							? {
-									id: enrollment.course.category.id,
-									name: enrollment.course.category.name,
-									parent:
-										enrollment.course.category.parent &&
-										typeof enrollment.course.category.parent === "object"
-											? {
-													id: enrollment.course.category.parent.id,
-													name: enrollment.course.category.parent.name,
-												}
-											: null,
-								}
-							: null
-						: null,
-					thumbnail: enrollment.course.thumbnail ?? null,
-				},
-			}) satisfies Enrollment,
-	);
+	})) satisfies Enrollment[];
 
 	const activityModules = [
 		...modulesOwnedOrGranted.map((module) => ({
@@ -182,17 +133,11 @@ export const getUserAccessContext = async (
 	const heatmapResult = await tryGenerateNoteHeatmap({
 		payload,
 		userId,
-		user: {
-			...user,
-			collection: "users",
-			avatar: user.avatar?.id,
-		},
-		overrideAccess: false,
-	});
+		req,
+		overrideAccess,
+	}).getOrThrow();
 
-	const { notes, heatmapData, availableYears } = heatmapResult.ok
-		? heatmapResult.value
-		: { notes: [], heatmapData: {}, availableYears: [] };
+	const { notes, heatmapData, availableYears } = heatmapResult;
 
 	return {
 		activityModules: activityModules.filter(

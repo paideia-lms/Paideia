@@ -30,8 +30,13 @@ import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/user-modules-layout";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
@@ -62,21 +67,18 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	// Fetch the target user
-	const userResult = await tryFindUserById({
-		payload,
-		userId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-		overrideAccess: false,
-	});
+	// const userResult = await tryFindUserById({
+	// 	payload,
+	// 	userId,
+	// 	req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
+	// 	overrideAccess: false,
+	// });
 
-	if (!userResult.ok) {
-		throw new NotFoundResponse("User not found");
-	}
+	// if (!userResult.ok) {
+	// 	throw new NotFoundResponse("User not found");
+	// }
 
-	const targetUser = userResult.value;
+	const targetUser = userProfileContext.profileUser;
 
 	const modules = userProfileContext.activityModules;
 

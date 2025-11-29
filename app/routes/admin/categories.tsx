@@ -71,7 +71,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can manage categories");
 	}
 
-	const treeResult = await tryGetCategoryTree(payload);
+	const treeResult = await tryGetCategoryTree({ payload });
 	if (!treeResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
 	}
@@ -98,16 +98,16 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	if (categoryIdParam) {
 		const idNum = Number(categoryIdParam);
 		if (!Number.isNaN(idNum)) {
-			const catRes = await tryFindCategoryById(payload, idNum);
+			const catRes = await tryFindCategoryById({ payload, categoryId: idNum });
 			if (catRes.ok) {
 				const directCoursesCountRes = await payload.count({
 					collection: "courses",
 					where: { category: { equals: idNum } },
 				});
 				const [subRes, totalRes, ancestorsRes] = await Promise.all([
-					tryFindSubcategories(payload, idNum),
-					tryGetTotalNestedCoursesCount(payload, idNum),
-					tryGetCategoryAncestors(payload, idNum),
+					tryFindSubcategories({ payload, parentId: idNum }),
+					tryGetTotalNestedCoursesCount({ payload, categoryId: idNum }),
+					tryGetCategoryAncestors({ payload, categoryId: idNum }),
 				]);
 				const parentField = catRes.value.parent;
 				selectedCategory = {
@@ -162,9 +162,12 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			const parentRaw = form.get("parent");
 			const parent = parentRaw ? Number(parentRaw) : undefined;
 
-			const updateRes = await tryUpdateCategory(payload, request, categoryId, {
+			const updateRes = await tryUpdateCategory({
+				payload,
+				categoryId,
+				req: request,
 				name: name ? String(name) : undefined,
-				parent: Number.isFinite(parent) ? (parent as number) : undefined,
+				parent: parent ? Number(parent) : undefined,
 			});
 
 			if (!updateRes.ok) {
@@ -189,7 +192,11 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 				});
 			}
 
-			const delRes = await tryDeleteCategory(payload, request, categoryId);
+			const delRes = await tryDeleteCategory({
+				payload,
+				categoryId,
+				req: request,
+			});
 			if (!delRes.ok) {
 				await payload.db.rollbackTransaction(transactionID);
 				return badRequest({ error: delRes.error.message });
@@ -294,7 +301,7 @@ export default function AdminCategoriesPage({
 				});
 				return;
 			}
-			const sourceId = items[0].getId();
+			const sourceId = items[0]!.getId();
 			const targetId = target.item.getId();
 
 			if (targetId === "root") {
@@ -349,7 +356,7 @@ export default function AdminCategoriesPage({
 						parentId: null,
 						children: [
 							"uncategorized",
-							...Object.keys(flat).filter((k) => flat[k].parentId === null),
+							...Object.keys(flat).filter((k) => flat[k]!.parentId === null),
 						],
 						directCoursesCount: 0,
 						totalNestedCoursesCount: 0,
@@ -365,13 +372,13 @@ export default function AdminCategoriesPage({
 						totalNestedCoursesCount: uncategorizedCount,
 					} as unknown as FlatNode; // virtual node compatible with tree usage
 				}
-				return flat[id];
+				return flat[id]!;
 			},
 			getChildren: (id: string) => {
 				if (id === "root")
 					return [
 						"uncategorized",
-						...Object.keys(flat).filter((k) => flat[k].parentId === null),
+						...Object.keys(flat).filter((k) => flat[k]!.parentId === null),
 					];
 				if (id === "uncategorized") return [];
 				return flat[id]?.children ?? [];

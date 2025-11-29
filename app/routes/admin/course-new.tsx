@@ -21,9 +21,14 @@ import {
 	badRequest,
 	ForbiddenResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course-new";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { parseFormDataWithFallback } from "app/utils/parse-form-data-with-fallback";
+import { getDataAndContentTypeFromRequest } from "app/utils/get-content-type";
+import { Result } from "node_modules/typescript-result/dist";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
@@ -70,92 +75,91 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
-	try {
-		const formData = await request.formData();
+	// Wrap this with try because it is possible to throw error
+	const result = await Result.try(() =>
+		getDataAndContentTypeFromRequest(request),
+	);
 
-		const parsed = z
-			.object({
-				title: z.string().min(1, "Title is required"),
-				slug: z
-					.string()
-					.min(1, "Slug is required")
-					.regex(
-						/^[a-z0-9-]+$/,
-						"Slug must contain only lowercase letters, numbers, and hyphens",
-					),
-				description: z.string().min(1, "Description is required"),
-				status: z.enum(["draft", "published", "archived"]),
-				category: z.coerce.number().nullish(),
-			})
-			.safeParse({
-				title: formData.get("title"),
-				slug: formData.get("slug"),
-				description: formData.get("description"),
-				status: formData.get("status"),
-				category: formData.get("category"),
-			});
-
-		if (!parsed.success) {
-			return badRequest({
-				success: false,
-				error: parsed.error.issues[0]?.message ?? "Validation error",
-			});
-		}
-
-		// Create course
-		const createResult = await tryCreateCourse({
-			payload,
-			data: {
-				title: parsed.data.title,
-				slug: parsed.data.slug,
-				description: parsed.data.description,
-				status: parsed.data.status,
-				createdBy: currentUser.id,
-				category: parsed.data.category ?? undefined,
-			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
-			overrideAccess: false,
-		});
-
-		if (!createResult.ok) {
-			return badRequest({
-				success: false,
-				error: createResult.error.message,
-			});
-		}
-
-		return ok({
-			success: true,
-			message: "Course created successfully",
-			id: createResult.value.id,
-		});
-	} catch (error) {
-		console.error("Course creation error:", error);
+	if (!result.ok)
 		return badRequest({
 			success: false,
-			error: error instanceof Error ? error.message : "Failed to create course",
+			error: result.error.message,
+		});
+
+	const { data } = result.value;
+
+	const parsed = z
+		.object({
+			title: z.string().min(1, "Title is required"),
+			slug: z
+				.string()
+				.min(1, "Slug is required")
+				.regex(
+					/^[a-z0-9-]+$/,
+					"Slug must contain only lowercase letters, numbers, and hyphens",
+				),
+			description: z.string().min(1, "Description is required"),
+			status: z.enum(["draft", "published", "archived"]),
+			category: z.coerce.number().nullish(),
+		})
+		.safeParse(data);
+
+	if (!parsed.success) {
+		return badRequest({
+			success: false,
+			error: parsed.error.issues[0]?.message ?? "Validation error",
 		});
 	}
+
+	// Create course
+	const createResult = await tryCreateCourse({
+		payload,
+		data: {
+			title: parsed.data.title,
+			slug: parsed.data.slug,
+			description: parsed.data.description,
+			status: parsed.data.status,
+			createdBy: currentUser.id,
+			category: parsed.data.category ?? undefined,
+		},
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
+
+	if (!createResult.ok) {
+		return badRequest({
+			success: false,
+			error: createResult.error.message,
+		});
+	}
+
+	return ok({
+		success: true,
+		message: "Course created successfully",
+		id: createResult.value.id,
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (actionData?.success) {
-		if (actionData.status === 200) {
+		if (actionData.status === StatusCode.Ok) {
 			notifications.show({
 				title: "Course created",
 				message: "The course has been created successfully",
 				color: "green",
 			});
 			// Redirect to the newly created course's view page
-			throw redirect(`/course/${actionData.id}`);
+			return redirect(`/course/${actionData.id}`);
 		}
-	} else if ("error" in actionData) {
+	} else if (
+		actionData.status === StatusCode.BadRequest ||
+		actionData.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Creation failed",
 			message: actionData?.error,

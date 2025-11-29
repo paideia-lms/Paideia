@@ -27,6 +27,10 @@ import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course";
+import {
+	getEnrollmentStatusBadgeColor,
+	getEnrollmentStatusLabel,
+} from "app/components/course-view-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -46,31 +50,13 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	// Extract courses from enrollments
 	const courses = userAccessContext.enrollments.map((enrollment) => {
 		// Handle thumbnail - could be Media object, just ID, or null
-		let thumbnailUrl: string | null = null;
-		if (enrollment.course.thumbnail) {
-			console.log(enrollment.course.thumbnail);
-			if (typeof enrollment.course.thumbnail === "object") {
-				// It's a populated Media object
-				thumbnailUrl = href("/api/media/file/:filenameOrId", {
-					filenameOrId: enrollment.course.thumbnail.id.toString(),
-				});
-			} else {
-				// It's just an ID (number)
-				thumbnailUrl = href("/api/media/file/:filenameOrId", {
+		const thumbnailUrl = enrollment.course.thumbnail
+			? href(`/api/media/file/:filenameOrId`, {
 					filenameOrId: enrollment.course.thumbnail.toString(),
-				});
-			}
-		}
-
+				})
+			: null;
 		return {
-			id: enrollment.course.id,
-			title: enrollment.course.title,
-			slug: enrollment.course.slug,
-			status: enrollment.course.status,
-			description: enrollment.course.description,
-			createdAt: enrollment.course.createdAt,
-			updatedAt: enrollment.course.updatedAt,
-			category: enrollment.course.category?.name,
+			...enrollment.course,
 			enrollmentStatus: enrollment.status,
 			completionPercentage: enrollment.status === "completed" ? 100 : 0,
 			createdBy: 0, // We don't have this info in the enrollment data
@@ -240,17 +226,11 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 											{course.enrollmentStatus && (
 												<Badge
 													size="sm"
-													color={
-														course.enrollmentStatus === "active"
-															? "green"
-															: course.enrollmentStatus === "completed"
-																? "blue"
-																: course.enrollmentStatus === "dropped"
-																	? "red"
-																	: "gray"
-													}
+													color={getEnrollmentStatusBadgeColor(
+														course.enrollmentStatus,
+													)}
 												>
-													{course.enrollmentStatus}
+													{getEnrollmentStatusLabel(course.enrollmentStatus)}
 												</Badge>
 											)}
 

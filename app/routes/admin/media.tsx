@@ -45,6 +45,7 @@ import { useEffect, useRef, useState } from "react";
 import { href, Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	tryDeleteMedia,
 	tryDeleteOrphanedMedia,
@@ -126,11 +127,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			limit,
 			page,
 			depth: 1, // Include createdBy user info
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: true,
 		});
 
@@ -138,23 +139,22 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		statsResult = await tryGetUserMediaStats({
 			payload,
 			userId,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: true,
 		});
 
 		// Also get system-wide stats for comparison
 		systemStatsResult = await tryGetSystemMediaStats({
 			payload,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 		});
 	} else {
 		// Fetch all media in the system
@@ -162,24 +162,21 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 			payload,
 			limit,
 			page,
-			depth: 1, // Include createdBy user info
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 		});
 
 		// Get system-wide media stats
 		statsResult = await tryGetSystemMediaStats({
 			payload,
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 		});
 	}
 
@@ -202,11 +199,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		limit: 100,
 		page: 1,
 		sort: "-createdAt",
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	const userOptions = usersResult.ok
@@ -223,12 +220,11 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		s3Client,
 		limit,
 		page: orphanedPage,
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	const orphanedMedia = orphanedMediaResult.ok
@@ -316,12 +312,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					id: mediaId,
 					newFilename,
 					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
+					req: {
+						...createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
+						transactionID,
 					},
-					req: { transactionID },
 				});
 
 				if (!renameResult.ok) {
@@ -405,14 +403,16 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			const result = await tryDeleteMedia({
 				payload,
 				s3Client,
-				id: mediaIds.length === 1 ? mediaIds[0] : mediaIds,
+				id: mediaIds,
 				userId: currentUser.id,
-				user: {
-					...currentUser,
-					collection: "users",
-					avatar: currentUser.avatar?.id ?? undefined,
+				req: {
+					...createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
+					transactionID,
 				},
-				req: { transactionID },
 			});
 
 			if (!result.ok) {
@@ -461,12 +461,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 					payload,
 					s3Client,
 					filenames,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
+					req: {
+						...createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
+						transactionID,
 					},
-					req: { transactionID },
 					overrideAccess: true,
 				});
 
@@ -486,12 +488,14 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				const result = await tryPruneAllOrphanedMedia({
 					payload,
 					s3Client,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
+					req: {
+						...createLocalReq({
+							request,
+							user: currentUser,
+							context: { routerContext: context },
+						}),
+						transactionID,
 					},
-					req: { transactionID },
 					overrideAccess: true,
 				});
 

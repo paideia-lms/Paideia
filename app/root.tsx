@@ -32,6 +32,8 @@ import "@mantine/tiptap/styles.css";
 import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
 import "@gfazioli/mantine-json-tree/styles.css";
+import "@gfazioli/mantine-clock/styles.css";
+import { omit, pick } from "es-toolkit";
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -78,6 +80,13 @@ import {
 	MaintenanceModeResponse,
 } from "./utils/responses";
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
+import { parseAsInteger, createLoader } from "nuqs/server";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+
+const searchParams = {
+	threadId: parseAsInteger,
+};
+export const loadSearchParams = createLoader(searchParams);
 
 export const middleware = [
 	/**
@@ -147,6 +156,7 @@ export const middleware = [
 		let isAdminMedia = false;
 		let isAdminAppearance = false;
 		let isAdminTheme = false;
+		let isAdminLogo = false;
 		let isAdminAnalytics = false;
 		for (const route of routeHierarchy) {
 			if (route.id.startsWith("routes/api/")) isApi = true;
@@ -238,6 +248,8 @@ export const middleware = [
 				route.id === ("routes/admin/appearance/theme" as typeof route.id)
 			)
 				isAdminTheme = true;
+			else if (route.id === ("routes/admin/appearance/logo" as typeof route.id))
+				isAdminLogo = true;
 			else if (route.id === ("routes/admin/analytics" as typeof route.id))
 				isAdminAnalytics = true;
 		}
@@ -309,6 +321,7 @@ export const middleware = [
 				isAdminMedia,
 				isAdminAppearance,
 				isAdminTheme,
+				isAdminLogo,
 				isAdminAnalytics,
 				params: params as Record<string, string>,
 			},
@@ -320,7 +333,10 @@ export const middleware = [
 	async ({ request, context }) => {
 		const { payload } = context.get(globalContextKey);
 
-		const userSession = await tryGetUserContext(payload, request);
+		const userSession = await tryGetUserContext({
+			payload,
+			req: createLocalReq({ request, context: { routerContext: context } }),
+		});
 
 		// Set the user context
 		context.set(userContextKey, userSession);
@@ -352,6 +368,12 @@ export const middleware = [
 					additionalCssStylesheets: [],
 					color: "blue",
 					radius: "sm" as const,
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
 				},
 				analyticsSettings: {
 					additionalJsScripts: [],
@@ -392,7 +414,7 @@ export const middleware = [
 	/**
 	 * set the course context
 	 */
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const currentUser =
@@ -401,24 +423,30 @@ export const middleware = [
 		// check if the user is in a course
 		if (pageInfo.isInCourse) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			let { courseId } = params as RouteParams<"layouts/course-layout">;
+			let { courseId: _courseId } = params as RouteParams<"layouts/course-layout">;
+			let courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
 				const { moduleLinkId } =
 					params as RouteParams<"layouts/course-module-layout">;
 				if (Number.isNaN(moduleLinkId)) return;
 
-				const moduleContext = await tryFindCourseActivityModuleLinkById(
+				const moduleContext = await tryFindCourseActivityModuleLinkById({
 					payload,
-					Number(moduleLinkId),
-				);
+					linkId: Number(moduleLinkId),
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
+				});
 
 				if (!moduleContext.ok) return;
 
 				const module = moduleContext.value;
 				const { course } = module;
 				// update the course id to the course id from the module
-				courseId = String(course.id);
+				courseId = course.id;
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
@@ -431,29 +459,40 @@ export const middleware = [
 				const sectionContext = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					user: currentUser
-						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
-						: null,
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 				});
 
 				if (!sectionContext.ok) return;
 
 				const section = sectionContext.value;
 				// update the course id to the course id from the section
-				courseId = String(section.course);
+				courseId = section.course.id;
 			}
 
-			const courseContextResult = await tryGetCourseContext(
+
+			// if course id is not set, something is wrong, log it and leave context unset
+			if (!courseId) {
+				payload.logger.error("Course ID is not set, something is wrong");
+				return
+			}
+
+			const courseContextResult = await tryGetCourseContext({
 				payload,
-				Number(courseId),
-				currentUser || null,
-			);
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
+				courseId: courseId,
+			});
 
 			// Only set the course context if successful
 			if (courseContextResult.ok) {
+				// FIXME: fix this type error
 				context.set(courseContextKey, courseContextResult.value);
 			} else {
 				console.error(courseContextResult.error);
@@ -462,7 +501,7 @@ export const middleware = [
 		}
 	},
 	// set the course section context
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
@@ -479,33 +518,27 @@ export const middleware = [
 			if (Number.isNaN(sectionId)) return;
 
 			if (courseContext) {
-				const sectionResult = await tryFindSectionById({
+				const courseSectionContextResult = await tryGetCourseSectionContext({
 					payload,
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 					sectionId: Number(sectionId),
-					user: currentUser
-						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
-						: null,
 				});
 
-				if (sectionResult.ok) {
-					const courseSectionContextResult =
-						await tryGetCourseSectionContext(sectionResult);
-
-					if (courseSectionContextResult.ok) {
-						context.set(
-							courseSectionContextKey,
-							courseSectionContextResult.value,
-						);
-					}
+				if (courseSectionContextResult.ok) {
+					context.set(
+						courseSectionContextKey,
+						courseSectionContextResult.value,
+					);
 				}
 			}
 		}
 	},
 	// set the user access context
-	async ({ context }) => {
+	async ({ context, request }) => {
 		const { payload } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -513,16 +546,20 @@ export const middleware = [
 			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		if (userSession?.isAuthenticated && currentUser) {
-			const userAccessContext = await getUserAccessContext(
+			const userAccessContext = await getUserAccessContext({
 				payload,
-				currentUser.id,
-				currentUser,
-			);
+				userId: currentUser.id,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
+			});
 			context.set(userAccessContextKey, userAccessContext);
 		}
 	},
 	// set the user profile context
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		const { payload, pageInfo } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const userAccessContext = context.get(userAccessContextKey);
@@ -549,7 +586,16 @@ export const middleware = [
 							userAccessContext,
 							currentUser,
 						)
-						: await getUserProfileContext(payload, profileUserId, currentUser);
+						: await getUserProfileContext({
+							payload,
+							profileUserId,
+							req: createLocalReq({
+								request,
+								user: currentUser,
+								context: { routerContext: context },
+							}),
+							overrideAccess: false,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -563,7 +609,7 @@ export const middleware = [
 			const currentUser =
 				userSession.effectiveUser || userSession.authenticatedUser;
 			const enrollment = courseContext.course.enrollments.find(
-				(e) => e.userId === currentUser?.id,
+				(e) => e.user.id === currentUser?.id,
 			);
 
 			// set the enrolment context
@@ -575,7 +621,7 @@ export const middleware = [
 		}
 	},
 	// set the course module context
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		// get the enrolment context
 		const enrolmentContext = context.get(enrolmentContextKey);
 		const { payload, pageInfo } = context.get(globalContextKey);
@@ -596,18 +642,23 @@ export const middleware = [
 
 			// Get module link ID from params
 			if (moduleLinkId && !Number.isNaN(moduleLinkId)) {
-				const courseModuleContextResult = await tryGetCourseModuleContext(
+				// Extract threadId from URL search params if present
+				const { threadId } = loadSearchParams(request);
+
+				const courseModuleContextResult = await tryGetCourseModuleContext({
 					payload,
-					Number(moduleLinkId),
-					courseContext.courseId,
-					currentUser
-						? {
-							...currentUser,
-							avatar: currentUser?.avatar?.id,
-						}
-						: null,
-					enrolmentContext?.enrolment ?? null,
-				);
+					moduleLinkId: Number(moduleLinkId),
+					courseId: courseContext.courseId,
+					enrolment: enrolmentContext?.enrolment ?? null,
+					threadId: threadId !== null ? String(threadId) : null,
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: {
+							routerContext: context,
+						},
+					}),
+				});
 
 				if (courseModuleContextResult.ok) {
 					context.set(courseModuleContextKey, courseModuleContextResult.value);
@@ -616,7 +667,7 @@ export const middleware = [
 		}
 	},
 	// set the user module context
-	async ({ context, params }) => {
+	async ({ context, params, request }) => {
 		const { payload, routeHierarchy } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -634,14 +685,15 @@ export const middleware = [
 			const moduleId = params.moduleId ? Number(params.moduleId) : null;
 
 			if (moduleId && !Number.isNaN(moduleId)) {
-				const userModuleContextResult = await tryGetUserModuleContext(
+				const userModuleContextResult = await tryGetUserModuleContext({
 					payload,
 					moduleId,
-					{
-						...currentUser,
-						avatar: currentUser?.avatar?.id,
-					},
-				);
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
+				});
 
 				if (userModuleContextResult.ok) {
 					context.set(userModuleContextKey, userModuleContextResult.value);
@@ -652,8 +704,14 @@ export const middleware = [
 ] satisfies Route.MiddlewareFunction[];
 
 export async function loader({ context }: Route.LoaderArgs) {
-	const { environment, payload, requestInfo, pageInfo, systemGlobals, envVars } =
-		context.get(globalContextKey);
+	const {
+		environment,
+		payload,
+		requestInfo,
+		pageInfo,
+		systemGlobals,
+		envVars,
+	} = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timestamp = new Date().toISOString();
 	// console.log(routes)
@@ -676,6 +734,16 @@ export async function loader({ context }: Route.LoaderArgs) {
 	// Get theme settings from appearance settings
 	const primaryColor = systemGlobals.appearanceSettings.color ?? "blue";
 	const defaultRadius = systemGlobals.appearanceSettings.radius ?? "sm";
+
+	// Get logo and favicon media objects directly from system globals based on theme
+	const logoMedia =
+		theme === "dark"
+			? (systemGlobals.appearanceSettings.logoDark ?? null)
+			: (systemGlobals.appearanceSettings.logoLight ?? null);
+	const faviconMedia =
+		theme === "dark"
+			? (systemGlobals.appearanceSettings.faviconDark ?? null)
+			: (systemGlobals.appearanceSettings.faviconLight ?? null);
 
 	// Check if sandbox mode is enabled and calculate next reset time
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
@@ -703,6 +771,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 			additionalCssStylesheets:
 				systemGlobals.appearanceSettings.additionalCssStylesheets,
 			additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
+			logoMedia,
+			faviconMedia,
 			isSandboxMode,
 			nextResetTime,
 		};
@@ -742,6 +812,8 @@ export async function loader({ context }: Route.LoaderArgs) {
 		additionalCssStylesheets:
 			systemGlobals.appearanceSettings.additionalCssStylesheets,
 		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
+		logoMedia,
+		faviconMedia,
 		debugData: debugData,
 		isSandboxMode,
 		nextResetTime,
@@ -903,18 +975,29 @@ export default function App({ loaderData }: Route.ComponentProps) {
 				<meta title="Paideia LMS" />
 				<meta name="description" content="Paideia LMS" />
 				<ClientHintCheck />
-				{/* ! this will force the browser to reload the favicon, see https://stackoverflow.com/questions/2208933/how-do-i-force-a-favicon-refresh */}
-				<link
-					rel="icon"
-					href={`/favicon.ico?timestamp=${loaderData.timestamp}`}
-				/>
+				{/* Favicon based on theme */}
+				{loaderData.faviconMedia?.filename ? (
+					<link
+						rel="icon"
+						href={
+							href(`/api/media/file/:filenameOrId`, {
+								filenameOrId: loaderData.faviconMedia.filename,
+							}) + `?timestamp=${loaderData.timestamp}`
+						}
+					/>
+				) : (
+					<link
+						rel="icon"
+						href={`/favicon.ico?timestamp=${loaderData.timestamp}`}
+					/>
+				)}
 				<link
 					rel="stylesheet"
 					href={`https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/${theme === "dark" ? "github-dark" : "github"}.min.css`}
 				/>
 				{/* Additional CSS stylesheets configured by admin */}
-				{additionalCssStylesheets.map((url) => (
-					<link key={url} rel="stylesheet" href={url} />
+				{additionalCssStylesheets.map((stylesheet) => (
+					<link key={stylesheet.id} rel="stylesheet" href={stylesheet.url} />
 				))}
 				{/* Additional JavaScript scripts configured by admin */}
 				<AnalyticsScripts scripts={additionalJsScripts} />

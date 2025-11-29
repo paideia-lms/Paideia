@@ -1,5 +1,10 @@
 import { Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import { href, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -11,6 +16,11 @@ import {
 	tryDeleteCourseActivityModuleLink,
 } from "server/internal/course-activity-module-link-management";
 import { tryCreateSection } from "server/internal/course-section-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import { canSeeCourseModules } from "server/utils/permissions";
 import { z } from "zod";
 import { ActivityModulesSection } from "~/components/activity-modules-section";
@@ -19,13 +29,35 @@ import {
 	getDataAndContentTypeFromRequest,
 } from "~/utils/get-content-type";
 import {
-	BadRequestResponse,
 	badRequest,
 	ForbiddenResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.modules";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+
+enum Action {
+	Create = "create",
+	Delete = "delete",
+}
+
+// Define search params for module link actions
+export const moduleLinkSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(moduleLinkSearchParams);
+
+const getActionUrl = (action: Action, courseId: number) => {
+	return (
+		href("/course/:courseId/modules", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
 
 export function useCreateModuleLink() {
 	const fetcher = useFetcher<typeof clientAction>();
@@ -36,12 +68,10 @@ export function useCreateModuleLink() {
 		sectionId?: number,
 	) => {
 		fetcher.submit(
-			{ intent: "create", activityModuleId, ...(sectionId && { sectionId }) },
+			{ activityModuleId, ...(sectionId && { sectionId }) },
 			{
 				method: "post",
-				action: href("/course/:courseId/modules", {
-					courseId: courseId.toString(),
-				}),
+				action: getActionUrl(Action.Create, courseId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -62,12 +92,10 @@ export function useDeleteModuleLink() {
 		redirectTo?: string,
 	) => {
 		fetcher.submit(
-			{ intent: "delete", linkId, ...(redirectTo && { redirectTo }) },
+			{ linkId, ...(redirectTo && { redirectTo }) },
 			{
 				method: "post",
-				action: href("/course/:courseId/modules", {
-					courseId: courseId.toString(),
-				}),
+				action: getActionUrl(Action.Delete, courseId),
 				encType: ContentType.JSON,
 			},
 		);
@@ -80,12 +108,11 @@ export function useDeleteModuleLink() {
 	};
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 	const userAccessContext = context.get(userAccessContextKey);
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -106,10 +133,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					userId: enrolmentContext.enrolment.userId,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -138,30 +164,24 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 const createSchema = z.object({
-	intent: z.literal("create"),
 	activityModuleId: z.coerce.number(),
 	sectionId: z.coerce.number().optional(),
 });
 
 const deleteSchema = z.object({
-	intent: z.literal("delete"),
 	linkId: z.coerce.number(),
 	redirectTo: z.string().nullish(),
 });
 
-const inputSchema = z.discriminatedUnion("intent", [
-	createSchema,
-	deleteSchema,
-]);
-
-export const action = async ({
+const createAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
+
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
@@ -191,10 +211,9 @@ export const action = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					userId: enrollment.user as number,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -205,95 +224,178 @@ export const action = async ({
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	const parsedData = inputSchema.safeParse(data);
+	const parsedData = createSchema.safeParse(data);
 
 	if (!parsedData.success) {
 		return badRequest({ error: parsedData.error.message });
 	}
 
-	if (parsedData.data.intent === "create") {
-		// Start transaction
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			return badRequest({ error: "Failed to begin transaction" });
-		}
-
-		try {
-			// Use provided section ID or create a default section
-			let targetSectionId = parsedData.data.sectionId;
-
-			if (!targetSectionId) {
-				const sectionResult = await tryCreateSection({
-					payload,
-					data: {
-						course: Number(courseId),
-						title: "Default Section",
-						description: "Default section for activity modules",
-					},
-					req: { ...request, transactionID },
-					overrideAccess: true,
-				});
-
-				if (!sectionResult.ok) {
-					await payload.db.rollbackTransaction(transactionID);
-					return badRequest({ error: "Failed to create section" });
-				}
-
-				targetSectionId = sectionResult.value.id;
-			}
-
-			const createResult = await tryCreateCourseActivityModuleLink(
-				payload,
-				request,
-				{
-					course: Number(courseId),
-					activityModule: parsedData.data.activityModuleId,
-					section: targetSectionId,
-					order: 0,
-					transactionID,
-				},
-			);
-
-			if (!createResult.ok) {
-				await payload.db.rollbackTransaction(transactionID);
-				return badRequest({ error: createResult.error.message });
-			}
-
-			await payload.db.commitTransaction(transactionID);
-			return ok({
-				success: true,
-				message: "Activity module linked successfully",
-			});
-		} catch {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({ error: "Failed to create link" });
-		}
-	}
-
-	if (parsedData.data.intent === "delete") {
-		const linkId = parsedData.data.linkId;
-		const redirectTo = parsedData.data.redirectTo;
-
-		const deleteResult = await tryDeleteCourseActivityModuleLink(
-			payload,
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
 			request,
-			linkId,
-		);
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
-		if (!deleteResult.ok) {
-			return badRequest({ error: deleteResult.error.message });
+	// Use provided section ID or create a default section
+	let targetSectionId = parsedData.data.sectionId;
+
+	if (!targetSectionId) {
+		const sectionResult = await tryCreateSection({
+			payload,
+			data: {
+				course: Number(courseId),
+				title: "Default Section",
+				description: "Default section for activity modules",
+			},
+			req: transactionInfo.reqWithTransaction,
+			overrideAccess: true,
+		});
+
+		if (!sectionResult.ok) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return badRequest({ error: "Failed to create section" });
 		}
 
-		// If redirectTo is provided, throw redirect instead of returning response
-		if (redirectTo) {
-			throw redirect(redirectTo);
-		}
-
-		return ok({ success: true, message: "Link deleted successfully" });
+		targetSectionId = sectionResult.value.id;
 	}
 
-	return badRequest({ error: "Invalid intent" });
+	const createResult = await tryCreateCourseActivityModuleLink({
+		payload,
+		req: transactionInfo.reqWithTransaction,
+		course: Number(courseId),
+		activityModule: parsedData.data.activityModuleId,
+		section: targetSectionId,
+		order: 0,
+	});
+
+	if (!createResult.ok) {
+		await rollbackTransactionIfCreated(payload, transactionInfo);
+		return badRequest({ error: createResult.error.message });
+	}
+
+	await commitTransactionIfCreated(payload, transactionInfo);
+	return ok({
+		success: true,
+		message: "Activity module linked successfully",
+	});
+};
+
+const deleteAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+	const { payload } = context.get(globalContextKey);
+	const userSession = context.get(userContextKey);
+	const { courseId } = params;
+
+	if (!userSession?.isAuthenticated) {
+		return unauthorized({ error: "Unauthorized" });
+	}
+
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
+	// Get user's enrollment for this course
+	const enrollments = await payload.find({
+		collection: "enrollments",
+		where: {
+			and: [
+				{ user: { equals: currentUser.id } },
+				{ course: { equals: courseId } },
+			],
+		},
+		limit: 1,
+	});
+
+	const enrollment = enrollments.docs[0];
+
+	// Check if user has management access to this course
+	const canManage = canSeeCourseModules(
+		{
+			id: currentUser.id,
+			role: currentUser.role ?? "student",
+		},
+		enrollment
+			? {
+				id: enrollment.id,
+				role: enrollment.role,
+			}
+			: undefined,
+	);
+
+	if (!canManage) {
+		return unauthorized({
+			error: "You don't have permission to manage this course",
+		});
+	}
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = deleteSchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	const linkId = parsedData.data.linkId;
+	const redirectTo = parsedData.data.redirectTo;
+
+	const deleteResult = await tryDeleteCourseActivityModuleLink({
+		payload,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+		linkId,
+	});
+
+	if (!deleteResult.ok) {
+		return badRequest({ error: deleteResult.error.message });
+	}
+
+	// If redirectTo is provided, return redirect instead of returning response
+	if (redirectTo) {
+		return redirect(redirectTo);
+	}
+
+	return ok({ success: true, message: "Link deleted successfully" });
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
+		});
+	}
+
+	if (actionType === Action.Create) {
+		return createAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.Delete) {
+		return deleteAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {

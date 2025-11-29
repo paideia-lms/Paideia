@@ -1,4 +1,5 @@
 import type { CollectionConfig } from "payload";
+import { richTextContent } from "./utils/rich-text-content";
 
 // Pages collection - for page-type activity modules
 export const Pages = {
@@ -11,24 +12,17 @@ export const Pages = {
 	},
 	fields: [
 		{
-			name: "content",
-			type: "textarea",
-			label: "Page Content (HTML)",
-		},
-		{
 			name: "createdBy",
 			type: "relationship",
 			relationTo: "users",
 			required: true,
 			label: "Created By",
 		},
-		{
-			name: "media",
-			type: "relationship",
-			relationTo: "media",
-			hasMany: true,
-			label: "Media",
-		},
+		...richTextContent({
+			name: "content",
+			type: "textarea",
+			label: "Page Content (HTML)",
+		}),
 	],
 	indexes: [
 		{

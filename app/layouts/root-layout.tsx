@@ -2,8 +2,10 @@ import {
 	Alert,
 	Avatar,
 	Badge,
+	Box,
 	Container,
 	Group,
+	Image,
 	Menu,
 	Tabs,
 	Text,
@@ -33,6 +35,8 @@ import {
 	type PageInfo,
 } from "server/contexts/global-context";
 import { type UserSession, userContextKey } from "server/contexts/user-context";
+import { getAvatarUrl } from "server/contexts/utils/user-utils";
+import type { Media } from "server/payload-types";
 import { canSeeUserModules } from "server/utils/permissions";
 import { StopImpersonatingMenuItem } from "~/routes/api/stop-impersonation";
 import type { RouteParams } from "~/utils/routes-utils";
@@ -40,17 +44,25 @@ import type { Route } from "./+types/root-layout";
 import classes from "./header-tabs.module.css";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const { envVars } = context.get(globalContextKey);
+	const { envVars, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const currentUser =
 		userSession?.effectiveUser || userSession?.authenticatedUser;
 	const theme = currentUser?.theme ?? "light";
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
+
+	// Get logo media directly from system globals based on theme
+	const logoMedia =
+		theme === "dark"
+			? (systemGlobals.appearanceSettings.logoDark ?? null)
+			: (systemGlobals.appearanceSettings.logoLight ?? null);
+
 	return {
 		userSession,
 		theme,
 		isSandboxMode,
 		canSeeUserModules: canSeeUserModules(currentUser).allowed,
+		logoMedia,
 	};
 };
 
@@ -59,7 +71,7 @@ export default function UserLayout({
 	matches,
 }: Route.ComponentProps) {
 	const { pageInfo } = matches[0].loaderData;
-	const { theme, canSeeUserModules } = loaderData;
+	const { theme, canSeeUserModules, logoMedia } = loaderData;
 	const { setColorScheme } = useMantineColorScheme();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: theme is intentionally the only dependency
@@ -88,6 +100,7 @@ export default function UserLayout({
 				userSession={loaderData.userSession}
 				pageInfo={pageInfo}
 				canSeeUserModules={canSeeUserModules}
+				logoMedia={logoMedia}
 			/>
 			{/* Sandbox Mode Warning */}
 			<Outlet />
@@ -105,10 +118,12 @@ export function HeaderTabs({
 	userSession,
 	pageInfo,
 	canSeeUserModules,
+	logoMedia,
 }: {
 	userSession: UserSession | null;
 	pageInfo: PageInfo;
 	canSeeUserModules: boolean;
+	logoMedia: Media | null;
 }) {
 	const navigate = useNavigate();
 	const [userMenuOpened, setUserMenuOpened] = useState(false);
@@ -178,225 +193,236 @@ export function HeaderTabs({
 	return (
 		<div className={classes.header}>
 			<Container size="xl" className={classes.mainSection}>
-				<Group justify="space-between">
-					<Text>Paideia LMS</Text>
-					<Tabs
-						value={getCurrentTab()}
-						onChange={handleTabChange}
-						variant="outline"
-						classNames={{
-							root: classes.tabs,
-							list: classes.tabsList,
-							tab: classes.tab,
-						}}
+				<Group justify="space-between" wrap="nowrap">
+					<Box
+						style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}
 					>
-						<Tabs.List>
-							<Tabs.Tab value={Tab.Dashboard}>Dashboard</Tabs.Tab>
-							<Tabs.Tab value={Tab.MyCourses}>My Courses</Tabs.Tab>
-							{isAuthenticated && currentUser?.role === "admin" && (
-								<Tabs.Tab value={Tab.SiteAdmin}>Site Admin</Tabs.Tab>
-							)}
-						</Tabs.List>
-					</Tabs>
-					<Menu
-						width={260}
-						position="bottom-end"
-						transitionProps={{ transition: "pop-top-right" }}
-						onClose={() => setUserMenuOpened(false)}
-						onOpen={() => setUserMenuOpened(true)}
-						withinPortal
-					>
-						<Menu.Target>
-							<UnstyledButton
-								className={cx(classes.user, {
-									[classes.userActive]: userMenuOpened,
-								})}
+						{logoMedia?.filename ? (
+							<Box
+								style={{
+									display: "inline-flex",
+									alignItems: "center",
+									height: 32,
+								}}
 							>
-								<Group gap={7}>
-									{isAuthenticated && currentUser ? (
-										isImpersonating && authenticatedUser ? (
-											<Tooltip.Group openDelay={300} closeDelay={100}>
-												<Avatar.Group spacing="sm">
-													<Tooltip
-														label={
-															`Logged in as: ${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
-															"Admin"
-														}
-														withArrow
-													>
-														<Avatar
-															src={
-																authenticatedUser.avatar?.filename
-																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId:
-																				authenticatedUser.avatar.filename,
-																		})
-																	: null
-															}
-															alt={
-																`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
+								<Image
+									src={href(`/api/media/file/:filenameOrId`, {
+										filenameOrId: logoMedia.filename,
+									})}
+									alt="Paideia LMS"
+									h={32}
+									fit="contain"
+									style={{
+										display: "block",
+									}}
+								/>
+							</Box>
+						) : (
+							<Text>Paideia LMS</Text>
+						)}
+					</Box>
+					<Box style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+						<Tabs
+							value={getCurrentTab()}
+							onChange={handleTabChange}
+							variant="outline"
+							classNames={{
+								root: classes.tabs,
+								list: classes.tabsList,
+								tab: classes.tab,
+							}}
+						>
+							<Tabs.List>
+								<Tabs.Tab value={Tab.Dashboard}>Dashboard</Tabs.Tab>
+								<Tabs.Tab value={Tab.MyCourses}>My Courses</Tabs.Tab>
+								{isAuthenticated && currentUser?.role === "admin" && (
+									<Tabs.Tab value={Tab.SiteAdmin}>Site Admin</Tabs.Tab>
+								)}
+							</Tabs.List>
+						</Tabs>
+					</Box>
+					<Box style={{ flex: 1, display: "flex", justifyContent: "flex-end" }}>
+						<Menu
+							width={260}
+							position="bottom-end"
+							transitionProps={{ transition: "pop-top-right" }}
+							onClose={() => setUserMenuOpened(false)}
+							onOpen={() => setUserMenuOpened(true)}
+							withinPortal
+						>
+							<Menu.Target>
+								<UnstyledButton
+									className={cx(classes.user, {
+										[classes.userActive!]: userMenuOpened,
+									})}
+								>
+									<Group gap={7}>
+										{isAuthenticated && currentUser ? (
+											isImpersonating && authenticatedUser ? (
+												<Tooltip.Group openDelay={300} closeDelay={100}>
+													<Avatar.Group spacing="sm">
+														<Tooltip
+															label={
+																`Logged in as: ${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
 																"Admin"
 															}
-															radius="xl"
-															size={20}
-														/>
-													</Tooltip>
-													<Tooltip
-														label={
-															`Impersonating: ${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-															"Anonymous"
-														}
-														withArrow
-													>
-														<Avatar
-															src={
-																currentUser.avatar?.filename
-																	? href(`/api/media/file/:filenameOrId`, {
-																			filenameOrId: currentUser.avatar.filename,
-																		})
-																	: null
-															}
-															alt={
-																`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+															withArrow
+														>
+															<Avatar
+																src={getAvatarUrl(authenticatedUser)}
+																alt={
+																	`${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() ||
+																	"Admin"
+																}
+																radius="xl"
+																size={20}
+															/>
+														</Tooltip>
+														<Tooltip
+															label={
+																`Impersonating: ${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 																"Anonymous"
 															}
-															radius="xl"
-															size={20}
-														/>
-													</Tooltip>
-												</Avatar.Group>
-											</Tooltip.Group>
+															withArrow
+														>
+															<Avatar
+																src={getAvatarUrl(currentUser)}
+																alt={
+																	`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+																	"Anonymous"
+																}
+																radius="xl"
+																size={20}
+															/>
+														</Tooltip>
+													</Avatar.Group>
+												</Tooltip.Group>
+											) : (
+												<Avatar
+													src={getAvatarUrl(currentUser)}
+													alt={
+														`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+														"Anonymous"
+													}
+													radius="xl"
+													size={20}
+												/>
+											)
 										) : (
-											<Avatar
-												src={
-													currentUser.avatar?.filename
-														? href(`/api/media/file/:filenameOrId`, {
-																filenameOrId: currentUser.avatar.filename,
-															})
-														: null
-												}
-												alt={
-													`${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
+											<Avatar radius="xl" size={20} color="gray">
+												<IconUser size={12} />
+											</Avatar>
+										)}
+										<Text fw={500} size="sm" lh={1} mr={3}>
+											{isAuthenticated && currentUser
+												? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
 													"Anonymous"
-												}
-												radius="xl"
-												size={20}
-											/>
-										)
-									) : (
-										<Avatar radius="xl" size={20} color="gray">
-											<IconUser size={12} />
-										</Avatar>
-									)}
-									<Text fw={500} size="sm" lh={1} mr={3}>
-										{isAuthenticated && currentUser
-											? `${currentUser.firstName ?? ""} ${currentUser.lastName ?? ""}`.trim() ||
-												"Anonymous"
-											: "Not signed in"}
-									</Text>
-									{isAdmin && (
-										<Badge size="sm" color="red" variant="light">
-											Admin
-										</Badge>
-									)}
-									<IconChevronDown size={12} stroke={1.5} />
-								</Group>
-							</UnstyledButton>
-						</Menu.Target>
-						<Menu.Dropdown>
-							{isAuthenticated ? (
-								<>
-									<Menu.Item
-										leftSection={<IconUser size={16} stroke={1.5} />}
-										component={Link}
-										to={href("/user/overview/:id?", {
-											id: currentUser?.id ? String(currentUser.id) : "",
-										})}
-									>
-										Profile
-									</Menu.Item>
-									{canSeeUserModules && (
+												: "Not signed in"}
+										</Text>
+										{isAdmin && (
+											<Badge size="sm" color="red" variant="light">
+												Admin
+											</Badge>
+										)}
+										<IconChevronDown size={12} stroke={1.5} />
+									</Group>
+								</UnstyledButton>
+							</Menu.Target>
+							<Menu.Dropdown>
+								{isAuthenticated ? (
+									<>
 										<Menu.Item
-											leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
+											leftSection={<IconUser size={16} stroke={1.5} />}
 											component={Link}
-											to={href("/user/modules/:id?", {
+											to={href("/user/overview/:id?", {
 												id: currentUser?.id ? String(currentUser.id) : "",
 											})}
 										>
-											Modules
+											Profile
 										</Menu.Item>
-									)}
-									<Menu.Item
-										leftSection={<IconSchool size={16} stroke={1.5} />}
-										component={Link}
-										to={href("/user/grades/:id?", {
-											id: currentUser?.id ? String(currentUser.id) : "",
-										})}
-									>
-										Grades
-									</Menu.Item>
-									<Menu.Item
-										leftSection={<IconCalendar size={16} stroke={1.5} />}
-										// component={Link}
-										// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
-									>
-										Calendar
-									</Menu.Item>
-									<Menu.Item
-										leftSection={<IconPhoto size={16} stroke={1.5} />}
-										component={Link}
-										to={href("/user/media/:id?", {
-											id: currentUser?.id ? String(currentUser.id) : "",
-										})}
-									>
-										Media
-									</Menu.Item>
+										{canSeeUserModules && (
+											<Menu.Item
+												leftSection={<IconLayoutGrid size={16} stroke={1.5} />}
+												component={Link}
+												to={href("/user/modules/:id?", {
+													id: currentUser?.id ? String(currentUser.id) : "",
+												})}
+											>
+												Modules
+											</Menu.Item>
+										)}
+										<Menu.Item
+											leftSection={<IconSchool size={16} stroke={1.5} />}
+											component={Link}
+											to={href("/user/grades/:id?", {
+												id: currentUser?.id ? String(currentUser.id) : "",
+											})}
+										>
+											Grades
+										</Menu.Item>
+										<Menu.Item
+											leftSection={<IconCalendar size={16} stroke={1.5} />}
+											// component={Link}
+											// to={href("/user/calendar/:id?", { id: currentUser?.id ? String(currentUser.id) : "" })}
+										>
+											Calendar
+										</Menu.Item>
+										<Menu.Item
+											leftSection={<IconPhoto size={16} stroke={1.5} />}
+											component={Link}
+											to={href("/user/media/:id?", {
+												id: currentUser?.id ? String(currentUser.id) : "",
+											})}
+										>
+											Media
+										</Menu.Item>
 
-									<Menu.Divider />
+										<Menu.Divider />
 
-									<Menu.Item
-										leftSection={<IconSettings size={16} stroke={1.5} />}
-										component={Link}
-										to={href("/user/preference/:id?", {
-											id: currentUser?.id ? String(currentUser.id) : "",
-										})}
-									>
-										Preferences
-									</Menu.Item>
-									<Menu.Item
-										leftSection={<IconLanguage size={16} stroke={1.5} />}
-									>
-										Languages
-									</Menu.Item>
+										<Menu.Item
+											leftSection={<IconSettings size={16} stroke={1.5} />}
+											component={Link}
+											to={href("/user/preference/:id?", {
+												id: currentUser?.id ? String(currentUser.id) : "",
+											})}
+										>
+											Preferences
+										</Menu.Item>
+										<Menu.Item
+											leftSection={<IconLanguage size={16} stroke={1.5} />}
+										>
+											Languages
+										</Menu.Item>
 
-									<Menu.Divider />
-									{/* Impersonation Status */}
-									{isImpersonating && authenticatedUser && currentUser && (
-										<StopImpersonatingMenuItem
-											leftSection={<IconUserCheck size={16} stroke={1.5} />}
-											color="orange"
-											redirectTo={getStopImpersonationRedirect()}
-										/>
-									)}
+										<Menu.Divider />
+										{/* Impersonation Status */}
+										{isImpersonating && authenticatedUser && currentUser && (
+											<StopImpersonatingMenuItem
+												leftSection={<IconUserCheck size={16} stroke={1.5} />}
+												color="orange"
+												redirectTo={getStopImpersonationRedirect()}
+											/>
+										)}
+										<Menu.Item
+											leftSection={<IconLogout size={16} stroke={1.5} />}
+											component={Link}
+											to={href("/logout")}
+										>
+											Logout
+										</Menu.Item>
+									</>
+								) : (
 									<Menu.Item
-										leftSection={<IconLogout size={16} stroke={1.5} />}
+										leftSection={<IconLogin size={16} stroke={1.5} />}
 										component={Link}
-										to={href("/logout")}
+										to={href("/login")}
 									>
-										Logout
+										Login
 									</Menu.Item>
-								</>
-							) : (
-								<Menu.Item
-									leftSection={<IconLogin size={16} stroke={1.5} />}
-									component={Link}
-									to={href("/login")}
-								>
-									Login
-								</Menu.Item>
-							)}
-						</Menu.Dropdown>
-					</Menu>
+								)}
+							</Menu.Dropdown>
+						</Menu>
+					</Box>
 				</Group>
 			</Container>
 		</div>

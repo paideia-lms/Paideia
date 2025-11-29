@@ -23,19 +23,28 @@ use `matches` to from Route.ComponentProps to check current route.
 
 don't use `useEffect`, use `useEffectEvent` instead.
 
-in loader and actions, we need to use `overrideAccess` to false and provide the current user ( `effectiveUser ?? authenticatedUser`) to the function.
+in loader and actions, we need to use `overrideAccess` to false and provide the current user ( `effectiveUser ?? authenticatedUser`) to the function. in `action`, when we need to handle multiple action in one server route action, we should use `searchParams` to handle the action. then we create individual action functions for each action. we should have `getActionUrl` for getting the action url for each action. see `app/routes/admin/appearance/logo.tsx` for an example.
 
-we don't check for access in loader and actions. we only check for access in internal functions and through access hook in collections. 
+in `clientAction`, we should use `notifications` from `@mantine/notifications` to show notifications. we check the `actionData.status` against `StatusCode` to show the appropriate notification.
+
+
+it is not necessary to check for access in loader and actions because we already check for access in internal functions and through access hook in collections. 
 
 we only use mantine form uncontrolled mode for all forms. never use `cascadeUpdates` for mantine form.
 
 after using hook to update server data, we don't need to use `useRevalidator` to revalidate the page because react router will handle the revalidation automatically.
+
+use interface but not type for component props.
+
+in the loader, we should always throw ErrorResponse if fail, unless it is a non component route. in action, we return error response from `utils/responses` instead of throwing error.
 
 ## Routing
 
 we should use `href` from `react-router` to create hrefs for the routes.
 
 in the `routes.ts`, we use `:id` to define the user id parameter. when it is not userId or in special case, we should always specify the type of `:noteId` or `:moduleId`. 
+
+when a route has search param defined by loader Params, it is better to expose a getRouteUrl function to get the route url with the search params.
 
 ### styling
 
@@ -83,21 +92,34 @@ use virtual field over depth. we would rather have a nested virtual field than h
 
 all globals collections should be defined in a single `server/collections/globals.ts`.
 
+
+## json
+
+some data are stored as json object in the database. we should use `tryResolve` functions to resolve the json object to the latest version. in other files, we should always import from `server/json` instead of directly from the file because it will be easier to manage the imports.
+
 ## internal functions 
 
 when user id provided to the internal function, we can always assume the user exists.
 
 we should not expose the depth variable to args for internal functions. The output type should be defined.
 
-we should standardize internal function arg. internal function should always have only one arg and we should create type for the arg, the arg type should include `payload: Payload`, `user: User | null`, `req?: Partial<PayloadRequest>` and `overrideAccess?: boolean` as args. sometimes we might need to have `s3Client: S3Client` as args. 
+we should standardize internal function arg. internal function should always have only one arg and we should create type for the arg, the arg type should include `payload: Payload`, `user?: TypedUser | null`, `req?: Partial<PayloadRequest>` and `overrideAccess?: boolean` as args. sometimes we might need to have `s3Client: S3Client` as args. 
 
-internal functions must handle transactions if the function is doing multiple mutations to the database. for internal functions that handle transactions, we should check if `req` has `transactionID` and if it does, we should use it, otherwise we should create a new transaction. When we handle transaction, we should use `TransactionIdNotFoundError` to throw error when transaction ID is not found. We also need to determine if we need to commit/rollback the transaction or not. if transaction is created outside the function, the commit and rollback should be done outside the function. transaction commit and rollback should always be handled at the same level as the transaction creation. We don't do nested transactions in this project. 
+internal functions must handle transactions if the function is doing multiple mutations to the database. for internal functions that handle transactions, we should use `handleTransactionId` to handle the transaction. if we use `handleTransactionId` and `isTransactionCreated` is true, we should always use `tx` to execute the operation inside the transaction.
 
 for other function, we don't need to check for transaction, we simply pass the req into payload function call (payload.find) as it is. (if req has transaction ID, good, if not, we let it be). 
 
-
 course and the linked gradebook should always have the same id. so we can use them interchangeably.
 
+we use `interceptPayloadError` to intercept raw payload function call such as `payload.create`, `payload.find`, `payload.findByID`, `payload.update`, `payload.delete` and etc. to handle the error and throw the error with the appropriate error message.
+
+try our best not to provide return type for internal functions. 
+
+use `then(stripDepth<depth, operation>())` to strip the depth from the payload result.
+
+should not accept `depth` as an arg for internal functions but we should always use explicit `depth` for the payload function call.
+
+use interface but not type for Args type.
 
 ## Changelog
 

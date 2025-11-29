@@ -33,6 +33,9 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
+	const currentUser =
+		userSession.effectiveUser || userSession.authenticatedUser;
+
 	// Get course view data using the course context
 	if (!courseContext) {
 		throw new ForbiddenResponse("Course not found or access denied");
@@ -45,21 +48,18 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		)
 		.filter((enrollment) => enrollment.status === "active")
 		.map((enrollment) => ({
-			id: enrollment.userId,
-			name: enrollment.name,
-			email: enrollment.email,
+			id: enrollment.user.id,
+			name: enrollment.user.firstName + " " + enrollment.user.lastName,
+			email: enrollment.user.email,
 			role: enrollment.role as "teacher" | "ta",
-			avatar: enrollment.avatar,
+			avatar: enrollment.user.avatar,
 		}));
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Check if user can edit the course
 	const canEdit = canEditCourse(
 		currentUser,
 		courseContext.course.enrollments.map((e) => ({
-			userId: e.userId,
+			userId: e.user.id,
 			role: e.role,
 		})),
 	).allowed;

@@ -13,6 +13,7 @@ export { Courses } from "./courses";
 export { DiscussionSubmissions } from "./discussion-submissions";
 export { Discussions } from "./discussions";
 export { Enrollments } from "./enrollments";
+export { Files } from "./files";
 // Globals
 export { SystemGradeTable } from "./globals";
 export { GradebookCategories } from "./gradebook-categories";

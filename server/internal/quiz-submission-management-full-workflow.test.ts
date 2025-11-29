@@ -1,36 +1,28 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, TypedUser } from "payload";
 import sanitizedConfig, { JobQueue } from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
-	tryCreateActivityModule,
+	tryCreateQuizModule,
 } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,
 } from "./course-activity-module-link-management";
-import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
+import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
-import {
-	type CreateEnrollmentArgs,
-	tryCreateEnrollment,
-} from "./enrollment-management";
-import {
-	type CreateGradebookItemArgs,
-	tryCreateGradebookItem,
-} from "./gradebook-item-management";
+import { tryCreateEnrollment } from "./enrollment-management";
+import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {
 	type CreateQuizArgs,
 	type CreateQuizSubmissionArgs,
-	calculateQuizGrade,
 	type StartQuizAttemptArgs,
+	tryCalculateQuizGrade,
 	tryCreateQuiz,
 	tryCreateQuizSubmission,
 	tryDeleteQuizSubmission,
 	tryGetQuizById,
-	tryGetQuizGradesReport,
-	tryGetQuizStatisticsReport,
 	tryGetQuizSubmissionById,
 	tryGradeQuizSubmission,
 	tryListQuizSubmissions,
@@ -39,22 +31,24 @@ import {
 	tryUpdateQuizSubmission,
 	type UpdateQuizSubmissionArgs,
 } from "./quiz-submission-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
-
-const year = new Date().getFullYear();
+import { tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("Quiz Management - Full Workflow", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
-	let teacherId: number;
-	let studentId: number;
-	let courseId: number;
-	let enrollmentId: number;
-	let gradebookItemId: number;
+	let teacher: TryResultValue<typeof tryCreateUser>;
+	let student: TryResultValue<typeof tryCreateUser>;
+	let course: TryResultValue<typeof tryCreateCourse>;
+	let enrollment: TryResultValue<typeof tryCreateEnrollment>;
+	let section: TryResultValue<typeof tryCreateSection>;
+	let courseActivityModuleLink: TryResultValue<
+		typeof tryCreateCourseActivityModuleLink
+	>;
 	let activityModuleId: number;
 	let quizId: number;
-	let courseActivityModuleLinkId: number;
-	let sectionId: number;
+	let gradebookItemId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -72,208 +66,170 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
 
-		// Create teacher user
-		const teacherArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-teacher@example.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Teacher",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
+		// Create teacher and student users in parallel
+		const [teacherResult, studentResult] = await Promise.all([
+			tryCreateUser({
+				payload,
+				data: {
+					email: "quiz-teacher@example.com",
+					password: "password123",
+					firstName: "John",
+					lastName: "Teacher",
+					role: "instructor",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+			tryCreateUser({
+				payload,
+				data: {
+					email: "quiz-student@example.com",
+					password: "password123",
+					firstName: "Jane",
+					lastName: "Student",
+					role: "student",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+		]);
 
-		const teacherResult = await tryCreateUser(teacherArgs);
-		expect(teacherResult.ok).toBe(true);
-		if (!teacherResult.ok) {
-			throw new Error("Test Error: Failed to create test teacher");
-		}
-		teacherId = teacherResult.value.id;
-
-		// Create student user
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-student@example.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const studentResult = await tryCreateUser(studentArgs);
-		expect(studentResult.ok).toBe(true);
-		if (!studentResult.ok) {
-			throw new Error("Test Error: Failed to create test student");
-		}
-		studentId = studentResult.value.id;
+		teacher = teacherResult;
+		student = studentResult;
 
 		// Create course
-		const courseArgs: CreateCourseArgs = {
+		course = await tryCreateCourse({
 			payload,
 			data: {
 				title: "Quiz Test Course",
 				description: "A test course for quiz submissions",
 				slug: "quiz-test-course",
-				createdBy: teacherId,
+				createdBy: teacher.id,
 			},
 			overrideAccess: true,
-		};
-
-		const courseResult = await tryCreateCourse(courseArgs);
-		expect(courseResult.ok).toBe(true);
-		if (!courseResult.ok) {
-			throw new Error("Test Error: Failed to create test course");
-		}
-		courseId = courseResult.value.id;
+		}).getOrThrow();
 
 		// Create enrollment
-		const enrollmentArgs: CreateEnrollmentArgs = {
+		enrollment = await tryCreateEnrollment({
 			payload,
-			user: studentId,
-			course: courseId,
+			userId: student.id,
+			course: course.id,
 			role: "student",
 			status: "active",
 			overrideAccess: true,
-		};
-
-		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
-		expect(enrollmentResult.ok).toBe(true);
-		if (!enrollmentResult.ok) {
-			throw new Error("Test Error: Failed to create test enrollment");
-		}
-		enrollmentId = enrollmentResult.value.id;
+		}).getOrThrow();
 
 		// Create activity module with quiz
-		const activityModuleArgs: CreateActivityModuleArgs = {
+		const activityModuleResult = await tryCreateQuizModule({
+			payload,
 			title: "Test Quiz",
 			description: "A test quiz for submission workflow",
-			type: "quiz",
 			status: "published",
-			userId: teacherId,
-			quizData: {
-				instructions: "Complete this quiz by answering all questions",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 3,
-				allowLateSubmissions: true,
-				points: 100,
-				gradingType: "automatic",
-				timeLimit: 30,
-				showCorrectAnswers: true,
-				allowMultipleAttempts: true,
-				shuffleQuestions: false,
-				shuffleAnswers: false,
-				showOneQuestionAtATime: false,
-				questions: [
-					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 25,
-						options: [
-							{ text: "3", isCorrect: false },
-							{ text: "4", isCorrect: true },
-							{ text: "5", isCorrect: false },
-							{ text: "6", isCorrect: false },
-						],
-						explanation: "2 + 2 equals 4",
-					},
-					{
-						questionText: "Is the sky blue?",
-						questionType: "true_false",
-						points: 25,
-						correctAnswer: "true",
-						explanation: "Yes, the sky appears blue due to light scattering",
-					},
-					{
-						questionText: "What is the capital of France?",
-						questionType: "short_answer",
-						points: 25,
-						correctAnswer: "Paris",
-						explanation: "Paris is the capital and largest city of France",
-					},
-					{
-						questionText:
-							"Write a short essay about the importance of education",
-						questionType: "essay",
-						points: 25,
-						explanation: "This question requires manual grading",
-					},
-				],
-			},
-		};
+			instructions: "Complete this quiz by answering all questions",
+			points: 100,
+			gradingType: "automatic",
+			timeLimit: 30,
+			showCorrectAnswers: true,
+			allowMultipleAttempts: true,
+			shuffleQuestions: false,
+			shuffleAnswers: false,
+			showOneQuestionAtATime: false,
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 25,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+						{ text: "5", isCorrect: false },
+						{ text: "6", isCorrect: false },
+					],
+					explanation: "2 + 2 equals 4",
+				},
+				{
+					questionText: "Is the sky blue?",
+					questionType: "true_false",
+					points: 25,
+					correctAnswer: "true",
+					explanation: "Yes, the sky appears blue due to light scattering",
+				},
+				{
+					questionText: "What is the capital of France?",
+					questionType: "short_answer",
+					points: 25,
+					correctAnswer: "Paris",
+					explanation: "Paris is the capital and largest city of France",
+				},
+				{
+					questionText: "Write a short essay about the importance of education",
+					questionType: "essay",
+					points: 25,
+					explanation: "This question requires manual grading",
+				},
+			],
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			overrideAccess: true,
+		});
 
-		const activityModuleResult = await tryCreateActivityModule(
-			payload,
-			activityModuleArgs,
-		);
-		if (!activityModuleResult.ok) {
-			throw new Error("Test Error: Failed to create test activity module");
-		}
-		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok) {
 			throw new Error("Test Error: Failed to create test activity module");
 		}
 		activityModuleId = activityModuleResult.value.id;
 		console.log("Created activity module with ID:", activityModuleId);
 		// Get the quiz ID from the activity module
-		if (
-			activityModuleResult.value.quiz &&
-			typeof activityModuleResult.value.quiz === "object" &&
-			"id" in activityModuleResult.value.quiz
-		) {
-			quizId = activityModuleResult.value.quiz.id as number;
-			console.log("Extracted quiz ID:", quizId);
+		// Since QuizModuleResult is a discriminated union, we need to check the type first
+		if (activityModuleResult.value.type === "quiz") {
+			// Fetch the activity module with depth to get the quiz relationship
+			const module = await payload.findByID({
+				collection: "activity-modules",
+				id: activityModuleId,
+				depth: 1,
+			});
+			if (module.quiz) {
+				quizId =
+					typeof module.quiz === "object" && "id" in module.quiz
+						? module.quiz.id
+						: (module.quiz as number);
+				console.log("Extracted quiz ID:", quizId);
+			}
 		}
 
 		// Create a section for the course
-		const sectionResult = await tryCreateSection({
+		section = await tryCreateSection({
 			payload,
 			data: {
-				course: courseId,
+				course: course.id,
 				title: "Test Section",
 				description: "Test section for quiz submissions",
 			},
 			overrideAccess: true,
-		});
-
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
-		sectionId = sectionResult.value.id;
+		}).getOrThrow();
 
 		// Create course-activity-module-link
-		const linkArgs: CreateCourseActivityModuleLinkArgs = {
-			course: courseId,
-			activityModule: activityModuleId,
-			section: sectionResult.value.id,
-			order: 0,
-		};
-
-		const linkResult = await tryCreateCourseActivityModuleLink(
+		courseActivityModuleLink = await tryCreateCourseActivityModuleLink({
 			payload,
-			mockRequest,
-			linkArgs,
-		);
-		expect(linkResult.ok).toBe(true);
-		if (!linkResult.ok) {
-			throw new Error(
-				"Test Error: Failed to create course-activity-module-link",
-			);
-		}
-		courseActivityModuleLinkId = linkResult.value.id;
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			course: course.id,
+			activityModule: activityModuleId,
+			section: section.id,
+			order: 0,
+			overrideAccess: true,
+		}).getOrThrow();
+
 		console.log(
 			"Created course-activity-module-link with ID:",
-			courseActivityModuleLinkId,
+			courseActivityModuleLink.id,
 		);
 
 		// Verify gradebook exists
 		const verifyGradebook = await payload.findByID({
 			collection: "gradebooks",
-			id: courseResult.value.gradebook.id,
+			id: course.gradebook.id,
 		});
 		console.log(
 			"Gradebook verification result:",
@@ -290,21 +246,21 @@ describe("Quiz Management - Full Workflow", () => {
 			verifyActivityModule ? "Found" : "Not found",
 		);
 
-		const gradebookItemArgs: CreateGradebookItemArgs = {
-			courseId: courseId,
+		const gradebookItemResult = await tryCreateGradebookItem({
+			payload,
+			courseId: course.id,
 			name: "Test Quiz",
 			description: "Quiz submission test",
-			activityModuleId: courseActivityModuleLinkId,
+			activityModuleId: courseActivityModuleLink.id,
 			maxGrade: 100,
 			weight: 25,
 			sortOrder: 1,
-		};
-
-		const gradebookItemResult = await tryCreateGradebookItem(
-			payload,
-			mockRequest,
-			gradebookItemArgs,
-		);
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			overrideAccess: true,
+		});
 		if (!gradebookItemResult.ok) {
 			console.error(
 				"Gradebook item creation failed:",
@@ -329,12 +285,10 @@ describe("Quiz Management - Full Workflow", () => {
 
 	test("should create quiz (teacher workflow)", async () => {
 		const args: CreateQuizArgs = {
+			payload,
 			title: "Math Quiz",
 			description: "A basic math quiz",
 			instructions: "Answer all questions carefully",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 3,
-			allowLateSubmissions: true,
 			points: 100,
 			gradingType: "automatic",
 			showCorrectAnswers: true,
@@ -376,10 +330,14 @@ describe("Quiz Management - Full Workflow", () => {
 					explanation: "This question requires manual grading",
 				},
 			],
-			createdBy: teacherId,
+			createdBy: teacher.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 		};
 
-		const result = await tryCreateQuiz(payload, args);
+		const result = await tryCreateQuiz(args);
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -390,14 +348,12 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(quiz.title).toBe("Math Quiz");
 		expect(quiz.description).toBe("A basic math quiz");
 		expect(quiz.instructions).toBe("Answer all questions carefully");
-		expect(quiz.maxAttempts).toBe(3);
-		expect(quiz.allowLateSubmissions).toBe(true);
 		expect(quiz.points).toBe(100);
 		expect(quiz.gradingType).toBe("automatic");
 		expect(quiz.showCorrectAnswers).toBe(true);
 		expect(quiz.allowMultipleAttempts).toBe(true);
 		expect(quiz.questions).toHaveLength(4);
-		expect(quiz.createdBy.id).toBe(teacherId);
+		expect(quiz.createdBy.id).toBe(teacher.id);
 		expect(quiz.id).toBeDefined();
 		expect(quiz.createdAt).toBeDefined();
 	});
@@ -405,9 +361,13 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should create quiz submission (student workflow)", async () => {
 		const args: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 1,
 			answers: [
 				{
@@ -453,9 +413,9 @@ describe("Quiz Management - Full Workflow", () => {
 		const submission = result.value;
 
 		// Verify submission (activityModule and quiz are now virtual fields accessed through courseModuleLink)
-		expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
-		expect(submission.student.id).toBe(studentId);
-		expect(submission.enrollment.id).toBe(enrollmentId);
+		expect(submission.courseModuleLink).toBe(courseActivityModuleLink.id);
+		expect(submission.student.id).toBe(student.id);
+		expect(submission.enrollment.id).toBe(enrollment.id);
 		expect(submission.attemptNumber).toBe(1);
 		expect(submission.status).toBe("in_progress");
 		expect(submission.answers).toHaveLength(4);
@@ -469,9 +429,13 @@ describe("Quiz Management - Full Workflow", () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 2,
 			answers: [
 				{
@@ -523,7 +487,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		const updatedSubmission = updateResult.value;
 		expect(
-			updatedSubmission.answers?.[0].multipleChoiceAnswers?.[1].isSelected,
+			updatedSubmission.answers?.[0]!.multipleChoiceAnswers?.[1]!.isSelected,
 		).toBe(true);
 		expect(updatedSubmission.timeSpent).toBe(20);
 		expect(updatedSubmission.status).toBe("in_progress"); // Should remain in progress
@@ -533,9 +497,13 @@ describe("Quiz Management - Full Workflow", () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 3,
 			answers: [
 				{
@@ -581,6 +549,10 @@ describe("Quiz Management - Full Workflow", () => {
 		// Submit the quiz
 		const submitResult = await trySubmitQuiz({
 			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId,
 			overrideAccess: true,
 		});
@@ -597,6 +569,10 @@ describe("Quiz Management - Full Workflow", () => {
 		// First get the quiz to get the actual question IDs
 		const quizResult = await tryGetQuizById({
 			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			id: quizId,
 			overrideAccess: true,
 		});
@@ -640,7 +616,15 @@ describe("Quiz Management - Full Workflow", () => {
 			},
 		];
 
-		const result = await calculateQuizGrade(payload, quizId, answers);
+		const result = await tryCalculateQuizGrade({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			quizId,
+			answers,
+		});
 
 		expect(result.ok).toBe(true);
 		if (!result.ok) return;
@@ -705,16 +689,16 @@ describe("Quiz Management - Full Workflow", () => {
 		expect(quiz.id).toBe(quizId);
 		expect(quiz.title).toBe("Test Quiz");
 		expect(quiz.questions).toHaveLength(4);
-		expect(quiz.createdBy.id).toBe(teacherId);
+		expect(quiz.createdBy.id).toBe(teacher.id);
 	});
 
 	test("should get quiz submission by ID", async () => {
 		// First create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 5,
 			answers: [
 				{
@@ -751,10 +735,10 @@ describe("Quiz Management - Full Workflow", () => {
 		const retrievedSubmission = getResult.value;
 		expect(retrievedSubmission.id).toBe(submissionId);
 		expect(retrievedSubmission.courseModuleLink).toBe(
-			courseActivityModuleLinkId,
+			courseActivityModuleLink.id,
 		);
-		expect(retrievedSubmission.student.id).toBe(studentId);
-		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
+		expect(retrievedSubmission.student.id).toBe(student.id);
+		expect(retrievedSubmission.enrollment.id).toBe(enrollment.id);
 		expect(retrievedSubmission.answers).toHaveLength(1);
 	});
 
@@ -762,7 +746,7 @@ describe("Quiz Management - Full Workflow", () => {
 		// List all submissions for this activity module
 		const listResult = await tryListQuizSubmissions({
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
+			courseModuleLinkId: courseActivityModuleLink.id,
 			overrideAccess: true,
 		});
 
@@ -775,13 +759,13 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// All submissions should be for the same course module link
 		submissions.docs.forEach((submission) => {
-			expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
+			expect(submission.courseModuleLink).toBe(courseActivityModuleLink.id);
 		});
 
 		// Test filtering by student
 		const studentListResult = await tryListQuizSubmissions({
 			payload,
-			studentId,
+			studentId: student.id,
 			overrideAccess: true,
 		});
 
@@ -790,7 +774,7 @@ describe("Quiz Management - Full Workflow", () => {
 
 		const studentSubmissions = studentListResult.value;
 		studentSubmissions.docs.forEach((submission) => {
-			expect(submission.student.id).toBe(studentId);
+			expect(submission.student.id).toBe(student.id);
 		});
 
 		// Test filtering by status
@@ -813,9 +797,9 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create a submission after the due date (simulate late submission)
 		const lateArgs: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 6,
 			answers: [
 				{
@@ -848,9 +832,9 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should prevent duplicate submissions for same attempt", async () => {
 		const args: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 7,
 			answers: [
 				{
@@ -881,9 +865,9 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create an in-progress submission
 		const createArgs: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 8,
 			answers: [
 				{
@@ -908,11 +892,16 @@ describe("Quiz Management - Full Workflow", () => {
 		const submissionId = createResult.value.id;
 
 		// Try to grade an in-progress submission
-		const gradeResult = await tryGradeQuizSubmission(payload, mockRequest, {
+		const gradeResult = await tryGradeQuizSubmission({
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			id: submissionId,
-			enrollmentId,
+			enrollmentId: enrollment.id,
 			gradebookItemId,
-			gradedBy: teacherId,
+			gradedBy: teacher.id,
 		});
 
 		expect(gradeResult.ok).toBe(false);
@@ -922,9 +911,9 @@ describe("Quiz Management - Full Workflow", () => {
 		// Create a submission
 		const createArgs: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 9,
 			answers: [
 				{
@@ -966,9 +955,9 @@ describe("Quiz Management - Full Workflow", () => {
 		for (let i = 0; i < 5; i++) {
 			const createArgs: CreateQuizSubmissionArgs = {
 				payload,
-				courseModuleLinkId: courseActivityModuleLinkId,
-				studentId,
-				enrollmentId,
+				courseModuleLinkId: courseActivityModuleLink.id,
+				studentId: student.id,
+				enrollmentId: enrollment.id,
 				attemptNumber: 20 + i,
 				answers: [
 					{
@@ -993,7 +982,7 @@ describe("Quiz Management - Full Workflow", () => {
 		// Test pagination
 		const page1Result = await tryListQuizSubmissions({
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
+			courseModuleLinkId: courseActivityModuleLink.id,
 			limit: 2,
 			page: 1,
 			overrideAccess: true,
@@ -1014,8 +1003,8 @@ describe("Quiz Management - Full Workflow", () => {
 		const invalidArgs1: CreateQuizSubmissionArgs = {
 			payload,
 			courseModuleLinkId: undefined as never,
-			studentId,
-			enrollmentId,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			answers: [],
 			overrideAccess: true,
 		};
@@ -1026,9 +1015,9 @@ describe("Quiz Management - Full Workflow", () => {
 		// Test missing student ID
 		const invalidArgs2: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
+			courseModuleLinkId: courseActivityModuleLink.id,
 			studentId: undefined as never,
-			enrollmentId,
+			enrollmentId: enrollment.id,
 			answers: [],
 			overrideAccess: true,
 		};
@@ -1039,9 +1028,9 @@ describe("Quiz Management - Full Workflow", () => {
 		// Test missing answers
 		const invalidArgs3: CreateQuizSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			answers: [],
 			overrideAccess: true,
 		};
@@ -1119,11 +1108,10 @@ describe("Quiz Management - Full Workflow", () => {
 		};
 
 		const args: CreateQuizArgs = {
+			payload,
 			title: "Quiz with Raw Config",
 			description: "Testing rawQuizConfig storage",
 			instructions: "Complete the quiz",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig,
@@ -1139,11 +1127,15 @@ describe("Quiz Management - Full Workflow", () => {
 					correctAnswer: "4",
 				},
 			],
-			createdBy: teacherId,
+			createdBy: teacher.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 		};
 
 		// Create the quiz
-		const createResult = await tryCreateQuiz(payload, args);
+		const createResult = await tryCreateQuiz(args);
 		expect(createResult.ok).toBe(true);
 		if (!createResult.ok) return;
 
@@ -1168,11 +1160,10 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should reject submission after time limit exceeded", async () => {
 		// Create a quiz with a very short time limit (1 minute = 60 seconds)
 		const quickQuizArgs: CreateQuizArgs = {
+			payload,
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
 			instructions: "Complete quickly",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig: {
@@ -1215,91 +1206,95 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
-			createdBy: teacherId,
+			createdBy: teacher.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 		};
 
-		const quickQuizResult = await tryCreateQuiz(payload, quickQuizArgs);
+		const quickQuizResult = await tryCreateQuiz(quickQuizArgs);
 		expect(quickQuizResult.ok).toBe(true);
 		if (!quickQuizResult.ok) return;
 
 		// Create activity module with this quiz
 		const quickActivityModuleArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Quick Quiz Module",
 			description: "Module with quick quiz",
 			type: "quiz",
 			status: "published",
-			userId: teacherId,
-			quizData: {
-				instructions: "Complete quickly",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 1,
-				points: 100,
-				gradingType: "automatic",
-				rawQuizConfig: {
-					version: "v2",
-					type: "regular",
-					id: `quiz-${Date.now()}`,
-					title: "Quick Quiz",
-					globalTimer: 60, // 1 minute in seconds
-					pages: [
-						{
-							id: `page-${Date.now()}`,
-							title: "Page 1",
-							questions: [
-								{
-									id: `q-${Date.now()}`,
-									type: "multiple-choice",
-									prompt: "What is 2 + 2?",
-									options: {
-										a: "3",
-										b: "4",
-									},
-									correctAnswer: "b",
-									scoring: {
-										type: "simple",
-										points: 100,
-									},
-								},
-							],
-						},
-					],
-				},
-				questions: [
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			instructions: "Complete quickly",
+			points: 100,
+			gradingType: "automatic",
+			rawQuizConfig: {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: "Quick Quiz",
+				globalTimer: 60, // 1 minute in seconds
+				pages: [
 					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 100,
-						options: [
-							{ text: "3", isCorrect: false },
-							{ text: "4", isCorrect: true },
+						id: `page-${Date.now()}`,
+						title: "Page 1",
+						questions: [
+							{
+								id: `q-${Date.now()}`,
+								type: "multiple-choice",
+								prompt: "What is 2 + 2?",
+								options: {
+									a: "3",
+									b: "4",
+								},
+								correctAnswer: "b",
+								scoring: {
+									type: "simple",
+									points: 100,
+								},
+							},
 						],
 					},
 				],
 			},
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 100,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+					],
+				},
+			],
 		};
 
-		const quickActivityModuleResult = await tryCreateActivityModule(
-			payload,
+		const quickActivityModuleResult = await tryCreateQuizModule(
 			quickActivityModuleArgs,
 		);
 		expect(quickActivityModuleResult.ok).toBe(true);
 		if (!quickActivityModuleResult.ok) return;
-
 		const quickActivityModuleId = quickActivityModuleResult.value.id;
 
 		// Create course-activity-module-link
 		const quickLinkArgs: CreateCourseActivityModuleLinkArgs = {
-			course: courseId,
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			course: course.id,
 			activityModule: quickActivityModuleId,
-			section: sectionId,
+			section: section.id,
 			order: 0,
 		};
 
-		const quickLinkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
-			quickLinkArgs,
-		);
+		const quickLinkResult =
+			await tryCreateCourseActivityModuleLink(quickLinkArgs);
 		expect(quickLinkResult.ok).toBe(true);
 		if (!quickLinkResult.ok) return;
 
@@ -1309,8 +1304,8 @@ describe("Quiz Management - Full Workflow", () => {
 		const quickStartArgs: StartQuizAttemptArgs = {
 			payload,
 			courseModuleLinkId: quickCourseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 1,
 			overrideAccess: true,
 		};
@@ -1346,11 +1341,10 @@ describe("Quiz Management - Full Workflow", () => {
 	test("should auto-submit quiz when timer expires", async () => {
 		// Create a quiz with a very short time limit (2 seconds)
 		const autoSubmitQuizArgs: CreateQuizArgs = {
+			payload,
 			title: "Auto Submit Quiz",
 			description: "A quiz with 2 second time limit",
 			instructions: "Will auto-submit",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
 			points: 100,
 			gradingType: "automatic",
 			rawQuizConfig: {
@@ -1393,74 +1387,74 @@ describe("Quiz Management - Full Workflow", () => {
 					],
 				},
 			],
-			createdBy: teacherId,
+			createdBy: teacher.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 		};
 
-		const autoSubmitQuizResult = await tryCreateQuiz(
-			payload,
-			autoSubmitQuizArgs,
-		);
+		const autoSubmitQuizResult = await tryCreateQuiz(autoSubmitQuizArgs);
 		expect(autoSubmitQuizResult.ok).toBe(true);
 		if (!autoSubmitQuizResult.ok) return;
 
 		// Create activity module with this quiz
 		const autoSubmitActivityModuleArgs: CreateActivityModuleArgs = {
+			payload,
 			title: "Auto Submit Quiz Module",
 			description: "Module with auto-submit quiz",
 			type: "quiz",
 			status: "published",
-			userId: teacherId,
-			quizData: {
-				instructions: "Will auto-submit",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 1,
-				points: 100,
-				gradingType: "automatic",
-				rawQuizConfig: {
-					version: "v2",
-					type: "regular",
-					id: `quiz-${Date.now()}`,
-					title: "Auto Submit Quiz",
-					globalTimer: 2, // 2 seconds
-					pages: [
-						{
-							id: `page-${Date.now()}`,
-							title: "Page 1",
-							questions: [
-								{
-									id: `q-${Date.now()}`,
-									type: "multiple-choice",
-									prompt: "What is 2 + 2?",
-									options: {
-										a: "3",
-										b: "4",
-									},
-									correctAnswer: "b",
-									scoring: {
-										type: "simple",
-										points: 100,
-									},
-								},
-							],
-						},
-					],
-				},
-				questions: [
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			instructions: "Will auto-submit",
+			points: 100,
+			gradingType: "automatic",
+			rawQuizConfig: {
+				version: "v2",
+				type: "regular",
+				id: `quiz-${Date.now()}`,
+				title: "Auto Submit Quiz",
+				globalTimer: 2, // 2 seconds
+				pages: [
 					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 100,
-						options: [
-							{ text: "3", isCorrect: false },
-							{ text: "4", isCorrect: true },
+						id: `page-${Date.now()}`,
+						title: "Page 1",
+						questions: [
+							{
+								id: `q-${Date.now()}`,
+								type: "multiple-choice",
+								prompt: "What is 2 + 2?",
+								options: {
+									a: "3",
+									b: "4",
+								},
+								correctAnswer: "b",
+								scoring: {
+									type: "simple",
+									points: 100,
+								},
+							},
 						],
 					},
 				],
 			},
+			questions: [
+				{
+					questionText: "What is 2 + 2?",
+					questionType: "multiple_choice",
+					points: 100,
+					options: [
+						{ text: "3", isCorrect: false },
+						{ text: "4", isCorrect: true },
+					],
+				},
+			],
 		};
 
-		const autoSubmitActivityModuleResult = await tryCreateActivityModule(
-			payload,
+		const autoSubmitActivityModuleResult = await tryCreateQuizModule(
 			autoSubmitActivityModuleArgs,
 		);
 		expect(autoSubmitActivityModuleResult.ok).toBe(true);
@@ -1470,17 +1464,19 @@ describe("Quiz Management - Full Workflow", () => {
 
 		// Create course-activity-module-link
 		const autoSubmitLinkArgs: CreateCourseActivityModuleLinkArgs = {
-			course: courseId,
+			payload,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			course: course.id,
 			activityModule: autoSubmitActivityModuleId,
-			section: sectionId,
+			section: section.id,
 			order: 0,
 		};
 
-		const autoSubmitLinkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
-			autoSubmitLinkArgs,
-		);
+		const autoSubmitLinkResult =
+			await tryCreateCourseActivityModuleLink(autoSubmitLinkArgs);
 		expect(autoSubmitLinkResult.ok).toBe(true);
 		if (!autoSubmitLinkResult.ok) return;
 
@@ -1490,10 +1486,13 @@ describe("Quiz Management - Full Workflow", () => {
 		const autoSubmitStartArgs: StartQuizAttemptArgs = {
 			payload,
 			courseModuleLinkId: autoSubmitCourseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			attemptNumber: 1,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			overrideAccess: true,
 		};
 
@@ -1527,7 +1526,7 @@ describe("Quiz Management - Full Workflow", () => {
 			overrideAccess: true,
 		});
 		expect(jobsResult.docs.length).toBeGreaterThan(0);
-		const scheduledJob = jobsResult.docs[0];
+		const scheduledJob = jobsResult.docs[0]!;
 		expect(scheduledJob.waitUntil).toBeDefined();
 
 		// Wait 3 seconds (longer than the 2 second timer)
@@ -1585,727 +1584,5 @@ describe("Quiz Management - Full Workflow", () => {
 		// The submission should be completed (auto-submitted)
 		expect(finalSubmission.value.status).toBe("completed");
 		expect(finalSubmission.value.submittedAt).toBeDefined();
-	});
-});
-
-describe("Quiz Attempt Management - Start and Retrieve", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
-	let teacherId: number;
-	let studentId: number;
-	let courseId: number;
-	let enrollmentId: number;
-	let courseActivityModuleLinkId: number;
-	let sectionId: number;
-
-	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
-		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
-
-		mockRequest = new Request("http://localhost:3000/test");
-
-		// Create teacher user
-		const teacherArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-attempt-teacher@example.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Teacher",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const teacherResult = await tryCreateUser(teacherArgs);
-		if (!teacherResult.ok) {
-			throw new Error("Test Error: Failed to create test teacher");
-		}
-		teacherId = teacherResult.value.id;
-
-		// Create student user
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-attempt-student@example.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const studentResult = await tryCreateUser(studentArgs);
-		if (!studentResult.ok) {
-			throw new Error("Test Error: Failed to create test student");
-		}
-		studentId = studentResult.value.id;
-
-		// Create course
-		const courseArgs: CreateCourseArgs = {
-			payload,
-			data: {
-				title: "Quiz Attempt Test Course",
-				description: "A test course for quiz attempts",
-				slug: "quiz-attempt-test-course",
-				createdBy: teacherId,
-			},
-			overrideAccess: true,
-		};
-
-		const courseResult = await tryCreateCourse(courseArgs);
-		if (!courseResult.ok) {
-			throw new Error("Test Error: Failed to create test course");
-		}
-		courseId = courseResult.value.id;
-
-		// Create enrollment
-		const enrollmentArgs: CreateEnrollmentArgs = {
-			payload,
-			user: studentId,
-			course: courseId,
-			role: "student",
-			status: "active",
-			overrideAccess: true,
-		};
-
-		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
-		if (!enrollmentResult.ok) {
-			throw new Error("Test Error: Failed to create test enrollment");
-		}
-		enrollmentId = enrollmentResult.value.id;
-
-		// Create activity module with quiz
-		const activityModuleArgs: CreateActivityModuleArgs = {
-			title: "Test Quiz",
-			description: "A test quiz for attempt workflow",
-			type: "quiz",
-			status: "published",
-			userId: teacherId,
-			quizData: {
-				instructions: "Complete this quiz",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 3,
-				points: 100,
-				gradingType: "automatic",
-				questions: [
-					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 100,
-						options: [
-							{ text: "3", isCorrect: false },
-							{ text: "4", isCorrect: true },
-						],
-					},
-				],
-			},
-		};
-
-		const activityModuleResult = await tryCreateActivityModule(
-			payload,
-			activityModuleArgs,
-		);
-		if (!activityModuleResult.ok) {
-			throw new Error("Test Error: Failed to create test activity module");
-		}
-		const activityModuleId = activityModuleResult.value.id;
-
-		// Create a section for the course
-		const sectionResult = await tryCreateSection({
-			payload,
-			data: {
-				course: courseId,
-				title: "Test Section",
-				description: "Test section",
-			},
-			overrideAccess: true,
-		});
-
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
-		sectionId = sectionResult.value.id;
-
-		// Create course-activity-module-link
-		const linkArgs: CreateCourseActivityModuleLinkArgs = {
-			course: courseId,
-			activityModule: activityModuleId,
-			section: sectionId,
-			order: 0,
-		};
-
-		const linkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
-			linkArgs,
-		);
-		if (!linkResult.ok) {
-			throw new Error(
-				"Test Error: Failed to create course-activity-module-link",
-			);
-		}
-		courseActivityModuleLinkId = linkResult.value.id;
-	});
-
-	afterAll(async () => {
-		// reset the database
-		await $`bun run migrate:fresh --force-accept-warning`;
-		await $`bun scripts/clean-s3.ts`;
-	});
-
-	test("should start quiz attempt and retrieve it", async () => {
-		const startArgs: StartQuizAttemptArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 1,
-			overrideAccess: true,
-		};
-
-		const startResult = await tryStartQuizAttempt(startArgs);
-		expect(startResult.ok).toBe(true);
-		if (!startResult.ok) return;
-
-		const startedSubmission = startResult.value;
-		expect(startedSubmission.status).toBe("in_progress");
-		expect(startedSubmission.attemptNumber).toBe(1);
-		expect(startedSubmission.startedAt).toBeDefined();
-		expect(startedSubmission.answers).toEqual([]);
-
-		// Retrieve the submission
-		const getResult = await tryGetQuizSubmissionById({
-			payload,
-			id: startedSubmission.id,
-			overrideAccess: true,
-		});
-
-		expect(getResult.ok).toBe(true);
-		if (!getResult.ok) return;
-
-		const retrievedSubmission = getResult.value;
-		expect(retrievedSubmission.id).toBe(startedSubmission.id);
-		expect(retrievedSubmission.status).toBe("in_progress");
-		expect(retrievedSubmission.attemptNumber).toBe(1);
-		expect(retrievedSubmission.startedAt).toBeDefined();
-	});
-});
-
-describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
-	let teacherId: number;
-	let studentId: number;
-	let courseId: number;
-	let enrollmentId: number;
-	let courseActivityModuleLinkId: number;
-	let sectionId: number;
-
-	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
-		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
-
-		mockRequest = new Request("http://localhost:3000/test");
-
-		// Create teacher user
-		const teacherArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-duplicate-teacher@example.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Teacher",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const teacherResult = await tryCreateUser(teacherArgs);
-		if (!teacherResult.ok) {
-			throw new Error("Test Error: Failed to create test teacher");
-		}
-		teacherId = teacherResult.value.id;
-
-		// Create student user
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-duplicate-student@example.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const studentResult = await tryCreateUser(studentArgs);
-		if (!studentResult.ok) {
-			throw new Error("Test Error: Failed to create test student");
-		}
-		studentId = studentResult.value.id;
-
-		// Create course
-		const courseArgs: CreateCourseArgs = {
-			payload,
-			data: {
-				title: "Quiz Duplicate Test Course",
-				description: "A test course for duplicate attempts",
-				slug: "quiz-duplicate-test-course",
-				createdBy: teacherId,
-			},
-			overrideAccess: true,
-		};
-
-		const courseResult = await tryCreateCourse(courseArgs);
-		if (!courseResult.ok) {
-			throw new Error("Test Error: Failed to create test course");
-		}
-		courseId = courseResult.value.id;
-
-		// Create enrollment
-		const enrollmentArgs: CreateEnrollmentArgs = {
-			payload,
-			user: studentId,
-			course: courseId,
-			role: "student",
-			status: "active",
-			overrideAccess: true,
-		};
-
-		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
-		if (!enrollmentResult.ok) {
-			throw new Error("Test Error: Failed to create test enrollment");
-		}
-		enrollmentId = enrollmentResult.value.id;
-
-		// Create activity module with quiz
-		const activityModuleArgs: CreateActivityModuleArgs = {
-			title: "Test Quiz",
-			description: "A test quiz for duplicate attempts",
-			type: "quiz",
-			status: "published",
-			userId: teacherId,
-			quizData: {
-				instructions: "Complete this quiz",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 3,
-				points: 100,
-				gradingType: "automatic",
-				questions: [
-					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 100,
-						options: [
-							{ text: "3", isCorrect: false },
-							{ text: "4", isCorrect: true },
-						],
-					},
-				],
-			},
-		};
-
-		const activityModuleResult = await tryCreateActivityModule(
-			payload,
-			activityModuleArgs,
-		);
-		if (!activityModuleResult.ok) {
-			throw new Error("Test Error: Failed to create test activity module");
-		}
-		const activityModuleId = activityModuleResult.value.id;
-
-		// Create a section for the course
-		const sectionResult = await tryCreateSection({
-			payload,
-			data: {
-				course: courseId,
-				title: "Test Section",
-				description: "Test section",
-			},
-			overrideAccess: true,
-		});
-
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
-		sectionId = sectionResult.value.id;
-
-		// Create course-activity-module-link
-		const linkArgs: CreateCourseActivityModuleLinkArgs = {
-			course: courseId,
-			activityModule: activityModuleId,
-			section: sectionId,
-			order: 0,
-		};
-
-		const linkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
-			linkArgs,
-		);
-		if (!linkResult.ok) {
-			throw new Error(
-				"Test Error: Failed to create course-activity-module-link",
-			);
-		}
-		courseActivityModuleLinkId = linkResult.value.id;
-	});
-
-	afterAll(async () => {
-		// reset the database
-		await $`bun run migrate:fresh --force-accept-warning`;
-		await $`bun scripts/clean-s3.ts`;
-	});
-
-	test("should prevent starting new attempt if previous is in_progress", async () => {
-		// Start first attempt
-		const startArgs1: StartQuizAttemptArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 1,
-			overrideAccess: true,
-		};
-
-		const startResult1 = await tryStartQuizAttempt(startArgs1);
-		expect(startResult1.ok).toBe(true);
-		if (!startResult1.ok) return;
-
-		// Try to start a second attempt while first is in_progress
-		const startArgs2: StartQuizAttemptArgs = {
-			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 2,
-			overrideAccess: true,
-		};
-
-		const startResult2 = await tryStartQuizAttempt(startArgs2);
-		expect(startResult2.ok).toBe(false);
-		if (startResult2.ok) return;
-
-		expect(startResult2.error.message).toContain(
-			"Cannot start a new quiz attempt while another attempt is in progress",
-		);
-	});
-});
-
-describe("Quiz Submission Management - Time Limit", () => {
-	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let mockRequest: Request;
-	let teacherId: number;
-	let studentId: number;
-	let courseId: number;
-	let enrollmentId: number;
-	let sectionId: number;
-
-	beforeAll(async () => {
-		// Refresh environment and database for clean test state
-		try {
-			await $`bun run migrate:fresh --force-accept-warning`;
-			await $`bun scripts/clean-s3.ts`;
-		} catch (error) {
-			console.warn("Migration failed, continuing with existing state:", error);
-		}
-
-		payload = await getPayload({
-			config: sanitizedConfig,
-		});
-
-		mockRequest = new Request("http://localhost:3000/test");
-
-		// Create teacher user
-		const teacherArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-timelimit-teacher@example.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Teacher",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const teacherResult = await tryCreateUser(teacherArgs);
-		if (!teacherResult.ok) {
-			throw new Error("Test Error: Failed to create test teacher");
-		}
-		teacherId = teacherResult.value.id;
-
-		// Create student user
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "quiz-timelimit-student@example.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const studentResult = await tryCreateUser(studentArgs);
-		if (!studentResult.ok) {
-			throw new Error("Test Error: Failed to create test student");
-		}
-		studentId = studentResult.value.id;
-
-		// Create course
-		const courseArgs: CreateCourseArgs = {
-			payload,
-			data: {
-				title: "Quiz Time Limit Test Course",
-				description: "A test course for time limit",
-				slug: "quiz-timelimit-test-course",
-				createdBy: teacherId,
-			},
-			overrideAccess: true,
-		};
-
-		const courseResult = await tryCreateCourse(courseArgs);
-		if (!courseResult.ok) {
-			throw new Error("Test Error: Failed to create test course");
-		}
-		courseId = courseResult.value.id;
-
-		// Create enrollment
-		const enrollmentArgs: CreateEnrollmentArgs = {
-			payload,
-			user: studentId,
-			course: courseId,
-			role: "student",
-			status: "active",
-			overrideAccess: true,
-		};
-
-		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
-		if (!enrollmentResult.ok) {
-			throw new Error("Test Error: Failed to create test enrollment");
-		}
-		enrollmentId = enrollmentResult.value.id;
-
-		// Create a section for the course
-		const sectionResult = await tryCreateSection({
-			payload,
-			data: {
-				course: courseId,
-				title: "Test Section",
-				description: "Test section",
-			},
-			overrideAccess: true,
-		});
-
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
-		sectionId = sectionResult.value.id;
-	});
-
-	afterAll(async () => {
-		await $`bun run migrate:fresh --force-accept-warning`;
-		await $`bun scripts/clean-s3.ts`;
-	});
-
-	test("should reject submission after time limit exceeded", async () => {
-		// Create a quiz with a very short time limit (1 minute = 60 seconds)
-		const quickQuizArgs: CreateQuizArgs = {
-			title: "Quick Quiz",
-			description: "A quiz with 1 minute time limit",
-			instructions: "Complete quickly",
-			dueDate: `${year}-12-31T23:59:59Z`,
-			maxAttempts: 1,
-			points: 100,
-			gradingType: "automatic",
-			rawQuizConfig: {
-				version: "v2",
-				type: "regular",
-				id: `quiz-${Date.now()}`,
-				title: "Quick Quiz",
-				globalTimer: 60, // 1 minute in seconds
-				pages: [
-					{
-						id: `page-${Date.now()}`,
-						title: "Page 1",
-						questions: [
-							{
-								id: `q-${Date.now()}`,
-								type: "multiple-choice",
-								prompt: "What is 2 + 2?",
-								options: {
-									a: "3",
-									b: "4",
-								},
-								correctAnswer: "b",
-								scoring: {
-									type: "simple",
-									points: 100,
-								},
-							},
-						],
-					},
-				],
-			},
-			questions: [
-				{
-					questionText: "What is 2 + 2?",
-					questionType: "multiple_choice",
-					points: 100,
-					options: [
-						{ text: "3", isCorrect: false },
-						{ text: "4", isCorrect: true },
-					],
-				},
-			],
-			createdBy: teacherId,
-		};
-
-		const quickQuizResult = await tryCreateQuiz(payload, quickQuizArgs);
-		expect(quickQuizResult.ok).toBe(true);
-		if (!quickQuizResult.ok) return;
-
-		// Create activity module with this quiz
-		const quickActivityModuleArgs: CreateActivityModuleArgs = {
-			title: "Quick Quiz Module",
-			description: "Module with quick quiz",
-			type: "quiz",
-			status: "published",
-			userId: teacherId,
-			quizData: {
-				instructions: "Complete quickly",
-				dueDate: `${year}-12-31T23:59:59Z`,
-				maxAttempts: 1,
-				points: 100,
-				gradingType: "automatic",
-				rawQuizConfig: {
-					version: "v2",
-					type: "regular",
-					id: `quiz-${Date.now()}`,
-					title: "Quick Quiz",
-					globalTimer: 60, // 1 minute in seconds
-					pages: [
-						{
-							id: `page-${Date.now()}`,
-							title: "Page 1",
-							questions: [
-								{
-									id: `q-${Date.now()}`,
-									type: "multiple-choice",
-									prompt: "What is 2 + 2?",
-									options: {
-										a: "3",
-										b: "4",
-									},
-									correctAnswer: "b",
-									scoring: {
-										type: "simple",
-										points: 100,
-									},
-								},
-							],
-						},
-					],
-				},
-				questions: [
-					{
-						questionText: "What is 2 + 2?",
-						questionType: "multiple_choice",
-						points: 100,
-						options: [
-							{ text: "3", isCorrect: false },
-							{ text: "4", isCorrect: true },
-						],
-					},
-				],
-			},
-		};
-
-		const quickActivityModuleResult = await tryCreateActivityModule(
-			payload,
-			quickActivityModuleArgs,
-		);
-		expect(quickActivityModuleResult.ok).toBe(true);
-		if (!quickActivityModuleResult.ok) return;
-
-		const quickActivityModuleId = quickActivityModuleResult.value.id;
-
-		// Create course-activity-module-link
-		const quickLinkArgs: CreateCourseActivityModuleLinkArgs = {
-			course: courseId,
-			activityModule: quickActivityModuleId,
-			section: sectionId,
-			order: 0,
-		};
-
-		const quickLinkResult = await tryCreateCourseActivityModuleLink(
-			payload,
-			mockRequest,
-			quickLinkArgs,
-		);
-		expect(quickLinkResult.ok).toBe(true);
-		if (!quickLinkResult.ok) return;
-
-		const quickCourseActivityModuleLinkId = quickLinkResult.value.id;
-
-		// Start quiz attempt
-		const quickStartArgs: StartQuizAttemptArgs = {
-			payload,
-			courseModuleLinkId: quickCourseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
-			attemptNumber: 1,
-			overrideAccess: true,
-		};
-
-		const quickStartResult = await tryStartQuizAttempt(quickStartArgs);
-		expect(quickStartResult.ok).toBe(true);
-		if (!quickStartResult.ok) return;
-
-		const quickSubmissionId = quickStartResult.value.id;
-
-		// Manually update startedAt to be 2 minutes ago (exceeding 1 minute limit)
-		const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-		await payload.update({
-			collection: "quiz-submissions",
-			id: quickSubmissionId,
-			data: {
-				startedAt: twoMinutesAgo,
-			},
-		});
-
-		// Try to submit - should fail due to time limit
-		const submitResult = await trySubmitQuiz({
-			payload,
-			submissionId: quickSubmissionId,
-			overrideAccess: true,
-		});
-		expect(submitResult.ok).toBe(false);
-		if (submitResult.ok) return;
-
-		expect(submitResult.error.message).toContain("time limit");
 	});
 });

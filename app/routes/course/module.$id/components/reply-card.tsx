@@ -13,12 +13,11 @@ import { useDisclosure } from "@mantine/hooks";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { useEffect, useState } from "react";
-import { href, Link, useRevalidator } from "react-router";
+import { useState } from "react";
+import { href, Link } from "react-router";
 import type { DiscussionReply } from "~/components/activity-modules-preview/discussion-preview";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
-import { StatusCode } from "~/utils/responses";
-import { useCreateReply } from "../route";
+import { useCreateReply } from "../hooks";
 import { ReplyUpvoteButton } from "./reply-upvote-button";
 
 dayjs.extend(relativeTime);

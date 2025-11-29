@@ -1,59 +1,39 @@
-import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
+import {
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
+import { MaintenanceSettings } from "server/collections/globals";
 
-export interface GetMaintenanceSettingsArgs {
-	payload: Payload;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+export interface GetMaintenanceSettingsArgs extends BaseInternalFunctionArgs {}
 
-export interface UpdateMaintenanceSettingsArgs {
-	payload: Payload;
-	user: User;
+export interface UpdateMaintenanceSettingsArgs
+	extends BaseInternalFunctionArgs {
 	data: {
 		maintenanceMode?: boolean;
 	};
-	overrideAccess?: boolean;
 }
-
-export type MaintenanceSettings = {
-	maintenanceMode: boolean;
-};
-
-const maintenanceSettingsSchema = z.object({
-	maintenanceMode: z.boolean().optional(),
-});
 
 /**
  * Read maintenance settings from the MaintenanceSettings global.
  * Falls back to sensible defaults when unset/partial.
  */
 export const tryGetMaintenanceSettings = Result.wrap(
-	async (args: GetMaintenanceSettingsArgs): Promise<MaintenanceSettings> => {
-		const { payload, user = null, req } = args;
+	async (args: GetMaintenanceSettingsArgs) => {
+		const { payload, req, overrideAccess = false } = args;
 
-		const raw = await payload.findGlobal({
-			slug: "maintenance-settings",
-			user,
-			req,
-			// ! this is a system request, we don't care about access control
-			overrideAccess: true,
-		});
-
-		const parsed = maintenanceSettingsSchema.safeParse(raw);
-
-		if (!parsed.success) {
-			return {
-				maintenanceMode: false,
-			};
-		}
+		const raw = await payload
+			.findGlobal({
+				slug: MaintenanceSettings.slug,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findGlobal">());
 
 		return {
-			maintenanceMode: parsed.data.maintenanceMode ?? false,
+			maintenanceMode: raw.maintenanceMode ?? false,
 		};
 	},
 	(error) =>
@@ -65,28 +45,22 @@ export const tryGetMaintenanceSettings = Result.wrap(
  * Update maintenance settings in the MaintenanceSettings global.
  */
 export const tryUpdateMaintenanceSettings = Result.wrap(
-	async (args: UpdateMaintenanceSettingsArgs): Promise<MaintenanceSettings> => {
-		const { payload, user, data, overrideAccess = false } = args;
+	async (args: UpdateMaintenanceSettingsArgs) => {
+		const { payload, req, data, overrideAccess = false } = args;
 
-		const updated = await payload.updateGlobal({
-			slug: "maintenance-settings",
-			data: {
-				maintenanceMode: data.maintenanceMode ?? false,
-			},
-			user,
-			overrideAccess,
-		});
-
-		const parsed = maintenanceSettingsSchema.safeParse(updated);
-
-		if (!parsed.success) {
-			return {
-				maintenanceMode: false,
-			};
-		}
+		const updated = await payload
+			.updateGlobal({
+				slug: "maintenance-settings",
+				data: {
+					maintenanceMode: data.maintenanceMode ?? false,
+				},
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "updateGlobal">());
 
 		return {
-			maintenanceMode: parsed.data.maintenanceMode ?? false,
+			maintenanceMode: updated.maintenanceMode ?? false,
 		};
 	},
 	(error) =>

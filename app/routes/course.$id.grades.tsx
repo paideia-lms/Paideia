@@ -3,6 +3,7 @@ import { useQueryState } from "nuqs";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	tryCreateGradebookCategory,
 	tryDeleteGradebookCategory,
@@ -25,6 +26,7 @@ import { GradebookSetupView } from "~/components/gradebook/setup-view";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades";
+export type { Route };
 
 export const loader = async ({
 	context,
@@ -52,17 +54,11 @@ export const loader = async ({
 	let userGrades = null;
 	const userGradesResult = await tryGetUserGradesJsonRepresentation({
 		payload,
-		user: currentUser
-			? {
-				...currentUser,
-				avatar:
-					typeof currentUser.avatar === "object" &&
-						currentUser.avatar !== null
-						? currentUser.avatar.id
-						: currentUser.avatar,
-			}
-			: null,
-		req: request,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 		courseId: Number(courseId),
 	});
@@ -84,8 +80,8 @@ export const loader = async ({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-			gradebookSetupForUI.extraCreditItems.length > 0 ||
-			gradebookSetupForUI.extraCreditCategories.length > 0
+				gradebookSetupForUI.extraCreditItems.length > 0 ||
+				gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -104,26 +100,23 @@ export const action = async ({
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
-
 	if (!userSession?.isAuthenticated) {
 		return badRequest({ error: "Unauthorized" });
 	}
-	const currentUser = userSession.effectiveUser ?? userSession.authenticatedUser;
+	const currentUser =
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get gradebook for this course
-	const gradebookResult = await tryGetGradebookByCourseWithDetails(
-		{
-			payload,
-			courseId: Number(courseId),
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
-			req: request,
-			overrideAccess: true,
-		}
-	);
+	const gradebookResult = await tryGetGradebookByCourseWithDetails({
+		payload,
+		courseId: Number(courseId),
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+		overrideAccess: false,
+	});
 	if (!gradebookResult.ok) {
 		return badRequest({ error: "Gradebook not found for this course" });
 	}
@@ -141,11 +134,17 @@ export const action = async ({
 
 	if (parsedData.data.intent === "create-item") {
 		// Get next sort order
-		const sortOrderResult = await tryGetNextItemSortOrder(
+		const sortOrderResult = await tryGetNextItemSortOrder({
 			payload,
 			gradebookId,
-			parsedData.data.categoryId ?? null,
-		);
+			categoryId: parsedData.data.categoryId ?? null,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: false,
+		});
 
 		if (!sortOrderResult.ok) {
 			return badRequest({ error: "Failed to get sort order" });
@@ -154,7 +153,8 @@ export const action = async ({
 		const sortOrder = sortOrderResult.value;
 
 		// Create gradebook item
-		const createResult = await tryCreateGradebookItem(payload, request, {
+		const createResult = await tryCreateGradebookItem({
+			payload,
 			courseId: Number(courseId),
 			categoryId: parsedData.data.categoryId ?? null,
 			name: parsedData.data.name,
@@ -164,6 +164,12 @@ export const action = async ({
 			weight: parsedData.data.weight,
 			extraCredit: parsedData.data.extraCredit ?? false,
 			sortOrder,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: false,
 		});
 
 		if (!createResult.ok) {
@@ -178,11 +184,17 @@ export const action = async ({
 
 	if (parsedData.data.intent === "create-category") {
 		// Get next sort order
-		const sortOrderResult = await tryGetNextSortOrder(
+		const sortOrderResult = await tryGetNextSortOrder({
 			payload,
 			gradebookId,
-			parsedData.data.parentId ?? null,
-		);
+			parentId: parsedData.data.parentId ?? null,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: false,
+		});
 
 		if (!sortOrderResult.ok) {
 			return badRequest({ error: "Failed to get sort order" });
@@ -191,12 +203,19 @@ export const action = async ({
 		const sortOrder = sortOrderResult.value;
 
 		// Create gradebook category
-		const createResult = await tryCreateGradebookCategory(payload, request, {
+		const createResult = await tryCreateGradebookCategory({
+			payload,
 			gradebookId,
 			parentId: parsedData.data.parentId ?? null,
 			name: parsedData.data.name,
 			description: parsedData.data.description,
 			sortOrder,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: false,
 		});
 
 		if (!createResult.ok) {
@@ -219,12 +238,11 @@ export const action = async ({
 			minGrade: parsedData.data.minGrade,
 			weight: parsedData.data.weight,
 			extraCredit: parsedData.data.extraCredit,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: false,
 		});
 
@@ -239,7 +257,6 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "update-category") {
-
 		const updateResult = await tryUpdateGradebookCategory({
 			payload,
 			categoryId: parsedData.data.categoryId,
@@ -247,12 +264,11 @@ export const action = async ({
 			description: parsedData.data.description,
 			weight: parsedData.data.weight,
 			extraCredit: parsedData.data.extraCredit,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: false,
 		});
 
@@ -267,10 +283,16 @@ export const action = async ({
 	}
 
 	if (parsedData.data.intent === "get-item") {
-		const itemResult = await tryFindGradebookItemById(
+		const itemResult = await tryFindGradebookItemById({
 			payload,
-			parsedData.data.itemId,
-		);
+			itemId: parsedData.data.itemId,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: false,
+		});
 
 		if (!itemResult.ok) {
 			return badRequest({ error: itemResult.error.message });
@@ -333,12 +355,11 @@ export const action = async ({
 		const deleteResult = await tryDeleteGradebookItem({
 			payload,
 			itemId: parsedData.data.itemId,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: false,
 		});
 
@@ -356,12 +377,11 @@ export const action = async ({
 		const deleteResult = await tryDeleteGradebookCategory({
 			payload,
 			categoryId: parsedData.data.categoryId,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-				collection: "users",
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: false,
 		});
 

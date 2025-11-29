@@ -23,6 +23,12 @@ import {
 } from "@tabler/icons-react";
 import { href, Link } from "react-router";
 import { QuizActions } from "~/utils/module-actions";
+import { groupSubmissionsByStudent } from "./helpers";
+import type { Route } from "app/routes/course/module.$id.submissions";
+
+type Enrollment = NonNullable<
+	Route.ComponentProps["loaderData"]["enrollments"]
+>[number];
 
 // ============================================================================
 // Types
@@ -46,12 +52,12 @@ type QuizSubmissionType = {
 	};
 };
 
-type Enrollment = {
-	id: number;
-	userId: number;
-	name: string;
-	email?: string | null;
-};
+// type Enrollment = {
+// 	id: number;
+// 	userId: number;
+// 	name: string;
+// 	email?: string | null;
+// };
 
 // ============================================================================
 // Components
@@ -157,7 +163,7 @@ function QuizStudentSubmissionRow({
 	const [opened, { toggle }] = useDisclosure(false);
 
 	const latestSubmission = studentSubmissions?.[0];
-	const email = enrollment.email || "-";
+	const email = enrollment.userEmail || "-";
 
 	// Sort submissions by attempt number (newest first)
 	const sortedSubmissions = studentSubmissions
@@ -224,11 +230,11 @@ function QuizStudentSubmissionRow({
 								to={
 									href("/course/:courseId/participants/profile", {
 										courseId: String(courseId),
-									}) + `?userId=${enrollment.userId}`
+									}) + `?userId=${enrollment.user.id}`
 								}
 								size="sm"
 							>
-								{enrollment.name}
+								{enrollment.user.firstName} {enrollment.user.lastName}
 							</Anchor>
 						</div>
 					</Group>
@@ -412,23 +418,15 @@ export function QuizSubmissionTable({
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
 }) {
-	// Create a map of quiz submissions by student ID
-	const quizSubmissionsByStudent = new Map<number, QuizSubmissionType[]>();
-	for (const submission of submissions) {
-		if (
+	// Filter and validate submissions, then group by student
+	const validSubmissions = submissions.filter(
+		(submission) =>
 			"attemptNumber" in submission &&
 			"status" in submission &&
-			submission.status !== undefined
-		) {
-			const studentId = submission.student.id;
-			if (!quizSubmissionsByStudent.has(studentId)) {
-				quizSubmissionsByStudent.set(studentId, []);
-			}
-			quizSubmissionsByStudent
-				.get(studentId)
-				?.push(submission as QuizSubmissionType);
-		}
-	}
+			submission.status !== undefined,
+	) as QuizSubmissionType[];
+
+	const quizSubmissionsByStudent = groupSubmissionsByStudent(validSubmissions);
 
 	// Sort submissions by attempt number (newest first) for each student
 	for (const [studentId, studentSubmissions] of quizSubmissionsByStudent) {
@@ -457,7 +455,7 @@ export function QuizSubmissionTable({
 					<Table.Tbody>
 						{enrollments.map((enrollment) => {
 							const studentSubmissions = quizSubmissionsByStudent.get(
-								enrollment.userId,
+								enrollment.user.id,
 							);
 
 							return (

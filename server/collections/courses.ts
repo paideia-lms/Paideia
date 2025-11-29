@@ -1,4 +1,5 @@
 import type { CollectionConfig, TextFieldValidation } from "payload";
+import { richTextContent } from "./utils/rich-text-content";
 
 // Courses collection - core LMS content
 export const Courses = {
@@ -48,11 +49,11 @@ export const Courses = {
 				return true as const;
 			}) as TextFieldValidation,
 		},
-		{
+		...richTextContent({
 			name: "description",
 			type: "textarea",
 			required: true,
-		},
+		}),
 		{
 			name: "status",
 			type: "select",
@@ -122,13 +123,6 @@ export const Courses = {
 			collection: "course-sections",
 			label: "Sections",
 			maxDepth: 2,
-		},
-		{
-			name: "media",
-			type: "relationship",
-			relationTo: "media",
-			hasMany: true,
-			label: "Media",
 		},
 	],
 } as const satisfies CollectionConfig;

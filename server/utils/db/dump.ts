@@ -303,7 +303,7 @@ export async function dumpDatabase({
 			// Get all data from the table
 			// Use first column for ordering, or no ordering if no columns
 			const orderBy =
-				columns.length > 0 ? `ORDER BY "${columns[0].column_name}"` : "";
+				columns.length > 0 ? `ORDER BY "${columns[0]!.column_name}"` : "";
 			const dataResult = await adapter.execute({
 				drizzle: adapter.drizzle,
 				raw: `SELECT * FROM ${fullTableName} ${orderBy};`,

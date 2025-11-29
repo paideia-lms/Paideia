@@ -9,8 +9,8 @@ import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import { tryCreateGradebookItem } from "./gradebook-item-management";
 import {
 	tryCreateGradebook,
-	tryGetGradebookByCourseWithDetails,
 	tryGetGradebookAllRepresentations,
+	tryGetGradebookByCourseWithDetails,
 	tryUpdateGradebook,
 } from "./gradebook-management";
 import type { CreateUserArgs } from "./user-management";
@@ -82,8 +82,7 @@ describe("Gradebook Management", () => {
 		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			user: null,
-			req: undefined,
+			req: {user : null},
 			overrideAccess: true,
 		});
 		expect(gradebookResult.ok).toBe(true);
@@ -93,16 +92,15 @@ describe("Gradebook Management", () => {
 		testGradebook = gradebookResult.value;
 
 		// Create a test category
-		const categoryResult = await tryCreateGradebookCategory(
+		const categoryResult = await tryCreateGradebookCategory({
 			payload,
-			{} as Request,
-			{
-				gradebookId: testGradebook.id,
-				name: "Test Category",
-				description: "Test Category Description",
-				sortOrder: 0,
-			},
-		);
+			gradebookId: testGradebook.id,
+			name: "Test Category",
+			description: "Test Category Description",
+			sortOrder: 0,
+			req: {user : null},
+			overrideAccess: true,
+		});
 
 		expect(categoryResult.ok).toBe(true);
 		if (!categoryResult.ok) {
@@ -111,7 +109,8 @@ describe("Gradebook Management", () => {
 		testCategory = categoryResult.value;
 
 		// Create test items
-		const itemResult = await tryCreateGradebookItem(payload, {} as Request, {
+		const itemResult = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: testCategory.id,
 			name: "Test Assignment",
@@ -120,6 +119,8 @@ describe("Gradebook Management", () => {
 			minGrade: 0,
 			extraCredit: false,
 			sortOrder: 0,
+			req: {user : null},
+			overrideAccess: true,
 		});
 
 		expect(itemResult.ok).toBe(true);
@@ -128,7 +129,8 @@ describe("Gradebook Management", () => {
 		}
 		testItem = itemResult.value;
 
-		const item2Result = await tryCreateGradebookItem(payload, {} as Request, {
+		const item2Result = await tryCreateGradebookItem({
+			payload,
 			courseId: testCourse.id,
 			categoryId: null,
 			name: "Test Manual Item",
@@ -137,6 +139,8 @@ describe("Gradebook Management", () => {
 			minGrade: 0,
 			weight: 15,
 			extraCredit: false,
+			req: {user : null},
+			overrideAccess: true,
 			sortOrder: 1,
 		});
 
@@ -160,8 +164,7 @@ describe("Gradebook Management", () => {
 		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			user: null,
-			req: undefined,
+			req: {user : null},
 			overrideAccess: true,
 		});
 
@@ -178,8 +181,7 @@ describe("Gradebook Management", () => {
 			payload,
 			courseId: testCourse.id,
 			enabled: true,
-			user: null,
-			req: undefined,
+			req: {user : null},
 			overrideAccess: true,
 		});
 
@@ -189,13 +191,11 @@ describe("Gradebook Management", () => {
 		}
 	});
 
-
 	it("should find gradebook by course ID", async () => {
 		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			user: null,
-			req: undefined,
+			req: {user : null},
 			overrideAccess: true,
 		});
 
@@ -210,8 +210,7 @@ describe("Gradebook Management", () => {
 			payload,
 			gradebookId: testGradebook.id,
 			enabled: false,
-			user: null,
-			req: undefined,
+			req: {user : null},
 			overrideAccess: true,
 		});
 
@@ -221,13 +220,11 @@ describe("Gradebook Management", () => {
 		}
 	});
 
-
 	it("should get gradebook by course with details", async () => {
 		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			user: null,
-			req: undefined,
+			req: {user : null},
 			overrideAccess: true,
 		});
 
@@ -243,8 +240,7 @@ describe("Gradebook Management", () => {
 		const result = await tryGetGradebookAllRepresentations({
 			payload,
 			courseId: testCourse.id,
-			user: null,
-			req: undefined,
+			req: {user : null},
 			overrideAccess: true,
 		});
 

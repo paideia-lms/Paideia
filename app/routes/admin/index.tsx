@@ -471,7 +471,7 @@ const adminTabs: { [key: string]: AdminTab } = {
 			appearance: {
 				title: "Appearance",
 				items: [
-					{ title: "Logos" },
+					{ title: "Logos", href: href("/admin/appearance/logo") },
 					{ title: "Course card colours" },
 					{ title: "Calendar" },
 					{ title: "Blog" },

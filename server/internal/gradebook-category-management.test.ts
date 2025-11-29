@@ -45,7 +45,7 @@ describe("Gradebook Category Management", () => {
 				password: "password123",
 				firstName: "John",
 				lastName: "Instructor",
-				role: "student",
+				role: "instructor",
 			},
 			overrideAccess: true,
 		};
@@ -82,7 +82,6 @@ describe("Gradebook Category Management", () => {
 		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			user: null,
 			req: undefined,
 			overrideAccess: true,
 		});
@@ -103,11 +102,16 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should create a gradebook category", async () => {
-		const result = await tryCreateGradebookCategory(payload, {} as Request, {
+		const result = await tryCreateGradebookCategory({
+			payload,
 			gradebookId: testGradebook.id,
 			name: "Test Category",
 			description: "Test Category Description",
 			sortOrder: 0,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
 		});
 
 		expect(result.ok).toBe(true);
@@ -120,22 +124,32 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should not create category with invalid sort order", async () => {
-		const result = await tryCreateGradebookCategory(payload, {} as Request, {
+		const result = await tryCreateGradebookCategory({
+			payload,
 			gradebookId: testGradebook.id,
 			name: "Invalid Sort Category",
 			sortOrder: -1, // Invalid: negative
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
 		});
 
 		expect(result.ok).toBe(false);
 	});
 
 	it("should create a subcategory", async () => {
-		const result = await tryCreateGradebookCategory(payload, {} as Request, {
+		const result = await tryCreateGradebookCategory({
+			payload,
 			gradebookId: testGradebook.id,
 			parentId: testCategory.id,
 			name: "Test Subcategory",
 			description: "Test Subcategory Description",
 			sortOrder: 0,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
 		});
 
 		expect(result.ok).toBe(true);
@@ -170,15 +184,16 @@ describe("Gradebook Category Management", () => {
 
 	it("should persist nested category after creation", async () => {
 		// Create a root category for nested testing
-		const rootCategoryResult = await tryCreateGradebookCategory(
+		const rootCategoryResult = await tryCreateGradebookCategory({
 			payload,
-			{} as Request,
-			{
-				gradebookId: testGradebook.id,
-				name: "Root Category for Nested Test",
-				sortOrder: 10,
+			gradebookId: testGradebook.id,
+			name: "Root Category for Nested Test",
+			sortOrder: 10,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
 			},
-		);
+			overrideAccess: false,
+		});
 
 		expect(rootCategoryResult.ok).toBe(true);
 		if (!rootCategoryResult.ok) {
@@ -188,17 +203,18 @@ describe("Gradebook Category Management", () => {
 		const rootCategory = rootCategoryResult.value;
 
 		// Create a nested category
-		const nestedCategoryResult = await tryCreateGradebookCategory(
+		const nestedCategoryResult = await tryCreateGradebookCategory({
 			payload,
-			{} as Request,
-			{
-				gradebookId: testGradebook.id,
-				parentId: rootCategory.id,
-				name: "Nested Category Test",
-				description: "This should persist",
-				sortOrder: 0,
+			gradebookId: testGradebook.id,
+			parentId: rootCategory.id,
+			name: "Nested Category Test",
+			description: "This should persist",
+			sortOrder: 0,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
 			},
-		);
+			overrideAccess: false,
+		});
 
 		expect(nestedCategoryResult.ok).toBe(true);
 		if (!nestedCategoryResult.ok) {
@@ -242,10 +258,12 @@ describe("Gradebook Category Management", () => {
 		expect(foundParentId).toBe(rootCategory.id);
 
 		// Verify in hierarchy
-		const hierarchyResult = await tryGetGradebookCategoriesHierarchy(
+		const hierarchyResult = await tryGetGradebookCategoriesHierarchy({
 			payload,
-			testGradebook.id,
-		);
+			gradebookId: testGradebook.id,
+			req: undefined,
+			overrideAccess: true,
+		});
 		expect(hierarchyResult.ok).toBe(true);
 		if (hierarchyResult.ok) {
 			const rootInHierarchy = hierarchyResult.value.find(
@@ -279,9 +297,10 @@ describe("Gradebook Category Management", () => {
 			payload,
 			categoryId: testCategory.id,
 			name: "Updated Test Category",
-			user: null,
-			req: undefined,
-			overrideAccess: true,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
 		});
 
 		expect(result.ok).toBe(true);
@@ -291,10 +310,14 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should get gradebook categories hierarchy", async () => {
-		const result = await tryGetGradebookCategoriesHierarchy(
+		const result = await tryGetGradebookCategoriesHierarchy({
 			payload,
-			testGradebook.id,
-		);
+			gradebookId: testGradebook.id,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -311,7 +334,15 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should get next sort order", async () => {
-		const result = await tryGetNextSortOrder(payload, testGradebook.id, null);
+		const result = await tryGetNextSortOrder({
+			payload,
+			gradebookId: testGradebook.id,
+			parentId: null,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -320,9 +351,14 @@ describe("Gradebook Category Management", () => {
 	});
 
 	it("should reorder categories", async () => {
-		const result = await tryReorderCategories(payload, {} as Request, [
-			testCategory.id,
-		]);
+		const result = await tryReorderCategories({
+			payload,
+			categoryIds: [testCategory.id],
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
+		});
 
 		expect(result.ok).toBe(true);
 		if (result.ok) {
@@ -334,9 +370,10 @@ describe("Gradebook Category Management", () => {
 		const result = await tryDeleteGradebookCategory({
 			payload,
 			categoryId: testSubCategory.id,
-			user: null,
-			req: undefined,
-			overrideAccess: true,
+			req: { 
+				user: instructor as typeof instructor & { collection: "users" },
+			},
+			overrideAccess: false,
 		});
 
 		expect(result.ok).toBe(true);

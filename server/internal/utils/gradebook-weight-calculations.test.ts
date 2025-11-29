@@ -172,15 +172,15 @@ describe("Gradebook Weight Calculations", () => {
 			expect(
 				(result[0] as GradebookSetupItemWithCalculations).adjusted_weight,
 			).toBe(50);
-			expect(result[0].grade_items).toBeDefined();
-			if (result[0].grade_items) {
+			expect(result[0]!.grade_items).toBeDefined();
+			if (result[0]!.grade_items) {
 				expect(
-					(result[0].grade_items[0] as GradebookSetupItemWithCalculations)
+					(result[0]!.grade_items[0] as GradebookSetupItemWithCalculations)
 						.adjusted_weight,
 				).toBe(60);
 				// Remaining 40% goes to Item 2
 				expect(
-					(result[0].grade_items[1] as GradebookSetupItemWithCalculations)
+					(result[0]!.grade_items[1] as GradebookSetupItemWithCalculations)
 						.adjusted_weight,
 				).toBe(40);
 			}
@@ -450,7 +450,8 @@ describe("Gradebook Weight Calculations", () => {
 
 			// Check that subcategory is also marked
 			if (parentCategory.grade_items) {
-				const subcategory = parentCategory.grade_items[0] as GradebookSetupItemWithCalculations;
+				const subcategory = parentCategory
+					.grade_items[0] as GradebookSetupItemWithCalculations;
 				expect(subcategory.auto_weighted_zero).toBe(true);
 				expect(subcategory.adjusted_weight).toBe(0); // Treated as 0
 			}
@@ -495,7 +496,8 @@ describe("Gradebook Weight Calculations", () => {
 			expect(category.auto_weighted_zero).toBeUndefined();
 			// The item inside should have adjusted_weight
 			if (category.grade_items) {
-				const item = category.grade_items[0] as GradebookSetupItemWithCalculations;
+				const item = category
+					.grade_items[0] as GradebookSetupItemWithCalculations;
 				expect(item.adjusted_weight).toBe(100); // Single item gets 100%
 			}
 		});
@@ -522,9 +524,9 @@ describe("Gradebook Weight Calculations", () => {
 			const totals = calculateOverallWeights(items);
 
 			// Root-level item's overall weight equals its adjusted weight
-			expect(items[0].overall_weight).toBe(40);
+			expect(items[0]!.overall_weight).toBe(40);
 			// Root-level item should have explanation showing just the item
-			expect(items[0].weight_explanation).toBe("Item 1 (40.00%) = 40.00%");
+			expect(items[0]!.weight_explanation).toBe("Item 1 (40.00%) = 40.00%");
 
 			// Totals should be correct
 			expect(totals.baseTotal).toBe(40);
@@ -589,11 +591,11 @@ describe("Gradebook Weight Calculations", () => {
 			// However, categories might get overall_weight set if they're processed as leaf items
 			// The function checks `if (item.type === "category")` but continues processing
 			// Let's check what actually happens
-			if (items[0].grade_items) {
+			if (items[0]!.grade_items) {
 				// Items inside the category should have their overall weight calculated
-				const item1 = items[0]
+				const item1 = items[0]!
 					.grade_items[0] as GradebookSetupItemWithCalculations;
-				const item2 = items[0]
+				const item2 = items[0]!
 					.grade_items[1] as GradebookSetupItemWithCalculations;
 
 				// Since these items are processed within the recursive call,
@@ -656,7 +658,7 @@ describe("Gradebook Weight Calculations", () => {
 			const totals = calculateOverallWeights(items);
 
 			// Item 1: 35% (parent category) * 50% (nested category) * 10% (item) = 1.75%
-			const item = items[0].grade_items?.[0].grade_items?.[0] as
+			const item = items[0]!.grade_items?.[0]!.grade_items?.[0] as
 				| GradebookSetupItemWithCalculations
 				| undefined;
 			if (item) {
@@ -709,8 +711,8 @@ describe("Gradebook Weight Calculations", () => {
 			);
 
 			// Item without adjusted weight should have null overall weight
-			if (items[0].grade_items) {
-				const item = items[0]
+			if (items[0]!.grade_items) {
+				const item = items[0]!
 					.grade_items[0] as GradebookSetupItemWithCalculations;
 				expect(item.overall_weight).toBeNull();
 				expect(item.weight_explanation).toBeNull();
@@ -742,8 +744,8 @@ describe("Gradebook Weight Calculations", () => {
 			const totals = calculateOverallWeights(items);
 
 			// Categories should not have overall weight or explanation
-			expect(items[0].overall_weight).toBeNull();
-			expect(items[0].weight_explanation).toBeNull();
+			expect(items[0]!.overall_weight).toBeNull();
+			expect(items[0]!.weight_explanation).toBeNull();
 
 			// Totals should be correct for categories
 			expect(totals.baseTotal).toBe(0);
@@ -907,7 +909,7 @@ describe("Gradebook Weight Calculations", () => {
 
 			// Verify extra credit item is identified
 			expect(totals.extraCreditItems.length).toBe(1);
-			expect(totals.extraCreditItems[0].overall_weight).toBe(5);
+			expect(totals.extraCreditItems[0]!.overall_weight).toBe(5);
 		});
 
 		it("should reproduce 101.05% scenario and verify calculation", () => {
@@ -1102,7 +1104,7 @@ describe("Gradebook Weight Calculations", () => {
 
 			// Verify extra credit item is identified
 			expect(totals.extraCreditItems.length).toBe(1);
-			expect(totals.extraCreditItems[0].overall_weight).toBeCloseTo(1.05, 2);
+			expect(totals.extraCreditItems[0]!.overall_weight).toBeCloseTo(1.05, 2);
 		});
 
 		it("should reproduce 113.8% scenario with extra credit items in categories", () => {
@@ -1292,8 +1294,8 @@ describe("Gradebook Weight Calculations", () => {
 			// extra credit 2: 50% * 3.6% = 1.8%
 			// Extra credit total: 12% + 1.8% = 13.8%
 			expect(extraCreditTotal).toBeCloseTo(13.8, 2);
-			expect(extraCreditItems[0].overall_weight).toBeCloseTo(12, 2);
-			expect(extraCreditItems[1].overall_weight).toBeCloseTo(1.8, 2);
+			expect(extraCreditItems[0]!.overall_weight).toBeCloseTo(12, 2);
+			expect(extraCreditItems[1]!.overall_weight).toBeCloseTo(1.8, 2);
 
 			// Total should be: 100% + 13.8% = 113.8%
 			expect(totalOverallWeight).toBeCloseTo(113.8, 2);

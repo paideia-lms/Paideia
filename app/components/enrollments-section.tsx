@@ -31,14 +31,17 @@ import {
 	IconUserPlus,
 } from "@tabler/icons-react";
 import { useState } from "react";
-import { href, Link } from "react-router";
-import type { Enrollment } from "server/contexts/course-context";
+import { Link } from "react-router";
 import {
 	getEnrollmentStatusBadgeColor,
 	getEnrollmentStatusLabel,
-	getRoleBadgeColor,
+	getEnrolmentRoleBadgeColor,
 	getRoleLabel,
 } from "./course-view-utils";
+import type { Route } from "app/routes/course.$id.participants";
+import { getRouteUrl } from "app/routes/course.$id.participants.profile";
+
+type Enrollment = NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>;
 
 interface EnrollmentsSectionProps {
 	courseId: number;
@@ -171,7 +174,7 @@ export function EnrollmentsSection({
 		// TODO: Implement actual email sending via API
 		console.log(
 			"Sending email to:",
-			selectedEnrollments.map((e) => e.email),
+			selectedEnrollments.map((e) => e.user.email),
 		);
 		console.log("Subject:", subject);
 		console.log("Message:", message);
@@ -198,12 +201,12 @@ export function EnrollmentsSection({
 		];
 
 		const rows = selectedEnrollments.map((enrollment) => [
-			enrollment.name || "",
-			enrollment.email || "",
+			enrollment.user.firstName + " " + enrollment.user.lastName,
+			enrollment.user.email || "",
 			getRoleLabel(enrollment.role),
 			getEnrollmentStatusLabel(enrollment.status),
 			enrollment.groups.map((g) => g.name).join("; "),
-			enrollment.userId.toString(),
+			enrollment.user.id.toString(),
 			enrollment.id.toString(),
 		]);
 
@@ -254,7 +257,7 @@ export function EnrollmentsSection({
 	// Copy email addresses to clipboard
 	const handleCopyEmails = () => {
 		const emails = selectedEnrollments
-			.map((e) => e.email)
+			.map((e) => e.user.email)
 			.filter(Boolean)
 			.join(", ");
 
@@ -273,8 +276,8 @@ export function EnrollmentsSection({
 				opened={emailModalOpened}
 				onClose={() => setEmailModalOpened(false)}
 				recipients={selectedEnrollments.map((e) => ({
-					name: e.name || "Unknown",
-					email: e.email || "",
+					name: e.user.firstName + " " + e.user.lastName,
+					email: e.user.email || "",
 				}))}
 				onSend={handleSendEmail}
 			/>
@@ -383,9 +386,12 @@ export function EnrollmentsSection({
 									</Table.Tr>
 								</Table.Thead>
 								<Table.Tbody>
-									{enrollments.map((enrollment: Enrollment) => {
-										const email = enrollment.email || "Unknown";
-										const fullName = enrollment.name || "Unknown";
+									{enrollments.map((enrollment) => {
+										const email = enrollment.user.email || "Unknown";
+										const fullName =
+											enrollment.user.firstName +
+											" " +
+											enrollment.user.lastName;
 										const isSelected = selectedRows.includes(enrollment.id);
 
 										return (
@@ -417,11 +423,7 @@ export function EnrollmentsSection({
 														<Text
 															fw={500}
 															component={Link}
-															to={
-																href("/course/:courseId/participants/profile", {
-																	courseId: courseId.toString(),
-																}) + `?userId=${enrollment.userId}`
-															}
+															to={getRouteUrl(courseId, enrollment.user.id)}
 														>
 															{fullName}
 														</Text>
@@ -432,7 +434,7 @@ export function EnrollmentsSection({
 												</Table.Td>
 												<Table.Td>
 													<Badge
-														color={getRoleBadgeColor(enrollment.role)}
+														color={getEnrolmentRoleBadgeColor(enrollment.role)}
 														variant="light"
 													>
 														{getRoleLabel(enrollment.role)}

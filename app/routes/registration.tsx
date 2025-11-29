@@ -27,6 +27,7 @@ import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/registration";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export async function loader({ context }: Route.LoaderArgs) {
 	const { payload, envVars } = context.get(globalContextKey);
@@ -44,7 +45,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 	// if user already login, redirect to dashboard
 	if (userSession?.isAuthenticated) {
-		throw redirect(href("/"));
+		return redirect(href("/"));
 	}
 
 	const settingsResult = await tryGetRegistrationSettings({
@@ -99,14 +100,15 @@ export async function action({ request, context }: Route.ActionArgs) {
 	}
 
 	// Respect registration settings unless creating the first user
-	const currentUserRaw =
-		userSession?.effectiveUser || userSession?.authenticatedUser || null;
-	const currentUser = currentUserRaw
-		? { ...currentUserRaw, avatar: currentUserRaw.avatar?.id }
-		: null;
+	const currentUser =
+		userSession?.effectiveUser ?? userSession?.authenticatedUser;
 	const settingsResult = await tryGetRegistrationSettings({
 		payload,
-		user: currentUser || null,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		// ! this has override access because it is a system request, we don't care about access control
 		overrideAccess: true,
 	});
@@ -131,7 +133,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 		}
 
 		const { token, exp } = result.value;
-		throw redirect(href("/"), {
+		return redirect(href("/"), {
 			headers: {
 				"Set-Cookie": setCookie(
 					token,
@@ -159,7 +161,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 	}
 
 	const { token, exp } = result.value;
-	throw redirect(href("/"), {
+	return redirect(href("/"), {
 		headers: {
 			"Set-Cookie": setCookie(
 				token,

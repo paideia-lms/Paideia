@@ -57,8 +57,11 @@ import type {
 	QuizResource,
 	RankingQuestion,
 	SingleSelectionMatrixQuestion,
-} from "server/json/raw-quiz-config.types.v2";
-import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+} from "server/json/raw-quiz-config/types.v2";
+import type {
+	ActivityModuleFormValues,
+	QuizModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
@@ -70,7 +73,7 @@ import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 export function PassScoringInput({
 	form,
 }: {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 }) {
 	return (
 		<NumberInput
@@ -85,7 +88,7 @@ export function PassScoringInput({
 }
 
 export interface GradingConfigEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| "rawQuizConfig.grading"
 		| `rawQuizConfig.nestedQuizzes.${number}.grading`;
@@ -151,7 +154,7 @@ export function GradingConfigEditor({ form, path }: GradingConfigEditorProps) {
 // ============================================================================
 
 export interface ScoringEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.pages.${number}.questions.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
@@ -359,7 +362,7 @@ export function ScoringEditor({ form, path }: ScoringEditorProps) {
 // ============================================================================
 
 export interface MultipleChoiceEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.pages.${number}.questions.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
@@ -459,7 +462,7 @@ export function MultipleChoiceEditor({
 // ============================================================================
 
 export interface ChoiceEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.pages.${number}.questions.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
@@ -556,7 +559,7 @@ export function ChoiceEditor({ form, path }: ChoiceEditorProps) {
 // ============================================================================
 
 export interface FillInTheBlankEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.pages.${number}.questions.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
@@ -652,7 +655,7 @@ export function FillInTheBlankEditor({
 // ============================================================================
 
 export interface RankingEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.pages.${number}.questions.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
@@ -665,7 +668,7 @@ interface SortableRankingItemProps {
 	index: number;
 	onRemove: () => void;
 	canRemove: boolean;
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path: string;
 }
 
@@ -861,7 +864,7 @@ export function RankingEditor({ form, path }: RankingEditorProps) {
 								<SortableRankingItem
 									key={key}
 									id={key}
-									label={items[key]}
+									label={items[key]!}
 									index={index}
 									onRemove={() => removeItem(key)}
 									canRemove={itemKeys.length > 2}
@@ -885,7 +888,7 @@ export function RankingEditor({ form, path }: RankingEditorProps) {
 // ============================================================================
 
 export interface MatrixEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.pages.${number}.questions.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
@@ -1260,7 +1263,7 @@ export function MultipleSelectionMatrixEditor({
 // ============================================================================
 
 export interface ResourceEditorProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.resources.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.resources.${number}`;
@@ -1399,7 +1402,7 @@ export function ResourceEditor({
 // ============================================================================
 
 export interface ResourcesListProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| "rawQuizConfig.resources"
 		| `rawQuizConfig.nestedQuizzes.${number}.resources`;
@@ -1499,7 +1502,7 @@ export function ResourcesList({ form, path, pagesPath }: ResourcesListProps) {
 // ============================================================================
 
 export interface SortablePageBreakItemProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	basePath:
 		| "rawQuizConfig.pages"
 		| `rawQuizConfig.nestedQuizzes.${number}.pages`;
@@ -1539,8 +1542,8 @@ export function SortablePageBreakItem({
 		if (pageIndex === -1 || pageIndex === 0) return; // Don't remove page 0
 
 		// we get the question in this page and move them to previous page
-		const questions = currentPages[pageIndex].questions;
-		const previousPage = currentPages[pageIndex - 1];
+		const questions = currentPages[pageIndex]!.questions;
+		const previousPage = currentPages[pageIndex - 1]!;
 		const updatedQuestions = [...previousPage.questions, ...questions];
 		previousPage.questions = updatedQuestions;
 		const updatedPages = currentPages.filter((_, index) => index !== pageIndex);
@@ -1574,7 +1577,7 @@ export function SortablePageBreakItem({
 // ============================================================================
 
 export interface SortableQuestionItemProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path:
 		| `rawQuizConfig.pages.${number}.questions.${number}`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages.${number}.questions.${number}`;
@@ -1589,8 +1592,8 @@ export function SortableQuestionItem({
 	pageNumber,
 }: SortableQuestionItemProps) {
 	const parts = path.split(".");
-	const pageIndex = Number.parseInt(parts[parts.indexOf("pages") + 1]);
-	const questionIndex = Number.parseInt(parts[parts.indexOf("questions") + 1]);
+	const pageIndex = Number.parseInt(parts[parts.indexOf("pages") + 1]!);
+	const questionIndex = Number.parseInt(parts[parts.indexOf("questions") + 1]!);
 	const pagesPath = parts.slice(0, parts.indexOf("pages") + 1).join(".") as
 		| `rawQuizConfig.pages`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages`;
@@ -1636,11 +1639,12 @@ export function SortableQuestionItem({
 
 		const currentPages = getPath(pagesPath, form.getValues());
 		const updatedPages = [...currentPages];
-		const updatedQuestions = [...updatedPages[pageIndex].questions];
+		const page = updatedPages[pageIndex]!;
+		const updatedQuestions = [...page.questions];
 		updatedQuestions.splice(questionIndex, 1);
 
 		updatedPages[pageIndex] = {
-			...updatedPages[pageIndex],
+			...page,
 			questions: updatedQuestions,
 		};
 
@@ -1940,7 +1944,7 @@ export function SortableQuestionItem({
 // ============================================================================
 
 export interface QuestionsListProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 	path: "rawQuizConfig.pages" | `rawQuizConfig.nestedQuizzes.${number}.pages`;
 }
 
@@ -1992,14 +1996,14 @@ export function QuestionsList({ form, path }: QuestionsListProps) {
 	//         flatListItems.push({ type: "page", id: page.id, pageIndex: pageIdx });
 	// });
 	for (let i = 0; i < pagesData.length; i++) {
-		const page = pagesData[i];
+		const page = pagesData[i]!;
 		if (i > 0) {
 			flatListItems.push({ type: "page", id: page.id, pageIndex: i });
 		}
 		for (let j = 0; j < page.questions.length; j++) {
 			flatListItems.push({
 				type: "question",
-				id: page.questions[j].id,
+				id: page.questions[j]!.id,
 				pageIndex: i,
 				questionIndex: j,
 			});
@@ -2054,18 +2058,18 @@ export function QuestionsList({ form, path }: QuestionsListProps) {
 		const newPages: QuizPage[] = [];
 		// add the first page
 		newPages.push({
-			id: currentPages[0].id,
-			title: currentPages[0].title,
+			id: currentPages[0]!.id,
+			title: currentPages[0]!.title,
 			questions: [],
 		});
 		// loop through reordered flat list and add the questions or pages
 		let currentPage = 0;
 		for (let i = 0; i < reorderedFlatList.length; i++) {
-			const item = reorderedFlatList[i];
+			const item = reorderedFlatList[i]!;
 			if (item.type === "question") {
 				const question = questionMap.get(item.id);
 				if (question) {
-					newPages[currentPage].questions.push(question);
+					newPages[currentPage]!.questions.push(question);
 				}
 			} else if (item.type === "page") {
 				const page = pageMap.get(item.id);
@@ -2116,9 +2120,10 @@ export function QuestionsList({ form, path }: QuestionsListProps) {
 		} else {
 			// Add to last page
 			const updatedPages = [...currentPages];
+			const page = updatedPages[lastPageIndex]!;
 			updatedPages[lastPageIndex] = {
-				...updatedPages[lastPageIndex],
-				questions: [...updatedPages[lastPageIndex].questions, newQuestion],
+				...page,
+				questions: [...page.questions, newQuestion],
 			};
 			form.setFieldValue(path, updatedPages);
 		}

@@ -13,17 +13,7 @@ import {
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import * as cheerio from "cheerio";
-import prettyBytes from "pretty-bytes";
 import { useId, useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
@@ -35,27 +25,34 @@ import {
 	tryGetCategoryTree,
 } from "server/internal/course-category-management";
 import { tryUpdateCourse } from "server/internal/course-management";
-import { tryCreateMedia } from "server/internal/media-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import type { Course } from "server/payload-types";
 import { canSeeCourseSettings } from "server/utils/permissions";
 import z from "zod";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { RichTextEditor } from "~/components/rich-text-editor";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
+import { handleUploadError } from "~/utils/handle-upload-errors";
+import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
 import {
 	badRequest,
 	ForbiddenResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/course.$id.settings";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const payload = context.get(globalContextKey).payload;
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -67,7 +64,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 	const { course } = courseContext;
 
 	// Check if user can edit this course
@@ -87,7 +84,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	// Fetch categories via internal functions and flatten
 	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
-	const categoriesResult = await tryGetCategoryTree(payload);
+	const categoriesResult = await tryGetCategoryTree({
+		payload,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
 	}
@@ -103,15 +107,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	// Handle thumbnail - could be Media object, just ID, or null
 	const thumbnailFileNameOrId = course.thumbnail
-		? typeof course.thumbnail === "object"
-			? course.thumbnail.filename || course.thumbnail.id?.toString()
-			: course.thumbnail.toString()
+		? String(course.thumbnail.id)
 		: null;
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -160,7 +162,7 @@ export const action = async ({
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get user's enrollment for this course
 	const enrollments = await payload.find({
@@ -192,109 +194,62 @@ export const action = async ({
 		});
 	}
 
-	// Start transaction for atomic media creation + course update
-	const transactionID = await payload.db.beginTransaction();
-
-	if (!transactionID) {
-		return badRequest({
-			success: false,
-			error: "Failed to begin transaction",
-		});
-	}
-
 	// Get upload limit from system globals
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	try {
-		// Store uploaded media info - map fieldName to uploaded filename
-		const uploadedMedia: { fieldName: string; filename: string }[] = [];
-
-		// Store thumbnail media ID
-		let thumbnailMediaId: number | undefined;
-
-		// Parse form data with upload handler
-		const uploadHandler = async (fileUpload: FileUpload) => {
-			if (fileUpload.fieldName === "thumbnail") {
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
-
-				// Create media record within transaction
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					alt: "Course thumbnail",
-					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id,
-					},
-					req: { transactionID },
-				});
-
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
-
-				thumbnailMediaId = mediaResult.value.media.id;
-				return thumbnailMediaId;
-			}
-
-			if (fileUpload.fieldName.startsWith("image-")) {
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
-
-				// Create media record within transaction
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					alt: "Course description image",
-					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id,
-					},
-					req: { transactionID },
-				});
-
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
-
-				// Store the field name and filename for later matching
-				uploadedMedia.push({
-					fieldName: fileUpload.fieldName,
-					filename: mediaResult.value.media.filename ?? fileUpload.name,
-				});
-
-				return mediaResult.value.media.id;
-			}
-		};
-
-		const formData = await parseFormDataWithFallback(
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
 			request,
-			uploadHandler as FileUploadHandler,
-			maxFileSize !== undefined ? { maxFileSize } : undefined,
-		);
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
-		// console.log(formData.get("category"));
-
-		const parsed = inputSchema.safeParse({
-			title: formData.get("title"),
-			slug: formData.get("slug"),
-			description: formData.get("description"),
-			status: formData.get("status"),
-			category: formData.get("category"),
-			redirectTo: formData.get("redirectTo"),
+	return await transactionInfo.tx(async (txInfo) => {
+		let thumbnailMediaId: number | undefined;
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			maxFileSize,
+			fields: [
+				{
+					fieldName: "thumbnail",
+					alt: "Course thumbnail",
+					onUpload: (_fieldName, mediaId) => {
+						thumbnailMediaId = mediaId;
+					},
+				},
+				{
+					fieldName: "image-*",
+					alt: "Course description image",
+				},
+			],
 		});
 
+		if (!parseResult.ok) {
+			await rollbackTransactionIfCreated(payload, transactionInfo);
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
+
+		const { formData, uploadedMedia } = parseResult.value;
+
+		const parsed = inputSchema.safeParse(formData);
+
 		if (!parsed.success) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			return badRequest({
 				success: false,
 				error: parsed.error.issues[0]?.message ?? "Validation error",
@@ -304,45 +259,13 @@ export const action = async ({
 		let description = parsed.data.description;
 
 		// Replace base64 images with actual media URLs
-		if (uploadedMedia.length > 0) {
-			// Build a map of base64 prefix to filename
-			const base64ToFilename = new Map<string, string>();
-
-			uploadedMedia.forEach((media) => {
-				const previewKey = `${media.fieldName}-preview`;
-				const preview = formData.get(previewKey) as string;
-				if (preview) {
-					const base64Prefix = preview.substring(0, 100);
-					base64ToFilename.set(base64Prefix, media.filename);
-				}
-			});
-			const $ = cheerio.load(description);
-			const images = $("img");
-
-			images.each((_i, img) => {
-				const src = $(img).attr("src");
-				if (src?.startsWith("data:image")) {
-					// Find matching uploaded media by comparing base64 prefix
-					const base64Prefix = src.substring(0, 100);
-					const filename = base64ToFilename.get(base64Prefix);
-
-					if (filename) {
-						// Replace with actual media URL
-						const mediaUrl = href("/api/media/file/:filenameOrId", {
-							filenameOrId: filename,
-						});
-						$(img).attr("src", mediaUrl);
-					}
-				}
-			});
-
-			description = $.html();
-		}
+		description = replaceBase64ImagesWithMediaUrls(
+			description,
+			uploadedMedia,
+			formData,
+		);
 
 		// Update course (within the same transaction)
-		// Pass transaction context so filename resolution can see uncommitted media
-		const reqWithTransaction = { transactionID };
-
 		const updateResult = await tryUpdateCourse({
 			payload,
 			courseId: Number(courseId),
@@ -353,24 +276,21 @@ export const action = async ({
 				thumbnail: thumbnailMediaId,
 				category: parsed.data.category,
 			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
-			req: reqWithTransaction,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: true,
 		});
+
 		if (!updateResult.ok) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			return badRequest({
 				success: false,
 				error: updateResult.error.message,
 			});
 		}
-
-		// Commit the transaction
-		await payload.db.commitTransaction(transactionID);
 
 		return ok({
 			success: true,
@@ -378,55 +298,32 @@ export const action = async ({
 			id: courseId,
 			redirectTo: parsed.data.redirectTo ?? null,
 		});
-	} catch (error) {
-		// Rollback on any error
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("Course update error:", error);
-
-		// Handle file size and count limit errors
-		if (error instanceof MaxFileSizeExceededError) {
-			return badRequest({
-				success: false,
-				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
-			});
-		}
-
-		if (error instanceof MaxFilesExceededError) {
-			return badRequest({
-				success: false,
-				error: error.message,
-			});
-		}
-
-		return badRequest({
-			success: false,
-			error: error instanceof Error ? error.message : "Failed to update course",
-		});
-	}
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.success) {
-		if (actionData.status === 200) {
-			notifications.show({
-				title: "Course updated",
-				message: "The course has been updated successfully",
-				color: "green",
-			});
-			// Redirect to provided location if specified; otherwise to the course's view page
-			if (actionData.redirectTo) {
-				throw redirect(actionData.redirectTo);
-			}
-			throw redirect(
-				href("/course/:courseId", { courseId: String(actionData.id) }),
-			);
+	if (actionData?.status === StatusCode.Ok) {
+		notifications.show({
+			title: "Course updated",
+			message: actionData.message,
+			color: "green",
+		});
+		// Redirect to provided location if specified; otherwise to the course's view page
+		if (actionData.redirectTo) {
+			return redirect(actionData.redirectTo);
 		}
-	} else if ("error" in actionData) {
+		return redirect(
+			href("/course/:courseId", { courseId: String(actionData.id) }),
+		);
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Update failed",
-			message: actionData?.error,
+			message: actionData.error,
 			color: "red",
 		});
 	}

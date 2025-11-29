@@ -1,31 +1,17 @@
-import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import { AnalyticsSettings } from "server/collections/globals";
+import { stripDepth } from "./utils/internal-function-utils";
+export interface GetAnalyticsSettingsArgs extends BaseInternalFunctionArgs {}
 
-export interface GetAnalyticsSettingsArgs {
-	payload: Payload;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
-
-export interface UpdateAnalyticsSettingsArgs {
-	payload: Payload;
-	user: User;
+export interface UpdateAnalyticsSettingsArgs extends BaseInternalFunctionArgs {
 	data: {
 		additionalJsScripts?: Array<{
 			src: string;
 			defer?: boolean;
-			async?: boolean;
-			dataWebsiteId?: string;
-			dataDomain?: string;
-			dataSite?: string;
-			dataMeasurementId?: string;
 		}>;
 	};
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 /**
@@ -34,15 +20,15 @@ export interface UpdateAnalyticsSettingsArgs {
  */
 export const tryGetAnalyticsSettings = Result.wrap(
 	async (args: GetAnalyticsSettingsArgs) => {
-		const { payload, user = null, req } = args;
+		const { payload, req, overrideAccess = false } = args;
 
-		const raw = await payload.findGlobal({
-			slug: "analytics-settings",
-			user,
-			req,
-			// ! this is a system request, we don't care about access control
-			overrideAccess: true,
-		});
+		const raw = await payload
+			.findGlobal({
+				slug: AnalyticsSettings.slug,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findGlobal">());
 
 		return raw;
 	},
@@ -57,19 +43,20 @@ export const tryGetAnalyticsSettings = Result.wrap(
  */
 export const tryUpdateAnalyticsSettings = Result.wrap(
 	async (args: UpdateAnalyticsSettingsArgs) => {
-		const { payload, user, data, req, overrideAccess = false } = args;
+		const { payload, data, req, overrideAccess = false } = args;
 
 		const scripts = data.additionalJsScripts ?? [];
 
-		const updated = await payload.updateGlobal({
-			slug: "analytics-settings",
-			data: {
-				additionalJsScripts: scripts,
-			},
-			user,
-			req,
-			overrideAccess,
-		});
+		const updated = await payload
+			.updateGlobal({
+				slug: AnalyticsSettings.slug,
+				data: {
+					additionalJsScripts: scripts,
+				},
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "updateGlobal">());
 
 		return updated;
 	},

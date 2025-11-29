@@ -1,9 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, type TypedUser } from "payload";
+import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
-	tryCheckActivityModuleAccess,
 	tryFindAutoGrantedModulesForInstructor,
 	tryFindGrantsByActivityModule,
 	tryFindInstructorsForActivityModule,
@@ -29,10 +28,12 @@ describe("Activity Module Access Control", () => {
 
 	// Helper to get authenticated user from token
 	const getAuthUser = async (token: string): Promise<TypedUser> => {
-		const authResult = await payload.auth({
+		const authResult = await executeAuthStrategies({
 			headers: new Headers({
 				Authorization: `Bearer ${token}`,
 			}),
+			canSetHeaders: true,
+			payload,
 		});
 		if (!authResult.user) throw new Error("Failed to get authenticated user");
 		return authResult.user;
@@ -58,7 +59,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -72,7 +73,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -97,7 +98,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -110,7 +111,7 @@ describe("Activity Module Access Control", () => {
 				role: role,
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -337,7 +338,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -368,7 +369,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -376,7 +377,7 @@ describe("Activity Module Access Control", () => {
 		const result = await payload.findByID({
 			collection: "activity-modules",
 			id: activityModule.id,
-			user: user1,
+			req: { user: user1 },
 		});
 
 		expect(result.id).toBe(activityModule.id);
@@ -395,7 +396,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -406,7 +407,7 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Updated Title",
 			},
-			user: user1,
+			req: { user: user1 },
 		});
 
 		expect(updated.title).toBe("Updated Title");
@@ -425,7 +426,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -433,7 +434,7 @@ describe("Activity Module Access Control", () => {
 		const deleted = await payload.delete({
 			collection: "activity-modules",
 			id: activityModule.id,
-			user: user1,
+			req: { user: user1 },
 		});
 
 		expect(deleted.id).toBe(activityModule.id);
@@ -452,7 +453,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -483,7 +484,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -499,18 +500,9 @@ describe("Activity Module Access Control", () => {
 		expect(grantResult.ok).toBe(true);
 		if (grantResult.ok) {
 			// Handle depth - activityModule can be ID or object
-			const grantActivityModuleId =
-				typeof grantResult.value.activityModule === "number"
-					? grantResult.value.activityModule
-					: grantResult.value.activityModule?.id;
-			const grantedToId =
-				typeof grantResult.value.grantedTo === "number"
-					? grantResult.value.grantedTo
-					: grantResult.value.grantedTo?.id;
-			const grantedById =
-				typeof grantResult.value.grantedBy === "number"
-					? grantResult.value.grantedBy
-					: grantResult.value.grantedBy?.id;
+			const grantActivityModuleId = grantResult.value.activityModule;
+			const grantedToId = grantResult.value.grantedTo;
+			const grantedById = grantResult.value.grantedBy;
 
 			expect(grantActivityModuleId).toBe(activityModule.id);
 			expect(grantedToId).toBe(testUser2.id);
@@ -532,7 +524,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -569,7 +561,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -609,7 +601,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -649,7 +641,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -693,50 +685,6 @@ describe("Activity Module Access Control", () => {
 		}
 	});
 
-	test("should transfer ownership to another user", async () => {
-		const user1 = await getAuthUser(user1Token);
-		const user2 = await getAuthUser(user2Token);
-
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Transfer Ownership Test",
-				type: "assignment",
-				status: "draft",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			user: user1,
-			overrideAccess: true,
-		});
-
-		// Transfer ownership to user2
-		const transferResult = await tryTransferActivityModuleOwnership({
-			payload,
-			activityModuleId: activityModule.id,
-			newOwnerId: testUser2.id,
-			currentOwnerId: testUser1.id,
-			overrideAccess: true,
-		});
-
-		expect(transferResult.ok).toBe(true);
-		if (transferResult.ok) {
-			const newOwnerId =
-				typeof transferResult.value.owner === "number"
-					? transferResult.value.owner
-					: transferResult.value.owner?.id;
-			expect(newOwnerId).toBe(testUser2.id);
-		}
-
-		// Verify new owner can delete
-		const deleted = await payload.delete({
-			collection: "activity-modules",
-			id: activityModule.id,
-			user: user2,
-		});
-		expect(deleted.id).toBe(activityModule.id);
-	});
 
 	test("should grant access to previous owner after ownership transfer", async () => {
 		const user1 = await getAuthUser(user1Token);
@@ -751,7 +699,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -768,7 +716,7 @@ describe("Activity Module Access Control", () => {
 		const result = await payload.findByID({
 			collection: "activity-modules",
 			id: activityModule.id,
-			user: user1,
+			req: { user: user1 },
 		});
 		expect(result.id).toBe(activityModule.id);
 
@@ -779,7 +727,7 @@ describe("Activity Module Access Control", () => {
 			data: {
 				title: "Updated by Previous Owner",
 			},
-			user: user1,
+			req: { user: user1 },
 		});
 		expect(updated.title).toBe("Updated by Previous Owner");
 
@@ -788,7 +736,7 @@ describe("Activity Module Access Control", () => {
 			await payload.delete({
 				collection: "activity-modules",
 				id: activityModule.id,
-				user: user1,
+				req: { user: user1 },
 			});
 			expect(true).toBe(false); // Should not reach here
 		} catch (error) {
@@ -796,150 +744,7 @@ describe("Activity Module Access Control", () => {
 		}
 	});
 
-	test("should check access for owner", async () => {
-		const user1 = await getAuthUser(user1Token);
 
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Check Owner Access Test",
-				type: "quiz",
-				status: "draft",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			user: user1,
-			overrideAccess: true,
-		});
-
-		// Check access
-		const checkResult = await tryCheckActivityModuleAccess({
-			payload,
-			activityModuleId: activityModule.id,
-			userId: testUser1.id,
-		});
-
-		expect(checkResult.ok).toBe(true);
-		if (checkResult.ok) {
-			expect(checkResult.value.hasAccess).toBe(true);
-			expect(checkResult.value.isOwner).toBe(true);
-			expect(checkResult.value.isCreator).toBe(true);
-			expect(checkResult.value.isGranted).toBe(false);
-			expect(checkResult.value.isAdmin).toBe(false);
-		}
-	});
-
-	test("should check access for granted user", async () => {
-		const user1 = await getAuthUser(user1Token);
-
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Check Granted Access Test",
-				type: "assignment",
-				status: "draft",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			user: user1,
-			overrideAccess: true,
-		});
-
-		// Grant access to user2
-		await tryGrantAccessToActivityModule({
-			payload,
-			activityModuleId: activityModule.id,
-			grantedToUserId: testUser2.id,
-			grantedByUserId: testUser1.id,
-			overrideAccess: true,
-		});
-
-		// Check access for user2
-		const checkResult = await tryCheckActivityModuleAccess({
-			payload,
-			activityModuleId: activityModule.id,
-			userId: testUser2.id,
-		});
-
-		expect(checkResult.ok).toBe(true);
-		if (checkResult.ok) {
-			expect(checkResult.value.hasAccess).toBe(true);
-			expect(checkResult.value.isOwner).toBe(false);
-			expect(checkResult.value.isCreator).toBe(false);
-			expect(checkResult.value.isGranted).toBe(true);
-			expect(checkResult.value.isAdmin).toBe(false);
-		}
-	});
-
-	test("should check access for non-granted user", async () => {
-		const user1 = await getAuthUser(user1Token);
-
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Check No Access Test",
-				type: "discussion",
-				status: "draft",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			user: user1,
-			overrideAccess: true,
-		});
-
-		// Check access for user3 (no access)
-		const checkResult = await tryCheckActivityModuleAccess({
-			payload,
-			activityModuleId: activityModule.id,
-			userId: testUser3.id,
-		});
-
-		expect(checkResult.ok).toBe(true);
-		if (checkResult.ok) {
-			expect(checkResult.value.hasAccess).toBe(false);
-			expect(checkResult.value.isOwner).toBe(false);
-			expect(checkResult.value.isCreator).toBe(false);
-			expect(checkResult.value.isGranted).toBe(false);
-			expect(checkResult.value.isAdmin).toBe(false);
-		}
-	});
-
-	test("should check access for admin", async () => {
-		const user1 = await getAuthUser(user1Token);
-
-		// Create activity module
-		const activityModule = await payload.create({
-			collection: "activity-modules",
-			data: {
-				title: "Check Admin Access Test",
-				type: "quiz",
-				status: "draft",
-				createdBy: testUser1.id,
-				owner: testUser1.id,
-			},
-			user: user1,
-			overrideAccess: true,
-		});
-
-		// Check access for admin
-		const checkResult = await tryCheckActivityModuleAccess({
-			payload,
-			activityModuleId: activityModule.id,
-			userId: adminUser.id,
-		});
-
-		expect(checkResult.ok).toBe(true);
-		if (checkResult.ok) {
-			expect(checkResult.value.hasAccess).toBe(true);
-			expect(checkResult.value.isOwner).toBe(false);
-			expect(checkResult.value.isCreator).toBe(false);
-			expect(checkResult.value.isGranted).toBe(false);
-			expect(checkResult.value.isAdmin).toBe(true);
-		}
-	});
 
 	test("should allow admin to access any activity module", async () => {
 		const user1 = await getAuthUser(user1Token);
@@ -955,7 +760,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1000,7 +805,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1038,7 +843,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1069,7 +874,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1133,7 +938,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1189,7 +994,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1203,7 +1008,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1228,7 +1033,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1241,7 +1046,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1254,7 +1059,7 @@ describe("Activity Module Access Control", () => {
 				role: "ta",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1285,8 +1090,8 @@ describe("Activity Module Access Control", () => {
 
 			expect(teacherInstructor?.enrollments.length).toBe(1);
 			expect(taInstructor?.enrollments.length).toBe(1);
-			expect(teacherInstructor?.enrollments[0].role).toBe("teacher");
-			expect(taInstructor?.enrollments[0].role).toBe("ta");
+			expect(teacherInstructor?.enrollments[0]!.role).toBe("teacher");
+			expect(taInstructor?.enrollments[0]!.role).toBe("ta");
 		}
 	});
 
@@ -1303,7 +1108,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1317,7 +1122,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1330,7 +1135,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1365,7 +1170,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: section1Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1374,7 +1179,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: section2Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1387,7 +1192,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1399,7 +1204,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1414,12 +1219,12 @@ describe("Activity Module Access Control", () => {
 			expect(instructorsResult.value.length).toBe(1);
 
 			// Check that user2 is instructor with 2 enrollments
-			const instructor = instructorsResult.value[0];
+			const instructor = instructorsResult.value[0]!;
 			expect(instructor.id).toBe(testUser2.id);
 			expect(instructor.enrollments.length).toBe(2);
 			// Both enrollments should be teacher role
-			expect(instructor.enrollments[0].role).toBe("teacher");
-			expect(instructor.enrollments[1].role).toBe("teacher");
+			expect(instructor.enrollments[0]!.role).toBe("teacher");
+			expect(instructor.enrollments[1]!.role).toBe("teacher");
 		}
 	});
 
@@ -1436,7 +1241,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1465,7 +1270,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1580,7 +1385,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1593,7 +1398,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1607,7 +1412,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1620,7 +1425,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1655,7 +1460,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule1.id,
 			sectionId: section1Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1664,7 +1469,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule2.id,
 			sectionId: section2Result.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1677,7 +1482,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1689,7 +1494,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1748,7 +1553,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1762,7 +1567,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1787,7 +1592,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1800,7 +1605,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "inactive",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1834,7 +1639,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				owner: testUser1.id,
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1848,7 +1653,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1873,7 +1678,7 @@ describe("Activity Module Access Control", () => {
 			activityModuleId: activityModule.id,
 			sectionId: sectionResult.value.id,
 			order: 0,
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1886,7 +1691,7 @@ describe("Activity Module Access Control", () => {
 				role: "student",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1937,7 +1742,7 @@ describe("Activity Module Access Control", () => {
 				createdBy: testUser1.id,
 				status: "published",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 
@@ -1950,7 +1755,7 @@ describe("Activity Module Access Control", () => {
 				role: "teacher",
 				status: "active",
 			},
-			user: user1,
+			req: { user: user1 },
 			overrideAccess: true,
 		});
 

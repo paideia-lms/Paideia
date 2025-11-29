@@ -496,4 +496,3 @@ describe("validateGradebookWeights", () => {
 		}
 	});
 });
-

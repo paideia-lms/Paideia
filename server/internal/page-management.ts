@@ -1,4 +1,3 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
@@ -8,40 +7,29 @@ import {
 	transformError,
 	UnknownError,
 } from "~/utils/error";
+import {
+	interceptPayloadError,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
 
-export interface CreatePageArgs {
-	payload: Payload;
+export interface CreatePageArgs extends BaseInternalFunctionArgs {
 	content?: string;
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface UpdatePageArgs {
-	payload: Payload;
+export interface UpdatePageArgs extends BaseInternalFunctionArgs {
 	id: number;
 	content?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface DeletePageArgs {
-	payload: Payload;
+export interface DeletePageArgs extends BaseInternalFunctionArgs {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface GetPageByIdArgs {
-	payload: Payload;
+export interface GetPageByIdArgs extends BaseInternalFunctionArgs {
 	id: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 export const tryCreatePage = Result.wrap(
@@ -50,7 +38,7 @@ export const tryCreatePage = Result.wrap(
 			payload,
 			content,
 			userId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -104,21 +92,18 @@ export const tryCreatePage = Result.wrap(
 					createdBy: userId,
 					media: mediaIds.length > 0 ? mediaIds : undefined,
 				},
-				user,
 				req,
 				overrideAccess,
+				depth: 0,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryUpdatePage: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
+			.then(stripDepth<0, "create">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryCreatePage",
+					args,
+				});
+				throw error;
 			});
 
 		return page;
@@ -132,7 +117,7 @@ export const tryUpdatePage = Result.wrap(
 			payload,
 			id,
 			content,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -141,29 +126,14 @@ export const tryUpdatePage = Result.wrap(
 			throw new InvalidArgumentError("Page ID is required");
 		}
 
-		// Check if page exists
-		const existingPage = await payload.findByID({
-			collection: "pages",
-			id,
-			user,
-			req,
-			overrideAccess,
-		});
-
-		if (!existingPage) {
-			throw new NonExistingPageError("Page not found");
-		}
-
 		// Parse media from HTML content if content is provided
 		let mediaIds: number[] = [];
 		if (content !== undefined) {
-			const mediaParseResult = tryParseMediaFromHtml(content || "");
+			const mediaParseResult = tryParseMediaFromHtml(
+				content || "",
+			).getOrThrow();
 
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
-
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
+			const { ids: parsedIds, filenames } = mediaParseResult;
 
 			// Resolve filenames to IDs in a single query
 			let resolvedIds: number[] = [];
@@ -207,21 +177,18 @@ export const tryUpdatePage = Result.wrap(
 						media: mediaIds.length > 0 ? mediaIds : [],
 					}),
 				},
-				user,
 				req,
 				overrideAccess,
+				depth: 0,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryUpdatePage: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
+			.then(stripDepth<0, "update">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryUpdatePage",
+					args,
+				});
+				throw error;
 			});
 
 		return page;
@@ -231,7 +198,7 @@ export const tryUpdatePage = Result.wrap(
 
 export const tryDeletePage = Result.wrap(
 	async (args: DeletePageArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Page ID is required");
@@ -241,7 +208,6 @@ export const tryDeletePage = Result.wrap(
 		const existingPage = await payload.findByID({
 			collection: "pages",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -253,7 +219,6 @@ export const tryDeletePage = Result.wrap(
 		await payload.delete({
 			collection: "pages",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -265,7 +230,7 @@ export const tryDeletePage = Result.wrap(
 
 export const tryGetPageById = Result.wrap(
 	async (args: GetPageByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Page ID is required");
@@ -274,7 +239,6 @@ export const tryGetPageById = Result.wrap(
 		const page = await payload.findByID({
 			collection: "pages",
 			id,
-			user,
 			req,
 			overrideAccess,
 		});

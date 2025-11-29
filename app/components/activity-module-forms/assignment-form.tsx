@@ -1,4 +1,5 @@
 import {
+	Button,
 	Checkbox,
 	Input,
 	MultiSelect,
@@ -10,7 +11,11 @@ import {
 	Title,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import { useForm } from "@mantine/form";
+import type {
+	ActivityModuleFormValues,
+	AssignmentModuleFormValues,
+} from "~/utils/activity-module-schema";
 import {
 	PRESET_FILE_TYPE_OPTIONS,
 	presetValuesToFileTypes,
@@ -20,42 +25,74 @@ import { SimpleRichTextEditor } from "../simple-rich-text-editor";
 import { CommonFields } from "./common-fields";
 
 interface AssignmentFormProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	initialValues?: Partial<AssignmentModuleFormValues>;
+	onSubmit: (values: AssignmentModuleFormValues) => void;
+	isLoading?: boolean;
 }
 
-export function AssignmentForm({ form }: AssignmentFormProps) {
+export function AssignmentForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: AssignmentFormProps) {
+	const form = useForm<AssignmentModuleFormValues>({
+		mode: "uncontrolled",
+		cascadeUpdates: true,
+		initialValues: {
+			title: initialValues?.title || "",
+			description: initialValues?.description || "",
+			type: "assignment" as const,
+			status: initialValues?.status || "draft",
+			assignmentInstructions: initialValues?.assignmentInstructions || "",
+			assignmentRequireTextSubmission:
+				initialValues?.assignmentRequireTextSubmission || false,
+			assignmentRequireFileSubmission:
+				initialValues?.assignmentRequireFileSubmission || false,
+			assignmentAllowedFileTypes:
+				initialValues?.assignmentAllowedFileTypes || [],
+			assignmentMaxFileSize: initialValues?.assignmentMaxFileSize || 10,
+			assignmentMaxFiles: initialValues?.assignmentMaxFiles || 5,
+		},
+		validate: {
+			title: (value) =>
+				value.trim().length === 0 ? "Title is required" : null,
+		},
+	});
 	const requireFileSubmission = useFormWatchForceUpdate(
 		form,
 		"assignmentRequireFileSubmission" as const,
 	);
 
 	return (
-		<Stack gap="md">
-			<CommonFields form={form} />
+		<form onSubmit={form.onSubmit(onSubmit)}>
+			<Stack gap="md">
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
 
-			<Textarea
-				{...form.getInputProps("description")}
-				key={form.key("description")}
-				label="Description"
-				placeholder="Enter module description"
-				minRows={3}
-			/>
+				<Textarea
+					{...form.getInputProps("description")}
+					key={form.key("description")}
+					label="Description"
+					placeholder="Enter module description"
+					minRows={3}
+				/>
 
-			<Title order={4} mt="md">
-				Assignment Settings
-			</Title>
+				<Title order={4} mt="md">
+					Assignment Settings
+				</Title>
 
-			<InstructionsEditor form={form} />
+				<InstructionsEditor form={form} />
 
-			{/* TODO: move to course module specific settings */}
-			{/* <DateTimePicker
+				{/* TODO: move to course module specific settings */}
+				{/* <DateTimePicker
 				{...form.getInputProps("assignmentDueDate")}
 				key={form.key("assignmentDueDate")}
 				label="Due Date"
 				placeholder="Select due date"
 			/> */}
 
-			{/* <NumberInput
+				{/* <NumberInput
 				{...form.getInputProps("assignmentMaxAttempts")}
 				key={form.key("assignmentMaxAttempts")}
 				label="Max Attempts"
@@ -63,7 +100,7 @@ export function AssignmentForm({ form }: AssignmentFormProps) {
 				min={1}
 			/> */}
 
-			{/* <Checkbox
+				{/* <Checkbox
 				{...form.getInputProps("assignmentAllowLateSubmissions", {
 					type: "checkbox",
 				})}
@@ -71,31 +108,36 @@ export function AssignmentForm({ form }: AssignmentFormProps) {
 				label="Allow late submissions"
 			/> */}
 
-			<Checkbox
-				{...form.getInputProps("assignmentRequireTextSubmission", {
-					type: "checkbox",
-				})}
-				key={form.key("assignmentRequireTextSubmission")}
-				label="Require text submission"
-			/>
+				<Checkbox
+					{...form.getInputProps("assignmentRequireTextSubmission", {
+						type: "checkbox",
+					})}
+					key={form.key("assignmentRequireTextSubmission")}
+					label="Require text submission"
+				/>
 
-			<Checkbox
-				{...form.getInputProps("assignmentRequireFileSubmission", {
-					type: "checkbox",
-				})}
-				key={form.key("assignmentRequireFileSubmission")}
-				label="Require file submission"
-			/>
+				<Checkbox
+					{...form.getInputProps("assignmentRequireFileSubmission", {
+						type: "checkbox",
+					})}
+					key={form.key("assignmentRequireFileSubmission")}
+					label="Require file submission"
+				/>
 
-			{requireFileSubmission && <FileSubmissionSettings form={form} />}
-		</Stack>
+				{requireFileSubmission && <FileSubmissionSettings form={form} />}
+
+				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
+					Save
+				</Button>
+			</Stack>
+		</form>
 	);
 }
 
 function InstructionsEditor({
 	form,
 }: {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<AssignmentModuleFormValues>;
 }) {
 	const instructions = useFormWatchForceUpdate(
 		form,
@@ -118,7 +160,7 @@ function InstructionsEditor({
 function FileSubmissionSettings({
 	form,
 }: {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<AssignmentModuleFormValues>;
 }) {
 	const selectedFileTypes = useFormWatchForceUpdate(
 		form,

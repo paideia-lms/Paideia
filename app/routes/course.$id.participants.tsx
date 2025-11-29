@@ -3,7 +3,6 @@ import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
 import { useFetcher } from "react-router";
-import type { Enrollment as CourseEnrollment } from "server/contexts/course-context";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -20,13 +19,15 @@ import { EnrollUserModal } from "~/components/enroll-user-modal";
 import { EnrollmentsSection } from "~/components/enrollments-section";
 import type { SearchUser } from "~/routes/api/search-users";
 import {
-	BadRequestResponse,
 	badRequest,
 	ForbiddenResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+
+export type { Route };
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -111,12 +112,6 @@ export const action = async ({
 			| "completed"
 			| "dropped";
 
-		// Get groups array from formData
-		const groupIds = formData
-			.getAll("groups")
-			.map((id) => Number(id))
-			.filter((id) => !Number.isNaN(id));
-
 		if (Number.isNaN(userId)) {
 			return badRequest({ error: "Invalid user ID" });
 		}
@@ -127,16 +122,14 @@ export const action = async ({
 
 		const createResult = await tryCreateEnrollment({
 			payload,
-			user: userId,
+			userId: userId,
 			course: Number(courseId),
 			role,
-			status,
-			groups: groupIds,
-			authenticatedUser: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: false,
 		});
 
@@ -180,11 +173,11 @@ export const action = async ({
 			role,
 			status,
 			groups: groupIds,
-			authenticatedUser: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			req: request,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 			overrideAccess: false,
 		});
 
@@ -201,16 +194,16 @@ export const action = async ({
 			return badRequest({ error: "Invalid enrollment ID" });
 		}
 
-		const deleteResult = await tryDeleteEnrollment(
+		const deleteResult = await tryDeleteEnrollment({
 			payload,
 			enrollmentId,
-			{
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			request,
-			false,
-		);
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
+			overrideAccess: false,
+		});
 
 		if (!deleteResult.ok) {
 			return badRequest({ error: deleteResult.error.message });
@@ -308,11 +301,13 @@ export default function CourseParticipantsPage({
 		}
 	};
 
-	const handleEditEnrollment = (enrollment: CourseEnrollment) => {
+	const handleEditEnrollment = (
+		enrollment: NonNullable<Route.ComponentProps["loaderData"]["enrolment"]>,
+	) => {
 		// Convert CourseEnrollment to payload Enrollment type for the modal
 		const payloadEnrollment: Enrollment = {
 			id: enrollment.id,
-			user: enrollment.userId,
+			user: enrollment.user.id,
 			course: 0, // This will be set by the modal
 			role: enrollment.role,
 			status: enrollment.status,
@@ -371,7 +366,7 @@ export default function CourseParticipantsPage({
 
 	// Get enrolled user IDs for exclusion
 	const enrolledUserIds = course.enrollments.map(
-		(enrollment) => enrollment.userId,
+		(enrollment) => enrollment.user.id,
 	);
 
 	return (

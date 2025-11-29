@@ -243,6 +243,13 @@ export class NonExistingWhiteboardError extends Error {
 	}
 }
 
+export class NonExistingFileError extends Error {
+	static readonly type = "NonExistingFileError";
+	get type() {
+		return NonExistingFileError.type;
+	}
+}
+
 export class EmailSendError extends Error {
 	static readonly type = "EmailSendError";
 	get type() {
@@ -321,12 +328,9 @@ export class NotImplementedError extends Error {
 }
 
 export function transformError(error: unknown) {
-	if (
-		process.env.NODE_ENV === "test" ||
-		process.env.NODE_ENV === "development"
-	) {
-		console.error("transformError", error);
-	}
+	/**
+	 * list of our system error
+	 */
 	if (error instanceof NonExistingSourceError) return error;
 	else if (error instanceof DuplicateBranchError) return error;
 	else if (error instanceof UnauthorizedError) return error;
@@ -359,6 +363,7 @@ export function transformError(error: unknown) {
 	else if (error instanceof CourseStructureNotFoundError) return error;
 	else if (error instanceof NonExistingPageError) return error;
 	else if (error instanceof NonExistingWhiteboardError) return error;
+	else if (error instanceof NonExistingFileError) return error;
 	else if (error instanceof EmailSendError) return error;
 	else if (error instanceof SeedDataLoadError) return error;
 	else if (error instanceof SandboxResetError) return error;
@@ -370,6 +375,16 @@ export function transformError(error: unknown) {
 	else if (error instanceof EnrollmentCourseMismatchError) return error;
 	else if (error instanceof FailedToCreateUserGradeError) return error;
 	else if (error instanceof NotImplementedError) return error;
+	else if (error instanceof UnknownError) return error;
 	// ! we let user handle the unknown error
-	else return undefined;
+	else {
+		// we don't know the error so we want to it log it out in development and test environments
+		if (
+			process.env.NODE_ENV === "development" ||
+			process.env.NODE_ENV === "test"
+		) {
+			console.error(error);
+		}
+		return undefined;
+	}
 }

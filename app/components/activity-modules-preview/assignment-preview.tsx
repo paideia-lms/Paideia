@@ -36,9 +36,9 @@ import type { SubmissionData } from "../submission-history";
 interface AssignmentData {
 	id: number;
 	instructions: string | null;
-	dueDate: string | null;
-	maxAttempts: number | null;
-	allowLateSubmissions: boolean | null;
+	dueDate?: string | null;
+	maxAttempts?: number | null;
+	allowLateSubmissions?: boolean | null;
 	requireTextSubmission: boolean | null;
 	requireFileSubmission: boolean | null;
 	maxFileSize?: number | null;
@@ -69,6 +69,7 @@ interface AssignmentPreviewProps {
 	}) => void | Promise<void>;
 	isSubmitting?: boolean;
 	canSubmit?: boolean;
+	isStudent?: boolean;
 }
 
 interface FileWithId {
@@ -319,7 +320,7 @@ function SubmissionForm({
 	};
 
 	const handleConfirmSubmit = async () => {
-		const textContent = form.getValues().textContent;
+		const { textContent } = form.getValues();
 		const fileData = files.map((f) => f.file);
 		await onSubmit({ textContent, files: fileData });
 		setConfirmModalOpened(false);
@@ -396,12 +397,14 @@ function InstructionsView({
 	submission,
 	onAddSubmission,
 	canSubmit = true,
+	isStudent = false,
 }: {
 	assignment: AssignmentData;
 	allSubmissions: SubmissionData[];
 	submission?: { status: "draft" | "submitted" | "graded" | "returned" } | null;
 	onAddSubmission: () => void;
 	canSubmit?: boolean;
+	isStudent?: boolean;
 }) {
 	const submittedCount = allSubmissions.filter(
 		(s) =>
@@ -409,9 +412,11 @@ function InstructionsView({
 			s.status === "graded" ||
 			s.status === "returned",
 	).length;
-	const maxAttempts = assignment.maxAttempts || null;
+	const maxAttempts = assignment.maxAttempts ?? null;
 	const canSubmitMore = maxAttempts === null || submittedCount < maxAttempts;
 	const hasUnsubmittedDraft = submission?.status === "draft";
+	const shouldShowMaxAttempts =
+		typeof maxAttempts === "number" && maxAttempts > 0;
 
 	return (
 		<Paper withBorder p="xl" radius="md">
@@ -432,13 +437,16 @@ function InstructionsView({
 					)}
 				</Group>
 
-				{canSubmit && maxAttempts && (
+				{shouldShowMaxAttempts && (
 					<Alert
 						color={canSubmitMore ? "blue" : "yellow"}
 						icon={<IconInfoCircle size={16} />}
 					>
-						{submittedCount} of {maxAttempts} attempt
-						{maxAttempts !== 1 ? "s" : ""} used
+						{isStudent
+							? `${submittedCount} of ${maxAttempts} attempt${
+									maxAttempts !== 1 ? "s" : ""
+								} used`
+							: `Maximum ${maxAttempts} attempt${maxAttempts !== 1 ? "s" : ""} allowed`}
 						{!canSubmitMore && " - Maximum attempts reached"}
 					</Alert>
 				)}
@@ -472,6 +480,7 @@ export function AssignmentPreview({
 	onSubmit,
 	isSubmitting = false,
 	canSubmit = true,
+	isStudent = false,
 }: AssignmentPreviewProps) {
 	const [action, setAction] = useQueryState("action");
 
@@ -519,6 +528,7 @@ export function AssignmentPreview({
 			submission={submission}
 			onAddSubmission={() => setAction(AssignmentActions.EDIT_SUBMISSION)}
 			canSubmit={canSubmit}
+			isStudent={isStudent}
 		/>
 	);
 }

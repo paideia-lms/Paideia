@@ -15,6 +15,7 @@ import {
 	StatusCode,
 } from "~/utils/responses";
 import type { Route } from "./+types/section-update";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	sectionId: z.coerce.number(),
@@ -48,10 +49,11 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			title,
 			description: description || undefined,
 		},
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!result.ok) {

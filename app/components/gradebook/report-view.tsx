@@ -11,6 +11,7 @@ import {
 import { href, Link } from "react-router";
 import type { UserGradesJsonRepresentation } from "server/internal/user-grade-management";
 import { getModuleIcon } from "../../utils/module-helper";
+import type { Route } from "app/routes/course.$id.grades";
 
 // ============================================================================
 // Gradebook Report Types
@@ -210,7 +211,7 @@ function buildHeadersRecursive(
 		if (isCategory) {
 			// This is a category - it needs a header cell that spans its children
 			// Add category header at current depth with colStart and colEnd
-			rows[depth].cells.push({
+			rows[depth]!.cells.push({
 				id: item.id,
 				name: item.name,
 				type: item.type,
@@ -231,7 +232,7 @@ function buildHeadersRecursive(
 			}
 		} else {
 			// This is a leaf item - always add to the final row
-			rows[finalRowIndex].cells.push({
+			rows[finalRowIndex]!.cells.push({
 				id: item.id,
 				name: item.name,
 				type: item.type,
@@ -248,7 +249,11 @@ function buildHeadersRecursive(
 	return currentColumn;
 }
 
-export function GraderReportView({ data }: { data: GraderReportData }) {
+export function GraderReportView({
+	data,
+}: {
+	data: Route.ComponentProps["loaderData"];
+}) {
 	const { enrollments, gradebookJson, userGrades, totalMaxGrade } = data;
 
 	if (!gradebookJson) {
@@ -299,10 +304,7 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 
 			// Final grade is the sum of all item grades
 			const finalGradeValue = hasAnyGrade ? totalGrade : null;
-			finalGradesByEnrollment.set(
-				enrollment.enrollment_id,
-				finalGradeValue,
-			);
+			finalGradesByEnrollment.set(enrollment.enrollment_id, finalGradeValue);
 		}
 
 		// Debug logging (remove after debugging)
@@ -429,11 +431,12 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 											<Text size="sm" fw={500}>
 												Total
 											</Text>
-											{totalMaxGrade !== undefined && totalMaxGrade !== null && (
-												<Text size="xs" c="dimmed">
-													/ {totalMaxGrade}
-												</Text>
-											)}
+											{totalMaxGrade !== undefined &&
+												totalMaxGrade !== null && (
+													<Text size="xs" c="dimmed">
+														/ {totalMaxGrade}
+													</Text>
+												)}
 										</Stack>
 									) : (
 										""
@@ -463,14 +466,15 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 										<Table.Td>
 											<Group gap="sm">
 												<Avatar size="sm" radius="xl" color="blue">
-													{enrollment.name.charAt(0)}
+													{enrollment.user.firstName?.charAt(0)}
 												</Avatar>
 												<div>
 													<Text size="sm" fw={500}>
-														{enrollment.name}
+														{enrollment.user.firstName}{" "}
+														{enrollment.user.lastName}
 													</Text>
 													<Text size="xs" c="dimmed">
-														{enrollment.email}
+														{enrollment.user.email}
 													</Text>
 												</div>
 											</Group>
@@ -492,7 +496,9 @@ export function GraderReportView({ data }: { data: GraderReportData }) {
 											);
 										})}
 										<Table.Td>
-											{finalGrade !== null && finalGrade !== undefined && typeof finalGrade === "number" ? (
+											{finalGrade !== null &&
+											finalGrade !== undefined &&
+											typeof finalGrade === "number" ? (
 												<Text size="sm" fw={500}>
 													{finalGrade.toFixed(2)}
 												</Text>

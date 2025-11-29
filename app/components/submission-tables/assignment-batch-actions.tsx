@@ -10,6 +10,11 @@ import {
 import { useClipboard } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconDots, IconMail, IconTrash } from "@tabler/icons-react";
+import type { Route } from "app/routes/course/module.$id.submissions";
+
+type Enrollment = NonNullable<
+	Route.ComponentProps["loaderData"]["enrollments"]
+>[number];
 
 export function AssignmentBatchActions({
 	selectedCount,
@@ -17,14 +22,14 @@ export function AssignmentBatchActions({
 	onClearSelection,
 }: {
 	selectedCount: number;
-	selectedEnrollments: Array<{ email?: string | null }>;
+	selectedEnrollments: Array<Enrollment>;
 	onClearSelection: () => void;
 }) {
 	const clipboard = useClipboard({ timeout: 2000 });
 
 	const handleBatchEmailCopy = () => {
 		const emailAddresses = selectedEnrollments
-			.map((e) => e.email)
+			.map((e) => e.user.email)
 			.filter((email): email is string => email !== null && email !== undefined)
 			.join(", ");
 

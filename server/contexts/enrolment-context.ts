@@ -1,12 +1,9 @@
 import { createContext } from "react-router";
-
-import type { Enrollment } from "./course-context";
-
+import type { CourseContext } from "./course-context";
 export interface EnrolmentContext {
-	enrolment: Enrollment;
+	enrolment: CourseContext["course"]["enrollments"][number];
 }
 
 export const enrolmentContext = createContext<EnrolmentContext | null>(null);
 
-export const enrolmentContextKey =
-	"enrolmentContext" as unknown as typeof enrolmentContext;
+export { enrolmentContextKey } from "./utils/context-keys";

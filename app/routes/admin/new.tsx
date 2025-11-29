@@ -15,37 +15,37 @@ import {
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import prettyBytes from "pretty-bytes";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
+import { stringify } from "qs";
 import { useState } from "react";
-import { redirect, useFetcher } from "react-router";
+import { href, redirect, useFetcher } from "react-router";
 import { Users } from "server/collections/users";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateMedia } from "server/internal/media-management";
 import { tryCreateUser } from "server/internal/user-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import type { User } from "server/payload-types";
 import { enum_users_role } from "src/payload-generated-schema";
 import z from "zod";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
 	forbidden,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export const loader = async ({ request, context }: Route.LoaderArgs) => {
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -53,7 +53,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -68,7 +68,31 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
+enum Action {
+	Create = "create",
+}
+
+// Define search params for user creation
+export const userSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(userSearchParams);
+
+const inputSchema = z.object({
+	email: z.email(),
+	password: z.string().min(8),
+	firstName: z.string(),
+	lastName: z.string(),
+	bio: z.string().optional(),
+	role: z.enum(enum_users_role.enumValues),
+	avatar: z.coerce.number().nullish(),
+});
+
+const createAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -80,7 +104,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
 		return unauthorized({
@@ -96,80 +120,57 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 	}
 
-	// Start a transaction for atomic media creation + user creation
-	const transactionID = await payload.db.beginTransaction();
-
-	if (!transactionID) {
-		return badRequest({
-			success: false,
-			error: "Failed to begin transaction",
-		});
-	}
-
 	// Get upload limit from system globals
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	try {
-		// Parse form data with upload handler
-		const uploadHandler = async (fileUpload: FileUpload) => {
-			if (fileUpload.fieldName === "avatar") {
-				// FileUpload extends File, so we can use arrayBuffer()
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
-
-				// Create media record within transaction using tryCreateMedia
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					alt: "User avatar",
-					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
-					req: { transactionID },
-				});
-
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
-
-				// Return the media ID
-				return mediaResult.value.media.id;
-			}
-		};
-
-		const formData = await parseFormDataWithFallback(
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
 			request,
-			uploadHandler as FileUploadHandler,
-			maxFileSize !== undefined ? { maxFileSize } : undefined,
-		);
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
 
-		const parsed = z
-			.object({
-				email: z.email(),
-				password: z.string().min(8),
-				firstName: z.string(),
-				lastName: z.string(),
-				bio: z.string().optional(),
-				role: z.enum(enum_users_role.enumValues),
-				avatar: z.coerce.number().nullish(),
-			})
-			.safeParse({
-				email: formData.get("email"),
-				password: formData.get("password"),
-				firstName: formData.get("firstName"),
-				lastName: formData.get("lastName"),
-				bio: formData.get("bio"),
-				role: formData.get("role"),
-				avatar: formData.get("avatar"),
-			});
+	return transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			req: txInfo.reqWithTransaction,
+			maxFileSize,
+			fields: [
+				{
+					fieldName: "avatar",
+					alt: "User avatar",
+				},
+			],
+		});
+
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
+
+		const { formData } = parseResult.value;
+
+		const parsed = inputSchema.safeParse({
+			email: formData.get("email"),
+			password: formData.get("password"),
+			firstName: formData.get("firstName"),
+			lastName: formData.get("lastName"),
+			bio: formData.get("bio"),
+			role: formData.get("role"),
+			avatar: formData.get("avatar"),
+		});
 
 		if (!parsed.success) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			return badRequest({
 				success: false,
 				error: parsed.error.message,
@@ -188,77 +189,80 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				role: parsed.data.role,
 				avatar: parsed.data.avatar ?? undefined,
 			},
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
-			overrideAccess: true,
-			req: { ...request, transactionID },
+			overrideAccess: false,
+			req: txInfo.reqWithTransaction,
 		});
 
 		if (!createResult.ok) {
-			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: createResult.error.message,
 			});
 		}
 
-		// Commit the transaction
-		await payload.db.commitTransaction(transactionID);
-
 		return ok({
 			success: true,
 			message: "User created successfully",
 			id: createResult.value.id,
 		});
-	} catch (error) {
-		// Rollback on any error
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("User creation error:", error);
+	});
+};
 
-		// Handle file size and count limit errors
-		if (error instanceof MaxFileSizeExceededError) {
-			return badRequest({
-				success: false,
-				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
-			});
-		}
+const getActionUrl = (action: Action) => {
+	return href("/admin/user/new") + "?" + stringify({ action });
+};
 
-		if (error instanceof MaxFilesExceededError) {
-			return badRequest({
-				success: false,
-				error: error.message,
-			});
-		}
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
 
+	if (!actionType) {
 		return badRequest({
 			success: false,
-			error: error instanceof Error ? error.message : "Failed to create user",
+			error: "Action is required",
 		});
 	}
+
+	if (actionType === Action.Create) {
+		return createAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		success: false,
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.success) {
-		if (actionData.status === 200) {
-			notifications.show({
-				title: "User created",
-				message: "The user has been created successfully",
-				color: "green",
-			});
-			// Redirect to the newly created user's profile using route param
-			throw redirect(`/user/profile/${actionData.id}`);
+	if (actionData?.status === StatusCode.Ok) {
+		notifications.show({
+			title: "User created",
+			message: actionData.message || "The user has been created successfully",
+			color: "green",
+		});
+		// Redirect to the newly created user's profile using route param
+		if (actionData.id) {
+			return redirect(`/user/profile/${actionData.id}`);
 		}
-	} else if ("error" in actionData) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized ||
+		actionData?.status === StatusCode.Forbidden
+	) {
 		notifications.show({
 			title: "Creation failed",
-			message: actionData?.error,
+			message: actionData?.error || "Failed to create user",
 			color: "red",
 		});
 	}
+
 	return actionData;
 }
 
@@ -328,6 +332,7 @@ export default function NewUserPage() {
 		fetcher.submit(formData, {
 			method: "POST",
 			encType: "multipart/form-data",
+			action: getActionUrl(Action.Create),
 		});
 	};
 

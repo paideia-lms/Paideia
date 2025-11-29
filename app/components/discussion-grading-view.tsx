@@ -12,8 +12,8 @@ import {
 	Text,
 	Title,
 } from "@mantine/core";
-import { useDisclosure } from "@mantine/hooks";
 import { useForm } from "@mantine/form";
+import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
@@ -29,7 +29,7 @@ interface GradingFormValues {
 	feedback: string;
 }
 
-type DiscussionSubmissionItem = {
+interface DiscussionSubmissionItem {
 	id: number;
 	status: "draft" | "published" | "hidden" | "deleted";
 	postType: "thread" | "reply" | "comment";
@@ -49,14 +49,14 @@ type DiscussionSubmissionItem = {
 		lastName?: string | null;
 		email?: string | null;
 		avatar?:
-		| number
-		| {
-			id: number;
-			filename?: string | null;
-		}
-		| null;
+			| number
+			| {
+					id: number;
+					filename?: string | null;
+			  }
+			| null;
 	} | null;
-};
+}
 
 export interface DiscussionGradingViewProps {
 	submission: {
@@ -64,20 +64,20 @@ export interface DiscussionGradingViewProps {
 		status: "draft" | "submitted" | "graded" | "returned";
 		submittedAt?: string | null;
 		student:
-		| {
-			id: number;
-			firstName?: string | null;
-			lastName?: string | null;
-			email?: string | null;
-			avatar?:
-			| number
 			| {
-				id: number;
-				filename?: string | null;
-			}
-			| null;
-		}
-		| number;
+					id: number;
+					firstName?: string | null;
+					lastName?: string | null;
+					email?: string | null;
+					avatar?:
+						| number
+						| {
+								id: number;
+								filename?: string | null;
+						  }
+						| null;
+			  }
+			| number;
 		studentSubmissions?: DiscussionSubmissionItem[];
 	};
 	module: {
@@ -103,17 +103,17 @@ export interface DiscussionGradingViewProps {
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
 	enrollment?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 	courseModuleLink?:
-	| {
-		id: number;
-	}
-	| number
-	| null;
+		| {
+				id: number;
+		  }
+		| number
+		| null;
 	maxGrade?: number | null;
 }
 
@@ -163,8 +163,8 @@ function PostContextCollapse({
 					{ancestors.map((ancestor, index) => {
 						const authorName = ancestor.author
 							? `${ancestor.author.firstName ?? ""} ${ancestor.author.lastName ?? ""}`.trim() ||
-							ancestor.author.email ||
-							"Unknown"
+								ancestor.author.email ||
+								"Unknown"
 							: "Unknown";
 
 						const getAvatarUrl = (): string | undefined => {
@@ -187,8 +187,7 @@ function PostContextCollapse({
 								style={{
 									backgroundColor: "#f8f9fa",
 									marginLeft: `${index * 16}px`,
-									borderLeft:
-										index > 0 ? "3px solid #dee2e6" : undefined,
+									borderLeft: index > 0 ? "3px solid #dee2e6" : undefined,
 								}}
 							>
 								<Stack gap="xs">
@@ -210,7 +209,11 @@ function PostContextCollapse({
 														size="sm"
 														style={{ cursor: "pointer" }}
 													/>
-													<Text size="sm" fw={500} style={{ cursor: "pointer" }}>
+													<Text
+														size="sm"
+														fw={500}
+														style={{ cursor: "pointer" }}
+													>
 														{authorName}
 													</Text>
 												</Group>
@@ -219,12 +222,14 @@ function PostContextCollapse({
 										<Group gap="xs">
 											{ancestor.publishedAt && (
 												<Text size="xs" c="dimmed">
-													Published: {new Date(ancestor.publishedAt).toLocaleString()}
+													Published:{" "}
+													{new Date(ancestor.publishedAt).toLocaleString()}
 												</Text>
 											)}
 											{!ancestor.publishedAt && (
 												<Text size="xs" c="dimmed">
-													Created: {new Date(ancestor.createdAt).toLocaleString()}
+													Created:{" "}
+													{new Date(ancestor.createdAt).toLocaleString()}
 												</Text>
 											)}
 										</Group>
@@ -339,15 +344,13 @@ export function DiscussionGradingView({
 	courseModuleLink: _courseModuleLink,
 	maxGrade,
 }: DiscussionGradingViewProps) {
-
 	// Get student information
 	const student = submission.student;
-	const studentId =
-		typeof student === "object" ? student.id : student;
+	const studentId = typeof student === "object" ? student.id : student;
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-			student.email
+				student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -392,12 +395,14 @@ export function DiscussionGradingView({
 					<Paper withBorder shadow="sm" p="md" radius="md">
 						<Stack gap="xs">
 							<Title order={3}>Student Discussion Participation</Title>
-							<Box component={Link}
+							<Box
+								component={Link}
 								to={
 									href("/course/:courseId/participants/profile", {
 										courseId: course.id.toString(),
 									}) + `?userId=${studentId}`
-								}>
+								}
+							>
 								<Group gap="md">
 									<Avatar
 										src={avatarUrl}
@@ -417,15 +422,14 @@ export function DiscussionGradingView({
 					<Paper withBorder shadow="sm" p="md" radius="md">
 						<Stack gap="md">
 							<Text size="sm" fw={600}>
-								Post History (
-								{submission.studentSubmissions?.length ?? 0}{" "}
+								Post History ({submission.studentSubmissions?.length ?? 0}{" "}
 								{(submission.studentSubmissions?.length ?? 0) === 1
 									? "post"
 									: "posts"}
 								)
 							</Text>
 							{submission.studentSubmissions &&
-								submission.studentSubmissions.length > 0 ? (
+							submission.studentSubmissions.length > 0 ? (
 								<Stack gap="md">
 									{submission.studentSubmissions
 										.sort((a, b) => {
@@ -470,7 +474,8 @@ export function DiscussionGradingView({
 																{post.grade !== null &&
 																	post.grade !== undefined && (
 																		<Badge color="green" variant="filled">
-																			{maxGrade !== null && maxGrade !== undefined
+																			{maxGrade !== null &&
+																			maxGrade !== undefined
 																				? `${post.grade}/${maxGrade}`
 																				: String(post.grade)}
 																		</Badge>
@@ -520,8 +525,15 @@ export function DiscussionGradingView({
 															)}
 														</Group>
 														{/* Grading form for this post */}
-														<Box mt="md" pt="md" style={{ borderTop: "1px solid #e9ecef" }}>
-															<PostGradingForm post={post} maxGrade={maxGrade} />
+														<Box
+															mt="md"
+															pt="md"
+															style={{ borderTop: "1px solid #e9ecef" }}
+														>
+															<PostGradingForm
+																post={post}
+																maxGrade={maxGrade}
+															/>
 														</Box>
 													</Stack>
 												</Paper>

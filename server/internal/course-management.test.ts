@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCategory } from "./course-category-management";
 import {
@@ -15,11 +15,13 @@ import {
 } from "./course-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateMedia } from "./media-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateUser } from "./user-management";
+import type { TryResultValue } from "server/utils/type-narrowing";
+import { createLocalReq } from "./utils/internal-function-utils";
 
 describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let instructorId: number;
+	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testMediaId: number;
 	let testMediaFilename: string;
 
@@ -35,26 +37,18 @@ describe("Course Management Functions", () => {
 			config: sanitizedConfig,
 		});
 
-		// Create test users (instructor and student)
-		const instructorArgs: CreateUserArgs = {
+		// Create test instructor
+		instructor = await tryCreateUser({
 			payload,
 			data: {
 				email: "instructor@test.com",
 				password: "password123",
 				firstName: "John",
 				lastName: "Instructor",
-				role: "student",
+				role: "instructor",
 			},
 			overrideAccess: true,
-		};
-
-		const instructorResult = await tryCreateUser(instructorArgs);
-
-		expect(instructorResult.ok).toBe(true);
-
-		if (instructorResult.ok) {
-			instructorId = instructorResult.value.id;
-		}
+		}).getOrThrow();
 
 		// Create test media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
@@ -64,7 +58,7 @@ describe("Course Management Functions", () => {
 			filename: "test-course-media.png",
 			mimeType: "image/png",
 			alt: "Test course media",
-			userId: instructorId,
+			userId: instructor.id,
 			// ! beforeAll and afterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite.
 			overrideAccess: true,
 		});
@@ -93,7 +87,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Introduction to JavaScript",
 					description: "Learn the basics of JavaScript programming",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "introduction-to-javascript",
 					status: "draft",
 					tags: [{ tag: "javascript" }, { tag: "programming" }],
@@ -122,7 +116,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Basic HTML",
 					description: "Learn HTML fundamentals",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "basic-html",
 				},
 				overrideAccess: true,
@@ -162,7 +156,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Original Title",
 					description: "Original description",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "original-title",
 				},
 				overrideAccess: true,
@@ -207,7 +201,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "JavaScript Course with Media",
 					description,
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "javascript-course-with-media",
 					status: "draft",
 				},
@@ -238,7 +232,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Original Title",
 					description: "Original description without images",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "original-title-media-update",
 				},
 				overrideAccess: true,
@@ -284,7 +278,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Course With Category",
 					description: "Original description",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "course-with-category",
 				},
 				overrideAccess: true,
@@ -296,7 +290,9 @@ describe("Course Management Functions", () => {
 
 			// create a category to assign
 			const req = new Request("http://localhost/test");
-			const catResult = await tryCreateCategory(payload, req, {
+			const catResult = await tryCreateCategory({
+				payload,
+				req,
 				name: "Test Category",
 			});
 			expect(catResult.ok).toBe(true);
@@ -335,7 +331,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Find By ID Test",
 					description: "Test course for finding by ID",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "find-by-id-test",
 				},
 				overrideAccess: true,
@@ -394,7 +390,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "React Fundamentals",
 					description: "Learn React",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "react-fundamentals",
 				},
 				overrideAccess: true,
@@ -405,7 +401,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Vue.js Basics",
 					description: "Learn Vue",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "vue-js-basics",
 				},
 				overrideAccess: true,
@@ -436,7 +432,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Course to Delete",
 					description: "This course will be deleted",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "course-to-delete",
 				},
 				overrideAccess: true,
@@ -544,7 +540,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Lifecycle Test Course",
 					description: "Testing complete lifecycle",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "lifecycle-test-course",
 					status: "draft",
 				},
@@ -605,127 +601,102 @@ describe("Course Management Functions", () => {
 	});
 
 	describe("tryGetUserAccessibleCourses", () => {
-		let adminUserId: number;
-		let contentManagerUserId: number;
-		let regularUserId: number;
-		let course1Id: number;
-		let course2Id: number;
-		let course3Id: number;
+		let adminUser: TryResultValue<typeof tryCreateUser>;
+		let contentManagerUser: TryResultValue<typeof tryCreateUser>;
+		let regularUser: TryResultValue<typeof tryCreateUser>;
+		let course1: TryResultValue<typeof tryCreateCourse>;
+		let course2: TryResultValue<typeof tryCreateCourse>;
+		let course3: TryResultValue<typeof tryCreateCourse>;
 
 		beforeAll(async () => {
-			// Create additional test users
-			const adminArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "admin@test.com",
-					password: "password123",
-					firstName: "Admin",
-					lastName: "User",
-					role: "admin",
-				},
-				overrideAccess: true,
-			};
+			// Create additional test users in parallel
+			const [adminResult, contentManagerResult, regularUserResult] =
+				await Promise.all([
+					tryCreateUser({
+						payload,
+						data: {
+							email: "admin@test.com",
+							password: "password123",
+							firstName: "Admin",
+							lastName: "User",
+							role: "admin",
+						},
+						overrideAccess: true,
+					}).getOrThrow(),
+					tryCreateUser({
+						payload,
+						data: {
+							email: "contentmanager@test.com",
+							password: "password123",
+							firstName: "Content",
+							lastName: "Manager",
+							role: "content-manager",
+						},
+						overrideAccess: true,
+					}).getOrThrow(),
+					tryCreateUser({
+						payload,
+						data: {
+							email: "regular@test.com",
+							password: "password123",
+							firstName: "Regular",
+							lastName: "User",
+							role: "student",
+						},
+						overrideAccess: true,
+					}).getOrThrow(),
+				]);
 
-			const contentManagerArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "contentmanager@test.com",
-					password: "password123",
-					firstName: "Content",
-					lastName: "Manager",
-					role: "content-manager",
-				},
-				overrideAccess: true,
-			};
-
-			const regularUserArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "regular@test.com",
-					password: "password123",
-					firstName: "Regular",
-					lastName: "User",
-					role: "student",
-				},
-				overrideAccess: true,
-			};
-
-			const adminResult = await tryCreateUser(adminArgs);
-			const contentManagerResult = await tryCreateUser(contentManagerArgs);
-			const regularUserResult = await tryCreateUser(regularUserArgs);
-
-			expect(adminResult.ok).toBe(true);
-			expect(contentManagerResult.ok).toBe(true);
-			expect(regularUserResult.ok).toBe(true);
-
-			if (adminResult.ok && contentManagerResult.ok && regularUserResult.ok) {
-				adminUserId = adminResult.value.id;
-				contentManagerUserId = contentManagerResult.value.id;
-				regularUserId = regularUserResult.value.id;
-			}
+			adminUser = adminResult;
+			contentManagerUser = contentManagerResult;
+			regularUser = regularUserResult;
 
 			// Create test courses
-			const course1Args: CreateCourseArgs = {
+			course1 = await tryCreateCourse({
 				payload,
 				data: {
 					title: "Course 1 - Admin Access",
 					description: "Test course for admin access",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "course-1-admin-access",
 					status: "published",
 				},
 				overrideAccess: true,
-			};
+			}).getOrThrow();
 
-			const course2Args: CreateCourseArgs = {
+			course2 = await tryCreateCourse({
 				payload,
 				data: {
 					title: "Course 2 - Enrollment Access",
 					description: "Test course for enrollment access",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "course-2-enrollment-access",
 					status: "published",
 				},
 				overrideAccess: true,
-			};
+			}).getOrThrow();
 
-			const course3Args: CreateCourseArgs = {
+			course3 = await tryCreateCourse({
 				payload,
 				data: {
 					title: "Course 3 - Category Access",
 					description: "Test course for category access",
-					createdBy: instructorId,
+					createdBy: instructor.id,
 					slug: "course-3-category-access",
 					status: "published",
 				},
 				overrideAccess: true,
-			};
-
-			const course1Result = await tryCreateCourse(course1Args);
-			const course2Result = await tryCreateCourse(course2Args);
-			const course3Result = await tryCreateCourse(course3Args);
-
-			expect(course1Result.ok).toBe(true);
-			expect(course2Result.ok).toBe(true);
-			expect(course3Result.ok).toBe(true);
-
-			if (course1Result.ok && course2Result.ok && course3Result.ok) {
-				course1Id = course1Result.value.id;
-				course2Id = course2Result.value.id;
-				course3Id = course3Result.value.id;
-			}
+			}).getOrThrow();
 
 			// Create enrollment for regular user in course2
-			const enrollmentResult = await tryCreateEnrollment({
+			await tryCreateEnrollment({
 				payload,
-				user: regularUserId,
-				course: course2Id,
+				userId: regularUser.id,
+				course: course2.id,
 				role: "student",
 				status: "active",
 				overrideAccess: true,
-			});
-
-			expect(enrollmentResult.ok).toBe(true);
+			}).getOrThrow();
 		});
 
 		test("should return only owned courses for admin user", async () => {
@@ -735,7 +706,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Admin Owned Course",
 					description: "Course owned by admin",
-					createdBy: adminUserId,
+					createdBy: adminUser.id,
 					slug: "admin-owned-course",
 					status: "published",
 				},
@@ -751,7 +722,7 @@ describe("Course Management Functions", () => {
 
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: adminUserId,
+				userId: adminUser.id,
 				overrideAccess: true,
 			});
 
@@ -767,7 +738,7 @@ describe("Course Management Functions", () => {
 				);
 				expect(adminCourse?.role).toBeNull();
 				expect(adminCourse?.source).toBe("owner");
-				expect(adminCourse?.createdBy).toBe(adminUserId);
+				expect(adminCourse?.createdBy).toBe(adminUser.id);
 			}
 		});
 
@@ -778,7 +749,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Content Manager Owned Course",
 					description: "Course owned by content manager",
-					createdBy: contentManagerUserId,
+					createdBy: contentManagerUser.id,
 					slug: "content-manager-owned-course",
 					status: "published",
 				},
@@ -796,7 +767,7 @@ describe("Course Management Functions", () => {
 
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: contentManagerUserId,
+				userId: contentManagerUser.id,
 				overrideAccess: true,
 			});
 
@@ -812,7 +783,7 @@ describe("Course Management Functions", () => {
 				);
 				expect(contentManagerCourse?.role).toBeNull();
 				expect(contentManagerCourse?.source).toBe("owner");
-				expect(contentManagerCourse?.createdBy).toBe(contentManagerUserId);
+				expect(contentManagerCourse?.createdBy).toBe(contentManagerUser.id);
 			}
 		});
 
@@ -823,7 +794,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Regular User Owned Course",
 					description: "Course owned by regular user",
-					createdBy: regularUserId,
+					createdBy: regularUser.id,
 					slug: "regular-user-owned-course",
 					status: "published",
 				},
@@ -841,7 +812,7 @@ describe("Course Management Functions", () => {
 
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: regularUserId,
+				userId: regularUser.id,
 				overrideAccess: true,
 			});
 
@@ -852,7 +823,7 @@ describe("Course Management Functions", () => {
 
 				// Check enrollment access
 				const enrollmentCourse = result.value.find(
-					(course) => course.id === course2Id,
+					(course) => course.id === course2.id,
 				);
 				expect(enrollmentCourse).toBeDefined();
 				expect(enrollmentCourse?.role).toBe("student");
@@ -866,14 +837,14 @@ describe("Course Management Functions", () => {
 				expect(ownedCourse).toBeDefined();
 				expect(ownedCourse?.role).toBeNull();
 				expect(ownedCourse?.source).toBe("owner");
-				expect(ownedCourse?.createdBy).toBe(regularUserId);
+				expect(ownedCourse?.createdBy).toBe(regularUser.id);
 			}
 		});
 
 		test("should not return courses from category roles for regular user", async () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: regularUserId,
+				userId: regularUser.id,
 				overrideAccess: true,
 			});
 
@@ -881,7 +852,7 @@ describe("Course Management Functions", () => {
 			if (result.ok) {
 				// Category access is no longer supported - should not see course3
 				const categoryCourse = result.value.find(
-					(course) => course.id === course3Id,
+					(course) => course.id === course3.id,
 				);
 				expect(categoryCourse).toBeUndefined();
 			}
@@ -890,7 +861,7 @@ describe("Course Management Functions", () => {
 		test("should not return courses user has no access to", async () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: regularUserId,
+				userId: regularUser.id,
 				overrideAccess: true,
 			});
 
@@ -898,7 +869,7 @@ describe("Course Management Functions", () => {
 			if (result.ok) {
 				// Regular user should not see course1 (no enrollment or ownership)
 				const courseIds = result.value.map((course) => course.id);
-				expect(courseIds).not.toContain(course1Id);
+				expect(courseIds).not.toContain(course1.id);
 			}
 		});
 
@@ -909,7 +880,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Owned and Enrolled Course",
 					description: "Course owned by regular user who is also enrolled",
-					createdBy: regularUserId,
+					createdBy: regularUser.id,
 					slug: "owned-and-enrolled-course",
 					status: "published",
 				},
@@ -926,7 +897,7 @@ describe("Course Management Functions", () => {
 			// Enroll the regular user in their own course
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: regularUserId,
+				userId: regularUser.id,
 				course: ownedCourseResult.value.id,
 				role: "teacher",
 				status: "active",
@@ -936,7 +907,7 @@ describe("Course Management Functions", () => {
 
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: regularUserId,
+				userId: regularUser.id,
 				overrideAccess: true,
 			});
 
@@ -950,7 +921,7 @@ describe("Course Management Functions", () => {
 				expect(course?.role).toBe("teacher");
 				expect(course?.source).toBe("enrollment");
 				expect(course?.enrollmentStatus).toBe("active");
-				expect(course?.createdBy).toBe(regularUserId);
+				expect(course?.createdBy).toBe(regularUser.id);
 			}
 		});
 
@@ -960,8 +931,8 @@ describe("Course Management Functions", () => {
 				collection: "enrollments",
 				where: {
 					and: [
-						{ user: { equals: regularUserId } },
-						{ course: { equals: course2Id } },
+						{ user: { equals: regularUser.id } },
+						{ course: { equals: course2.id } },
 					],
 				},
 			});
@@ -969,20 +940,20 @@ describe("Course Management Functions", () => {
 			if (enrollments.docs.length > 0) {
 				await payload.update({
 					collection: "enrollments",
-					id: enrollments.docs[0].id,
+					id: enrollments.docs[0]!.id,
 					data: { status: "completed" },
 				});
 
 				const result = await tryGetUserAccessibleCourses({
 					payload,
-					userId: regularUserId,
+					userId: regularUser.id,
 					overrideAccess: true,
 				});
 
 				expect(result.ok).toBe(true);
 				if (result.ok) {
 					const enrollmentCourse = result.value.find(
-						(course) => course.id === course2Id,
+						(course) => course.id === course2.id,
 					);
 					expect(enrollmentCourse?.enrollmentStatus).toBe("completed");
 					expect(enrollmentCourse?.completionPercentage).toBe(100);
@@ -992,14 +963,14 @@ describe("Course Management Functions", () => {
 
 		test("should handle user with no course access", async () => {
 			// Create a user with no enrollments or category roles
-			const noAccessUserArgs: CreateUserArgs = {
+			const noAccessUserArgs = {
 				payload,
 				data: {
 					email: "noaccess@test.com",
 					password: "password123",
 					firstName: "No",
 					lastName: "Access",
-					role: "student",
+					role: "student" as const,
 				},
 				overrideAccess: true,
 			};
@@ -1023,11 +994,11 @@ describe("Course Management Functions", () => {
 	});
 
 	describe("tryGetUserAccessibleCourses - Access Control Tests", () => {
-		let testUserId: number;
-		let otherUserId: number;
-		let course1Id: number;
-		let course2Id: number;
-		let course3Id: number;
+		let testUser: TryResultValue<typeof tryCreateUser>;
+		let otherUser: TryResultValue<typeof tryCreateUser>;
+		let course1: TryResultValue<typeof tryCreateCourse>;
+		let course2: TryResultValue<typeof tryCreateCourse>;
+		let course3: TryResultValue<typeof tryCreateCourse>;
 
 		beforeAll(async () => {
 			// Refresh environment and database for clean test state
@@ -1040,104 +1011,81 @@ describe("Course Management Functions", () => {
 				);
 			}
 
-			// Create test users
-			const testUserArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "testuser@access.com",
-					password: "password123",
-					firstName: "Test",
-					lastName: "User",
-					role: "student",
-				},
-				overrideAccess: true,
-			};
+			// Create test users in parallel
+			const [testUserResult, otherUserResult] = await Promise.all([
+				tryCreateUser({
+					payload,
+					data: {
+						email: "testuser@access.com",
+						password: "password123",
+						firstName: "Test",
+						lastName: "User",
+						role: "student",
+					},
+					overrideAccess: true,
+				}).getOrThrow(),
+				tryCreateUser({
+					payload,
+					data: {
+						email: "otheruser@access.com",
+						password: "password123",
+						firstName: "Other",
+						lastName: "User",
+						role: "student",
+					},
+					overrideAccess: true,
+				}).getOrThrow(),
+			]);
 
-			const otherUserArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "otheruser@access.com",
-					password: "password123",
-					firstName: "Other",
-					lastName: "User",
-					role: "student",
-				},
-				overrideAccess: true,
-			};
-
-			const testUserResult = await tryCreateUser(testUserArgs);
-			const otherUserResult = await tryCreateUser(otherUserArgs);
-
-			expect(testUserResult.ok).toBe(true);
-			expect(otherUserResult.ok).toBe(true);
-
-			if (testUserResult.ok && otherUserResult.ok) {
-				testUserId = testUserResult.value.id;
-				otherUserId = otherUserResult.value.id;
-			}
+			testUser = testUserResult;
+			otherUser = otherUserResult;
 
 			// Create test courses
-			const course1Args: CreateCourseArgs = {
+			course1 = await tryCreateCourse({
 				payload,
 				data: {
 					title: "Course 1 - Owned by Test User",
 					description: "Course owned by test user",
-					createdBy: testUserId,
+					createdBy: testUser.id,
 					slug: "course-1-owned-by-test-user",
 					status: "published",
 				},
 				overrideAccess: true,
-			};
+			}).getOrThrow();
 
-			const course2Args: CreateCourseArgs = {
+			course2 = await tryCreateCourse({
 				payload,
 				data: {
 					title: "Course 2 - Owned by Other User",
 					description: "Course owned by other user",
-					createdBy: otherUserId,
+					createdBy: otherUser.id,
 					slug: "course-2-owned-by-other-user",
 					status: "published",
 				},
 				overrideAccess: true,
-			};
+			}).getOrThrow();
 
-			const course3Args: CreateCourseArgs = {
+			course3 = await tryCreateCourse({
 				payload,
 				data: {
 					title: "Course 3 - Test User Enrolled",
 					description: "Course where test user is enrolled",
-					createdBy: otherUserId,
+					createdBy: otherUser.id,
 					slug: "course-3-test-user-enrolled",
 					status: "published",
 				},
 				overrideAccess: true,
-			};
-
-			const course1Result = await tryCreateCourse(course1Args);
-			const course2Result = await tryCreateCourse(course2Args);
-			const course3Result = await tryCreateCourse(course3Args);
-
-			expect(course1Result.ok).toBe(true);
-			expect(course2Result.ok).toBe(true);
-			expect(course3Result.ok).toBe(true);
-
-			if (course1Result.ok && course2Result.ok && course3Result.ok) {
-				course1Id = course1Result.value.id;
-				course2Id = course2Result.value.id;
-				course3Id = course3Result.value.id;
-			}
+			}).getOrThrow();
 
 			// Enroll test user in course3
-			const enrollmentResult = await tryCreateEnrollment({
+			await tryCreateEnrollment({
 				payload,
-				user: testUserId,
-				course: course3Id,
+				userId: testUser.id,
+				course: course3.id,
 				role: "student",
 				status: "active",
 				overrideAccess: true,
-			});
-
-			expect(enrollmentResult.ok).toBe(true);
+			}).getOrThrow();
 		});
 
 		afterAll(async () => {
@@ -1151,25 +1099,19 @@ describe("Course Management Functions", () => {
 
 		test("should only return courses user owns or is enrolled in with overrideAccess false", async () => {
 			// Get test user object for authentication
-			const testUser = await payload.findByID({
+			const testUserDoc = await payload.findByID({
 				collection: "users",
-				id: testUserId,
+				id: testUser.id,
 				overrideAccess: true,
 			});
 
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: testUserId,
-				user: testUser
-					? {
-							...testUser,
-							collection: "users",
-							avatar:
-								typeof testUser.avatar === "number"
-									? testUser.avatar
-									: (testUser.avatar?.id ?? undefined),
-						}
-					: null,
+				userId: testUser.id,
+				req: createLocalReq({
+					user: testUserDoc as TypedUser,
+					request: new Request("http://localhost:3000/api/courses"),
+				}),
 				overrideAccess: false,
 			});
 
@@ -1178,50 +1120,40 @@ describe("Course Management Functions", () => {
 				const courseIds = result.value.map((course) => course.id);
 
 				// Should see course1 (owned by test user)
-				expect(courseIds).toContain(course1Id);
+				expect(courseIds).toContain(course1.id);
 				const ownedCourse = result.value.find(
-					(course) => course.id === course1Id,
+					(course) => course.id === course1.id,
 				);
 				expect(ownedCourse?.source).toBe("owner");
 				expect(ownedCourse?.role).toBeNull();
-				expect(ownedCourse?.createdBy).toBe(testUserId);
+				expect(ownedCourse?.createdBy).toBe(testUser.id);
 
 				// Should see course3 (enrolled in)
-				expect(courseIds).toContain(course3Id);
+				expect(courseIds).toContain(course3.id);
 				const enrolledCourse = result.value.find(
-					(course) => course.id === course3Id,
+					(course) => course.id === course3.id,
 				);
 				expect(enrolledCourse?.source).toBe("enrollment");
 				expect(enrolledCourse?.role).toBe("student");
 				expect(enrolledCourse?.enrollmentStatus).toBe("active");
 
 				// Should NOT see course2 (owned by other user, no enrollment)
-				expect(courseIds).not.toContain(course2Id);
+				expect(courseIds).not.toContain(course2.id);
 			}
 		});
 
 		test("should work with overrideAccess true even for different user", async () => {
 			// Get test user object for authentication
-			const testUser = await payload.findByID({
+			const testUserDoc = await payload.findByID({
 				collection: "users",
-				id: testUserId,
+				id: testUser.id,
 				overrideAccess: true,
 			});
 
-			// Try to get courses for otherUserId while authenticated as testUserId but with overrideAccess
+			// Try to get courses for otherUser while authenticated as testUser but with overrideAccess
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: otherUserId,
-				user: testUser
-					? {
-							...testUser,
-							collection: "users",
-							avatar:
-								typeof testUser.avatar === "number"
-									? testUser.avatar
-									: (testUser.avatar?.id ?? undefined),
-						}
-					: null,
+				userId: otherUser.id,
 				overrideAccess: true,
 			});
 
@@ -1231,25 +1163,25 @@ describe("Course Management Functions", () => {
 				const courseIds = result.value.map((course) => course.id);
 
 				// Should see course2 (owned by other user)
-				expect(courseIds).toContain(course2Id);
+				expect(courseIds).toContain(course2.id);
 				const ownedCourse = result.value.find(
-					(course) => course.id === course2Id,
+					(course) => course.id === course2.id,
 				);
 				expect(ownedCourse?.source).toBe("owner");
-				expect(ownedCourse?.createdBy).toBe(otherUserId);
+				expect(ownedCourse?.createdBy).toBe(otherUser.id);
 			}
 		});
 
 		test("should handle user with no courses gracefully", async () => {
 			// Create a user with no courses or enrollments
-			const noCoursesUserArgs: CreateUserArgs = {
+			const noCoursesUserArgs = {
 				payload,
 				data: {
 					email: "nocourses@access.com",
 					password: "password123",
 					firstName: "No",
 					lastName: "Courses",
-					role: "student",
+					role: "student" as const,
 				},
 				overrideAccess: true,
 			};
@@ -1267,16 +1199,14 @@ describe("Course Management Functions", () => {
 				const result = await tryGetUserAccessibleCourses({
 					payload,
 					userId: noCoursesUserResult.value.id,
-					user: noCoursesUser
+					req: { 
+						user: noCoursesUser
 						? {
 								...noCoursesUser,
 								collection: "users",
-								avatar:
-									typeof noCoursesUser.avatar === "number"
-										? noCoursesUser.avatar
-										: (noCoursesUser.avatar?.id ?? undefined),
 							}
 						: null,
+					},
 					overrideAccess: false,
 				});
 
@@ -1294,7 +1224,7 @@ describe("Course Management Functions", () => {
 				data: {
 					title: "Owned and Enrolled Course",
 					description: "Course owned by test user who is also enrolled",
-					createdBy: testUserId,
+					createdBy: testUser.id,
 					slug: "owned-and-enrolled-course-access-test",
 					status: "published",
 				},
@@ -1311,7 +1241,7 @@ describe("Course Management Functions", () => {
 			// Enroll the test user in their own course
 			const enrollmentResult = await tryCreateEnrollment({
 				payload,
-				user: testUserId,
+				userId: testUser.id,
 				course: ownedCourseResult.value.id,
 				role: "teacher",
 				status: "active",
@@ -1320,25 +1250,21 @@ describe("Course Management Functions", () => {
 			expect(enrollmentResult.ok).toBe(true);
 
 			// Get test user object for authentication
-			const testUser = await payload.findByID({
+			const testUserDoc = await payload.findByID({
 				collection: "users",
-				id: testUserId,
+				id: testUser.id,
 				overrideAccess: true,
 			});
 
 			const result = await tryGetUserAccessibleCourses({
 				payload,
-				userId: testUserId,
-				user: testUser
-					? {
-							...testUser,
-							collection: "users",
-							avatar:
-								typeof testUser.avatar === "number"
-									? testUser.avatar
-									: (testUser.avatar?.id ?? undefined),
-						}
-					: null,
+				userId: testUser.id,
+				req: { 
+					user : {
+						...testUserDoc,
+						collection: "users",
+					}
+				}, 
 				overrideAccess: false,
 			});
 
@@ -1352,7 +1278,7 @@ describe("Course Management Functions", () => {
 				expect(course?.role).toBe("teacher");
 				expect(course?.source).toBe("enrollment");
 				expect(course?.enrollmentStatus).toBe("active");
-				expect(course?.createdBy).toBe(testUserId);
+				expect(course?.createdBy).toBe(testUser.id);
 			}
 		});
 	});

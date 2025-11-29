@@ -43,6 +43,7 @@ import CourseSearchInput from "~/components/course-search-input";
 import { ForbiddenResponse } from "~/utils/responses";
 import { useBatchUpdateCourses } from "../api/batch-update-courses";
 import type { Route } from "./+types/courses";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 // Define search params
 export const coursesSearchParams = {
@@ -77,11 +78,11 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		limit: 10,
 		page,
 		sort: "-createdAt",
-		user: {
-			...currentUser,
-			collection: "users",
-			avatar: currentUser.avatar?.id,
-		},
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 
 	if (!coursesResult.ok) {
@@ -89,7 +90,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 	}
 
 	// categories for batch update select
-	const categoriesResult = await tryGetCategoryTree(payload);
+	const categoriesResult = await tryGetCategoryTree({ payload, req: request });
 	const flatCategories: { value: string; label: string }[] = [];
 	if (categoriesResult.ok) {
 		const visit = (nodes: CategoryTreeNode[], prefix: string) => {
@@ -113,7 +114,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 				: "Unknown";
 
 		const category = course.category;
-		const categoryName = category !== null ? category.name || "-" : "-";
+		const categoryName = category ? category.name : "-";
 
 		return {
 			id: course.id,
@@ -451,7 +452,7 @@ export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 						<Group justify="center" mt="lg">
 							<Pagination
 								total={totalPages}
-								value={currentPage}
+								value={currentPage ?? undefined}
 								onChange={handlePageChange}
 							/>
 						</Group>

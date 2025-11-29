@@ -36,7 +36,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
-		throw redirect(href("/login"));
+		return redirect(href("/login"));
 	}
 
 	// Get course code from query params
@@ -44,7 +44,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	// If no code, redirect to dashboard
 	if (!code) {
-		throw redirect(href("/"));
+		return redirect(href("/"));
 	}
 
 	// Convert URL format back to normal (e.g., "COMP-460" -> "COMP 460")
@@ -155,7 +155,7 @@ function getMockCourseInstances(code: string) {
 
 		for (let i = 0; i < numSections; i++) {
 			const sectionLetter = String.fromCharCode(65 + i); // A, B, C
-			const schedule = schedules[i % schedules.length];
+			const schedule = schedules[i % schedules.length]!;
 			const instructor = instructors[i % instructors.length];
 			const location = locations[i % locations.length];
 

@@ -16,6 +16,7 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/batch-update-courses";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z
 	.object({
@@ -59,12 +60,11 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				...(status ? { status } : {}),
 				...(category !== undefined ? { category: category ?? null } : {}),
 			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id,
-			},
-			overrideAccess: true,
+			req: createLocalReq({
+				request,
+				user: currentUser,
+				context: { routerContext: context },
+			}),
 		});
 
 		if (!updateResult.ok) {

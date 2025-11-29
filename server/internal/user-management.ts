@@ -1,14 +1,17 @@
-import type { Payload, PayloadRequest, Where } from "payload";
+import type { PayloadRequest, Where } from "payload";
 import { getAccessResults } from "payload";
 import searchQueryParser from "search-query-parser";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 import type { Media, User } from "../payload-types";
+import { handleTransactionId } from "./utils/handle-transaction-id";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
+import {
+	interceptPayloadError,
+	stripDepth,
+} from "./utils/internal-function-utils";
 
-export interface CreateUserArgs {
-	payload: Payload;
+export interface CreateUserArgs extends BaseInternalFunctionArgs {
 	data: {
 		email: string;
 		password: string;
@@ -20,13 +23,9 @@ export interface CreateUserArgs {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface UpdateUserArgs {
-	payload: Payload;
+export interface UpdateUserArgs extends BaseInternalFunctionArgs {
 	userId: number;
 	data: {
 		firstName?: string;
@@ -38,80 +37,49 @@ export interface UpdateUserArgs {
 		theme?: "light" | "dark";
 		direction?: "ltr" | "rtl";
 	};
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-	transactionID?: string | number;
 }
 
-export interface FindUserByEmailArgs {
-	payload: Payload;
+export interface FindUserByEmailArgs extends BaseInternalFunctionArgs {
 	email: string;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindUserByIdArgs {
-	payload: Payload;
+export interface FindUserByIdArgs extends BaseInternalFunctionArgs {
 	userId: number;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface DeleteUserArgs {
-	payload: Payload;
+export interface DeleteUserArgs extends BaseInternalFunctionArgs {
 	userId: number;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindAllUsersArgs {
-	payload: Payload;
+export interface FindAllUsersArgs extends BaseInternalFunctionArgs {
 	limit?: number;
 	page?: number;
 	sort?: string;
 	query?: string;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface LoginArgs {
-	payload: Payload;
+export interface LoginArgs extends BaseInternalFunctionArgs {
 	email: string;
 	password: string;
-	req?: Partial<PayloadRequest>;
 }
 
-export interface RegisterFirstUserArgs {
-	payload: Payload;
+export interface RegisterFirstUserArgs extends BaseInternalFunctionArgs {
 	email: string;
 	password: string;
 	firstName: string;
 	lastName: string;
-	req?: Partial<PayloadRequest>;
 }
 
-export interface RegisterUserArgs {
-	payload: Payload;
+export interface RegisterUserArgs extends BaseInternalFunctionArgs {
 	email: string;
 	password: string;
 	firstName: string;
 	lastName: string;
 	role?: User["role"];
-	req?: Partial<PayloadRequest>;
-	user?: User | null;
 }
 
-export interface HandleImpersonationArgs {
-	payload: Payload;
+export interface HandleImpersonationArgs extends BaseInternalFunctionArgs {
 	impersonateUserId: string;
-	authenticatedUser: User;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 /**
@@ -134,7 +102,7 @@ export const tryCreateUser = Result.wrap(
 				theme,
 				direction,
 			},
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -148,7 +116,6 @@ export const tryCreateUser = Result.wrap(
 				},
 			},
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -173,22 +140,10 @@ export const tryCreateUser = Result.wrap(
 					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},
-				user,
 				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryCreateUser: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "create">());
 
 		return newUser;
 	},
@@ -211,10 +166,9 @@ export const tryUpdateUser = Result.wrap(
 			payload,
 			userId,
 			data,
-			user = null,
+
 			req,
 			overrideAccess = false,
-			transactionID,
 		} = args;
 
 		const updatedUser = await payload
@@ -222,22 +176,10 @@ export const tryUpdateUser = Result.wrap(
 				collection: "users",
 				id: userId,
 				data,
-				user,
-				req: transactionID ? { transactionID, ...req } : req,
+				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryFindUserByEmail: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "update">());
 
 		return updatedUser;
 	},
@@ -255,7 +197,7 @@ export const tryUpdateUser = Result.wrap(
  */
 export const tryFindUserByEmail = Result.wrap(
 	async (args: FindUserByEmailArgs) => {
-		const { payload, email, user = null, req, overrideAccess = false } = args;
+		const { payload, email, req, overrideAccess = false } = args;
 
 		const foundUser = await payload
 			.find({
@@ -266,25 +208,15 @@ export const tryFindUserByEmail = Result.wrap(
 					},
 				},
 				limit: 1,
-				user,
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<0, "find">())
 			.then((users) => {
 				if (users.docs.length === 0) {
 					return null;
 				}
-				const user = users.docs[0];
-				const avatar = user.avatar;
-				assertZodInternal(
-					"tryFindUserByEmail: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...user,
-					avatar,
-				};
+				return users.docs[0];
 			});
 
 		return foundUser;
@@ -303,28 +235,17 @@ export const tryFindUserByEmail = Result.wrap(
  */
 export const tryFindUserById = Result.wrap(
 	async (args: FindUserByIdArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		const foundUser = await payload
 			.findByID({
 				collection: "users",
 				id: userId,
-				user,
+				depth: 0,
 				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryFindUserById: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "findByID">());
 
 		return foundUser;
 	},
@@ -342,28 +263,16 @@ export const tryFindUserById = Result.wrap(
  */
 export const tryDeleteUser = Result.wrap(
 	async (args: DeleteUserArgs) => {
-		const { payload, userId, user = null, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		const deletedUser = await payload
 			.delete({
 				collection: "users",
 				id: userId,
-				user,
 				req,
 				overrideAccess,
 			})
-			.then((u) => {
-				const avatar = u.avatar;
-				assertZodInternal(
-					"tryDeleteUser: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...u,
-					avatar,
-				};
-			});
+			.then(stripDepth<0, "delete">());
 
 		return deletedUser;
 	},
@@ -387,7 +296,7 @@ export const tryFindAllUsers = Result.wrap(
 			page = 1,
 			sort = "-createdAt",
 			query,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -451,29 +360,10 @@ export const tryFindAllUsers = Result.wrap(
 				page,
 				sort,
 				depth: 1,
-				user,
 				req,
 				overrideAccess,
 			})
-			.then((result) => {
-				const docs = result.docs.map((doc) => {
-					const avatar = doc.avatar;
-					// type narrowing - avatar can be null
-					assertZodInternal(
-						"tryFindAllUsers: User avatar is required",
-						avatar,
-						z.object({ id: z.number() }).nullish(),
-					);
-					return {
-						...doc,
-						avatar: avatar,
-					};
-				});
-				return {
-					...result,
-					docs,
-				};
-			});
+			.then(stripDepth<1, "find">());
 
 		return {
 			docs: usersResult.docs,
@@ -503,28 +393,14 @@ export const tryLogin = Result.wrap(
 	async (args: LoginArgs) => {
 		const { payload, email, password, req } = args;
 
-		const loginResult = await payload
-			.login({
-				collection: "users",
-				req,
-				data: {
-					email,
-					password,
-				},
-			})
-			.then((l) => {
-				const user = l.user;
-				const avatar = user.avatar;
-				assertZodInternal(
-					"tryLogin: User avatar is required",
-					avatar,
-					z.object({ id: z.number() }).nullish(),
-				);
-				return {
-					...l,
-					user: { ...user, avatar },
-				};
-			});
+		const loginResult = await payload.login({
+			collection: "users",
+			req,
+			data: {
+				email,
+				password,
+			},
+		});
 
 		const { exp, token, user } = loginResult;
 
@@ -567,26 +443,27 @@ export const tryRegisterFirstUser = Result.wrap(
 			throw new Error("Users already exist in the system");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Create the first user as admin
-			const newUser = await payload.create({
-				collection: "users",
-				data: {
-					email,
-					password,
-					firstName,
-					lastName,
-					role: "admin",
-					theme: "light",
-					direction: "ltr",
-				},
-				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
-				overrideAccess: true,
-				req: transactionID ? { transactionID, ...req } : req,
-			});
+			const newUser = await payload
+				.create({
+					collection: "users",
+					data: {
+						email,
+						password,
+						firstName,
+						lastName,
+						role: "admin",
+						theme: "light",
+						direction: "ltr",
+					},
+					// ! we are using overrideAccess here because it is always a system request, we don't care about access control
+					overrideAccess: true,
+					req: reqWithTransaction,
+				})
+				.then(stripDepth<0, "create">());
 
 			// Auto-verify the first user
 			await payload.update({
@@ -597,37 +474,20 @@ export const tryRegisterFirstUser = Result.wrap(
 				},
 				// ! we are using overrideAccess here because it is always a system request, we don't care about access control
 				overrideAccess: true,
-				req: transactionID ? { transactionID, ...req } : req,
+				req: reqWithTransaction,
 			});
 
-			// Commit the transaction if it exists
-			if (transactionID) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
 			// Log in the new user (outside transaction)
-			const loginResult = await payload
-				.login({
-					collection: "users",
-					req,
-					data: {
-						email,
-						password,
-					},
-				})
-				.then((l) => {
-					const user = l.user;
-					const avatar = user.avatar;
-					assertZodInternal(
-						"tryRegisterFirstUser: User avatar is required",
-						avatar,
-						z.object({ id: z.number() }).nullish(),
-					);
-					return {
-						...l,
-						user: { ...user, avatar },
-					};
-				});
+			const loginResult = await payload.login({
+				collection: "users",
+				req: reqWithTransaction,
+				data: {
+					email,
+					password,
+				},
+				// ! this has override access because it is a system request, we don't care about access control
+				overrideAccess: true,
+			});
 
 			const { exp, token, user } = loginResult;
 
@@ -640,13 +500,7 @@ export const tryRegisterFirstUser = Result.wrap(
 				exp,
 				user,
 			};
-		} catch (error) {
-			// Rollback transaction on error if it exists
-			if (transactionID) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -669,7 +523,6 @@ export const tryRegisterUser = Result.wrap(
 			lastName,
 			role = "student",
 			req,
-			user = null,
 		} = args;
 
 		// Ensure not already exists
@@ -677,7 +530,6 @@ export const tryRegisterUser = Result.wrap(
 			collection: "users",
 			where: { email: { equals: email } },
 			limit: 1,
-			user,
 			req,
 			// ! this has override access because it is a system request, we don't care about access control
 			overrideAccess: true,
@@ -686,10 +538,9 @@ export const tryRegisterUser = Result.wrap(
 			throw new Error(`User with email ${email} already exists`);
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Create the user within transaction
 			await payload.create({
 				collection: "users",
@@ -704,36 +555,19 @@ export const tryRegisterUser = Result.wrap(
 					// ! TODO: automatically verify the user for now, we need to fix this in the future
 					_verified: true,
 				},
-				user,
-				req: transactionID ? { transactionID, ...req } : req,
+				req: reqWithTransaction,
 				// ! this has override access because it is a system request, we don't care about access control
 				overrideAccess: true,
 			});
 
-			// Commit the transaction if it exists
-			if (transactionID) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
 			// Login new user (outside transaction)
-			const loginResult = await payload
-				.login({
-					collection: "users",
-					req,
-					data: { email, password },
-					// ! this has override access because it is a system request, we don't care about access control
-					overrideAccess: true,
-				})
-				.then((l) => {
-					const user = l.user;
-					const avatar = user.avatar;
-					assertZodInternal(
-						"tryRegisterUser: User avatar is required",
-						avatar,
-						z.object({ id: z.number() }).nullish(),
-					);
-					return { ...l, user: { ...user, avatar } };
-				});
+			const loginResult = await payload.login({
+				collection: "users",
+				req,
+				data: { email, password },
+				// ! this has override access because it is a system request, we don't care about access control
+				overrideAccess: true,
+			});
 
 			const { exp, token, user: loggedInUser } = loginResult;
 			if (!exp || !token) {
@@ -741,13 +575,7 @@ export const tryRegisterUser = Result.wrap(
 			}
 
 			return { token, exp, user: loggedInUser };
-		} catch (error) {
-			// Rollback transaction on error if it exists
-			if (transactionID) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -761,13 +589,7 @@ export const tryRegisterUser = Result.wrap(
  */
 export const tryHandleImpersonation = Result.wrap(
 	async (args: HandleImpersonationArgs) => {
-		const {
-			payload,
-			impersonateUserId,
-			authenticatedUser,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, impersonateUserId, req, overrideAccess = false } = args;
 
 		const targetUserId = Number(impersonateUserId);
 
@@ -779,10 +601,19 @@ export const tryHandleImpersonation = Result.wrap(
 		const targetUserResult = await tryFindUserById({
 			payload,
 			userId: targetUserId,
-			user: authenticatedUser,
-			overrideAccess,
+			// this is a system request, we don't care about access control
+			overrideAccess: true,
 			req,
-		});
+		})
+			.then(stripDepth<0, "findByID">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryHandleImpersonation",
+					args,
+				});
+				throw error;
+			});
 
 		if (!targetUserResult.ok || !targetUserResult.value) {
 			return null;
@@ -796,15 +627,15 @@ export const tryHandleImpersonation = Result.wrap(
 		}
 
 		// Get permissions for the target user
-		const accessResults = await getAccessResults({
-			req: { user: targetUser, payload } as PayloadRequest,
-		});
+		// const accessResults = await getAccessResults({
+		// 	req: { user: targetUser, payload } as PayloadRequest,
+		// });
 
-		const permissions = Object.keys(accessResults).filter(
-			(key) => accessResults[key as keyof typeof accessResults],
-		);
+		// const permissions = Object.keys(accessResults).filter(
+		// 	(key) => accessResults[key as keyof typeof accessResults],
+		// );
 
-		return { targetUser, permissions };
+		return { targetUser };
 	},
 	(error) =>
 		transformError(error) ??

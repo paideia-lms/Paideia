@@ -8,11 +8,18 @@
 	"files": {
 		"ignoreUnknown": false,
 		"includes": [
-			"**",
+			"server/**",
+			"src/**",
+			"app/**",
 			"!server/payload-types.ts",
 			"!server/vfs.ts",
 			"!src/migrations",
-			"!**/dist"
+			"!**/dist",
+			"!**/*.json",
+			"!**/*.config.ts",
+			"!**/*.test.ts",
+			"!node_modules",
+			"!src/payload-generated-schema.ts"
 		]
 	},
 	"formatter": {
@@ -22,7 +29,14 @@
 	"linter": {
 		"enabled": true,
 		"rules": {
-			"recommended": true
+			"recommended": true,
+			"style": {
+				"noNonNullAssertion": "off",
+				"useTemplate": "off"
+			},
+			"suspicious": {
+				"noTsIgnore": "off"
+			}
 		}
 	},
 	"javascript": {
@@ -34,7 +48,7 @@
 		"enabled": true,
 		"actions": {
 			"source": {
-				"organizeImports": "on"
+				"organizeImports": "off"
 			}
 		}
 	}

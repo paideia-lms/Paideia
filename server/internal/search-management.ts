@@ -1,9 +1,10 @@
-import type { Payload, Where } from "payload";
+import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import { z } from "zod";
 import { transformError, UnknownError } from "~/utils/error";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
 const options = {
 	keywords: ["in"],
@@ -35,7 +36,7 @@ export function parseQuery(query: string) {
 	};
 }
 
-export interface SearchArgs {
+export interface SearchArgs extends BaseInternalFunctionArgs {
 	query?: string;
 	limit?: number;
 	page?: number;
@@ -64,8 +65,8 @@ export interface SearchResult {
  * "John" in:users,courses -> will search for "John" in the users and courses collections
  */
 export const tryGlobalSearch = Result.wrap(
-	async (payload: Payload, args: SearchArgs) => {
-		const { query, limit = 10, page = 1 } = args;
+	async (args: SearchArgs) => {
+		const { payload, query, limit = 10, page = 1 } = args;
 
 		const { text, in: collections } = parseQuery(query ?? "");
 

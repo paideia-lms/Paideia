@@ -1,33 +1,30 @@
 import { Container, Stack, Title } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
-import {
-	MaxFileSizeExceededError,
-	MaxFilesExceededError,
-} from "@remix-run/form-data-parser";
-import * as cheerio from "cheerio";
-import prettyBytes from "pretty-bytes";
 import { useState } from "react";
 import { href, redirect, useFetcher, useNavigate } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryCreateMedia } from "server/internal/media-management";
 import { tryCreateNote } from "server/internal/note-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "server/internal/utils/handle-transaction-id";
 import { NoteForm } from "~/components/note-form";
 import type { ImageFile } from "~/components/rich-text-editor";
 import { assertRequestMethod } from "~/utils/assert-request-method";
 import { ContentType } from "~/utils/get-content-type";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
+import { handleUploadError } from "~/utils/handle-upload-errors";
+import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
 import {
 	badRequest,
 	NotFoundResponse,
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/note-create";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -37,7 +34,7 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
 		throw new NotFoundResponse("Unauthorized");
@@ -60,7 +57,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
 		return unauthorized({
@@ -69,114 +66,63 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		});
 	}
 
-	// Start transaction for atomic media creation + note creation
-	const transactionID = await payload.db.beginTransaction();
-
-	if (!transactionID) {
-		return badRequest({
-			error: "Failed to begin transaction",
-		});
-	}
-
 	// Get upload limit from system globals
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	try {
-		// Store uploaded media info - map fieldName to uploaded filename
-		const uploadedMedia: { fieldName: string; filename: string }[] = [];
-
-		// Parse form data with upload handler
-		const uploadHandler = async (fileUpload: FileUpload) => {
-			if (fileUpload.fieldName.startsWith("image-")) {
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
-
-				// Create media record within transaction
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					alt: "Note image",
-					userId: currentUser.id,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
-					req: { transactionID },
-				});
-
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
-
-				// Store the field name and filename for later matching
-				uploadedMedia.push({
-					fieldName: fileUpload.fieldName,
-					filename: mediaResult.value.media.filename ?? fileUpload.name,
-				});
-
-				return mediaResult.value.media.id;
-			}
-		};
-
-		const formData = await parseFormDataWithFallback(
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
 			request,
-			uploadHandler as FileUploadHandler,
-			maxFileSize !== undefined ? { maxFileSize } : undefined,
-		);
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
+	return await transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: currentUser.id,
+			req: txInfo.reqWithTransaction,
+			maxFileSize,
+			fields: [
+				{
+					fieldName: "image-*",
+					alt: "Note image",
+				},
+			],
+		});
 
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
+
+		const { formData, uploadedMedia } = parseResult.value;
+
+		// Extract and validate form data
 		let content = formData.get("content") as string;
 		const isPublic = formData.get("isPublic") === "true";
 
 		if (!content || content.trim().length === 0) {
-			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				error: "Note content cannot be empty",
 			});
 		}
 
 		// Replace base64 images with actual media URLs
-		if (uploadedMedia.length > 0) {
-			// Build a map of base64 prefix to filename
-			const base64ToFilename = new Map<string, string>();
-
-			uploadedMedia.forEach((media) => {
-				const previewKey = `${media.fieldName}-preview`;
-				const preview = formData.get(previewKey) as string;
-				if (preview) {
-					const base64Prefix = preview.substring(0, 100);
-					base64ToFilename.set(base64Prefix, media.filename);
-				}
-			});
-			const $ = cheerio.load(content);
-			const images = $("img");
-
-			images.each((_i, img) => {
-				const src = $(img).attr("src");
-				if (src?.startsWith("data:image")) {
-					// Find matching uploaded media by comparing base64 prefix
-					const base64Prefix = src.substring(0, 100);
-					const filename = base64ToFilename.get(base64Prefix);
-
-					if (filename) {
-						// Replace with actual media URL
-						const mediaUrl = href("/api/media/file/:filenameOrId", {
-							filenameOrId: filename,
-						});
-						$(img).attr("src", mediaUrl);
-					}
-				}
-			});
-
-			content = $.html();
-		}
+		content = replaceBase64ImagesWithMediaUrls(
+			content,
+			uploadedMedia,
+			formData,
+		);
 
 		// Create note with updated content
 		// Pass transaction context so filename resolution can see uncommitted media
-		const reqWithTransaction = { transactionID };
-
 		const result = await tryCreateNote({
 			payload,
 			data: {
@@ -184,48 +130,19 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 				createdBy: currentUser.id,
 				isPublic,
 			},
-			user: {
-				...currentUser,
-				collection: "users",
-				avatar: currentUser.avatar?.id ?? undefined,
-			},
-			req: reqWithTransaction,
+			req: txInfo.reqWithTransaction,
 			overrideAccess: false,
 		});
 
 		if (!result.ok) {
-			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				error: result.error.message,
 			});
 		}
 
-		// Commit the transaction
-		await payload.db.commitTransaction(transactionID);
-
-		return redirect("/user/notes");
-	} catch (error) {
-		// Rollback on any error
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("Note creation error:", error);
-
-		// Handle file size and count limit errors
-		if (error instanceof MaxFileSizeExceededError) {
-			return badRequest({
-				error: `File size exceeds maximum allowed size of ${prettyBytes(maxFileSize ?? 0)}`,
-			});
-		}
-
-		if (error instanceof MaxFilesExceededError) {
-			return badRequest({
-				error: error.message,
-			});
-		}
-
-		return badRequest({
-			error: error instanceof Error ? error.message : "Failed to create note",
-		});
-	}
+		// redirect on the server side
+		return redirect(href("/user/notes/:id?", { id: "" }));
+	});
 };
 
 export const clientAction = async ({

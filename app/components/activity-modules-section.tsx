@@ -19,11 +19,12 @@ import {
 	getStatusLabel,
 	getTypeLabel,
 } from "./course-view-utils";
+import type { ActivityModule as PayloadActivityModule } from "server/payload-types";
 
 interface ActivityModule {
 	id: number;
 	title: string;
-	type: string;
+	type: PayloadActivityModule["type"];
 	status: string;
 	description?: string | null;
 }
@@ -33,7 +34,7 @@ interface ActivityModuleLink {
 	activityModule: {
 		id: string;
 		title: string;
-		type: string;
+		type: PayloadActivityModule["type"];
 		status: "draft" | "published" | "archived";
 		description?: string | null;
 	};

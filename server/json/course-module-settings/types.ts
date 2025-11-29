@@ -11,8 +11,8 @@ export interface CourseModuleSettingsV1 {
 	settings:
 		| PageSettings
 		| WhiteboardSettings
-		| AssignmentSettings
-		| QuizSettings
+		| AssignmentSettingsV1
+		| QuizSettingsV1
 		| DiscussionSettings;
 }
 
@@ -41,9 +41,9 @@ export interface WhiteboardSettings extends BaseSettings {
 }
 
 /**
- * Settings for assignment modules
+ * Settings for assignment modules (v1)
  */
-export interface AssignmentSettings extends BaseSettings {
+export interface AssignmentSettingsV1 extends BaseSettings {
 	type: "assignment";
 	allowSubmissionsFrom?: string; // ISO 8601 date string - when students can start submitting
 	dueDate?: string; // ISO 8601 date string - assignment due date
@@ -51,9 +51,9 @@ export interface AssignmentSettings extends BaseSettings {
 }
 
 /**
- * Settings for quiz modules
+ * Settings for quiz modules (v1)
  */
-export interface QuizSettings extends BaseSettings {
+export interface QuizSettingsV1 extends BaseSettings {
 	type: "quiz";
 	openingTime?: string; // ISO 8601 date string - when quiz becomes available
 	closingTime?: string; // ISO 8601 date string - when quiz closes
@@ -69,6 +69,7 @@ export interface DiscussionSettings extends BaseSettings {
 }
 
 /**
- * Type alias for the current version of course module settings
+ * Type aliases for backward compatibility
  */
-export type CourseModuleSettings = CourseModuleSettingsV1;
+export type AssignmentSettings = AssignmentSettingsV1;
+export type QuizSettings = QuizSettingsV1;

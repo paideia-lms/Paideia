@@ -1,30 +1,64 @@
 import type { CollectionConfig } from "payload";
+import type { CustomTFunction } from "server/utils/db/custom-translations";
+import { CustomForbidden } from "./utils/custom-forbidden";
+export const slug = "course-sections" as const;
 
 // Course Sections collection - hierarchical sections within courses
 export const CourseSections = {
-	slug: "course-sections" as const,
+	slug,
 	defaultSort: "contentOrder",
 	access: {
 		create: ({ req }) => {
-			// must be logged in to create a section
-			if (!req.user) return false;
-			// only admin and content manager can create a section
-			return req.user.role === "admin" || req.user.role === "content-manager";
+			const user = req.user;
+			if (!user) return false;
+			if (
+				!(
+					user.role === "admin" ||
+					user.role === "instructor" ||
+					user.role === "content-manager"
+				)
+			) {
+				// throw new CustomForbidden(
+				// 	"create",
+				// 	user?.role ?? "unauthenticated",
+				// 	slug,
+				// 	req.t as CustomTFunction,
+				// );
+				return false;
+			}
+			return true;
 		},
 		read: ({ req }) => {
 			// any one can read any section
 			return true;
 		},
 		update: ({ req }) => {
-			// must be logged in to update a section
-			if (!req.user) return false;
-			// only admin can update a section
-			return req.user.role === "admin";
+			const user = req.user;
+			if (
+				!user ||
+				!(
+					user.role === "admin" ||
+					user.role === "instructor" ||
+					user.role === "content-manager"
+				)
+			) {
+				return false;
+			}
+			return true;
 		},
 		delete: ({ req }) => {
-			if (!req.user) return false;
-			// only admin can delete a section
-			return req.user.role === "admin";
+			const user = req.user;
+			if (
+				!user ||
+				!(
+					user.role === "admin" ||
+					user.role === "instructor" ||
+					user.role === "content-manager"
+				)
+			) {
+				return false;
+			}
+			return true;
 		},
 	},
 	fields: [

@@ -12,15 +12,15 @@ import {
 	Text,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import {
-	IconAlertCircle,
-	IconFile,
-	IconFileText,
-	IconFileTypePdf,
-	IconPhoto,
-} from "@tabler/icons-react";
+import { IconAlertCircle } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import { href } from "react-router";
+import {
+	type FileTypeCategory,
+	formatFileSize,
+	getFileIcon,
+	getFileType,
+} from "~/utils/file-types";
 
 // ============================================================================
 // Constants
@@ -33,8 +33,6 @@ const MAX_TEXT_PREVIEW_SIZE = 1 * 1024 * 1024; // 1MB for text files
 // Types
 // ============================================================================
 
-type FileType = "image" | "pdf" | "text" | "other";
-
 export interface AttachmentViewerProps {
 	file: {
 		id: number;
@@ -45,70 +43,6 @@ export interface AttachmentViewerProps {
 	};
 	description?: string | null;
 	compact?: boolean;
-}
-
-// ============================================================================
-// Utility Functions
-// ============================================================================
-
-function getFileExtension(filename: string): string {
-	const parts = filename.split(".");
-	return parts.length > 1 ? parts[parts.length - 1].toLowerCase() : "";
-}
-
-function getFileType(
-	filename?: string | null,
-	mimeType?: string | null,
-): FileType {
-	// Check MIME type first
-	if (mimeType) {
-		if (mimeType.startsWith("image/")) return "image";
-		if (mimeType === "application/pdf") return "pdf";
-		if (
-			mimeType.startsWith("text/") ||
-			mimeType === "application/json" ||
-			mimeType === "application/xml"
-		) {
-			return "text";
-		}
-	}
-
-	// Fallback to extension
-	if (filename) {
-		const ext = getFileExtension(filename);
-		if (["jpg", "jpeg", "png", "gif", "webp", "svg", "bmp"].includes(ext)) {
-			return "image";
-		}
-		if (ext === "pdf") return "pdf";
-		if (
-			["txt", "md", "json", "xml", "csv", "log", "yml", "yaml", "ini"].includes(
-				ext,
-			)
-		) {
-			return "text";
-		}
-	}
-
-	return "other";
-}
-
-function getFileIcon(fileType: FileType) {
-	switch (fileType) {
-		case "image":
-			return IconPhoto;
-		case "pdf":
-			return IconFileTypePdf;
-		case "text":
-			return IconFileText;
-		default:
-			return IconFile;
-	}
-}
-
-function formatFileSize(bytes: number): string {
-	if (bytes < 1024) return `${bytes} B`;
-	if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // ============================================================================
@@ -236,7 +170,7 @@ function FileDownloadLink({
 }: {
 	fileUrl: string;
 	filename: string;
-	fileType: FileType;
+	fileType: FileTypeCategory;
 	filesize?: number | null;
 }) {
 	const FileIcon = getFileIcon(fileType);

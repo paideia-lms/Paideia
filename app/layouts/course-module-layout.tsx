@@ -15,6 +15,7 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
+import type { LatestCourseModuleSettings } from "server/json";
 import {
 	canSeeCourseModuleSettings,
 	canSeeModuleSubmissions,
@@ -57,10 +58,10 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	}
 
 	return {
-		module: courseModuleContext.module,
-		moduleSettings: courseModuleContext.moduleLinkSettings,
+		module: courseModuleContext.activityModule,
+		moduleSettings: courseModuleContext.settings,
 		course: courseContext.course,
-		moduleLinkId: courseModuleContext.moduleLinkId,
+		moduleLinkId: courseModuleContext.id,
 		currentUser: currentUser,
 		pageInfo: pageInfo,
 		enrolment: enrolmentContext?.enrolment,
@@ -137,9 +138,7 @@ export default function CourseModuleLayout({
 					<Group justify="space-between">
 						<div>
 							<Group gap="xs" mb="xs">
-								<Title order={2}>
-									{moduleSettings?.settings.name ?? module.title}
-								</Title>
+								<Title order={2}>{moduleSettings?.name ?? module.title}</Title>
 								<Badge
 									color={getStatusBadgeColor(module.status)}
 									variant="light"

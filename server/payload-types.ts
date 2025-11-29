@@ -92,6 +92,7 @@ export interface Config {
     'course-grade-tables': CourseGradeTable;
     groups: Group;
     'user-grades': UserGrade;
+    files: File;
     search: Search;
     'payload-kv': PayloadKv;
     'payload-jobs': PayloadJob;
@@ -167,6 +168,7 @@ export interface Config {
     'course-grade-tables': CourseGradeTablesSelect<false> | CourseGradeTablesSelect<true>;
     groups: GroupsSelect<false> | GroupsSelect<true>;
     'user-grades': UserGradesSelect<false> | UserGradesSelect<true>;
+    files: FilesSelect<false> | FilesSelect<true>;
     search: SearchSelect<false> | SearchSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-jobs': PayloadJobsSelect<false> | PayloadJobsSelect<true>;
@@ -177,6 +179,7 @@ export interface Config {
   db: {
     defaultIDType: number;
   };
+  fallbackLocale: null;
   globals: {
     'system-grade-table': SystemGradeTable;
     'registration-settings': RegistrationSetting;
@@ -292,6 +295,7 @@ export interface Course {
   title: string;
   slug: string;
   description: string;
+  media?: (number | Media)[] | null;
   status: 'draft' | 'published' | 'archived';
   thumbnail?: (number | null) | Media;
   tags?:
@@ -322,7 +326,6 @@ export interface Course {
     hasNextPage?: boolean;
     totalDocs?: number;
   };
-  media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -500,7 +503,7 @@ export interface ActivityModule {
   owner: number | User;
   title: string;
   description?: string | null;
-  type: 'page' | 'whiteboard' | 'assignment' | 'quiz' | 'discussion';
+  type: 'page' | 'whiteboard' | 'file' | 'assignment' | 'quiz' | 'discussion';
   status: 'draft' | 'published' | 'archived';
   createdBy: number | User;
   page?: (number | null) | Page;
@@ -508,6 +511,7 @@ export interface ActivityModule {
   assignment?: (number | null) | Assignment;
   quiz?: (number | null) | Quiz;
   discussion?: (number | null) | Discussion;
+  file?: (number | null) | File;
   grants?: {
     docs?: (number | ActivityModuleGrant)[];
     hasNextPage?: boolean;
@@ -527,8 +531,8 @@ export interface ActivityModule {
  */
 export interface Page {
   id: number;
-  content?: string | null;
   createdBy: number | User;
+  content?: string | null;
   media?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
@@ -553,9 +557,6 @@ export interface Assignment {
   title: string;
   description?: string | null;
   instructions?: string | null;
-  dueDate?: string | null;
-  maxAttempts?: number | null;
-  allowLateSubmissions?: boolean | null;
   allowedFileTypes?:
     | {
         extension: string;
@@ -580,9 +581,6 @@ export interface Quiz {
   title: string;
   description?: string | null;
   instructions?: string | null;
-  dueDate?: string | null;
-  maxAttempts?: number | null;
-  allowLateSubmissions?: boolean | null;
   points?: number | null;
   gradingType?: ('automatic' | 'manual') | null;
   showCorrectAnswers?: boolean | null;
@@ -727,6 +725,17 @@ export interface DiscussionSubmission {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "files".
+ */
+export interface File {
+  id: number;
+  media?: (number | Media)[] | null;
+  createdBy: number | User;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "activity-module-grants".
  */
 export interface ActivityModuleGrant {
@@ -858,8 +867,8 @@ export interface Note {
   id: number;
   createdBy: number | User;
   content: string;
-  isPublic?: boolean | null;
   media?: (number | Media)[] | null;
+  isPublic?: boolean | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -1239,6 +1248,10 @@ export interface PayloadLockedDocument {
         value: number | UserGrade;
       } | null)
     | ({
+        relationTo: 'files';
+        value: number | File;
+      } | null)
+    | ({
         relationTo: 'search';
         value: number | Search;
       } | null);
@@ -1323,6 +1336,7 @@ export interface CoursesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   description?: T;
+  media?: T;
   status?: T;
   thumbnail?: T;
   tags?:
@@ -1337,7 +1351,6 @@ export interface CoursesSelect<T extends boolean = true> {
   groups?: T;
   category?: T;
   sections?: T;
-  media?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1419,6 +1432,7 @@ export interface ActivityModulesSelect<T extends boolean = true> {
   assignment?: T;
   quiz?: T;
   discussion?: T;
+  file?: T;
   grants?: T;
   linkedCourses?: T;
   updatedAt?: T;
@@ -1441,8 +1455,8 @@ export interface ActivityModuleGrantsSelect<T extends boolean = true> {
  * via the `definition` "pages_select".
  */
 export interface PagesSelect<T extends boolean = true> {
-  content?: T;
   createdBy?: T;
+  content?: T;
   media?: T;
   updatedAt?: T;
   createdAt?: T;
@@ -1465,9 +1479,6 @@ export interface AssignmentsSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   instructions?: T;
-  dueDate?: T;
-  maxAttempts?: T;
-  allowLateSubmissions?: T;
   allowedFileTypes?:
     | T
     | {
@@ -1491,9 +1502,6 @@ export interface QuizzesSelect<T extends boolean = true> {
   title?: T;
   description?: T;
   instructions?: T;
-  dueDate?: T;
-  maxAttempts?: T;
-  allowLateSubmissions?: T;
   points?: T;
   gradingType?: T;
   showCorrectAnswers?: T;
@@ -1612,8 +1620,8 @@ export interface MediaSelect<T extends boolean = true> {
 export interface NotesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
-  isPublic?: T;
   media?: T;
+  isPublic?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1886,6 +1894,16 @@ export interface UserGradesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "files_select".
+ */
+export interface FilesSelect<T extends boolean = true> {
+  media?: T;
+  createdBy?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "search_select".
  */
 export interface SearchSelect<T extends boolean = true> {
@@ -2071,6 +2089,30 @@ export interface AppearanceSetting {
         id?: string | null;
       }[]
     | null;
+  /**
+   * Upload the main logo image for light mode. This will be displayed when the site is in light mode.
+   */
+  logoLight?: (number | null) | Media;
+  /**
+   * Upload the main logo image for dark mode. This will be displayed when the site is in dark mode.
+   */
+  logoDark?: (number | null) | Media;
+  /**
+   * Upload a compact version of the logo for light mode. This is typically used in smaller spaces like navigation bars.
+   */
+  compactLogoLight?: (number | null) | Media;
+  /**
+   * Upload a compact version of the logo for dark mode. This is typically used in smaller spaces like navigation bars.
+   */
+  compactLogoDark?: (number | null) | Media;
+  /**
+   * Upload the favicon for light mode. This is the small icon displayed in browser tabs and bookmarks.
+   */
+  faviconLight?: (number | null) | Media;
+  /**
+   * Upload the favicon for dark mode. This is the small icon displayed in browser tabs and bookmarks.
+   */
+  faviconDark?: (number | null) | Media;
   updatedAt?: string | null;
   createdAt?: string | null;
 }
@@ -2199,6 +2241,12 @@ export interface AppearanceSettingsSelect<T extends boolean = true> {
         url?: T;
         id?: T;
       };
+  logoLight?: T;
+  logoDark?: T;
+  compactLogoLight?: T;
+  compactLogoDark?: T;
+  faviconLight?: T;
+  faviconDark?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

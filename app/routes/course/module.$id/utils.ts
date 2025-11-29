@@ -1,17 +1,35 @@
-import { createLoader, parseAsString } from "nuqs/server";
-import type { CourseModuleContext } from "server/contexts/course-module-context";
-import type {
-	Question,
-	QuizAnswers,
-	QuizConfig,
-} from "server/json/raw-quiz-config.types.v2";
-import { isRegularQuiz } from "server/json/raw-quiz-config.types.v2";
+import {
+	createLoader,
+	parseAsInteger,
+	parseAsString,
+	parseAsStringEnum,
+} from "nuqs/server";
+import type { LatestCourseModuleSettings } from "server/json";
+import {
+	isRegularQuiz,
+	type Question,
+	type QuizAnswers,
+} from "server/json/raw-quiz-config/types.v2";
+import type { LatestQuizConfig } from "server/json/raw-quiz-config/version-resolver";
+import {
+	AssignmentActions,
+	DiscussionActions,
+	QuizActions,
+} from "~/utils/module-actions";
+
+// ============================================================================
+// Module Settings Utilities
+// ============================================================================
 
 export const courseModuleSearchParams = {
-	action: parseAsString.withDefault(""),
-	showQuiz: parseAsString.withDefault(""),
-	threadId: parseAsString.withDefault(""),
-	replyTo: parseAsString.withDefault(""),
+	action: parseAsStringEnum([
+		...Object.values(AssignmentActions),
+		...Object.values(DiscussionActions),
+		...Object.values(QuizActions),
+	]),
+	showQuiz: parseAsString,
+	threadId: parseAsInteger,
+	replyTo: parseAsString,
 };
 
 export const loadSearchParams = createLoader(courseModuleSearchParams);
@@ -31,7 +49,7 @@ const formatDateForDisplay = (dateString: string) => {
 
 // Helper to format module settings with date strings
 export const formatModuleSettingsForDisplay = (
-	moduleSettings: CourseModuleContext["moduleLinkSettings"],
+	moduleSettings: LatestCourseModuleSettings | null,
 ) => {
 	if (!moduleSettings?.settings) return null;
 
@@ -107,7 +125,7 @@ export const formatModuleSettingsForDisplay = (
  * Transform QuizAnswers from quiz preview format to submission format
  */
 export function transformQuizAnswersToSubmissionFormat(
-	quizConfig: QuizConfig,
+	quizConfig: LatestQuizConfig,
 	answers: QuizAnswers,
 ): Array<{
 	questionId: string;

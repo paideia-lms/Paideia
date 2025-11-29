@@ -1,4 +1,3 @@
-import type { Payload } from "payload";
 import {
 	CategoryRoleAssignments,
 	CourseCategories,
@@ -7,23 +6,79 @@ import {
 import { Result } from "typescript-result";
 import {
 	InvalidArgumentError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
 import type { CategoryRoleAssignment } from "../payload-types";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import {
+	interceptPayloadError,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
 export type CategoryRole =
 	| "category-admin"
 	| "category-coordinator"
 	| "category-reviewer";
 
-export interface AssignCategoryRoleArgs {
+export interface AssignCategoryRoleArgs extends BaseInternalFunctionArgs {
 	userId: number;
 	categoryId: number;
 	role: CategoryRole;
 	assignedBy: number;
 	notes?: string;
+}
+
+export interface RevokeCategoryRoleArgs extends BaseInternalFunctionArgs {
+	userId: number;
+	categoryId: number;
+}
+
+export interface UpdateCategoryRoleArgs extends BaseInternalFunctionArgs {
+	assignmentId: number;
+	newRole: CategoryRole;
+}
+
+export interface GetUserCategoryRolesArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+export interface GetCategoryRoleAssignmentsArgs
+	extends BaseInternalFunctionArgs {
+	categoryId: number;
+}
+
+export interface FindCategoryRoleAssignmentArgs
+	extends BaseInternalFunctionArgs {
+	userId: number;
+	categoryId: number;
+}
+
+export interface CheckUserCategoryRoleArgs extends BaseInternalFunctionArgs {
+	userId: number;
+	categoryId: number;
+	requiredRole?: CategoryRole;
+}
+
+export interface GetEffectiveCategoryRoleArgs extends BaseInternalFunctionArgs {
+	userId: number;
+	categoryId: number;
+}
+
+export interface GetUserCoursesFromCategoriesArgs
+	extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+export interface CheckUserCourseAccessViaCategoryArgs
+	extends BaseInternalFunctionArgs {
+	userId: number;
+	courseId: number;
 }
 
 export interface CategoryRoleInfo {
@@ -46,8 +101,8 @@ export interface CourseAccessInfo {
  * Assigns a category role to a user
  */
 export const tryAssignCategoryRole = Result.wrap(
-	async (payload: Payload, request: Request, args: AssignCategoryRoleArgs) => {
-		const { userId, categoryId, role, assignedBy, notes } = args;
+	async (args: AssignCategoryRoleArgs) => {
+		const { payload, userId, categoryId, role, assignedBy, notes, req } = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -61,24 +116,21 @@ export const tryAssignCategoryRole = Result.wrap(
 			throw new InvalidArgumentError("Role is required");
 		}
 
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Verify user exists
 			await payload.findByID({
 				collection: "users",
 				id: userId,
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			// Verify category exists
 			await payload.findByID({
 				collection: CourseCategories.slug,
 				id: categoryId,
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			// Check if assignment already exists
@@ -90,7 +142,7 @@ export const tryAssignCategoryRole = Result.wrap(
 						{ category: { equals: categoryId } },
 					],
 				},
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			let assignment: CategoryRoleAssignment;
@@ -99,14 +151,14 @@ export const tryAssignCategoryRole = Result.wrap(
 				// Update existing assignment
 				assignment = (await payload.update({
 					collection: CategoryRoleAssignments.slug,
-					id: existing.docs[0].id,
+					id: existing.docs[0]!.id,
 					data: {
 						role,
 						assignedBy,
 						assignedAt: new Date().toISOString(),
 						notes,
 					},
-					req: { ...request, transactionID },
+					req: transactionInfo.reqWithTransaction,
 				})) as CategoryRoleAssignment;
 			} else {
 				// Create new assignment
@@ -120,15 +172,15 @@ export const tryAssignCategoryRole = Result.wrap(
 						assignedAt: new Date().toISOString(),
 						notes,
 					},
-					req: { ...request, transactionID },
+					req: transactionInfo.reqWithTransaction,
 				})) as CategoryRoleAssignment;
 			}
 
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return assignment;
 		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -141,12 +193,9 @@ export const tryAssignCategoryRole = Result.wrap(
  * Revokes a category role from a user
  */
 export const tryRevokeCategoryRole = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		userId: number,
-		categoryId: number,
-	) => {
+	async (args: RevokeCategoryRoleArgs) => {
+		const { payload, userId, categoryId, req } = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
@@ -155,10 +204,7 @@ export const tryRevokeCategoryRole = Result.wrap(
 			throw new InvalidArgumentError("Category ID is required");
 		}
 
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Find the assignment
@@ -170,7 +216,7 @@ export const tryRevokeCategoryRole = Result.wrap(
 						{ category: { equals: categoryId } },
 					],
 				},
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			});
 
 			if (assignments.docs.length === 0) {
@@ -181,15 +227,15 @@ export const tryRevokeCategoryRole = Result.wrap(
 
 			const deleted = await payload.delete({
 				collection: CategoryRoleAssignments.slug,
-				id: assignments.docs[0].id,
-				req: { ...request, transactionID },
+				id: assignments.docs[0]!.id,
+				req: transactionInfo.reqWithTransaction,
 			});
 
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return deleted;
 		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -202,12 +248,9 @@ export const tryRevokeCategoryRole = Result.wrap(
  * Updates an existing category role assignment
  */
 export const tryUpdateCategoryRole = Result.wrap(
-	async (
-		payload: Payload,
-		request: Request,
-		assignmentId: number,
-		newRole: CategoryRole,
-	) => {
+	async (args: UpdateCategoryRoleArgs) => {
+		const { payload, assignmentId, newRole, req } = args;
+
 		if (!assignmentId) {
 			throw new InvalidArgumentError("Assignment ID is required");
 		}
@@ -216,10 +259,7 @@ export const tryUpdateCategoryRole = Result.wrap(
 			throw new InvalidArgumentError("New role is required");
 		}
 
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			const updated = (await payload.update({
@@ -228,14 +268,14 @@ export const tryUpdateCategoryRole = Result.wrap(
 				data: {
 					role: newRole,
 				},
-				req: { ...request, transactionID },
+				req: transactionInfo.reqWithTransaction,
 			})) as CategoryRoleAssignment;
 
-			await payload.db.commitTransaction(transactionID);
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			return updated;
 		} catch (error) {
-			await payload.db.rollbackTransaction(transactionID);
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -248,21 +288,35 @@ export const tryUpdateCategoryRole = Result.wrap(
  * Gets all category role assignments for a user
  */
 export const tryGetUserCategoryRoles = Result.wrap(
-	async (payload: Payload, userId: number) => {
+	async (args: GetUserCategoryRolesArgs) => {
+		const { payload, userId, req, overrideAccess = false } = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		const assignments = await payload.find({
-			collection: CategoryRoleAssignments.slug,
-			where: {
-				user: { equals: userId },
-			},
-			depth: 1,
-			pagination: false,
-		});
+		const assignments = await payload
+			.find({
+				collection: CategoryRoleAssignments.slug,
+				where: {
+					user: { equals: userId },
+				},
+				depth: 1,
+				pagination: false,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryGetUserCategoryRoles",
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
-		return assignments.docs as CategoryRoleAssignment[];
+		return assignments.docs;
 	},
 	(error) =>
 		transformError(error) ??
@@ -273,21 +327,35 @@ export const tryGetUserCategoryRoles = Result.wrap(
  * Gets all role assignments for a category
  */
 export const tryGetCategoryRoleAssignments = Result.wrap(
-	async (payload: Payload, categoryId: number) => {
+	async (args: GetCategoryRoleAssignmentsArgs) => {
+		const { payload, categoryId, req, overrideAccess = false } = args;
+
 		if (!categoryId) {
 			throw new InvalidArgumentError("Category ID is required");
 		}
 
-		const assignments = await payload.find({
-			collection: CategoryRoleAssignments.slug,
-			where: {
-				category: { equals: categoryId },
-			},
-			depth: 1,
-			pagination: false,
-		});
+		const assignments = await payload
+			.find({
+				collection: CategoryRoleAssignments.slug,
+				where: {
+					category: { equals: categoryId },
+				},
+				depth: 1,
+				pagination: false,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryGetCategoryRoleAssignments",
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
-		return assignments.docs as CategoryRoleAssignment[];
+		return assignments.docs;
 	},
 	(error) =>
 		transformError(error) ??
@@ -300,7 +368,9 @@ export const tryGetCategoryRoleAssignments = Result.wrap(
  * Finds a specific category role assignment
  */
 export const tryFindCategoryRoleAssignment = Result.wrap(
-	async (payload: Payload, userId: number, categoryId: number) => {
+	async (args: FindCategoryRoleAssignmentArgs) => {
+		const { payload, userId, categoryId, req, overrideAccess = false } = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
@@ -309,20 +379,32 @@ export const tryFindCategoryRoleAssignment = Result.wrap(
 			throw new InvalidArgumentError("Category ID is required");
 		}
 
-		const assignments = await payload.find({
-			collection: CategoryRoleAssignments.slug,
-			where: {
-				and: [
-					{ user: { equals: userId } },
-					{ category: { equals: categoryId } },
-				],
-			},
-			depth: 1,
-		});
+		const assignments = await payload
+			.find({
+				collection: CategoryRoleAssignments.slug,
+				where: {
+					and: [
+						{ user: { equals: userId } },
+						{ category: { equals: categoryId } },
+					],
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: `tryFindCategoryRoleAssignment - to find category role assignment for user ${userId} and category ${categoryId}`,
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
-		return assignments.docs.length > 0
-			? (assignments.docs[0] as CategoryRoleAssignment)
-			: null;
+		const assignment = assignments.docs[0] ?? null;
+
+		return assignment;
 	},
 	(error) =>
 		transformError(error) ??
@@ -335,12 +417,16 @@ export const tryFindCategoryRoleAssignment = Result.wrap(
  * Checks if user has a specific role on a category
  */
 export const tryCheckUserCategoryRole = Result.wrap(
-	async (
-		payload: Payload,
-		userId: number,
-		categoryId: number,
-		requiredRole?: CategoryRole,
-	) => {
+	async (args: CheckUserCategoryRoleArgs) => {
+		const {
+			payload,
+			userId,
+			categoryId,
+			requiredRole,
+			req,
+			overrideAccess = false,
+		} = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
@@ -349,11 +435,13 @@ export const tryCheckUserCategoryRole = Result.wrap(
 			throw new InvalidArgumentError("Category ID is required");
 		}
 
-		const assignment = await tryFindCategoryRoleAssignment(
+		const assignment = await tryFindCategoryRoleAssignment({
 			payload,
 			userId,
 			categoryId,
-		);
+			req,
+			overrideAccess,
+		});
 
 		if (!assignment.ok || !assignment.value) {
 			return null;
@@ -377,7 +465,9 @@ export const tryCheckUserCategoryRole = Result.wrap(
  * Returns the highest priority role found
  */
 export const tryGetEffectiveCategoryRole = Result.wrap(
-	async (payload: Payload, userId: number, categoryId: number) => {
+	async (args: GetEffectiveCategoryRoleArgs) => {
+		const { payload, userId, categoryId, req, overrideAccess = false } = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
@@ -399,19 +489,32 @@ export const tryGetEffectiveCategoryRole = Result.wrap(
 		// Traverse up the category hierarchy
 		while (currentCategoryId !== null) {
 			// Check for role assignment at current level
-			const assignments = await payload.find({
-				collection: CategoryRoleAssignments.slug,
-				where: {
-					and: [
-						{ user: { equals: userId } },
-						{ category: { equals: currentCategoryId } },
-					],
-				},
-			});
+			const assignments = await payload
+				.find({
+					collection: CategoryRoleAssignments.slug,
+					where: {
+						and: [
+							{ user: { equals: userId } },
+							{ category: { equals: currentCategoryId } },
+						],
+					},
+					depth: 0,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
 			if (assignments.docs.length > 0) {
-				const role = assignments.docs[0].role as CategoryRole;
-				const priority = rolePriority[role] || 0;
+				const role = assignments.docs[0]!.role;
+				const priority = rolePriority[role] ?? 0;
 
 				if (priority > highestPriority) {
 					highestRole = role;
@@ -420,16 +523,25 @@ export const tryGetEffectiveCategoryRole = Result.wrap(
 			}
 
 			// Move to parent category
-			const category: any = await payload.findByID({
-				collection: CourseCategories.slug,
-				id: currentCategoryId,
-				depth: 0,
-			});
+			const category: { id: number; parent?: number | null } = await payload
+				.findByID({
+					collection: "course-categories",
+					id: currentCategoryId,
+					depth: 0,
+					req,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "findByID">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-			currentCategoryId =
-				typeof category.parent === "number"
-					? category.parent
-					: (category.parent?.id ?? null);
+			currentCategoryId = category.parent ?? null;
 		}
 
 		return highestRole;
@@ -443,30 +555,47 @@ export const tryGetEffectiveCategoryRole = Result.wrap(
  * Gets all courses a user has access to via category roles
  */
 export const tryGetUserCoursesFromCategories = Result.wrap(
-	async (payload: Payload, userId: number) => {
+	async (args: GetUserCoursesFromCategoriesArgs) => {
+		const { payload, userId, req, overrideAccess = false } = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
 
 		// Get all categories where user has roles
-		const userRoles = await payload.find({
-			collection: CategoryRoleAssignments.slug,
-			where: {
-				user: { equals: userId },
-			},
-			pagination: false,
-		});
+		const userRoles = await payload
+			.find({
+				collection: CategoryRoleAssignments.slug,
+				where: {
+					user: { equals: userId },
+				},
+				pagination: false,
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: `tryGetUserCoursesFromCategories - to get user courses from categories for user ${userId}`,
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
 		const coursesMap = new Map<number, CourseAccessInfo>();
 
 		// For each category role, get all descendant courses
 		for (const roleAssignment of userRoles.docs) {
-			const categoryId =
-				typeof roleAssignment.category === "number"
-					? roleAssignment.category
-					: roleAssignment.category.id;
+			const categoryId = roleAssignment.category;
 
-			const courseIds = await getAllDescendantCourses(payload, categoryId);
+			const courseIds = await getAllDescendantCourses({
+				payload,
+				categoryId,
+				req,
+				overrideAccess,
+			});
 
 			for (const courseId of courseIds) {
 				if (!coursesMap.has(courseId)) {
@@ -492,7 +621,9 @@ export const tryGetUserCoursesFromCategories = Result.wrap(
  * Checks if user has access to a course via category role
  */
 export const tryCheckUserCourseAccessViaCategory = Result.wrap(
-	async (payload: Payload, userId: number, courseId: number) => {
+	async (args: CheckUserCourseAccessViaCategoryArgs) => {
+		const { payload, userId, courseId, req, overrideAccess = false } = args;
+
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
@@ -502,33 +633,38 @@ export const tryCheckUserCourseAccessViaCategory = Result.wrap(
 		}
 
 		// Get the course's category
-		const course: any = await payload.findByID({
-			collection: Courses.slug,
-			id: courseId,
-			depth: 0,
-		});
+		const course = await payload
+			.findByID({
+				collection: Courses.slug,
+				id: courseId,
+				depth: 0,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "findByID">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: `tryCheckUserCourseAccessViaCategory - to check user course access via category for course ${courseId}`,
+					args: { payload, req, overrideAccess },
+				});
+				return null;
+			});
 
-		if (!course.category) {
+		if (!course?.category) {
 			return null;
 		}
 
-		const courseCategoryId =
-			typeof course.category === "number"
-				? course.category
-				: course.category.id;
+		const courseCategoryId = course.category;
 
 		// Check if user has role on this category or any ancestor
-		const effectiveRole = await tryGetEffectiveCategoryRole(
+		return await tryGetEffectiveCategoryRole({
 			payload,
 			userId,
-			courseCategoryId,
-		);
-
-		if (!effectiveRole.ok) {
-			return null;
-		}
-
-		return effectiveRole.value;
+			categoryId: courseCategoryId,
+			req,
+			overrideAccess,
+		}).getOrNull();
 	},
 	(error) =>
 		transformError(error) ??
@@ -537,34 +673,51 @@ export const tryCheckUserCourseAccessViaCategory = Result.wrap(
 		}),
 );
 
+type GetAllDescendantCoursesArgs = BaseInternalFunctionArgs & {
+	categoryId: number;
+};
+
 /**
  * Helper: Get all descendant courses of a category (recursive)
  */
 async function getAllDescendantCourses(
-	payload: Payload,
-	categoryId: number,
+	args: GetAllDescendantCoursesArgs,
 ): Promise<number[]> {
+	const { payload, categoryId, req, overrideAccess = false } = args;
 	const courseIds: number[] = [];
 
 	// Get direct courses
-	const directCourses = await payload.find({
-		collection: Courses.slug,
-		where: { category: { equals: categoryId } },
-		pagination: false,
-		depth: 0,
-	});
+	const directCourses = await payload
+		.find({
+			collection: Courses.slug,
+			where: { category: { equals: categoryId } },
+			pagination: false,
+			depth: 0,
+			req,
+			overrideAccess,
+		})
+		.then(stripDepth<0, "find">());
 	courseIds.push(...directCourses.docs.map((c) => c.id));
 
 	// Get subcategories and recurse
-	const subcategories = await payload.find({
-		collection: CourseCategories.slug,
-		where: { parent: { equals: categoryId } },
-		pagination: false,
-		depth: 0,
-	});
+	const subcategories = await payload
+		.find({
+			collection: CourseCategories.slug,
+			where: { parent: { equals: categoryId } },
+			pagination: false,
+			depth: 0,
+			req,
+			overrideAccess,
+		})
+		.then(stripDepth<0, "find">());
 
 	for (const subcat of subcategories.docs) {
-		const nestedCourses = await getAllDescendantCourses(payload, subcat.id);
+		const nestedCourses = await getAllDescendantCourses({
+			payload,
+			categoryId: subcat.id,
+			req,
+			overrideAccess,
+		});
 		courseIds.push(...nestedCourses);
 	}
 

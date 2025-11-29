@@ -1,43 +1,69 @@
 import type { AccessResult, CollectionConfig } from "payload";
 
+const slug = "activity-modules" as const;
+
 // Activity Modules collection - generic container for all learning activities
 export const ActivityModules = {
-	slug: "activity-modules",
+	slug,
 	defaultSort: "-createdAt",
 	access: {
-		read: (): AccessResult => {
+		read: ({ req }): AccessResult => {
+			if (!req.user) return false;
 			return true;
 		},
 		create: ({ req }): AccessResult => {
-			// require login to create activity modules
 			if (!req.user) return false;
-			// only admin, instructor, and content manager can create activity modules
 			if (
 				req.user.role === "admin" ||
 				req.user.role === "instructor" ||
 				req.user.role === "content-manager"
-			)
+			) {
 				return true;
-			// no one else can create activity modules
+			}
 			return false;
 		},
 		update: ({ req }): AccessResult => {
-			if (!req.user) return false;
-			if (req.user.role === "admin") return true;
+			// must be logged in to update activity modules
+			if (!req.user) {
+				// req.payload.logger.error(
+				// 	`Failed to update activity module: unauthenticated user is not allowed to update activity modules`,
+				// );
+				return false;
+			}
 
-			return {
+			// admin can update any activity module
+			if (req.user.role === "admin") {
+				return true;
+			}
+
+			// owners and users with grants can update
+			const user = req.user;
+			const where: AccessResult = {
 				or: [
-					{ owner: { equals: req.user.id } },
-					{ "grants.grantedTo": { equals: req.user.id } },
+					{ owner: { equals: user.id } },
+					{ "grants.grantedTo": { equals: user.id } },
 				],
 			};
+			return where;
 		},
 		delete: ({ req }): AccessResult => {
-			if (!req.user) return false;
-			if (req.user.role === "admin") return true;
+			// must be logged in to delete activity modules
+			if (!req.user) {
+				// req.payload.logger.error(
+				// 	`Failed to delete activity module: unauthenticated user is not allowed to delete activity modules`,
+				// );
+				return false;
+			}
 
+			// admin can delete any activity module
+			if (req.user.role === "admin") {
+				return true;
+			}
+
+			// only owners can delete
+			const user = req.user;
 			return {
-				owner: { equals: req.user.id },
+				owner: { equals: user.id },
 			};
 		},
 	},
@@ -75,6 +101,8 @@ export const ActivityModules = {
 				// read only
 				{ label: "Page", value: "page" },
 				{ label: "Whiteboard", value: "whiteboard" },
+				// file allows instructor to upload multiple files for students to access
+				{ label: "File", value: "file" },
 				// these are the activity with participation
 				// assignments allow user to submit and upload their work
 				{ label: "Assignment", value: "assignment" },
@@ -133,6 +161,12 @@ export const ActivityModules = {
 			relationTo: "discussions",
 			label: "Discussion Configuration",
 		},
+		{
+			name: "file",
+			type: "relationship",
+			relationTo: "files",
+			label: "File Configuration",
+		},
 		// NOTE: Join fields for submissions have been removed because submissions
 		// now link to course-activity-module-links instead of activity-modules.
 		// To access submissions, traverse through course-activity-module-links.
@@ -173,13 +207,13 @@ export const ActivityModules = {
 			fields: ["whiteboard"],
 		},
 		{
-			fields: ["assignment"],
-		},
-		{
 			fields: ["quiz"],
 		},
 		{
 			fields: ["discussion"],
+		},
+		{
+			fields: ["file"],
 		},
 	],
 } as const satisfies CollectionConfig;

@@ -27,6 +27,7 @@ import {
 import { useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { getModuleIcon } from "../../utils/module-helper";
+import { useDeleteCategory, useDeleteManualItem } from "./hooks";
 import {
 	CreateCategoryModal,
 	type CreateCategoryModalHandle,
@@ -35,9 +36,8 @@ import {
 	UpdateGradeCategoryButton,
 	UpdateGradeItemButton,
 } from "./modals";
-import { useDeleteCategory, useDeleteManualItem } from "./hooks";
-import { OverallWeightDisplay, WeightDisplay } from "./weight-display";
 import { getTypeColor } from "./report-view";
+import { OverallWeightDisplay, WeightDisplay } from "./weight-display";
 
 // ============================================================================
 // Gradebook Setup Types
@@ -230,15 +230,15 @@ function GradebookItemRow({
 							extraCredit={item.extra_credit}
 						/>
 					) : // For categories, show sum of children's overall weights when collapsed
-						!isExpanded &&
-							categoryOverallWeight !== null &&
-							categoryOverallWeight > 0 ? (
-							<Text size="sm" fw={500} c="dimmed">
-								{categoryOverallWeight.toFixed(2)}%
-							</Text>
-						) : (
-							<Text size="sm">-</Text>
-						)}
+					!isExpanded &&
+						categoryOverallWeight !== null &&
+						categoryOverallWeight > 0 ? (
+						<Text size="sm" fw={500} c="dimmed">
+							{categoryOverallWeight.toFixed(2)}%
+						</Text>
+					) : (
+						<Text size="sm">-</Text>
+					)}
 				</Table.Td>
 				<Table.Td>
 					{isLeafItem ? (
@@ -246,13 +246,13 @@ function GradebookItemRow({
 							{item.max_grade !== null ? item.max_grade : "-"}
 						</Text>
 					) : // calculate the max grade of all leaf items
-						!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
-							<Text size="sm" c="dimmed">
-								{categoryMaxGrade ?? "-"}
-							</Text>
-						) : (
-							<Text size="sm">-</Text>
-						)}
+					!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
+						<Text size="sm" c="dimmed">
+							{categoryMaxGrade ?? "-"}
+						</Text>
+					) : (
+						<Text size="sm">-</Text>
+					)}
 				</Table.Td>
 				<Table.Td>
 					<Group gap="xs" wrap="nowrap">
@@ -296,18 +296,16 @@ function GradebookItemRow({
 							</ActionIcon>
 						)}
 						{/* Show delete button only for manual items (items without activityModuleLinkId) */}
-						{isLeafItem &&
-							!item.activityModuleLinkId &&
-							onDeleteItem && (
-								<ActionIcon
-									size="sm"
-									variant="subtle"
-									color="red"
-									onClick={() => onDeleteItem(item.id)}
-								>
-									<IconTrash size={16} />
-								</ActionIcon>
-							)}
+						{isLeafItem && !item.activityModuleLinkId && onDeleteItem && (
+							<ActionIcon
+								size="sm"
+								variant="subtle"
+								color="red"
+								onClick={() => onDeleteItem(item.id)}
+							>
+								<IconTrash size={16} />
+							</ActionIcon>
+						)}
 					</Group>
 				</Table.Td>
 			</Table.Tr>
@@ -512,8 +510,6 @@ export function GradebookSetupView({
 				parentOptions={parentOptions}
 			/>
 
-
-
 			<Paper withBorder>
 				<Table>
 					<Table.Thead>
@@ -575,7 +571,7 @@ export function GradebookSetupView({
 															Extra Credit Contributions:
 														</Text>
 														{extraCreditCategories.length > 0 ||
-															extraCreditItems.length > 0 ? (
+														extraCreditItems.length > 0 ? (
 															<>
 																{extraCreditCategories.map((category) => (
 																	<Text key={category.id} size="xs">
@@ -596,7 +592,8 @@ export function GradebookSetupView({
 													</div>
 													<div>
 														<Text size="xs">
-															Extra credit items and categories allow the total to exceed 100%.
+															Extra credit items and categories allow the total
+															to exceed 100%.
 														</Text>
 													</div>
 												</Stack>
@@ -632,4 +629,3 @@ export function GradebookSetupView({
 		</Stack>
 	);
 }
-

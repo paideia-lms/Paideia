@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import type { QuizConfig as QuizConfigV1 } from "./raw-quiz-config.types";
-import type { QuizConfig as QuizConfigV2 } from "./raw-quiz-config.types.v2";
+import type { QuizConfig as QuizConfigV1 } from "./types";
+import type { QuizConfig as QuizConfigV2 } from "./types.v2";
 import {
 	isValidQuizConfig,
 	resolveQuizConfigToLatest,
 	tryResolveQuizConfigToLatest,
-} from "./raw-quiz-config-version-resolver";
+} from "./version-resolver";
 
 describe("raw-quiz-config-version-resolver", () => {
 	test("should convert v1 regular quiz to v2 with correct discriminated union", () => {
@@ -54,7 +54,7 @@ describe("raw-quiz-config-version-resolver", () => {
 		if (result.type === "regular") {
 			expect(result.pages).toHaveLength(1);
 			expect(result.resources).toHaveLength(1);
-			expect(result.pages[0].questions).toHaveLength(1);
+			expect(result.pages[0]!.questions).toHaveLength(1);
 		}
 
 		expect(result.globalTimer).toBe(300);
@@ -100,8 +100,8 @@ describe("raw-quiz-config-version-resolver", () => {
 			expect(result.sequentialOrder).toBe(true);
 
 			// Resources moved to nested quiz
-			expect(result.nestedQuizzes[0].resources).toHaveLength(1);
-			expect(result.nestedQuizzes[0].resources?.[0].id).toBe("res-1");
+			expect(result.nestedQuizzes[0]!.resources).toHaveLength(1);
+			expect(result.nestedQuizzes[0]!.resources?.[0]!.id).toBe("res-1");
 		}
 	});
 
@@ -187,9 +187,9 @@ describe("raw-quiz-config-version-resolver", () => {
 		expect(result.type).toBe("regular");
 
 		if (result.type === "regular") {
-			expect(result.pages[0].questions).toHaveLength(2);
+			expect(result.pages[0]!.questions).toHaveLength(2);
 
-			const q1 = result.pages[0].questions[0];
+			const q1 = result.pages[0]!.questions[0]!;
 			if (q1.type === "fill-in-the-blank") {
 				expect(q1.prompt).toBe(
 					"The capital of France is {{capital}} and the largest city is also {{capital}}.",
@@ -197,7 +197,7 @@ describe("raw-quiz-config-version-resolver", () => {
 				expect(q1.correctAnswers).toEqual({ capital: "Paris" });
 			}
 
-			const q2 = result.pages[0].questions[1];
+			const q2 = result.pages[0]!.questions[1]!;
 			if (q2.type === "fill-in-the-blank") {
 				expect(q2.prompt).toBe("{{country}} has {{capital}} as its capital.");
 				expect(q2.correctAnswers).toEqual({
@@ -243,9 +243,9 @@ describe("raw-quiz-config-version-resolver", () => {
 		expect(result.type).toBe("regular");
 
 		if (result.type === "regular") {
-			expect(result.pages[0].questions).toHaveLength(2);
+			expect(result.pages[0]!.questions).toHaveLength(2);
 
-			const q1 = result.pages[0].questions[0];
+			const q1 = result.pages[0]!.questions[0]!;
 			if (q1.type === "fill-in-the-blank") {
 				expect(q1.prompt).toBe(
 					"The capital of France is {{capital}} and the largest city is also {{capital}}.",
@@ -253,7 +253,7 @@ describe("raw-quiz-config-version-resolver", () => {
 				expect(q1.correctAnswers).toEqual({ capital: "Paris" });
 			}
 
-			const q2 = result.pages[0].questions[1];
+			const q2 = result.pages[0]!.questions[1]!;
 			if (q2.type === "fill-in-the-blank") {
 				expect(q2.prompt).toBe("{{country}} has {{capital}} as its capital.");
 				expect(q2.correctAnswers).toEqual({

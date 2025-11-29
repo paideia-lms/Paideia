@@ -1,37 +1,62 @@
-import {
-	Divider,
-	NumberInput,
-	Select,
-	Stack,
-	Textarea,
-	Title,
-} from "@mantine/core";
-import { DateTimePicker } from "@mantine/dates";
+import { Button, Select, Stack, Textarea, Title } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
-import type { QuizConfig } from "server/json/raw-quiz-config.types.v2";
-import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import { useForm } from "@mantine/form";
+import type { QuizConfig } from "server/json/raw-quiz-config/types.v2";
+import type {
+	ActivityModuleFormValues,
+	QuizModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
 import { ContainerQuizBuilder, RegularQuizBuilder } from "./quiz-builder-v2";
 
 interface QuizFormProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	initialValues?: Partial<QuizModuleFormValues>;
+	onSubmit: (values: QuizModuleFormValues) => void;
+	isLoading?: boolean;
 }
 
-export function QuizForm({ form }: QuizFormProps) {
-	return (
-		<Stack gap="md">
-			<CommonFields form={form} />
+export function QuizForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: QuizFormProps) {
+	const form = useForm<QuizModuleFormValues>({
+		mode: "uncontrolled",
+		cascadeUpdates: true,
+		initialValues: {
+			title: initialValues?.title || "",
+			description: initialValues?.description || "",
+			type: "quiz" as const,
+			status: initialValues?.status || "draft",
+			quizInstructions: initialValues?.quizInstructions || "",
+			quizPoints: initialValues?.quizPoints || 100,
+			quizTimeLimit: initialValues?.quizTimeLimit || 60,
+			quizGradingType: initialValues?.quizGradingType || "automatic",
+			rawQuizConfig: initialValues?.rawQuizConfig || null,
+		},
+		validate: {
+			title: (value) =>
+				value.trim().length === 0 ? "Title is required" : null,
+		},
+	});
 
-			<Textarea
-				{...form.getInputProps("description")}
-				key={form.key("description")}
-				label="Description"
-				placeholder="Enter module description"
-				minRows={3}
-				autosize
-			/>
-			{/* 
+	return (
+		<form onSubmit={form.onSubmit(onSubmit)}>
+			<Stack gap="md">
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
+
+				<Textarea
+					{...form.getInputProps("description")}
+					key={form.key("description")}
+					label="Description"
+					placeholder="Enter module description"
+					minRows={3}
+					autosize
+				/>
+				{/* 
 			<Title order={4} mt="md">
 				Legacy Quiz Settings (Optional)
 			</Title>
@@ -87,15 +112,20 @@ export function QuizForm({ form }: QuizFormProps) {
 
 			<Divider my="xl" /> */}
 
-			<QuizBuilder form={form} />
-		</Stack>
+				<QuizBuilder form={form} />
+
+				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
+					Save
+				</Button>
+			</Stack>
+		</form>
 	);
 }
 
 function QuizBuilder({
 	form,
 }: {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	form: UseFormReturnType<QuizModuleFormValues>;
 }) {
 	// Watch the quiz type from form
 	const quizType = useFormWatchForceUpdate(form, "rawQuizConfig.type");

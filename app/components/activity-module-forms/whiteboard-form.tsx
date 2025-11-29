@@ -8,6 +8,7 @@ import type {
 import {
 	ActionIcon,
 	Box,
+	Button,
 	Loader,
 	Stack,
 	Textarea,
@@ -16,6 +17,7 @@ import {
 	useMantineColorScheme,
 } from "@mantine/core";
 import type { UseFormReturnType } from "@mantine/form";
+import { useForm } from "@mantine/form";
 import {
 	useDebouncedCallback,
 	useFullscreen,
@@ -23,7 +25,10 @@ import {
 } from "@mantine/hooks";
 import { IconMaximize, IconMinimize } from "@tabler/icons-react";
 import { lazy, Suspense, useLayoutEffect, useRef } from "react";
-import type { ActivityModuleFormValues } from "~/utils/activity-module-schema";
+import type {
+	ActivityModuleFormValues,
+	WhiteboardModuleFormValues,
+} from "~/utils/activity-module-schema";
 import { useFormWatchForceUpdate } from "~/utils/form-utils";
 import { CommonFields } from "./common-fields";
 import { useWhiteboardData } from "./useWhiteboardData";
@@ -36,11 +41,32 @@ const Excalidraw = lazy(() =>
 );
 
 interface WhiteboardFormProps {
-	form: UseFormReturnType<ActivityModuleFormValues>;
+	initialValues?: Partial<WhiteboardModuleFormValues>;
+	onSubmit: (values: WhiteboardModuleFormValues) => void;
 	isLoading?: boolean;
 }
 
-export function WhiteboardForm({ form }: WhiteboardFormProps) {
+export function WhiteboardForm({
+	initialValues,
+	onSubmit,
+	isLoading,
+}: WhiteboardFormProps) {
+	const form = useForm<WhiteboardModuleFormValues>({
+		mode: "uncontrolled",
+		cascadeUpdates: true,
+		initialValues: {
+			title: initialValues?.title || "",
+			description: initialValues?.description || "",
+			type: "whiteboard" as const,
+			status: initialValues?.status || "draft",
+			whiteboardContent: initialValues?.whiteboardContent || "",
+		},
+		validate: {
+			title: (value) =>
+				value.trim().length === 0 ? "Title is required" : null,
+		},
+	});
+
 	const excalidrawRef = useRef<ExcalidrawImperativeAPI | null>(null);
 	const { colorScheme } = useMantineColorScheme();
 	const { ref: fullscreenRef, toggle, fullscreen } = useFullscreen();
@@ -79,85 +105,95 @@ export function WhiteboardForm({ form }: WhiteboardFormProps) {
 	);
 
 	return (
-		<Stack gap="md">
-			<CommonFields form={form} />
+		<form onSubmit={form.onSubmit(onSubmit)}>
+			<Stack gap="md">
+				<CommonFields
+					form={form as UseFormReturnType<ActivityModuleFormValues>}
+				/>
 
-			<Textarea
-				{...form.getInputProps("description")}
-				key={form.key("description")}
-				label="Description"
-				placeholder="Enter module description"
-				minRows={3}
-			/>
+				<Textarea
+					{...form.getInputProps("description")}
+					key={form.key("description")}
+					label="Description"
+					placeholder="Enter module description"
+					minRows={3}
+				/>
 
-			<div>
-				<Title order={5} mb="xs">
-					Whiteboard Canvas
-				</Title>
-				<Box
-					ref={fullscreenRef}
-					style={{ height: "500px", border: "1px solid #dee2e6" }}
-				>
-					{!mounted ? (
-						<div
-							style={{
-								display: "flex",
-								alignItems: "center",
-								justifyContent: "center",
-								height: "100%",
-							}}
-						>
-							<Loader />
-						</div>
-					) : (
-						<Suspense
-							fallback={
-								<div
-									style={{
-										display: "flex",
-										alignItems: "center",
-										justifyContent: "center",
-										height: "100%",
-									}}
-								>
-									<Loader />
-								</div>
-							}
-						>
-							<Excalidraw
-								excalidrawAPI={(api) => {
-									excalidrawRef.current = api;
+				<div>
+					<Title order={5} mb="xs">
+						Whiteboard Canvas
+					</Title>
+					<Box
+						ref={fullscreenRef}
+						style={{ height: "500px", border: "1px solid #dee2e6" }}
+					>
+						{!mounted ? (
+							<div
+								style={{
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									height: "100%",
 								}}
-								initialData={initialData}
-								onChange={(elements, appState, files) => {
-									saveSnapshot(elements, appState, files);
-								}}
-								theme={colorScheme === "dark" ? "dark" : "light"}
-								renderTopRightUI={() => (
-									<Tooltip
-										label={fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+							>
+								<Loader />
+							</div>
+						) : (
+							<Suspense
+								fallback={
+									<div
+										style={{
+											display: "flex",
+											alignItems: "center",
+											justifyContent: "center",
+											height: "100%",
+										}}
 									>
-										<ActionIcon
-											onClick={toggle}
-											variant="default"
-											size="lg"
-											aria-label={
-												fullscreen ? "Exit fullscreen" : "Enter fullscreen"
+										<Loader />
+									</div>
+								}
+							>
+								<Excalidraw
+									excalidrawAPI={(api) => {
+										excalidrawRef.current = api;
+									}}
+									initialData={initialData}
+									onChange={(elements, appState, files) => {
+										saveSnapshot(elements, appState, files);
+									}}
+									theme={colorScheme === "dark" ? "dark" : "light"}
+									renderTopRightUI={() => (
+										<Tooltip
+											label={
+												fullscreen ? "Exit Fullscreen" : "Enter Fullscreen"
 											}
 										>
-											{fullscreen ? (
-												<IconMinimize size={18} />
-											) : (
-												<IconMaximize size={18} />
-											)}
-										</ActionIcon>
-									</Tooltip>
-								)}
-							/>
-						</Suspense>
-					)}
-				</Box>
-			</div>
-		</Stack>
+											<ActionIcon
+												onClick={toggle}
+												variant="default"
+												size="lg"
+												aria-label={
+													fullscreen ? "Exit fullscreen" : "Enter fullscreen"
+												}
+											>
+												{fullscreen ? (
+													<IconMinimize size={18} />
+												) : (
+													<IconMaximize size={18} />
+												)}
+											</ActionIcon>
+										</Tooltip>
+									)}
+								/>
+							</Suspense>
+						)}
+					</Box>
+				</div>
+
+				<Button type="submit" size="lg" mt="lg" loading={isLoading}>
+					Save
+				</Button>
+			</Stack>
+		</form>
 	);
 }

@@ -17,10 +17,6 @@ import {
 import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
-import type {
-	FileUpload,
-	FileUploadHandler,
-} from "@remix-run/form-data-parser";
 import {
 	IconBooks,
 	IconEye,
@@ -31,16 +27,18 @@ import {
 	IconUserCheck,
 	IconX,
 } from "@tabler/icons-react";
+import { createLoader, parseAsStringEnum } from "nuqs/server";
+import { stringify } from "qs";
 import { useEffect, useState } from "react";
 import { href, Link, useFetcher, useLocation } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { type User, userContextKey } from "server/contexts/user-context";
+import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { tryCreateMedia } from "server/internal/media-management";
 import {
 	tryFindUserById,
 	tryUpdateUser,
 } from "server/internal/user-management";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
 	canEditOtherAdmin,
 	canEditProfileAvatar,
@@ -49,21 +47,29 @@ import {
 	canEditProfileFirstName,
 	canEditProfileLastName,
 	canEditProfileRole,
+	canImpersonate,
 } from "server/utils/permissions";
 import z from "zod";
 import { useImpersonate } from "~/routes/user/profile";
 import { ContentType } from "~/utils/get-content-type";
-import { parseFormDataWithFallback } from "~/utils/parse-form-data-with-fallback";
+import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	ForbiddenResponse,
 	NotFoundResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
+import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/overview";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
@@ -78,7 +84,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 
 	// Use effectiveUser if impersonating, otherwise use authenticatedUser
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Get user ID from route params, or use current user
 	const userId = params.id ? Number(params.id) : currentUser.id;
@@ -92,10 +98,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -106,23 +113,19 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const profileUser = userResult.value;
 
 	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (profileUser.avatar) {
-		if (typeof profileUser.avatar === "object") {
-			avatarUrl = profileUser.avatar.filename
-				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: profileUser.avatar.filename,
-					})
-				: null;
-		}
-	}
+	const avatarUrl = profileUser.avatar
+		? href(`/api/media/file/:filenameOrId`, {
+				filenameOrId: profileUser.avatar.toString(),
+			})
+		: null;
 
-	// Check if user can impersonate (admin viewing someone else's profile, not an admin, and not already impersonating)
-	const canImpersonate =
-		userSession.authenticatedUser.role === "admin" &&
-		userId !== userSession.authenticatedUser.id &&
-		profileUser.role !== "admin" &&
-		!userSession.isImpersonating;
+	// Check if user can impersonate
+	const impersonatePermission = canImpersonate(
+		userSession.authenticatedUser,
+		userId,
+		profileUser.role,
+		userSession.isImpersonating,
+	);
 
 	// Check if this is the first user (id === 1)
 	const isFirstUser = profileUser.id === 1;
@@ -183,7 +186,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 		},
 		isOwnData: userId === currentUser.id,
 		isAdmin: currentUser.role === "admin",
-		canImpersonate,
+		canImpersonate: impersonatePermission.allowed,
 		isFirstUser,
 		isProfileUserAdmin,
 		isSandboxMode,
@@ -199,11 +202,39 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({
+enum Action {
+	Update = "update",
+}
+
+// Define search params for user profile update
+export const userOverviewSearchParams = {
+	action: parseAsStringEnum(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(userOverviewSearchParams);
+
+const inputSchema = z.object({
+	firstName: z.string(),
+	lastName: z.string(),
+	bio: z.string(),
+	avatar: z.coerce.number().nullish(),
+	email: z.email().nullish(),
+	role: z
+		.enum([
+			"student",
+			"instructor",
+			"content-manager",
+			"analytics-viewer",
+			"admin",
+		])
+		.nullish(),
+});
+
+const updateAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs) => {
+}: Route.ActionArgs & { searchParams: { action: Action } }) => {
 	const { payload, systemGlobals } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -215,7 +246,14 @@ export const action = async ({
 	}
 
 	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
+		userSession.effectiveUser ?? userSession.authenticatedUser;
+
+	if (!currentUser) {
+		return unauthorized({
+			success: false,
+			error: "Unauthorized",
+		});
+	}
 
 	const userId = params.id ? Number(params.id) : currentUser.id;
 
@@ -226,84 +264,58 @@ export const action = async ({
 		});
 	}
 
-	const transactionID = await payload.db.beginTransaction();
-
-	if (!transactionID) {
-		return badRequest({
-			success: false,
-			error: "Failed to begin transaction",
-		});
-	}
-
 	// Get upload limit from system globals
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
-	try {
-		const uploadHandler = async (fileUpload: FileUpload) => {
-			if (fileUpload.fieldName === "avatar") {
-				const arrayBuffer = await fileUpload.arrayBuffer();
-				const fileBuffer = Buffer.from(arrayBuffer);
-
-				const mediaResult = await tryCreateMedia({
-					payload,
-					file: fileBuffer,
-					filename: fileUpload.name,
-					mimeType: fileUpload.type,
-					alt: `User avatar`,
-					userId: userId,
-					user: {
-						...currentUser,
-						collection: "users",
-						avatar: currentUser.avatar?.id ?? undefined,
-					},
-					req: { transactionID },
-				});
-
-				if (!mediaResult.ok) {
-					throw mediaResult.error;
-				}
-
-				return mediaResult.value.media.id;
-			}
-		};
-
-		const formData = await parseFormDataWithFallback(
+	// Handle transaction ID
+	const transactionInfo = await handleTransactionId(
+		payload,
+		createLocalReq({
 			request,
-			uploadHandler as FileUploadHandler,
-			maxFileSize !== undefined ? { maxFileSize } : undefined,
-		);
+			user: currentUser,
+			context: { routerContext: context },
+		}),
+	);
+
+	return await transactionInfo.tx(async (txInfo) => {
+		// Parse form data with media upload handler
+		const parseResult = await tryParseFormDataWithMediaUpload({
+			payload,
+			request,
+			userId: userId,
+			req: txInfo.reqWithTransaction,
+			maxFileSize,
+			fields: [
+				{
+					fieldName: "avatar",
+					alt: "User avatar",
+				},
+			],
+		});
+
+		if (!parseResult.ok) {
+			return handleUploadError(
+				parseResult.error,
+				maxFileSize,
+				"Failed to parse form data",
+			);
+		}
+
+		const { formData } = parseResult.value;
 
 		const isAdmin = currentUser.role === "admin";
 		const isFirstUser = userId === 1;
 
-		const parsed = z
-			.object({
-				firstName: z.string(),
-				lastName: z.string(),
-				bio: z.string(),
-				avatar: z.coerce.number().nullish(),
-				email: z.email().nullish(),
-				role: z
-					.enum([
-						"student",
-						"instructor",
-						"content-manager",
-						"analytics-viewer",
-						"admin",
-					])
-					.nullish(),
-			})
-			.safeParse({
-				firstName: formData.get("firstName"),
-				lastName: formData.get("lastName"),
-				bio: formData.get("bio"),
-				avatar: formData.get("avatar"),
-				email: formData.get("email"),
-				role: formData.get("role"),
-			});
+		const parsed = inputSchema.safeParse({
+			firstName: formData.get("firstName"),
+			lastName: formData.get("lastName"),
+			bio: formData.get("bio"),
+			avatar: formData.get("avatar"),
+			email: formData.get("email"),
+			role: formData.get("role"),
+		});
 
 		if (!parsed.success) {
-			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: parsed.error.message,
@@ -312,7 +324,6 @@ export const action = async ({
 
 		// Prevent first user from changing their admin role
 		if (isFirstUser && parsed.data.role && parsed.data.role !== "admin") {
-			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: "The first user cannot change their admin role",
@@ -320,81 +331,103 @@ export const action = async ({
 		}
 
 		// Build update data
-		const updateData: {
-			firstName: string;
-			lastName: string;
-			bio: string;
-			avatar?: number;
-			email?: string;
-			role?: User["role"];
-		} = {
+		const updateData = {
 			firstName: parsed.data.firstName,
 			lastName: parsed.data.lastName,
+			email: parsed.data.email ?? undefined,
 			bio: parsed.data.bio,
 			avatar: parsed.data.avatar ?? undefined,
 			role: parsed.data.role ?? undefined,
 		};
 
 		// Only admins can update email and role
-		if (isAdmin) {
-			if (parsed.data.email !== null && parsed.data.email !== undefined) {
-				updateData.email = parsed.data.email;
-			}
+		if (
+			isAdmin &&
+			parsed.data.email !== null &&
+			parsed.data.email !== undefined
+		) {
+			updateData.email = parsed.data.email;
 		}
 
 		const updateResult = await tryUpdateUser({
 			payload,
 			userId: userId,
 			data: updateData,
-			user: {
-				...currentUser,
-				avatar: currentUser.avatar?.id,
-			},
+			req: txInfo.reqWithTransaction,
 			overrideAccess: false,
-			transactionID,
 		});
 
 		if (!updateResult.ok) {
-			await payload.db.rollbackTransaction(transactionID);
 			return badRequest({
 				success: false,
 				error: updateResult.error.message,
 			});
 		}
 
-		await payload.db.commitTransaction(transactionID);
-
 		return ok({
 			success: true,
 			message: "Profile updated successfully",
 		});
-	} catch (error) {
-		await payload.db.rollbackTransaction(transactionID);
-		console.error("Profile update error:", error);
+	});
+};
+
+const getActionUrl = (action: Action, userId?: number) => {
+	return (
+		href("/user/overview/:id?", {
+			id: userId ? userId.toString() : undefined,
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
 		return badRequest({
 			success: false,
-			error:
-				error instanceof Error ? error.message : "Failed to update profile",
+			error: "Action is required",
 		});
 	}
+
+	if (actionType === Action.Update) {
+		return updateAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		success: false,
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.success) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Profile updated",
-			message: "Your profile has been updated successfully",
+			message:
+				actionData.message || "Your profile has been updated successfully",
 			color: "green",
 		});
-	} else if ("error" in actionData) {
+	} else if (
+		actionData.status === StatusCode.BadRequest ||
+		actionData.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Update failed",
-			message: actionData?.error,
+			message: actionData?.error || "Failed to update profile",
 			color: "red",
 		});
 	}
+
 	return actionData;
 }
 
@@ -427,9 +460,7 @@ const useUpdateUser = () => {
 		}
 		fetcher.submit(formData, {
 			method: "POST",
-			action: href("/user/overview/:id?", {
-				id: userId,
-			}),
+			action: getActionUrl(Action.Update, Number(userId)),
 			encType: ContentType.MULTIPART,
 		});
 	};
@@ -445,12 +476,9 @@ const useUpdateUser = () => {
 export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const {
 		user,
-		currentUser,
 		isOwnData,
 		isAdmin,
 		canImpersonate,
-		isFirstUser,
-		isSandboxMode,
 		userProfile,
 		firstNamePermission,
 		lastNamePermission,
@@ -458,7 +486,6 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 		bioPermission,
 		avatarPermission,
 		rolePermission,
-		otherAdminCheck,
 		isEditingOtherAdminUser,
 	} = loaderData;
 	const { updateUser, fetcher } = useUpdateUser();
@@ -534,8 +561,6 @@ export default function UserOverviewPage({ loaderData }: Route.ComponentProps) {
 	const fullName = `${user.firstName} ${user.lastName}`.trim() || "Anonymous";
 	const moduleCount = userProfile?.activityModules.length ?? 0;
 	const enrollmentCount = userProfile?.enrollments.length ?? 0;
-
-	const targetUser = { id: user.id, role: user.role };
 
 	const title = `${fullName} | Profile | Paideia LMS`;
 

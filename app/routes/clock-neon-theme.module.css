@@ -1,0 +1,87 @@
+.glassWrapper {
+	background: radial-gradient(circle, #1a1a2e 0%, #0f3460 100%);
+	animation: neon-pulse 3s ease-in-out infinite;
+}
+
+.clockFace {
+	background: radial-gradient(
+		circle,
+		rgba(0, 212, 255, 0.1) 0%,
+		transparent 70%
+	);
+}
+
+.hourTick {
+	background: linear-gradient(to bottom, #00d4ff, #0099cc);
+	width: 4px !important;
+}
+
+.minuteTick {
+	background: rgba(0, 212, 255, 0.6);
+	box-shadow: 0 0 2px rgba(0, 212, 255, 0.3);
+}
+
+.primaryNumber {
+	color: #00d4ff !important;
+	font-weight: 700 !important;
+	text-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+	font-size: 1.2em !important;
+}
+
+.secondaryNumber {
+	color: #66b3ff !important;
+	font-weight: 500 !important;
+	text-shadow: 0 0 5px rgba(102, 179, 255, 0.6);
+}
+
+.hourHand {
+	background: linear-gradient(to top, #ff6b35, #f7931e) !important;
+	box-shadow: 0 0 8px rgba(255, 107, 53, 0.6);
+	width: 6px !important;
+}
+
+.minuteHand {
+	background: linear-gradient(to top, #00d4ff, #0099cc) !important;
+	box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
+	width: 4px !important;
+}
+
+.secondHand {
+	background: linear-gradient(to top, #ff0080, #ff4081) !important;
+	box-shadow: 0 0 10px rgba(255, 0, 128, 0.8);
+	width: 2px !important;
+}
+
+.secondHandCounterweight {
+	background: #ff0080 !important;
+	box-shadow: 0 0 8px rgba(255, 0, 128, 0.6);
+}
+
+.centerDot {
+	background: radial-gradient(circle, #ffffff, #00d4ff) !important;
+	box-shadow: 0 0 15px rgba(0, 212, 255, 0.8);
+	border: 2px solid #ffffff;
+}
+
+.centerBlur {
+	background: radial-gradient(
+		circle,
+		rgba(255, 255, 255, 0.3),
+		transparent
+	) !important;
+}
+
+@keyframes neon-pulse {
+	0%,
+	100% {
+		box-shadow:
+			0 0 20px rgba(0, 212, 255, 0.3),
+			inset 0 0 20px rgba(0, 212, 255, 0.1);
+	}
+
+	50% {
+		box-shadow:
+			0 0 30px rgba(0, 212, 255, 0.5),
+			inset 0 0 30px rgba(0, 212, 255, 0.2);
+	}
+}

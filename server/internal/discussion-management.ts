@@ -1,18 +1,24 @@
-import type { Payload, PayloadRequest, TypedUser } from "payload";
 import { DiscussionSubmissions } from "server/collections";
 import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
 import {
 	InvalidArgumentError,
+	NonExistingActivityModuleError,
 	NonExistingDiscussionSubmissionError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
 import { tryFindGradebookItemByCourseModuleLink } from "./gradebook-item-management";
+import { handleTransactionId } from "./utils/handle-transaction-id";
+import {
+	type BaseInternalFunctionArgs,
+	interceptPayloadError,
+	stripDepth,
+} from "./utils/internal-function-utils";
 
-export interface CreateDiscussionSubmissionArgs {
+export interface CreateDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
 	studentId: number;
 	enrollmentId: number;
@@ -22,7 +28,8 @@ export interface CreateDiscussionSubmissionArgs {
 	parentThread?: number; // Required for replies and comments
 }
 
-export interface UpdateDiscussionSubmissionArgs {
+export interface UpdateDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	id: number;
 	title?: string;
 	content?: string;
@@ -30,23 +37,21 @@ export interface UpdateDiscussionSubmissionArgs {
 	isLocked?: boolean;
 }
 
-export interface GradeDiscussionSubmissionArgs {
-	payload: Payload;
+export interface GradeDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	id: number;
 	grade: number;
 	feedback?: string;
 	gradedBy: number;
-	user?: TypedUser | null;
-	req: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface GetDiscussionSubmissionByIdArgs {
+export interface GetDiscussionSubmissionByIdArgs
+	extends BaseInternalFunctionArgs {
 	id: number | string;
 }
 
-export interface ListDiscussionSubmissionsArgs {
-	payload: Payload;
+export interface ListDiscussionSubmissionsArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId?: number;
 	studentId?: number;
 	enrollmentId?: number;
@@ -56,29 +61,26 @@ export interface ListDiscussionSubmissionsArgs {
 	limit?: number;
 	page?: number;
 	sortBy?: "recent" | "upvoted" | "active" | "alphabetical";
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface GetDiscussionThreadsWithAllRepliesArgs {
+export interface GetDiscussionThreadsWithAllRepliesArgs
+	extends BaseInternalFunctionArgs {
 	courseModuleLinkId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface UpvoteDiscussionSubmissionArgs {
+export interface UpvoteDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	submissionId: number;
 	userId: number;
 }
 
-export interface RemoveUpvoteDiscussionSubmissionArgs {
+export interface RemoveUpvoteDiscussionSubmissionArgs
+	extends BaseInternalFunctionArgs {
 	submissionId: number;
 	userId: number;
 }
 
-export interface DiscussionGradingResult {
+export interface DiscussionGradingResult extends BaseInternalFunctionArgs {
 	totalScore: number;
 	maxScore: number;
 	percentage: number;
@@ -98,8 +100,9 @@ export interface DiscussionGradingResult {
  * Creates a new discussion submission (thread, reply, or comment)
  */
 export const tryCreateDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: CreateDiscussionSubmissionArgs) => {
+	async (args: CreateDiscussionSubmissionArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
 			studentId,
 			enrollmentId,
@@ -221,8 +224,8 @@ export const tryCreateDiscussionSubmission = Result.wrap(
  * Updates a discussion submission
  */
 export const tryUpdateDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: UpdateDiscussionSubmissionArgs) => {
-		const { id, title, content, isPinned, isLocked } = args;
+	async (args: UpdateDiscussionSubmissionArgs) => {
+		const { payload, id, title, content, isPinned, isLocked } = args;
 
 		// Validate ID
 		if (!id) {
@@ -305,8 +308,8 @@ export const tryUpdateDiscussionSubmission = Result.wrap(
  * Gets a discussion submission by ID
  */
 export const tryGetDiscussionSubmissionById = Result.wrap(
-	async (payload: Payload, args: GetDiscussionSubmissionByIdArgs) => {
-		const { id } = args;
+	async (args: GetDiscussionSubmissionByIdArgs) => {
+		const { payload, id } = args;
 
 		// Validate ID
 		if (!id) {
@@ -384,10 +387,11 @@ export const tryGetDiscussionSubmissionById = Result.wrap(
  * This is more efficient than fetching thread-by-thread
  */
 export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
-	async (payload: Payload, args: GetDiscussionThreadsWithAllRepliesArgs) => {
+	async (args: GetDiscussionThreadsWithAllRepliesArgs) => {
 		const {
+			payload,
 			courseModuleLinkId,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -405,7 +409,6 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 			status: "published",
 			limit: MOCK_INFINITY,
 			page: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -417,116 +420,58 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 		const threads = threadsResult.value;
 
 		// Get all replies and comments for this course module link
-		const allRepliesAndCommentsResult = await payload.find({
-			collection: "discussion-submissions",
-			where: {
-				and: [
-					{ courseModuleLink: { equals: courseModuleLinkId } },
-					{
-						or: [
-							{ postType: { equals: "reply" } },
-							{ postType: { equals: "comment" } },
-						],
-					},
-					{ status: { equals: "published" } },
-				],
-			},
-			depth: 1,
-			pagination: false,
-			user,
-			req,
-			overrideAccess,
-		});
+		const allRepliesAndCommentsResult = await payload
+			.find({
+				collection: DiscussionSubmissions.slug,
+				where: {
+					and: [
+						{ courseModuleLink: { equals: courseModuleLinkId } },
+						{
+							or: [
+								{ postType: { equals: "reply" } },
+								{ postType: { equals: "comment" } },
+							],
+						},
+						{ status: { equals: "published" } },
+					],
+				},
+				depth: 1,
+				pagination: false,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		// Process all replies and comments with type narrowing
 		const allRepliesAndComments = allRepliesAndCommentsResult.docs.map(
 			(item) => {
 				// Handle courseModuleLink - can be object or number
-				const courseModuleLinkId =
-					typeof item.courseModuleLink === "object" &&
-						item.courseModuleLink !== null &&
-						"id" in item.courseModuleLink
-						? item.courseModuleLink.id
-						: typeof item.courseModuleLink === "number"
-							? item.courseModuleLink
-							: null;
-
-				if (!courseModuleLinkId) {
-					throw new InvalidArgumentError("Course module link is required");
-				}
-
-				// Handle student - preserve full object if available
-				const student =
-					typeof item.student === "object" && item.student !== null
-						? item.student
-						: null;
-
-				if (!student || !("id" in student)) {
-					throw new InvalidArgumentError("Student is required");
-				}
-
-				// Handle enrollment - preserve full object if available
-				const enrollment =
-					typeof item.enrollment === "object" && item.enrollment !== null
-						? item.enrollment
-						: null;
-
-				if (!enrollment || !("id" in enrollment)) {
-					throw new InvalidArgumentError("Enrollment is required");
-				}
+				const courseModuleLinkId = item.courseModuleLink.id;
 
 				// Get parentThread ID
-				const parentThreadId =
-					typeof item.parentThread === "object" &&
-						item.parentThread !== null &&
-						"id" in item.parentThread
-						? item.parentThread.id
-						: typeof item.parentThread === "number"
-							? item.parentThread
-							: null;
+				const parentThreadId = item.parentThread?.id ?? null;
 
 				return {
 					...item,
 					courseModuleLink: courseModuleLinkId,
-					student,
-					enrollment,
-					parentThreadId,
+					parentThread: parentThreadId,
 				};
 			},
 		);
 
+		type Reply = (typeof allRepliesAndComments)[number];
+
 		// Build a map of thread ID to its replies/comments
-		const threadRepliesMap = new Map<
-			number,
-			Array<{
-				id: number;
-				postType: "reply" | "comment";
-				content: string;
-				student: (typeof allRepliesAndComments)[number]["student"];
-				enrollment: (typeof allRepliesAndComments)[number]["enrollment"];
-				createdAt: string;
-				upvotes?: Array<{ user: number | { id: number }; upvotedAt: string }>;
-				parentThreadId: number | null;
-			}>
-		>();
+		const threadRepliesMap = new Map<number, Reply[]>();
 
 		// Group replies/comments by their parent thread
 		for (const item of allRepliesAndComments) {
-			const parentThreadId = item.parentThreadId;
+			const parentThreadId = item.parentThread;
 			if (parentThreadId) {
 				if (!threadRepliesMap.has(parentThreadId)) {
-					threadRepliesMap.set(parentThreadId, []);
+					threadRepliesMap.set(parentThreadId, [] as unknown as Reply[]);
 				}
-				threadRepliesMap.get(parentThreadId)?.push({
-					id: item.id,
-					postType: item.postType as "reply" | "comment",
-					content: item.content,
-					student: item.student,
-					enrollment: item.enrollment,
-					createdAt: item.createdAt,
-					upvotes: item.upvotes ?? undefined,
-					parentThreadId,
-				});
+				threadRepliesMap.get(parentThreadId)?.push(item);
 			}
 		}
 
@@ -580,7 +525,7 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 						enrollment: item.enrollment,
 						createdAt: item.createdAt,
 						upvotes: item.upvotes ?? undefined,
-						parentThreadId: item.parentThreadId,
+						parentThreadId: item.parentThread,
 						replies: [],
 					});
 				}
@@ -597,8 +542,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
 				// Check if this item's parent is a reply (not the thread)
 				// If parentThreadId is the thread ID, it's a top-level item
 				// If parentThreadId is another reply's ID, it should be nested under that reply
-				if (item.parentThreadId && item.parentThreadId !== thread.id) {
-					const parentItem = itemMap.get(item.parentThreadId);
+				if (item.parentThread && item.parentThread !== thread.id) {
+					const parentItem = itemMap.get(item.parentThread);
 					if (parentItem) {
 						// This item is nested under a reply (could be a reply to reply or a comment to reply)
 						parentItem.replies.push(itemEntry);
@@ -644,8 +589,8 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
  * Upvotes a discussion submission
  */
 export const tryUpvoteDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: UpvoteDiscussionSubmissionArgs) => {
-		const { submissionId, userId } = args;
+	async (args: UpvoteDiscussionSubmissionArgs) => {
+		const { payload, submissionId, userId } = args;
 
 		// Validate required fields
 		if (!submissionId) {
@@ -745,8 +690,15 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
  * Removes upvote from a discussion submission
  */
 export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
-	async (payload: Payload, args: RemoveUpvoteDiscussionSubmissionArgs) => {
-		const { submissionId, userId } = args;
+	async (args: RemoveUpvoteDiscussionSubmissionArgs) => {
+		const {
+			payload,
+
+			req,
+			submissionId,
+			userId,
+			overrideAccess = false,
+		} = args;
 
 		// Validate required fields
 		if (!submissionId) {
@@ -760,6 +712,8 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 		const submission = await payload.findByID({
 			collection: "discussion-submissions",
 			id: submissionId,
+			req,
+			overrideAccess,
 		});
 
 		if (!submission) {
@@ -787,6 +741,8 @@ export const tryRemoveUpvoteDiscussionSubmission = Result.wrap(
 			data: {
 				upvotes: filteredUpvotes,
 			},
+			req,
+			overrideAccess,
 		});
 
 		////////////////////////////////////////////////////
@@ -850,7 +806,7 @@ export const tryListDiscussionSubmissions = Result.wrap(
 			sortBy = "recent",
 			limit = 10,
 			page = 1,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -908,10 +864,10 @@ export const tryListDiscussionSubmissions = Result.wrap(
 						limit: MOCK_INFINITY,
 					},
 				},
-				user,
 				req,
 				overrideAccess,
 			})
+			.then(stripDepth<1, "find">())
 			.then((result) => {
 				return result.docs.map((doc) => {
 					assertZodInternal(
@@ -1003,7 +959,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			grade,
 			feedback,
 			gradedBy,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1018,26 +974,14 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 			throw new InvalidArgumentError("Grade cannot be negative");
 		}
 
-		// Start transaction
-		const transactionID = req?.transactionID ?? await payload.db.beginTransaction();
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		try {
-			// Construct req with transactionID
-			const reqWithTransaction = {
-				...req,
-				transactionID,
-			};
-
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Get the current submission with depth to access course module link
 			const currentSubmission = await payload.findByID({
 				collection: DiscussionSubmissions.slug,
 				id,
 				depth: 1,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -1062,7 +1006,6 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 
 			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 				payload,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 				courseModuleLinkId,
@@ -1090,20 +1033,15 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 					gradedBy,
 					gradedAt: now,
 				} as Record<string, unknown>,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
-
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
 
 			// Fetch the updated submission with depth for return value
 			const updatedSubmission = await payload.findByID({
 				collection: DiscussionSubmissions.slug,
 				id,
 				depth: 1,
-				user,
 				req: reqWithTransaction,
 				overrideAccess,
 			});
@@ -1151,11 +1089,7 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 				student,
 				enrollment,
 			};
-		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1164,16 +1098,25 @@ export const tryGradeDiscussionSubmission = Result.wrap(
 		}),
 );
 
+type CalculateDiscussionGradeArgs = BaseInternalFunctionArgs & {
+	courseModuleLinkId: number;
+	studentId: number;
+	enrollmentId: number;
+};
+
 /**
  * Calculates discussion grade based on all graded posts for a student
  */
 export const calculateDiscussionGrade = Result.wrap(
-	async (
-		payload: Payload,
-		courseModuleLinkId: number,
-		studentId: number,
-		enrollmentId: number,
-	): Promise<DiscussionGradingResult> => {
+	async (args: CalculateDiscussionGradeArgs) => {
+		const {
+			payload,
+			req,
+			overrideAccess = false,
+			courseModuleLinkId,
+			studentId,
+			enrollmentId,
+		} = args;
 		// Get all discussion submissions for this student in this course module link
 		const submissions = await payload
 			.find({
@@ -1186,9 +1129,12 @@ export const calculateDiscussionGrade = Result.wrap(
 						{ status: { equals: "published" } },
 					],
 				},
+				req,
+				overrideAccess,
 				pagination: false,
 				depth: 1,
 			})
+			.then(stripDepth<1, "find">())
 			.then((result) => {
 				// type narrowing
 				return result.docs.map((doc) => {
@@ -1249,14 +1195,13 @@ export const calculateDiscussionGrade = Result.wrap(
 		// Get gradebook item to determine maxGrade
 		const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
 			payload,
-			user: null,
-			req: undefined,
+			req,
 			overrideAccess: true,
 			courseModuleLinkId,
 		});
 
 		const maxGrade = gradebookItemResult.ok
-			? gradebookItemResult.value.maxGrade ?? 100
+			? (gradebookItemResult.value.maxGrade ?? 100)
 			: 100; // Default max grade
 
 		let totalScore = 0;
@@ -1296,10 +1241,8 @@ export const calculateDiscussionGrade = Result.wrap(
 					title: submission.title || undefined,
 					pointsEarned,
 					maxPoints,
-					feedback:
-						submissionWithGrade.feedback || "No feedback provided",
-					gradedAt:
-						submissionWithGrade.gradedAt || submission.createdAt,
+					feedback: submissionWithGrade.feedback || "No feedback provided",
+					gradedAt: submissionWithGrade.gradedAt || submission.createdAt,
 				});
 			}
 		}
@@ -1336,38 +1279,185 @@ export const calculateDiscussionGrade = Result.wrap(
 		}),
 );
 
+type DeleteDiscussionSubmissionArgs = BaseInternalFunctionArgs & {
+	id: number;
+};
 /**
  * Deletes a discussion submission
  */
 export const tryDeleteDiscussionSubmission = Result.wrap(
-	async (payload: Payload, id: number) => {
-		// Validate ID
-		if (!id) {
-			throw new InvalidArgumentError("Discussion submission ID is required");
-		}
+	async (args: DeleteDiscussionSubmissionArgs) => {
+		const { payload, req, id, overrideAccess = false } = args;
 
-		// Check if submission exists
-		const existingSubmission = await payload.findByID({
-			collection: "discussion-submissions",
-			id,
-		});
-
-		if (!existingSubmission) {
-			throw new NonExistingDiscussionSubmissionError(
-				`Discussion submission with id '${id}' not found`,
-			);
-		}
-
-		const deletedSubmission = await payload.delete({
-			collection: "discussion-submissions",
-			id,
-		});
+		const deletedSubmission = await payload
+			.delete({
+				collection: "discussion-submissions",
+				id,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<0, "delete">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryDeleteDiscussionSubmission",
+					args,
+				});
+				throw error;
+			});
 
 		return deletedSubmission;
 	},
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to delete discussion submission", {
+			cause: error,
+		}),
+);
+
+export interface DiscussionReply {
+	id: string;
+	content: string;
+	author: string;
+	authorAvatar: string;
+	authorId: number | null;
+	publishedAt: string;
+	upvotes: number;
+	parentId: string | null;
+	isUpvoted: boolean;
+	replies?: DiscussionReply[];
+}
+
+type tryGetDiscussionThreadWithRepliesArgs = BaseInternalFunctionArgs & {
+	threadId: number;
+	courseModuleLinkId: number;
+};
+
+/**
+ * Get a single discussion thread with all nested replies
+ * This transforms the thread data from tryGetDiscussionThreadsWithAllReplies
+ * into the DiscussionReply format used in the route
+ */
+export const tryGetDiscussionThreadWithReplies = Result.wrap(
+	async (args: tryGetDiscussionThreadWithRepliesArgs) => {
+		const {
+			payload,
+			threadId,
+			courseModuleLinkId,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
+		const user = req?.user;
+
+		const threadsResult = await tryGetDiscussionThreadsWithAllReplies({
+			payload,
+			courseModuleLinkId,
+			req,
+			overrideAccess,
+		});
+
+		if (!threadsResult.ok) {
+			throw threadsResult.error;
+		}
+
+		// Find the specific thread
+		const threadData = threadsResult.value.threads.find(
+			(t) => t.thread.id === threadId,
+		);
+
+		if (!threadData) {
+			throw new NonExistingActivityModuleError(
+				`Thread with id '${threadId}' not found`,
+			);
+		}
+
+		const thread = threadData.thread;
+		const student = thread.student;
+		const authorName = student
+			? `${student.firstName || ""} ${student.lastName || ""}`.trim() ||
+				student.email ||
+				"Unknown"
+			: "Unknown";
+		const authorAvatar = student
+			? `${student.firstName?.[0] || ""}${student.lastName?.[0] || ""}`.trim() ||
+				student.email?.[0]?.toUpperCase() ||
+				"U"
+			: "U";
+
+		const isUpvoted =
+			thread.upvotes?.some((upvote) => {
+				return upvote.user === user?.id;
+			}) ?? false;
+
+		// Transform nested replies into DiscussionReply format
+		const transformReply = (
+			reply: (typeof threadData.replies)[number],
+		): DiscussionReply => {
+			const replyStudent = reply.student;
+			const replyAuthorName = replyStudent
+				? `${replyStudent.firstName || ""} ${replyStudent.lastName || ""}`.trim() ||
+					replyStudent.email ||
+					"Unknown"
+				: "Unknown";
+			const replyAuthorAvatar = replyStudent
+				? `${replyStudent.firstName?.[0] || ""}${replyStudent.lastName?.[0] || ""}`.trim() ||
+					replyStudent.email?.[0]?.toUpperCase() ||
+					"U"
+				: "U";
+
+			const replyIsUpvoted =
+				reply.upvotes?.some(
+					(upvote: { user: number | { id: number }; upvotedAt: string }) => {
+						const upvoteUser =
+							typeof upvote.user === "object" && upvote.user !== null
+								? upvote.user
+								: null;
+						return upvoteUser?.id === user?.id;
+					},
+				) ?? false;
+
+			return {
+				id: String(reply.id),
+				content: reply.content,
+				author: replyAuthorName,
+				authorAvatar: replyAuthorAvatar,
+				authorId: replyStudent?.id ?? null,
+				publishedAt: reply.createdAt,
+				upvotes: reply.upvotes?.length ?? 0,
+				parentId:
+					reply.parentThreadId === threadId
+						? null
+						: String(reply.parentThreadId),
+				isUpvoted: replyIsUpvoted,
+				replies: reply.replies.map(transformReply),
+			};
+		};
+
+		// Transform all top-level replies (nested structure is preserved)
+		const transformedReplies = threadData.replies.map(transformReply);
+
+		return {
+			thread: {
+				id: String(thread.id),
+				title: thread.title || "",
+				content: thread.content,
+				author: authorName,
+				authorAvatar,
+				authorId: student?.id ?? null,
+				publishedAt: thread.createdAt,
+				upvotes: thread.upvotes?.length ?? 0,
+				replyCount: threadData.repliesTotal + threadData.commentsTotal,
+				isPinned: thread.isPinned ?? false,
+				isUpvoted,
+			},
+			replies: transformedReplies,
+		};
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get discussion thread with replies", {
 			cause: error,
 		}),
 );

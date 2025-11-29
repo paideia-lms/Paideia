@@ -1,5 +1,4 @@
-import type { Simplify } from "@payloadcms/db-postgres/drizzle";
-import type { Payload, PayloadRequest, TypedUser, Where } from "payload";
+import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import {
 	CourseCategories,
@@ -14,20 +13,31 @@ import { z } from "zod";
 import {
 	DevelopmentError,
 	InvalidArgumentError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Course, Group } from "../payload-types";
+import type {
+	Course,
+	CourseCategory,
+	Enrollment,
+	Group,
+} from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
+import {
+	commitTransactionIfCreated,
+	handleTransactionId,
+	rollbackTransactionIfCreated,
+} from "./utils/handle-transaction-id";
+import {
+	type Depth,
+	interceptPayloadError,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
+import { href } from "react-router";
 
-// e.g. Replace<Enrollment, "groups", number[]>
-// Omit and add a new property
-type Replace<O, T extends keyof O, W> = Simplify<Omit<O, T> & { [K in T]: W }>;
-
-export interface CreateCourseArgs {
-	payload: Payload;
+export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 	data: {
 		title: string;
 		description: string;
@@ -38,13 +48,9 @@ export interface CreateCourseArgs {
 		tags?: { tag?: string }[];
 		category?: number;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface UpdateCourseArgs {
-	payload: Payload;
+export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 	data: {
 		title?: string;
@@ -55,21 +61,13 @@ export interface UpdateCourseArgs {
 		tags?: { tag?: string }[];
 		category?: number | null;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindCourseByIdArgs {
-	payload: Payload;
+export interface FindCourseByIdArgs extends BaseInternalFunctionArgs {
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface SearchCoursesArgs {
-	payload: Payload;
+export interface SearchCoursesArgs extends BaseInternalFunctionArgs {
 	filters?: {
 		title?: string;
 		createdBy?: number;
@@ -77,35 +75,20 @@ export interface SearchCoursesArgs {
 		limit?: number;
 		page?: number;
 	};
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface DeleteCourseArgs {
-	payload: Payload;
+export interface DeleteCourseArgs extends BaseInternalFunctionArgs {
 	courseId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindCoursesByInstructorArgs {
-	payload: Payload;
+export interface FindCoursesByInstructorArgs extends BaseInternalFunctionArgs {
 	instructorId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindPublishedCoursesArgs {
-	payload: Payload;
+export interface FindPublishedCoursesArgs extends BaseInternalFunctionArgs {
 	limit?: number;
 	page?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 /**
@@ -127,24 +110,11 @@ export const tryCreateCourse = Result.wrap(
 				tags,
 				category,
 			},
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
-
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
+		const transactionInfo = await handleTransactionId(payload, req);
 
 		try {
 			// Parse media from description HTML content
@@ -171,7 +141,7 @@ export const tryCreateCourse = Result.wrap(
 						depth: 0,
 						pagination: false,
 						overrideAccess: true,
-						req: reqWithTransaction,
+						req: transactionInfo.reqWithTransaction,
 					});
 
 					resolvedIds = mediaResult.docs.map((doc) => doc.id);
@@ -184,116 +154,79 @@ export const tryCreateCourse = Result.wrap(
 			// Combine parsed IDs and resolved IDs
 			const mediaIds = [...parsedIds, ...resolvedIds];
 
-			const newCourse = await payload.create({
-				collection: Courses.slug,
-				data: {
-					title,
-					description,
-					slug,
-					createdBy,
-					status,
-					thumbnail,
-					tags,
-					category,
-					media: mediaIds.length > 0 ? mediaIds : undefined,
-				},
-				depth: 1,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			const newCourse = await payload
+				.create({
+					collection: Courses.slug,
+					data: {
+						title,
+						description,
+						slug,
+						createdBy,
+						status,
+						thumbnail,
+						tags,
+						category,
+						media: mediaIds.length > 0 ? mediaIds : undefined,
+					},
+					depth: 1,
+					req: transactionInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "create">());
 
 			// create the gradebook as well
-			const gradebookResult = await payload.create({
-				collection: Gradebooks.slug,
-				data: {
-					course: newCourse.id,
-				},
-				depth: 0,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			}).then((g) => {
-				// type narrowing 
-				assertZodInternal(
-					"tryCreateCourse: Gradebook course should be a number ",
-					g.course,
-					z.number(),
-				);
-				return {
-					...g,
-					course: g.course,
-				}
-			});
+			const gradebookResult = await payload
+				.create({
+					collection: Gradebooks.slug,
+					data: {
+						course: newCourse.id,
+					},
+					depth: 0,
+					req: transactionInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "create">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryCreateCourse",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
 			if (gradebookResult.course !== newCourse.id) {
-				throw new DevelopmentError("tryCreateCourse: Gradebook course ID does not match course ID");
+				throw new DevelopmentError(
+					"tryCreateCourse: Gradebook course ID does not match course ID",
+				);
 			}
-
 
 			// create a default section for the course
-			const defaultSectionResult = await payload.create({
-				collection: CourseSections.slug,
-				data: {
-					course: newCourse.id,
-					title: "Course Content",
-					description: "Default section for course content",
-					contentOrder: 0,
-				},
-				depth: 0,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			const defaultSectionResult = await payload
+				.create({
+					collection: CourseSections.slug,
+					data: {
+						course: newCourse.id,
+						title: "Course Content",
+						description: "Default section for course content",
+						contentOrder: 0,
+					},
+					depth: 0,
+					req: transactionInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "create">());
 
-			////////////////////////////////////////////////////
-			// type narrowing
-			////////////////////////////////////////////////////
-
-			const createdByUser = newCourse.createdBy;
-			assertZodInternal(
-				"tryCreateCourse: Created by user is required",
-				createdByUser,
-				z.object({ id: z.number() }),
-			);
-
-			const newCourseThumbnail = newCourse.thumbnail;
-			assertZodInternal(
-				"tryCreateCourse: New course thumbnail is required",
-				newCourseThumbnail,
-				z.object({ id: z.number() }).nullish(),
-			);
-
-			const newCourseCategory = newCourse.category;
-			assertZodInternal(
-				"tryCreateCourse: New course category is required",
-				newCourseCategory,
-				z
-					.object({
-						id: z.number(),
-					})
-					.nullish(),
-			);
-
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			await commitTransactionIfCreated(payload, transactionInfo);
 
 			const result = {
 				...newCourse,
-				createdBy: createdByUser,
 				gradebook: gradebookResult,
 				defaultSection: defaultSectionResult,
-				thumbnail: newCourseThumbnail,
-				category: newCourseCategory,
 			};
 			return result;
 		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
+			await rollbackTransactionIfCreated(payload, transactionInfo);
 			throw error;
 		}
 	},
@@ -311,13 +244,12 @@ export const tryCreateCourse = Result.wrap(
  */
 export const tryUpdateCourse = Result.wrap(
 	async (args: UpdateCourseArgs) => {
-		const { payload, courseId, data, user, req, overrideAccess = false } = args;
+		const { payload, courseId, data, req, overrideAccess = false } = args;
 
 		// Check if course exists
 		const existingCourse = await payload.findByID({
 			collection: "courses",
 			id: courseId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -331,7 +263,7 @@ export const tryUpdateCourse = Result.wrap(
 			const userExists = await payload.findByID({
 				collection: "users",
 				id: data.createdBy,
-				user,
+
 				req,
 				overrideAccess: true, // Always allow checking if user exists
 			});
@@ -388,7 +320,6 @@ export const tryUpdateCourse = Result.wrap(
 			collection: "courses",
 			id: courseId,
 			data: updateData,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -409,7 +340,7 @@ export const tryUpdateCourse = Result.wrap(
  */
 export const tryFindCourseById = Result.wrap(
 	async (args: FindCourseByIdArgs) => {
-		const { payload, courseId, user, req, overrideAccess = false } = args;
+		const { payload, courseId, req, overrideAccess = false } = args;
 
 		const course = await payload
 			.find({
@@ -445,160 +376,68 @@ export const tryFindCourseById = Result.wrap(
 					},
 				},
 				depth: 2,
-				user,
 				req,
 				overrideAccess,
 			})
+			.then((r) => {
+				////////////////////////////////////////////////////////
+				// complex type narrowing
+				////////////////////////////////////////////////////////
+				return {
+					...r,
+					docs: r.docs.map((c) => {
+						return {
+							...(c as Depth<Omit<Course, "sections">, 2>),
+							// ! join, these items depth is controlled by maxDepth in the collection config
+							groups: (c.groups?.docs ?? []) as Depth<
+								Omit<Group, "course">,
+								2
+							>[],
+							enrollments: (c.enrollments?.docs ?? []) as Depth<
+								Omit<Enrollment, "course">,
+								2
+							>[],
+							// ! populate, this will have depth 2
+							category: c.category as Depth<
+								Omit<CourseCategory, "courses" | "subcategories">,
+								2
+							>,
+						};
+					}),
+				};
+			})
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryFindCourseById",
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			})
 			.then((result) => {
-				////////////////////////////////////////////////////
-				// type narrowing
-				////////////////////////////////////////////////////
-
+				// console.log("result", result);
 				const course = result.docs[0];
 				if (!course) {
 					throw new Error("Course not found");
 				}
+
 				const courseCreatedBy = course.createdBy;
-				assertZodInternal(
-					"tryFindCourseById: Course createdBy is required",
-					courseCreatedBy,
-					z.object({
-						id: z.number(),
-					}),
-				);
 
 				const courseCreatedByAvatar = courseCreatedBy.avatar;
-				assertZodInternal(
-					"tryFindCourseById: Course createdBy avatar is required",
-					courseCreatedByAvatar,
-					z.object({ id: z.number() }).nullish(),
-				);
 
 				const courseEnrollments =
-					course.enrollments?.docs?.map((e) => {
-						assertZodInternal(
-							"tryFindCourseById: Course enrollment is required",
-							e,
-							z.object({ id: z.number() }),
-						);
-						const course = e.course;
-						// assert e has no course
-						assertZodInternal(
-							"tryFindCourseById: Course enrollment course is required",
-							course,
-							z.undefined(),
-						);
-						const user = e.user;
-						assertZodInternal(
-							"tryFindCourseById: Course enrollment user is required",
-							user,
-							z.object({ id: z.number() }),
-						);
-
-						const groups =
-							e.groups?.map((g) => {
-								assertZodInternal(
-									"tryFindCourseById: Course enrollment group is required",
-									g,
-									z.object({ id: z.number() }),
-								);
-								const parent = g.parent;
-								assertZodInternal(
-									"tryFindCourseById: Course enrollment group parent is required",
-									parent,
-									z.number().nullish(),
-								);
-								const course = g.course;
-								assertZodInternal(
-									"tryFindCourseById: Course enrollment group course is required",
-									course,
-									z.undefined(),
-								);
-								return {
-									...g,
-									parent,
-									course,
-								};
-							}) ?? [];
-
-						const avatar = user.avatar;
-						assertZodInternal(
-							"tryFindCourseById: Course enrollment user avatar is required",
-							avatar,
-							z.number().nullish(),
-						);
+					course.enrollments?.map((e) => {
+						const groups = e.groups ?? [];
 
 						return {
 							...e,
 							groups,
-							user: {
-								...user,
-								avatar,
-							},
-							course: course,
 						};
 					}) ?? [];
 
-				const groups =
-					course.groups?.docs?.map((g) => {
-						assertZodInternal(
-							"tryFindCourseById: Course group is required",
-							g,
-							z.object({ id: z.number() }),
-						);
-						const parent = g.parent;
-						assertZodInternal(
-							"tryFindCourseById: Course group parent is required",
-							parent,
-							z.object({ id: z.number() }).nullish(),
-						);
-						const course = g.course;
-						assertZodInternal(
-							"tryFindCourseById: Course group course is required",
-							course,
-							z.undefined({ error: "Course group course is required" }),
-						);
-						return {
-							...g,
-							parent,
-							course,
-						};
-					}) ?? [];
+				const groups = course.groups ?? [];
 
 				const category = course.category;
-				assertZodInternal(
-					"tryFindCourseById: Course category is required",
-					category,
-					z.object({ id: z.number() }).nullish(),
-				);
-
-				const categoryCourses = category?.courses;
-				assertZodInternal(
-					"tryFindCourseById: Course category courses is required",
-					categoryCourses,
-					z.undefined(),
-				);
-
-				const parent = category?.parent;
-				assertZodInternal(
-					"tryFindCourseById: Course category parent is required",
-					parent,
-					z.object({ id: z.number() }).nullish(),
-				);
-
-				const categorySubcategories = category?.subcategories;
-				assertZodInternal(
-					"tryFindCourseById: Course category subcategories is required",
-					categorySubcategories,
-					z.undefined(),
-				);
-
-				const sections = course.sections;
-				assertZodInternal(
-					"tryFindCourseById: Course sections is required",
-					sections,
-					z.undefined(),
-				);
 
 				return {
 					...course,
@@ -608,15 +447,7 @@ export const tryFindCourseById = Result.wrap(
 						avatar: courseCreatedByAvatar,
 					},
 					enrollments: courseEnrollments,
-					category: category
-						? {
-							...category,
-							parent,
-							courses: categoryCourses,
-							subcategories: categorySubcategories,
-						}
-						: null,
-					sections,
+					category,
 				};
 			});
 
@@ -636,7 +467,7 @@ export const tryFindCourseById = Result.wrap(
  */
 export const trySearchCourses = Result.wrap(
 	async (args: SearchCoursesArgs) => {
-		const { payload, filters = {}, user, req, overrideAccess = false } = args;
+		const { payload, filters = {}, req, overrideAccess = false } = args;
 
 		const { title, createdBy, status, limit = 10, page = 1 } = filters;
 
@@ -666,7 +497,6 @@ export const trySearchCourses = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -695,55 +525,36 @@ export const trySearchCourses = Result.wrap(
  */
 export const tryDeleteCourse = Result.wrap(
 	async (args: DeleteCourseArgs) => {
-		const { payload, courseId, user, req, overrideAccess = false } = args;
+		const { payload, courseId, req, overrideAccess = false } = args;
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
-
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// first we need to delete the gradebook
-			await payload.delete({
-				collection: Gradebooks.slug,
-				where: {
-					course: { equals: courseId },
-				},
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			await payload
+				.delete({
+					collection: Gradebooks.slug,
+					where: {
+						course: { equals: courseId },
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "delete">());
 
-			const deletedCourse = await payload.delete({
-				collection: Courses.slug,
-				id: courseId,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
+			const deletedCourse = await payload
+				.delete({
+					collection: Courses.slug,
+					id: courseId,
+					depth: 0,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+				})
+				.then(stripDepth<0, "delete">());
 
 			return deletedCourse;
-		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -763,24 +574,25 @@ export const tryFindCoursesByInstructor = Result.wrap(
 			payload,
 			instructorId,
 			limit = 10,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
 
-		const courses = await payload.find({
-			collection: "courses",
-			where: {
-				createdBy: {
-					equals: instructorId,
+		const courses = await payload
+			.find({
+				collection: "courses",
+				where: {
+					createdBy: {
+						equals: instructorId,
+					},
 				},
-			},
-			limit,
-			sort: "-createdAt",
-			user,
-			req,
-			overrideAccess,
-		});
+				limit,
+				depth: 1,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		return courses.docs as Course[];
 	},
@@ -798,39 +610,26 @@ export const tryFindCoursesByInstructor = Result.wrap(
  */
 export const tryFindPublishedCourses = Result.wrap(
 	async (args: FindPublishedCoursesArgs) => {
-		const {
-			payload,
-			limit = 10,
-			page = 1,
-			user,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, limit = 10, page = 1, req, overrideAccess = false } = args;
 
-		const courses = await payload.find({
-			collection: "courses",
-			where: {
-				status: {
-					equals: "published",
+		const courses = await payload
+			.find({
+				collection: "courses",
+				where: {
+					status: {
+						equals: "published",
+					},
 				},
-			},
-			limit,
-			page,
-			sort: "-createdAt",
-			user,
-			req,
-			overrideAccess,
-		});
+				limit,
+				page,
+				sort: "-createdAt",
+				req,
+				depth: 1,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
-		return {
-			docs: courses.docs as Course[],
-			totalDocs: courses.totalDocs,
-			totalPages: courses.totalPages,
-			page: courses.page,
-			limit: courses.limit,
-			hasNextPage: courses.hasNextPage,
-			hasPrevPage: courses.hasPrevPage,
-		};
+		return courses;
 	},
 	(error) =>
 		transformError(error) ??
@@ -839,15 +638,11 @@ export const tryFindPublishedCourses = Result.wrap(
 		}),
 );
 
-export interface FindAllCoursesArgs {
-	payload: Payload;
+export interface FindAllCoursesArgs extends BaseInternalFunctionArgs {
 	limit?: number;
 	page?: number;
 	sort?: string;
 	query?: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 /**
@@ -864,7 +659,6 @@ export const tryFindAllCourses = Result.wrap(
 			page = 1,
 			sort = "-createdAt",
 			query,
-			user,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -976,65 +770,12 @@ export const tryFindAllCourses = Result.wrap(
 				page,
 				sort,
 				depth: 1,
-				user,
 				req,
 				overrideAccess,
 			})
-			.then((result) => {
-				const docs = result.docs.map((doc) => {
-					// Type narrowing for relationships
-					const createdBy = doc.createdBy;
-					assertZodInternal(
-						"tryFindAllCourses: Course createdBy is required",
-						createdBy,
-						z.object({
-							id: z.number(),
-						}),
-					);
+			.then(stripDepth<1, "find">());
 
-					const thumbnail = doc.thumbnail;
-					assertZodInternal(
-						"tryFindAllCourses: Course thumbnail is required",
-						thumbnail,
-						z.object({ id: z.number() }).nullable(),
-					);
-
-					const category = doc.category;
-					assertZodInternal(
-						"tryFindAllCourses: Course category is required",
-						category,
-						z
-							.object({
-								id: z.number(),
-							})
-							.nullable(),
-					);
-
-					return {
-						...doc,
-						createdBy,
-						thumbnail,
-						category,
-					};
-				});
-				return {
-					...result,
-					docs,
-				};
-			});
-
-		return {
-			docs: coursesResult.docs,
-			totalDocs: coursesResult.totalDocs,
-			limit: coursesResult.limit || limit,
-			totalPages: coursesResult.totalPages || 0,
-			page: coursesResult.page || page,
-			pagingCounter: coursesResult.pagingCounter || 0,
-			hasPrevPage: coursesResult.hasPrevPage || false,
-			hasNextPage: coursesResult.hasNextPage || false,
-			prevPage: coursesResult.prevPage || null,
-			nextPage: coursesResult.nextPage || null,
-		};
+		return coursesResult;
 	},
 	(error) =>
 		transformError(error) ??
@@ -1047,8 +788,7 @@ export const tryFindAllCourses = Result.wrap(
 // Group Management Functions
 // ============================================================================
 
-export interface CreateGroupArgs {
-	payload: Payload;
+export interface CreateGroupArgs extends BaseInternalFunctionArgs {
 	name: string;
 	course: number; // Course ID
 	parent?: number; // Optional parent group ID
@@ -1057,13 +797,9 @@ export interface CreateGroupArgs {
 	maxMembers?: number;
 	isActive?: boolean;
 	metadata?: Record<string, unknown>;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface UpdateGroupArgs {
-	payload: Payload;
+export interface UpdateGroupArgs extends BaseInternalFunctionArgs {
 	groupId: number;
 	name?: string;
 	parent?: number;
@@ -1072,61 +808,34 @@ export interface UpdateGroupArgs {
 	maxMembers?: number;
 	isActive?: boolean;
 	metadata?: Record<string, unknown>;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface DeleteGroupArgs {
-	payload: Payload;
+export interface DeleteGroupArgs extends BaseInternalFunctionArgs {
 	groupId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindGroupByIdArgs {
-	payload: Payload;
+export interface FindGroupByIdArgs extends BaseInternalFunctionArgs {
 	groupId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindGroupsByCourseArgs {
-	payload: Payload;
+export interface FindGroupsByCourseArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindGroupByPathArgs {
-	payload: Payload;
+export interface FindGroupByPathArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 	path: string;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindChildGroupsArgs {
-	payload: Payload;
+export interface FindChildGroupsArgs extends BaseInternalFunctionArgs {
 	parentGroupId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface FindRootGroupsArgs {
-	payload: Payload;
+export interface FindRootGroupsArgs extends BaseInternalFunctionArgs {
 	courseId: number;
 	limit?: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 /**
@@ -1144,7 +853,6 @@ export const tryCreateGroup = Result.wrap(
 			maxMembers,
 			isActive = true,
 			metadata,
-			user = null,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1157,45 +865,23 @@ export const tryCreateGroup = Result.wrap(
 			throw new InvalidArgumentError("Course ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
-
-		try {
-			// Verify course exists
-			await payload.findByID({
-				collection: Courses.slug,
-				id: course,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
+		return await transactionInfo.tx(async (txInfo) => {
 			// If parent is specified, verify it exists and belongs to same course
 			if (parent) {
-				const parentGroup = await payload.findByID({
-					collection: Groups.slug,
-					id: parent,
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
+				const parentGroup = await payload
+					.findByID({
+						collection: Groups.slug,
+						id: parent,
+						req: txInfo.reqWithTransaction,
+						overrideAccess,
+						depth: 0,
+					})
+					.then(stripDepth<0, "findByID">());
 
 				// Verify parent belongs to same course
-				const parentCourseId =
-					typeof parentGroup.course === "number"
-						? parentGroup.course
-						: parentGroup.course.id;
+				const parentCourseId = parentGroup?.course;
 
 				if (parentCourseId !== course) {
 					throw new InvalidArgumentError(
@@ -1204,37 +890,28 @@ export const tryCreateGroup = Result.wrap(
 				}
 			}
 
-			const newGroup = await payload.create({
-				collection: Groups.slug,
-				data: {
-					name,
-					course,
-					parent,
-					description,
-					color,
-					maxMembers,
-					isActive,
-					metadata,
-					path: "", // Will be auto-generated by beforeValidate hook
-				},
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			const newGroup = await payload
+				.create({
+					collection: Groups.slug,
+					data: {
+						name,
+						course,
+						parent,
+						description,
+						color,
+						maxMembers,
+						isActive,
+						metadata,
+						path: "", // ! Will be auto-generated by beforeValidate hook
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
-			return newGroup as Group;
-		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+			return newGroup;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1256,7 +933,6 @@ export const tryUpdateGroup = Result.wrap(
 			maxMembers,
 			isActive,
 			metadata,
-			user = null,
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1265,51 +941,33 @@ export const tryUpdateGroup = Result.wrap(
 			throw new InvalidArgumentError("Group ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
-
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get existing group
-			const existingGroup = await payload.findByID({
-				collection: Groups.slug,
-				id: groupId,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
+			const existingGroup = await payload
+				.findByID({
+					collection: Groups.slug,
+					id: groupId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<0, "findByID">());
 
 			// If parent is being updated, verify it exists and belongs to same course
 			if (parent !== undefined) {
-				const parentGroup = await payload.findByID({
-					collection: Groups.slug,
-					id: parent,
-					user,
-					req: reqWithTransaction,
-					overrideAccess,
-				});
+				const parentGroup = await payload
+					.findByID({
+						collection: Groups.slug,
+						id: parent,
+						req: txInfo.reqWithTransaction,
+						overrideAccess,
+						depth: 0,
+					})
+					.then(stripDepth<0, "findByID">());
 
-				const existingCourseId =
-					typeof existingGroup.course === "number"
-						? existingGroup.course
-						: existingGroup.course.id;
-
-				const parentCourseId =
-					typeof parentGroup.course === "number"
-						? parentGroup.course
-						: parentGroup.course.id;
-
-				if (parentCourseId !== existingCourseId) {
+				if (existingGroup.course !== parentGroup.course) {
 					throw new InvalidArgumentError(
 						"Parent group must belong to the same course",
 					);
@@ -1321,37 +979,27 @@ export const tryUpdateGroup = Result.wrap(
 				}
 			}
 
-			const updateData: Partial<Group> = {};
-			if (name !== undefined) updateData.name = name;
-			if (parent !== undefined) updateData.parent = parent;
-			if (description !== undefined) updateData.description = description;
-			if (color !== undefined) updateData.color = color;
-			if (maxMembers !== undefined) updateData.maxMembers = maxMembers;
-			if (isActive !== undefined) updateData.isActive = isActive;
-			if (metadata !== undefined) updateData.metadata = metadata;
+			const updatedGroup = await payload
+				.update({
+					collection: Groups.slug,
+					id: groupId,
+					data: {
+						name: name,
+						parent: parent,
+						description: description,
+						color: color,
+						maxMembers: maxMembers,
+						isActive: isActive,
+						metadata: metadata,
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
 
-			const updatedGroup = await payload.update({
-				collection: Groups.slug,
-				id: groupId,
-				data: updateData,
-				user,
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
-			return updatedGroup as Group;
-		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+			return updatedGroup;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1363,27 +1011,15 @@ export const tryUpdateGroup = Result.wrap(
  */
 export const tryDeleteGroup = Result.wrap(
 	async (args: DeleteGroupArgs) => {
-		const { payload, groupId, user = null, req, overrideAccess = false } = args;
+		const { payload, groupId, req, overrideAccess = false } = args;
 
 		if (!groupId) {
 			throw new InvalidArgumentError("Group ID is required");
 		}
 
-		// Use existing transaction if provided, otherwise create a new one
-		const transactionWasProvided = !!req?.transactionID;
-		const transactionID =
-			req?.transactionID ?? (await payload.db.beginTransaction());
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		// Construct req with transactionID
-		const reqWithTransaction: Partial<PayloadRequest> = req
-			? { ...req, transactionID }
-			: { transactionID };
-
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Check if group has children
 			const childGroups = await payload.find({
 				collection: Groups.slug,
@@ -1393,8 +1029,7 @@ export const tryDeleteGroup = Result.wrap(
 					},
 				},
 				limit: 1,
-				user,
-				req: reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
@@ -1407,24 +1042,12 @@ export const tryDeleteGroup = Result.wrap(
 			const deletedGroup = await payload.delete({
 				collection: Groups.slug,
 				id: groupId,
-				user,
-				req: reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.commitTransaction(transactionID);
-			}
-
 			return deletedGroup;
-		} catch (error) {
-			// Rollback transaction only if we created it
-			if (!transactionWasProvided) {
-				await payload.db.rollbackTransaction(transactionID);
-			}
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -1436,7 +1059,7 @@ export const tryDeleteGroup = Result.wrap(
  */
 export const tryFindGroupById = Result.wrap(
 	async (args: FindGroupByIdArgs) => {
-		const { payload, groupId, user = null, req, overrideAccess = false } = args;
+		const { payload, groupId, req, overrideAccess = false } = args;
 
 		if (!groupId) {
 			throw new InvalidArgumentError("Group ID is required");
@@ -1445,7 +1068,6 @@ export const tryFindGroupById = Result.wrap(
 		const group = await payload.findByID({
 			collection: Groups.slug,
 			id: groupId,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1466,7 +1088,7 @@ export const tryFindGroupsByCourse = Result.wrap(
 			payload,
 			courseId,
 			limit = 100,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1484,7 +1106,6 @@ export const tryFindGroupsByCourse = Result.wrap(
 			},
 			limit,
 			sort: "path",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1505,7 +1126,7 @@ export const tryFindGroupByPath = Result.wrap(
 			payload,
 			courseId,
 			path,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1535,7 +1156,6 @@ export const tryFindGroupByPath = Result.wrap(
 				],
 			},
 			limit: 1,
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1556,7 +1176,7 @@ export const tryFindChildGroups = Result.wrap(
 			payload,
 			parentGroupId,
 			limit = 100,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1574,7 +1194,6 @@ export const tryFindChildGroups = Result.wrap(
 			},
 			limit,
 			sort: "name",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1595,7 +1214,7 @@ export const tryFindRootGroups = Result.wrap(
 			payload,
 			courseId,
 			limit = 100,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1622,7 +1241,6 @@ export const tryFindRootGroups = Result.wrap(
 			},
 			limit,
 			sort: "name",
-			user,
 			req,
 			overrideAccess,
 		});
@@ -1638,12 +1256,8 @@ export const tryFindRootGroups = Result.wrap(
 // User Course Access Functions
 // ============================================================================
 
-export interface GetUserAccessibleCoursesArgs {
-	payload: Payload;
+export interface GetUserAccessibleCoursesArgs extends BaseInternalFunctionArgs {
 	userId: number;
-	user?: TypedUser | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 export interface UserAccessibleCourse {
@@ -1667,7 +1281,7 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 	async (
 		args: GetUserAccessibleCoursesArgs,
 	): Promise<UserAccessibleCourse[]> => {
-		const { payload, userId, user, req, overrideAccess = false } = args;
+		const { payload, userId, req, overrideAccess = false } = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -1676,30 +1290,29 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 		const coursesMap = new Map<number, UserAccessibleCourse>();
 
 		// 1. Get courses created by user (owner)
-		const createdCourses = await payload.find({
-			collection: "courses",
-			where: {
-				createdBy: {
-					equals: userId,
+		const createdCourses = await payload
+			.find({
+				collection: "courses",
+				where: {
+					createdBy: {
+						equals: userId,
+					},
 				},
-			},
-			depth: 1,
-			pagination: false,
-			user,
-			req,
-			overrideAccess,
-		});
+				depth: 1,
+				pagination: false,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">());
 
 		for (const course of createdCourses.docs) {
-			const categoryName =
-				typeof course.category === "object" && course.category
-					? course.category.name
-					: null;
+			const categoryName = course.category ? course.category.name : null;
 
-			const thumbnailUrl =
-				typeof course.thumbnail === "object" && course.thumbnail
-					? `/api/media/file/${course.thumbnail.filename}`
-					: null;
+			const thumbnailUrl = course.thumbnail
+				? href(`/api/media/file/:filenameOrId`, {
+						filenameOrId: course.thumbnail.id.toString(),
+					})
+				: null;
 
 			coursesMap.set(course.id, {
 				id: course.id,
@@ -1715,39 +1328,34 @@ export const tryGetUserAccessibleCourses = Result.wrap(
 		}
 
 		// 2. Get courses from enrollments
-		const enrollmentsResult = await tryFindEnrollmentsByUser(
+		const enrollmentsResult = await tryFindEnrollmentsByUser({
 			payload,
 			userId,
-			user,
 			req,
 			overrideAccess,
-		);
+		});
 		if (enrollmentsResult.ok) {
 			for (const enrollment of enrollmentsResult.value) {
 				// Get course details
-				const courseId =
-					typeof enrollment.course === "number"
-						? enrollment.course
-						: enrollment.course.id;
-				const course = await payload.findByID({
-					collection: "courses",
-					id: courseId,
-					depth: 1,
-					user,
-					req,
-					overrideAccess,
-				});
+				const courseId = enrollment.course.id;
+				const course = await payload
+					.findByID({
+						collection: "courses",
+						id: courseId,
+						depth: 1,
+						req,
+						overrideAccess,
+					})
+					.then(stripDepth<1, "findByID">());
 
 				if (course) {
-					const categoryName =
-						typeof course.category === "object" && course.category
-							? course.category.name
-							: null;
+					const categoryName = course.category?.name ?? null;
 
-					const thumbnailUrl =
-						typeof course.thumbnail === "object" && course.thumbnail
-							? `/api/media/file/${course.thumbnail.filename}`
-							: null;
+					const thumbnailUrl = course.thumbnail
+						? href(`/api/media/file/:filenameOrId`, {
+								filenameOrId: course.thumbnail.id.toString(),
+							})
+						: null;
 
 					// If course already exists in map (from owner), update with enrollment info
 					if (coursesMap.has(course.id)) {

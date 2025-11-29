@@ -3,6 +3,7 @@ import type {
 	CourseStructureItem,
 	CourseStructureSection,
 } from "../internal/course-section-management";
+import type { ActivityModule } from "../payload-types";
 
 /**
  * Flattens a course structure into a sequential list of module link IDs
@@ -35,7 +36,7 @@ export function flattenCourseStructure(
 export type FlattenedModule = {
 	moduleLinkId: number;
 	title: string;
-	type: "page" | "assignment" | "quiz" | "discussion" | "whiteboard";
+	type: ActivityModule["type"];
 };
 
 /**

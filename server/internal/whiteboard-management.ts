@@ -1,59 +1,37 @@
-import type { Payload, PayloadRequest } from "payload";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingWhiteboardError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { User } from "../payload-types";
+import {
+	interceptPayloadError,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
-export interface CreateWhiteboardArgs {
-	payload: Payload;
+export interface CreateWhiteboardArgs extends BaseInternalFunctionArgs {
 	content?: string;
 	userId: number;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface UpdateWhiteboardArgs {
-	payload: Payload;
+export interface UpdateWhiteboardArgs extends BaseInternalFunctionArgs {
 	id: number;
 	content?: string;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface DeleteWhiteboardArgs {
-	payload: Payload;
+export interface DeleteWhiteboardArgs extends BaseInternalFunctionArgs {
 	id: number;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface GetWhiteboardByIdArgs {
-	payload: Payload;
+export interface GetWhiteboardByIdArgs extends BaseInternalFunctionArgs {
 	id: number;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
 export const tryCreateWhiteboard = Result.wrap(
 	async (args: CreateWhiteboardArgs) => {
-		const {
-			payload,
-			content,
-			userId,
-			user = null,
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, content, userId, req, overrideAccess = false } = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -66,21 +44,18 @@ export const tryCreateWhiteboard = Result.wrap(
 					content: content || "",
 					createdBy: userId,
 				},
-				user,
 				req,
 				overrideAccess,
+				depth: 1,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryCreateWhiteboard: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
+			.then(stripDepth<1, "create">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryCreateWhiteboard",
+					args,
+				});
+				throw error;
 			});
 
 		return whiteboard;
@@ -95,7 +70,7 @@ export const tryUpdateWhiteboard = Result.wrap(
 			payload,
 			id,
 			content,
-			user = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -105,28 +80,32 @@ export const tryUpdateWhiteboard = Result.wrap(
 		}
 
 		// Check if whiteboard exists
-		const existingWhiteboard = await payload.findByID({
-			collection: "whiteboards",
-			id,
-			user,
-			req,
-			overrideAccess,
-		});
+		const existingWhiteboard = await payload
+			.findByID({
+				collection: "whiteboards",
+				id,
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "findByID">());
 
 		if (!existingWhiteboard) {
 			throw new NonExistingWhiteboardError("Whiteboard not found");
 		}
 
-		const whiteboard = await payload.update({
-			collection: "whiteboards",
-			id,
-			data: {
-				content,
-			},
-			user,
-			req,
-			overrideAccess,
-		});
+		const whiteboard = await payload
+			.update({
+				collection: "whiteboards",
+				id,
+				data: {
+					content,
+				},
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "update">());
 
 		return whiteboard;
 	},
@@ -136,34 +115,38 @@ export const tryUpdateWhiteboard = Result.wrap(
 
 export const tryDeleteWhiteboard = Result.wrap(
 	async (args: DeleteWhiteboardArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Whiteboard ID is required");
 		}
 
 		// Check if whiteboard exists
-		const existingWhiteboard = await payload.findByID({
-			collection: "whiteboards",
-			id,
-			user,
-			req,
-			overrideAccess,
-		});
+		const existingWhiteboard = await payload
+			.findByID({
+				collection: "whiteboards",
+				id,
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "findByID">());
 
 		if (!existingWhiteboard) {
 			throw new NonExistingWhiteboardError("Whiteboard not found");
 		}
 
-		await payload.delete({
-			collection: "whiteboards",
-			id,
-			user,
-			req,
-			overrideAccess,
-		});
+		const deletedWhiteboard = await payload
+			.delete({
+				collection: "whiteboards",
+				id,
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "delete">());
 
-		return { success: true };
+		return { success: true, deletedWhiteboard };
 	},
 	(error) =>
 		transformError(error) ?? new UnknownError("Failed to delete whiteboard"),
@@ -171,7 +154,7 @@ export const tryDeleteWhiteboard = Result.wrap(
 
 export const tryGetWhiteboardById = Result.wrap(
 	async (args: GetWhiteboardByIdArgs) => {
-		const { payload, id, user = null, req, overrideAccess = false } = args;
+		const { payload, id, req, overrideAccess = false } = args;
 
 		if (!id) {
 			throw new InvalidArgumentError("Whiteboard ID is required");
@@ -181,26 +164,19 @@ export const tryGetWhiteboardById = Result.wrap(
 			.findByID({
 				collection: "whiteboards",
 				id,
-				user,
 				req,
 				overrideAccess,
+				depth: 1,
 			})
-			.then((r) => {
-				const createdBy = r.createdBy;
-				assertZodInternal(
-					"tryGetWhiteboardById: Created by is required",
-					createdBy,
-					z.object({ id: z.number() }),
-				);
-				return {
-					...r,
-					createdBy,
-				};
+			.then(stripDepth<1, "findByID">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryGetWhiteboardById",
+					args,
+				});
+				throw error;
 			});
-
-		if (!whiteboard) {
-			throw new NonExistingWhiteboardError("Whiteboard not found");
-		}
 
 		return whiteboard;
 	},

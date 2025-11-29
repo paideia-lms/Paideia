@@ -1,4 +1,3 @@
-import type { Payload, PayloadRequest } from "payload";
 import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
 import z from "zod";
@@ -6,51 +5,94 @@ import {
 	DuplicateEnrollmentError,
 	EnrollmentNotFoundError,
 	InvalidArgumentError,
-	TransactionIdNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Enrollment, User } from "../payload-types";
+import type { Course, Enrollment } from "../payload-types";
+import { handleTransactionId } from "./utils/handle-transaction-id";
+import {
+	type Depth,
+	stripDepth,
+	type BaseInternalFunctionArgs,
+} from "./utils/internal-function-utils";
 
-export interface CreateEnrollmentArgs {
-	payload: Payload;
-	user: number; // User ID
+export interface CreateEnrollmentArgs extends BaseInternalFunctionArgs {
+	userId: number; // User ID
 	course: number; // Course ID
 	role: "student" | "teacher" | "ta" | "manager";
 	status?: "active" | "inactive" | "completed" | "dropped";
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
-	authenticatedUser?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface UpdateEnrollmentArgs {
-	payload: Payload;
+export interface UpdateEnrollmentArgs extends BaseInternalFunctionArgs {
 	enrollmentId: number;
 	role?: "student" | "teacher" | "ta" | "manager";
 	status?: "active" | "inactive" | "completed" | "dropped";
 	enrolledAt?: string;
 	completedAt?: string;
 	groups?: number[]; // Array of group IDs
-	authenticatedUser?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
 }
 
-export interface SearchEnrollmentsArgs {
-	payload: Payload;
-	user?: number;
+export interface DeleteEnrollmentArgs extends BaseInternalFunctionArgs {
+	enrollmentId: number;
+}
+
+export interface FindEnrollmentByIdArgs extends BaseInternalFunctionArgs {
+	enrollmentId: number;
+}
+
+export interface SearchEnrollmentsArgs extends BaseInternalFunctionArgs {
+	userId?: number;
 	course?: number;
 	role?: "student" | "teacher" | "ta" | "manager";
 	status?: "active" | "inactive" | "completed" | "dropped";
 	groupId?: number; // Filter by group ID
 	limit?: number;
 	page?: number;
-	authenticatedUser?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
+}
+
+export interface FindEnrollmentsByUserArgs extends BaseInternalFunctionArgs {
+	userId: number;
+}
+
+export interface FindEnrollmentsByCourseArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+	limit?: number;
+}
+
+export interface FindUserEnrollmentInCourseArgs
+	extends BaseInternalFunctionArgs {
+	userId: number;
+	courseId: number;
+}
+
+export interface FindActiveEnrollmentsArgs extends BaseInternalFunctionArgs {
+	limit?: number;
+	page?: number;
+}
+
+export interface UpdateEnrollmentStatusArgs extends BaseInternalFunctionArgs {
+	enrollmentId: number;
+	status: "active" | "inactive" | "completed" | "dropped";
+	completedAt?: string;
+}
+
+export interface AddGroupsToEnrollmentArgs extends BaseInternalFunctionArgs {
+	enrollmentId: number;
+	groupIds: number[];
+}
+
+export interface RemoveGroupsFromEnrollmentArgs
+	extends BaseInternalFunctionArgs {
+	enrollmentId: number;
+	groupIds: number[];
+}
+
+export interface FindEnrollmentsByGroupArgs extends BaseInternalFunctionArgs {
+	groupId: number;
+	limit?: number;
 }
 
 /**
@@ -60,20 +102,20 @@ export const tryCreateEnrollment = Result.wrap(
 	async (args: CreateEnrollmentArgs) => {
 		const {
 			payload,
-			user,
+			userId,
 			course,
 			role,
 			status = "active",
 			enrolledAt,
 			completedAt,
 			groups = [],
-			authenticatedUser = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
 
 		// Validate required fields
-		if (!user) {
+		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
 		}
 
@@ -85,94 +127,60 @@ export const tryCreateEnrollment = Result.wrap(
 			throw new InvalidArgumentError("Role is required");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		// Handle transaction
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		try {
-			// Verify user exists
-			const userExists = await payload.findByID({
-				collection: "users",
-				id: user,
-				user: authenticatedUser,
-				req: req ? { ...req, transactionID } : { transactionID },
-				overrideAccess: true, // Always allow checking if user exists
-			});
-
-			if (!userExists) {
-				throw new InvalidArgumentError(`User with ID ${user} not found`);
-			}
-
-			// Verify course exists
-			const courseExists = await payload.findByID({
-				collection: "courses",
-				id: course,
-				user: authenticatedUser,
-				req: req ? { ...req, transactionID } : { transactionID },
-				overrideAccess: true, // Always allow checking if course exists
-			});
-
-			if (!courseExists) {
-				throw new InvalidArgumentError(`Course with ID ${course} not found`);
-			}
-
+		return await transactionInfo.tx(async (txInfo) => {
 			// Check if enrollment already exists
-			const existingEnrollments = await payload.find({
-				collection: "enrollments",
-				where: {
-					and: [
-						{
-							user: {
-								equals: user,
+			const existingEnrollments = await payload
+				.find({
+					collection: "enrollments",
+					where: {
+						and: [
+							{
+								user: {
+									equals: userId,
+								},
 							},
-						},
-						{
-							course: {
-								equals: course,
+							{
+								course: {
+									equals: course,
+								},
 							},
-						},
-					],
-				},
-				limit: 1,
-				user: authenticatedUser,
-				req: req ? { ...req, transactionID } : { transactionID },
-				overrideAccess: true, // Always allow checking if enrollment exists
-			});
+						],
+					},
+					limit: 1,
+					req: txInfo.reqWithTransaction,
+					overrideAccess: true, // Always allow checking if enrollment exists
+				})
+				.then(stripDepth<1, "find">());
 
 			if (existingEnrollments.docs.length > 0) {
 				throw new DuplicateEnrollmentError(
-					`Enrollment already exists for user ${user} in course ${course}`,
+					`Enrollment already exists for user ${userId} in course ${course}`,
 				);
 			}
 
-			const newEnrollment = await payload.create({
-				collection: "enrollments",
-				data: {
-					user,
-					course,
-					role,
-					status,
-					enrolledAt: enrolledAt || new Date().toISOString(),
-					completedAt,
-					groups,
-				},
-				user: authenticatedUser,
-				req: req ? { ...req, transactionID } : { transactionID },
-				overrideAccess,
-			});
+			const newEnrollment = await payload
+				.create({
+					collection: "enrollments",
+					data: {
+						user: userId,
+						course,
+						role,
+						status,
+						enrolledAt: enrolledAt ?? new Date().toISOString(),
+						completedAt,
+						groups,
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "create">());
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
-
-			return newEnrollment as Enrollment;
-		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
+			return newEnrollment;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -194,7 +202,7 @@ export const tryUpdateEnrollment = Result.wrap(
 			enrolledAt,
 			completedAt,
 			groups,
-			authenticatedUser = null,
+
 			req,
 			overrideAccess = false,
 		} = args;
@@ -204,38 +212,29 @@ export const tryUpdateEnrollment = Result.wrap(
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		// Handle transaction
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
-
-		try {
-			const updatedEnrollment = await payload.update({
-				collection: "enrollments",
-				id: enrollmentId,
-				data: {
-					role,
-					status,
-					enrolledAt,
-					completedAt,
-					groups,
-				},
-				user: authenticatedUser,
-				req: req ? { ...req, transactionID } : { transactionID },
-				overrideAccess,
-			});
-
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
+		return await transactionInfo.tx(async (txInfo) => {
+			const updatedEnrollment = await payload
+				.update({
+					collection: "enrollments",
+					id: enrollmentId,
+					data: {
+						role,
+						status,
+						enrolledAt,
+						completedAt,
+						groups,
+					},
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">());
 
 			return updatedEnrollment;
-		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -248,25 +247,23 @@ export const tryUpdateEnrollment = Result.wrap(
  * Finds an enrollment by ID
  */
 export const tryFindEnrollmentById = Result.wrap(
-	async (
-		payload: Payload,
-		enrollmentId: number,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: FindEnrollmentByIdArgs) => {
+		const { payload, enrollmentId, req, overrideAccess = false } = args;
+
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
 
-		const enrollment = await payload.findByID({
-			collection: "enrollments",
-			id: enrollmentId,
-			user: authenticatedUser,
-			req: req || {},
-			overrideAccess,
-		});
+		const enrollment = await payload
+			.findByID({
+				collection: "enrollments",
+				id: enrollmentId,
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "findByID">());
 
 		return enrollment;
 	},
@@ -284,60 +281,35 @@ export const trySearchEnrollments = Result.wrap(
 	async (args: SearchEnrollmentsArgs) => {
 		const {
 			payload,
-			user,
+			userId,
 			course,
 			role,
 			status,
 			groupId,
 			limit = 10,
 			page = 1,
-			authenticatedUser = null,
 			req,
 			overrideAccess = false,
 		} = args;
 
-		const where: Record<string, any> = {};
-
-		if (user) {
-			where.user = {
-				equals: user,
-			};
-		}
-
-		if (course) {
-			where.course = {
-				equals: course,
-			};
-		}
-
-		if (role) {
-			where.role = {
-				equals: role,
-			};
-		}
-
-		if (status) {
-			where.status = {
-				equals: status,
-			};
-		}
-
-		if (groupId) {
-			where.groups = {
-				equals: groupId,
-			};
-		}
-
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where,
-			limit,
-			page,
-			sort: "-createdAt",
-			user: authenticatedUser,
-			req: req || {},
-			overrideAccess,
-		});
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					...(userId ? { user: { equals: userId } } : {}),
+					...(course ? { course: { equals: course } } : {}),
+					...(role ? { role: { equals: role } } : {}),
+					...(status ? { status: { equals: status } } : {}),
+					...(groupId ? { groups: { equals: groupId } } : {}),
+				},
+				limit,
+				page,
+				sort: "-createdAt",
+				req,
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "find">());
 
 		return {
 			docs: enrollments.docs as Enrollment[],
@@ -360,37 +332,36 @@ export const trySearchEnrollments = Result.wrap(
  * Deletes an enrollment by ID
  */
 export const tryDeleteEnrollment = Result.wrap(
-	async (
-		payload: Payload,
-		enrollmentId: number,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: DeleteEnrollmentArgs) => {
+		const {
+			payload,
+			enrollmentId,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
+		// Handle transaction
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		return await transactionInfo.tx(async (txInfo) => {
+			const deletedEnrollment = await payload
+				.delete({
+					collection: "enrollments",
+					id: enrollmentId,
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 0,
+				})
+				.then(stripDepth<0, "delete">());
 
-		const deletedEnrollment = await payload.delete({
-			collection: "enrollments",
-			id: enrollmentId,
-			user: authenticatedUser,
-			req: req ? { ...req, transactionID } : { transactionID },
-			overrideAccess,
+			return deletedEnrollment;
 		});
-
-		// Commit transaction
-		await payload.db.commitTransaction(transactionID);
-
-		return deletedEnrollment;
 	},
 	(error) =>
 		transformError(error) ??
@@ -403,13 +374,9 @@ export const tryDeleteEnrollment = Result.wrap(
  * Finds enrollments by user ID
  */
 export const tryFindEnrollmentsByUser = Result.wrap(
-	async (
-		payload: Payload,
-		userId: number,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: FindEnrollmentsByUserArgs) => {
+		const { payload, userId, req, overrideAccess = false } = args;
+
 		// Validate required fields
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -423,45 +390,33 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 						equals: userId,
 					},
 				},
+				populate: {
+					courses: {
+						gradeTable: false,
+						sections: false,
+						enrollments: false,
+						groups: false,
+					},
+				},
 				sort: "-createdAt",
 				pagination: false,
-				user: authenticatedUser,
-				req: req || {},
+				req,
 				overrideAccess,
+				depth: 1,
 			})
+			.then(stripDepth<1, "find">())
 			.then((result) => {
 				return result.docs.map((doc) => {
-					const user = doc.user;
-					assertZodInternal(
-						"tryFindEnrollmentsByUser: User is required",
-						user,
-						z.object({
-							id: z.number(),
-						}),
-					);
-					const course = doc.course;
-					assertZodInternal(
-						"tryFindEnrollmentsByUser: Course is required",
-						course,
-						z.object({
-							id: z.number(),
-						}),
-					);
+					const userDoc = doc.user;
+					const course = doc.course as Depth<
+						Omit<Course, "sections" | "gradeTable" | "enrollments" | "groups">,
+						0
+					>;
 
-					const groups =
-						doc.groups?.map((group) => {
-							assertZodInternal(
-								"tryFindEnrollmentsByUser: Group is required",
-								group,
-								z.object({
-									id: z.number(),
-								}),
-							);
-							return group;
-						}) ?? [];
+					const groups = doc.groups ?? [];
 					return {
 						...doc,
-						user: user.id,
+						user: userDoc.id,
 						course: course,
 						groups,
 					};
@@ -481,34 +436,40 @@ export const tryFindEnrollmentsByUser = Result.wrap(
  * Finds enrollments by course ID
  */
 export const tryFindEnrollmentsByCourse = Result.wrap(
-	async (
-		payload: Payload,
-		courseId: number,
-		limit: number = 10,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: FindEnrollmentsByCourseArgs) => {
+		const {
+			payload,
+			courseId,
+			limit = 10,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate required fields
 		if (!courseId) {
 			throw new InvalidArgumentError("Course ID is required");
 		}
 
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where: {
-				course: {
-					equals: courseId,
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					course: {
+						equals: courseId,
+					},
 				},
-			},
-			limit,
-			sort: "-createdAt",
-			user: authenticatedUser,
-			req: req || {},
-			overrideAccess,
-		});
+				limit,
+				sort: "-createdAt",
+				// ! we don't care about performance for now
+				pagination: false,
+				req: req || {},
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "find">());
 
-		return enrollments.docs as Enrollment[];
+		return enrollments.docs;
 	},
 	(error) =>
 		transformError(error) ??
@@ -521,14 +482,16 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
  * Finds a specific user enrollment in a course
  */
 export const tryFindUserEnrollmentInCourse = Result.wrap(
-	async (
-		payload: Payload,
-		userId: number,
-		courseId: number,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: FindUserEnrollmentInCourseArgs) => {
+		const {
+			payload,
+			userId,
+			courseId,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate required fields
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -555,7 +518,6 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
 				],
 			},
 			limit: 1,
-			user: authenticatedUser,
 			req: req || {},
 			overrideAccess,
 		});
@@ -575,14 +537,16 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
  * Finds active enrollments only
  */
 export const tryFindActiveEnrollments = Result.wrap(
-	async (
-		payload: Payload,
-		limit: number = 10,
-		page: number = 1,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: FindActiveEnrollmentsArgs) => {
+		const {
+			payload,
+			limit = 10,
+			page = 1,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		const enrollments = await payload.find({
 			collection: "enrollments",
 			where: {
@@ -593,7 +557,6 @@ export const tryFindActiveEnrollments = Result.wrap(
 			limit,
 			page,
 			sort: "-createdAt",
-			user: authenticatedUser,
 			req: req || {},
 			overrideAccess,
 		});
@@ -619,15 +582,17 @@ export const tryFindActiveEnrollments = Result.wrap(
  * Updates enrollment status (convenience function for common status changes)
  */
 export const tryUpdateEnrollmentStatus = Result.wrap(
-	async (
-		payload: Payload,
-		enrollmentId: number,
-		status: "active" | "inactive" | "completed" | "dropped",
-		completedAt?: string,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: UpdateEnrollmentStatusArgs) => {
+		const {
+			payload,
+			enrollmentId,
+			status,
+			completedAt,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		// Validate required fields
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
@@ -641,7 +606,6 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
 			payload,
 			enrollmentId,
 			status,
-			authenticatedUser,
 			req,
 			overrideAccess,
 		};
@@ -669,14 +633,16 @@ export const tryUpdateEnrollmentStatus = Result.wrap(
  * Adds groups to an enrollment
  */
 export const tryAddGroupsToEnrollment = Result.wrap(
-	async (
-		payload: Payload,
-		enrollmentId: number,
-		groupIds: number[],
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: AddGroupsToEnrollmentArgs) => {
+		const {
+			payload,
+			enrollmentId,
+			groupIds,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
@@ -685,19 +651,15 @@ export const tryAddGroupsToEnrollment = Result.wrap(
 			throw new InvalidArgumentError("Groups array is required");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		// Handle transaction
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get current enrollment
 			const enrollment = await payload.findByID({
 				collection: "enrollments",
 				id: enrollmentId,
-				user: authenticatedUser,
-				req: req ? { ...req, transactionID } : { transactionID },
+				req: txInfo.reqWithTransaction,
 				overrideAccess: true, // Always allow reading enrollment for group management
 			});
 
@@ -722,20 +684,12 @@ export const tryAddGroupsToEnrollment = Result.wrap(
 				data: {
 					groups: allGroupIds,
 				},
-				user: authenticatedUser,
-				req: req ? { ...req, transactionID } : { transactionID },
+				req: txInfo.reqWithTransaction,
 				overrideAccess,
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
-
 			return updatedEnrollment;
-		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -748,14 +702,16 @@ export const tryAddGroupsToEnrollment = Result.wrap(
  * Removes groups from an enrollment
  */
 export const tryRemoveGroupsFromEnrollment = Result.wrap(
-	async (
-		payload: Payload,
-		enrollmentId: number,
-		groupIds: number[],
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: RemoveGroupsFromEnrollmentArgs) => {
+		const {
+			payload,
+			enrollmentId,
+			groupIds,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		if (!enrollmentId) {
 			throw new InvalidArgumentError("Enrollment ID is required");
 		}
@@ -764,18 +720,16 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
 			throw new InvalidArgumentError("Groups array is required");
 		}
 
-		// Begin transaction
-		const transactionID = await payload.db.beginTransaction();
-		if (!transactionID) {
-			throw new TransactionIdNotFoundError("Failed to begin transaction");
-		}
+		// Handle transaction
+		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return await transactionInfo.tx(async (txInfo) => {
 			// Get current enrollment
 			const enrollment = await payload.findByID({
 				collection: "enrollments",
 				id: enrollmentId,
-				req: req ? { ...req, transactionID } : { transactionID },
+				req: txInfo.reqWithTransaction,
+				overrideAccess: true, // Always allow reading enrollment for group management
 			});
 
 			if (!enrollment) {
@@ -799,22 +753,15 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
 			const updatedEnrollment = await payload.update({
 				collection: "enrollments",
 				id: enrollmentId,
-				user: authenticatedUser,
 				data: {
 					groups: remainingGroupIds,
 				},
-				req: req ? { ...req, transactionID } : { transactionID },
+				req: txInfo.reqWithTransaction,
+				overrideAccess,
 			});
 
-			// Commit transaction
-			await payload.db.commitTransaction(transactionID);
-
 			return updatedEnrollment;
-		} catch (error) {
-			// Rollback transaction on error
-			await payload.db.rollbackTransaction(transactionID);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -827,14 +774,16 @@ export const tryRemoveGroupsFromEnrollment = Result.wrap(
  * Finds enrollments by group ID
  */
 export const tryFindEnrollmentsByGroup = Result.wrap(
-	async (
-		payload: Payload,
-		groupId: number,
-		limit: number = 10,
-		authenticatedUser?: User | null,
-		req?: Partial<PayloadRequest>,
-		overrideAccess: boolean = false,
-	) => {
+	async (args: FindEnrollmentsByGroupArgs) => {
+		const {
+			payload,
+			groupId,
+			limit = 10,
+
+			req,
+			overrideAccess = false,
+		} = args;
+
 		if (!groupId) {
 			throw new InvalidArgumentError("Group ID is required");
 		}
@@ -848,7 +797,6 @@ export const tryFindEnrollmentsByGroup = Result.wrap(
 			},
 			limit,
 			sort: "-createdAt",
-			user: authenticatedUser,
 			req: req || {},
 			overrideAccess,
 		});

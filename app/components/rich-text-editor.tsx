@@ -645,7 +645,7 @@ function AddImageControl({
 	// Handle file selection when files change
 	useEffect(() => {
 		if (fileDialog.files && fileDialog.files.length > 0) {
-			const file = fileDialog.files[0];
+			const file = fileDialog.files[0]!;
 			const reader = new FileReader();
 
 			reader.onload = () => {

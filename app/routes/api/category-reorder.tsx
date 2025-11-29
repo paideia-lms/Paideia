@@ -8,6 +8,7 @@ import z from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/category-reorder";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	sourceId: z.number(),
@@ -53,8 +54,15 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		return ok({ success: true, message: "Category moved to top level" });
 	}
 
-	const result = await tryUpdateCategory(payload, request, sourceId, {
+	const result = await tryUpdateCategory({
+		payload,
+		categoryId: sourceId,
 		parent: newParentId,
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 	});
 	if (!result.ok) {
 		return badRequest({ error: result.error.message });

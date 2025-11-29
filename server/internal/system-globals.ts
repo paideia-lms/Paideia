@@ -1,18 +1,12 @@
-import type { Payload, PayloadRequest } from "payload";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
-import type { User } from "../payload-types";
 import { tryGetAnalyticsSettings } from "./analytics-settings";
 import { tryGetAppearanceSettings } from "./appearance-settings";
 import { tryGetMaintenanceSettings } from "./maintenance-settings";
 import { tryGetSitePolicies } from "./site-policies";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export interface GetSystemGlobalsArgs {
-	payload: Payload;
-	user?: User | null;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-}
+export interface GetSystemGlobalsArgs extends BaseInternalFunctionArgs {}
 
 /**
  * Fetch all system globals in a single call.
@@ -20,7 +14,7 @@ export interface GetSystemGlobalsArgs {
  */
 export const tryGetSystemGlobals = Result.wrap(
 	async (args: GetSystemGlobalsArgs) => {
-		const { payload, user = null, req, overrideAccess = true } = args;
+		const { payload, req, overrideAccess = true } = args;
 
 		// Fetch all globals in parallel
 		const [
@@ -31,25 +25,21 @@ export const tryGetSystemGlobals = Result.wrap(
 		] = await Promise.all([
 			tryGetMaintenanceSettings({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),
 			tryGetSitePolicies({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),
 			tryGetAppearanceSettings({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),
 			tryGetAnalyticsSettings({
 				payload,
-				user,
 				req,
 				overrideAccess,
 			}),
@@ -69,7 +59,12 @@ export const tryGetSystemGlobals = Result.wrap(
 
 		const appearanceSettings = {
 			additionalCssStylesheets: appearanceResult.ok
-				? (appearanceResult.value.additionalCssStylesheets ?? [])
+				? (appearanceResult.value.additionalCssStylesheets ?? []).map(
+						(stylesheet) => ({
+							id: stylesheet.id ?? 0,
+							url: stylesheet.url,
+						}),
+					)
 				: [],
 			color: appearanceResult.ok
 				? (appearanceResult.value.color ?? "blue")
@@ -77,6 +72,24 @@ export const tryGetSystemGlobals = Result.wrap(
 			radius: appearanceResult.ok
 				? (appearanceResult.value.radius ?? "sm")
 				: "sm",
+			logoLight: appearanceResult.ok
+				? appearanceResult.value.logoLight
+				: undefined,
+			logoDark: appearanceResult.ok
+				? appearanceResult.value.logoDark
+				: undefined,
+			compactLogoLight: appearanceResult.ok
+				? appearanceResult.value.compactLogoLight
+				: undefined,
+			compactLogoDark: appearanceResult.ok
+				? appearanceResult.value.compactLogoDark
+				: undefined,
+			faviconLight: appearanceResult.ok
+				? appearanceResult.value.faviconLight
+				: undefined,
+			faviconDark: appearanceResult.ok
+				? appearanceResult.value.faviconDark
+				: undefined,
 		};
 
 		const analyticsSettings = {

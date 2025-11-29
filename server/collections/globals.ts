@@ -190,6 +190,66 @@ export const AppearanceSettings = {
 			],
 			defaultValue: [],
 		},
+		{
+			name: "logoLight",
+			type: "relationship",
+			relationTo: "media",
+			label: "Logo (Light Mode)",
+			admin: {
+				description:
+					"Upload the main logo image for light mode. This will be displayed when the site is in light mode.",
+			},
+		},
+		{
+			name: "logoDark",
+			type: "relationship",
+			relationTo: "media",
+			label: "Logo (Dark Mode)",
+			admin: {
+				description:
+					"Upload the main logo image for dark mode. This will be displayed when the site is in dark mode.",
+			},
+		},
+		{
+			name: "compactLogoLight",
+			type: "relationship",
+			relationTo: "media",
+			label: "Compact Logo (Light Mode)",
+			admin: {
+				description:
+					"Upload a compact version of the logo for light mode. This is typically used in smaller spaces like navigation bars.",
+			},
+		},
+		{
+			name: "compactLogoDark",
+			type: "relationship",
+			relationTo: "media",
+			label: "Compact Logo (Dark Mode)",
+			admin: {
+				description:
+					"Upload a compact version of the logo for dark mode. This is typically used in smaller spaces like navigation bars.",
+			},
+		},
+		{
+			name: "faviconLight",
+			type: "relationship",
+			relationTo: "media",
+			label: "Favicon (Light Mode)",
+			admin: {
+				description:
+					"Upload the favicon for light mode. This is the small icon displayed in browser tabs and bookmarks.",
+			},
+		},
+		{
+			name: "faviconDark",
+			type: "relationship",
+			relationTo: "media",
+			label: "Favicon (Dark Mode)",
+			admin: {
+				description:
+					"Upload the favicon for dark mode. This is the small icon displayed in browser tabs and bookmarks.",
+			},
+		},
 	],
 } as const satisfies GlobalConfig;
 

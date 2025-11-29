@@ -1,5 +1,5 @@
-import type { CollectionConfig } from "payload";
-import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-module-settings-version-resolver";
+import type { AccessResult, CollectionConfig } from "payload";
+import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-module-settings/version-resolver";
 
 /**
  * we need a new collection rather than just a relationship field on the course and activity module
@@ -7,6 +7,12 @@ import { tryResolveCourseModuleSettingsToLatest } from "server/json/course-modul
 export const CourseActivityModuleLinks = {
 	slug: "course-activity-module-links",
 	defaultSort: "-createdAt",
+	access: {
+		read: async ({ req }): Promise<AccessResult> => {
+			if (!req.user) return false;
+			return true;
+		},
+	},
 	fields: [
 		{
 			name: "course",

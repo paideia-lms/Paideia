@@ -16,6 +16,7 @@ import { canSeeUserModules } from "server/utils/permissions";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 enum UserTab {
 	Profile = "profile",
@@ -26,7 +27,11 @@ enum UserTab {
 	Media = "media",
 }
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+export const loader = async ({
+	context,
+	params,
+	request,
+}: Route.LoaderArgs) => {
 	const { payload, pageInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -49,10 +54,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userResult = await tryFindUserById({
 		payload,
 		userId,
-		user: {
-			...currentUser,
-			avatar: currentUser.avatar?.id,
-		},
+		req: createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		}),
 		overrideAccess: false,
 	});
 
@@ -63,16 +69,11 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const targetUser = userResult.value;
 
 	// Handle avatar - could be Media object or just ID
-	let avatarUrl: string | null = null;
-	if (targetUser.avatar) {
-		if (typeof targetUser.avatar === "object") {
-			avatarUrl = targetUser.avatar.filename
-				? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: targetUser.avatar.filename,
-					})
-				: null;
-		}
-	}
+	const avatarUrl = targetUser.avatar
+		? href(`/api/media/file/:filenameOrId`, {
+				filenameOrId: targetUser.avatar.toString(),
+			})
+		: null;
 
 	const canSeeModules = canSeeUserModules(currentUser);
 

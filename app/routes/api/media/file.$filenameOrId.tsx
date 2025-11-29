@@ -5,58 +5,12 @@ import {
 	tryGetMediaStreamFromId,
 } from "server/internal/media-management";
 import type { Route } from "./+types/file.$filenameOrId";
-
-/**
- * Parse Range header from request
- * Supports formats: "bytes=start-end", "bytes=start-", "bytes=-suffix"
- */
-function parseRangeHeader(
-	rangeHeader: string | null,
-	fileSize: number,
-): { start: number; end: number } | null {
-	if (!rangeHeader || !rangeHeader.startsWith("bytes=")) {
-		return null;
-	}
-
-	const range = rangeHeader.slice(6); // Remove "bytes=" prefix
-	const parts = range.split("-");
-
-	if (parts.length !== 2) {
-		return null;
-	}
-
-	const startStr = parts[0];
-	const endStr = parts[1];
-
-	// Handle suffix range: "bytes=-suffix"
-	if (!startStr && endStr) {
-		const suffix = Number.parseInt(endStr, 10);
-		if (Number.isNaN(suffix) || suffix <= 0) {
-			return null;
-		}
-		const start = Math.max(0, fileSize - suffix);
-		return { start, end: fileSize - 1 };
-	}
-
-	// Handle start range: "bytes=start-" or "bytes=start-end"
-	const start = Number.parseInt(startStr, 10);
-	if (Number.isNaN(start) || start < 0 || start >= fileSize) {
-		return null;
-	}
-
-	let end: number;
-	if (!endStr) {
-		// Open-ended range: "bytes=start-"
-		end = fileSize - 1;
-	} else {
-		end = Number.parseInt(endStr, 10);
-		if (Number.isNaN(end) || end < start || end >= fileSize) {
-			end = fileSize - 1;
-		}
-	}
-
-	return { start, end };
-}
+import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { badRequest, notFound, ok, partialContent } from "app/utils/responses";
+import {
+	buildMediaStreamHeaders,
+	parseRangeHeader,
+} from "~/utils/media-stream-utils";
 
 export const loader = async ({
 	params,
@@ -66,7 +20,7 @@ export const loader = async ({
 	const filenameOrId = params.filenameOrId;
 
 	if (!filenameOrId) {
-		return new Response("Filename or ID is required", { status: 400 });
+		return badRequest({ error: "Filename or ID is required" });
 	}
 
 	const payload = context.get(globalContextKey).payload;
@@ -76,19 +30,6 @@ export const loader = async ({
 	const userSession = context.get(userContextKey);
 	const currentUser = userSession?.isAuthenticated
 		? userSession.effectiveUser || userSession.authenticatedUser
-		: null;
-
-	// Prepare user object for internal functions
-	// Normalize avatar to ID if it's an object
-	const user = currentUser
-		? {
-				...currentUser,
-				avatar:
-					typeof currentUser.avatar === "object" && currentUser.avatar !== null
-						? currentUser.avatar.id
-						: currentUser.avatar,
-				collection: "users" as const,
-			}
 		: null;
 
 	// Check if download is requested via query parameter
@@ -108,22 +49,26 @@ export const loader = async ({
 				payload,
 				s3Client,
 				id: filenameOrId,
-				depth: 0,
-				user,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 			})
 		: await tryGetMediaStreamFromFilename({
 				payload,
 				s3Client,
 				filename: filenameOrId,
-				depth: 0,
-				user,
-				req: request,
+				req: createLocalReq({
+					request,
+					user: currentUser,
+					context: { routerContext: context },
+				}),
 			});
 
 	if (!result.ok) {
 		console.error("Failed to get media stream:", result.error.message);
-		return new Response("File not found", { status: 404 });
+		return notFound({ error: "File not found" });
 	}
 
 	const media = result.value.media;
@@ -139,19 +84,23 @@ export const loader = async ({
 					payload,
 					s3Client,
 					id: filenameOrId,
-					depth: 0,
 					range,
-					user,
-					req: request,
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 				})
 			: await tryGetMediaStreamFromFilename({
 					payload,
 					s3Client,
 					filename: filenameOrId,
-					depth: 0,
 					range,
-					user,
-					req: request,
+					req: createLocalReq({
+						request,
+						user: currentUser,
+						context: { routerContext: context },
+					}),
 				});
 
 		if (!result.ok) {
@@ -159,7 +108,7 @@ export const loader = async ({
 				"Failed to get media stream with range:",
 				result.error.message,
 			);
-			return new Response("File not found", { status: 404 });
+			return notFound({ error: "File not found" });
 		}
 	}
 
@@ -169,38 +118,23 @@ export const loader = async ({
 	const contentType = media.mimeType || "application/octet-stream";
 
 	// Build headers
-	const headers: HeadersInit = {
-		"Content-Type": contentType,
-		"Content-Length": contentLength.toString(),
-		"Cache-Control": "public, max-age=31536000, immutable",
-		"Accept-Ranges": "bytes",
-	};
+	const headers = buildMediaStreamHeaders(
+		contentType,
+		contentLength,
+		contentRange,
+		isDownload ? (media.filename ?? undefined) : undefined,
+	);
 
 	// Handle Range request (206 Partial Content)
 	if (range && contentRange) {
-		headers["Content-Range"] = contentRange;
-		headers["Content-Length"] = contentLength.toString();
-
-		// Add download header if download is requested
-		if (isDownload && media.filename) {
-			headers["Content-Disposition"] =
-				`attachment; filename="${media.filename}"`;
-		}
-
-		return new Response(stream, {
-			status: 206,
+		return partialContent({
+			stream,
 			headers,
 		});
 	}
 
 	// Full file request (200 OK)
-	// Add download header if download is requested
-	if (isDownload && media.filename) {
-		headers["Content-Disposition"] = `attachment; filename="${media.filename}"`;
-	}
-
-	return new Response(stream, {
-		status: 200,
+	return ok(stream, {
 		headers,
 	});
 };
