@@ -2,11 +2,11 @@ import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 
-export type CheckFirstUserArgs = BaseInternalFunctionArgs & {};
+export interface CheckFirstUserArgs extends BaseInternalFunctionArgs {}
 
-export type GetUserCountArgs = BaseInternalFunctionArgs & {};
+export interface GetUserCountArgs extends BaseInternalFunctionArgs {}
 
-export type ValidateFirstUserStateArgs = BaseInternalFunctionArgs & {};
+export interface ValidateFirstUserStateArgs extends BaseInternalFunctionArgs {}
 
 /**
  * Checks if the database has any users

@@ -138,10 +138,14 @@ export const tryCreateMedia = Result.wrap(
 					overrideAccess,
 				})
 				.catch((error) => {
-					interceptPayloadError(error, "tryCreateMedia", `to create media`, {
-						payload,
-						req,
-						overrideAccess,
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryCreateMedia",
+						args: {
+							payload,
+							req,
+							overrideAccess,
+						},
 					});
 					throw error;
 				});
@@ -191,12 +195,11 @@ export const tryGetMediaById = Result.wrap(
 			})
 			.then(stripDepth<1, "findByID">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryGetMediaById",
-					`to get media by id ${id}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryGetMediaById",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -244,12 +247,11 @@ export const tryGetMediaByFilename = Result.wrap(
 			})
 			.then(stripDepth<1, "find">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryGetMediaByFilename",
-					`to get media by filename ${filename}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryGetMediaByFilename",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -292,12 +294,11 @@ export const tryGetMediaByIds = Result.wrap(
 			})
 			.then(stripDepth<0, "find">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryGetMediaByIds",
-					`to get media by ids ${ids}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryGetMediaByIds",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 	},
@@ -701,11 +702,15 @@ export const tryGetAllMedia = Result.wrap(
 				pagination: false,
 			})
 			.catch((error) => {
-				interceptPayloadError(error, "tryGetAllMedia", `to get all media`, {
-					payload,
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryGetAllMedia",
+					args: {
+						payload,
 
-					req,
-					overrideAccess,
+						req,
+						overrideAccess,
+					},
 				});
 				throw error;
 			});
@@ -789,12 +794,11 @@ export const tryDeleteMedia = Result.wrap(
 					overrideAccess,
 				})
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryDeleteMedia",
-						`to get media before deletion`,
-						{ payload, req, overrideAccess },
-					);
+						functionNamePrefix: "tryDeleteMedia",
+						args: { payload, req, overrideAccess },
+					});
 					throw error;
 				});
 
@@ -885,12 +889,11 @@ export const tryDeleteMedia = Result.wrap(
 							overrideAccess,
 						})
 						.catch((error) => {
-							interceptPayloadError(
+							interceptPayloadError({
 								error,
-								"tryDeleteMedia",
-								`to delete media`,
-								{ payload, req, overrideAccess },
-							);
+								functionNamePrefix: "tryDeleteMedia",
+								args: { payload, req, overrideAccess },
+							});
 							throw error;
 						}),
 				),

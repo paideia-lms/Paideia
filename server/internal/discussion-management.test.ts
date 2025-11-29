@@ -2,16 +2,12 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { getPayload, TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
-import {
-	type CreateActivityModuleArgs,
-	type CreateDiscussionModuleArgs,
-	tryCreateDiscussionModule,
-} from "./activity-module-management";
+import { tryCreateDiscussionModule } from "./activity-module-management";
 import {
 	type CreateCourseActivityModuleLinkArgs,
 	tryCreateCourseActivityModuleLink,
 } from "./course-activity-module-link-management";
-import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
+import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import {
 	type CreateDiscussionSubmissionArgs,
@@ -28,25 +24,24 @@ import {
 	tryUpvoteDiscussionSubmission,
 	type UpdateDiscussionSubmissionArgs,
 } from "./discussion-management";
-import {
-	type CreateEnrollmentArgs,
-	tryCreateEnrollment,
-} from "./enrollment-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateEnrollment } from "./enrollment-management";
+import { tryCreateUser } from "./user-management";
 import { createLocalReq } from "./utils/internal-function-utils";
-
-const year = new Date().getFullYear();
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("Discussion Management - Full Workflow", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
-	let teacherId: number;
-	let studentId: number;
-	let courseId: number;
-	let enrollmentId: number;
+	let teacher: TryResultValue<typeof tryCreateUser>;
+	let student: TryResultValue<typeof tryCreateUser>;
+	let course: TryResultValue<typeof tryCreateCourse>;
+	let enrollment: TryResultValue<typeof tryCreateEnrollment>;
+	let section: TryResultValue<typeof tryCreateSection>;
+	let courseActivityModuleLink: TryResultValue<
+		typeof tryCreateCourseActivityModuleLink
+	>;
 	let activityModuleId: number;
 	let discussionId: number;
-	let courseActivityModuleLinkId: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -64,91 +59,68 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create mock request object
 		mockRequest = new Request("http://localhost:3000/test");
 
-		// Create teacher user
-		const teacherArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "discussion-teacher@example.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Teacher",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
+		// Create teacher and student users in parallel
+		const [teacherResult, studentResult] = await Promise.all([
+			tryCreateUser({
+				payload,
+				data: {
+					email: "discussion-teacher@example.com",
+					password: "password123",
+					firstName: "John",
+					lastName: "Teacher",
+					role: "instructor",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+			tryCreateUser({
+				payload,
+				data: {
+					email: "discussion-student@example.com",
+					password: "password123",
+					firstName: "Jane",
+					lastName: "Student",
+					role: "student",
+				},
+				overrideAccess: true,
+			}).getOrThrow(),
+		]);
 
-		const teacherResult = await tryCreateUser(teacherArgs);
-		expect(teacherResult.ok).toBe(true);
-		if (!teacherResult.ok) {
-			throw new Error("Test Error: Failed to create test teacher");
-		}
-		teacherId = teacherResult.value.id;
-
-		// Create student user
-		const studentArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "discussion-student@example.com",
-				password: "password123",
-				firstName: "Jane",
-				lastName: "Student",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const studentResult = await tryCreateUser(studentArgs);
-		expect(studentResult.ok).toBe(true);
-		if (!studentResult.ok) {
-			throw new Error("Test Error: Failed to create test student");
-		}
-		studentId = studentResult.value.id;
+		teacher = teacherResult;
+		student = studentResult;
 
 		// Create course
-		const courseArgs: CreateCourseArgs = {
+		course = await tryCreateCourse({
 			payload,
 			data: {
 				title: "Discussion Test Course",
 				description: "A test course for discussion submissions",
 				slug: "discussion-test-course",
-				createdBy: teacherId,
+				createdBy: teacher.id,
 			},
 			overrideAccess: true,
-		};
-
-		const courseResult = await tryCreateCourse(courseArgs);
-		expect(courseResult.ok).toBe(true);
-		if (!courseResult.ok) {
-			throw new Error("Test Error: Failed to create test course");
-		}
-		courseId = courseResult.value.id;
+		}).getOrThrow();
 
 		// Create enrollment
-		const enrollmentArgs: CreateEnrollmentArgs = {
+		enrollment = await tryCreateEnrollment({
 			payload,
-			userId: studentId,
-			course: courseId,
+			userId: student.id,
+			course: course.id,
 			role: "student",
 			status: "active",
 			overrideAccess: true,
-		};
-
-		const enrollmentResult = await tryCreateEnrollment(enrollmentArgs);
-		expect(enrollmentResult.ok).toBe(true);
-		if (!enrollmentResult.ok) {
-			throw new Error("Test Error: Failed to create test enrollment");
-		}
-		enrollmentId = enrollmentResult.value.id;
+		}).getOrThrow();
 
 		// Create activity module with discussion
-		const activityModuleArgs = {
+		const year = new Date().getFullYear();
+		const activityModuleResult = await tryCreateDiscussionModule({
 			payload,
 			title: "Test Discussion",
 			description: "A test discussion for submission workflow",
 			status: "published",
-			req: createLocalReq({ request: mockRequest, user: { 
-				id: teacherId,
-			}  as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			instructions:
 				"Participate in this discussion by creating threads and replies",
 			dueDate: `${year}-12-31T23:59:59Z`,
@@ -165,14 +137,8 @@ describe("Discussion Management - Full Workflow", () => {
 			groupDiscussion: false,
 			threadSorting: "recent" as const,
 			overrideAccess: true,
-		} satisfies CreateDiscussionModuleArgs;
+		});
 
-		const activityModuleResult =
-			await tryCreateDiscussionModule(activityModuleArgs);
-		if (!activityModuleResult.ok) {
-			throw new Error("Test Error: Failed to create test activity module");
-		}
-		expect(activityModuleResult.ok).toBe(true);
 		if (!activityModuleResult.ok) {
 			throw new Error("Test Error: Failed to create test activity module");
 		}
@@ -198,42 +164,33 @@ describe("Discussion Management - Full Workflow", () => {
 		}
 
 		// Create a section for the course
-		const sectionResult = await tryCreateSection({
+		section = await tryCreateSection({
 			payload,
 			data: {
-				course: courseId,
+				course: course.id,
 				title: "Test Section",
 				description: "Test section for discussion submissions",
 			},
 			overrideAccess: true,
-		});
-
-		if (!sectionResult.ok) {
-			throw new Error("Failed to create section");
-		}
+		}).getOrThrow();
 
 		// Create course-activity-module-link
-		const linkArgs: CreateCourseActivityModuleLinkArgs = {
+		courseActivityModuleLink = await tryCreateCourseActivityModuleLink({
 			payload,
-			req: mockRequest,
-			course: courseId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			course: course.id,
 			activityModule: activityModuleId,
-			section: sectionResult.value.id,
+			section: section.id,
 			order: 0,
 			overrideAccess: true,
-		};
+		}).getOrThrow();
 
-		const linkResult = await tryCreateCourseActivityModuleLink(linkArgs);
-		expect(linkResult.ok).toBe(true);
-		if (!linkResult.ok) {
-			throw new Error(
-				"Test Error: Failed to create course-activity-module-link",
-			);
-		}
-		courseActivityModuleLinkId = linkResult.value.id;
 		console.log(
 			"Created course-activity-module-link with ID:",
-			courseActivityModuleLinkId,
+			courseActivityModuleLink.id,
 		);
 
 		// Note: Gradebook items are no longer required for grading discussion submissions
@@ -253,10 +210,13 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should create a thread (student workflow)", async () => {
 		const args: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "My First Thread",
 			content:
@@ -271,9 +231,9 @@ describe("Discussion Management - Full Workflow", () => {
 		const submission = result.value;
 
 		// Verify submission
-		expect(submission.courseModuleLink).toBe(courseActivityModuleLinkId);
-		expect(submission.student.id).toBe(studentId);
-		expect(submission.enrollment.id).toBe(enrollmentId);
+		expect(submission.courseModuleLink).toBe(courseActivityModuleLink.id);
+		expect(submission.student.id).toBe(student.id);
+		expect(submission.enrollment.id).toBe(enrollment.id);
 		expect(submission.postType).toBe("thread");
 		expect(submission.title).toBe("My First Thread");
 		expect(submission.content).toBe(
@@ -288,10 +248,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Discussion Topic",
 			content: "Let's discuss this important topic together.",
@@ -306,10 +269,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create a reply to the thread
 		const replyArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content:
 				"I agree with your point. This is a very important topic that deserves our attention.",
@@ -336,10 +302,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Another Discussion Topic",
 			content: "This is another topic for discussion.",
@@ -354,10 +323,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create a comment on the thread
 		const commentArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "comment",
 			content: "Great point!",
 			parentThread: threadId,
@@ -381,10 +353,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Original Title",
 			content: "Original content that needs updating.",
@@ -399,7 +374,10 @@ describe("Discussion Management - Full Workflow", () => {
 		// Update the submission
 		const updateArgs: UpdateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			id: submissionId,
 			title: "Updated Title",
 			content: "This is the updated content with more detailed information.",
@@ -423,10 +401,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a submission
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Test Thread",
 			content: "This is a test thread for retrieval.",
@@ -441,7 +422,10 @@ describe("Discussion Management - Full Workflow", () => {
 		// Get the submission by ID
 		const result = await tryGetDiscussionSubmissionById({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			id: submissionId,
 		});
 
@@ -455,19 +439,23 @@ describe("Discussion Management - Full Workflow", () => {
 			"This is a test thread for retrieval.",
 		);
 		expect(retrievedSubmission.courseModuleLink).toBe(
-			courseActivityModuleLinkId,
+			courseActivityModuleLink.id,
 		);
-		expect(retrievedSubmission.student.id).toBe(studentId);
-		expect(retrievedSubmission.enrollment.id).toBe(enrollmentId);
+		expect(retrievedSubmission.student.id).toBe(student.id);
+			expect(retrievedSubmission.enrollment.id).toBe(enrollment.id);
 	});
 
 	test("should get all threads with nested replies (reply to reply)", async () => {
 		// Create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Thread with Nested Replies",
 			content: "This is a thread that will have nested replies.",
@@ -483,10 +471,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create a reply to the thread
 		const reply1Args: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content: "This is the first reply to the thread.",
 			parentThread: threadId,
@@ -502,10 +493,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create a reply to the reply (nested reply)
 		const reply2Args: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content: "This is a reply to the first reply (nested reply).",
 			parentThread: reply1Id,
@@ -521,8 +515,11 @@ describe("Discussion Management - Full Workflow", () => {
 		// Get all threads with all replies
 		const result = await tryGetDiscussionThreadsWithAllReplies({
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
 			overrideAccess: true,
 		});
 
@@ -572,10 +569,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Main Discussion Thread",
 			content: "This is the main discussion thread.",
@@ -590,10 +590,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create replies to the thread
 		const reply1Args: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content: "This is the first reply to the thread.",
 			parentThread: threadId,
@@ -604,10 +607,13 @@ describe("Discussion Management - Full Workflow", () => {
 
 		const reply2Args: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content: "This is the second reply to the thread.",
 			parentThread: threadId,
@@ -619,10 +625,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create comments on the thread
 		const comment1Args: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "comment",
 			content: "Great thread!",
 			parentThread: threadId,
@@ -634,8 +643,11 @@ describe("Discussion Management - Full Workflow", () => {
 		// Get all threads with all replies and comments for this course module link
 		const result = await tryGetDiscussionThreadsWithAllReplies({
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
 			overrideAccess: true,
 		});
 
@@ -688,10 +700,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Upvotable Thread",
 			content: "This thread should be upvotable.",
@@ -706,9 +721,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Upvote the submission
 		const result = await tryUpvoteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId,
-			userId: studentId,
+			userId: student.id,
 		});
 
 		expect(result.ok).toBe(true);
@@ -727,10 +745,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Upvotable Thread 2",
 			content: "This thread should be upvotable and then un-upvotable.",
@@ -746,9 +767,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Upvote the submission first
 		const upvoteResult = await tryUpvoteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId,
-			userId: studentId,
+			userId: student.id,
 			overrideAccess: true,
 		});
 		expect(upvoteResult.ok).toBe(true);
@@ -756,9 +780,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Remove the upvote
 		const result = await tryRemoveUpvoteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId,
-			userId: studentId,
+			userId: student.id,
 			overrideAccess: true,
 		});
 
@@ -775,10 +802,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create multiple submissions for testing
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "List Test Thread",
 			content: "This is a thread for list testing.",
@@ -793,10 +823,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create a reply
 		const replyArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content: "This is a reply for list testing.",
 			parentThread: threadId,
@@ -808,7 +841,7 @@ describe("Discussion Management - Full Workflow", () => {
 		// List all submissions for this course module link
 		const listResult = await tryListDiscussionSubmissions({
 			payload,
-			courseModuleLinkId: courseActivityModuleLinkId,
+			courseModuleLinkId: courseActivityModuleLink.id,
 			overrideAccess: true,
 		});
 
@@ -820,7 +853,7 @@ describe("Discussion Management - Full Workflow", () => {
 
 		// All submissions should be for the same course module link
 		submissions.forEach((submission) => {
-			expect(submission.courseModuleLink.id).toBe(courseActivityModuleLinkId);
+			expect(submission.courseModuleLink.id).toBe(courseActivityModuleLink.id);
 		});
 
 		// Test filtering by post type
@@ -841,7 +874,7 @@ describe("Discussion Management - Full Workflow", () => {
 		// Test filtering by student
 		const studentListResult = await tryListDiscussionSubmissions({
 			payload,
-			studentId,
+			studentId: student.id,
 			overrideAccess: true,
 		});
 
@@ -851,7 +884,7 @@ describe("Discussion Management - Full Workflow", () => {
 		const studentSubmissions = studentListResult.value;
 
 		studentSubmissions.forEach((submission) => {
-			expect(submission.student.id).toBe(studentId);
+			expect(submission.student.id).toBe(student.id);
 		});
 	});
 
@@ -859,10 +892,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Gradable Thread",
 			content: "This thread should be gradable by the teacher.",
@@ -877,9 +913,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the submission
 		const gradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			id: submissionId,
-			gradedBy: teacherId,
+			gradedBy: teacher.id,
 			grade: 85,
 			feedback:
 				"Excellent participation! Great insights and thoughtful responses.",
@@ -914,7 +953,7 @@ describe("Discussion Management - Full Workflow", () => {
 			"id" in submissionWithGrade.gradedBy
 				? submissionWithGrade.gradedBy.id
 				: submissionWithGrade.gradedBy;
-		expect(gradedById).toBe(teacherId);
+		expect(gradedById).toBe(teacher.id);
 	});
 
 	test("should calculate discussion grade based on all graded posts", async () => {
@@ -924,10 +963,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create multiple submissions and grade them
 		const threadArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Main Thread for Grade Calculation",
 			content: "This is the main thread for grade calculation testing.",
@@ -942,11 +984,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the thread
 		const threadGradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
-			req: {
-				...mockRequest,
-			},
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			id: threadId,
-			gradedBy: teacherId,
+			gradedBy: teacher.id,
 			grade: 90,
 			feedback: "Excellent thread!",
 			overrideAccess: true,
@@ -959,10 +1002,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create and grade a reply
 		const replyArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content: "This is a reply for grade calculation testing.",
 			parentThread: threadId,
@@ -977,11 +1023,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the reply
 		const replyGradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
-			req: {
-				...mockRequest,
-			},
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			id: replyId,
-			gradedBy: teacherId,
+			gradedBy: teacher.id,
 			grade: 80,
 			feedback: "Good reply!",
 			overrideAccess: true,
@@ -993,10 +1040,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create and grade a comment
 		const commentArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "comment",
 			content: "Great point!",
 			parentThread: threadId,
@@ -1011,11 +1061,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Grade the comment
 		const commentGradeArgs: GradeDiscussionSubmissionArgs = {
 			payload,
-			req: {
-				...mockRequest,
-			},
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
 			id: commentId,
-			gradedBy: teacherId,
+			gradedBy: teacher.id,
 			grade: 70,
 			feedback: "Nice comment!",
 			overrideAccess: true,
@@ -1028,10 +1079,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Calculate the overall discussion grade
 		const result = await calculateDiscussionGrade({
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: teacher as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 		});
 
 		expect(result.ok).toBe(true);
@@ -1078,10 +1132,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Test missing course module link ID
 		const invalidArgs1: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			courseModuleLinkId: undefined as never,
-			studentId,
-			enrollmentId,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Test",
 			content: "Test content",
@@ -1093,10 +1150,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Test missing content
 		const invalidArgs2: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Test",
 			content: "",
@@ -1108,10 +1168,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Test missing title for thread
 		const invalidArgs3: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			content: "Test content",
 		};
@@ -1122,10 +1185,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Test missing parent thread for reply
 		const invalidArgs4: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "reply",
 			content: "Test content",
 		};
@@ -1137,7 +1203,10 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail to get non-existent submission", async () => {
 		const result = await tryGetDiscussionSubmissionById({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			id: 99999,
 		});
 
@@ -1147,9 +1216,12 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail to upvote non-existent submission", async () => {
 		const result = await tryUpvoteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId: 99999,
-			userId: studentId,
+			userId: student.id,
 		});
 
 		expect(result.ok).toBe(false);
@@ -1159,10 +1231,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Double Upvote Test",
 			content: "This thread should not be upvotable twice.",
@@ -1177,18 +1252,24 @@ describe("Discussion Management - Full Workflow", () => {
 		// Upvote the submission first time
 		const upvoteResult1 = await tryUpvoteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId,
-			userId: studentId,
+			userId: student.id,
 		});
 		expect(upvoteResult1.ok).toBe(true);
 
 		// Try to upvote the same submission again
 		const upvoteResult2 = await tryUpvoteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId,
-			userId: studentId,
+			userId: student.id,
 		});
 		expect(upvoteResult2.ok).toBe(false);
 	});
@@ -1197,10 +1278,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// First create a thread
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "No Upvote Test",
 			content: "This thread was never upvoted.",
@@ -1215,9 +1299,12 @@ describe("Discussion Management - Full Workflow", () => {
 		// Try to remove upvote from submission that was never upvoted
 		const result = await tryRemoveUpvoteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			submissionId,
-			userId: studentId,
+			userId: student.id,
 		});
 
 		expect(result.ok).toBe(false);
@@ -1227,10 +1314,13 @@ describe("Discussion Management - Full Workflow", () => {
 		// Create a submission
 		const createArgs: CreateDiscussionSubmissionArgs = {
 			payload,
-			req: mockRequest,
-			courseModuleLinkId: courseActivityModuleLinkId,
-			studentId,
-			enrollmentId,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
+			courseModuleLinkId: courseActivityModuleLink.id,
+			studentId: student.id,
+			enrollmentId: enrollment.id,
 			postType: "thread",
 			title: "Delete Test Thread",
 			content: "This thread should be deletable.",
@@ -1246,7 +1336,10 @@ describe("Discussion Management - Full Workflow", () => {
 		// Delete the submission
 		const deleteResult = await tryDeleteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			id: submissionId,
 			overrideAccess: true,
 		});
@@ -1255,7 +1348,10 @@ describe("Discussion Management - Full Workflow", () => {
 		// Verify submission is deleted
 		const getResult = await tryGetDiscussionSubmissionById({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			id: submissionId,
 			overrideAccess: true,
 		});
@@ -1265,7 +1361,10 @@ describe("Discussion Management - Full Workflow", () => {
 	test("should fail to delete non-existent submission", async () => {
 		const result = await tryDeleteDiscussionSubmission({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: student as TypedUser,
+			}),
 			id: 99999,
 			overrideAccess: true,
 		});

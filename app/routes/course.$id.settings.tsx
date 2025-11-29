@@ -112,8 +112,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -312,9 +312,9 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 		});
 		// Redirect to provided location if specified; otherwise to the course's view page
 		if (actionData.redirectTo) {
-			throw redirect(actionData.redirectTo);
+			return redirect(actionData.redirectTo);
 		}
-		throw redirect(
+		return redirect(
 			href("/course/:courseId", { courseId: String(actionData.id) }),
 		);
 	} else if (

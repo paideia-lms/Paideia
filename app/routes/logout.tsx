@@ -27,7 +27,7 @@ export const loader = async ({ context, request }: LoaderFunctionArgs) => {
 	);
 
 	// Redirect to login with both cookies removed
-	throw redirect(href("/login"), {
+	return redirect(href("/login"), {
 		headers: [
 			["Set-Cookie", loginCookieRemoval],
 			["Set-Cookie", impersonationCookieRemoval],

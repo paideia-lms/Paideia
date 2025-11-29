@@ -50,7 +50,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	}
 
 	// Redirect to user modules page after successful deletion
-	throw redirect(href("/user/modules/:id?", { id: String(currentUser.id) }));
+	return redirect(href("/user/modules/:id?", { id: String(currentUser.id) }));
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {

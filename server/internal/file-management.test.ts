@@ -10,18 +10,19 @@ import {
 	tryUpdateFile,
 } from "./file-management";
 import { tryCreateMedia } from "./media-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateUser } from "./user-management";
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("File Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let testUser: { id: number };
+	let testUser: TryResultValue<typeof tryCreateUser>;
 	let testMediaId1: number;
 	let testMediaId2: number;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh`;
+			await $`bun run migrate:fresh --force-accept-warning`;
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
@@ -31,7 +32,7 @@ describe("File Management Functions", () => {
 		});
 
 		// Create test user
-		const userArgs: CreateUserArgs = {
+		testUser = await tryCreateUser({
 			payload,
 			data: {
 				email: "testuser@example.com",
@@ -41,15 +42,7 @@ describe("File Management Functions", () => {
 				role: "student",
 			},
 			overrideAccess: true,
-		};
-
-		const userResult = await tryCreateUser(userArgs);
-
-		if (!userResult.ok) {
-			throw new Error("Failed to create test user");
-		}
-
-		testUser = userResult.value;
+		}).getOrThrow();
 
 		// Create test media files
 		const fileBuffer1 = await Bun.file("fixture/gem.png").arrayBuffer();
@@ -244,11 +237,9 @@ describe("File Management Functions", () => {
 			expect(updateResult.ok).toBe(true);
 			if (updateResult.ok) {
 				expect(updateResult.value.media).toBeDefined();
-				if (Array.isArray(updateResult.value.media)) {
-					expect(updateResult.value.media.length).toBe(1);
-					const mediaId = updateResult.value.media[0];
+					expect(updateResult.value.media?.length!).toBe(1);
+					const mediaId = updateResult.value.media![0];
 					expect(mediaId).toBe(testMediaId2);
-				}
 			}
 		}
 	});

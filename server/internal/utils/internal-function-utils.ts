@@ -32,21 +32,24 @@ export interface BaseInternalFunctionArgs {
  * @param args - Base internal function args containing payload, user, and logger
  * @returns Transformed error (Forbidden errors are returned as-is, others wrapped in UnknownError)
  */
-export function interceptPayloadError(
-	error: unknown,
-	functionName: string,
-	context: string,
-	args: BaseInternalFunctionArgs,
-) {
+export function interceptPayloadError({
+	error,
+	functionNamePrefix,
+	args,
+}: {
+	error: unknown;
+	functionNamePrefix: string;
+	args: BaseInternalFunctionArgs;
+}) {
 	const { payload, req } = args;
 	const user = req?.user;
 	if (error instanceof Forbidden) {
 		payload.logger.error(
-			`${functionName}: Failed ${context} by user: ${user ? `id ${user.id}` : "unauthenticated"}`,
+			`${functionNamePrefix} by user: ${user ? `${user.firstName} ${user.lastName} (id ${user.id})` : "unauthenticated"}`,
 		);
 	} else
 		payload.logger.error(
-			`${functionName}: Failed ${context} by user: ${user ? `id ${user.id}` : "unauthenticated"}`,
+			`${functionNamePrefix} by user: ${user ? `${user.firstName} ${user.lastName} (id ${user.id})` : "unauthenticated"}`,
 		);
 }
 
@@ -59,7 +62,6 @@ export function createLocalReq({
 	user?: TypedUser | null;
 	context?: Partial<RequestContext>;
 }): Partial<PayloadRequest> {
-	console.log("test", ...Object.keys(request));
 	return {
 		// need to break down the object
 		url: request.url,

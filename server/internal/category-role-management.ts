@@ -306,7 +306,15 @@ export const tryGetUserCategoryRoles = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then(stripDepth<1, "find">());
+			.then(stripDepth<1, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryGetUserCategoryRoles",
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
 		return assignments.docs;
 	},
@@ -337,7 +345,15 @@ export const tryGetCategoryRoleAssignments = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then(stripDepth<1, "find">());
+			.then(stripDepth<1, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryGetCategoryRoleAssignments",
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
 		return assignments.docs;
 	},
@@ -363,22 +379,32 @@ export const tryFindCategoryRoleAssignment = Result.wrap(
 			throw new InvalidArgumentError("Category ID is required");
 		}
 
-		const assignments = await payload.find({
-			collection: CategoryRoleAssignments.slug,
-			where: {
-				and: [
-					{ user: { equals: userId } },
-					{ category: { equals: categoryId } },
-				],
-			},
-			depth: 1,
-			req,
-			overrideAccess,
-		});
+		const assignments = await payload
+			.find({
+				collection: CategoryRoleAssignments.slug,
+				where: {
+					and: [
+						{ user: { equals: userId } },
+						{ category: { equals: categoryId } },
+					],
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: `tryFindCategoryRoleAssignment - to find category role assignment for user ${userId} and category ${categoryId}`,
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
-		return assignments.docs.length > 0
-			? (assignments.docs[0] as CategoryRoleAssignment)
-			: null;
+		const assignment = assignments.docs[0] ?? null;
+
+		return assignment;
 	},
 	(error) =>
 		transformError(error) ??
@@ -476,7 +502,15 @@ export const tryGetEffectiveCategoryRole = Result.wrap(
 					req,
 					overrideAccess,
 				})
-				.then(stripDepth<0, "find">());
+				.then(stripDepth<0, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
 			if (assignments.docs.length > 0) {
 				const role = assignments.docs[0]!.role;
@@ -497,7 +531,15 @@ export const tryGetEffectiveCategoryRole = Result.wrap(
 					req,
 					overrideAccess,
 				})
-				.then(stripDepth<0, "findByID">());
+				.then(stripDepth<0, "findByID">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: `tryGetEffectiveCategoryRole - to get effective category role for user ${userId} and category ${currentCategoryId}`,
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
 			currentCategoryId = category.parent ?? null;
 		}
@@ -532,7 +574,15 @@ export const tryGetUserCoursesFromCategories = Result.wrap(
 				overrideAccess,
 				depth: 0,
 			})
-			.then(stripDepth<0, "find">());
+			.then(stripDepth<0, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: `tryGetUserCoursesFromCategories - to get user courses from categories for user ${userId}`,
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
+			});
 
 		const coursesMap = new Map<number, CourseAccessInfo>();
 
@@ -593,12 +643,11 @@ export const tryCheckUserCourseAccessViaCategory = Result.wrap(
 			})
 			.then(stripDepth<0, "findByID">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryCheckUserCourseAccessViaCategory",
-					`to check user course access via category for course ${courseId}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: `tryCheckUserCourseAccessViaCategory - to check user course access via category for course ${courseId}`,
+					args: { payload, req, overrideAccess },
+				});
 				return null;
 			});
 

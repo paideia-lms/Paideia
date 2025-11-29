@@ -109,7 +109,6 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const isPublic = formData.get("isPublic") === "true";
 
 		if (!content || content.trim().length === 0) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
 			return badRequest({
 				error: "Note content cannot be empty",
 			});
@@ -142,7 +141,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		}
 
 		// redirect on the server side
-		throw redirect(href("/user/notes/:id?", { id: "" }));
+		return redirect(href("/user/notes/:id?", { id: "" }));
 	});
 };
 

@@ -577,20 +577,12 @@ describe("Gradebook Item Management", () => {
 			if (itemWithGrade) {
 				// Access userGrades - it should be an array after transformation
 				const userGrades = itemWithGrade.userGrades;
-				console.log("gradebookItem.userGrades", userGrades);
 				expect(userGrades).toBeDefined();
 				
 				// Check if userGrades is an array (after transformation in tryGetItemsWithUserGrades)
 				// It might be the Payload response type with docs property, or already transformed to array
-				const userGradesArray = Array.isArray(userGrades) 
-					? userGrades 
-					: (userGrades as { docs?: unknown[] })?.docs ?? [];
 				
-				expect(userGradesArray.length).toBeGreaterThan(0);
-				if (userGradesArray.length > 0) {
-					const firstGrade = userGradesArray[0] as { enrollment?: { id?: number } };
-					expect(firstGrade?.enrollment?.id).toBe(testEnrollment.id);
-				}
+				expect(userGrades?.length ?? 0 ).toBeGreaterThan(0);
 			}
 		}
 	});

@@ -6,7 +6,10 @@ import { transformError, UnknownError } from "~/utils/error";
 import type { Media, User } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
-import { stripDepth } from "./utils/internal-function-utils";
+import {
+	interceptPayloadError,
+	stripDepth,
+} from "./utils/internal-function-utils";
 
 export interface CreateUserArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -598,9 +601,19 @@ export const tryHandleImpersonation = Result.wrap(
 		const targetUserResult = await tryFindUserById({
 			payload,
 			userId: targetUserId,
-			overrideAccess,
+			// this is a system request, we don't care about access control
+			overrideAccess: true,
 			req,
-		});
+		})
+			.then(stripDepth<0, "findByID">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryHandleImpersonation",
+					args,
+				});
+				throw error;
+			});
 
 		if (!targetUserResult.ok || !targetUserResult.value) {
 			return null;

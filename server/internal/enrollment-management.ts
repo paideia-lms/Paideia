@@ -406,10 +406,6 @@ export const tryFindEnrollmentsByUser = Result.wrap(
 			})
 			.then(stripDepth<1, "find">())
 			.then((result) => {
-				console.log(
-					"result find enrollments by user",
-					JSON.stringify(result.docs, null, 2),
-				);
 				return result.docs.map((doc) => {
 					const userDoc = doc.user;
 					const course = doc.course as Depth<

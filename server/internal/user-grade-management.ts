@@ -204,12 +204,11 @@ export const tryCreateUserGrade = Result.wrap(
 			})
 			.then(stripDepth<1, "findByID">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryCreateUserGrade",
-					`to find gradebook item by id ${gradebookItemId}`,
+					functionNamePrefix: `tryCreateUserGrade - to find gradebook item ${gradebookItemId}`,
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -250,12 +249,11 @@ export const tryCreateUserGrade = Result.wrap(
 			})
 			.then(stripDepth<1, "find">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryCreateUserGrade",
-					`to find existing grade for enrollment ${enrollmentId} and item ${gradebookItemId}`,
+					functionNamePrefix: `tryCreateUserGrade - to find existing grade for enrollment ${enrollmentId} and item ${gradebookItemId}`,
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -436,12 +434,11 @@ export const tryUpdateUserGrade = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdateUserGrade",
-					`to update grade ${gradeId}`,
+					functionNamePrefix: `tryUpdateUserGrade - to update grade ${gradeId}`,
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -700,12 +697,12 @@ export const tryGetUserGradesForGradebook = Result.wrap(
 			})
 			.then(stripDepth<1, "find">())
 			.catch((e) => {
-				interceptPayloadError(
-					e,
-					"tryGetUserGradesForGradebook",
-					"get gradebook items",
+				interceptPayloadError({
+					error: e,
+
+					functionNamePrefix: `tryGetUserGradesForGradebook - to get gradebook items`,
 					args,
-				);
+				});
 				throw e;
 			});
 

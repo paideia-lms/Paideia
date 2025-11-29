@@ -161,12 +161,11 @@ export const tryCreateGradebook = Result.wrap(
 				})
 				.then(stripDepth<1, "create">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateGradebook",
-						"to create gradebook",
-						{ payload, req: txInfo.reqWithTransaction, overrideAccess },
-					);
+						functionNamePrefix: "tryCreateGradebook",
+						args: { payload, req: txInfo.reqWithTransaction, overrideAccess },
+					});
 					throw error;
 				});
 
@@ -198,12 +197,11 @@ export const tryUpdateGradebook = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdateGradebook",
-					"to update gradebook",
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryUpdateGradebook",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 

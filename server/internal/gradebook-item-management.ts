@@ -403,12 +403,11 @@ export const tryDeleteGradebookItem = Result.wrap(
 			})
 			.then(stripDepth<0, "findByID">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryDeleteGradebookItem",
-					"find gradebook item",
+					functionNamePrefix: "tryDeleteGradebookItem",
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -433,12 +432,11 @@ export const tryDeleteGradebookItem = Result.wrap(
 				})
 				.then(stripDepth<0, "delete">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryDeleteGradebookItem",
-						"delete gradebook item",
+						functionNamePrefix: "tryDeleteGradebookItem",
 						args,
-					);
+					});
 					throw error;
 				});
 
@@ -681,7 +679,6 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 			})
 			.then(stripDepth<2, "find">())
 			.then((items) => {
-				console.log(JSON.stringify(items.docs, null, 2));
 				return items.docs.map((item) => {
 					const userGrades = item.userGrades?.docs;
 
@@ -696,14 +693,14 @@ export const tryGetItemsWithUserGrades = Result.wrap(
 		// Filter items to only include those with grades for the specific enrollment
 		const itemsWithGrades = items.filter((item) => {
 			const gradebookItem = item;
-			console.log("gradebookItem.userGrades", gradebookItem.userGrades);
+			// console.log("gradebookItem.userGrades", gradebookItem.userGrades);
 			return gradebookItem.userGrades?.some((grade) => {
 				// ?? not sure
 				return grade.enrollment === enrollmentId;
 			});
 		});
 
-		return itemsWithGrades as GradebookItem[];
+		return itemsWithGrades;
 	},
 	(error) =>
 		transformError(error) ??

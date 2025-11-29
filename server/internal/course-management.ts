@@ -187,12 +187,11 @@ export const tryCreateCourse = Result.wrap(
 				})
 				.then(stripDepth<0, "create">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateCourse",
-						"to create gradebook",
-						{ payload, req, overrideAccess },
-					);
+						functionNamePrefix: "tryCreateCourse",
+						args: { payload, req, overrideAccess },
+					});
 					throw error;
 				});
 
@@ -408,12 +407,11 @@ export const tryFindCourseById = Result.wrap(
 				};
 			})
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryFindCourseById",
-					"to find course by ID",
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryFindCourseById",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			})
 			.then((result) => {

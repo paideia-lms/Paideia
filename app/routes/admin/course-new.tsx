@@ -154,7 +154,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 				color: "green",
 			});
 			// Redirect to the newly created course's view page
-			throw redirect(`/course/${actionData.id}`);
+			return redirect(`/course/${actionData.id}`);
 		}
 	} else if (
 		actionData.status === StatusCode.BadRequest ||

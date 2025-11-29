@@ -3,6 +3,16 @@ import { $ } from "bun";
 import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
+	type CreateAssignmentModuleArgs,
+	type CreateDiscussionModuleArgs,
+	type CreatePageModuleArgs,
+	type CreateQuizModuleArgs,
+	type CreateWhiteboardModuleArgs,
+	type UpdateAssignmentModuleArgs,
+	type UpdateDiscussionModuleArgs,
+	type UpdateFileModuleArgs,
+	type UpdatePageModuleArgs,
+	type UpdateQuizModuleArgs,
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
 	tryCreateFileModule,
@@ -17,42 +27,15 @@ import {
 	tryUpdateFileModule,
 	tryUpdatePageModule,
 	tryUpdateQuizModule,
-	type tryUpdateWhiteboardModule,
 } from "./activity-module-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
-
-type CreatePageModuleArgs = Parameters<typeof tryCreatePageModule>[0];
-type CreateWhiteboardModuleArgs = Parameters<
-	typeof tryCreateWhiteboardModule
->[0];
-type CreateFileModuleArgs = Parameters<typeof tryCreateFileModule>[0];
-type CreateAssignmentModuleArgs = Parameters<
-	typeof tryCreateAssignmentModule
->[0];
-type CreateQuizModuleArgs = Parameters<typeof tryCreateQuizModule>[0];
-type CreateDiscussionModuleArgs = Parameters<
-	typeof tryCreateDiscussionModule
->[0];
-
-type UpdatePageModuleArgs = Parameters<typeof tryUpdatePageModule>[0];
-type UpdateWhiteboardModuleArgs = Parameters<
-	typeof tryUpdateWhiteboardModule
->[0];
-type UpdateFileModuleArgs = Parameters<typeof tryUpdateFileModule>[0];
-type UpdateAssignmentModuleArgs = Parameters<
-	typeof tryUpdateAssignmentModule
->[0];
-type UpdateQuizModuleArgs = Parameters<typeof tryUpdateQuizModule>[0];
-type UpdateDiscussionModuleArgs = Parameters<
-	typeof tryUpdateDiscussionModule
->[0];
-
-const year = new Date().getFullYear();
+import { tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("Activity Module Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let testUserId: number;
-	let testUser: TypedUser | null;
+	let mockRequest: Request;
+	let testUser: TryResultValue<typeof tryCreateUser>;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -67,8 +50,11 @@ describe("Activity Module Management", () => {
 			config: sanitizedConfig,
 		});
 
+		// Create mock request object
+		mockRequest = new Request("http://localhost:3000/test");
+
 		// Create test admin user (only admin, instructor, or content-manager can create activity modules)
-		const userArgs: CreateUserArgs = {
+		testUser = await tryCreateUser({
 			payload,
 			data: {
 				email: "test-activity@example.com",
@@ -78,22 +64,7 @@ describe("Activity Module Management", () => {
 				role: "admin",
 			},
 			overrideAccess: true,
-		};
-
-		const userResult = await tryCreateUser(userArgs);
-
-		expect(userResult.ok).toBe(true);
-
-		if (userResult.ok) {
-			testUserId = userResult.value.id;
-			// Fetch the full user object for passing to internal functions
-			const userDoc = await payload.findByID({
-				collection: "users",
-				id: testUserId,
-				overrideAccess: true,
-			});
-			testUser = userDoc as TypedUser;
-		}
+		}).getOrThrow();
 	});
 
 	afterAll(async () => {
@@ -111,8 +82,11 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test Page Module",
 			description: "This is a test page module",
-			status: "draft",
-			req: {user : testUser ?? undefined},
+			status: "draft" as const,
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			content: "<p>This is test page content</p>",
 		} satisfies CreatePageModuleArgs;
 
@@ -128,7 +102,7 @@ describe("Activity Module Management", () => {
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("page");
 		expect(activityModule.status).toBe(args.status || "draft");
-		expect(activityModule.createdBy.id).toBe(testUserId);
+		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
 	});
@@ -140,7 +114,10 @@ describe("Activity Module Management", () => {
 			description: "This is a test assignment",
 			status: "draft",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Complete this assignment",
 			allowedFileTypes: [
 				{ extension: "pdf", mimeType: "application/pdf" },
@@ -169,7 +146,7 @@ describe("Activity Module Management", () => {
 		// For assignments, description uses instructions if provided
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.status).toBe(args.status || "draft");
-		expect(activityModule.createdBy.id).toBe(testUserId);
+		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
 		expect(activityModule.maxFiles).toBeDefined();
@@ -182,7 +159,10 @@ describe("Activity Module Management", () => {
 			description: "This is a test quiz",
 			status: "draft",
 			
-			req: {user : testUser ?? undefined},
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Answer all questions",
 			points: 100,
 			gradingType: "automatic",
@@ -219,7 +199,7 @@ describe("Activity Module Management", () => {
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("quiz");
 		expect(activityModule.status).toBe(args.status || "draft");
-		expect(activityModule.createdBy.id).toBe(testUserId);
+		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
 	});
@@ -229,11 +209,13 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test File Module",
 			description: "This is a test file module",
-			status: "draft",
-			
-			req: { user: testUser ?? undefined },
+			status: "draft" as const,
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			media: [],
-		} satisfies CreateFileModuleArgs;
+		};
 
 		const result = await tryCreateFileModule(args);
 
@@ -247,7 +229,7 @@ describe("Activity Module Management", () => {
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("file");
 		expect(activityModule.status).toBe(args.status);
-		expect(activityModule.createdBy.id).toBe(testUserId);
+		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
 		expect(activityModule.media).toBeDefined();
@@ -260,7 +242,10 @@ describe("Activity Module Management", () => {
 			description: "This is a test discussion",
 			status: "draft",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Participate in this discussion",
 			dueDate: "2024-12-31",
 			requireThread: true,
@@ -289,7 +274,7 @@ describe("Activity Module Management", () => {
 		expect(activityModule.description).toBe(args.description);
 		expect(activityModule.type).toBe("discussion");
 		expect(activityModule.status).toBe(args.status || "draft");
-		expect(activityModule.createdBy.id).toBe(testUserId);
+		expect(activityModule.createdBy.id).toBe(testUser.id);
 		expect(activityModule.id).toBeDefined();
 		expect(activityModule.createdAt).toBeDefined();
 		expect(activityModule.minReplies).toBeDefined();
@@ -300,7 +285,10 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Test Activity Module 2",
 			
-			req: {user : testUser ?? undefined},
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			content: JSON.stringify({ shapes: [], bindings: [] }),
 		} satisfies CreateWhiteboardModuleArgs;
 
@@ -319,35 +307,50 @@ describe("Activity Module Management", () => {
 				payload,
 				title: "page module",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				content: "<p>Test page content</p>",
 			}),
 			tryCreateWhiteboardModule({
 				payload,
 				title: "whiteboard module",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				content: JSON.stringify({ shapes: [], bindings: [] }),
 			}),
 			tryCreateFileModule({
 				payload,
 				title: "file module",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				media: [],
 			}),
 			tryCreateAssignmentModule({
 				payload,
 				title: "assignment module",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				instructions: "Complete this assignment",
 			}),
 			tryCreateQuizModule({
 				payload,
 				title: "quiz module",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				instructions: "Answer all questions",
 				points: 100,
 			}),
@@ -355,7 +358,10 @@ describe("Activity Module Management", () => {
 				payload,
 				title: "discussion module",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				instructions: "Participate in this discussion",
 				minReplies: 1,
 				threadSorting: "recent" as const,
@@ -381,7 +387,10 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Get Test Module",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			content: "<p>Get test content</p>",
 		} satisfies CreatePageModuleArgs;
 
@@ -394,7 +403,10 @@ describe("Activity Module Management", () => {
 		const getResult = await tryGetActivityModuleById({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 
 		expect(getResult.ok).toBe(true);
@@ -405,7 +417,7 @@ describe("Activity Module Management", () => {
 		expect(retrievedModule.title).toBe(createdModule.title);
 		expect(retrievedModule.type).toBe(createdModule.type);
 		expect(retrievedModule.status).toBe(createdModule.status);
-		expect(retrievedModule.createdBy.id).toBe(testUserId);
+		expect(retrievedModule.createdBy.id).toBe(testUser.id);
 	});
 
 	test("should update page activity module", async () => {
@@ -414,7 +426,10 @@ describe("Activity Module Management", () => {
 			title: "Update Test Page Module",
 			status: "draft",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			content: "<p>Original content</p>",
 		} satisfies CreatePageModuleArgs;
 
@@ -430,7 +445,10 @@ describe("Activity Module Management", () => {
 			title: "Updated Page Title",
 			description: "Updated page description",
 			status: "published",
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			content: "<p>Updated content</p>",
 		};
 
@@ -451,7 +469,10 @@ describe("Activity Module Management", () => {
 			title: "Update Test Assignment",
 			status: "draft",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Original instructions",
 		} satisfies CreateAssignmentModuleArgs;
 
@@ -467,7 +488,10 @@ describe("Activity Module Management", () => {
 			title: "Updated Assignment Title",
 			description: "Updated assignment description",
 			status: "published",
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Updated instructions",
 		};
 
@@ -489,7 +513,10 @@ describe("Activity Module Management", () => {
 			title: "Update Test Quiz",
 			status: "draft",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Original quiz instructions",
 			points: 50,
 			timeLimit: 30,
@@ -507,7 +534,10 @@ describe("Activity Module Management", () => {
 			title: "Updated Quiz Title",
 			description: "Updated quiz description",
 			status: "published",
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Updated quiz instructions",
 			points: 100,
 			timeLimit: 60,
@@ -529,11 +559,13 @@ describe("Activity Module Management", () => {
 		const createArgs = {
 			payload,
 			title: "Update Test File Module",
-			status: "draft",
-			
-			req: { user: testUser ?? undefined },
+			status: "draft" as const,
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			media: [],
-		} satisfies CreateFileModuleArgs;
+		};
 
 		const createResult = await tryCreateFileModule(createArgs);
 		expect(createResult.ok).toBe(true);
@@ -547,7 +579,10 @@ describe("Activity Module Management", () => {
 			title: "Updated File Title",
 			description: "Updated file description",
 			status: "published",
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			media: [],
 		};
 
@@ -568,7 +603,10 @@ describe("Activity Module Management", () => {
 			title: "Update Test Discussion",
 			status: "draft",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Original discussion instructions",
 			minReplies: 1,
 			minWordsPerPost: 25,
@@ -587,7 +625,10 @@ describe("Activity Module Management", () => {
 			title: "Updated Discussion Title",
 			description: "Updated discussion description",
 			status: "published",
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Updated discussion instructions",
 			minReplies: 3,
 			minWordsPerPost: 100,
@@ -612,7 +653,10 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Delete Test Page Module",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			content: "<p>Delete test content</p>",
 		} satisfies CreatePageModuleArgs;
 
@@ -625,7 +669,10 @@ describe("Activity Module Management", () => {
 		const deleteResult = await tryDeleteActivityModule({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(deleteResult.ok).toBe(true);
 
@@ -633,7 +680,10 @@ describe("Activity Module Management", () => {
 		const getResult = await tryGetActivityModuleById({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -643,7 +693,10 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Delete Test Assignment",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Complete this assignment",
 		} satisfies CreateAssignmentModuleArgs;
 
@@ -658,7 +711,10 @@ describe("Activity Module Management", () => {
 		const deleteResult = await tryDeleteActivityModule({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(deleteResult.ok).toBe(true);
 
@@ -666,7 +722,10 @@ describe("Activity Module Management", () => {
 		const getResult = await tryGetActivityModuleById({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -676,7 +735,10 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Delete Test Quiz",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Answer all questions",
 			points: 100,
 		} satisfies CreateQuizModuleArgs;
@@ -693,7 +755,10 @@ describe("Activity Module Management", () => {
 		const deleteResult = await tryDeleteActivityModule({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(deleteResult.ok).toBe(true);
 
@@ -701,7 +766,10 @@ describe("Activity Module Management", () => {
 		const getResult = await tryGetActivityModuleById({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -711,9 +779,12 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Delete Test File Module",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			media: [],
-		} satisfies CreateFileModuleArgs;
+		} ;
 
 		const createResult = await tryCreateFileModule(args);
 		expect(createResult.ok).toBe(true);
@@ -727,7 +798,10 @@ describe("Activity Module Management", () => {
 		const deleteResult = await tryDeleteActivityModule({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(deleteResult.ok).toBe(true);
 
@@ -735,7 +809,10 @@ describe("Activity Module Management", () => {
 		const getResult = await tryGetActivityModuleById({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -745,7 +822,10 @@ describe("Activity Module Management", () => {
 			payload,
 			title: "Delete Test Discussion",
 			
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 			instructions: "Participate in this discussion",
 			minReplies: 2,
 			minWordsPerPost: 50,
@@ -764,7 +844,10 @@ describe("Activity Module Management", () => {
 		const deleteResult = await tryDeleteActivityModule({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(deleteResult.ok).toBe(true);
 
@@ -772,7 +855,10 @@ describe("Activity Module Management", () => {
 		const getResult = await tryGetActivityModuleById({
 			payload,
 			id: createdModule.id,
-			req: { user: testUser ?? undefined },
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 		});
 		expect(getResult.ok).toBe(false);
 	});
@@ -784,7 +870,10 @@ describe("Activity Module Management", () => {
 				title: "List Test Module 1",
 				status: "published",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				content: "<p>List test 1</p>",
 			}),
 			tryCreateAssignmentModule({
@@ -792,7 +881,10 @@ describe("Activity Module Management", () => {
 				title: "List Test Module 2",
 				status: "draft",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				instructions: "Complete this assignment",
 			}),
 			tryCreateQuizModule({
@@ -800,7 +892,10 @@ describe("Activity Module Management", () => {
 				title: "List Test Module 3",
 				status: "published",
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				instructions: "Answer all questions",
 				points: 100,
 			}),
@@ -809,7 +904,11 @@ describe("Activity Module Management", () => {
 		// Test listing all modules
 		const listResult = await tryListActivityModules({
 			payload,
-			
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
+			overrideAccess: true,
 		});
 
 		expect(listResult.ok).toBe(true);
@@ -821,8 +920,8 @@ describe("Activity Module Management", () => {
 		// Test filtering by type
 		const pageModulesResult = await tryListActivityModules({
 			payload,
-			
 			type: "page",
+			overrideAccess: true,
 		});
 
 		expect(pageModulesResult.ok).toBe(true);
@@ -835,8 +934,8 @@ describe("Activity Module Management", () => {
 		// Test filtering by file type
 		const fileModulesResult = await tryListActivityModules({
 			payload,
-			
 			type: "file",
+			overrideAccess: true,
 		});
 
 		expect(fileModulesResult.ok).toBe(true);
@@ -849,8 +948,8 @@ describe("Activity Module Management", () => {
 		// Test filtering by status
 		const publishedModulesResult = await tryListActivityModules({
 			payload,
-			
 			status: "published",
+			overrideAccess: true,
 		});
 
 		expect(publishedModulesResult.ok).toBe(true);
@@ -868,7 +967,10 @@ describe("Activity Module Management", () => {
 				payload,
 				title: `Pagination Test Module ${i + 1}`,
 				
-				req: { user: testUser ?? undefined },
+				req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
 				content: `<p>Pagination test ${i + 1}</p>`,
 			} satisfies CreatePageModuleArgs;
 
@@ -882,6 +984,11 @@ describe("Activity Module Management", () => {
 			
 			limit: 2,
 			page: 1,
+			req: createLocalReq({
+				request: mockRequest,
+				user: testUser as TypedUser,
+			}),
+			overrideAccess: true,
 		});
 
 		expect(page1Result.ok).toBe(true);
@@ -899,7 +1006,6 @@ describe("Activity Module Management", () => {
 		const invalidArgs1: CreatePageModuleArgs = {
 			payload,
 			title: "",
-			
 			content: "<p>Test</p>",
 		};
 

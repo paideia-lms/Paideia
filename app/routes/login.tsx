@@ -35,7 +35,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const userSession = context.get(userContextKey);
 
 	if (userSession?.isAuthenticated) {
-		throw redirect(href("/"));
+		return redirect(href("/"));
 	}
 
 	const { payload } = context.get(globalContextKey);
@@ -46,7 +46,7 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 	});
 
 	if (firstUser.docs.length === 0) {
-		throw redirect(href("/registration"));
+		return redirect(href("/registration"));
 	}
 
 	const settingsResult = await tryGetRegistrationSettings({
@@ -80,7 +80,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 	const requestInfo = context.get(globalContextKey).requestInfo;
 	const userSession = context.get(userContextKey);
 	if (userSession?.isAuthenticated) {
-		throw redirect(href("/"));
+		return redirect(href("/"));
 	}
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
@@ -103,7 +103,7 @@ export const action = async ({ request, context }: ActionFunctionArgs) => {
 
 	const { token, exp } = loginResult.value;
 
-	throw redirect(href("/"), {
+	return redirect(href("/"), {
 		headers: {
 			"Set-Cookie": setCookie(
 				token,

@@ -1038,12 +1038,11 @@ export const tryCreateAssignmentModule = Result.wrap(
 				})
 				.then(stripDepth<0, "create">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateAssignmentModule",
-						`to create assignment`,
+						functionNamePrefix: "tryCreateAssignmentModule",
 						args,
-					);
+					});
 					throw error;
 				});
 
@@ -1066,12 +1065,11 @@ export const tryCreateAssignmentModule = Result.wrap(
 				})
 				.then(stripDepth<1, "create">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateAssignmentModule",
-						`to create activity module`,
+						functionNamePrefix: "tryCreateAssignmentModule",
 						args,
-					);
+					});
 					throw error;
 				});
 
@@ -1185,12 +1183,11 @@ export const tryCreateQuizModule = Result.wrap(
 				})
 				.then(stripDepth<0, "create">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateQuizModule",
-						`to create quiz`,
+						functionNamePrefix: "tryCreateQuizModule",
 						args,
-					);
+					});
 					throw error;
 				});
 
@@ -1213,12 +1210,11 @@ export const tryCreateQuizModule = Result.wrap(
 				})
 				.then(stripDepth<1, "create">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateQuizModule",
-						`to create activity module`,
+						functionNamePrefix: "tryCreateQuizModule",
 						args,
-					);
+					});
 					throw error;
 				});
 
@@ -1559,12 +1555,11 @@ export const tryGetActivityModuleById = Result.wrap(
 				};
 			})
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryGetActivityModuleById",
-					`to get activity module by id '${id}'`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryGetActivityModuleById",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 

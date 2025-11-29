@@ -412,7 +412,11 @@ export const tryCreateQuiz = Result.wrap(
 			})
 			.then(stripDepth<1, "create">())
 			.catch((error) => {
-				interceptPayloadError(error, "tryCreateQuiz", "to create quiz", args);
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryCreateQuiz",
+					args,
+				});
 				throw error;
 			});
 
@@ -448,12 +452,11 @@ export const tryGetQuizById = Result.wrap(
 			})
 			.then(stripDepth<1, "findByID">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryGetQuizById",
-					"to get quiz by id",
+					functionNamePrefix: "tryGetQuizById",
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -535,7 +538,11 @@ export const tryUpdateQuiz = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(error, "tryUpdateQuiz", "to update quiz", args);
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryUpdateQuiz",
+					args,
+				});
 				throw error;
 			});
 
@@ -796,10 +803,10 @@ export const tryCreateQuizSubmission = Result.wrap(
 		}
 
 		const quizSettings =
-			courseModuleLink.settings as unknown as LatestQuizSettings;
+			courseModuleLink.settings as unknown as LatestQuizSettings | null;
 
-		const isLate = quizSettings.closingTime
-			? new Date() > new Date(quizSettings.closingTime)
+		const isLate = quizSettings?.closingTime
+			? new Date() > new Date(quizSettings?.closingTime)
 			: false;
 
 		const submission = await payload
@@ -1353,12 +1360,11 @@ export const tryGradeQuizSubmission = Result.wrap(
 				})
 				.then(stripDepth<0, "findByID">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryGradeQuizSubmission",
-						"Get current submission",
+						functionNamePrefix: "tryGradeQuizSubmission",
 						args,
-					);
+					});
 					throw error;
 				});
 

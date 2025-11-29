@@ -188,12 +188,11 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				})
 				.then(stripDepth<1, "create">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateCourseActivityModuleLink",
-						`to create course activity module link`,
-						{ payload, req: reqWithTransaction, overrideAccess },
-					);
+						functionNamePrefix: `tryCreateCourseActivityModuleLink - to create course activity module link for activity module ${activityModule}`,
+						args: { payload, req: reqWithTransaction, overrideAccess },
+					});
 					throw error;
 				});
 
@@ -215,12 +214,11 @@ export const tryCreateCourseActivityModuleLink = Result.wrap(
 				})
 				.then(stripDepth<1, "findByID">())
 				.catch((error) => {
-					interceptPayloadError(
+					interceptPayloadError({
 						error,
-						"tryCreateCourseActivityModuleLink",
-						`to get activity module by id ${activityModule}`,
-						{ payload, req: reqWithTransaction, overrideAccess },
-					);
+						functionNamePrefix: `tryCreateCourseActivityModuleLink - to get activity module by id ${activityModule}`,
+						args: { payload, req: reqWithTransaction, overrideAccess },
+					});
 					throw error;
 				});
 
@@ -769,12 +767,11 @@ export const tryFindCourseActivityModuleLinkById = Result.wrap(
 			})
 			.then(stripDepth<1, "findByID">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryFindCourseActivityModuleLinkById",
-					`to find course activity module link by id '${linkId}'`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: `tryFindCourseActivityModuleLinkById - to find course activity module link by id '${linkId}'`,
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -861,12 +858,11 @@ export const tryUpdatePageModuleSettings = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdatePageModuleSettings",
-					`to update page module settings for link ${linkId}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: `tryUpdatePageModuleSettings - to update page module settings for link ${linkId}`,
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -932,12 +928,11 @@ export const tryUpdateWhiteboardModuleSettings = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdateWhiteboardModuleSettings",
-					`to update whiteboard module settings for link ${linkId}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: `tryUpdateWhiteboardModuleSettings - to update whiteboard module settings for link ${linkId}`,
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -1002,12 +997,11 @@ export const tryUpdateFileModuleSettings = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdateFileModuleSettings",
-					`to update file module settings for link ${linkId}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryUpdateFileModuleSettings",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -1120,12 +1114,11 @@ export const tryUpdateAssignmentModuleSettings = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdateAssignmentModuleSettings",
-					`to update assignment module settings for link ${linkId}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryUpdateAssignmentModuleSettings",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -1220,12 +1213,11 @@ export const tryUpdateQuizModuleSettings = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdateQuizModuleSettings",
-					`to update quiz module settings for link ${linkId}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryUpdateQuizModuleSettings",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -1310,12 +1302,11 @@ export const tryUpdateDiscussionModuleSettings = Result.wrap(
 			})
 			.then(stripDepth<1, "update">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryUpdateDiscussionModuleSettings",
-					`to update discussion module settings for link ${linkId}`,
-					{ payload, req, overrideAccess },
-				);
+					functionNamePrefix: "tryUpdateDiscussionModuleSettings",
+					args: { payload, req, overrideAccess },
+				});
 				throw error;
 			});
 
@@ -1419,12 +1410,11 @@ export const tryCheckCourseActivityModuleLinkExists = Result.wrap(
 				req,
 			})
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryCheckCourseActivityModuleLinkExists",
-					"count course activity module link",
+					functionNamePrefix: "tryCheckCourseActivityModuleLinkExists",
 					args,
-				);
+				});
 				throw error;
 			});
 		return links.totalDocs > 0;

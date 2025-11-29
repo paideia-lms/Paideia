@@ -98,7 +98,11 @@ export const tryCreatePage = Result.wrap(
 			})
 			.then(stripDepth<0, "create">())
 			.catch((error) => {
-				interceptPayloadError(error, "tryCreatePage", "to create page", args);
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryCreatePage",
+					args,
+				});
 				throw error;
 			});
 
@@ -179,7 +183,11 @@ export const tryUpdatePage = Result.wrap(
 			})
 			.then(stripDepth<0, "update">())
 			.catch((error) => {
-				interceptPayloadError(error, "tryUpdatePage", "to update page", args);
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryUpdatePage",
+					args,
+				});
 				throw error;
 			});
 

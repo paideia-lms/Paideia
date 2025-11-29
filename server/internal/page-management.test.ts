@@ -10,18 +10,19 @@ import {
 	tryGetPageById,
 	tryUpdatePage,
 } from "./page-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateUser } from "./user-management";
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("Page Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let testUser: { id: number };
+	let testUser: TryResultValue<typeof tryCreateUser>;
 	let testMediaId: number;
 	let testMediaFilename: string;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh`;
+			await $`bun run migrate:fresh --force-accept-warning`;
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
@@ -31,7 +32,7 @@ describe("Page Management Functions", () => {
 		});
 
 		// Create test user
-		const userArgs: CreateUserArgs = {
+		testUser = await tryCreateUser({
 			payload,
 			data: {
 				email: "testuser@example.com",
@@ -41,15 +42,7 @@ describe("Page Management Functions", () => {
 				role: "student",
 			},
 			overrideAccess: true,
-		};
-
-		const userResult = await tryCreateUser(userArgs);
-
-		if (!userResult.ok) {
-			throw new Error("Failed to create test user");
-		}
-
-		testUser = userResult.value;
+		}).getOrThrow();
 
 		// Create test media file
 		const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();

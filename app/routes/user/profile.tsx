@@ -118,7 +118,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const redirectTo = (formData.get("redirectTo") as string) || "/";
 
 		// Set impersonation cookie and redirect
-		throw redirect(redirectTo, {
+		return redirect(redirectTo, {
 			headers: {
 				"Set-Cookie": setImpersonationCookie(
 					targetUserId,

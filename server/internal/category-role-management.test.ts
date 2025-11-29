@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	tryAssignCategoryRole,
@@ -16,15 +16,17 @@ import {
 } from "./category-role-management";
 import { tryCreateCategory } from "./course-category-management";
 import { tryCreateCourse } from "./course-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("Category Role Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
-	let adminUser: { id: number };
-	let user1: { id: number };
-	let user2: { id: number };
-	let user3: { id: number };
+	let adminUser: TryResultValue<typeof tryCreateUser>;
+	let user1: TryResultValue<typeof tryCreateUser>;
+	let user2: TryResultValue<typeof tryCreateUser>;
+	let user3: TryResultValue<typeof tryCreateUser>;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -40,79 +42,68 @@ describe("Category Role Management Functions", () => {
 
 		mockRequest = new Request("http://localhost:3000/test");
 
-		// Create test users
-		const adminArgs: CreateUserArgs = {
-			payload,
-			data: {
-				email: "admin@example.com",
-				password: "testpassword123",
-				firstName: "Admin",
-				lastName: "User",
-				role: "admin",
-			},
-			overrideAccess: true,
-		};
+		// Create test users in parallel
+		const [adminResult, user1Result, user2Result, user3Result] =
+			await Promise.all([
+				tryCreateUser({
+					payload,
+					data: {
+						email: "admin@example.com",
+						password: "testpassword123",
+						firstName: "Admin",
+						lastName: "User",
+						role: "admin",
+					},
+					overrideAccess: true,
+				}),
+				tryCreateUser({
+					payload,
+					data: {
+						email: "user1@example.com",
+						password: "testpassword123",
+						firstName: "User",
+						lastName: "One",
+						role: "student",
+					},
+					overrideAccess: true,
+				}),
+				tryCreateUser({
+					payload,
+					data: {
+						email: "user2@example.com",
+						password: "testpassword123",
+						firstName: "User",
+						lastName: "Two",
+						role: "student",
+					},
+					overrideAccess: true,
+				}),
+				tryCreateUser({
+					payload,
+					data: {
+						email: "user3@example.com",
+						password: "testpassword123",
+						firstName: "User",
+						lastName: "Three",
+						role: "student",
+					},
+					overrideAccess: true,
+				}),
+			]);
 
-		const user1Args: CreateUserArgs = {
-			payload,
-			data: {
-				email: "user1@example.com",
-				password: "testpassword123",
-				firstName: "User",
-				lastName: "One",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const user2Args: CreateUserArgs = {
-			payload,
-			data: {
-				email: "user2@example.com",
-				password: "testpassword123",
-				firstName: "User",
-				lastName: "Two",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const user3Args: CreateUserArgs = {
-			payload,
-			data: {
-				email: "user3@example.com",
-				password: "testpassword123",
-				firstName: "User",
-				lastName: "Three",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const adminResult = await tryCreateUser(adminArgs);
-		const user1Result = await tryCreateUser(user1Args);
-		const user2Result = await tryCreateUser(user2Args);
-		const user3Result = await tryCreateUser(user3Args);
-
-		if (
-			!adminResult.ok ||
-			!user1Result.ok ||
-			!user2Result.ok ||
-			!user3Result.ok
-		) {
-			throw new Error("Failed to create test users");
-		}
-
-		adminUser = adminResult.value;
-		user1 = user1Result.value;
-		user2 = user2Result.value;
-		user3 = user3Result.value;
+		adminUser = adminResult.getOrThrow();
+		user1 = user1Result.getOrThrow();
+		user2 = user2Result.getOrThrow();
+		user3 = user3Result.getOrThrow();
 	});
 
 	test("should assign category role to user", async () => {
 		const categoryResult = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Science",
 			overrideAccess: true,
 		});
@@ -122,7 +113,10 @@ describe("Category Role Management Functions", () => {
 
 		const assignResult = await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
@@ -139,7 +133,10 @@ describe("Category Role Management Functions", () => {
 	test("should revoke category role from user", async () => {
 		const categoryResult = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Mathematics",
 			overrideAccess: true,
 		});
@@ -149,7 +146,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-coordinator",
@@ -159,7 +159,10 @@ describe("Category Role Management Functions", () => {
 
 		const revokeResult = await tryRevokeCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			overrideAccess: true,
@@ -171,7 +174,10 @@ describe("Category Role Management Functions", () => {
 	test("should update existing role assignment", async () => {
 		const categoryResult = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Arts",
 			overrideAccess: true,
 		});
@@ -181,7 +187,10 @@ describe("Category Role Management Functions", () => {
 
 		const assignResult = await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-reviewer",
@@ -194,7 +203,10 @@ describe("Category Role Management Functions", () => {
 
 		const updateResult = await tryUpdateCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			assignmentId: assignResult.value.id,
 			newRole: "category-admin",
 			overrideAccess: true,
@@ -209,7 +221,10 @@ describe("Category Role Management Functions", () => {
 	test("should prevent duplicate assignments (one role per user per category)", async () => {
 		const categoryResult = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "History",
 			overrideAccess: true,
 		});
@@ -220,7 +235,10 @@ describe("Category Role Management Functions", () => {
 		// First assignment
 		const assign1Result = await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-coordinator",
@@ -233,7 +251,10 @@ describe("Category Role Management Functions", () => {
 		// Second assignment should update, not create duplicate
 		const assign2Result = await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
@@ -250,6 +271,10 @@ describe("Category Role Management Functions", () => {
 		const assignments = await tryGetCategoryRoleAssignments({
 			payload,
 			categoryId: categoryResult.value.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 		});
 		expect(assignments.ok).toBe(true);
 		if (assignments.ok) {
@@ -264,13 +289,19 @@ describe("Category Role Management Functions", () => {
 	test("should get all role assignments for a user", async () => {
 		const cat1 = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Category 1",
 			overrideAccess: true,
 		});
 		const cat2 = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Category 2",
 			overrideAccess: true,
 		});
@@ -279,7 +310,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user2.id,
 			categoryId: cat1.value.id,
 			role: "category-admin",
@@ -289,7 +323,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user2.id,
 			categoryId: cat2.value.id,
 			role: "category-coordinator",
@@ -300,6 +337,10 @@ describe("Category Role Management Functions", () => {
 		const userRoles = await tryGetUserCategoryRoles({
 			payload,
 			userId: user2.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: user2 as TypedUser,
+			}),
 		});
 
 		expect(userRoles.ok).toBe(true);
@@ -311,7 +352,10 @@ describe("Category Role Management Functions", () => {
 	test("should get all role assignments for a category", async () => {
 		const categoryResult = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Popular Category",
 			overrideAccess: true,
 		});
@@ -320,7 +364,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
@@ -330,7 +377,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user2.id,
 			categoryId: categoryResult.value.id,
 			role: "category-coordinator",
@@ -341,6 +391,10 @@ describe("Category Role Management Functions", () => {
 		const assignments = await tryGetCategoryRoleAssignments({
 			payload,
 			categoryId: categoryResult.value.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 		});
 
 		expect(assignments.ok).toBe(true);
@@ -352,7 +406,10 @@ describe("Category Role Management Functions", () => {
 	test("should find specific role assignment", async () => {
 		const categoryResult = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Find Test Category",
 			overrideAccess: true,
 		});
@@ -361,7 +418,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-reviewer",
@@ -373,6 +433,10 @@ describe("Category Role Management Functions", () => {
 			payload,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: user1 as TypedUser,
+			}),
 		});
 
 		expect(found.ok).toBe(true);
@@ -384,7 +448,10 @@ describe("Category Role Management Functions", () => {
 	test("should check if user has role on category", async () => {
 		const categoryResult = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Check Role Category",
 			overrideAccess: true,
 		});
@@ -393,7 +460,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
 			role: "category-admin",
@@ -405,6 +475,10 @@ describe("Category Role Management Functions", () => {
 			payload,
 			userId: user1.id,
 			categoryId: categoryResult.value.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: user1 as TypedUser,
+			}),
 		});
 
 		expect(checkResult.ok).toBe(true);
@@ -416,7 +490,10 @@ describe("Category Role Management Functions", () => {
 	test("should get effective role with inheritance from parent category", async () => {
 		const parentCat = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Parent Category",
 			overrideAccess: true,
 		});
@@ -425,7 +502,10 @@ describe("Category Role Management Functions", () => {
 
 		const childCat = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Child Category",
 			parent: parentCat.value.id,
 			overrideAccess: true,
@@ -436,7 +516,10 @@ describe("Category Role Management Functions", () => {
 		// Assign role on parent
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: parentCat.value.id,
 			role: "category-admin",
@@ -449,6 +532,10 @@ describe("Category Role Management Functions", () => {
 			payload,
 			userId: user1.id,
 			categoryId: childCat.value.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: user1 as TypedUser,
+			}),
 		});
 
 		expect(effectiveRole.ok).toBe(true);
@@ -460,7 +547,10 @@ describe("Category Role Management Functions", () => {
 	test("should respect role priority (admin > coordinator > reviewer)", async () => {
 		const grandparent = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Grandparent",
 			overrideAccess: true,
 		});
@@ -469,7 +559,10 @@ describe("Category Role Management Functions", () => {
 
 		const parent = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Parent",
 			parent: grandparent.value.id,
 			overrideAccess: true,
@@ -479,7 +572,10 @@ describe("Category Role Management Functions", () => {
 
 		const child = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Child",
 			parent: parent.value.id,
 			overrideAccess: true,
@@ -490,7 +586,10 @@ describe("Category Role Management Functions", () => {
 		// Assign reviewer on grandparent
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: grandparent.value.id,
 			role: "category-reviewer",
@@ -501,7 +600,10 @@ describe("Category Role Management Functions", () => {
 		// Assign admin on parent (higher priority)
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: parent.value.id,
 			role: "category-admin",
@@ -514,6 +616,10 @@ describe("Category Role Management Functions", () => {
 			payload,
 			userId: user1.id,
 			categoryId: child.value.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: user1 as TypedUser,
+			}),
 		});
 
 		expect(effectiveRole.ok).toBe(true);
@@ -525,7 +631,10 @@ describe("Category Role Management Functions", () => {
 	test("should get all courses user can access via category roles", async () => {
 		const category = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Course Access Category",
 			overrideAccess: true,
 		});
@@ -534,7 +643,10 @@ describe("Category Role Management Functions", () => {
 
 		const subcategory = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Subcategory",
 			parent: category.value.id,
 			overrideAccess: true,
@@ -570,7 +682,10 @@ describe("Category Role Management Functions", () => {
 		// Assign role on parent category
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: category.value.id,
 			role: "category-coordinator",
@@ -581,6 +696,10 @@ describe("Category Role Management Functions", () => {
 		const userCourses = await tryGetUserCoursesFromCategories({
 			payload,
 			userId: user1.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: user1 as TypedUser,
+			}),
 		});
 
 		expect(userCourses.ok).toBe(true);
@@ -592,7 +711,10 @@ describe("Category Role Management Functions", () => {
 	test("should check course access via direct category", async () => {
 		const category = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Direct Access Category",
 			overrideAccess: true,
 		});
@@ -615,7 +737,10 @@ describe("Category Role Management Functions", () => {
 
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: category.value.id,
 			role: "category-admin",
@@ -627,6 +752,10 @@ describe("Category Role Management Functions", () => {
 			payload,
 			userId: user1.id,
 			courseId: course.value.id,
+			req: createLocalReq({
+				request: mockRequest,
+				user: user1 as TypedUser,
+			}),
 		});
 
 		expect(access.ok).toBe(true);
@@ -638,7 +767,10 @@ describe("Category Role Management Functions", () => {
 	test("should check course access via ancestor category", async () => {
 		const parentCat = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Ancestor Category",
 			overrideAccess: true,
 		});
@@ -647,7 +779,10 @@ describe("Category Role Management Functions", () => {
 
 		const childCat = await tryCreateCategory({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			name: "Descendant Category",
 			parent: parentCat.value.id,
 			overrideAccess: true,
@@ -672,7 +807,10 @@ describe("Category Role Management Functions", () => {
 		// Assign role on parent
 		await tryAssignCategoryRole({
 			payload,
-			req: mockRequest,
+			req: createLocalReq({
+				request: mockRequest,
+				user: adminUser as TypedUser,
+			}),
 			userId: user1.id,
 			categoryId: parentCat.value.id,
 			role: "category-coordinator",
@@ -684,6 +822,10 @@ describe("Category Role Management Functions", () => {
 			payload,
 			userId: user1.id,
 			courseId: course.value.id,
+			req: createLocalReq({ 
+				request: new Request("http://localhost:3000/api/courses"),	
+				user: user1 as TypedUser,
+			}),
 		});
 
 		expect(access.ok).toBe(true);

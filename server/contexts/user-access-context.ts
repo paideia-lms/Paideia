@@ -74,25 +74,17 @@ interface GetUserAccessContextArgs extends BaseInternalFunctionArgs {
 
 export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 	const { payload, userId, overrideAccess = false, req } = args;
-	const result = await tryGetUserActivityModules(args);
-
-	if (!result.ok)
-		throw new Error(result.error.message, {
-			cause: result.error,
-		});
-
-	const { modulesOwnedOrGranted, autoGrantedModules } = result.value;
+	const { modulesOwnedOrGranted, autoGrantedModules } =
+		await tryGetUserActivityModules(args).getOrThrow();
 
 	const enrollments = await tryFindEnrollmentsByUser({
 		payload,
 		userId: userId,
 		req,
 		overrideAccess,
-	});
+	}).getOrThrow();
 
-	if (!enrollments.ok) throw enrollments.error;
-
-	const enrollmentsData = enrollments.value.map((enrollment) => ({
+	const enrollmentsData = enrollments.map((enrollment) => ({
 		id: enrollment.id,
 		role: enrollment.role,
 		status: enrollment.status,
@@ -143,11 +135,9 @@ export const getUserAccessContext = async (args: GetUserAccessContextArgs) => {
 		userId,
 		req,
 		overrideAccess,
-	});
+	}).getOrThrow();
 
-	const { notes, heatmapData, availableYears } = heatmapResult.ok
-		? heatmapResult.value
-		: { notes: [], heatmapData: {}, availableYears: [] };
+	const { notes, heatmapData, availableYears } = heatmapResult;
 
 	return {
 		activityModules: activityModules.filter(

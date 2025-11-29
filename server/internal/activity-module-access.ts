@@ -202,12 +202,11 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 			.then(stripDepth<0, "find">())
 			.then((result) => result.docs)
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryRevokeAccessFromActivityModule",
-					"existingGrant",
+					functionNamePrefix: "tryRevokeAccessFromActivityModule",
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -391,95 +390,12 @@ export const tryTransferActivityModuleOwnership = Result.wrap(
 );
 
 /**
- * Checks if a user has access to an activity module
- * Returns detailed access information including the source of access
- */
-export const tryCheckActivityModuleAccess = Result.wrap(
-	async (args: CheckAccessArgs): Promise<AccessCheckResult> => {
-		const { payload, activityModuleId, userId } = args;
-
-		// Verify activity module exists
-		const activityModule = await payload.findByID({
-			collection: "activity-modules",
-			id: activityModuleId,
-			depth: 0,
-			overrideAccess: true,
-		});
-
-		if (!activityModule) {
-			throw new NonExistingActivityModuleError(
-				`Activity module with ID ${activityModuleId} not found`,
-			);
-		}
-
-		// Get user
-		const user = await payload.findByID({
-			collection: "users",
-			id: userId,
-			overrideAccess: true,
-		});
-
-		if (!user) {
-			throw new Error(`User with ID ${userId} not found`);
-		}
-
-		// Check if user is admin
-		const isAdmin = user.role === "admin";
-
-		// Check if user is owner
-		const ownerId =
-			typeof activityModule.owner === "number"
-				? activityModule.owner
-				: activityModule.owner?.id;
-		const isOwner = ownerId === userId;
-
-		// Check if user is creator
-		const createdById =
-			typeof activityModule.createdBy === "number"
-				? activityModule.createdBy
-				: activityModule.createdBy?.id;
-		const isCreator = createdById === userId;
-
-		// Check if user has granted access
-		const grant = await payload
-			.find({
-				collection: "activity-module-grants",
-				where: {
-					and: [
-						{ activityModule: { equals: activityModuleId } },
-						{ grantedTo: { equals: userId } },
-					],
-				},
-				depth: 0,
-				overrideAccess: true,
-			})
-			.then(stripDepth<0, "find">());
-		const isGranted = grant.docs.length > 0;
-
-		const hasAccess = isAdmin || isOwner || isCreator || isGranted;
-
-		return {
-			hasAccess,
-			isOwner,
-			isCreator,
-			isGranted,
-			isAdmin,
-		};
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to check activity module access", {
-			cause: error,
-		}),
-);
-
-/**
  * Finds all grants for an activity module
  * Returns grants with populated user data
  */
 export const tryFindGrantsByActivityModule = Result.wrap(
 	async (args: FindGrantsByActivityModuleArgs) => {
-		const { payload, activityModuleId } = args;
+		const { payload, activityModuleId, req, overrideAccess = false } = args;
 
 		const grants = await payload
 			.find({
@@ -492,7 +408,8 @@ export const tryFindGrantsByActivityModule = Result.wrap(
 				},
 				// ! we don't care about performance for now
 				pagination: false,
-				overrideAccess: true,
+				overrideAccess,
+				req,
 			})
 			.then(stripDepth<1, "find">())
 			.then((result) => result.docs);
@@ -639,12 +556,11 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 			.then(stripDepth<0, "find">())
 			.then((result) => result.docs)
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryFindAutoGrantedModulesForInstructor",
-					"enrollments",
+					functionNamePrefix: "tryFindAutoGrantedModulesForInstructor",
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -662,6 +578,7 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				},
 				overrideAccess,
 				depth: 2,
+				req,
 				// ! we don't care about pagination and performance for now
 				pagination: false,
 			})
@@ -678,12 +595,11 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				}),
 			)
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryFindAutoGrantedModulesForInstructor",
-					"links",
+					functionNamePrefix: "tryFindAutoGrantedModulesForInstructor",
 					args,
-				);
+				});
 				throw error;
 			});
 

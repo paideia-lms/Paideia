@@ -133,9 +133,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -211,9 +211,9 @@ const createAction = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -321,9 +321,9 @@ const deleteAction = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -357,9 +357,9 @@ const deleteAction = async ({
 		return badRequest({ error: deleteResult.error.message });
 	}
 
-	// If redirectTo is provided, throw redirect instead of returning response
+	// If redirectTo is provided, return redirect instead of returning response
 	if (redirectTo) {
-		throw redirect(redirectTo);
+		return redirect(redirectTo);
 	}
 
 	return ok({ success: true, message: "Link deleted successfully" });

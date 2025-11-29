@@ -171,11 +171,9 @@ export const getUserProfileContext = async (
 		userId: profileUserId,
 		req,
 		overrideAccess,
-	});
+	}).getOrThrow();
 
-	if (!enrollments.ok) throw new Error("Failed to get user enrollments");
-
-	const enrollmentsData = enrollments.value.map(
+	const enrollmentsData = enrollments.map(
 		(enrollment) =>
 			({
 				id: enrollment.id,
@@ -228,11 +226,9 @@ export const getUserProfileContext = async (
 		userId: profileUserId,
 		req,
 		overrideAccess,
-	});
+	}).getOrThrow();
 
-	const { notes, heatmapData, availableYears } = heatmapResult.ok
-		? heatmapResult.value
-		: { notes: [], heatmapData: {}, availableYears: [] };
+	const { notes, heatmapData, availableYears } = heatmapResult;
 
 	return {
 		profileUserId,

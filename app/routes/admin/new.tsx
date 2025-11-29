@@ -249,7 +249,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 		});
 		// Redirect to the newly created user's profile using route param
 		if (actionData.id) {
-			throw redirect(`/user/profile/${actionData.id}`);
+			return redirect(`/user/profile/${actionData.id}`);
 		}
 	} else if (
 		actionData?.status === StatusCode.BadRequest ||

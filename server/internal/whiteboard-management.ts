@@ -50,12 +50,11 @@ export const tryCreateWhiteboard = Result.wrap(
 			})
 			.then(stripDepth<1, "create">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryCreateWhiteboard",
-					"to create whiteboard",
+					functionNamePrefix: "tryCreateWhiteboard",
 					args,
-				);
+				});
 				throw error;
 			});
 
@@ -171,12 +170,11 @@ export const tryGetWhiteboardById = Result.wrap(
 			})
 			.then(stripDepth<1, "findByID">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryGetWhiteboardById",
-					"to get whiteboard by id",
+					functionNamePrefix: "tryGetWhiteboardById",
 					args,
-				);
+				});
 				throw error;
 			});
 

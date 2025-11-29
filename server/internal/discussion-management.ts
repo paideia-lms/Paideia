@@ -1298,12 +1298,11 @@ export const tryDeleteDiscussionSubmission = Result.wrap(
 			})
 			.then(stripDepth<0, "delete">())
 			.catch((error) => {
-				interceptPayloadError(
+				interceptPayloadError({
 					error,
-					"tryDeleteDiscussionSubmission",
-					"delete discussion submission",
+					functionNamePrefix: "tryDeleteDiscussionSubmission",
 					args,
-				);
+				});
 				throw error;
 			});
 

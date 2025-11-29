@@ -45,7 +45,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
 	// if user already login, redirect to dashboard
 	if (userSession?.isAuthenticated) {
-		throw redirect(href("/"));
+		return redirect(href("/"));
 	}
 
 	const settingsResult = await tryGetRegistrationSettings({
@@ -133,7 +133,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 		}
 
 		const { token, exp } = result.value;
-		throw redirect(href("/"), {
+		return redirect(href("/"), {
 			headers: {
 				"Set-Cookie": setCookie(
 					token,
@@ -161,7 +161,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 	}
 
 	const { token, exp } = result.value;
-	throw redirect(href("/"), {
+	return redirect(href("/"), {
 		headers: {
 			"Set-Cookie": setCookie(
 				token,

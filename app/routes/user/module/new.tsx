@@ -165,7 +165,7 @@ const createPageAction = async ({
 			});
 		}
 
-		throw redirect("/user/profile");
+		return redirect("/user/profile");
 	});
 };
 
@@ -240,7 +240,7 @@ const createWhiteboardAction = async ({
 			});
 		}
 
-		throw redirect("/user/profile");
+		return redirect("/user/profile");
 	});
 };
 
@@ -361,7 +361,7 @@ const createFileAction = async ({
 			});
 		}
 
-		throw redirect("/user/profile");
+		return redirect("/user/profile");
 	});
 };
 
@@ -438,7 +438,7 @@ const createAssignmentAction = async ({
 			});
 		}
 
-		throw redirect("/user/profile");
+		return redirect("/user/profile");
 	});
 };
 
@@ -515,7 +515,7 @@ const createQuizAction = async ({
 			});
 		}
 
-		throw redirect("/user/profile");
+		return redirect("/user/profile");
 	});
 };
 
@@ -592,7 +592,7 @@ const createDiscussionAction = async ({
 			});
 		}
 
-		throw redirect("/user/profile");
+		return redirect("/user/profile");
 	});
 };
 

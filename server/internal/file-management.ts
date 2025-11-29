@@ -77,16 +77,16 @@ export const tryUpdateFile = Result.wrap(
 		}
 
 		// Check if file exists
-		const existingFile = await payload.findByID({
-			collection: "files",
-			id,
-			req,
-			overrideAccess,
-		});
+		// const existingFile = await payload.findByID({
+		// 	collection: "files",
+		// 	id,
+		// 	req,
+		// 	overrideAccess,
+		// });
 
-		if (!existingFile) {
-			throw new NonExistingFileError("File not found");
-		}
+		// if (!existingFile) {
+		// 	throw new NonExistingFileError("File not found");
+		// }
 
 		const file = await payload
 			.update({
@@ -99,6 +99,7 @@ export const tryUpdateFile = Result.wrap(
 				},
 				req,
 				overrideAccess,
+				depth: 0,
 			})
 			.then(stripDepth<0, "update">());
 
