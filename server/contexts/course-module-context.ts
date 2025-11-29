@@ -2,14 +2,9 @@ import { formatModuleSettingsForDisplay } from "app/routes/course/module.$id/uti
 import { createContext } from "react-router";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import type {
-	LatestAssignmentSettings,
 	LatestCourseModuleSettings,
 	LatestQuizConfig,
 	LatestQuizSettings,
-	LatestDiscussionSettings,
-	LatestPageSettings,
-	LatestWhiteboardSettings,
-	LatestFileSettings,
 } from "server/json";
 import { calculateTotalPoints } from "server/json/raw-quiz-config/types.v2";
 import { Result } from "typescript-result";
@@ -177,6 +172,8 @@ export const tryGetCourseModuleContext = Result.wrap(
 		// Get module link settings
 		const moduleLinkSettings =
 			moduleLink.settings as unknown as LatestCourseModuleSettings | null;
+
+		// console.log(moduleLinkSettings, moduleLink);
 
 		// Format module settings for display (using function from utils.ts)
 		const formattedModuleSettings = formatModuleSettingsForDisplay(

@@ -84,11 +84,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-					{
-						userId: enrolmentContext.enrolment.user.id,
-						role: enrolmentContext.enrolment.role,
-					},
-				]
+				{
+					userId: enrolmentContext.enrolment.user.id,
+					role: enrolmentContext.enrolment.role,
+				},
+			]
 			: undefined,
 	);
 
@@ -100,11 +100,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 	const displayName =
 		courseModuleContext.settings?.name ??
 		courseModuleContext.activityModule.title;
+
+
 	return {
 		course: courseContext.course,
-		module: courseModuleContext.activityModule,
-		moduleLinkId: courseModuleContext.id,
-		settings: courseModuleContext.settings,
+		module: courseModuleContext,
 		displayName,
 	};
 };
@@ -807,11 +807,11 @@ function FileSettingsFormWrapper({
 		<form onSubmit={form.onSubmit((values) => updateFileSettings(values.name))}>
 			<Stack gap="md">
 				<TextInput
+					{...form.getInputProps("name")}
 					label="Custom Module Name"
 					placeholder="Leave empty to use default module name"
 					disabled={isLoading}
 					description="Override the module name for this course"
-					{...form.getInputProps("name")}
 				/>
 
 				<Text c="dimmed" size="sm">
@@ -1161,13 +1161,13 @@ function DangerZone({
 }
 
 export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
-	const { course, module, moduleLinkId, displayName, settings } = loaderData;
+	const { course, module, displayName } = loaderData;
 	const navigate = useNavigate();
 
 	const handleCancel = () => {
 		navigate(
 			href("/course/module/:moduleLinkId", {
-				moduleLinkId: String(moduleLinkId),
+				moduleLinkId: String(module.id),
 			}),
 		);
 	};
@@ -1198,51 +1198,51 @@ export default function ModuleEditPage({ loaderData }: Route.ComponentProps) {
 
 				<Paper shadow="sm" p="xl" withBorder>
 					{/* TODO: we should not check two value but for now the type is not right */}
-					{settings?.type === "page" && (
+					{module.type === "page" && (
 						<PageSettingsFormWrapper
-							settings={settings}
-							moduleLinkId={moduleLinkId}
+							settings={module.settings}
+							moduleLinkId={module.id}
 							onCancel={handleCancel}
 						/>
 					)}
-					{settings?.type === "whiteboard" && (
+					{module.type === "whiteboard" && (
 						<WhiteboardSettingsFormWrapper
-							settings={settings}
-							moduleLinkId={moduleLinkId}
+							settings={module.settings}
+							moduleLinkId={module.id}
 							onCancel={handleCancel}
 						/>
 					)}
-					{settings?.type === "file" && (
+					{module.type === "file" && (
 						<FileSettingsFormWrapper
-							settings={settings}
-							moduleLinkId={moduleLinkId}
+							settings={module.settings}
+							moduleLinkId={module.id}
 							onCancel={handleCancel}
 						/>
 					)}
-					{settings?.type === "assignment" && (
+					{module.type === "assignment" && (
 						<AssignmentSettingsFormWrapper
-							settings={settings}
-							moduleLinkId={moduleLinkId}
+							settings={module.settings}
+							moduleLinkId={module.id}
 							onCancel={handleCancel}
 						/>
 					)}
-					{settings?.type === "quiz" && (
+					{module.type === "quiz" && (
 						<QuizSettingsFormWrapper
-							settings={settings}
-							moduleLinkId={moduleLinkId}
+							settings={module.settings}
+							moduleLinkId={module.id}
 							onCancel={handleCancel}
 						/>
 					)}
-					{settings?.type === "discussion" && (
+					{module.type === "discussion" && (
 						<DiscussionSettingsFormWrapper
-							settings={settings}
-							moduleLinkId={moduleLinkId}
+							settings={module.settings}
+							moduleLinkId={module.id}
 							onCancel={handleCancel}
 						/>
 					)}
 				</Paper>
 
-				<DangerZone moduleLinkId={moduleLinkId} courseId={course.id} />
+				<DangerZone moduleLinkId={module.id} courseId={course.id} />
 			</Stack>
 		</Container>
 	);

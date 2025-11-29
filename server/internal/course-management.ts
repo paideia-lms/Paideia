@@ -415,7 +415,7 @@ export const tryFindCourseById = Result.wrap(
 				throw error;
 			})
 			.then((result) => {
-				console.log("result", result);
+				// console.log("result", result);
 				const course = result.docs[0];
 				if (!course) {
 					throw new Error("Course not found");

@@ -359,26 +359,26 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-						color: "blue",
-						radius: "sm" as const,
-						logoLight: null,
-						logoDark: null,
-						compactLogoLight: null,
-						compactLogoDark: null,
-						faviconLight: null,
-						faviconDark: null,
-					},
-					analyticsSettings: {
-						additionalJsScripts: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -423,7 +423,8 @@ export const middleware = [
 		// check if the user is in a course
 		if (pageInfo.isInCourse) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			let { courseId } = params as RouteParams<"layouts/course-layout">;
+			let { courseId: _courseId } = params as RouteParams<"layouts/course-layout">;
+			let courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
 				const { moduleLinkId } =
@@ -445,7 +446,7 @@ export const middleware = [
 				const module = moduleContext.value;
 				const { course } = module;
 				// update the course id to the course id from the module
-				courseId = String(course.id);
+				courseId = course.id;
 			}
 
 			// in course/section/id , we need to get the section first and then get the course id
@@ -469,7 +470,14 @@ export const middleware = [
 
 				const section = sectionContext.value;
 				// update the course id to the course id from the section
-				courseId = String(section.course);
+				courseId = section.course.id;
+			}
+
+
+			// if course id is not set, something is wrong, log it and leave context unset
+			if (!courseId) {
+				payload.logger.error("Course ID is not set, something is wrong");
+				return
 			}
 
 			const courseContextResult = await tryGetCourseContext({
@@ -479,7 +487,7 @@ export const middleware = [
 					user: currentUser,
 					context: { routerContext: context },
 				}),
-				courseId: Number(courseId),
+				courseId: courseId,
 			});
 
 			// Only set the course context if successful
@@ -575,19 +583,19 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext({
-								payload,
-								profileUserId,
-								req: createLocalReq({
-									request,
-									user: currentUser,
-									context: { routerContext: context },
-								}),
-								overrideAccess: false,
-							});
+							payload,
+							profileUserId,
+							req: createLocalReq({
+								request,
+								user: currentUser,
+								context: { routerContext: context },
+							}),
+							overrideAccess: false,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -779,17 +787,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				};
+				userSession: userSession,
+				courseContext: context.get(courseContextKey),
+				courseModuleContext: context.get(courseModuleContextKey),
+				courseSectionContext: context.get(courseSectionContextKey),
+				enrolmentContext: context.get(enrolmentContextKey),
+				userModuleContext: context.get(userModuleContextKey),
+				userProfileContext: context.get(userProfileContextKey),
+				userAccessContext: context.get(userAccessContextKey),
+				userContext: context.get(userContextKey),
+				systemGlobals: systemGlobals,
+			};
 
 	return {
 		users: users,

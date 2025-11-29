@@ -4,6 +4,7 @@ import { Result } from "typescript-result";
 import { tryFindSectionById } from "../internal/course-section-management";
 export { courseSectionContextKey } from "./utils/context-keys";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
+import { InvalidArgumentError } from "app/utils/error";
 
 /**
  * CourseSectionContext is the resolved data for a course section,
@@ -28,10 +29,13 @@ export async function tryGetCourseSectionContext(
 	args: TryGetCourseSectionContextArgs,
 ) {
 	const { payload, req, sectionId, overrideAccess } = args;
+	if (Number.isNaN(sectionId)) {
+		return Result.error(new InvalidArgumentError("Section ID is required"));
+	}
 	// Always pass overrideAccess: false and provide current user
 	const sectionResult = await tryFindSectionById({
 		payload,
-		sectionId: Number(sectionId),
+		sectionId: sectionId,
 		req,
 		overrideAccess,
 	});

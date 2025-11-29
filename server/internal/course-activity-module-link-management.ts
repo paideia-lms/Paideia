@@ -679,13 +679,15 @@ async function buildCourseActivityModuleLinkResult(
 		updatedAt: string;
 	},
 	activityModule: ActivityModuleResult,
-): Promise<CourseActivityModuleLinkResult> {
+) {
 	// Extract course, preserving full object if available
 	const course: CourseLinkData = link.course;
 
 	const section =
 		typeof link.section === "number" ? { id: link.section } : link.section;
 	const settings = (link.settings as LatestCourseModuleSettings | null) ?? null;
+
+	// console.log(settings);
 
 	const baseResult: BaseCourseActivityModuleLinkResult = {
 		id: link.id,

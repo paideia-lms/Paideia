@@ -21,6 +21,7 @@ import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
 	CourseStructureNotFoundError,
+	InvalidArgumentError,
 	UnknownError,
 } from "~/utils/error";
 import type {
@@ -189,6 +190,9 @@ export const tryGetCourseContext = async ({
 	courseId,
 }: TryGetCourseContextArgs) => {
 	const user = req?.user;
+	if (Number.isNaN(courseId)) {
+		return Result.error(new InvalidArgumentError("Course ID is required"));
+	}
 	// Get course
 	const courseResult = await tryFindCourseById({
 		payload,
