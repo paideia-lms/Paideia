@@ -1,7 +1,7 @@
 {
 	"name": "paideia",
 	"description": "Paideia LMS - Simple, Robust, and Lightweight Learning Management System in a Single Executable",
-	"version": "0.7.2",
+	"version": "0.7.3",
 	"keywords": [
 		"paideia",
 		"lms",
@@ -142,7 +142,6 @@
 		"search-query-parser": "^1.6.0",
 		"string-ts": "^2.2.1",
 		"tippy.js": "^6.3.7",
-		"ts-pattern": "^5.9.0",
 		"typescript-result": "^3.5.2",
 		"ua-parser-js": "^2.0.6",
 		"unified": "^11.0.5",

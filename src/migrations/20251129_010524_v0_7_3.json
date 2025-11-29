@@ -1,6 +1,4 @@
 {
-  "id": "bd806e27-3b89-4990-8d83-9aacd673218c",
-  "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -1871,21 +1869,6 @@
           "method": "btree",
           "with": {}
         },
-        "assignment_idx": {
-          "name": "assignment_idx",
-          "columns": [
-            {
-              "expression": "assignment_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "quiz_idx": {
           "name": "quiz_idx",
           "columns": [
@@ -2278,17 +2261,17 @@
           "primaryKey": true,
           "notNull": true
         },
-        "content": {
-          "name": "content",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_by_id": {
           "name": "created_by_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
+        },
+        "content": {
+          "name": "content",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "updated_at": {
           "name": "updated_at",
@@ -2755,26 +2738,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "due_date": {
-          "name": "due_date",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_attempts": {
-          "name": "max_attempts",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 1
-        },
-        "allow_late_submissions": {
-          "name": "allow_late_submissions",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "max_file_size": {
           "name": "max_file_size",
           "type": "numeric",
@@ -2875,21 +2838,6 @@
           "columns": [
             {
               "expression": "created_by_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "dueDate_idx": {
-          "name": "dueDate_idx",
-          "columns": [
-            {
-              "expression": "due_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3234,26 +3182,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "due_date": {
-          "name": "due_date",
-          "type": "timestamp(3) with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "max_attempts": {
-          "name": "max_attempts",
-          "type": "numeric",
-          "primaryKey": false,
-          "notNull": false,
-          "default": 1
-        },
-        "allow_late_submissions": {
-          "name": "allow_late_submissions",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
         "points": {
           "name": "points",
           "type": "numeric",
@@ -3382,21 +3310,6 @@
           "columns": [
             {
               "expression": "created_by_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "dueDate_1_idx": {
-          "name": "dueDate_1_idx",
-          "columns": [
-            {
-              "expression": "due_date",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -3786,8 +3699,8 @@
           "method": "btree",
           "with": {}
         },
-        "dueDate_2_idx": {
-          "name": "dueDate_2_idx",
+        "dueDate_idx": {
+          "name": "dueDate_idx",
           "columns": [
             {
               "expression": "due_date",
@@ -11195,5 +11108,7 @@
     "schemas": {},
     "tables": {},
     "columns": {}
-  }
+  },
+  "id": "bdda1888-49fd-40d0-8bb2-a9d8393f6ef1",
+  "prevId": "00000000-0000-0000-0000-000000000000"
 }

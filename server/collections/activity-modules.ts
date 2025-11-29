@@ -1,5 +1,4 @@
 import type { AccessResult, CollectionConfig } from "payload";
-import { match, P } from "ts-pattern";
 
 const slug = "activity-modules" as const;
 
@@ -24,60 +23,48 @@ export const ActivityModules = {
 			return false;
 		},
 		update: ({ req }): AccessResult => {
-			return match(req.user)
-				.with(
-					// must be logged in to update activity modules
-					P.nullish,
-					() => {
-						// req.payload.logger.error(
-						// 	`Failed to update activity module: unauthenticated user is not allowed to update activity modules`,
-						// );
-						return false;
-					},
-				)
-				.with(
-					// admin can update any activity module
-					{ role: "admin" },
-					() => {
-						return true;
-					},
-				)
-				.otherwise((user) => {
-					// owners and users with grants can update
-					const where: AccessResult = {
-						or: [
-							{ owner: { equals: user.id } },
-							{ "grants.grantedTo": { equals: user.id } },
-						],
-					};
-					return where;
-				});
+			// must be logged in to update activity modules
+			if (!req.user) {
+				// req.payload.logger.error(
+				// 	`Failed to update activity module: unauthenticated user is not allowed to update activity modules`,
+				// );
+				return false;
+			}
+
+			// admin can update any activity module
+			if (req.user.role === "admin") {
+				return true;
+			}
+
+			// owners and users with grants can update
+			const user = req.user;
+			const where: AccessResult = {
+				or: [
+					{ owner: { equals: user.id } },
+					{ "grants.grantedTo": { equals: user.id } },
+				],
+			};
+			return where;
 		},
 		delete: ({ req }): AccessResult => {
-			return match(req.user)
-				.with(
-					// must be logged in to delete activity modules
-					P.nullish,
-					() => {
-						// req.payload.logger.error(
-						// 	`Failed to delete activity module: unauthenticated user is not allowed to delete activity modules`,
-						// );
-						return false;
-					},
-				)
-				.with(
-					// admin can delete any activity module
-					{ role: "admin" },
-					() => {
-						return true;
-					},
-				)
-				.otherwise((user) => {
-					// only owners can delete
-					return {
-						owner: { equals: user.id },
-					};
-				});
+			// must be logged in to delete activity modules
+			if (!req.user) {
+				// req.payload.logger.error(
+				// 	`Failed to delete activity module: unauthenticated user is not allowed to delete activity modules`,
+				// );
+				return false;
+			}
+
+			// admin can delete any activity module
+			if (req.user.role === "admin") {
+				return true;
+			}
+
+			// only owners can delete
+			const user = req.user;
+			return {
+				owner: { equals: user.id },
+			};
 		},
 	},
 	fields: [

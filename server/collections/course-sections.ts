@@ -1,6 +1,5 @@
 import type { CollectionConfig } from "payload";
 import type { CustomTFunction } from "server/utils/db/custom-translations";
-import { match, P } from "ts-pattern";
 import { CustomForbidden } from "./utils/custom-forbidden";
 export const slug = "course-sections" as const;
 
@@ -10,75 +9,56 @@ export const CourseSections = {
 	defaultSort: "contentOrder",
 	access: {
 		create: ({ req }) => {
-			return match(req.user)
-				.with(
-					P.union(
-						// must be logged in to create a section
-						P.nullish,
-						// only admin, instructor, and content manager can create a section
-						{ role: P.not(P.union("admin", "instructor", "content-manager")) },
-					),
-					(user) => {
-						throw new CustomForbidden(
-							"create",
-							user?.role ?? "unauthenticated",
-							slug,
-							req.t as CustomTFunction,
-						);
-					},
+			const user = req.user;
+			if (!user) return false;
+			if (
+				!(
+					user.role === "admin" ||
+					user.role === "instructor" ||
+					user.role === "content-manager"
 				)
-				.otherwise(() => {
-					// Proceed with the allowed logic (no throw occurs here)
-					return true;
-				});
+			) {
+				// throw new CustomForbidden(
+				// 	"create",
+				// 	user?.role ?? "unauthenticated",
+				// 	slug,
+				// 	req.t as CustomTFunction,
+				// );
+				return false;
+			}
+			return true;
 		},
 		read: ({ req }) => {
 			// any one can read any section
 			return true;
 		},
 		update: ({ req }) => {
-			return match(req.user)
-				.with(
-					P.union(
-						// must be logged in to update a section
-						P.nullish,
-						// only admin, instructor, and content manager can update a section
-						{ role: P.not(P.union("admin", "instructor", "content-manager")) },
-					),
-					(user) => {
-						throw new CustomForbidden(
-							"update",
-							user?.role ?? "unauthenticated",
-							slug,
-							req.t as CustomTFunction,
-						);
-					},
+			const user = req.user;
+			if (
+				!user ||
+				!(
+					user.role === "admin" ||
+					user.role === "instructor" ||
+					user.role === "content-manager"
 				)
-				.otherwise(() => {
-					return true;
-				});
+			) {
+				return false;
+			}
+			return true;
 		},
 		delete: ({ req }) => {
-			return match(req.user)
-				.with(
-					P.union(
-						// must be logged in to delete a section
-						P.nullish,
-						// only admin, instructor, and content manager can delete a section
-						{ role: P.not(P.union("admin", "instructor", "content-manager")) },
-					),
-					(user) => {
-						throw new CustomForbidden(
-							"delete",
-							user?.role ?? "unauthenticated",
-							slug,
-							req.t as CustomTFunction,
-						);
-					},
+			const user = req.user;
+			if (
+				!user ||
+				!(
+					user.role === "admin" ||
+					user.role === "instructor" ||
+					user.role === "content-manager"
 				)
-				.otherwise(() => {
-					return true;
-				});
+			) {
+				return false;
+			}
+			return true;
 		},
 	},
 	fields: [
