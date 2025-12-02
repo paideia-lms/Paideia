@@ -85,7 +85,7 @@ export const tryCreateNote = Result.wrap(
 						content: content.trim(),
 						createdBy,
 						isPublic,
-						media: mediaIds.length > 0 ? mediaIds : undefined,
+						contentMedia: mediaIds.length > 0 ? mediaIds : undefined,
 					},
 					req: txInfo.reqWithTransaction,
 					overrideAccess,
@@ -121,7 +121,7 @@ export const tryUpdateNote = Result.wrap(
 					data: {
 						...data,
 						content: data.content?.trim(),
-						media: await tryExtractMediaIdsFromRichText({
+						contentMedia: await tryExtractMediaIdsFromRichText({
 							payload,
 							htmlContent: [data.content].filter(Boolean),
 							req: txInfo.reqWithTransaction,

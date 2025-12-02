@@ -105,9 +105,9 @@ describe("Course Management Functions", () => {
 				expect(result.value.description).toBe(courseArgs.data.description);
 				expect(result.value.status).toBe(courseArgs.data.status || "draft");
 				// Media array should be empty when no media references
-				expect(result.value.media).toBeDefined();
-				if (Array.isArray(result.value.media)) {
-					expect(result.value.media.length).toBe(0);
+				expect(result.value.descriptionMedia).toBeDefined();
+				if (Array.isArray(result.value.descriptionMedia)) {
+					expect(result.value.descriptionMedia.length).toBe(0);
 				}
 			}
 		});
@@ -187,9 +187,9 @@ describe("Course Management Functions", () => {
 					expect(updateResult.value.description).toBe("Updated description");
 					expect(updateResult.value.status).toBe("published");
 					// Media array should be empty when no media references
-					expect(updateResult.value.media).toBeDefined();
-					if (Array.isArray(updateResult.value.media)) {
-						expect(updateResult.value.media.length).toBe(0);
+					expect(updateResult.value.descriptionMedia).toBeDefined();
+					if (Array.isArray(updateResult.value.descriptionMedia)) {
+						expect(updateResult.value.descriptionMedia.length).toBe(0);
 					}
 				}
 			}
@@ -215,10 +215,10 @@ describe("Course Management Functions", () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value.description).toBe(description);
-				expect(result.value.media).toBeDefined();
-				if (Array.isArray(result.value.media)) {
-					expect(result.value.media.length).toBe(1);
-					const mediaId = result.value.media[0]?.id;
+				expect(result.value.descriptionMedia).toBeDefined();
+				if (Array.isArray(result.value.descriptionMedia)) {
+					expect(result.value.descriptionMedia.length).toBe(1);
+					const mediaId = result.value.descriptionMedia[0]?.id;
 					expect(mediaId).toBe(testMediaId);
 				}
 			}
@@ -257,10 +257,10 @@ describe("Course Management Functions", () => {
 				expect(updateResult.ok).toBe(true);
 				if (updateResult.ok) {
 					expect(updateResult.value.description).toBe(updatedDescription);
-					expect(updateResult.value.media).toBeDefined();
-					if (Array.isArray(updateResult.value.media)) {
-						expect(updateResult.value.media.length).toBe(1);
-						const mediaId = updateResult.value.media[0]?.id;
+					expect(updateResult.value.descriptionMedia).toBeDefined();
+					if (Array.isArray(updateResult.value.descriptionMedia)) {
+						expect(updateResult.value.descriptionMedia.length).toBe(1);
+						const mediaId = updateResult.value.descriptionMedia[0]?.id;
 						expect(mediaId).toBe(testMediaId);
 					}
 				}
@@ -353,9 +353,9 @@ describe("Course Management Functions", () => {
 				}
 
 				// Verify media array contains the description image
-				expect(updatedCourse.media).toBeDefined();
-				if (Array.isArray(updatedCourse.media)) {
-					expect(updatedCourse.media.length).toBeGreaterThan(0);
+				expect(updatedCourse.descriptionMedia).toBeDefined();
+				if (Array.isArray(updatedCourse.descriptionMedia)) {
+					expect(updatedCourse.descriptionMedia.length).toBeGreaterThan(0);
 				}
 			});
 
@@ -435,9 +435,9 @@ describe("Course Management Functions", () => {
 				}
 
 				// Verify media array contains both description images
-				expect(updatedCourse.media).toBeDefined();
-				if (Array.isArray(updatedCourse.media)) {
-					expect(updatedCourse.media.length).toBe(2);
+				expect(updatedCourse.descriptionMedia).toBeDefined();
+				if (Array.isArray(updatedCourse.descriptionMedia)) {
+					expect(updatedCourse.descriptionMedia.length).toBe(2);
 				}
 			});
 

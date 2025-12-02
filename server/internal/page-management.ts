@@ -89,8 +89,8 @@ export const tryCreatePage = Result.wrap(
 				collection: "pages",
 				data: {
 					content: content || "",
+					contentMedia: mediaIds.length > 0 ? mediaIds : undefined,
 					createdBy: userId,
-					media: mediaIds.length > 0 ? mediaIds : undefined,
 				},
 				req,
 				overrideAccess,

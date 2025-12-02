@@ -15,11 +15,11 @@ export function richTextContent<
 	return [
 		o,
 		{
-			name: "media",
+			name: `${o.name}Media`,
 			type: "relationship",
 			relationTo: "media",
 			hasMany: true,
-			label: "Media",
+			label: `${o.label} Media`,
 		},
 	] as const;
 }

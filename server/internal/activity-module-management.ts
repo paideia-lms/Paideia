@@ -750,7 +750,7 @@ export const tryCreatePageModule = Result.wrap(
 					lastName: owner.lastName ?? "",
 				},
 				content: page.content ?? null,
-				media: page.media,
+				media: page.contentMedia ?? [],
 				updatedAt: activityModule.updatedAt,
 				createdAt: activityModule.createdAt,
 			} satisfies PageModuleResult;
@@ -1522,7 +1522,7 @@ export const tryGetActivityModuleById = Result.wrap(
 					return m;
 				});
 
-				const pageMedia = page?.media;
+				const pageMedia = page?.contentMedia ?? [];
 				return {
 					...am,
 					createdBy: {
@@ -1766,7 +1766,7 @@ export const tryUpdatePageModule = Result.wrap(
 					lastName: owner.lastName ?? "",
 				},
 				content: pageRelation?.content ?? null,
-				media: pageRelation?.media ?? null,
+				media: pageRelation?.contentMedia ?? [],
 				updatedAt: updatedModule.updatedAt,
 				createdAt: updatedModule.createdAt,
 			} satisfies PageModuleResult;

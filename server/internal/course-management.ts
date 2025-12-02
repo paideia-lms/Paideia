@@ -134,13 +134,13 @@ export const tryCreateCourse = Result.wrap(
 					data: {
 						title,
 						description,
+						descriptionMedia: mediaIds.length > 0 ? mediaIds : undefined,
 						slug,
 						createdBy,
 						status,
 						thumbnail,
 						tags,
 						category,
-						media: mediaIds.length > 0 ? mediaIds : undefined,
 					},
 					depth: 1,
 					req: transactionInfo.reqWithTransaction,
@@ -240,7 +240,7 @@ export const tryUpdateCourse = Result.wrap(
 				id: courseId,
 				data: {
 					...data,
-					media: await tryExtractMediaIdsFromRichText({
+					descriptionMedia: await tryExtractMediaIdsFromRichText({
 						payload,
 						htmlContent: [data.description].filter(Boolean),
 						req,

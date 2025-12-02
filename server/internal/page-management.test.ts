@@ -88,9 +88,9 @@ describe("Page Management Functions", () => {
 			expect(result.value.content).toBe(createArgs.content);
 			expect(result.value.createdBy).toBe(testUser.id);
 			// Media array should be empty when no media references in HTML
-			expect(result.value.media).toBeDefined();
-			if (Array.isArray(result.value.media)) {
-				expect(result.value.media.length).toBe(0);
+			expect(result.value.contentMedia).toBeDefined();
+			if (Array.isArray(result.value.contentMedia)) {
+				expect(result.value.contentMedia.length).toBe(0);
 			}
 		}
 	});
@@ -194,9 +194,9 @@ describe("Page Management Functions", () => {
 			if (updateResult.ok) {
 				expect(updateResult.value.content).toBe("<h1>Updated Content</h1>");
 				// Media array should be empty when no media references
-				expect(updateResult.value.media).toBeDefined();
-				if (Array.isArray(updateResult.value.media)) {
-					expect(updateResult.value.media.length).toBe(0);
+				expect(updateResult.value.contentMedia).toBeDefined();
+				if (Array.isArray(updateResult.value.contentMedia)) {
+					expect(updateResult.value.contentMedia.length).toBe(0);
 				}
 			}
 		}
@@ -217,10 +217,10 @@ describe("Page Management Functions", () => {
 		expect(result.ok).toBe(true);
 		if (result.ok) {
 			expect(result.value.content).toBe(html);
-			expect(result.value.media).toBeDefined();
-			if (Array.isArray(result.value.media)) {
-				expect(result.value.media.length).toBe(1);
-				const mediaId =result.value.media[0] 
+			expect(result.value.contentMedia).toBeDefined();
+			if (Array.isArray(result.value.contentMedia)) {
+				expect(result.value.contentMedia.length).toBe(1);
+				const mediaId =result.value.contentMedia[0] 
 				expect(mediaId).toBe(testMediaId);
 			}
 		}
@@ -253,10 +253,10 @@ describe("Page Management Functions", () => {
 			expect(updateResult.ok).toBe(true);
 			if (updateResult.ok) {
 				expect(updateResult.value.content).toBe(updatedHtml);
-				expect(updateResult.value.media).toBeDefined();
-				if (Array.isArray(updateResult.value.media)) {
-					expect(updateResult.value.media.length).toBe(1);
-					const mediaId =updateResult.value.media[0]
+				expect(updateResult.value.contentMedia).toBeDefined();
+				if (Array.isArray(updateResult.value.contentMedia)) {
+					expect(updateResult.value.contentMedia.length).toBe(1);
+					const mediaId =updateResult.value.contentMedia[0]
 							
 					expect(mediaId).toBe(testMediaId);
 				}
