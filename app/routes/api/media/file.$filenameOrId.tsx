@@ -32,6 +32,12 @@ export const loader = async ({
 		? userSession.effectiveUser || userSession.authenticatedUser
 		: null;
 
+	const payloadRequest = createLocalReq({
+		request,
+		user: currentUser,
+		context: { routerContext: context },
+	});
+
 	// Check if download is requested via query parameter
 	const url = new URL(request.url);
 	const isDownload = url.searchParams.get("download") === "true";
@@ -49,21 +55,13 @@ export const loader = async ({
 				payload,
 				s3Client,
 				id: filenameOrId,
-				req: createLocalReq({
-					request,
-					user: currentUser,
-					context: { routerContext: context },
-				}),
+				req: payloadRequest,
 			})
 		: await tryGetMediaStreamFromFilename({
 				payload,
 				s3Client,
 				filename: filenameOrId,
-				req: createLocalReq({
-					request,
-					user: currentUser,
-					context: { routerContext: context },
-				}),
+				req: payloadRequest,
 			});
 
 	if (!result.ok) {
@@ -85,22 +83,14 @@ export const loader = async ({
 					s3Client,
 					id: filenameOrId,
 					range,
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
+					req: payloadRequest,
 				})
 			: await tryGetMediaStreamFromFilename({
 					payload,
 					s3Client,
 					filename: filenameOrId,
 					range,
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
+					req: payloadRequest,
 				});
 
 		if (!result.ok) {
@@ -127,14 +117,15 @@ export const loader = async ({
 
 	// Handle Range request (206 Partial Content)
 	if (range && contentRange) {
-		return partialContent({
-			stream,
+		return new Response(stream, {
+			status: 206,
 			headers,
 		});
 	}
 
 	// Full file request (200 OK)
-	return ok(stream, {
+	return new Response(stream, {
+		status: 200,
 		headers,
 	});
 };

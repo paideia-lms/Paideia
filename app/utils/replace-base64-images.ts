@@ -18,6 +18,28 @@ export function replaceBase64ImagesWithMediaUrls(
 	content: string,
 	uploadedMedia: UploadedMediaInfo[],
 	formData: FormData,
+): string;
+/**
+ * Replaces base64 image sources in HTML content with actual media URLs.
+ *
+ * This function matches uploaded media files to base64 images by comparing
+ * the first 100 characters of the base64 data URI with preview data provided
+ * directly as a map.
+ *
+ * @param content - HTML content that may contain base64 image sources
+ * @param uploadedMedia - Array of uploaded media information
+ * @param previewMap - Map or Record of field names to preview strings
+ * @returns HTML content with base64 images replaced by media URLs
+ */
+export function replaceBase64ImagesWithMediaUrls(
+	content: string,
+	uploadedMedia: UploadedMediaInfo[],
+	previewMap: Map<string, string> | Record<string, string>,
+): string;
+export function replaceBase64ImagesWithMediaUrls(
+	content: string,
+	uploadedMedia: UploadedMediaInfo[],
+	formDataOrPreviewMap: FormData | Map<string, string> | Record<string, string>,
 ): string {
 	if (uploadedMedia.length === 0) {
 		return content;
@@ -28,7 +50,16 @@ export function replaceBase64ImagesWithMediaUrls(
 
 	uploadedMedia.forEach((media) => {
 		const previewKey = `${media.fieldName}-preview`;
-		const preview = formData.get(previewKey) as string;
+		let preview: string | undefined;
+
+		if (formDataOrPreviewMap instanceof FormData) {
+			preview = formDataOrPreviewMap.get(previewKey) as string | undefined;
+		} else if (formDataOrPreviewMap instanceof Map) {
+			preview = formDataOrPreviewMap.get(previewKey);
+		} else {
+			preview = formDataOrPreviewMap[previewKey];
+		}
+
 		if (preview) {
 			const base64Prefix = preview.substring(0, 100);
 			base64ToFilename.set(base64Prefix, media.filename);
@@ -55,5 +86,12 @@ export function replaceBase64ImagesWithMediaUrls(
 		}
 	});
 
-	return $.html();
+	// Return the inner HTML of the body (all child nodes, excluding the body tag itself)
+	return (
+		$("body")
+			.contents()
+			.toArray()
+			.map((el) => $.html(el))
+			.join("") ?? ""
+	);
 }

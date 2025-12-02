@@ -80,6 +80,7 @@ export const Notes = {
 		...richTextContent({
 			name: "content",
 			type: "textarea",
+			label: "Content",
 			required: true,
 		}),
 		{

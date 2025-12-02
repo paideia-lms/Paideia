@@ -52,6 +52,7 @@ export const Courses = {
 		...richTextContent({
 			name: "description",
 			type: "textarea",
+			label: "Description",
 			required: true,
 		}),
 		{

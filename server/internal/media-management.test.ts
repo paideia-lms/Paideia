@@ -114,11 +114,7 @@ describe("Media Management", () => {
 			// Verify createdBy is set correctly
 			expect(result.value.media.createdBy).toBeDefined();
 			// createdBy could be an object or ID, so check if it's a number or has an id property
-			const createdBy =
-				typeof result.value.media.createdBy === "object" &&
-				result.value.media.createdBy !== null
-					? result.value.media.createdBy.id
-					: result.value.media.createdBy;
+			const createdBy =result.value.media.createdBy;
 			expect(createdBy).toBe(testUserId);
 		}
 	});
@@ -860,7 +856,6 @@ describe("Media Management", () => {
 			const getOldResult = await tryGetMediaByFilename({
 				payload,
 				filename: createdMedia.filename,
-
 				overrideAccess: true,
 			});
 			expect(getOldResult.ok).toBe(false);

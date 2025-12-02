@@ -198,7 +198,7 @@ export const users = pgTable(
     bio: varchar("bio"),
     theme: enum_users_theme("theme").notNull().default("light"),
     direction: enum_users_direction("direction").notNull().default("ltr"),
-    avatar: integer("avatar_id").references((): AnyPgColumn => media.id, {
+    avatar: integer("avatar_id").references(() => media.id, {
       onDelete: "set null",
     }),
     updatedAt: timestamp("updated_at", {
@@ -1078,7 +1078,7 @@ export const media = pgTable(
     caption: varchar("caption"),
     createdBy: integer("created_by_id")
       .notNull()
-      .references(() => users.id, {
+      .references(() : AnyPgColumn => users.id, {
         onDelete: "set null",
       }),
     updatedAt: timestamp("updated_at", {

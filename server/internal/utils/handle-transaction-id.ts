@@ -7,8 +7,16 @@ export interface HandleTransactionIdResult {
 	 */
 	isTransactionCreated: boolean;
 	reqWithTransaction: Partial<PayloadRequest>;
+	/**
+	 * by using tx, we can throw stuff inside the function and let the tx handle the commit and rollback for us.
+	 * ! but be careful if we want to return error, it will be treated as success and commit the transaction.
+	 * If that is not intended, we should use the internal commitTransactionIfCreated and rollbackTransactionIfCreated.
+	 *
+	 * ! In other words, this function only works when you just want to return success data inside.
+	 */
 	tx: <T>(
 		operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T,
+		shouldRollback?: (result: T) => boolean,
 	) => Promise<T>;
 }
 
@@ -84,11 +92,16 @@ export async function handleTransactionId(
 
 	const tx = async <T>(
 		operation: (transactionInfo: Omit<HandleTransactionIdResult, "tx">) => T,
+		shouldRollback?: (result: T) => boolean,
 	) => {
 		try {
 			const o = operation(_transactionInfo);
 			const isAsyncOperation = o instanceof Promise;
 			const value = isAsyncOperation ? await o : o;
+			if (shouldRollback?.(value) && _transactionInfo.isTransactionCreated) {
+				await payload.db.rollbackTransaction(_transactionInfo.transactionID);
+				return value;
+			}
 			// commit the transaction if it was created
 			if (_transactionInfo.isTransactionCreated) {
 				await payload.db.commitTransaction(_transactionInfo.transactionID);

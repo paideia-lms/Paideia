@@ -77,7 +77,14 @@ import html from "highlight.js/lib/languages/xml";
 import yaml from "highlight.js/lib/languages/yaml";
 import { createLowlight } from "lowlight";
 import { mermaidGrammar } from "lowlight-mermaid";
-import { useEffect, useRef, useState } from "react";
+import {
+	forwardRef,
+	useCallback,
+	useEffect,
+	useImperativeHandle,
+	useRef,
+	useState,
+} from "react";
 import rehypeFormat from "rehype-format";
 import rehypeParse from "rehype-parse";
 import rehypeStringify from "rehype-stringify";
@@ -806,6 +813,11 @@ export interface ImageFile {
 	preview: string;
 }
 
+export interface RichTextEditorRef {
+	getImageFiles: () => ImageFile[];
+	getEditor: () => Editor | null;
+}
+
 interface RichTextEditorProps {
 	content?: string;
 	placeholder?: string;
@@ -821,20 +833,45 @@ interface RichTextEditorProps {
 
 const DEBOUNCE_TIME = 300;
 
-export function RichTextEditor({
-	content = "",
-	placeholder = "Start typing...",
-	onChange,
-	onEditorReady,
-	onImageAdd,
-	readonly = false,
-	showStatus = false,
-	disableImageUpload = false,
-	disableMentions = false,
-	disableYoutube = false,
-}: RichTextEditorProps) {
+export const RichTextEditor = forwardRef<
+	RichTextEditorRef,
+	RichTextEditorProps
+>(function RichTextEditor(
+	{
+		content = "",
+		placeholder = "Start typing...",
+		onChange,
+		onEditorReady,
+		onImageAdd,
+		readonly = false,
+		showStatus = false,
+		disableImageUpload = false,
+		disableMentions = false,
+		disableYoutube = false,
+	},
+	ref,
+) {
 	const [isSourceCodeMode, setIsSourceCodeMode] = useState(false);
+	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
 	const { colorScheme } = useMantineColorScheme();
+
+	// Expose ref methods
+	useImperativeHandle(ref, () => ({
+		getImageFiles: () => imageFiles,
+		getEditor: () => editor,
+	}));
+
+	// Internal handler for image addition
+	const handleImageAdd = useCallback(
+		(imageFile: ImageFile) => {
+			setImageFiles((prev) => [...prev, imageFile]);
+			// Still call the callback if provided for backward compatibility
+			if (onImageAdd) {
+				onImageAdd(imageFile);
+			}
+		},
+		[onImageAdd],
+	);
 
 	// Debounce the onChange callback to improve performance
 	const debouncedOnChange = useDebouncedCallback(
@@ -974,10 +1011,10 @@ export function RichTextEditor({
 									reader.onload = () => {
 										const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 										const preview = reader.result as string;
+										console.log(`preview:`, preview);
+										const imageFile = { id, file, preview };
 
-										if (onImageAdd) {
-											onImageAdd({ id, file, preview });
-										}
+										handleImageAdd(imageFile);
 
 										editor.chain().focus().setImage({ src: preview }).run();
 									};
@@ -990,10 +1027,9 @@ export function RichTextEditor({
 									reader.onload = () => {
 										const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 										const preview = reader.result as string;
+										const imageFile = { id, file, preview };
 
-										if (onImageAdd) {
-											onImageAdd({ id, file, preview });
-										}
+										handleImageAdd(imageFile);
 
 										editor.chain().focus().setImage({ src: preview }).run();
 									};
@@ -1261,7 +1297,7 @@ export function RichTextEditor({
 							{(!disableImageUpload || !disableYoutube) && (
 								<MantineRTE.ControlsGroup>
 									{!disableImageUpload && (
-										<AddImageControl onImageAdd={onImageAdd} />
+										<AddImageControl onImageAdd={handleImageAdd} />
 									)}
 									{!disableYoutube && <AddYoutubeVideoControl />}
 								</MantineRTE.ControlsGroup>
@@ -1347,4 +1383,4 @@ export function RichTextEditor({
 			)}
 		</MantineRTE>
 	);
-}
+});

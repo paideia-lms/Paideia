@@ -32,6 +32,156 @@ import {
 	getEnrollmentStatusLabel,
 } from "app/components/course-view-utils";
 
+export type { Route };
+
+interface CourseCardGridProps {
+	courses: Route.ComponentProps["loaderData"]["courses"];
+}
+
+interface CourseTableProps {
+	courses: Route.ComponentProps["loaderData"]["courses"];
+	onCourseClick: (courseId: number) => void;
+}
+
+function CourseCardGrid({ courses }: CourseCardGridProps) {
+	return (
+		<Grid>
+			{courses.map((course) => (
+				<Grid.Col key={course.id} span={{ base: 12, sm: 6, md: 4 }}>
+					<Card
+						component={Link}
+						to={href("/course/:courseId", {
+							courseId: String(course.id),
+						})}
+						shadow="sm"
+						padding="lg"
+						radius="md"
+						withBorder
+						style={{ height: "100%", cursor: "pointer" }}
+					>
+						<Stack gap="sm" style={{ height: "100%" }}>
+							{/* Course Thumbnail */}
+							<div
+								style={{
+									height: 120,
+									backgroundColor: "#f8f9fa",
+									borderRadius: 8,
+									display: "flex",
+									alignItems: "center",
+									justifyContent: "center",
+									backgroundImage: course.thumbnailUrl
+										? `url(${course.thumbnailUrl})`
+										: undefined,
+									backgroundSize: "cover",
+									backgroundPosition: "center",
+								}}
+							>
+								{!course.thumbnailUrl && (
+									<Text c="dimmed" size="sm">
+										No thumbnail
+									</Text>
+								)}
+							</div>
+
+							{/* Course Info */}
+							<Stack gap="xs" style={{ flex: 1 }}>
+								<Text fw={500} lineClamp={2}>
+									{course.title}
+								</Text>
+
+								{course.enrollmentStatus && (
+									<Badge
+										size="sm"
+										color={getEnrollmentStatusBadgeColor(
+											course.enrollmentStatus,
+										)}
+									>
+										{getEnrollmentStatusLabel(course.enrollmentStatus)}
+									</Badge>
+								)}
+
+								{course.completionPercentage > 0 && (
+									<Stack gap="xs">
+										<Text size="sm" c="dimmed">
+											{course.completionPercentage}% complete
+										</Text>
+										<Progress
+											value={course.completionPercentage}
+											size="sm"
+											radius="xl"
+										/>
+									</Stack>
+								)}
+							</Stack>
+						</Stack>
+					</Card>
+				</Grid.Col>
+			))}
+		</Grid>
+	);
+}
+
+function CourseTable({ courses, onCourseClick }: CourseTableProps) {
+	return (
+		<Table striped highlightOnHover>
+			<Table.Thead>
+				<Table.Tr>
+					<Table.Th>Title</Table.Th>
+					<Table.Th>Status</Table.Th>
+					<Table.Th>Completion</Table.Th>
+				</Table.Tr>
+			</Table.Thead>
+			<Table.Tbody>
+				{courses.map((course) => (
+					<Table.Tr
+						key={course.id}
+						style={{ cursor: "pointer" }}
+						onClick={() => onCourseClick(course.id)}
+					>
+						<Table.Td>
+							<Text fw={500}>{course.title}</Text>
+						</Table.Td>
+						<Table.Td>
+							{course.enrollmentStatus ? (
+								<Badge
+									size="sm"
+									color={
+										course.enrollmentStatus === "active"
+											? "green"
+											: course.enrollmentStatus === "completed"
+												? "blue"
+												: course.enrollmentStatus === "dropped"
+													? "red"
+													: "gray"
+									}
+								>
+									{course.enrollmentStatus}
+								</Badge>
+							) : (
+								<Text c="dimmed">-</Text>
+							)}
+						</Table.Td>
+						<Table.Td>
+							{course.completionPercentage > 0 ? (
+								<Group gap="xs">
+									<Text size="sm">{course.completionPercentage}%</Text>
+									<Progress
+										value={course.completionPercentage}
+										size="sm"
+										style={{ width: 60 }}
+									/>
+								</Group>
+							) : (
+								<Text c="dimmed">-</Text>
+							)}
+						</Table.Td>
+					</Table.Tr>
+				))}
+			</Table.Tbody>
+		</Table>
+	);
+}
+
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const userAccessContext = context.get(userAccessContextKey);
@@ -173,152 +323,12 @@ export default function CoursePage({ loaderData }: Route.ComponentProps) {
 
 				{/* Display Section */}
 				{viewMode === "card" ? (
-					<Grid>
-						{filteredCourses.map((course) => (
-							<Grid.Col key={course.id} span={{ base: 12, sm: 6, md: 4 }}>
-								<Card
-									component={Link}
-									to={href("/course/:courseId", {
-										courseId: String(course.id),
-									})}
-									shadow="sm"
-									padding="lg"
-									radius="md"
-									withBorder
-									style={{ height: "100%", cursor: "pointer" }}
-								>
-									<Stack gap="sm" style={{ height: "100%" }}>
-										{/* Course Thumbnail */}
-										<div
-											style={{
-												height: 120,
-												backgroundColor: "#f8f9fa",
-												borderRadius: 8,
-												display: "flex",
-												alignItems: "center",
-												justifyContent: "center",
-												backgroundImage: course.thumbnailUrl
-													? `url(${course.thumbnailUrl})`
-													: undefined,
-												backgroundSize: "cover",
-												backgroundPosition: "center",
-											}}
-										>
-											{!course.thumbnailUrl && (
-												<Text c="dimmed" size="sm">
-													No thumbnail
-												</Text>
-											)}
-										</div>
-
-										{/* Course Info */}
-										<Stack gap="xs" style={{ flex: 1 }}>
-											<Text fw={500} lineClamp={2}>
-												{course.title}
-											</Text>
-
-											{course.category && (
-												<Badge size="sm" variant="light">
-													{course.category}
-												</Badge>
-											)}
-
-											{course.enrollmentStatus && (
-												<Badge
-													size="sm"
-													color={getEnrollmentStatusBadgeColor(
-														course.enrollmentStatus,
-													)}
-												>
-													{getEnrollmentStatusLabel(course.enrollmentStatus)}
-												</Badge>
-											)}
-
-											{course.completionPercentage > 0 && (
-												<Stack gap="xs">
-													<Text size="sm" c="dimmed">
-														{course.completionPercentage}% complete
-													</Text>
-													<Progress
-														value={course.completionPercentage}
-														size="sm"
-														radius="xl"
-													/>
-												</Stack>
-											)}
-										</Stack>
-									</Stack>
-								</Card>
-							</Grid.Col>
-						))}
-					</Grid>
+					<CourseCardGrid courses={filteredCourses} />
 				) : (
-					<Table striped highlightOnHover>
-						<Table.Thead>
-							<Table.Tr>
-								<Table.Th>Title</Table.Th>
-								<Table.Th>Category</Table.Th>
-								<Table.Th>Status</Table.Th>
-								<Table.Th>Completion</Table.Th>
-							</Table.Tr>
-						</Table.Thead>
-						<Table.Tbody>
-							{filteredCourses.map((course) => (
-								<Table.Tr
-									key={course.id}
-									style={{ cursor: "pointer" }}
-									onClick={() => handleCourseClick(course.id)}
-								>
-									<Table.Td>
-										<Text fw={500}>{course.title}</Text>
-									</Table.Td>
-									<Table.Td>
-										{course.category ? (
-											<Badge size="sm" variant="light">
-												{course.category}
-											</Badge>
-										) : (
-											<Text c="dimmed">-</Text>
-										)}
-									</Table.Td>
-									<Table.Td>
-										{course.enrollmentStatus ? (
-											<Badge
-												size="sm"
-												color={
-													course.enrollmentStatus === "active"
-														? "green"
-														: course.enrollmentStatus === "completed"
-															? "blue"
-															: course.enrollmentStatus === "dropped"
-																? "red"
-																: "gray"
-												}
-											>
-												{course.enrollmentStatus}
-											</Badge>
-										) : (
-											<Text c="dimmed">-</Text>
-										)}
-									</Table.Td>
-									<Table.Td>
-										{course.completionPercentage > 0 ? (
-											<Group gap="xs">
-												<Text size="sm">{course.completionPercentage}%</Text>
-												<Progress
-													value={course.completionPercentage}
-													size="sm"
-													style={{ width: 60 }}
-												/>
-											</Group>
-										) : (
-											<Text c="dimmed">-</Text>
-										)}
-									</Table.Td>
-								</Table.Tr>
-							))}
-						</Table.Tbody>
-					</Table>
+					<CourseTable
+						courses={filteredCourses}
+						onCourseClick={handleCourseClick}
+					/>
 				)}
 
 				{/* Empty State */}

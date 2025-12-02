@@ -116,44 +116,47 @@ export const tryCreateMedia = Result.wrap(
 			throw new InvalidArgumentError("User ID is required");
 		}
 
-		const transactionInfo = await handleTransactionId(payload, req);
+		console.log(`tryCreateMedia with filename: ${filename}`);
 
-		return transactionInfo.tx(async () => {
-			// Create media record using Payload's upload functionality
-			const media = await payload
-				.create({
-					collection: "media",
-					data: {
-						alt: alt || null,
-						caption: caption || null,
-						createdBy: userId,
+		// Create media record using Payload's upload functionality
+		const media = await payload
+			.create({
+				collection: "media",
+				data: {
+					alt: alt || null,
+					caption: caption || null,
+					createdBy: userId,
+					filename,
+				},
+				// the data stored in s3
+				file: {
+					data: file,
+					name: filename,
+					size: file.length,
+					mimetype: mimeType,
+				},
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "create">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: `tryCreateMedia with filename: ${filename}`,
+					args: {
+						payload,
+						req,
+						overrideAccess,
 					},
-					file: {
-						data: file,
-						name: filename,
-						size: file.length,
-						mimetype: mimeType,
-					},
-					req: transactionInfo.reqWithTransaction,
-					overrideAccess,
-				})
-				.catch((error) => {
-					interceptPayloadError({
-						error,
-						functionNamePrefix: "tryCreateMedia",
-						args: {
-							payload,
-							req,
-							overrideAccess,
-						},
-					});
-					throw error;
 				});
+				throw error;
+			});
 
-			return {
-				media,
-			};
-		});
+		// TODO: replace this with just returning the media
+		return {
+			media,
+		};
 	},
 	(error) =>
 		transformError(error) ??
@@ -213,6 +216,7 @@ export const tryGetMediaById = Result.wrap(
 );
 
 /**
+ *
  * Get a media record by filename
  *
  * This function fetches a media record by its filename with optional depth control
@@ -220,13 +224,7 @@ export const tryGetMediaById = Result.wrap(
  */
 export const tryGetMediaByFilename = Result.wrap(
 	async (args: GetMediaByFilenameArgs) => {
-		const {
-			payload,
-			filename,
-
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, filename, req, overrideAccess = false } = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -241,7 +239,6 @@ export const tryGetMediaByFilename = Result.wrap(
 					filename: { equals: filename },
 				},
 				depth: 1,
-
 				req,
 				overrideAccess,
 			})
@@ -255,6 +252,7 @@ export const tryGetMediaByFilename = Result.wrap(
 				throw error;
 			});
 
+		// ! filename is unique in media collection, you can confirm in the sql
 		const m = media.docs[0];
 
 		if (!m) {
@@ -310,6 +308,7 @@ export const tryGetMediaByIds = Result.wrap(
 );
 
 /**
+ *
  * Get a media record by filename and fetch the file buffer from S3
  *
  * This function:
@@ -320,14 +319,7 @@ export const tryGetMediaByIds = Result.wrap(
  */
 export const tryGetMediaBufferFromFilename = Result.wrap(
 	async (args: GetMediaBufferFromFilenameArgs) => {
-		const {
-			payload,
-			s3Client,
-			filename,
-
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, s3Client, filename, req, overrideAccess = false } = args;
 
 		// Validate filename
 		if (!filename || filename.trim() === "") {
@@ -453,6 +445,8 @@ export const tryGetMediaBufferFromId = Result.wrap(
 );
 
 /**
+ *
+ * @deprecated use tryGetMediaStreamFromId instead because filename is not unique
  * Get a media record by filename and fetch the file stream from S3
  *
  * This function:
@@ -468,7 +462,6 @@ export const tryGetMediaStreamFromFilename = Result.wrap(
 			s3Client,
 			filename,
 			range,
-
 			req,
 			overrideAccess = false,
 		} = args;
@@ -1117,13 +1110,9 @@ export const tryRenameMedia = Result.wrap(
 
 				req: transactionInfo.reqWithTransaction,
 				overrideAccess,
-			});
+			}).getOrThrow();
 
-			if (!mediaResult.ok) {
-				throw mediaResult.error;
-			}
-
-			const media = mediaResult.value;
+			const media = mediaResult;
 
 			// Check if media has a filename
 			if (!media.filename) {
@@ -1136,7 +1125,6 @@ export const tryRenameMedia = Result.wrap(
 
 			// If the new filename is the same as the old one, just return the media
 			if (oldFilename === newFilename) {
-				await commitTransactionIfCreated(payload, transactionInfo);
 				return { media };
 			}
 

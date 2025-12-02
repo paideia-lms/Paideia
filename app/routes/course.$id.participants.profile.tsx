@@ -133,6 +133,7 @@ export default function CourseParticipantsProfilePage({
 
 	return (
 		<Stack gap="lg">
+			<pre>{JSON.stringify(course.enrollments, null, 2)}</pre>
 			<Paper withBorder shadow="sm" p="lg" radius="md">
 				<Stack gap="md">
 					<Title order={3}>User Profile</Title>
@@ -191,8 +192,7 @@ export default function CourseParticipantsProfilePage({
 								src={
 									selectedEnrollment.user.avatar
 										? href(`/api/media/file/:filenameOrId`, {
-												filenameOrId:
-													selectedEnrollment.user.avatar.id.toString(),
+												filenameOrId: selectedEnrollment.user.avatar.toString(),
 											})
 										: undefined
 								}

@@ -33,7 +33,6 @@ import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
 import "@gfazioli/mantine-json-tree/styles.css";
 import "@gfazioli/mantine-clock/styles.css";
-import { omit, pick } from "es-toolkit";
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -82,6 +81,7 @@ import {
 import { type RouteParams, tryGetRouteHierarchy } from "./utils/routes-utils";
 import { parseAsInteger, createLoader } from "nuqs/server";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { startsWith } from "string-ts";
 
 const searchParams = {
 	threadId: parseAsInteger,
@@ -359,26 +359,26 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-					color: "blue",
-					radius: "sm" as const,
-					logoLight: null,
-					logoDark: null,
-					compactLogoLight: null,
-					compactLogoDark: null,
-					faviconLight: null,
-					faviconDark: null,
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
+					maintenanceSettings: { maintenanceMode: false },
+					sitePolicies: {
+						userMediaStorageTotal: null,
+						siteUploadLimit: null,
+					},
+					appearanceSettings: {
+						additionalCssStylesheets: [],
+						color: "blue",
+						radius: "sm" as const,
+						logoLight: null,
+						logoDark: null,
+						compactLogoLight: null,
+						compactLogoDark: null,
+						faviconLight: null,
+						faviconDark: null,
+					},
+					analyticsSettings: {
+						additionalJsScripts: [],
+					},
+				};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -423,7 +423,8 @@ export const middleware = [
 		// check if the user is in a course
 		if (pageInfo.isInCourse) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			let { courseId: _courseId } = params as RouteParams<"layouts/course-layout">;
+			const { courseId: _courseId } =
+				params as RouteParams<"layouts/course-layout">;
 			let courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
@@ -473,11 +474,10 @@ export const middleware = [
 				courseId = section.course.id;
 			}
 
-
 			// if course id is not set, something is wrong, log it and leave context unset
 			if (!courseId) {
 				payload.logger.error("Course ID is not set, something is wrong");
-				return
+				return;
 			}
 
 			const courseContextResult = await tryGetCourseContext({
@@ -583,19 +583,19 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-							userAccessContext,
-							currentUser,
-						)
+								userAccessContext,
+								currentUser,
+							)
 						: await getUserProfileContext({
-							payload,
-							profileUserId,
-							req: createLocalReq({
-								request,
-								user: currentUser,
-								context: { routerContext: context },
-							}),
-							overrideAccess: false,
-						});
+								payload,
+								profileUserId,
+								req: createLocalReq({
+									request,
+									user: currentUser,
+									context: { routerContext: context },
+								}),
+								overrideAccess: false,
+							});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -787,17 +787,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-				userSession: userSession,
-				courseContext: context.get(courseContextKey),
-				courseModuleContext: context.get(courseModuleContextKey),
-				courseSectionContext: context.get(courseSectionContextKey),
-				enrolmentContext: context.get(enrolmentContextKey),
-				userModuleContext: context.get(userModuleContextKey),
-				userProfileContext: context.get(userProfileContextKey),
-				userAccessContext: context.get(userAccessContextKey),
-				userContext: context.get(userContextKey),
-				systemGlobals: systemGlobals,
-			};
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				};
 
 	return {
 		users: users,
