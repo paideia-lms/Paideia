@@ -1,19 +1,17 @@
-import type { Payload, PayloadRequest } from "payload";
+import type { Payload, PayloadRequest, TextareaField } from "payload";
 import { Result } from "typescript-result";
-import type { Simplify } from "type-fest";
-import { transformError, UnknownError } from "~/utils/error";
 import { tryParseMediaFromHtml } from "server/internal/utils/parse-media-from-html";
-import { stripDepth } from "server/internal/utils/internal-function-utils";
-import { tryCreateMedia } from "server/internal/media-management";
-import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
+import {
+	interceptPayloadError,
+	stripDepth,
+} from "server/internal/utils/internal-function-utils";
 import type { UploadedMediaInfo } from "~/utils/upload-handler";
-import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
+import { replaceBase64MediaWithMediaUrlsV2 } from "~/utils/replace-base64-images";
+import type { Simplify } from "type-fest";
 
-export function richTextContent<
-	T extends { type: "textarea"; name: string; label: string },
->(o: T) {
+export function richTextContent<T extends TextareaField>(o: T) {
 	return [
-		o,
+		o satisfies T,
 		{
 			name: `${o.name}Media`,
 			type: "relationship",
@@ -24,17 +22,17 @@ export function richTextContent<
 	] as const;
 }
 
-export type RichTextContent<T extends string> = Simplify<
-	{
-		// Mapped type for the REQUIRED string property
-		[P in T]?: string;
-	} & {
-		// Mapped type for OPTIONAL File/string properties using Template Literals
-		[P in `${T}-image-${number}`]?: File;
-	} & {
-		[P in `${T}-image-${number}-preview`]?: string;
-	}
->;
+// export type RichTextContent<T extends string> = Simplify<
+// 	{
+// 		// Mapped type for the REQUIRED string property
+// 		[P in T]?: string;
+// 	} & {
+// 		// Mapped type for OPTIONAL File/string properties using Template Literals
+// 		[P in `${T}-image-${number}`]?: File;
+// 	} & {
+// 		[P in `${T}-image-${number}-preview`]?: string;
+// 	}
+// >;
 
 export interface ExtractMediaIdsFromRichTextArgs {
 	payload: Payload;
@@ -83,66 +81,43 @@ export const tryExtractMediaIdsFromRichText = Result.wrap(
 		}
 
 		// Resolve all filenames to IDs in a single query
-		let resolvedIds: number[] = [];
-		if (allFilenames.size > 0) {
-			try {
-				const mediaResult = await payload
-					.find({
-						collection: "media",
-						where: {
-							filename: {
-								in: Array.from(allFilenames),
-							},
-						},
-						limit: allFilenames.size,
-						depth: 0,
-						pagination: false,
-						// ! this is a server request
-						overrideAccess: true,
-						req: req?.transactionID
-							? { ...req, transactionID: req.transactionID }
-							: req,
-					})
-					.then(stripDepth<0, "find">());
 
-				resolvedIds = mediaResult.docs.map((doc) => doc.id);
-			} catch (error) {
-				// If media lookup fails, log warning but continue
-				console.warn(`Failed to resolve media filenames to IDs:`, error);
-			}
-		}
+		const resolvedIds =
+			allFilenames.size > 0
+				? await payload
+						.find({
+							collection: "media",
+							where: {
+								filename: {
+									in: Array.from(allFilenames),
+								},
+							},
+							limit: allFilenames.size,
+							depth: 0,
+							pagination: false,
+							// ! this is a server request
+							overrideAccess: true,
+							req: req?.transactionID
+								? { ...req, transactionID: req.transactionID }
+								: req,
+						})
+						.then(stripDepth<0, "find">())
+						.catch((error) => {
+							interceptPayloadError({
+								error,
+								functionNamePrefix: "tryExtractMediaIdsFromRichText",
+								args,
+							});
+							throw error;
+						})
+						.then((r) => r.docs?.map((doc) => doc.id) ?? [])
+				: [];
 
 		// Combine parsed IDs and resolved IDs, remove duplicates
 		const allMediaIds = new Set([...allParsedIds, ...resolvedIds]);
 		return Array.from(allMediaIds);
 	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to extract media IDs from rich text", {
-			cause: error,
-		}),
 );
-
-export interface ProcessRichTextMediaArgs<T extends Record<string, unknown>> {
-	payload: Payload;
-	userId: number;
-	req?: Partial<PayloadRequest>;
-	overrideAccess?: boolean;
-	/**
-	 * Data object containing rich text fields and their associated image File fields
-	 * Example: { description: "...", "description-image-0": File, "description-image-0-preview": "..." }
-	 */
-	data: T;
-	/**
-	 * Array of field names to process. Must be keys of T.
-	 * Each field will have its base64 images replaced with media URLs.
-	 */
-	fields: (keyof T & string)[];
-	/**
-	 * Alt text for created media records
-	 */
-	alt?: string;
-}
 
 export interface ProcessRichTextMediaResult<T extends Record<string, unknown>> {
 	/**
@@ -155,131 +130,92 @@ export interface ProcessRichTextMediaResult<T extends Record<string, unknown>> {
 	uploadedMedia: UploadedMediaInfo[];
 }
 
+export interface ProcessRichTextMediaV2Args<T extends Record<string, string>> {
+	payload: Payload;
+	userId: number;
+	req?: Partial<PayloadRequest>;
+	overrideAccess?: boolean;
+	/**
+	 * Data object containing rich text fields (string content only, no File fields required)
+	 * Example: { description: "<p>Text with <img src='data:image/png;base64,...' /></p>" }
+	 */
+	data: T;
+	/**
+	 * Array of field names to process. Must be keys of T.
+	 * Each field will have its base64 images replaced with media URLs.
+	 */
+	fields: {
+		key: keyof T & string;
+		alt: string;
+	}[];
+}
+
 /**
- * Processes rich text content with file uploads.
- * Creates media records for all {field}-image-* File fields,
- * and replaces base64 images in content with media URLs.
+ * Processes rich text content by parsing base64 images directly from HTML strings.
+ * Creates media records from the base64 data, replaces them with media URLs,
+ * and extracts media IDs for relationship fields.
  * Supports multiple rich text fields in a single call.
  *
- * we cannot use Result.wrap because otherwise it will not be a generic function
+ * This version does not require File fields or preview fields in the data object.
+ * Base64 images are extracted directly from the HTML content.
+ *
+ * Returns an object that can be spread into payload update/create data, containing:
+ * - Processed field values (e.g., `description: string`)
+ * - Media relationship arrays (e.g., `descriptionMedia: number[]`)
  */
-export const processRichTextMedia = async <T extends Record<string, unknown>>(
-	args: ProcessRichTextMediaArgs<T>,
-): Promise<ProcessRichTextMediaResult<T>> => {
-	const {
-		payload,
-		userId,
-		req,
-		overrideAccess = false,
-		data,
-		fields,
-		alt = "Rich text image",
-	} = args;
+export const processRichTextMediaV2 = async <T extends Record<string, string>>(
+	args: ProcessRichTextMediaV2Args<T>,
+): Promise<ProcessRichTextMediaV2Result<T>> => {
+	const { payload, userId, req, overrideAccess = false, data, fields } = args;
 
-	const transactionInfo = await handleTransactionId(payload, req);
+	const result: ProcessRichTextMediaV2Result<T> =
+		{} as ProcessRichTextMediaV2Result<T>;
 
-	return transactionInfo.tx(async ({ reqWithTransaction }) => {
-		// Collect all image fields and their associated previews for all specified fields
-		const allImageFields: Array<{
-			fieldPrefix: string;
-			fieldName: string;
-			file: File;
-		}> = [];
-		const previewMap = new Map<string, string>();
-
-		for (const fieldPrefix of fields) {
-			// Find all image fields for this field prefix
-			const imageFields = Object.entries(data)
-				.filter(
-					([key, value]) =>
-						key.startsWith(`${fieldPrefix as string}-image-`) &&
-						!key.includes("-preview") &&
-						value instanceof File,
-				)
-				.map(([key, value]) => ({
-					fieldPrefix,
-					fieldName: key,
-					file: value as File,
-				}));
-
-			// Sort by index to maintain order
-			imageFields.sort((a, b) => {
-				const indexA = Number.parseInt(
-					a.fieldName.replace(`${fieldPrefix}-image-`, ""),
-					10,
-				);
-				const indexB = Number.parseInt(
-					b.fieldName.replace(`${fieldPrefix}-image-`, ""),
-					10,
-				);
-				return indexA - indexB;
+	// Process each field
+	for (const field of fields) {
+		const content = data[field.key];
+		if (typeof content === "string" && content.trim().length > 0) {
+			const processed = await replaceBase64MediaWithMediaUrlsV2({
+				content,
+				payload,
+				userId,
+				req,
+				overrideAccess,
+				alt: field.alt,
 			});
 
-			allImageFields.push(...imageFields);
+			// @ts-ignore
+			result[field.key] = processed.processedContent;
 
-			// Collect preview data for this field prefix
-			for (const imageField of imageFields) {
-				const previewKey = `${imageField.fieldName}-preview`;
-				previewMap.set(
-					previewKey,
-					// base 64 of the image that starts with data:image/
-					await imageField.file
-						.arrayBuffer()
-						.then(Buffer.from)
-						.then((base64) => base64.toString("base64"))
-						.then((base64) => base64.substring(0, 100)),
-				);
-			}
-		}
-
-		// Create media records for all image fields
-		const uploadedMedia: UploadedMediaInfo[] = [];
-		// ! for some reason we have to use for loop but not promise.all, otherwise it will fail
-		for (const { fieldName, file } of allImageFields) {
-			const { media } = await tryCreateMedia({
+			// Extract media IDs from this field's processed content
+			const mediaIds = await tryExtractMediaIdsFromRichText({
 				payload,
-				file: await file.arrayBuffer().then(Buffer.from),
-				filename: file.name || fieldName,
-				mimeType: file.type || "image/png",
-				alt,
-				userId,
-				req: reqWithTransaction,
-				overrideAccess,
+				htmlContent: [processed.processedContent].filter(Boolean),
+				req,
 			}).getOrThrow();
 
-			const mediaId = media.id;
-			const filename = media.filename ?? file.name;
-
-			uploadedMedia.push({
-				fieldName,
-				mediaId,
-				filename,
-			});
+			const fieldName = field.key as string;
+			const mediaFieldName = `${fieldName}Media`;
+			// @ts-ignore
+			result[mediaFieldName] = mediaIds;
+		} else if (content === undefined || content === null) {
+			// @ts-ignore
+			result[field.key] = undefined;
+			const fieldName = field.key as string;
+			const mediaFieldName = `${fieldName}Media`;
+			// @ts-ignore
+			result[mediaFieldName] = [];
 		}
+	}
 
-		// Process each field's content
-		const processedData: Partial<Record<keyof T, string | undefined>> = {};
-		for (const fieldPrefix of fields) {
-			const content = data[fieldPrefix];
-			if (typeof content === "string") {
-				// Filter uploadedMedia to only include images for this field
-				const fieldUploadedMedia = uploadedMedia.filter((media) =>
-					media.fieldName.startsWith(`${fieldPrefix}-image-`),
-				);
-
-				processedData[fieldPrefix] = replaceBase64ImagesWithMediaUrls(
-					content,
-					fieldUploadedMedia,
-					previewMap,
-				);
-			} else if (content === undefined || content === null) {
-				processedData[fieldPrefix] = undefined;
-			}
-		}
-
-		return {
-			processedData,
-			uploadedMedia,
-		};
-	});
+	return result;
 };
+
+export type ProcessRichTextMediaV2Result<T extends Record<string, string>> =
+	Simplify<
+		{
+			[K in keyof T]: string;
+		} & {
+			[K in `${keyof T & string}Media`]: number[];
+		}
+	>;

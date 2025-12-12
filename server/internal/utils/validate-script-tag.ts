@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { urlSchema } from "./common-schema";
 import { Result } from "typescript-result";
 import {
 	ScriptValidationError,
@@ -70,22 +71,7 @@ export const tryValidateScriptTag = Result.wrap(
 		}
 
 		// Validate src is HTTP/HTTPS URL
-		try {
-			const url = new URL(src);
-			if (url.protocol !== "http:" && url.protocol !== "https:") {
-				throw new ScriptValidationError(
-					`Invalid URL protocol: ${url.protocol}. Only HTTP and HTTPS are allowed.`,
-				);
-			}
-		} catch (error) {
-			if (
-				error instanceof ScriptValidationError &&
-				error.message.includes("Invalid URL protocol")
-			) {
-				throw error;
-			}
-			throw new ScriptValidationError(`Invalid URL format: ${src}`);
-		}
+		urlSchema.parse(src);
 
 		// Get all attributes
 		const attributes: ScriptTagAttributes = {

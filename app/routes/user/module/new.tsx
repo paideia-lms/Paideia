@@ -53,11 +53,13 @@ import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	StatusCode,
+	unauthorized,
 	UnauthorizedResponse,
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { unary } from "node_modules/es-toolkit/dist/index.mjs";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -248,11 +250,11 @@ const createFileAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
-		return badRequest({
+		return unauthorized({
 			success: false,
 			error: "You must be logged in to create modules",
 		});
@@ -262,7 +264,7 @@ const createFileAction = async ({
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
-		return badRequest({
+		return unauthorized({
 			success: false,
 			error: "You must be logged in to create modules",
 		});
@@ -273,11 +275,7 @@ const createFileAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest
 	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {

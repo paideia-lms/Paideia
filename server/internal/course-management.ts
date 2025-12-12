@@ -7,27 +7,17 @@ import {
 	Gradebooks,
 	Groups,
 } from "server/payload.config";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	DevelopmentError,
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type {
-	Course,
-	CourseCategory,
-	Enrollment,
-	Group,
-} from "../payload-types";
+import type { Course, CourseCategory, Group } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type Depth,
 	interceptPayloadError,
@@ -35,12 +25,10 @@ import {
 	type BaseInternalFunctionArgs,
 	omitType,
 } from "./utils/internal-function-utils";
-import { tryExtractMediaIdsFromRichText } from "server/collections/utils/rich-text-content";
-import type { Merge, OmitDeep } from "type-fest";
+import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
+import type { OmitDeep } from "type-fest";
 import { tryCreateMedia } from "./media-management";
-import { processRichTextMedia } from "server/collections/utils/rich-text-content";
 import { href } from "react-router";
-import type { RichTextContent } from "server/collections/utils/rich-text-content";
 
 export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -52,18 +40,6 @@ export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 		thumbnail?: number;
 		tags?: { tag?: string }[];
 		category?: number;
-	};
-}
-
-export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
-	courseId: number;
-	data: {
-		title?: string;
-		description?: string;
-		status?: "draft" | "published" | "archived";
-		thumbnail?: number | null;
-		tags?: { tag?: string }[];
-		category?: number | null;
 	};
 }
 
@@ -120,21 +96,22 @@ export const tryCreateCourse = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			// Extract media IDs from description HTML content
-			const mediaIds = await tryExtractMediaIdsFromRichText({
-				payload,
-				htmlContent: [description],
-				req: transactionInfo.reqWithTransaction,
-			}).getOrThrow();
-
+		return await transactionInfo.tx(async (txInfo) => {
 			const newCourse = await payload
 				.create({
 					collection: Courses.slug,
 					data: {
 						title,
-						description,
-						descriptionMedia: mediaIds.length > 0 ? mediaIds : undefined,
+						...(await processRichTextMediaV2({
+							payload,
+							userId: createdBy,
+							req: txInfo.reqWithTransaction,
+							overrideAccess,
+							data: {
+								description,
+							},
+							fields: [{ key: "description", alt: "Course description image" }],
+						})),
 						slug,
 						createdBy,
 						status,
@@ -143,7 +120,7 @@ export const tryCreateCourse = Result.wrap(
 						category,
 					},
 					depth: 1,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<1, "create">());
@@ -156,7 +133,7 @@ export const tryCreateCourse = Result.wrap(
 						course: newCourse.id,
 					},
 					depth: 0,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<0, "create">())
@@ -186,12 +163,10 @@ export const tryCreateCourse = Result.wrap(
 						contentOrder: 0,
 					},
 					depth: 0,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<0, "create">());
-
-			await commitTransactionIfCreated(payload, transactionInfo);
 
 			const result = {
 				...newCourse,
@@ -199,10 +174,7 @@ export const tryCreateCourse = Result.wrap(
 				defaultSection: defaultSectionResult,
 			};
 			return result;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -211,14 +183,26 @@ export const tryCreateCourse = Result.wrap(
 		}),
 );
 
-/**
- * Updates an existing course using Payload local API
- * When user is provided, access control is enforced based on that user
- * When overrideAccess is true, bypasses all access control
- */
+export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+	data: {
+		title?: string;
+		status?: "draft" | "published" | "archived";
+		description?: string;
+		thumbnail?: File | null;
+		tags?: { tag?: string }[];
+		category?: number | null;
+	};
+}
 export const tryUpdateCourse = Result.wrap(
 	async (args: UpdateCourseArgs) => {
 		const { payload, courseId, data, req, overrideAccess = false } = args;
+
+		const currentUser = req?.user;
+		const userId = currentUser?.id;
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
 
 		// Check if course exists
 		const existingCourse = await payload.findByID({
@@ -232,19 +216,36 @@ export const tryUpdateCourse = Result.wrap(
 			throw new Error(`Course with ID ${courseId} not found`);
 		}
 
-		// Extract media IDs from description HTML content if description is being updated
-
 		const updatedCourse = await payload
 			.update({
 				collection: "courses",
 				id: courseId,
 				data: {
 					...data,
-					descriptionMedia: await tryExtractMediaIdsFromRichText({
+					thumbnail: !data.thumbnail
+						? data.thumbnail
+						: await tryCreateMedia({
+								payload,
+								file: await data.thumbnail.arrayBuffer().then(Buffer.from),
+								filename: data.thumbnail.name || "thumbnail",
+								mimeType: data.thumbnail.type || "image/png",
+								alt: "Course thumbnail",
+								userId,
+								req,
+								overrideAccess,
+							})
+								.getOrThrow()
+								.then((r) => r.media.id),
+					...(await processRichTextMediaV2({
 						payload,
-						htmlContent: [data.description].filter(Boolean),
+						userId,
 						req,
-					}).getOrThrow(),
+						overrideAccess,
+						data: {
+							description: data.description ?? "",
+						},
+						fields: [{ key: "description", alt: "Course description image" }],
+					})),
 				},
 				req,
 				overrideAccess,
@@ -261,90 +262,6 @@ export const tryUpdateCourse = Result.wrap(
 			});
 
 		return updatedCourse;
-	},
-	(error) =>
-		transformError(error) ??
-		new UnknownError("Failed to update course", {
-			cause: error,
-		}),
-);
-
-export interface UpdateCourseWithFileArgs extends BaseInternalFunctionArgs {
-	courseId: number;
-	data: Merge<
-		{
-			title?: string;
-			status?: "draft" | "published" | "archived";
-			thumbnail?: File | null;
-			tags?: { tag?: string }[];
-			category?: number | null;
-		},
-		RichTextContent<"description">
-	>;
-}
-export const tryUpdateCourseWithFile = Result.wrap(
-	async (args: UpdateCourseWithFileArgs) => {
-		const { payload, courseId, data, req, overrideAccess = false } = args;
-
-		const currentUser = req?.user;
-		const userId = currentUser?.id;
-		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
-		}
-
-		const transactionInfo = await handleTransactionId(payload, req);
-
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			// Create media for thumbnail if provided
-			const thumbnailMedia = !data.thumbnail
-				? data.thumbnail
-				: await tryCreateMedia({
-						payload,
-						file: await data.thumbnail.arrayBuffer().then(Buffer.from),
-						filename: data.thumbnail.name || "thumbnail",
-						mimeType: data.thumbnail.type || "image/png",
-						alt: "Course thumbnail",
-						userId,
-						req: reqWithTransaction,
-						overrideAccess,
-					})
-						.getOrThrow()
-						.then((r) => r.media);
-
-			// Process rich text media (description-image-* fields)
-			const richTextResult = await processRichTextMedia({
-				payload,
-				userId,
-				req: reqWithTransaction,
-				overrideAccess,
-				data,
-				fields: ["description"],
-				alt: "Course description image",
-			});
-
-			const description = richTextResult.processedData.description;
-
-			// Update course (within the same transaction)
-			const updateResult = await tryUpdateCourse({
-				payload,
-				courseId,
-				data: {
-					title: data.title,
-					description,
-					status: data.status,
-					category: data.category,
-					thumbnail: thumbnailMedia ? thumbnailMedia.id : thumbnailMedia,
-				},
-				req: reqWithTransaction,
-				overrideAccess,
-			});
-
-			if (!updateResult.ok) {
-				throw updateResult.error;
-			}
-
-			return updateResult.value;
-		});
 	},
 	(error) =>
 		transformError(error) ??

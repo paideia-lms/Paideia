@@ -6,13 +6,10 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { CourseCategory } from "../payload-types";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	Depth,
+	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
@@ -51,23 +48,29 @@ export const tryCreateCategory = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			const newCategory = await payload.create({
-				collection: CourseCategories.slug,
-				data: {
-					name,
-					parent,
-				},
-				req: transactionInfo.reqWithTransaction,
-			});
+		return transactionInfo.tx(async (txInfo) => {
+			const newCategory = await payload
+				.create({
+					collection: CourseCategories.slug,
+					data: {
+						name,
+						parent,
+					},
+					req: txInfo.reqWithTransaction,
+					depth: 1,
+				})
+				.then(stripDepth<1, "create">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryCreateCategory",
+						args: { payload, req },
+					});
+					throw error;
+				});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			return newCategory as CourseCategory;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+			return newCategory;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -87,25 +90,31 @@ export const tryUpdateCategory = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async (txInfo) => {
 			const updateData: { name?: string; parent?: number } = {};
 			if (name !== undefined) updateData.name = name;
 			if (parent !== undefined) updateData.parent = parent;
 
-			const updatedCategory = await payload.update({
-				collection: CourseCategories.slug,
-				id: categoryId,
-				data: updateData,
-				req: transactionInfo.reqWithTransaction,
-			});
+			const updatedCategory = await payload
+				.update({
+					collection: CourseCategories.slug,
+					id: categoryId,
+					data: updateData,
+					req: txInfo.reqWithTransaction,
+					depth: 0,
+				})
+				.then(stripDepth<0, "update">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryUpdateCategory",
+						args: { payload, req },
+					});
+					throw error;
+				});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
-			return updatedCategory as CourseCategory;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+			return updatedCategory;
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -130,7 +139,7 @@ export const tryDeleteCategory = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async (txInfo) => {
 			// Check for subcategories
 			const subcategories = await payload.find({
 				collection: CourseCategories.slug,
@@ -140,7 +149,7 @@ export const tryDeleteCategory = Result.wrap(
 					},
 				},
 				limit: 1,
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 			});
 
 			if (subcategories.docs.length > 0) {
@@ -150,16 +159,27 @@ export const tryDeleteCategory = Result.wrap(
 			}
 
 			// Check for courses
-			const courses = await payload.find({
-				collection: Courses.slug,
-				where: {
-					category: {
-						equals: categoryId,
+			const courses = await payload
+				.find({
+					collection: Courses.slug,
+					where: {
+						category: {
+							equals: categoryId,
+						},
 					},
-				},
-				limit: 1,
-				req: transactionInfo.reqWithTransaction,
-			});
+					limit: 1,
+					depth: 1,
+					req: txInfo.reqWithTransaction,
+				})
+				.then(stripDepth<0, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryDeleteCategory",
+						args: { payload, req },
+					});
+					throw error;
+				});
 
 			if (courses.docs.length > 0) {
 				throw new InvalidArgumentError(
@@ -170,16 +190,11 @@ export const tryDeleteCategory = Result.wrap(
 			const deletedCategory = await payload.delete({
 				collection: CourseCategories.slug,
 				id: categoryId,
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 			});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return deletedCategory;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??

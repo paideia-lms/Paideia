@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import { tryCreateCategory } from "./course-category-management";
 import {
@@ -12,8 +12,6 @@ import {
 	trySearchCourses,
 	tryUpdateCourse,
 	type UpdateCourseArgs,
-	tryUpdateCourseWithFile,
-	type UpdateCourseWithFileArgs,
 } from "./course-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateMedia } from "./media-management";
@@ -25,7 +23,6 @@ describe("Course Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let instructor: TryResultValue<typeof tryCreateUser>;
 	let testMediaId: number;
-	let testMediaFilename: string;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -70,7 +67,6 @@ describe("Course Management Functions", () => {
 		}
 
 		testMediaId = createMediaResult.value.media.id;
-		testMediaFilename = createMediaResult.value.media.filename ?? "";
 	});
 
 	afterAll(async () => {
@@ -166,33 +162,30 @@ describe("Course Management Functions", () => {
 
 			const createResult = await tryCreateCourse(createArgs);
 			expect(createResult.ok).toBe(true);
+			if (!createResult.ok) throw new Error("Failed to create course");
 
-			if (createResult.ok) {
-				const updateArgs: UpdateCourseArgs = {
-					payload,
-					courseId: createResult.value.id,
-					data: {
-						title: "Updated Title",
-						description: "Updated description",
-						status: "published",
-					},
-					overrideAccess: true,
-				};
+			const updateResult = await tryUpdateCourse({
+				payload,
+				courseId: createResult.value.id,
+				data: {
+					title: "Updated Title",
+					description: "Updated description",
+					status: "published",
+				},
+				req: {
+					user: instructor as TypedUser,
+				},
+				overrideAccess: true,
+			});
 
-				const updateResult = await tryUpdateCourse(updateArgs);
-
-				expect(updateResult.ok).toBe(true);
-				if (updateResult.ok) {
-					expect(updateResult.value.title).toBe("Updated Title");
-					expect(updateResult.value.description).toBe("Updated description");
-					expect(updateResult.value.status).toBe("published");
-					// Media array should be empty when no media references
-					expect(updateResult.value.descriptionMedia).toBeDefined();
-					if (Array.isArray(updateResult.value.descriptionMedia)) {
-						expect(updateResult.value.descriptionMedia.length).toBe(0);
-					}
-				}
-			}
+			expect(updateResult.ok).toBe(true);
+			if (!updateResult.ok) throw new Error("Failed to update course");
+			expect(updateResult.value.title).toBe("Updated Title");
+			expect(updateResult.value.description).toBe("Updated description");
+			expect(updateResult.value.status).toBe("published");
+			// Media array should be empty when no media references
+			expect(updateResult.value.descriptionMedia).toBeDefined();
+			expect(updateResult.value.descriptionMedia?.length).toBe(0);
 		});
 
 		test("should create a course with media references in description", async () => {
@@ -240,31 +233,29 @@ describe("Course Management Functions", () => {
 			const createResult = await tryCreateCourse(createArgs);
 			expect(createResult.ok).toBe(true);
 
-			if (createResult.ok) {
-				// Update with media reference
-				const updatedDescription = `<p>Updated description with images!</p><img src="/api/media/file/${testMediaId}" alt="Course image" />`;
-				const updateArgs: UpdateCourseArgs = {
-					payload,
-					courseId: createResult.value.id,
-					data: {
-						description: updatedDescription,
-					},
-					overrideAccess: true,
-				};
+			if (!createResult.ok) throw new Error("Failed to create course");
+			// Update with media reference
+			const updatedDescription = `<p>Updated description with images!</p><img src="/api/media/file/${testMediaId}" alt="Course image" />`;
 
-				const updateResult = await tryUpdateCourse(updateArgs);
+			const updateResult = await tryUpdateCourse({
+				payload,
+				courseId: createResult.value.id,
+				data: {
+					description: updatedDescription,
+				},
+				req: {
+					user: instructor as TypedUser,
+				},
+				overrideAccess: true,
+			});
 
-				expect(updateResult.ok).toBe(true);
-				if (updateResult.ok) {
-					expect(updateResult.value.description).toBe(updatedDescription);
-					expect(updateResult.value.descriptionMedia).toBeDefined();
-					if (Array.isArray(updateResult.value.descriptionMedia)) {
-						expect(updateResult.value.descriptionMedia.length).toBe(1);
-						const mediaId = updateResult.value.descriptionMedia[0]?.id;
-						expect(mediaId).toBe(testMediaId);
-					}
-				}
-			}
+			expect(updateResult.ok).toBe(true);
+			if (!updateResult.ok) throw new Error("Failed to update course");
+			expect(updateResult.value.description).toBe(updatedDescription);
+			expect(updateResult.value.descriptionMedia).toBeDefined();
+			expect(updateResult.value.descriptionMedia?.length).toBe(1);
+			const mediaId = updateResult.value.descriptionMedia?.[0]?.id;
+			expect(mediaId).toBe(testMediaId);
 		});
 
 		describe("tryUpdateCourseWithFile", () => {
@@ -290,12 +281,20 @@ describe("Course Management Functions", () => {
 				// Create File objects from fixture
 				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 				const timestamp = Date.now();
-				const thumbnailFile = new File([fileBuffer], `thumbnail-${timestamp}.png`, {
-					type: "image/png",
-				});
-				const descriptionImageFile = new File([fileBuffer], `description-image-0-${timestamp}.png`, {
-					type: "image/png",
-				});
+				const thumbnailFile = new File(
+					[fileBuffer],
+					`thumbnail-${timestamp}.png`,
+					{
+						type: "image/png",
+					},
+				);
+				const descriptionImageFile = new File(
+					[fileBuffer],
+					`description-image-0-${timestamp}.png`,
+					{
+						type: "image/png",
+					},
+				);
 
 				// Create base64 preview for description image
 				const base64Preview = `data:image/png;base64,${Buffer.from(fileBuffer).toString("base64")}`;
@@ -311,21 +310,18 @@ describe("Course Management Functions", () => {
 				});
 
 				// Update course with files
-				const updateArgs: UpdateCourseWithFileArgs = {
+
+				const updateResult = await tryUpdateCourse({
 					payload,
 					courseId: createResult.value.id,
 					data: {
 						title: "Updated Course Title",
 						description: descriptionWithBase64,
 						thumbnail: thumbnailFile,
-						"description-image-0": descriptionImageFile,
-						"description-image-0-preview": base64Preview,
 					},
 					req,
-					overrideAccess: true ,
-				};
-
-				const updateResult = await tryUpdateCourseWithFile(updateArgs);
+					overrideAccess: true,
+				});
 
 				expect(updateResult.ok).toBe(true);
 				if (!updateResult.ok) {
@@ -380,14 +376,24 @@ describe("Course Management Functions", () => {
 
 				// Create File objects from fixture
 				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
-				const fileBuffer2 = await Bun.file("fixture/paideia-logo.png").arrayBuffer();
+				const fileBuffer2 = await Bun.file(
+					"fixture/paideia-logo.png",
+				).arrayBuffer();
 				const timestamp = Date.now();
-				const descriptionImageFile1 = new File([fileBuffer], `test-image-1-${timestamp}.png`, {
-					type: "image/png",
-				});
-				const descriptionImageFile2 = new File([fileBuffer2], `test-image-2-${timestamp}.png`, {
-					type: "image/png",
-				});
+				const descriptionImageFile1 = new File(
+					[fileBuffer],
+					`test-image-1-${timestamp}.png`,
+					{
+						type: "image/png",
+					},
+				);
+				const descriptionImageFile2 = new File(
+					[fileBuffer2],
+					`test-image-2-${timestamp}.png`,
+					{
+						type: "image/png",
+					},
+				);
 
 				// Create base64 previews
 				const base64Preview1 = `data:image/png;base64,${Buffer.from(fileBuffer).toString("base64")}`;
@@ -404,21 +410,17 @@ describe("Course Management Functions", () => {
 				});
 
 				// Update course with description images only
-				const updateArgs: UpdateCourseWithFileArgs = {
+				const updateArgs: UpdateCourseArgs = {
 					payload,
 					courseId: createResult.value.id,
 					data: {
 						description: descriptionWithBase64,
-						"description-image-0": descriptionImageFile1,
-						"description-image-0-preview": base64Preview1,
-						"description-image-1": descriptionImageFile2,
-						"description-image-1-preview": base64Preview2,
 					},
 					req,
 					overrideAccess: true,
 				};
 
-				const updateResult = await tryUpdateCourseWithFile(updateArgs);
+				const updateResult = await tryUpdateCourse(updateArgs);
 
 				expect(updateResult.ok).toBe(true);
 				if (!updateResult.ok) {
@@ -463,9 +465,13 @@ describe("Course Management Functions", () => {
 				// Create File object from fixture
 				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 				const timestamp = Date.now();
-				const thumbnailFile = new File([fileBuffer], `thumbnail-${timestamp}.png`, {
-					type: "image/png",
-				});
+				const thumbnailFile = new File(
+					[fileBuffer],
+					`thumbnail-${timestamp}.png`,
+					{
+						type: "image/png",
+					},
+				);
 
 				// Create request with user
 				const req = createLocalReq({
@@ -477,7 +483,7 @@ describe("Course Management Functions", () => {
 				});
 
 				// Update course with thumbnail only
-				const updateArgs: UpdateCourseWithFileArgs = {
+				const updateArgs: UpdateCourseArgs = {
 					payload,
 					courseId: createResult.value.id,
 					data: {
@@ -487,7 +493,7 @@ describe("Course Management Functions", () => {
 					overrideAccess: true,
 				};
 
-				const updateResult = await tryUpdateCourseWithFile(updateArgs);
+				const updateResult = await tryUpdateCourse(updateArgs);
 
 				expect(updateResult.ok).toBe(true);
 				if (!updateResult.ok) {
@@ -527,12 +533,16 @@ describe("Course Management Functions", () => {
 				// Create File object from fixture
 				const fileBuffer = await Bun.file("fixture/gem.png").arrayBuffer();
 				const timestamp = Date.now();
-				const thumbnailFile = new File([fileBuffer], `thumbnail-${timestamp}.png`, {
-					type: "image/png",
-				});
+				const thumbnailFile = new File(
+					[fileBuffer],
+					`thumbnail-${timestamp}.png`,
+					{
+						type: "image/png",
+					},
+				);
 
 				// Update course without user in request
-				const updateArgs: UpdateCourseWithFileArgs = {
+				const updateArgs: UpdateCourseArgs = {
 					payload,
 					courseId: createResult.value.id,
 					data: {
@@ -542,7 +552,7 @@ describe("Course Management Functions", () => {
 					overrideAccess: false,
 				};
 
-				const updateResult = await tryUpdateCourseWithFile(updateArgs);
+				const updateResult = await tryUpdateCourse(updateArgs);
 
 				expect(updateResult.ok).toBe(false);
 			});
@@ -576,15 +586,17 @@ describe("Course Management Functions", () => {
 			if (!catResult.ok) throw new Error("Failed to create category");
 
 			// update course with category id
-			const updateArgs: UpdateCourseArgs = {
+			const updateResult = await tryUpdateCourse({
 				payload,
 				courseId: createResult.value.id,
 				data: {
 					category: catResult.value.id,
 				},
+				req: {
+					user: instructor as TypedUser,
+				},
 				overrideAccess: true,
-			};
-			const updateResult = await tryUpdateCourse(updateArgs);
+			});
 			expect(updateResult.ok).toBe(true);
 			if (!updateResult.ok) throw new Error("Failed to update course category");
 
@@ -839,15 +851,17 @@ describe("Course Management Functions", () => {
 				expect(findResult.ok).toBe(true);
 
 				// Update course
-				const updateArgs: UpdateCourseArgs = {
+				const updateResult = await tryUpdateCourse({
 					payload,
 					courseId,
 					data: {
 						status: "published",
 					},
+					req: {
+						user: instructor as TypedUser,
+					},
 					overrideAccess: true,
-				};
-				const updateResult = await tryUpdateCourse(updateArgs);
+				});
 				expect(updateResult.ok).toBe(true);
 
 				// Search for updated course
@@ -1476,13 +1490,13 @@ describe("Course Management Functions", () => {
 				const result = await tryGetUserAccessibleCourses({
 					payload,
 					userId: noCoursesUserResult.value.id,
-					req: { 
+					req: {
 						user: noCoursesUser
-						? {
-								...noCoursesUser,
-								collection: "users",
-							}
-						: null,
+							? {
+									...noCoursesUser,
+									collection: "users",
+								}
+							: null,
 					},
 					overrideAccess: false,
 				});
@@ -1536,12 +1550,12 @@ describe("Course Management Functions", () => {
 			const result = await tryGetUserAccessibleCourses({
 				payload,
 				userId: testUser.id,
-				req: { 
-					user : {
+				req: {
+					user: {
 						...testUserDoc,
 						collection: "users",
-					}
-				}, 
+					},
+				},
 				overrideAccess: false,
 			});
 

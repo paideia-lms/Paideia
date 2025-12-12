@@ -1,5 +1,5 @@
 import type { S3Client } from "@aws-sdk/client-s3";
-import type { BasePayload } from "payload";
+import type { BasePayload, PayloadRequest } from "payload";
 import { createContext } from "react-router";
 import type { Media } from "server/payload-types";
 import type { Storage } from "unstorage";
@@ -140,6 +140,7 @@ export const globalContext = createContext<{
 	packageVersion: string;
 	hints: { timeZone?: string };
 	systemGlobals: SystemGlobals;
+	payloadRequest: Partial<PayloadRequest>;
 }>();
 
 // ! we can use string as key, please see https://github.com/remix-run/react-router/blob/c1cddedf656271a3eec8368f2854c733b3fe27da/packages/react-router/lib/router/utils.ts#L209

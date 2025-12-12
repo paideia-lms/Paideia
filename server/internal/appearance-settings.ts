@@ -5,7 +5,7 @@ import {
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 import { AppearanceSettings } from "server/collections/globals";
-
+import { urlSchema } from "./utils/common-schema";
 export interface GetAppearanceSettingsArgs extends BaseInternalFunctionArgs {}
 
 export interface UpdateAppearanceSettingsArgs extends BaseInternalFunctionArgs {
@@ -125,22 +125,7 @@ export const tryUpdateAppearanceSettings = Result.wrap(
 
 		// Validate URLs before saving
 		const stylesheets = data.additionalCssStylesheets ?? [];
-		for (const stylesheet of stylesheets) {
-			try {
-				const url = new URL(stylesheet.url);
-				if (url.protocol !== "http:" && url.protocol !== "https:") {
-					throw new Error(
-						`Invalid URL protocol: ${url.protocol}. Only HTTP and HTTPS are allowed.`,
-					);
-				}
-			} catch (error) {
-				if (error instanceof Error) {
-					throw error;
-				}
-				throw new Error(`Invalid URL format: ${stylesheet.url}`);
-			}
-		}
-
+		urlSchema.parse(stylesheets.map((stylesheet) => stylesheet.url));
 		// Validate color if provided
 		if (data.color !== undefined) {
 			if (!validColors.includes(data.color as (typeof validColors)[number])) {

@@ -342,6 +342,19 @@ export const middleware = [
 		context.set(userContextKey, userSession);
 	},
 	/**
+	 * set the payload request to the global context
+	 */
+	async ({ request, context }) => {
+		const userSession = context.get(userContextKey);
+		const currentUser =
+			userSession?.effectiveUser ?? userSession?.authenticatedUser;
+		const payloadRequest = createLocalReq({ request, user: currentUser, context: { routerContext: context } });
+		context.set(globalContextKey, {
+			...context.get(globalContextKey),
+			payloadRequest,
+		});
+	},
+	/**
 	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
 	 */
 	async ({ context }) => {
@@ -359,26 +372,26 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-						color: "blue",
-						radius: "sm" as const,
-						logoLight: null,
-						logoDark: null,
-						compactLogoLight: null,
-						compactLogoDark: null,
-						faviconLight: null,
-						faviconDark: null,
-					},
-					analyticsSettings: {
-						additionalJsScripts: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -583,19 +596,19 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext({
-								payload,
-								profileUserId,
-								req: createLocalReq({
-									request,
-									user: currentUser,
-									context: { routerContext: context },
-								}),
-								overrideAccess: false,
-							});
+							payload,
+							profileUserId,
+							req: createLocalReq({
+								request,
+								user: currentUser,
+								context: { routerContext: context },
+							}),
+							overrideAccess: false,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -787,17 +800,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 		environment !== "development"
 			? null
 			: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				};
+				userSession: userSession,
+				courseContext: context.get(courseContextKey),
+				courseModuleContext: context.get(courseModuleContextKey),
+				courseSectionContext: context.get(courseSectionContextKey),
+				enrolmentContext: context.get(enrolmentContextKey),
+				userModuleContext: context.get(userModuleContextKey),
+				userProfileContext: context.get(userProfileContextKey),
+				userAccessContext: context.get(userAccessContextKey),
+				userContext: context.get(userContextKey),
+				systemGlobals: systemGlobals,
+			};
 
 	return {
 		users: users,

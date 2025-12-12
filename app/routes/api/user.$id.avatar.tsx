@@ -128,14 +128,14 @@ export const loader = async ({
 
 	// Handle Range request (206 Partial Content)
 	if (range && contentRange) {
-		return partialContent({
-			stream,
+		return new Response(stream, {
+			status: 206,
 			headers,
 		});
 	}
 
 	// Full file request (200 OK)
-	return ok(stream, {
+	return new Response(stream, {
 		headers,
 	});
 };

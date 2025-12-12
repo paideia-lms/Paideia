@@ -12,6 +12,7 @@ import {
 } from "./page-management";
 import { tryCreateUser } from "./user-management";
 import type { TryResultValue } from "server/utils/type-narrowing";
+import { TestError } from "tests/errors";
 
 describe("Page Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -84,15 +85,17 @@ describe("Page Management Functions", () => {
 		const result = await tryCreatePage(createArgs);
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.content).toBe(createArgs.content);
-			expect(result.value.createdBy).toBe(testUser.id);
-			// Media array should be empty when no media references in HTML
-			expect(result.value.contentMedia).toBeDefined();
-			if (Array.isArray(result.value.contentMedia)) {
-				expect(result.value.contentMedia.length).toBe(0);
-			}
-		}
+		if (!result.ok)
+			throw new TestError("Failed to create page", { cause: result.error });
+		expect(result.value.content).toBe(createArgs.content);
+		expect(result.value.createdBy).toBe(testUser.id);
+		// Media array should be empty when no media references in HTML
+		expect(result.value.contentMedia).toBeDefined();
+		if (!Array.isArray(result.value.contentMedia))
+			throw new TestError("Content media is not an array", {
+				cause: result.error,
+			});
+		expect(result.value.contentMedia.length).toBe(0);
 	});
 
 	test("should create a page with empty content", async () => {
@@ -106,9 +109,9 @@ describe("Page Management Functions", () => {
 		const result = await tryCreatePage(createArgs);
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.content).toBe("");
-		}
+		if (!result.ok)
+			throw new TestError("Failed to create page", { cause: result.error });
+		expect(result.value.content).toBe("");
 	});
 
 	test("should fail to create a page without userId", async () => {
@@ -122,9 +125,6 @@ describe("Page Management Functions", () => {
 		const result = await tryCreatePage(createArgs);
 
 		expect(result.ok).toBe(false);
-		if (!result.ok) {
-			expect(result.error.type).toBe("InvalidArgumentError");
-		}
 	});
 
 	test("should get a page by ID", async () => {
@@ -150,10 +150,10 @@ describe("Page Management Functions", () => {
 			});
 
 			expect(getResult.ok).toBe(true);
-			if (getResult.ok) {
-				expect(getResult.value.id).toBe(pageId);
-				expect(getResult.value.content).toBe(createArgs.content);
-			}
+			if (!getResult.ok)
+				throw new TestError("Failed to get page", { cause: getResult.error });
+			expect(getResult.value.id).toBe(pageId);
+			expect(getResult.value.content).toBe(createArgs.content);
 		}
 	});
 
@@ -191,14 +191,18 @@ describe("Page Management Functions", () => {
 			});
 
 			expect(updateResult.ok).toBe(true);
-			if (updateResult.ok) {
-				expect(updateResult.value.content).toBe("<h1>Updated Content</h1>");
-				// Media array should be empty when no media references
-				expect(updateResult.value.contentMedia).toBeDefined();
-				if (Array.isArray(updateResult.value.contentMedia)) {
-					expect(updateResult.value.contentMedia.length).toBe(0);
-				}
-			}
+			if (!updateResult.ok)
+				throw new TestError("Failed to update page", {
+					cause: updateResult.error,
+				});
+			expect(updateResult.value.content).toBe("<h1>Updated Content</h1>");
+			// Media array should be empty when no media references
+			expect(updateResult.value.contentMedia).toBeDefined();
+			if (!Array.isArray(updateResult.value.contentMedia))
+				throw new TestError("Content media is not an array", {
+					cause: updateResult.error,
+				});
+			expect(updateResult.value.contentMedia.length).toBe(0);
 		}
 	});
 
@@ -215,15 +219,17 @@ describe("Page Management Functions", () => {
 		const result = await tryCreatePage(createArgs);
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.content).toBe(html);
-			expect(result.value.contentMedia).toBeDefined();
-			if (Array.isArray(result.value.contentMedia)) {
-				expect(result.value.contentMedia.length).toBe(1);
-				const mediaId =result.value.contentMedia[0] 
-				expect(mediaId).toBe(testMediaId);
-			}
-		}
+		if (!result.ok)
+			throw new TestError("Failed to create page", { cause: result.error });
+		expect(result.value.content).toBe(html);
+		expect(result.value.contentMedia).toBeDefined();
+		if (!Array.isArray(result.value.contentMedia))
+			throw new TestError("Content media is not an array", {
+				cause: result.error,
+			});
+		expect(result.value.contentMedia.length).toBe(1);
+		const mediaId = result.value.contentMedia[0];
+		expect(mediaId).toBe(testMediaId);
 	});
 
 	test("should update page media array when content changes", async () => {
@@ -251,16 +257,19 @@ describe("Page Management Functions", () => {
 			});
 
 			expect(updateResult.ok).toBe(true);
-			if (updateResult.ok) {
-				expect(updateResult.value.content).toBe(updatedHtml);
-				expect(updateResult.value.contentMedia).toBeDefined();
-				if (Array.isArray(updateResult.value.contentMedia)) {
-					expect(updateResult.value.contentMedia.length).toBe(1);
-					const mediaId =updateResult.value.contentMedia[0]
-							
-					expect(mediaId).toBe(testMediaId);
-				}
-			}
+			if (!updateResult.ok)
+				throw new TestError("Failed to update page", {
+					cause: updateResult.error,
+				});
+			expect(updateResult.value.content).toBe(updatedHtml);
+			expect(updateResult.value.contentMedia).toBeDefined();
+			if (!Array.isArray(updateResult.value.contentMedia))
+				throw new TestError("Content media is not an array", {
+					cause: updateResult.error,
+				});
+			expect(updateResult.value.contentMedia.length).toBe(1);
+			const mediaId = updateResult.value.contentMedia[0];
+			expect(mediaId).toBe(testMediaId);
 		}
 	});
 

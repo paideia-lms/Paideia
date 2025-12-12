@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { tryParseMediaFromHtml } from "./parse-media-from-html";
+import { TestError } from "tests/errors";
 
 describe("Parse Media From HTML", () => {
 	test("should parse media IDs from HTML", () => {
@@ -36,12 +37,14 @@ describe("Parse Media From HTML", () => {
 		const result = tryParseMediaFromHtml(html);
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.ids.length).toBe(1);
-			expect(result.value.ids).toContain(123);
-			expect(result.value.filenames.length).toBe(1);
-			expect(result.value.filenames).toContain("test-image.png");
-		}
+		if (!result.ok)
+			throw new TestError("Failed to parse media from HTML", {
+				cause: result.error,
+			});
+		expect(result.value.ids.length).toBe(1);
+		expect(result.value.ids).toContain(123);
+		expect(result.value.filenames.length).toBe(1);
+		expect(result.value.filenames).toContain("test-image.png");
 	});
 
 	test("should return unique media IDs and filenames (no duplicates)", () => {
@@ -64,10 +67,12 @@ describe("Parse Media From HTML", () => {
 		const result = tryParseMediaFromHtml(html);
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.ids.length).toBe(0);
-			expect(result.value.filenames.length).toBe(0);
-		}
+		if (!result.ok)
+			throw new TestError("Failed to parse media from HTML", {
+				cause: result.error,
+			});
+		expect(result.value.ids.length).toBe(0);
+		expect(result.value.filenames.length).toBe(0);
 	});
 
 	test("should return empty arrays for empty HTML", () => {
@@ -84,10 +89,12 @@ describe("Parse Media From HTML", () => {
 		const result = tryParseMediaFromHtml("   \n\t   ");
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.ids.length).toBe(0);
-			expect(result.value.filenames.length).toBe(0);
-		}
+		if (!result.ok)
+			throw new TestError("Failed to parse media from HTML", {
+				cause: result.error,
+			});
+		expect(result.value.ids.length).toBe(0);
+		expect(result.value.filenames.length).toBe(0);
 	});
 
 	test("should ignore images without src attributes", () => {
@@ -144,13 +151,15 @@ describe("Parse Media From HTML", () => {
 		const result = tryParseMediaFromHtml(html);
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			// Should parse both - existence checking is not this function's responsibility
-			expect(result.value.ids.length).toBe(1);
-			expect(result.value.ids).toContain(123);
-			expect(result.value.filenames.length).toBe(1);
-			expect(result.value.filenames).toContain("non-existent-file.png");
-		}
+		if (!result.ok)
+			throw new TestError("Failed to parse media from HTML", {
+				cause: result.error,
+			});
+		// Should parse both - existence checking is not this function's responsibility
+		expect(result.value.ids.length).toBe(1);
+		expect(result.value.ids).toContain(123);
+		expect(result.value.filenames.length).toBe(1);
+		expect(result.value.filenames).toContain("non-existent-file.png");
 	});
 
 	test("should handle complex HTML with nested elements", () => {
@@ -159,10 +168,12 @@ describe("Parse Media From HTML", () => {
 		const result = tryParseMediaFromHtml(html);
 
 		expect(result.ok).toBe(true);
-		if (result.ok) {
-			expect(result.value.ids.length).toBe(2);
-			expect(result.value.ids).toContain(123);
-			expect(result.value.ids).toContain(456);
-		}
+		if (!result.ok)
+			throw new TestError("Failed to parse media from HTML", {
+				cause: result.error,
+			});
+		expect(result.value.ids.length).toBe(2);
+		expect(result.value.ids).toContain(123);
+		expect(result.value.ids).toContain(456);
 	});
 });

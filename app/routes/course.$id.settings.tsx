@@ -24,7 +24,7 @@ import {
 	type CategoryTreeNode,
 	tryGetCategoryTree,
 } from "server/internal/course-category-management";
-import { tryUpdateCourseWithFile } from "server/internal/course-management";
+import { tryUpdateCourse } from "server/internal/course-management";
 
 import type { Course } from "server/payload-types";
 import type { UseFormReturnType } from "@mantine/form";
@@ -39,15 +39,52 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.settings";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import { ContentType } from "app/utils/get-content-type";
 import { convertMyFormDataToObject, MyFormData } from "~/utils/action-utils";
 import { isUndefined, omitBy } from "es-toolkit";
 import { z } from "zod";
-import { type InputSchema, inputSchema } from "./schema";
+
+
+export const actionInputSchema = z.looseObject({
+	title: z.string().min(1, "Title is required").optional(),
+	slug: z
+		.string()
+		.min(1, "Slug is required")
+		.regex(
+			/^[a-z0-9-]+$/,
+			"Slug must contain only lowercase letters, numbers, and hyphens",
+		)
+		.optional(),
+	thumbnail: z.file().nullish(),
+	description: z.string().min(1, "Description is required").optional(),
+	status: z.enum(["draft", "published", "archived"]).optional(),
+	category: z.coerce.number().nullish(),
+	redirectTo: z
+		.union([z.string(), z.null()])
+		.optional()
+		.refine(
+			(val) => {
+				// Allow null/undefined
+				if (!val || val === null) return true;
+				// Must be a relative path (starts with /) and not an absolute URL
+				return (
+					val.startsWith("/") &&
+					!val.startsWith("http://") &&
+					!val.startsWith("https://") &&
+					!val.startsWith("//")
+				);
+			},
+			{
+				message:
+					"Redirect path must be a relative path starting with '/' and cannot be an absolute URL",
+			},
+		),
+});
+
+
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -84,11 +121,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
 	const categoriesResult = await tryGetCategoryTree({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
@@ -110,8 +143,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -134,7 +167,7 @@ export const action = async ({
 	context,
 	params,
 }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrollmentContext = context.get(enrolmentContextKey);
 	const { courseId: _courseId } = params;
@@ -173,19 +206,12 @@ export const action = async ({
 		});
 	}
 
-	const payloadRequest = createLocalReq({
-		request,
-		user: currentUser,
-		context: { routerContext: context },
-	});
-
 	// Get form data and convert to object
 	const formDataObj = convertMyFormDataToObject<ActionData>(
 		await request.formData(),
 	);
 
-	console.log(formDataObj);
-	const parse = inputSchema.safeParse(formDataObj);
+	const parse = actionInputSchema.safeParse(formDataObj);
 
 	if (!parse.success) {
 		return badRequest({
@@ -195,10 +221,10 @@ export const action = async ({
 	}
 
 	// Prepare data for tryupdateCourseWithFile
-	const parsedData = parse.data as InputSchema;
+	const parsedData = parse.data;
 
 	// Update course using the internal function
-	const updateResult = await tryUpdateCourseWithFile({
+	const updateResult = await tryUpdateCourse({
 		payload,
 		courseId: Number(courseId),
 		data: parsedData,
@@ -254,8 +280,6 @@ type ActionData = {
 	category?: string | null;
 	thumbnail?: File | null;
 	redirectTo?: string;
-	[K: `description-image-${number}`]: File;
-	[P: `description-image-${number}-preview`]: string;
 };
 
 // ============================================================================
@@ -442,38 +466,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		}
 
 		// Build the data object
-		const data: ActionData = {
-			title:
-				form.getInitialValues().title !== values.title
-					? values.title
-					: undefined,
-			slug:
-				form.getInitialValues().slug !== values.slug ? values.slug : undefined,
-			description:
-				form.getInitialValues().description !== values.description
-					? values.description
-					: undefined,
-			status:
-				form.getInitialValues().status !== values.status
-					? values.status
-					: undefined,
-			category:
-				form.getInitialValues().category !== values.category
-					? values.category
-					: undefined,
-			thumbnail:
-				form.getInitialValues().thumbnail !== values.thumbnail
-					? (values.thumbnail ?? null)
-					: undefined,
-		};
-
-		// Get image files from the rich text editor ref
-		const imageFiles = richTextEditorRef.current?.getImageFiles() ?? [];
-		// Only add image files that are actually used in the description
-		imageFiles.forEach((imageFile, newIndex) => {
-			data[`description-image-${newIndex}`] = imageFile.file;
-			data[`description-image-${newIndex}-preview`] = imageFile.preview;
-		});
+		const data: ActionData = omitBy(values, (value, key) => form.getInitialValues()[key] === value);
 
 		await editCourse(course.id, data);
 	};

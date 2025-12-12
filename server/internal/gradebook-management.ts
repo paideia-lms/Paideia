@@ -724,16 +724,9 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 		// Remove undefined property
 		delete (yamlData as { gradebook_id?: number }).gradebook_id;
 
-		let yamlString: string;
-		try {
-			yamlString = Bun.YAML?.stringify(yamlData, null, 2);
-			if (!yamlString) {
-				throw new UnknownError("Bun.YAML is not available");
-			}
-		} catch (error) {
-			throw new UnknownError("Failed to convert JSON to YAML", {
-				cause: error,
-			});
+		const yamlString = Bun.YAML?.stringify(yamlData, null, 2);
+		if (!yamlString) {
+			throw new UnknownError("Bun.YAML is not available");
 		}
 
 		// Build Markdown representation
