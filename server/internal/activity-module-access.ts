@@ -15,7 +15,7 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { ActivityModules } from "server/collections";
-import { Enrollment } from "server/payload-types";
+import type { Enrollment } from "server/payload-types";
 
 export interface GrantAccessArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
