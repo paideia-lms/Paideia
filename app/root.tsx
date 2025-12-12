@@ -375,26 +375,26 @@ export const middleware = [
 		const systemGlobals = systemGlobalsResult.ok
 			? systemGlobalsResult.value
 			: {
-					maintenanceSettings: { maintenanceMode: false },
-					sitePolicies: {
-						userMediaStorageTotal: null,
-						siteUploadLimit: null,
-					},
-					appearanceSettings: {
-						additionalCssStylesheets: [],
-						color: "blue",
-						radius: "sm" as const,
-						logoLight: null,
-						logoDark: null,
-						compactLogoLight: null,
-						compactLogoDark: null,
-						faviconLight: null,
-						faviconDark: null,
-					},
-					analyticsSettings: {
-						additionalJsScripts: [],
-					},
-				};
+				maintenanceSettings: { maintenanceMode: false },
+				sitePolicies: {
+					userMediaStorageTotal: null,
+					siteUploadLimit: null,
+				},
+				appearanceSettings: {
+					additionalCssStylesheets: [],
+					color: "blue",
+					radius: "sm" as const,
+					logoLight: null,
+					logoDark: null,
+					compactLogoLight: null,
+					compactLogoDark: null,
+					faviconLight: null,
+					faviconDark: null,
+				},
+				analyticsSettings: {
+					additionalJsScripts: [],
+				},
+			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -599,19 +599,19 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext({
-								payload,
-								profileUserId,
-								req: createLocalReq({
-									request,
-									user: currentUser,
-									context: { routerContext: context },
-								}),
-								overrideAccess: false,
-							});
+							payload,
+							profileUserId,
+							req: createLocalReq({
+								request,
+								user: currentUser,
+								context: { routerContext: context },
+							}),
+							overrideAccess: false,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -733,13 +733,9 @@ export async function loader({ context }: Route.LoaderArgs) {
 	// console.log(routes)
 	// ! we can get elysia from context!!!
 	// console.log(payload, elysia);
-	const result = await tryGetUserCount({ payload, overrideAccess: true });
-
-	if (!result.ok) {
-		throw new Error("Failed to get user count");
-	}
-
-	const users = result.value;
+	const userCount = await tryGetUserCount({ payload, overrideAccess: true }).getOrElse(() => {
+		throw new InternalServerErrorResponse("Failed to get user count");
+	})
 
 	// Get current user's theme and direction preference
 	const currentUser =
@@ -776,7 +772,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 	// Skip redirect check for essential routes
 	if (pageInfo.isRegistration || pageInfo.isLogin || pageInfo.isApi) {
 		return {
-			users: users,
+			users: userCount,
 			domainUrl: requestInfo.domainUrl,
 			timestamp: timestamp,
 			pageInfo: pageInfo,
@@ -795,28 +791,13 @@ export async function loader({ context }: Route.LoaderArgs) {
 	}
 
 	// If no users exist, redirect to first-user creation
-	if (users === 0) {
+	if (userCount === 0) {
 		throw redirect(href("/registration"));
 	}
 
-	const debugData =
-		environment !== "development"
-			? null
-			: {
-					userSession: userSession,
-					courseContext: context.get(courseContextKey),
-					courseModuleContext: context.get(courseModuleContextKey),
-					courseSectionContext: context.get(courseSectionContextKey),
-					enrolmentContext: context.get(enrolmentContextKey),
-					userModuleContext: context.get(userModuleContextKey),
-					userProfileContext: context.get(userProfileContextKey),
-					userAccessContext: context.get(userAccessContextKey),
-					userContext: context.get(userContextKey),
-					systemGlobals: systemGlobals,
-				};
 
 	return {
-		users: users,
+		users: userCount,
 		domainUrl: requestInfo.domainUrl,
 		timestamp: timestamp,
 		pageInfo: pageInfo,
@@ -830,7 +811,18 @@ export async function loader({ context }: Route.LoaderArgs) {
 		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		logoMedia,
 		faviconMedia,
-		debugData: debugData,
+		debugData: environment !== "development" ? null : {
+			userSession: userSession,
+			courseContext: context.get(courseContextKey),
+			courseModuleContext: context.get(courseModuleContextKey),
+			courseSectionContext: context.get(courseSectionContextKey),
+			enrolmentContext: context.get(enrolmentContextKey),
+			userModuleContext: context.get(userModuleContextKey),
+			userProfileContext: context.get(userProfileContextKey),
+			userAccessContext: context.get(userAccessContextKey),
+			userContext: context.get(userContextKey),
+			systemGlobals: systemGlobals,
+		},
 		isSandboxMode,
 		nextResetTime,
 	};

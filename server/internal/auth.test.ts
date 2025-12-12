@@ -3,8 +3,8 @@ import { $ } from "bun";
 import { executeAuthStrategies, getPayload } from "payload";
 import sanitizedConfig from "../payload.config";
 import type { User } from "../payload-types";
-import { type CheckFirstUserArgs, tryCheckFirstUser } from "./check-first-user";
 import { tryRegisterFirstUser } from "./user-management";
+import { tryGetUserCount } from "./check-first-user";
 
 describe("Authentication Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -39,17 +39,12 @@ describe("Authentication Functions", () => {
 
 	describe("First User Registration and Authentication Flow", () => {
 		test("should check that no users exist initially", async () => {
-			const args: CheckFirstUserArgs = {
+			const result = await tryGetUserCount({
 				payload,
 				overrideAccess: true,
-			};
+			}).getOrThrow();
 
-			const result = await tryCheckFirstUser(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).toBe(true);
-			}
+			expect(result).toBe(0);
 		});
 
 		test("should create and auto-login first user", async () => {
@@ -93,18 +88,13 @@ describe("Authentication Functions", () => {
 			expect(result.exp).toBeGreaterThan(Date.now() / 1000);
 		});
 
-		test("should verify first user check returns false after user creation", async () => {
-			const args: CheckFirstUserArgs = {
+		test("should verify there is 1 user after user creation", async () => {
+			const result = await tryGetUserCount({
 				payload,
 				overrideAccess: true,
-			};
+			}).getOrThrow();
 
-			const result = await tryCheckFirstUser(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).toBe(false);
-			}
+			expect(result).toBe(1);
 		});
 	});
 

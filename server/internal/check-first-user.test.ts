@@ -2,14 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
 import { executeAuthStrategies, getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
-import {
-	type CheckFirstUserArgs,
-	type GetUserCountArgs,
-	tryCheckFirstUser,
-	tryGetUserCount,
-	tryValidateFirstUserState,
-	type ValidateFirstUserStateArgs,
-} from "./check-first-user";
+import { type GetUserCountArgs, tryGetUserCount } from "./check-first-user";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
 describe("First User Check Functions - With overrideAccess", () => {
@@ -38,58 +31,6 @@ describe("First User Check Functions - With overrideAccess", () => {
 		} catch (error) {
 			console.warn("Cleanup failed:", error);
 		}
-	});
-
-	describe("tryCheckFirstUser", () => {
-		test("should return true when no users exist", async () => {
-			// First, ensure no users exist by clearing the collection
-			await payload.delete({
-				collection: "users",
-				where: {},
-				overrideAccess: true,
-			});
-
-			const args: CheckFirstUserArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const result = await tryCheckFirstUser(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).toBe(true);
-			}
-		});
-
-		test("should return false when users exist", async () => {
-			// Create a test user
-			const userArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "test@example.com",
-					password: "testpassword123",
-					firstName: "Test",
-					lastName: "User",
-					role: "admin",
-				},
-				overrideAccess: true,
-			};
-
-			await tryCreateUser(userArgs);
-
-			const args: CheckFirstUserArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const result = await tryCheckFirstUser(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).toBe(false);
-			}
-		});
 	});
 
 	describe("tryGetUserCount", () => {
@@ -126,147 +67,6 @@ describe("First User Check Functions - With overrideAccess", () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value).toBe(0);
-			}
-		});
-	});
-
-	describe("tryValidateFirstUserState", () => {
-		test("should return valid state with correct structure", async () => {
-			const args: ValidateFirstUserStateArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const result = await tryValidateFirstUserState(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value).toHaveProperty("needsFirstUser");
-				expect(result.value).toHaveProperty("userCount");
-				expect(result.value).toHaveProperty("isValid");
-				expect(typeof result.value.needsFirstUser).toBe("boolean");
-				expect(typeof result.value.userCount).toBe("number");
-				expect(typeof result.value.isValid).toBe("boolean");
-			}
-		});
-
-		test("should return isValid=true when database is accessible", async () => {
-			const args: ValidateFirstUserStateArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const result = await tryValidateFirstUserState(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.isValid).toBe(true);
-			}
-		});
-
-		test("should return userCount matching actual database state", async () => {
-			// Clear users
-			await payload.delete({
-				collection: "users",
-				where: {},
-				overrideAccess: true,
-			});
-
-			const args1: ValidateFirstUserStateArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const result = await tryValidateFirstUserState(args1);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.userCount).toBe(0);
-			}
-
-			// Add a user
-			const userArgs: CreateUserArgs = {
-				payload,
-				data: {
-					email: "test@example.com",
-					password: "testpassword123",
-					firstName: "Test",
-					lastName: "User",
-					role: "admin",
-				},
-				overrideAccess: true,
-			};
-
-			await tryCreateUser(userArgs);
-
-			const args2: ValidateFirstUserStateArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const resultAfterCreate = await tryValidateFirstUserState(args2);
-
-			expect(resultAfterCreate.ok).toBe(true);
-			if (resultAfterCreate.ok) {
-				expect(resultAfterCreate.value.userCount).toBe(1);
-			}
-		});
-	});
-
-	describe("Integration Tests", () => {
-		test("tryCheckFirstUser and tryGetUserCount should be consistent", async () => {
-			const checkArgs: CheckFirstUserArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const countArgs: GetUserCountArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const needsFirstUserResult = await tryCheckFirstUser(checkArgs);
-			const userCountResult = await tryGetUserCount(countArgs);
-
-			expect(needsFirstUserResult.ok).toBe(true);
-			expect(userCountResult.ok).toBe(true);
-
-			if (needsFirstUserResult.ok && userCountResult.ok) {
-				if (needsFirstUserResult.value) {
-					expect(userCountResult.value).toBe(0);
-				} else {
-					expect(userCountResult.value).toBeGreaterThan(0);
-				}
-			}
-		});
-
-		test("tryValidateFirstUserState should match individual function results", async () => {
-			const validateArgs: ValidateFirstUserStateArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const checkArgs: CheckFirstUserArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const countArgs: GetUserCountArgs = {
-				payload,
-				overrideAccess: true,
-			};
-
-			const validationState = await tryValidateFirstUserState(validateArgs);
-			const needsFirstUser = await tryCheckFirstUser(checkArgs);
-			const userCount = await tryGetUserCount(countArgs);
-
-			expect(validationState.ok).toBe(true);
-			expect(needsFirstUser.ok).toBe(true);
-			expect(userCount.ok).toBe(true);
-
-			if (validationState.ok && needsFirstUser.ok && userCount.ok) {
-				expect(validationState.value.needsFirstUser).toBe(needsFirstUser.value);
-				expect(validationState.value.userCount).toBe(userCount.value);
 			}
 		});
 	});
@@ -393,52 +193,6 @@ describe("First User Check Functions - With Access Control", () => {
 		}
 	});
 
-	describe("Access Control - tryCheckFirstUser", () => {
-		test("admin should be able to check first user", async () => {
-			const adminUser = await getAuthUser(adminToken);
-
-			const args: CheckFirstUserArgs = {
-				payload,
-				req: { user: adminUser },
-				overrideAccess: false,
-			};
-
-			const result = await tryCheckFirstUser(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				// We have users, so this should be false
-				expect(result.value).toBe(false);
-			}
-		});
-
-		test("regular user should be able to check first user", async () => {
-			const regularUser = await getAuthUser(userToken);
-
-			const args: CheckFirstUserArgs = {
-				payload,
-				req: { user: regularUser },
-				overrideAccess: false,
-			};
-
-			const result = await tryCheckFirstUser(args);
-
-			// Based on access control, everyone can read users
-			expect(result.ok).toBe(true);
-		});
-
-		test("unauthenticated request should fail", async () => {
-			const args: CheckFirstUserArgs = {
-				payload,
-				overrideAccess: false,
-			};
-
-			const result = await tryCheckFirstUser(args);
-
-			expect(result.ok).toBe(false);
-		});
-	});
-
 	describe("Access Control - tryGetUserCount", () => {
 		test("admin should be able to get user count", async () => {
 			const adminUser = await getAuthUser(adminToken);
@@ -479,53 +233,6 @@ describe("First User Check Functions - With Access Control", () => {
 			};
 
 			const result = await tryGetUserCount(args);
-
-			expect(result.ok).toBe(false);
-		});
-	});
-
-	describe("Access Control - tryValidateFirstUserState", () => {
-		test("admin should be able to validate first user state", async () => {
-			const adminUser = await getAuthUser(adminToken);
-
-			const args: ValidateFirstUserStateArgs = {
-				payload,
-				req: { user: adminUser },
-				overrideAccess: false,
-			};
-
-			const result = await tryValidateFirstUserState(args);
-
-			expect(result.ok).toBe(true);
-			if (result.ok) {
-				expect(result.value.isValid).toBe(true);
-				expect(result.value.userCount).toBeGreaterThan(0);
-				expect(result.value.needsFirstUser).toBe(false);
-			}
-		});
-
-		test("regular user should be able to validate first user state", async () => {
-			const regularUser = await getAuthUser(userToken);
-
-			const args: ValidateFirstUserStateArgs = {
-				payload,
-				req: { user: regularUser },
-				overrideAccess: false,
-			};
-
-			const result = await tryValidateFirstUserState(args);
-
-			// Based on access control, everyone can read users
-			expect(result.ok).toBe(true);
-		});
-
-		test("unauthenticated request should fail", async () => {
-			const args: ValidateFirstUserStateArgs = {
-				payload,
-				overrideAccess: false,
-			};
-
-			const result = await tryValidateFirstUserState(args);
 
 			expect(result.ok).toBe(false);
 		});
