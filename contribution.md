@@ -212,7 +212,6 @@ This generates:
 ### Test Framework
 
 - Use `bun:test` for all backend features
-- Use Playwright for end-to-end testing
 
 ### Test Principles
 
