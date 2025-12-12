@@ -597,28 +597,14 @@ export const tryHandleImpersonation = Result.wrap(
 		}
 
 		// Fetch the target user
-		const targetUserResult = await tryFindUserById({
+		const targetUser = await tryFindUserById({
 			payload,
 			userId: targetUserId,
 			// this is a system request, we don't care about access control
 			overrideAccess: true,
 			req,
-		})
-			.then(stripDepth<0, "findByID">())
-			.catch((error) => {
-				interceptPayloadError({
-					error,
-					functionNamePrefix: "tryHandleImpersonation",
-					args,
-				});
-				throw error;
-			});
-
-		if (!targetUserResult.ok || !targetUserResult.value) {
-			return null;
-		}
-
-		const targetUser = targetUserResult.value;
+		}).getOrNull();
+		if (targetUser === null) return null;
 
 		// Only allow impersonating non-admin users
 		if (targetUser.role === "admin") {

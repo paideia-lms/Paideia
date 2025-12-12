@@ -140,8 +140,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
@@ -167,22 +167,21 @@ export const action = async ({
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrollmentContext = context.get(enrolmentContextKey);
-	const { courseId: _courseId } = params;
+	const courseContext = context.get(courseContextKey)
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({
 			success: false,
 			error: "Unauthorized",
 		});
 	}
-
-	const courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
-
-	if (!courseId) {
+	if (!courseContext) {
 		return badRequest({
 			success: false,
 			error: "Invalid course ID",
 		});
 	}
+
+	const courseId = courseContext.course.id
 
 	const currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
@@ -204,9 +203,7 @@ export const action = async ({
 	}
 
 	// Get form data and convert to object
-	const formDataObj = convertMyFormDataToObject<ActionData>(
-		await request.formData(),
-	);
+	const formDataObj = await request.formData().then(convertMyFormDataToObject<ActionData>);
 
 	const parse = actionInputSchema.safeParse(formDataObj);
 
