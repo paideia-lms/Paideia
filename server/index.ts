@@ -104,6 +104,7 @@ async function startServer() {
 				await reactRouter(e, {
 					getLoadContext: ({ request }) => {
 						const c = new RouterContextProvider();
+
 						// ! patch the request
 						request._c = c;
 						const requestInfo = getRequestInfo(request);
@@ -146,6 +147,8 @@ async function startServer() {
 									additionalJsScripts: [],
 								},
 							},
+							// ! for now the payload request does not exist because it only exists after the user middleware is passed. we use a temp value here
+							payloadRequest: {},
 							pageInfo: {
 								isInAdminLayout: false,
 								isMyCourses: false,

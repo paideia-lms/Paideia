@@ -16,7 +16,7 @@ import {
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconChevronDown, IconChevronUp } from "@tabler/icons-react";
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffectEvent, useState } from "react";
 import { href, Link, useNavigate } from "react-router";
 import { AttachmentViewer } from "~/components/attachment-viewer";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
@@ -139,7 +139,7 @@ export function AssignmentGradingView({
 	});
 
 	const { gradeSubmission, isGrading, data } = useGradeSubmission();
-	const navigate = useNavigate();
+	const _navigate = useNavigate();
 
 	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
 		const scoreValue =

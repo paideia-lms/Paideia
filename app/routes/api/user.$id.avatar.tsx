@@ -4,7 +4,7 @@ import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import { tryFindUserById } from "server/internal/user-management";
 import type { Route } from "./+types/user.$id.avatar";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { badRequest, notFound, ok, partialContent } from "app/utils/responses";
+import { badRequest, notFound } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,
@@ -128,14 +128,14 @@ export const loader = async ({
 
 	// Handle Range request (206 Partial Content)
 	if (range && contentRange) {
-		return partialContent({
-			stream,
+		return new Response(stream, {
+			status: 206,
 			headers,
 		});
 	}
 
 	// Full file request (200 OK)
-	return ok(stream, {
+	return new Response(stream, {
 		headers,
 	});
 };

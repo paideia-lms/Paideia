@@ -58,10 +58,7 @@ import type {
 	RankingQuestion,
 	SingleSelectionMatrixQuestion,
 } from "server/json/raw-quiz-config/types.v2";
-import type {
-	ActivityModuleFormValues,
-	QuizModuleFormValues,
-} from "~/utils/activity-module-schema";
+import type { QuizModuleFormValues } from "~/utils/activity-module-schema";
 import { parseFillInTheBlank } from "~/utils/fill-in-the-blank-utils";
 import { getPath, useFormWatchForceUpdate } from "~/utils/form-utils";
 import { SimpleRichTextEditor } from "../simple-rich-text-editor";
@@ -1592,8 +1589,11 @@ export function SortableQuestionItem({
 	pageNumber,
 }: SortableQuestionItemProps) {
 	const parts = path.split(".");
-	const pageIndex = Number.parseInt(parts[parts.indexOf("pages") + 1]!);
-	const questionIndex = Number.parseInt(parts[parts.indexOf("questions") + 1]!);
+	const pageIndex = Number.parseInt(parts[parts.indexOf("pages") + 1]!, 10);
+	const questionIndex = Number.parseInt(
+		parts[parts.indexOf("questions") + 1]!,
+		10,
+	);
 	const pagesPath = parts.slice(0, parts.indexOf("pages") + 1).join(".") as
 		| `rawQuizConfig.pages`
 		| `rawQuizConfig.nestedQuizzes.${number}.pages`;

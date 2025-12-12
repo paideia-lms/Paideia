@@ -1,5 +1,4 @@
 import { createContext } from "react-router";
-import type { CourseSection } from "server/payload-types";
 import { Result } from "typescript-result";
 import { tryFindSectionById } from "../internal/course-section-management";
 export { courseSectionContextKey } from "./utils/context-keys";

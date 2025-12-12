@@ -1,16 +1,16 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
-	type CreateCourseArgs,
 	tryCreateCourse,
 	tryDeleteCourse,
 	tryUpdateCourse,
 } from "./course-management";
-import { tryCreateSection } from "./course-section-management";
 import { parseQuery, tryGlobalSearch } from "./search-management";
-import { type CreateUserArgs, tryCreateUser } from "./user-management";
+import { tryCreateUser } from "./user-management";
+import { createLocalReq } from "./utils/internal-function-utils";
+import type { TryResultValue } from "server/utils/type-narrowing";
 
 describe("parseQuery", () => {
 	test("should parse query", () => {
@@ -32,12 +32,13 @@ describe("parseQuery", () => {
 describe("Search Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let mockRequest: Request;
-	let userId2: number;
+	let user1: TryResultValue<typeof tryCreateUser>;
+	let user2: TryResultValue<typeof tryCreateUser>;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
 		try {
-			await $`bun run migrate:fresh`;
+			await $`bun run migrate:fresh --force-accept-warning`;
 		} catch (error) {
 			console.warn("Migration failed, continuing with existing state:", error);
 		}
@@ -48,75 +49,59 @@ describe("Search Management Functions", () => {
 
 		mockRequest = new Request("http://localhost:3000/test");
 
-		// Create test users
-		const user1Args: CreateUserArgs = {
-			payload,
-			data: {
-				email: "john.doe@test.com",
-				password: "password123",
-				firstName: "John",
-				lastName: "Doe",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
+		// Create test users in parallel
+		const [user1Result, user2Result] = await Promise.all([
+			tryCreateUser({
+				payload,
+				data: {
+					email: "john.doe@test.com",
+					password: "password123",
+					firstName: "John",
+					lastName: "Doe",
+					role: "student",
+				},
+				overrideAccess: true,
+			}),
+			tryCreateUser({
+				payload,
+				data: {
+					email: "jane.smith@test.com",
+					password: "password123",
+					firstName: "Jane Pattern",
+					lastName: "Smith",
+					role: "student",
+				},
+				overrideAccess: true,
+			}),
+		]);
 
-		const user2Args: CreateUserArgs = {
-			payload,
-			data: {
-				email: "jane.smith@test.com",
-				password: "password123",
-				firstName: "Jane Pattern",
-				lastName: "Smith",
-				role: "student",
-			},
-			overrideAccess: true,
-		};
-
-		const user1Result = await tryCreateUser(user1Args);
-		const user2Result = await tryCreateUser(user2Args);
-
-		expect(user1Result.ok).toBe(true);
-		expect(user2Result.ok).toBe(true);
-
-		if (!user1Result.ok || !user2Result.ok) {
-			throw new Error("Failed to create test users");
-		}
-
-		if (user2Result.ok) {
-			userId2 = user2Result.value.id;
-		}
+		user1 = user1Result.getOrThrow();
+		user2 = user2Result.getOrThrow();
 
 		// Create test courses
-		const course1Args: CreateCourseArgs = {
+		await tryCreateCourse({
 			payload,
 			data: {
 				title: "Introduction to JavaScript Programming",
 				description: "Learn the fundamentals of JavaScript",
-				createdBy: user1Result.value.id,
+				createdBy: user1.id,
 				slug: "intro-javascript",
 				status: "published",
 			},
 			overrideAccess: true,
-		};
+		});
 
-		const course2Args: CreateCourseArgs = {
+		await tryCreateCourse({
 			payload,
 			data: {
 				title: "Advanced Python Development Patterns",
 				description: "Master advanced Python concepts and design patterns",
-				createdBy: userId2,
+				createdBy: user2.id,
 				slug: "advanced-python",
 				status: "published",
 			},
 			overrideAccess: true,
-		};
-
-		const course1Result = await tryCreateCourse(course1Args);
-		const course2Result = await tryCreateCourse(course2Args);
-
-		expect(course1Result.ok).toBe(true);
-		expect(course2Result.ok).toBe(true);
+		});
 
 		// Wait a bit for search indexing
 		await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -206,19 +191,17 @@ describe("Search Management Functions", () => {
 		test("should remove course from search when course is deleted", async () => {
 			// Create a course with unique title
 			const uniqueTitle = `Temporary Course ${Date.now()}`;
-			const courseArgs: CreateCourseArgs = {
+			const createResult = await tryCreateCourse({
 				payload,
 				data: {
 					title: uniqueTitle,
 					description: "This course will be deleted",
-					createdBy: userId2,
+					createdBy: user2.id,
 					slug: `temp-course-${Date.now()}`,
 					status: "published",
 				},
 				overrideAccess: true,
-			};
-
-			const createResult = await tryCreateCourse(courseArgs);
+			});
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
 				throw new Error("Failed to create course");
@@ -280,7 +263,7 @@ describe("Search Management Functions", () => {
 		test("should remove user from search when user is deleted", async () => {
 			// Create a user with unique name
 			const uniqueName = `TempUser${Date.now()}`;
-			const userArgs: CreateUserArgs = {
+			const createResult = await tryCreateUser({
 				payload,
 				data: {
 					email: `${uniqueName.toLowerCase()}@test.com`,
@@ -290,9 +273,7 @@ describe("Search Management Functions", () => {
 					role: "student",
 				},
 				overrideAccess: true,
-			};
-
-			const createResult = await tryCreateUser(userArgs);
+			});
 			expect(createResult.ok).toBe(true);
 			if (!createResult.ok) {
 				throw new Error("Failed to create user");
@@ -354,7 +335,7 @@ describe("Search Management Functions", () => {
 			// Create a course with initial title
 			const initialTitle = `Original Course ${Date.now()}`;
 
-			// creata a new request
+			// Create a new request
 			// ! this is important, we need to create a new request to avoid the request being cached
 			const newRequest = new Request("http://localhost:3000/test");
 
@@ -363,7 +344,7 @@ describe("Search Management Functions", () => {
 				data: {
 					title: initialTitle,
 					description: "This course will be updated",
-					createdBy: userId2,
+					createdBy: user2.id,
 					slug: `update-course-${Date.now()}`,
 					status: "published",
 				},
@@ -375,8 +356,6 @@ describe("Search Management Functions", () => {
 				throw new Error("Failed to create course");
 			}
 
-			console.log("course created");
-
 			const courseId = createResult.value.id;
 
 			// Wait for search indexing
@@ -384,17 +363,18 @@ describe("Search Management Functions", () => {
 
 			// Update the course title
 			const updatedTitle = `Updated Course ${Date.now()}`;
-			console.log("updating course", courseId, updatedTitle);
 			await tryUpdateCourse({
 				payload,
 				courseId,
 				data: {
 					title: updatedTitle,
 				},
+				req: createLocalReq({
+					request: mockRequest,
+					user: user2 as TypedUser,
+				}),
 				overrideAccess: true,
 			});
-
-			console.log("course after update");
 
 			const courseAfterUpdate = await payload.findByID({
 				collection: "courses",
@@ -402,7 +382,7 @@ describe("Search Management Functions", () => {
 				req: mockRequest,
 			});
 
-			// confirm the title is updated
+			// Confirm the title is updated
 			expect(courseAfterUpdate.title).toBe(updatedTitle);
 
 			// Wait for search index to update

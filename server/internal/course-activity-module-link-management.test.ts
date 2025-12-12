@@ -27,10 +27,7 @@ import {
 	trySearchCourseActivityModuleLinks,
 	tryUpdateAssignmentModuleSettings,
 	tryUpdateDiscussionModuleSettings,
-	tryUpdateFileModuleSettings,
-	tryUpdatePageModuleSettings,
 	tryUpdateQuizModuleSettings,
-	tryUpdateWhiteboardModuleSettings,
 } from "./course-activity-module-link-management";
 import { type CreateCourseArgs, tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
@@ -888,9 +885,7 @@ describe("Course Activity Module Link Management Functions", () => {
 				if (result.ok) {
 					expect(result.value.settings).toBeDefined();
 					if (result.value.settings?.type === "assignment") {
-						expect(result.value.settings.name).toBe(
-							"Test Assignment Settings",
-						);
+						expect(result.value.settings.name).toBe("Test Assignment Settings");
 					}
 				}
 			});

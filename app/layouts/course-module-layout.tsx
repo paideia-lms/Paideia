@@ -15,7 +15,6 @@ import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import type { LatestCourseModuleSettings } from "server/json";
 import {
 	canSeeCourseModuleSettings,
 	canSeeModuleSubmissions,

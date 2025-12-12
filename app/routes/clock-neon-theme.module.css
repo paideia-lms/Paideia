@@ -13,7 +13,7 @@
 
 .hourTick {
 	background: linear-gradient(to bottom, #00d4ff, #0099cc);
-	width: 4px !important;
+	width: 4px;
 }
 
 .minuteTick {
@@ -22,53 +22,49 @@
 }
 
 .primaryNumber {
-	color: #00d4ff !important;
-	font-weight: 700 !important;
+	color: #00d4ff;
+	font-weight: 700;
 	text-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
-	font-size: 1.2em !important;
+	font-size: 1.2em;
 }
 
 .secondaryNumber {
-	color: #66b3ff !important;
-	font-weight: 500 !important;
+	color: #66b3ff;
+	font-weight: 500;
 	text-shadow: 0 0 5px rgba(102, 179, 255, 0.6);
 }
 
 .hourHand {
-	background: linear-gradient(to top, #ff6b35, #f7931e) !important;
+	background: linear-gradient(to top, #ff6b35, #f7931e);
 	box-shadow: 0 0 8px rgba(255, 107, 53, 0.6);
-	width: 6px !important;
+	width: 6px;
 }
 
 .minuteHand {
-	background: linear-gradient(to top, #00d4ff, #0099cc) !important;
+	background: linear-gradient(to top, #00d4ff, #0099cc);
 	box-shadow: 0 0 8px rgba(0, 212, 255, 0.6);
-	width: 4px !important;
+	width: 4px;
 }
 
 .secondHand {
-	background: linear-gradient(to top, #ff0080, #ff4081) !important;
+	background: linear-gradient(to top, #ff0080, #ff4081);
 	box-shadow: 0 0 10px rgba(255, 0, 128, 0.8);
-	width: 2px !important;
+	width: 2px;
 }
 
 .secondHandCounterweight {
-	background: #ff0080 !important;
+	background: #ff0080;
 	box-shadow: 0 0 8px rgba(255, 0, 128, 0.6);
 }
 
 .centerDot {
-	background: radial-gradient(circle, #ffffff, #00d4ff) !important;
+	background: radial-gradient(circle, #ffffff, #00d4ff);
 	box-shadow: 0 0 15px rgba(0, 212, 255, 0.8);
 	border: 2px solid #ffffff;
 }
 
 .centerBlur {
-	background: radial-gradient(
-		circle,
-		rgba(255, 255, 255, 0.3),
-		transparent
-	) !important;
+	background: radial-gradient(circle, rgba(255, 255, 255, 0.3), transparent);
 }
 
 @keyframes neon-pulse {

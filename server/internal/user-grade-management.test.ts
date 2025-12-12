@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "bun:test";
 import { $ } from "bun";
-import { getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import { createLocalReq } from "./utils/internal-function-utils";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
@@ -44,9 +44,7 @@ import {
 	tryToggleAdjustment,
 	tryUpdateUserGrade,
 } from "./user-grade-management";
-import type { CreateUserArgs } from "./user-management";
 import { tryCreateUser } from "./user-management";
-
 
 /**
  * in the before all, we create 3 users: admin, instructor, and student
@@ -55,9 +53,9 @@ import { tryCreateUser } from "./user-management";
  * then we create a gradebook for the course
  * then we create a auto weighted category for the gradebook
  * then we create a auto weighted manual item for the gradebook in this category
- * then we create a manual item that weight 40% of the total grade at the root 
- * 
- * test 1: create a auto weighted grade for the enrollment and item at the root 
+ * then we create a manual item that weight 40% of the total grade at the root
+ *
+ * test 1: create a auto weighted grade for the enrollment and item at the root
  */
 describe("User Grade Management", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
@@ -124,7 +122,6 @@ describe("User Grade Management", () => {
 			}).getOrThrow(),
 		]);
 
-
 		admin = adminResult;
 		instructor = instructorResult;
 		student = studentResult;
@@ -139,8 +136,7 @@ describe("User Grade Management", () => {
 				createdBy: instructor.id,
 			},
 			overrideAccess: true,
-		}).getOrThrow()
-
+		}).getOrThrow();
 
 		// Create enrollment for student in the course
 		testEnrollment = await tryCreateEnrollment({
@@ -151,7 +147,6 @@ describe("User Grade Management", () => {
 			status: "active",
 			overrideAccess: true,
 		}).getOrThrow();
-
 
 		// Get the gradebook created by the course
 		testGradebook = await tryGetGradebookByCourseWithDetails({
@@ -171,7 +166,7 @@ describe("User Grade Management", () => {
 			sortOrder: 0,
 			req: undefined,
 			overrideAccess: true,
-		}).getOrThrow() 
+		}).getOrThrow();
 
 		// Create test items
 		testItem = await tryCreateGradebookItem({
@@ -327,7 +322,7 @@ describe("User Grade Management", () => {
 	it("should get grades for item", async () => {
 		const result = await tryGetGradesForItem({
 			payload,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -402,7 +397,10 @@ describe("User Grade Management", () => {
 	it("should get single user grades JSON representation", async () => {
 		const result = await tryGetSingleUserGradesJsonRepresentation({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseId: testCourse.id,
 			enrollmentId: testEnrollment.id,
@@ -422,7 +420,10 @@ describe("User Grade Management", () => {
 	it("should fail to get single user grades for non-existent enrollment", async () => {
 		const result = await tryGetSingleUserGradesJsonRepresentation({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseId: testCourse.id,
 			enrollmentId: 99999, // Non-existent enrollment ID
@@ -449,7 +450,10 @@ describe("User Grade Management", () => {
 		if (anotherCourseResult.ok) {
 			const result = await tryGetSingleUserGradesJsonRepresentation({
 				payload,
-				req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+				req: {
+					...mockRequest,
+					user: instructor as typeof instructor & { collection: "users" },
+				},
 				overrideAccess: false,
 				courseId: anotherCourseResult.value.id,
 				enrollmentId: testEnrollment.id, // This enrollment belongs to testCourse, not anotherCourse
@@ -462,7 +466,10 @@ describe("User Grade Management", () => {
 	it("should get adjusted single user grades with JSON, YAML, and Markdown", async () => {
 		const result = await tryGetAdjustedSingleUserGrades({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseId: testCourse.id,
 			enrollmentId: testEnrollment.id,
@@ -722,7 +729,10 @@ describe("User Grade Management", () => {
 		// Create a grade for the extra credit item
 		const extraCreditGrade = await tryCreateUserGrade({
 			payload,
-			req: createLocalReq({ request: mockRequest, user: instructor as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: instructor as TypedUser,
+			}),
 			overrideAccess: false,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: extraCreditItem.value.id,
@@ -761,7 +771,10 @@ describe("User Grade Management", () => {
 			weight: 0, // Zero weight
 			extraCredit: true,
 			sortOrder: 3,
-			req: createLocalReq({ request: mockRequest, user: instructor as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: instructor as TypedUser,
+			}),
 			overrideAccess: false,
 		});
 
@@ -773,7 +786,10 @@ describe("User Grade Management", () => {
 		// Create a grade for the zero weight extra credit
 		const zeroWeightGrade = await tryCreateUserGrade({
 			payload,
-			req: createLocalReq({ request: mockRequest, user: instructor as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: instructor as TypedUser,
+			}),
 			overrideAccess: false,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: zeroWeightExtraCredit.value.id,
@@ -790,7 +806,10 @@ describe("User Grade Management", () => {
 		// Calculate final grade - should not affect total weight
 		const finalGradeResult = await tryCalculateUserFinalGrade({
 			payload,
-			req: createLocalReq({ request: mockRequest, user: instructor as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: instructor as TypedUser,
+			}),
 			overrideAccess: false,
 			enrollmentId: testEnrollment.id,
 			gradebookId: testGradebook.id,
@@ -858,7 +877,10 @@ describe("User Grade Management", () => {
 		// Test with non-existent enrollment - should fail
 		const invalidResult = await tryReleaseAssignmentGrade({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseActivityModuleLinkId: 99999,
 			enrollmentId: 99999,
@@ -875,7 +897,10 @@ describe("User Grade Management", () => {
 			title: "Programming Exercise: Calculator",
 			description: "Build a calculator application",
 			status: "published",
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			instructions: "Create a calculator that can perform basic operations",
 			requireTextSubmission: true,
@@ -912,7 +937,10 @@ describe("User Grade Management", () => {
 				activityModule: activityModule.id,
 				section: section.id,
 				contentOrder: 0,
-			req: { ...mockRequest, user: admin as typeof admin & { collection: "users" } },
+				req: {
+					...mockRequest,
+					user: admin as typeof admin & { collection: "users" },
+				},
 				overrideAccess: false,
 			});
 
@@ -969,7 +997,10 @@ describe("User Grade Management", () => {
 		// Grade the assignment submission (only updates submission, doesn't create user-grade)
 		const gradeResult = await tryGradeAssignmentSubmission({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			id: submission.id,
 			grade: 85,
 			feedback: "Great work! Your calculator implementation is excellent.",
@@ -997,7 +1028,10 @@ describe("User Grade Management", () => {
 		// Verify no user-grade exists yet
 		const gradeBeforeRelease = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: gradebookItem.id,
@@ -1007,7 +1041,10 @@ describe("User Grade Management", () => {
 		// Now release the grade - this should create the user-grade
 		const releaseResult = await tryReleaseAssignmentGrade({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseActivityModuleLinkId: courseModuleLink.id,
 			enrollmentId: testEnrollment.id,
@@ -1021,7 +1058,10 @@ describe("User Grade Management", () => {
 		// Verify user-grade was created after release
 		const gradeAfterRelease = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: gradebookItem.id,
@@ -1053,7 +1093,10 @@ describe("User Grade Management", () => {
 		// Get single user grades JSON representation
 		const jsonResult = await tryGetSingleUserGradesJsonRepresentation({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseId: testCourse.id,
 			enrollmentId: testEnrollment.id,
@@ -1099,7 +1142,10 @@ describe("User Grade Management", () => {
 			title: "Class Discussion: Design Patterns",
 			description: "Discuss various design patterns",
 			status: "published",
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			instructions:
 				"Participate in this discussion by creating threads and replies",
@@ -1132,7 +1178,10 @@ describe("User Grade Management", () => {
 				title: "Discussions Section",
 				description: "Section for discussions",
 			},
-			req: createLocalReq({ request: mockRequest, user: instructor as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: instructor as TypedUser,
+			}),
 			overrideAccess: true,
 		});
 
@@ -1145,7 +1194,10 @@ describe("User Grade Management", () => {
 		const courseActivityModuleLinkResult =
 			await tryCreateCourseActivityModuleLink({
 				payload,
-				req: createLocalReq({ request: mockRequest, user: instructor as TypedUser}),
+				req: createLocalReq({
+					request: mockRequest,
+					user: instructor as TypedUser,
+				}),
 				overrideAccess: false,
 				course: testCourse.id,
 				activityModule: activityModule.id,
@@ -1273,7 +1325,10 @@ describe("User Grade Management", () => {
 		// Verify no user-grade exists yet
 		const gradeBeforeRelease = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: gradebookItem.id,
@@ -1283,7 +1338,10 @@ describe("User Grade Management", () => {
 		// Now release the grade - this should create the user-grade with average (90 + 80) / 2 = 85
 		const releaseResult = await tryReleaseDiscussionGrade({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseActivityModuleLinkId: courseModuleLink.id,
 			enrollmentId: testEnrollment.id,
@@ -1304,7 +1362,10 @@ describe("User Grade Management", () => {
 		// Verify user-grade was created after release
 		const gradeAfterRelease = await tryFindUserGradeByEnrollmentAndItem({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			enrollmentId: testEnrollment.id,
 			gradebookItemId: gradebookItem.id,
@@ -1324,7 +1385,10 @@ describe("User Grade Management", () => {
 		// Get single user grades JSON representation
 		const jsonResult = await tryGetSingleUserGradesJsonRepresentation({
 			payload,
-			req: { ...mockRequest, user: instructor as typeof instructor & { collection: "users" } },
+			req: {
+				...mockRequest,
+				user: instructor as typeof instructor & { collection: "users" },
+			},
 			overrideAccess: false,
 			courseId: testCourse.id,
 			enrollmentId: testEnrollment.id,

@@ -1,9 +1,7 @@
 import type { Payload } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
 import { GradebookCategories } from "server/payload.config";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	GradebookCategoryNotFoundError,
 	GradebookNotFoundError,

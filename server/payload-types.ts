@@ -295,7 +295,7 @@ export interface Course {
   title: string;
   slug: string;
   description: string;
-  media?: (number | Media)[] | null;
+  descriptionMedia?: (number | Media)[] | null;
   status: 'draft' | 'published' | 'archived';
   thumbnail?: (number | null) | Media;
   tags?:
@@ -533,7 +533,7 @@ export interface Page {
   id: number;
   createdBy: number | User;
   content?: string | null;
-  media?: (number | Media)[] | null;
+  contentMedia?: (number | Media)[] | null;
   updatedAt: string;
   createdAt: string;
 }
@@ -867,7 +867,7 @@ export interface Note {
   id: number;
   createdBy: number | User;
   content: string;
-  media?: (number | Media)[] | null;
+  contentMedia?: (number | Media)[] | null;
   isPublic?: boolean | null;
   updatedAt: string;
   createdAt: string;
@@ -1336,7 +1336,7 @@ export interface CoursesSelect<T extends boolean = true> {
   title?: T;
   slug?: T;
   description?: T;
-  media?: T;
+  descriptionMedia?: T;
   status?: T;
   thumbnail?: T;
   tags?:
@@ -1457,7 +1457,7 @@ export interface ActivityModuleGrantsSelect<T extends boolean = true> {
 export interface PagesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
-  media?: T;
+  contentMedia?: T;
   updatedAt?: T;
   createdAt?: T;
 }
@@ -1620,7 +1620,7 @@ export interface MediaSelect<T extends boolean = true> {
 export interface NotesSelect<T extends boolean = true> {
   createdBy?: T;
   content?: T;
-  media?: T;
+  contentMedia?: T;
   isPublic?: T;
   updatedAt?: T;
   createdAt?: T;

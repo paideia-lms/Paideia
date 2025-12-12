@@ -82,7 +82,7 @@ describe("Gradebook Management", () => {
 		const gradebookResult = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 		expect(gradebookResult.ok).toBe(true);
@@ -98,7 +98,7 @@ describe("Gradebook Management", () => {
 			name: "Test Category",
 			description: "Test Category Description",
 			sortOrder: 0,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -119,7 +119,7 @@ describe("Gradebook Management", () => {
 			minGrade: 0,
 			extraCredit: false,
 			sortOrder: 0,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -139,7 +139,7 @@ describe("Gradebook Management", () => {
 			minGrade: 0,
 			weight: 15,
 			extraCredit: false,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 			sortOrder: 1,
 		});
@@ -164,7 +164,7 @@ describe("Gradebook Management", () => {
 		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -181,7 +181,7 @@ describe("Gradebook Management", () => {
 			payload,
 			courseId: testCourse.id,
 			enabled: true,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -195,7 +195,7 @@ describe("Gradebook Management", () => {
 		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -210,7 +210,7 @@ describe("Gradebook Management", () => {
 			payload,
 			gradebookId: testGradebook.id,
 			enabled: false,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -224,7 +224,7 @@ describe("Gradebook Management", () => {
 		const result = await tryGetGradebookByCourseWithDetails({
 			payload,
 			courseId: testCourse.id,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 
@@ -240,7 +240,7 @@ describe("Gradebook Management", () => {
 		const result = await tryGetGradebookAllRepresentations({
 			payload,
 			courseId: testCourse.id,
-			req: {user : null},
+			req: { user: null },
 			overrideAccess: true,
 		});
 

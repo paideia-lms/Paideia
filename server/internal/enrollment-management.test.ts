@@ -100,7 +100,7 @@ describe("Enrollment Management Functions", () => {
 				course: testCourseId,
 				role: "student",
 				status: "active",
-				
+
 				overrideAccess: true,
 			};
 
@@ -110,11 +110,9 @@ describe("Enrollment Management Functions", () => {
 			if (result.ok) {
 				expect(result.value).toBeDefined();
 				// Handle both cases: user can be ID or populated object
-				const userId =
-					result.value.user;
+				const userId = result.value.user;
 				expect(userId).toBe(testUserId);
-				const courseId =
-					result.value.course;
+				const courseId = result.value.course;
 				expect(courseId).toBe(testCourseId);
 				expect(result.value.role).toBe("student");
 				expect(result.value.status).toBe("active");
@@ -129,7 +127,7 @@ describe("Enrollment Management Functions", () => {
 				course: testCourseId,
 				role: "teacher",
 				status: "active",
-				
+
 				overrideAccess: true,
 			};
 
@@ -158,7 +156,7 @@ describe("Enrollment Management Functions", () => {
 				userId: testUserId,
 				role: "student",
 				status: "active",
-				
+
 				overrideAccess: true,
 			} as CreateEnrollmentArgs;
 
@@ -173,7 +171,7 @@ describe("Enrollment Management Functions", () => {
 				userId: testUserId,
 				course: testCourseId,
 				status: "active",
-				
+
 				overrideAccess: true,
 			} as CreateEnrollmentArgs;
 
@@ -203,7 +201,7 @@ describe("Enrollment Management Functions", () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
 				userId: testUser2.id,
-				
+
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -281,7 +279,7 @@ describe("Enrollment Management Functions", () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
 				userId: testUser3.id,
-				
+
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -298,7 +296,7 @@ describe("Enrollment Management Functions", () => {
 			const result = await tryDeleteEnrollment({
 				payload,
 				enrollmentId,
-				
+
 				req: undefined,
 				overrideAccess: true,
 			});
@@ -313,7 +311,7 @@ describe("Enrollment Management Functions", () => {
 			const result = await tryDeleteEnrollment({
 				payload,
 				enrollmentId: 0,
-				
+
 				req: undefined,
 				overrideAccess: true,
 			});
@@ -325,7 +323,7 @@ describe("Enrollment Management Functions", () => {
 			const result = await tryDeleteEnrollment({
 				payload,
 				enrollmentId: 99999,
-				
+
 				req: undefined,
 				overrideAccess: true,
 			});
@@ -354,7 +352,7 @@ describe("Enrollment Management Functions", () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
 				userId: testUser4.id,
-				
+
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -371,7 +369,7 @@ describe("Enrollment Management Functions", () => {
 			const result = await tryFindEnrollmentById({
 				payload,
 				enrollmentId,
-				
+
 				req: undefined,
 				overrideAccess: true,
 			});
@@ -388,7 +386,7 @@ describe("Enrollment Management Functions", () => {
 			const result = await tryFindEnrollmentById({
 				payload,
 				enrollmentId: 0,
-				
+
 				req: undefined,
 				overrideAccess: true,
 			});
@@ -400,7 +398,7 @@ describe("Enrollment Management Functions", () => {
 			const result = await tryFindEnrollmentById({
 				payload,
 				enrollmentId: 99999,
-				
+
 				req: undefined,
 				overrideAccess: true,
 			});
@@ -507,17 +505,17 @@ describe("Enrollment Management Functions", () => {
 			if (result.ok) {
 				expect(Array.isArray(result.value)).toBe(true);
 				expect(result.value.length).toBeGreaterThanOrEqual(2);
-				
+
 				// Verify all enrollments belong to the user
 				for (const enrollment of result.value) {
 					expect(enrollment.user).toBe(testUserForEnrollments);
 				}
 
 				// Verify enrollments are for different courses
-				const courseIds = result.value.map((e) => 
+				const courseIds = result.value.map((e) =>
 					typeof e.course === "object" && e.course !== null && "id" in e.course
 						? e.course.id
-						: e.course
+						: e.course,
 				);
 				expect(courseIds).toContain(testCourse2Id);
 				expect(courseIds).toContain(testCourse3Id);
@@ -704,7 +702,7 @@ describe("Enrollment Management Functions", () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
 				userId: testUser5.id,
-				
+
 				course: testCourseId,
 				role: "student",
 				status: "active",
@@ -765,7 +763,7 @@ describe("Enrollment Management Functions", () => {
 				// Create nested groups
 				const artGroup1Result = await tryCreateGroup({
 					payload,
-					req: {...mockRequest, user: testUser6Auth },
+					req: { ...mockRequest, user: testUser6Auth },
 					name: "group-1",
 					course: testCourseId,
 					parent: artGroupId,
@@ -775,7 +773,7 @@ describe("Enrollment Management Functions", () => {
 				const enrollmentArgs: CreateEnrollmentArgs = {
 					payload,
 					userId: testUser6.id,
-					
+
 					course: testCourseId,
 					role: "student",
 					status: "active",
@@ -799,7 +797,7 @@ describe("Enrollment Management Functions", () => {
 					payload,
 					enrollmentId,
 					groupIds: [mathGroupId, scienceGroupId],
-					
+
 					req: undefined,
 					overrideAccess: true,
 				});
@@ -827,7 +825,7 @@ describe("Enrollment Management Functions", () => {
 					payload,
 					enrollmentId: 0,
 					groupIds: [mathGroupId],
-					
+
 					req: undefined,
 					overrideAccess: true,
 				});
@@ -840,7 +838,7 @@ describe("Enrollment Management Functions", () => {
 					payload,
 					enrollmentId,
 					groupIds: [],
-					
+
 					req: undefined,
 					overrideAccess: true,
 				});
@@ -890,7 +888,7 @@ describe("Enrollment Management Functions", () => {
 					payload,
 					enrollmentId,
 					groupIds: [artGroupId, scienceGroupId],
-					
+
 					req: undefined,
 					overrideAccess: true,
 				});
@@ -1077,11 +1075,9 @@ describe("Enrollment Management Functions with Authentication", () => {
 			expect(result.ok).toBe(true);
 			if (result.ok) {
 				expect(result.value).toBeDefined();
-				const userId =
-					result.value.user;
+				const userId = result.value.user;
 				expect(userId).toBe(testUserId);
-				const courseId =
-					result.value.course;
+				const courseId = result.value.course;
 				expect(courseId).toBe(testCourseId);
 				expect(result.value.role).toBe("student");
 				expect(result.value.status).toBe("active");
@@ -1092,8 +1088,8 @@ describe("Enrollment Management Functions with Authentication", () => {
 			const enrollmentArgs: CreateEnrollmentArgs = {
 				payload,
 				userId: testUserId,
-				req: { 
-					user: null 
+				req: {
+					user: null,
 				},
 				course: testCourseId,
 				role: "student",

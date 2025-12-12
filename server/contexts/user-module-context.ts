@@ -93,54 +93,37 @@ export const tryGetUserModuleContext = Result.wrap(
 	}: TryGetUserModuleContextArgs) => {
 		const currentUser = req?.user;
 
-		// Fetch the activity module
-		const moduleResult = await tryGetActivityModuleById({
-			payload,
-			id: moduleId,
-			req,
-			overrideAccess,
-		});
-
-		if (!moduleResult.ok) {
-			throw new NonExistingActivityModuleError("Activity module not found");
-		}
-
-		const module = moduleResult.value;
-
 		// Fetch linked courses with enrollments
 
-		const linksResult = await tryFindLinksByActivityModule({
-			payload,
-			activityModuleId: module.id,
-			req,
-			overrideAccess,
-		});
-
-		if (!linksResult.ok) throw linksResult.error;
-
-		// Fetch grants
-		const grantsResult = await tryFindGrantsByActivityModule({
-			payload,
-			activityModuleId: module.id,
-			req,
-			overrideAccess,
-		});
-		const grants: UserModuleGrant[] = grantsResult.ok ? grantsResult.value : [];
-
-		const instructorsResult = await tryFindInstructorsForActivityModule({
-			payload,
-			activityModuleId: module.id,
-			req,
-			overrideAccess,
-		});
-
-		if (!instructorsResult.ok) throw instructorsResult.error;
-
-		// Extract instructors from course enrollments
-		const instructors = instructorsResult.value;
+		const [module, links, grants, instructors] = await Promise.all([
+			await tryGetActivityModuleById({
+				payload,
+				id: moduleId,
+				req,
+				overrideAccess,
+			}).getOrThrow(),
+			tryFindLinksByActivityModule({
+				payload,
+				activityModuleId: moduleId,
+				req,
+				overrideAccess,
+			}).getOrThrow(),
+			tryFindGrantsByActivityModule({
+				payload,
+				activityModuleId: moduleId,
+				req,
+				overrideAccess,
+			}).getOrThrow(),
+			tryFindInstructorsForActivityModule({
+				payload,
+				activityModuleId: moduleId,
+				req,
+				overrideAccess,
+			}).getOrThrow(),
+		]);
 
 		// unique by course id
-		const uniqueCourses = linksResult.value
+		const uniqueCourses = links
 			.map((link) => link.course)
 			.filter(
 				(course, index, self) =>
@@ -180,7 +163,7 @@ export const tryGetUserModuleContext = Result.wrap(
 			linkedCourses: uniqueCourses,
 			grants,
 			instructors,
-			links: linksResult.value,
+			links,
 		} satisfies UserModuleContext;
 	},
 	(error) =>

@@ -237,9 +237,9 @@ describe("File Management Functions", () => {
 			expect(updateResult.ok).toBe(true);
 			if (updateResult.ok) {
 				expect(updateResult.value.media).toBeDefined();
-					expect(updateResult.value.media?.length!).toBe(1);
-					const mediaId = updateResult.value.media![0];
-					expect(mediaId).toBe(testMediaId2);
+				expect(updateResult.value.media?.length!).toBe(1);
+				const mediaId = updateResult.value.media![0];
+				expect(mediaId).toBe(testMediaId2);
 			}
 		}
 	});

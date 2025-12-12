@@ -18,10 +18,8 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	type CreateAssignmentModuleArgs,
 	type CreateDiscussionModuleArgs,
-	type CreateFileModuleArgs,
 	type CreatePageModuleArgs,
 	type CreateQuizModuleArgs,
-	type CreateWhiteboardModuleArgs,
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
 	tryCreateFileModule,
@@ -53,6 +51,7 @@ import { handleUploadError } from "~/utils/handle-upload-errors";
 import {
 	badRequest,
 	StatusCode,
+	unauthorized,
 	UnauthorizedResponse,
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
@@ -248,11 +247,12 @@ const createFileAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } =
+		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
-		return badRequest({
+		return unauthorized({
 			success: false,
 			error: "You must be logged in to create modules",
 		});
@@ -262,7 +262,7 @@ const createFileAction = async ({
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	if (!currentUser) {
-		return badRequest({
+		return unauthorized({
 			success: false,
 			error: "You must be logged in to create modules",
 		});
@@ -271,14 +271,7 @@ const createFileAction = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Parse form data with media upload handler

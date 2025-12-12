@@ -1,5 +1,5 @@
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "~/utils/error";
+import { DevelopmentError, transformError, UnknownError } from "~/utils/error";
 import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import { AnalyticsSettings } from "server/collections/globals";
 import { stripDepth } from "./utils/internal-function-utils";
@@ -28,7 +28,20 @@ export const tryGetAnalyticsSettings = Result.wrap(
 				req,
 				overrideAccess,
 			})
-			.then(stripDepth<0, "findGlobal">());
+			.then(stripDepth<0, "findGlobal">())
+			.then((result) => {
+				// type narrowing
+				return {
+					...result,
+					additionalJsScripts: result.additionalJsScripts?.map((script) => {
+						if (!script.id) throw new DevelopmentError("Script ID is required");
+						return {
+							...script,
+							id: script.id,
+						};
+					}),
+				};
+			});
 
 		return raw;
 	},

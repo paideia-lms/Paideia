@@ -1,4 +1,4 @@
-import { ActionIcon, Group, Text, TextInput, Tooltip } from "@mantine/core";
+import { Group, Text, TextInput, Tooltip } from "@mantine/core";
 import { useDebouncedCallback } from "@mantine/hooks";
 import { IconInfoCircle, IconSearch } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";

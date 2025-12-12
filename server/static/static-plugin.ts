@@ -1,7 +1,7 @@
 // copied and modified from https://github.com/elysiajs/elysia-static/blob/main/src/index.ts
-import { Elysia, NotFoundError } from "elysia";
+import { Elysia } from "elysia";
 import mime from "mime";
-import { generateETag, isCached } from "./cache";
+import { isCached } from "./cache";
 
 type VfsMap = Record<string, string>;
 
@@ -190,7 +190,7 @@ export const staticPlugin = async <Prefix extends string = "/prefix">({
 							});
 						}
 
-						headers["Etag"] = etag;
+						headers.Etag = etag;
 						headers["Cache-Control"] = directive;
 						if (maxAge !== null)
 							headers["Cache-Control"] += `, max-age=${maxAge}`;
@@ -225,7 +225,7 @@ export const staticPlugin = async <Prefix extends string = "/prefix">({
 								});
 							}
 
-							headers["Etag"] = etag;
+							headers.Etag = etag;
 							headers["Cache-Control"] = directive;
 							if (maxAge !== null)
 								headers["Cache-Control"] += `, max-age=${maxAge}`;

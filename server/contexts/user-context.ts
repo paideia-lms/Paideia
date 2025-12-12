@@ -5,17 +5,12 @@
 
 import {
 	executeAuthStrategies,
-	type Payload,
 	type TypedUser as PayloadUser,
 	parseCookies,
-	RequestContext,
 } from "payload";
 import { createContext } from "react-router";
 import { tryHandleImpersonation } from "server/internal/user-management";
-import {
-	type BaseInternalFunctionArgs,
-	createLocalReq,
-} from "server/internal/utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 
 export type User = PayloadUser;
 

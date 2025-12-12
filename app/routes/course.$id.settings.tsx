@@ -14,7 +14,7 @@ import { Dropzone, IMAGE_MIME_TYPE } from "@mantine/dropzone";
 import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { IconPhoto, IconUpload, IconX } from "@tabler/icons-react";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { href, redirect, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -25,18 +25,12 @@ import {
 	tryGetCategoryTree,
 } from "server/internal/course-category-management";
 import { tryUpdateCourse } from "server/internal/course-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "server/internal/utils/handle-transaction-id";
+
 import type { Course } from "server/payload-types";
+import type { UseFormReturnType } from "@mantine/form";
 import { canSeeCourseSettings } from "server/utils/permissions";
-import z from "zod";
-import type { ImageFile } from "~/components/rich-text-editor";
+import type { RichTextEditorRef } from "~/components/rich-text-editor";
 import { RichTextEditor } from "~/components/rich-text-editor";
-import { handleUploadError } from "~/utils/handle-upload-errors";
-import { replaceBase64ImagesWithMediaUrls } from "~/utils/replace-base64-images";
 import {
 	badRequest,
 	ForbiddenResponse,
@@ -44,12 +38,50 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/course.$id.settings";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { ContentType } from "app/utils/get-content-type";
+import { convertMyFormDataToObject, MyFormData } from "~/utils/action-utils";
+import { isUndefined, omitBy } from "es-toolkit";
+import { z } from "zod";
+
+export const actionInputSchema = z.looseObject({
+	title: z.string().min(1, "Title is required").optional(),
+	slug: z
+		.string()
+		.min(1, "Slug is required")
+		.regex(
+			/^[a-z0-9-]+$/,
+			"Slug must contain only lowercase letters, numbers, and hyphens",
+		)
+		.optional(),
+	thumbnail: z.file().nullish(),
+	description: z.string().min(1, "Description is required").optional(),
+	status: z.enum(["draft", "published", "archived"]).optional(),
+	category: z.coerce.number().nullish(),
+	redirectTo: z
+		.union([z.string(), z.null()])
+		.optional()
+		.refine(
+			(val) => {
+				// Allow null/undefined
+				if (!val) return true;
+				// Must be a relative path (starts with /) and not an absolute URL
+				return (
+					val.startsWith("/") &&
+					!val.startsWith("http://") &&
+					!val.startsWith("https://") &&
+					!val.startsWith("//")
+				);
+			},
+			{
+				message:
+					"Redirect path must be a relative path starting with '/' and cannot be an absolute URL",
+			},
+		),
+});
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -86,11 +118,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	// const categoryTreeResult = await (await import("server/internal/course-category-management")).tryGetCategoryTree(payload);
 	const categoriesResult = await tryGetCategoryTree({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 	if (!categoriesResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
@@ -131,29 +159,15 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	};
 };
 
-const inputSchema = z.object({
-	title: z.string().min(1, "Title is required"),
-	slug: z
-		.string()
-		.min(1, "Slug is required")
-		.regex(
-			/^[a-z0-9-]+$/,
-			"Slug must contain only lowercase letters, numbers, and hyphens",
-		),
-	description: z.string().min(1, "Description is required"),
-	status: z.enum(["draft", "published", "archived"]),
-	category: z.coerce.number().nullish(),
-	redirectTo: z.string().optional().nullable(),
-});
-
 export const action = async ({
 	request,
 	context,
 	params,
 }: Route.ActionArgs) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
-	const { courseId } = params;
+	const enrollmentContext = context.get(enrolmentContextKey);
+	const { courseId: _courseId } = params;
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({
 			success: false,
@@ -161,22 +175,17 @@ export const action = async ({
 		});
 	}
 
+	const courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
+
+	if (!courseId) {
+		return badRequest({
+			success: false,
+			error: "Invalid course ID",
+		});
+	}
+
 	const currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	// Get user's enrollment for this course
-	const enrollments = await payload.find({
-		collection: "enrollments",
-		where: {
-			and: [
-				{ user: { equals: currentUser.id } },
-				{ course: { equals: courseId } },
-			],
-		},
-		limit: 1,
-	});
-
-	const enrollment = enrollments.docs[0];
 
 	// Check if user has permission to edit settings
 	const canEdit = canSeeCourseSettings(
@@ -184,7 +193,7 @@ export const action = async ({
 			id: currentUser.id,
 			role: currentUser.role ?? "student",
 		},
-		enrollment,
+		enrollmentContext?.enrolment,
 	);
 
 	if (!canEdit) {
@@ -194,110 +203,43 @@ export const action = async ({
 		});
 	}
 
-	// Get upload limit from system globals
-	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
-
-	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+	// Get form data and convert to object
+	const formDataObj = convertMyFormDataToObject<ActionData>(
+		await request.formData(),
 	);
 
-	return await transactionInfo.tx(async (txInfo) => {
-		let thumbnailMediaId: number | undefined;
-		// Parse form data with media upload handler
-		const parseResult = await tryParseFormDataWithMediaUpload({
-			payload,
-			request,
-			userId: currentUser.id,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			maxFileSize,
-			fields: [
-				{
-					fieldName: "thumbnail",
-					alt: "Course thumbnail",
-					onUpload: (_fieldName, mediaId) => {
-						thumbnailMediaId = mediaId;
-					},
-				},
-				{
-					fieldName: "image-*",
-					alt: "Course description image",
-				},
-			],
+	const parse = actionInputSchema.safeParse(formDataObj);
+
+	if (!parse.success) {
+		return badRequest({
+			success: false,
+			error: z.prettifyError(parse.error),
 		});
+	}
 
-		if (!parseResult.ok) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			return handleUploadError(
-				parseResult.error,
-				maxFileSize,
-				"Failed to parse form data",
-			);
-		}
+	// Prepare data for tryupdateCourseWithFile
+	const parsedData = parse.data;
 
-		const { formData, uploadedMedia } = parseResult.value;
+	// Update course using the internal function
+	const updateResult = await tryUpdateCourse({
+		payload,
+		courseId: Number(courseId),
+		data: parsedData,
+		req: payloadRequest,
+		overrideAccess: false,
+	});
 
-		const parsed = inputSchema.safeParse(formData);
-
-		if (!parsed.success) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			return badRequest({
-				success: false,
-				error: parsed.error.issues[0]?.message ?? "Validation error",
-			});
-		}
-
-		let description = parsed.data.description;
-
-		// Replace base64 images with actual media URLs
-		description = replaceBase64ImagesWithMediaUrls(
-			description,
-			uploadedMedia,
-			formData,
-		);
-
-		// Update course (within the same transaction)
-		const updateResult = await tryUpdateCourse({
-			payload,
-			courseId: Number(courseId),
-			data: {
-				title: parsed.data.title,
-				description,
-				status: parsed.data.status,
-				thumbnail: thumbnailMediaId,
-				category: parsed.data.category,
-			},
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: true,
+	if (!updateResult.ok) {
+		return badRequest({
+			success: false,
+			error: updateResult.error.message,
 		});
+	}
 
-		if (!updateResult.ok) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			return badRequest({
-				success: false,
-				error: updateResult.error.message,
-			});
-		}
-
-		return ok({
-			success: true,
-			message: "Course updated successfully",
-			id: courseId,
-			redirectTo: parsed.data.redirectTo ?? null,
-		});
+	return ok({
+		success: true,
+		message: "Course updated successfully",
+		id: courseId,
 	});
 };
 
@@ -310,10 +252,7 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 			message: actionData.message,
 			color: "green",
 		});
-		// Redirect to provided location if specified; otherwise to the course's view page
-		if (actionData.redirectTo) {
-			return redirect(actionData.redirectTo);
-		}
+		// Redirect to the course's view page
 		return redirect(
 			href("/course/:courseId", { courseId: String(actionData.id) }),
 		);
@@ -330,15 +269,152 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+type ActionData = {
+	title?: string;
+	slug?: string;
+	description?: string;
+	status?: "draft" | "published" | "archived" | undefined;
+	category?: string | null;
+	thumbnail?: File | null;
+	redirectTo?: string;
+};
+
+// ============================================================================
+// THUMBNAIL DROPZONE COMPONENT
+// ============================================================================
+
+export interface ThumbnailDropzoneProps {
+	form: UseFormReturnType<{
+		title: string;
+		slug: string;
+		status: Course["status"];
+		category: string;
+		description: string;
+		thumbnail: File | null;
+	}>;
+	initialPreviewUrl?: string | null;
+}
+
+export function ThumbnailDropzone({
+	form,
+	initialPreviewUrl,
+}: ThumbnailDropzoneProps) {
+	const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
+		initialPreviewUrl ?? null,
+	);
+
+	const handleThumbnailDrop = (files: File[]) => {
+		const file = files[0];
+		if (file) {
+			form.setFieldValue("thumbnail", file);
+			const reader = new FileReader();
+			reader.onloadend = () => {
+				setThumbnailPreview(reader.result as string);
+			};
+			reader.readAsDataURL(file);
+		}
+	};
+
+	return (
+		<div>
+			<Text size="sm" fw={500} mb="xs">
+				Thumbnail
+			</Text>
+			<Stack align="center" gap="md">
+				{thumbnailPreview && (
+					<div
+						style={{
+							width: "100%",
+							maxWidth: 400,
+							height: 200,
+							borderRadius: 8,
+							overflow: "hidden",
+							backgroundColor: "#f8f9fa",
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+						}}
+					>
+						<img
+							src={thumbnailPreview}
+							alt="Course thumbnail"
+							style={{
+								width: "100%",
+								height: "100%",
+								objectFit: "cover",
+							}}
+						/>
+					</div>
+				)}
+				<Dropzone
+					onDrop={handleThumbnailDrop}
+					onReject={() => {
+						notifications.show({
+							title: "Upload failed",
+							message: "File must be an image under 5MB",
+							color: "red",
+						});
+					}}
+					maxSize={5 * 1024 ** 2}
+					accept={IMAGE_MIME_TYPE}
+					multiple={false}
+					style={{ width: "100%" }}
+				>
+					<Group
+						justify="center"
+						gap="xl"
+						mih={100}
+						style={{ pointerEvents: "none" }}
+					>
+						<Dropzone.Accept>
+							<IconUpload
+								size={32}
+								color="var(--mantine-color-blue-6)"
+								stroke={1.5}
+							/>
+						</Dropzone.Accept>
+						<Dropzone.Reject>
+							<IconX
+								size={32}
+								color="var(--mantine-color-red-6)"
+								stroke={1.5}
+							/>
+						</Dropzone.Reject>
+						<Dropzone.Idle>
+							<IconPhoto
+								size={32}
+								color="var(--mantine-color-dimmed)"
+								stroke={1.5}
+							/>
+						</Dropzone.Idle>
+
+						<div>
+							<Text size="sm" inline>
+								Drag image here or click to select
+							</Text>
+							<Text size="xs" c="dimmed" inline mt={7}>
+								Image should not exceed 5MB
+							</Text>
+						</div>
+					</Group>
+				</Dropzone>
+			</Stack>
+		</div>
+	);
+}
+
 export function useEditCourse() {
 	const fetcher = useFetcher<typeof action>();
-	const editCourse = async (courseId: number, formData: FormData) => {
+	const editCourse = async (courseId: number, data: ActionData) => {
+		const finalData = omitBy(data, isUndefined);
+		const formData = new MyFormData(finalData);
+
 		fetcher.submit(formData, {
 			method: "POST",
 			action: href("/course/:courseId/settings", {
 				courseId: String(courseId),
 			}),
-			encType: "multipart/form-data",
+			encType: ContentType.MULTIPART,
 		});
 	};
 	return { editCourse, isLoading: fetcher.state !== "idle", fetcher };
@@ -348,27 +424,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 	const { course, categories } = loaderData;
 	const { editCourse, isLoading, fetcher } = useEditCourse();
 	const descriptionId = useId();
-	const [imageFiles, setImageFiles] = useState<ImageFile[]>([]);
-	const [thumbnailPreview, setThumbnailPreview] = useState<string | null>(
-		course.thumbnailUrl,
-	);
-	const [selectedThumbnail, setSelectedThumbnail] = useState<File | null>(null);
-
-	const handleImageAdd = (imageFile: ImageFile) => {
-		setImageFiles((prev) => [...prev, imageFile]);
-	};
-
-	const handleThumbnailDrop = (files: File[]) => {
-		const file = files[0];
-		if (file) {
-			setSelectedThumbnail(file);
-			const reader = new FileReader();
-			reader.onloadend = () => {
-				setThumbnailPreview(reader.result as string);
-			};
-			reader.readAsDataURL(file);
-		}
-	};
+	const richTextEditorRef = useRef<RichTextEditorRef>(null);
 
 	// Initialize form with default values (hooks must be called unconditionally)
 	const form = useForm({
@@ -380,6 +436,7 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 			status: course.status as Course["status"],
 			category: course.category?.id?.toString() ?? "",
 			description: course.description,
+			thumbnail: null as File | null,
 		},
 		validate: {
 			title: (value) => (!value ? "Title is required" : null),
@@ -395,32 +452,23 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		},
 	});
 
-	const handleSubmit = (values: typeof form.values) => {
-		if (!values.description || values.description.trim().length === 0) {
+	const handleSubmit = async (values: typeof form.values) => {
+		if (!form.isDirty()) {
+			notifications.show({
+				title: "No changes to update",
+				message: "Please make changes to the course before updating",
+				color: "yellow",
+			});
 			return;
 		}
-		const formData = new FormData();
-		formData.append("title", values.title);
-		formData.append("slug", values.slug);
-		formData.append("description", values.description);
-		formData.append("status", values.status ?? "draft");
 
-		if (values.category) {
-			formData.append("category", values.category);
-		}
+		// Build the data object
+		const data: ActionData = omitBy(
+			values,
+			(value, key) => form.getInitialValues()[key] === value,
+		);
 
-		// Add thumbnail if selected
-		if (selectedThumbnail) {
-			formData.append("thumbnail", selectedThumbnail);
-		}
-
-		// Add each image file with a unique field name
-		imageFiles.forEach((imageFile, index) => {
-			formData.append(`image-${index}`, imageFile.file);
-			formData.append(`image-${index}-preview`, imageFile.preview);
-		});
-
-		editCourse(course.id, formData);
+		await editCourse(course.id, data);
 	};
 
 	return (
@@ -455,97 +503,17 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 							disabled
 						/>
 
-						<div>
-							<Text size="sm" fw={500} mb="xs">
-								Thumbnail
-							</Text>
-							<Stack align="center" gap="md">
-								{thumbnailPreview && (
-									<div
-										style={{
-											width: "100%",
-											maxWidth: 400,
-											height: 200,
-											borderRadius: 8,
-											overflow: "hidden",
-											backgroundColor: "#f8f9fa",
-											display: "flex",
-											alignItems: "center",
-											justifyContent: "center",
-										}}
-									>
-										<img
-											src={thumbnailPreview}
-											alt="Course thumbnail"
-											style={{
-												width: "100%",
-												height: "100%",
-												objectFit: "cover",
-											}}
-										/>
-									</div>
-								)}
-								<Dropzone
-									onDrop={handleThumbnailDrop}
-									onReject={() => {
-										notifications.show({
-											title: "Upload failed",
-											message: "File must be an image under 5MB",
-											color: "red",
-										});
-									}}
-									maxSize={5 * 1024 ** 2}
-									accept={IMAGE_MIME_TYPE}
-									multiple={false}
-									style={{ width: "100%" }}
-								>
-									<Group
-										justify="center"
-										gap="xl"
-										mih={100}
-										style={{ pointerEvents: "none" }}
-									>
-										<Dropzone.Accept>
-											<IconUpload
-												size={32}
-												color="var(--mantine-color-blue-6)"
-												stroke={1.5}
-											/>
-										</Dropzone.Accept>
-										<Dropzone.Reject>
-											<IconX
-												size={32}
-												color="var(--mantine-color-red-6)"
-												stroke={1.5}
-											/>
-										</Dropzone.Reject>
-										<Dropzone.Idle>
-											<IconPhoto
-												size={32}
-												color="var(--mantine-color-dimmed)"
-												stroke={1.5}
-											/>
-										</Dropzone.Idle>
-
-										<div>
-											<Text size="sm" inline>
-												Drag image here or click to select
-											</Text>
-											<Text size="xs" c="dimmed" inline mt={7}>
-												Image should not exceed 5MB
-											</Text>
-										</div>
-									</Group>
-								</Dropzone>
-							</Stack>
-						</div>
+						<ThumbnailDropzone
+							form={form}
+							initialPreviewUrl={course.thumbnailUrl}
+						/>
 
 						<Input.Wrapper label="Description" required>
 							<div id={descriptionId}>
 								<RichTextEditor
+									ref={richTextEditorRef}
 									content={form.getValues().description}
 									onChange={(v) => form.setFieldValue("description", v)}
-									onImageAdd={handleImageAdd}
 									placeholder="Enter course description"
 								/>
 							</div>

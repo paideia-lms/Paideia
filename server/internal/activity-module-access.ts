@@ -15,6 +15,7 @@ import {
 	stripDepth,
 } from "./utils/internal-function-utils";
 import { ActivityModules } from "server/collections";
+import { Enrollment } from "server/payload-types";
 
 export interface GrantAccessArgs extends BaseInternalFunctionArgs {
 	activityModuleId: number;
@@ -180,7 +181,6 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 			payload,
 			activityModuleId,
 			userId,
-
 			req,
 			overrideAccess = false,
 		} = args;
@@ -196,6 +196,7 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 					],
 				},
 				depth: 0,
+				limit: 1,
 				req,
 				overrideAccess,
 			})
@@ -219,12 +220,23 @@ export const tryRevokeAccessFromActivityModule = Result.wrap(
 		}
 
 		// Delete the grant
-		const deletedGrant = await payload.delete({
-			collection: "activity-module-grants",
-			id: existingGrantId,
-			req,
-			overrideAccess: true,
-		});
+		const deletedGrant = await payload
+			.delete({
+				collection: "activity-module-grants",
+				id: existingGrantId,
+				req,
+				overrideAccess,
+				depth: 0,
+			})
+			.then(stripDepth<0, "delete">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryRevokeAccessFromActivityModule",
+					args,
+				});
+				throw error;
+			});
 
 		return deletedGrant;
 	},
@@ -457,68 +469,59 @@ export const tryFindInstructorsForActivityModule = Result.wrap(
 				where: {
 					and: [
 						{ course: { in: courseIds } },
-						{ role: { in: ["teacher", "ta"] } },
-						{ status: { equals: "active" } },
+						{ role: { in: ["teacher", "ta"] satisfies Enrollment["role"][] } },
+						{ status: { equals: "active" satisfies Enrollment["status"] } },
 					],
 				},
 				depth: 1, // Populate user data
 				pagination: false,
 				overrideAccess: true,
 			})
-			.then(stripDepth<1, "find">());
-
-		// Extract unique users with their course info
-		const instructorMap = new Map<
-			number,
-			{
-				id: number;
-				email: string;
-				firstName: string | null;
-				lastName: string | null;
-				avatar?:
-					| number
-					| {
-							id: number;
-							filename?: string;
-					  }
-					| null;
-				enrollments: {
-					courseId: number;
-					role: "teacher" | "ta";
-				}[];
-			}
-		>();
-
-		for (const enrollment of enrollments.docs) {
-			// Narrow the user type
-			const user = enrollment.user;
-
-			const existing = instructorMap.get(user.id);
-			if (existing) {
-				existing.enrollments.push({
-					courseId: enrollment.course.id,
-					// ! we are only getting teacher and ta roles in the query
-					role: enrollment.role as "teacher" | "ta",
+			.then(stripDepth<1, "find">())
+			.then((result) => result.docs)
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryFindInstructorsForActivityModule",
+					args,
 				});
-			} else {
-				instructorMap.set(user.id, {
-					id: user.id,
-					email: user.email,
-					firstName: user.firstName ?? "",
-					lastName: user.lastName ?? "",
-					avatar: user.avatar ?? null,
-					enrollments: [
-						{
-							courseId: enrollment.course.id,
-							// ! we are only getting teacher and ta roles in the query
-							role: enrollment.role as "teacher" | "ta",
-						},
-					],
-				});
-			}
-		}
+				throw error;
+			});
 
-		return Array.from(instructorMap.values());
+		const tempInstructors = enrollments.map((enrollment) => {
+			return {
+				id: enrollment.user.id,
+				email: enrollment.user.email,
+				firstName: enrollment.user.firstName ?? "",
+				lastName: enrollment.user.lastName ?? "",
+				avatar: enrollment.user.avatar ?? null,
+				enrollments: [
+					{
+						courseId: enrollment.course.id,
+						role: enrollment.role as Extract<
+							Enrollment["role"],
+							"teacher" | "ta"
+						>,
+					},
+				],
+			};
+		});
+
+		// reduce the duplicate instructors into enrollments
+		const instructors = tempInstructors.reduce(
+			(acc, instructor) => {
+				const existing = acc.find((i) => i.id === instructor.id);
+				if (existing) {
+					existing.enrollments.push(...instructor.enrollments);
+				} else {
+					acc.push(instructor);
+				}
+				return acc;
+			},
+			[] as typeof tempInstructors,
+		);
+
+		return instructors;
 	},
 	(error) =>
 		transformError(error) ??
@@ -542,11 +545,10 @@ export const tryFindAutoGrantedModulesForInstructor = Result.wrap(
 				where: {
 					and: [
 						{ user: { equals: userId } },
-						{ role: { in: ["teacher", "ta"] } },
-						{ status: { equals: "active" } },
+						{ role: { in: ["teacher", "ta"] satisfies Enrollment["role"][] } },
+						{ status: { equals: "active" satisfies Enrollment["status"] } },
 					],
 				},
-
 				depth: 0,
 				// ! we don't care about pagination and performance for now
 				pagination: false,

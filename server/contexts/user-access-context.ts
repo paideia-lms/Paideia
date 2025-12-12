@@ -11,7 +11,6 @@ import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management"
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
 import type { BaseInternalFunctionArgs } from "server/internal/utils/internal-function-utils";
 import type {
-	Note,
 	ActivityModule as PayloadActivityModule,
 	Course as PayloadCourse,
 	Enrollment as PayloadEnrollment,

@@ -15,6 +15,7 @@ import {
 import { useForm } from "@mantine/form";
 import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
+import { getRouteUrl } from "app/routes/course.$id.participants.profile";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
@@ -195,11 +196,7 @@ function PostContextCollapse({
 										{ancestor.author && (
 											<Box
 												component={Link}
-												to={
-													href("/course/:courseId/participants/profile", {
-														courseId: course.id.toString(),
-													}) + `?userId=${ancestor.author.id}`
-												}
+												to={getRouteUrl(course.id, ancestor.author.id)}
 												style={{ textDecoration: "none" }}
 											>
 												<Group gap="xs">

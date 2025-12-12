@@ -5,7 +5,7 @@ import {
 	PutObjectCommand,
 } from "@aws-sdk/client-s3";
 import { $ } from "bun";
-import {  getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import { createLocalReq } from "./utils/internal-function-utils";
 import { envVars } from "../env";
 import config from "../payload.config";
@@ -114,11 +114,7 @@ describe("Media Management", () => {
 			// Verify createdBy is set correctly
 			expect(result.value.media.createdBy).toBeDefined();
 			// createdBy could be an object or ID, so check if it's a number or has an id property
-			const createdBy =
-				typeof result.value.media.createdBy === "object" &&
-				result.value.media.createdBy !== null
-					? result.value.media.createdBy.id
-					: result.value.media.createdBy;
+			const createdBy = result.value.media.createdBy;
 			expect(createdBy).toBe(testUserId);
 		}
 	});
@@ -860,7 +856,6 @@ describe("Media Management", () => {
 			const getOldResult = await tryGetMediaByFilename({
 				payload,
 				filename: createdMedia.filename,
-
 				overrideAccess: true,
 			});
 			expect(getOldResult.ok).toBe(false);
@@ -1209,9 +1204,12 @@ describe("Media Management", () => {
 			title: "Test Assignment",
 			description: "A test assignment",
 			status: "published",
-			req: createLocalReq({ request: mockRequest, user: { 
-				id: testUserId,
-			}  as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: {
+					id: testUserId,
+				} as TypedUser,
+			}),
 			instructions: "Complete this assignment",
 			requireFileSubmission: true,
 			requireTextSubmission: false,
@@ -1274,9 +1272,12 @@ describe("Media Management", () => {
 			title: "Test Discussion",
 			description: "A test discussion",
 			status: "published",
-			req: createLocalReq({ request: mockRequest, user: { 
-				id: testUserId,
-			}  as TypedUser}),
+			req: createLocalReq({
+				request: mockRequest,
+				user: {
+					id: testUserId,
+				} as TypedUser,
+			}),
 			instructions: "Participate in this discussion",
 			allowAttachments: true,
 			overrideAccess: true,

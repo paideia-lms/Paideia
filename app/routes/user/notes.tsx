@@ -25,14 +25,8 @@ import { createLoader, parseAsString } from "nuqs/server";
 import { useState } from "react";
 import { Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
-import { userAccessContextKey } from "server/contexts/user-access-context";
 import { userContextKey } from "server/contexts/user-context";
-import {
-	convertUserAccessContextToUserProfileContext,
-	getUserProfileContext,
-	userProfileContextKey,
-	type UserProfileContext,
-} from "server/contexts/user-profile-context";
+import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryDeleteNote } from "server/internal/note-management";
 import type { Note } from "server/payload-types";
 import { RichTextRenderer } from "~/components/rich-text-renderer";

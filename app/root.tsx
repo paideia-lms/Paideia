@@ -33,7 +33,6 @@ import "@excalidraw/excalidraw/index.css";
 import "mantine-datatable/styles.layer.css";
 import "@gfazioli/mantine-json-tree/styles.css";
 import "@gfazioli/mantine-clock/styles.css";
-import { omit, pick } from "es-toolkit";
 
 import { CodeHighlightAdapterProvider } from "@mantine/code-highlight";
 import {
@@ -66,7 +65,7 @@ import {
 	getUserProfileContext,
 	userProfileContextKey,
 } from "server/contexts/user-profile-context";
-import { tryGetUserCount } from "server/internal/check-first-user";
+import { tryGetUserCount } from "server/internal/user-management";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
@@ -335,11 +334,30 @@ export const middleware = [
 
 		const userSession = await tryGetUserContext({
 			payload,
+			// ! we need to create local request here because user is not set 
 			req: createLocalReq({ request, context: { routerContext: context } }),
 		});
 
 		// Set the user context
 		context.set(userContextKey, userSession);
+	},
+	/**
+	 * set the payload request to the global context
+	 */
+	async ({ request, context }) => {
+		const userSession = context.get(userContextKey);
+		const currentUser =
+			userSession?.effectiveUser ?? userSession?.authenticatedUser;
+		// ! we need to create local request here because we now know whether user is authenticated or not
+		const payloadRequest = createLocalReq({
+			request,
+			user: currentUser,
+			context: { routerContext: context },
+		});
+		context.set(globalContextKey, {
+			...context.get(globalContextKey),
+			payloadRequest,
+		});
 	},
 	/**
 	 * Fetch system globals (maintenance mode, site policies, etc.) and check maintenance mode
@@ -349,36 +367,31 @@ export const middleware = [
 		const userSession = context.get(userContextKey);
 
 		// Fetch all system globals in one call
-		const systemGlobalsResult = await tryGetSystemGlobals({
+		const systemGlobals = await tryGetSystemGlobals({
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
+		}).getOrDefault({
+			maintenanceSettings: { maintenanceMode: false },
+			sitePolicies: {
+				userMediaStorageTotal: null,
+				siteUploadLimit: null,
+			},
+			appearanceSettings: {
+				additionalCssStylesheets: [],
+				color: "blue",
+				radius: "sm" as const,
+				logoLight: null,
+				logoDark: null,
+				compactLogoLight: null,
+				compactLogoDark: null,
+				faviconLight: null,
+				faviconDark: null,
+			},
+			analyticsSettings: {
+				additionalJsScripts: [],
+			},
 		});
-
-		// If we can't get system globals, use defaults (fail open)
-		const systemGlobals = systemGlobalsResult.ok
-			? systemGlobalsResult.value
-			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-					color: "blue",
-					radius: "sm" as const,
-					logoLight: null,
-					logoDark: null,
-					compactLogoLight: null,
-					compactLogoDark: null,
-					faviconLight: null,
-					faviconDark: null,
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -415,15 +428,13 @@ export const middleware = [
 	 * set the course context
 	 */
 	async ({ context, params, request }) => {
-		const { payload, pageInfo } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
-		const currentUser =
-			userSession?.effectiveUser || userSession?.authenticatedUser;
+		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
 
 		// check if the user is in a course
 		if (pageInfo.isInCourse) {
 			// const { moduleLinkId, sectionId, courseId } = params as RouteParams<"layouts/course-layout">;
-			let { courseId: _courseId } = params as RouteParams<"layouts/course-layout">;
+			const { courseId: _courseId } =
+				params as RouteParams<"layouts/course-layout">;
 			let courseId = Number.isNaN(_courseId) ? null : Number(_courseId);
 			// in course/module/id , we need to get the module first and then get the course id
 			if (pageInfo.isInCourseModuleLayout) {
@@ -434,11 +445,7 @@ export const middleware = [
 				const moduleContext = await tryFindCourseActivityModuleLinkById({
 					payload,
 					linkId: Number(moduleLinkId),
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
+					req: payloadRequest,
 				});
 
 				if (!moduleContext.ok) return;
@@ -459,11 +466,7 @@ export const middleware = [
 				const sectionContext = await tryFindSectionById({
 					payload,
 					sectionId: Number(sectionId),
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
+					req: payloadRequest,
 				});
 
 				if (!sectionContext.ok) return;
@@ -473,41 +476,27 @@ export const middleware = [
 				courseId = section.course.id;
 			}
 
-
 			// if course id is not set, something is wrong, log it and leave context unset
 			if (!courseId) {
 				payload.logger.error("Course ID is not set, something is wrong");
-				return
+				return;
 			}
 
 			const courseContextResult = await tryGetCourseContext({
 				payload,
-				req: createLocalReq({
-					request,
-					user: currentUser,
-					context: { routerContext: context },
-				}),
+				req: payloadRequest,
 				courseId: courseId,
-			});
-
-			// Only set the course context if successful
-			if (courseContextResult.ok) {
-				// FIXME: fix this type error
-				context.set(courseContextKey, courseContextResult.value);
-			} else {
-				console.error(courseContextResult.error);
+			}).getOrElse((error) => {
 				throw new InternalServerErrorResponse("Failed to get course context");
-			}
+			})
+			// FIXME: fix this type error
+			context.set(courseContextKey, courseContextResult);
 		}
 	},
 	// set the course section context
 	async ({ context, params, request }) => {
-		const { payload, pageInfo } = context.get(globalContextKey);
-		const userSession = context.get(userContextKey);
+		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
 		const courseContext = context.get(courseContextKey);
-
-		const currentUser =
-			userSession?.effectiveUser || userSession?.authenticatedUser;
 
 		// Check if we're in a course section layout
 		if (pageInfo.isInCourseSectionLayout) {
@@ -520,11 +509,7 @@ export const middleware = [
 			if (courseContext) {
 				const courseSectionContextResult = await tryGetCourseSectionContext({
 					payload,
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
+					req: payloadRequest,
 					sectionId: Number(sectionId),
 				});
 
@@ -539,7 +524,7 @@ export const middleware = [
 	},
 	// set the user access context
 	async ({ context, request }) => {
-		const { payload } = context.get(globalContextKey);
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		const currentUser =
@@ -549,18 +534,14 @@ export const middleware = [
 			const userAccessContext = await getUserAccessContext({
 				payload,
 				userId: currentUser.id,
-				req: createLocalReq({
-					request,
-					user: currentUser,
-					context: { routerContext: context },
-				}),
+				req: payloadRequest,
 			});
 			context.set(userAccessContextKey, userAccessContext);
 		}
 	},
 	// set the user profile context
 	async ({ context, params, request }) => {
-		const { payload, pageInfo } = context.get(globalContextKey);
+		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const userAccessContext = context.get(userAccessContextKey);
 
@@ -589,11 +570,7 @@ export const middleware = [
 						: await getUserProfileContext({
 							payload,
 							profileUserId,
-							req: createLocalReq({
-								request,
-								user: currentUser,
-								context: { routerContext: context },
-							}),
+							req: payloadRequest,
 							overrideAccess: false,
 						});
 				context.set(userProfileContextKey, userProfileContext);
@@ -624,7 +601,7 @@ export const middleware = [
 	async ({ context, params, request }) => {
 		// get the enrolment context
 		const enrolmentContext = context.get(enrolmentContextKey);
-		const { payload, pageInfo } = context.get(globalContextKey);
+		const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
 
@@ -634,9 +611,6 @@ export const middleware = [
 			pageInfo.isInCourseModuleLayout &&
 			courseContext
 		) {
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
-
 			const { moduleLinkId } =
 				params as RouteParams<"layouts/course-module-layout">;
 
@@ -645,30 +619,24 @@ export const middleware = [
 				// Extract threadId from URL search params if present
 				const { threadId } = loadSearchParams(request);
 
-				const courseModuleContextResult = await tryGetCourseModuleContext({
+				const courseModuleContext = await tryGetCourseModuleContext({
 					payload,
 					moduleLinkId: Number(moduleLinkId),
 					courseId: courseContext.courseId,
 					enrolment: enrolmentContext?.enrolment ?? null,
 					threadId: threadId !== null ? String(threadId) : null,
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: {
-							routerContext: context,
-						},
-					}),
-				});
+					req: payloadRequest,
+				}).getOrNull()
 
-				if (courseModuleContextResult.ok) {
-					context.set(courseModuleContextKey, courseModuleContextResult.value);
+				if (courseModuleContext) {
+					context.set(courseModuleContextKey, courseModuleContext);
 				}
 			}
 		}
 	},
 	// set the user module context
 	async ({ context, params, request }) => {
-		const { payload, routeHierarchy } = context.get(globalContextKey);
+		const { payload, routeHierarchy, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		// Check if we're in a user module edit layout
@@ -678,25 +646,18 @@ export const middleware = [
 				(route) => route.id === "layouts/user-module-edit-layout",
 			)
 		) {
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
-
 			// Get module ID from params
 			const moduleId = params.moduleId ? Number(params.moduleId) : null;
 
 			if (moduleId && !Number.isNaN(moduleId)) {
-				const userModuleContextResult = await tryGetUserModuleContext({
+				const userModuleContext = await tryGetUserModuleContext({
 					payload,
 					moduleId,
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
-				});
+					req: payloadRequest,
+				}).getOrNull()
 
-				if (userModuleContextResult.ok) {
-					context.set(userModuleContextKey, userModuleContextResult.value);
+				if (userModuleContext) {
+					context.set(userModuleContextKey, userModuleContext);
 				}
 			}
 		}
@@ -717,13 +678,9 @@ export async function loader({ context }: Route.LoaderArgs) {
 	// console.log(routes)
 	// ! we can get elysia from context!!!
 	// console.log(payload, elysia);
-	const result = await tryGetUserCount({ payload, overrideAccess: true });
-
-	if (!result.ok) {
-		throw new Error("Failed to get user count");
-	}
-
-	const users = result.value;
+	const userCount = await tryGetUserCount({ payload, overrideAccess: true }).getOrElse(() => {
+		throw new InternalServerErrorResponse("Failed to get user count");
+	})
 
 	// Get current user's theme and direction preference
 	const currentUser =
@@ -760,7 +717,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 	// Skip redirect check for essential routes
 	if (pageInfo.isRegistration || pageInfo.isLogin || pageInfo.isApi) {
 		return {
-			users: users,
+			users: userCount,
 			domainUrl: requestInfo.domainUrl,
 			timestamp: timestamp,
 			pageInfo: pageInfo,
@@ -779,28 +736,12 @@ export async function loader({ context }: Route.LoaderArgs) {
 	}
 
 	// If no users exist, redirect to first-user creation
-	if (users === 0) {
+	if (userCount === 0) {
 		throw redirect(href("/registration"));
 	}
 
-	const debugData =
-		environment !== "development"
-			? null
-			: {
-				userSession: userSession,
-				courseContext: context.get(courseContextKey),
-				courseModuleContext: context.get(courseModuleContextKey),
-				courseSectionContext: context.get(courseSectionContextKey),
-				enrolmentContext: context.get(enrolmentContextKey),
-				userModuleContext: context.get(userModuleContextKey),
-				userProfileContext: context.get(userProfileContextKey),
-				userAccessContext: context.get(userAccessContextKey),
-				userContext: context.get(userContextKey),
-				systemGlobals: systemGlobals,
-			};
-
 	return {
-		users: users,
+		users: userCount,
 		domainUrl: requestInfo.domainUrl,
 		timestamp: timestamp,
 		pageInfo: pageInfo,
@@ -814,7 +755,18 @@ export async function loader({ context }: Route.LoaderArgs) {
 		additionalJsScripts: systemGlobals.analyticsSettings.additionalJsScripts,
 		logoMedia,
 		faviconMedia,
-		debugData: debugData,
+		debugData: environment !== "development" ? null : {
+			userSession: userSession,
+			courseContext: context.get(courseContextKey),
+			courseModuleContext: context.get(courseModuleContextKey),
+			courseSectionContext: context.get(courseSectionContextKey),
+			enrolmentContext: context.get(enrolmentContextKey),
+			userModuleContext: context.get(userModuleContextKey),
+			userProfileContext: context.get(userProfileContextKey),
+			userAccessContext: context.get(userAccessContextKey),
+			userContext: context.get(userContextKey),
+			systemGlobals: systemGlobals,
+		},
 		isSandboxMode,
 		nextResetTime,
 	};

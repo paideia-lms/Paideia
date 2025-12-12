@@ -22,12 +22,10 @@ import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryFindAllUsers } from "server/internal/user-management";
-import type { User } from "server/payload-types";
 import { badRequest, ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/users";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
-	getEnrolmentRoleBadgeColor,
 	getUserRoleBadgeColor,
 	getUserRoleLabel,
 } from "app/components/course-view-utils";

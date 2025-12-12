@@ -1,14 +1,12 @@
 import { GradebookCategories, Gradebooks } from "server/payload.config";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	DuplicateGradebookError,
 	GradebookNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Gradebook } from "../payload-types";
 import type { CategoryData, ItemData } from "./utils/build-gradebook-structure";
 import { buildCategoryStructure } from "./utils/build-gradebook-structure";
 import {
@@ -724,16 +722,9 @@ export const tryGetGradebookAllRepresentations = Result.wrap(
 		// Remove undefined property
 		delete (yamlData as { gradebook_id?: number }).gradebook_id;
 
-		let yamlString: string;
-		try {
-			yamlString = Bun.YAML?.stringify(yamlData, null, 2);
-			if (!yamlString) {
-				throw new UnknownError("Bun.YAML is not available");
-			}
-		} catch (error) {
-			throw new UnknownError("Failed to convert JSON to YAML", {
-				cause: error,
-			});
+		const yamlString = Bun.YAML?.stringify(yamlData, null, 2);
+		if (!yamlString) {
+			throw new UnknownError("Bun.YAML is not available");
 		}
 
 		// Build Markdown representation

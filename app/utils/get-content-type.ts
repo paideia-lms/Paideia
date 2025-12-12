@@ -28,15 +28,12 @@ export const mapValues = <
 export const getDataAndContentTypeFromRequest = async (request: Request) => {
 	const contentType = request.headers.get("Content-Type");
 
-	if (contentType && contentType.includes("application/json")) {
+	if (contentType?.includes("application/json")) {
 		return {
 			contentType: ContentType.JSON,
 			data: await request.clone().json(),
 		};
-	} else if (
-		contentType &&
-		contentType.includes("application/x-www-form-urlencoded")
-	) {
+	} else if (contentType?.includes("application/x-www-form-urlencoded")) {
 		const text = await request.clone().text();
 		const formData = await request.clone().formData();
 		return {
@@ -45,17 +42,10 @@ export const getDataAndContentTypeFromRequest = async (request: Request) => {
 			text,
 			formData,
 		};
-	} else if (contentType && contentType.includes("multipart/form-data")) {
+	} else if (contentType?.includes("multipart/form-data")) {
+		// ! when using form, this only works if the form has no file data
 		const formData = await request.clone().formData();
-		const f = Object.fromEntries(formData);
-		// since the values of form must be string, we need to try json parse the value
-		const data = mapValues(f, (value, key) => {
-			try {
-				return JSON.parse(value as string);
-			} catch (e) {
-				return value;
-			}
-		});
+		const data = convertFormDataToObject(formData);
 
 		return {
 			contentType: ContentType.MULTIPART,
@@ -66,3 +56,22 @@ export const getDataAndContentTypeFromRequest = async (request: Request) => {
 		throw new Error("Unsupported content type");
 	}
 };
+
+export function convertFormDataToObject(formData: FormData) {
+	const f = Object.fromEntries(formData);
+	const data = mapValues(f, (value, _key) => {
+		// Files should be preserved as-is
+		if (value instanceof File) {
+			return value;
+		}
+
+		// Try to parse as JSON (handles objects, arrays, numbers, booleans)
+		// Falls back to original value if parsing fails (plain strings)
+		try {
+			return JSON.parse(value as string);
+		} catch (_e) {
+			return value;
+		}
+	});
+	return data;
+}

@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import {
 	type CreateActivityModuleArgs,
@@ -120,7 +120,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Create a quiz with a very short time limit (1 minute = 60 seconds)
 		const quickQuizArgs: CreateQuizArgs = {
 			payload,
-			req: createLocalReq( { request: mockRequest, user: teacher as TypedUser }),
+			req: createLocalReq({ request: mockRequest, user: teacher as TypedUser }),
 			title: "Quick Quiz",
 			description: "A quiz with 1 minute time limit",
 			instructions: "Complete quickly",
@@ -176,7 +176,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Create activity module with this quiz
 		const quickActivityModuleArgs: CreateActivityModuleArgs = {
 			payload,
-			req: createLocalReq( { request: mockRequest, user: teacher as TypedUser }),
+			req: createLocalReq({ request: mockRequest, user: teacher as TypedUser }),
 			title: "Quick Quiz Module",
 			description: "Module with quick quiz",
 			type: "quiz",
@@ -238,7 +238,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Create course-activity-module-link
 		const quickLinkArgs: CreateCourseActivityModuleLinkArgs = {
 			payload,
-			req: createLocalReq( { request: mockRequest, user: teacher as TypedUser }),
+			req: createLocalReq({ request: mockRequest, user: teacher as TypedUser }),
 			course: course.id,
 			activityModule: quickActivityModuleId,
 			section: section.id,
@@ -255,7 +255,7 @@ describe("Quiz Submission Management - Time Limit", () => {
 		// Start quiz attempt
 		const quickStartArgs: StartQuizAttemptArgs = {
 			payload,
-			req: createLocalReq( { request: mockRequest, user: student as TypedUser }),
+			req: createLocalReq({ request: mockRequest, user: student as TypedUser }),
 			courseModuleLinkId: quickCourseActivityModuleLinkId,
 			studentId: student.id,
 			enrollmentId: enrollment.id,

@@ -416,15 +416,9 @@ export const tryFindLinksByActivityModule = Result.wrap(
 			id: activityModuleId,
 			req,
 			overrideAccess,
-		});
+		}).getOrThrow();
 
-		if (!activityModuleResult.ok) {
-			throw new NonExistingActivityModuleError(
-				`Activity module with id '${activityModuleId}' not found`,
-			);
-		}
-
-		const linksResult = await payload
+		const links = await payload
 			.find({
 				collection: CourseActivityModuleLinks.slug,
 				where: {
@@ -454,7 +448,7 @@ export const tryFindLinksByActivityModule = Result.wrap(
 			}
 		>();
 
-		for (const link of linksResult.docs) {
+		for (const link of links.docs) {
 			courseDataMap.set(link.id, {
 				id: link.course.id,
 				title: link.course.title,
@@ -465,9 +459,6 @@ export const tryFindLinksByActivityModule = Result.wrap(
 				updatedAt: link.course.updatedAt,
 			});
 		}
-
-		// Strip depth for other fields
-		const links = await stripDepth<1, "find">()(linksResult);
 
 		// Transform each link to discriminated union
 		const results: CourseActivityModuleLinkResult[] = [];
@@ -483,7 +474,7 @@ export const tryFindLinksByActivityModule = Result.wrap(
 					...link,
 					course: courseData,
 				},
-				activityModuleResult.value,
+				activityModuleResult,
 			);
 			results.push(result);
 		}

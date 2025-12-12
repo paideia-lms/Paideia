@@ -1,6 +1,5 @@
 import type { staticPlugin } from "@elysiajs/static";
 import type { Context } from "elysia/context";
-import { RouterContextProvider } from "react-router";
 import type { InlineConfig } from "vite";
 
 export type GetLoadContext<T> = (context: Context) => T | Promise<T>;

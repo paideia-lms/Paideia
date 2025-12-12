@@ -5,6 +5,7 @@ import type {
 	TypedUser,
 } from "payload";
 import { Forbidden } from "payload";
+
 import type { Simplify, Subtract, Sum } from "type-fest";
 
 interface BaseUser extends Omit<TypedUser, "avatar"> {}
@@ -371,4 +372,67 @@ export function stripDepth<
 >() {
 	return <T>(data: T): Depth<T, f extends "find" ? Sum<D, 1> : D> =>
 		data as any;
+}
+
+type Primitive =
+	| string
+	| number
+	| boolean
+	| symbol
+	| null
+	| undefined
+	| Function;
+
+export type OmitDeep<T, K extends keyof any> = T extends Primitive
+	? T
+	: T extends (infer U)[] // Handle arrays recursively
+		? OmitDeep<U, K>[]
+		: {
+				// Exclude the keys K at the current level T
+				[P in Exclude<
+					keyof T,
+					K
+				>]: // Recursively apply OmitDeep to the property value
+				OmitDeep<T[P], K>;
+			};
+
+export type PickDeep<T, K extends keyof any> = T extends Primitive
+	? T
+	: T extends (infer U)[] // Handle arrays recursively
+		? PickDeep<U, K>[]
+		: {
+				// Pick only the keys K at the current level T
+				[P in Extract<
+					keyof T,
+					K
+				>]: // Recursively apply PickDeep to the property value
+				PickDeep<T[P], K>;
+			};
+
+export function omitType<T, K extends keyof T>(
+	type: T,
+	_keys: K[],
+): Omit<T, K> {
+	return type as any;
+}
+
+export function pickType<T, K extends keyof T>(
+	type: T,
+	_keys: K[],
+): Pick<T, K> {
+	return type as any;
+}
+
+export function deepOmitType<T, K extends keyof T>(
+	type: T,
+	_keys: K[],
+): OmitDeep<T, K> {
+	return type as any;
+}
+
+export function deepPickType<T, K extends keyof T>(
+	type: T,
+	_keys: K[],
+): PickDeep<T, K> {
+	return type as any;
 }

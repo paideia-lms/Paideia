@@ -685,7 +685,6 @@ describe("Activity Module Access Control", () => {
 		}
 	});
 
-
 	test("should grant access to previous owner after ownership transfer", async () => {
 		const user1 = await getAuthUser(user1Token);
 
@@ -743,8 +742,6 @@ describe("Activity Module Access Control", () => {
 			expect(error).toBeDefined();
 		}
 	});
-
-
 
 	test("should allow admin to access any activity module", async () => {
 		const user1 = await getAuthUser(user1Token);
@@ -964,21 +961,19 @@ describe("Activity Module Access Control", () => {
 		const grantsResult = await tryFindGrantsByActivityModule({
 			payload,
 			activityModuleId: activityModule.id,
+			overrideAccess: true,
 		});
 
 		expect(grantsResult.ok).toBe(true);
-		if (grantsResult.ok) {
-			expect(grantsResult.value.length).toBe(2);
+		if (!grantsResult.ok) throw grantsResult.error;
+		expect(grantsResult.value.length).toBe(2);
 
-			// Check that both users are in the grants
-			const grantedUserIds = grantsResult.value.map((grant) =>
-				typeof grant.grantedTo === "number"
-					? grant.grantedTo
-					: grant.grantedTo.id,
-			);
-			expect(grantedUserIds).toContain(testUser2.id);
-			expect(grantedUserIds).toContain(testUser3.id);
-		}
+		// Check that both users are in the grants
+		const grantedUserIds = grantsResult.value.map(
+			(grant) => grant.grantedTo.id,
+		);
+		expect(grantedUserIds).toContain(testUser2.id);
+		expect(grantedUserIds).toContain(testUser3.id);
 	});
 
 	test("should find instructors for activity module", async () => {
@@ -1278,12 +1273,12 @@ describe("Activity Module Access Control", () => {
 		const grantsResult = await tryFindGrantsByActivityModule({
 			payload,
 			activityModuleId: activityModule.id,
+			overrideAccess: true,
 		});
 
 		expect(grantsResult.ok).toBe(true);
-		if (grantsResult.ok) {
-			expect(grantsResult.value.length).toBe(0);
-		}
+		if (!grantsResult.ok) throw grantsResult.error;
+		expect(grantsResult.value.length).toBe(0);
 	});
 
 	test("should find auto granted modules for instructor", async () => {

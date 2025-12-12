@@ -20,7 +20,7 @@ import {
 	getStatusBadgeColor,
 	getStatusLabel,
 } from "~/components/course-view-utils";
-import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {

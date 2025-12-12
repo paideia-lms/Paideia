@@ -127,7 +127,7 @@ export function QuizGradingView({
 	});
 
 	const { gradeSubmission, isGrading, data } = useGradeSubmission();
-	const navigate = useNavigate();
+	const _navigate = useNavigate();
 
 	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
 		const scoreValue =

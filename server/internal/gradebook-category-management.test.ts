@@ -108,7 +108,7 @@ describe("Gradebook Category Management", () => {
 			name: "Test Category",
 			description: "Test Category Description",
 			sortOrder: 0,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -129,7 +129,7 @@ describe("Gradebook Category Management", () => {
 			gradebookId: testGradebook.id,
 			name: "Invalid Sort Category",
 			sortOrder: -1, // Invalid: negative
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -146,7 +146,7 @@ describe("Gradebook Category Management", () => {
 			name: "Test Subcategory",
 			description: "Test Subcategory Description",
 			sortOrder: 0,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -189,7 +189,7 @@ describe("Gradebook Category Management", () => {
 			gradebookId: testGradebook.id,
 			name: "Root Category for Nested Test",
 			sortOrder: 10,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -210,7 +210,7 @@ describe("Gradebook Category Management", () => {
 			name: "Nested Category Test",
 			description: "This should persist",
 			sortOrder: 0,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -297,7 +297,7 @@ describe("Gradebook Category Management", () => {
 			payload,
 			categoryId: testCategory.id,
 			name: "Updated Test Category",
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -313,7 +313,7 @@ describe("Gradebook Category Management", () => {
 		const result = await tryGetGradebookCategoriesHierarchy({
 			payload,
 			gradebookId: testGradebook.id,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -338,7 +338,7 @@ describe("Gradebook Category Management", () => {
 			payload,
 			gradebookId: testGradebook.id,
 			parentId: null,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -354,7 +354,7 @@ describe("Gradebook Category Management", () => {
 		const result = await tryReorderCategories({
 			payload,
 			categoryIds: [testCategory.id],
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,
@@ -370,7 +370,7 @@ describe("Gradebook Category Management", () => {
 		const result = await tryDeleteGradebookCategory({
 			payload,
 			categoryId: testSubCategory.id,
-			req: { 
+			req: {
 				user: instructor as typeof instructor & { collection: "users" },
 			},
 			overrideAccess: false,

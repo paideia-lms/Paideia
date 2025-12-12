@@ -7,34 +7,27 @@ import {
 	Gradebooks,
 	Groups,
 } from "server/payload.config";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	DevelopmentError,
 	InvalidArgumentError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type {
-	Course,
-	CourseCategory,
-	Enrollment,
-	Group,
-} from "../payload-types";
+import type { Course, CourseCategory, Group } from "../payload-types";
 import { tryFindEnrollmentsByUser } from "./enrollment-management";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type Depth,
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,
+	omitType,
 } from "./utils/internal-function-utils";
-import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
+import { processRichTextMediaV2 } from "server/collections/utils/rich-text-content";
+import type { OmitDeep } from "type-fest";
+import { tryCreateMedia } from "./media-management";
 import { href } from "react-router";
 
 export interface CreateCourseArgs extends BaseInternalFunctionArgs {
@@ -47,19 +40,6 @@ export interface CreateCourseArgs extends BaseInternalFunctionArgs {
 		thumbnail?: number;
 		tags?: { tag?: string }[];
 		category?: number;
-	};
-}
-
-export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
-	courseId: number;
-	data: {
-		title?: string;
-		description?: string;
-		createdBy?: number; // User ID
-		status?: "draft" | "published" | "archived";
-		thumbnail?: number;
-		tags?: { tag?: string }[];
-		category?: number | null;
 	};
 }
 
@@ -116,60 +96,31 @@ export const tryCreateCourse = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			// Parse media from description HTML content
-			const mediaParseResult = tryParseMediaFromHtml(description);
-
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
-
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
-
-			// Resolve filenames to IDs in a single query
-			let resolvedIds: number[] = [];
-			if (filenames.length > 0) {
-				try {
-					const mediaResult = await payload.find({
-						collection: "media",
-						where: {
-							filename: {
-								in: filenames,
-							},
-						},
-						limit: filenames.length,
-						depth: 0,
-						pagination: false,
-						overrideAccess: true,
-						req: transactionInfo.reqWithTransaction,
-					});
-
-					resolvedIds = mediaResult.docs.map((doc) => doc.id);
-				} catch (error) {
-					// If media lookup fails, log warning but continue
-					console.warn(`Failed to resolve media filenames to IDs:`, error);
-				}
-			}
-
-			// Combine parsed IDs and resolved IDs
-			const mediaIds = [...parsedIds, ...resolvedIds];
-
+		return await transactionInfo.tx(async (txInfo) => {
 			const newCourse = await payload
 				.create({
 					collection: Courses.slug,
 					data: {
 						title,
-						description,
+						...(await processRichTextMediaV2({
+							payload,
+							userId: createdBy,
+							req: txInfo.reqWithTransaction,
+							overrideAccess,
+							data: {
+								description,
+							},
+							fields: [{ key: "description", alt: "Course description image" }],
+						})),
 						slug,
 						createdBy,
 						status,
 						thumbnail,
 						tags,
 						category,
-						media: mediaIds.length > 0 ? mediaIds : undefined,
 					},
 					depth: 1,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<1, "create">());
@@ -182,7 +133,7 @@ export const tryCreateCourse = Result.wrap(
 						course: newCourse.id,
 					},
 					depth: 0,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<0, "create">())
@@ -212,12 +163,10 @@ export const tryCreateCourse = Result.wrap(
 						contentOrder: 0,
 					},
 					depth: 0,
-					req: transactionInfo.reqWithTransaction,
+					req: txInfo.reqWithTransaction,
 					overrideAccess,
 				})
 				.then(stripDepth<0, "create">());
-
-			await commitTransactionIfCreated(payload, transactionInfo);
 
 			const result = {
 				...newCourse,
@@ -225,10 +174,7 @@ export const tryCreateCourse = Result.wrap(
 				defaultSection: defaultSectionResult,
 			};
 			return result;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -237,14 +183,26 @@ export const tryCreateCourse = Result.wrap(
 		}),
 );
 
-/**
- * Updates an existing course using Payload local API
- * When user is provided, access control is enforced based on that user
- * When overrideAccess is true, bypasses all access control
- */
+export interface UpdateCourseArgs extends BaseInternalFunctionArgs {
+	courseId: number;
+	data: {
+		title?: string;
+		status?: "draft" | "published" | "archived";
+		description?: string;
+		thumbnail?: File | null;
+		tags?: { tag?: string }[];
+		category?: number | null;
+	};
+}
 export const tryUpdateCourse = Result.wrap(
 	async (args: UpdateCourseArgs) => {
 		const { payload, courseId, data, req, overrideAccess = false } = args;
+
+		const currentUser = req?.user;
+		const userId = currentUser?.id;
+		if (!userId) {
+			throw new InvalidArgumentError("User ID is required");
+		}
 
 		// Check if course exists
 		const existingCourse = await payload.findByID({
@@ -258,77 +216,60 @@ export const tryUpdateCourse = Result.wrap(
 			throw new Error(`Course with ID ${courseId} not found`);
 		}
 
-		// If createdBy is being updated, verify new user exists
-		if (data.createdBy) {
-			const userExists = await payload.findByID({
-				collection: "users",
-				id: data.createdBy,
-
+		const updatedCourse = await payload
+			.update({
+				collection: "courses",
+				id: courseId,
+				data: {
+					...data,
+					thumbnail: !data.thumbnail
+						? data.thumbnail
+						: await tryCreateMedia({
+								payload,
+								file: await data.thumbnail.arrayBuffer().then(Buffer.from),
+								filename: data.thumbnail.name || "thumbnail",
+								mimeType: data.thumbnail.type || "image/png",
+								alt: "Course thumbnail",
+								userId,
+								req,
+								overrideAccess,
+							})
+								.getOrThrow()
+								.then((r) => r.media.id),
+					...(data.description
+						? await processRichTextMediaV2({
+								payload,
+								userId,
+								req,
+								overrideAccess,
+								data: {
+									description: data.description,
+								},
+								fields: [
+									{ key: "description", alt: "Course description image" },
+								],
+							})
+						: {}),
+				},
 				req,
-				overrideAccess: true, // Always allow checking if user exists
+				overrideAccess,
+				depth: 1,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryUpdateCourse",
+					args: { payload, req, overrideAccess },
+				});
+				throw error;
 			});
 
-			if (!userExists) {
-				throw new Error(`User with ID ${data.createdBy} not found`);
-			}
-		}
-
-		// Parse media from description HTML content if description is being updated
-		const updateData = { ...data, media: [] as number[] };
-		if (data.description !== undefined) {
-			const mediaParseResult = tryParseMediaFromHtml(data.description);
-
-			if (!mediaParseResult.ok) {
-				throw mediaParseResult.error;
-			}
-
-			const { ids: parsedIds, filenames } = mediaParseResult.value;
-
-			// Resolve filenames to IDs in a single query
-			let resolvedIds: number[] = [];
-			if (filenames.length > 0) {
-				try {
-					const mediaResult = await payload.find({
-						collection: "media",
-						where: {
-							filename: {
-								in: filenames,
-							},
-						},
-						limit: filenames.length,
-						depth: 0,
-						pagination: false,
-						overrideAccess: true,
-						req: req?.transactionID
-							? { ...req, transactionID: req.transactionID }
-							: req,
-					});
-
-					resolvedIds = mediaResult.docs.map((doc) => doc.id);
-				} catch (error) {
-					// If media lookup fails, log warning but continue
-					console.warn(`Failed to resolve media filenames to IDs:`, error);
-				}
-			}
-
-			// Combine parsed IDs and resolved IDs
-			const mediaIds = [...parsedIds, ...resolvedIds];
-			updateData.media = mediaIds.length > 0 ? mediaIds : [];
-		}
-
-		const updatedCourse = await payload.update({
-			collection: "courses",
-			id: courseId,
-			data: updateData,
-			req,
-			overrideAccess,
-		});
-
-		return updatedCourse as Course;
+		return updatedCourse;
 	},
 	(error) =>
 		transformError(error) ??
-		new UnknownError("Failed to update course", {
+		new UnknownError("Failed to update course with file", {
 			cause: error,
 		}),
 );
@@ -383,24 +324,28 @@ export const tryFindCourseById = Result.wrap(
 				////////////////////////////////////////////////////////
 				// complex type narrowing
 				////////////////////////////////////////////////////////
+				// console.log("r", JSON.stringify(r, null, 2));
 				return {
 					...r,
 					docs: r.docs.map((c) => {
 						return {
 							...(c as Depth<Omit<Course, "sections">, 2>),
 							// ! join, these items depth is controlled by maxDepth in the collection config
-							groups: (c.groups?.docs ?? []) as Depth<
-								Omit<Group, "course">,
-								2
-							>[],
-							enrollments: (c.enrollments?.docs ?? []) as Depth<
-								Omit<Enrollment, "course">,
-								2
-							>[],
+							groups: (
+								(c.groups as Depth<Course["groups"], 2>)?.docs ?? []
+							).map((c) => omitType(c, ["course"])),
+							enrollments: (
+								(c.enrollments as Depth<Course["enrollments"], 2>)?.docs ?? []
+							).map((c) => omitType(c, ["course"])),
 							// ! populate, this will have depth 2
-							category: c.category as Depth<
-								Omit<CourseCategory, "courses" | "subcategories">,
-								2
+							category: c.category as OmitDeep<
+								Depth<CourseCategory, 1>,
+								| "courses"
+								| "subcategories"
+								| "parent.courses"
+								| "parent.subcategories"
+								| "parent.parent.courses"
+								| "parent.parent.subcategories"
 							>,
 						};
 					}),

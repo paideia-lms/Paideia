@@ -1,12 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import { tryCreateDiscussionModule } from "./activity-module-management";
-import {
-	type CreateCourseActivityModuleLinkArgs,
-	tryCreateCourseActivityModuleLink,
-} from "./course-activity-module-link-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import {
@@ -442,7 +439,7 @@ describe("Discussion Management - Full Workflow", () => {
 			courseActivityModuleLink.id,
 		);
 		expect(retrievedSubmission.student.id).toBe(student.id);
-			expect(retrievedSubmission.enrollment.id).toBe(enrollment.id);
+		expect(retrievedSubmission.enrollment.id).toBe(enrollment.id);
 	});
 
 	test("should get all threads with nested replies (reply to reply)", async () => {

@@ -27,13 +27,10 @@ import {
 	type CreateEnrollmentArgs,
 	tryCreateEnrollment,
 } from "./enrollment-management";
-import {
-	type CreateGradebookItemArgs,
-	tryCreateGradebookItem,
-} from "./gradebook-item-management";
+import { tryCreateGradebookItem } from "./gradebook-item-management";
 import { type CreateUserArgs, tryCreateUser } from "./user-management";
 
-const year = new Date().getFullYear();
+const _year = new Date().getFullYear();
 
 describe("Assignment Submission Management - Full Workflow", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;

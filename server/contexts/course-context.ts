@@ -7,11 +7,8 @@
 import { createContext } from "react-router";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
 import { tryFindCourseById } from "server/internal/course-management";
-import type { CourseStructure } from "server/internal/course-section-management";
 import { tryGetCourseStructure } from "server/internal/course-section-management";
 import {
-	type GradebookJsonRepresentation,
-	type GradebookSetupForUI,
 	type GradebookSetupItemWithCalculations,
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
@@ -20,15 +17,11 @@ import { canAccessCourse } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
-	CourseStructureNotFoundError,
+	DevelopmentError,
 	InvalidArgumentError,
+	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type {
-	Gradebook,
-	GradebookCategory,
-	GradebookItem,
-} from "../payload-types";
 import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,
@@ -184,247 +177,147 @@ export interface TryGetCourseContextArgs extends BaseInternalFunctionArgs {
 // export const courseContextKey =
 // 	"courseContext" as unknown as typeof courseContext;
 
-export const tryGetCourseContext = async ({
-	payload,
-	req,
-	courseId,
-}: TryGetCourseContextArgs) => {
-	const user = req?.user;
-	if (Number.isNaN(courseId)) {
-		return Result.error(new InvalidArgumentError("Course ID is required"));
-	}
-	// Get course
-	const courseResult = await tryFindCourseById({
-		payload,
-		courseId: courseId,
-		req,
-	});
+export const tryGetCourseContext = Result.wrap(
+	async ({ payload, req, courseId }: TryGetCourseContextArgs) => {
+		const user = req?.user;
+		if (Number.isNaN(courseId)) {
+			throw new InvalidArgumentError("Course ID is required");
+		}
+		// Get course
+		const course = await tryFindCourseById({
+			payload,
+			courseId,
+			req,
+		}).getOrThrow();
 
-	if (!courseResult.ok) return courseResult;
-
-	const course = courseResult.value;
-
-	// Check if user exists
-	if (!user) {
-		return Result.error(
-			new CourseAccessDeniedError(
+		// Check if user exists
+		if (!user) {
+			throw new CourseAccessDeniedError(
 				"User must be authenticated to access course",
-			),
-		);
-	}
+			);
+		}
 
-	// Check access
-	const hasAccess = canAccessCourse(
-		{
-			id: user.id,
-			role: user.role ?? "student",
-		},
-		course.enrollments.map((enrollment) => ({
-			id: enrollment.id,
-			userId: enrollment.user.id,
-			role: enrollment.role,
-		})),
-	).allowed;
+		// Check access
+		const hasAccess = canAccessCourse(
+			{
+				id: user.id,
+				role: user.role ?? "student",
+			},
+			course.enrollments.map((enrollment) => ({
+				id: enrollment.id,
+				userId: enrollment.user.id,
+				role: enrollment.role,
+			})),
+		).allowed;
 
-	if (!hasAccess) {
-		return Result.error(
-			new CourseAccessDeniedError(
+		if (!hasAccess) {
+			throw new CourseAccessDeniedError(
 				`User ${user.id} does not have access to course ${courseId}`,
-			),
-		);
-	}
+			);
+		}
 
-	// // Transform course data to match the Course interface
-	// const courseData: Course = {
-	// 	id: course.id,
-	// 	title: course.title,
-	// 	slug: course.slug,
-	// 	description: course.description,
-	// 	status: course.status,
-	// 	createdBy: {
-	// 		id: course.createdBy.id,
-	// 		email: course.createdBy.email,
-	// 		firstName: course.createdBy.firstName,
-	// 		lastName: course.createdBy.lastName,
-	// 		avatar: course.createdBy.avatar
-	// 			? {
-	// 					id: course.createdBy.avatar.id,
-	// 					filename: course.createdBy.avatar.filename,
-	// 				}
-	// 			: null,
-	// 	},
-	// 	category: course.category ?? null,
-	// 	thumbnail: course.thumbnail
-	// 		? typeof course.thumbnail === "object"
-	// 			? {
-	// 					id: course.thumbnail.id,
-	// 					filename: course.thumbnail.filename,
-	// 				}
-	// 			: course.thumbnail
-	// 		: null,
-	// 	updatedAt: course.updatedAt,
-	// 	createdAt: course.createdAt,
-	// 	groups: course.groups.map((g) => ({
-	// 		id: g.id,
-	// 		name: g.name,
-	// 		path: g.path,
-	// 		description: g.description,
-	// 		color: g.color,
-	// 		parent: g.parent?.id,
-	// 	})),
-	// 	enrollments: course.enrollments.map(
-	// 		(e) =>
-	// 			({
-	// 				name: `${e.user.firstName} ${e.user.lastName}`.trim(),
-	// 				id: e.id,
-	// 				userId: e.user.id,
-	// 				email: e.user.email,
-	// 				role: e.role,
-	// 				status: e.status,
-	// 				avatar: e.user.avatar ?? null,
-	// 				enrolledAt: e.enrolledAt,
-	// 				completedAt: e.completedAt,
-	// 				groups: e.groups.map((g) => ({
-	// 					id: g.id,
-	// 					name: g.name,
-	// 					path: g.path,
-	// 					description: g.description,
-	// 					color: g.color,
-	// 					parent: g.parent,
-	// 				})),
-	// 			}) satisfies Enrollment,
-	// 	),
-	// 	moduleLinks: [],
-	// };
-
-	// console.log("courseData", courseData);
-
-	// Fetch existing course-activity-module links and populate moduleLinks
-	const linksResult = await tryFindLinksByCourse({
-		payload,
-		courseId,
-		req,
-	});
-	const moduleLinks = linksResult.ok
-		? linksResult.value.map((link) => ({
-				id: link.id,
-				activityModule: {
-					id: link.activityModule.id,
-					title: link.activityModule.title || "",
-					description: link.activityModule.description || "",
-					type: link.activityModule.type as
-						| "page"
-						| "whiteboard"
-						| "assignment"
-						| "quiz"
-						| "discussion",
-					status: link.activityModule.status as
-						| "draft"
-						| "published"
-						| "archived",
-					createdBy: {
-						id: link.activityModule.createdBy.id,
-						email: link.activityModule.createdBy.email,
-						firstName: link.activityModule.createdBy.firstName,
-						lastName: link.activityModule.createdBy.lastName,
-						avatar: link.activityModule.createdBy.avatar ?? null,
+		// Fetch existing course-activity-module links and populate moduleLinks
+		const linksResult = await tryFindLinksByCourse({
+			payload,
+			courseId,
+			req,
+		});
+		const moduleLinks = linksResult.ok
+			? linksResult.value.map((link) => ({
+					id: link.id,
+					activityModule: {
+						id: link.activityModule.id,
+						title: link.activityModule.title || "",
+						description: link.activityModule.description || "",
+						type: link.activityModule.type as
+							| "page"
+							| "whiteboard"
+							| "assignment"
+							| "quiz"
+							| "discussion",
+						status: link.activityModule.status as
+							| "draft"
+							| "published"
+							| "archived",
+						createdBy: {
+							id: link.activityModule.createdBy.id,
+							email: link.activityModule.createdBy.email,
+							firstName: link.activityModule.createdBy.firstName,
+							lastName: link.activityModule.createdBy.lastName,
+							avatar: link.activityModule.createdBy.avatar ?? null,
+						},
+						updatedAt: link.activityModule.updatedAt,
+						createdAt: link.activityModule.createdAt,
 					},
-					updatedAt: link.activityModule.updatedAt,
-					createdAt: link.activityModule.createdAt,
-				},
-				settings: link.settings,
-				createdAt: link.createdAt,
-				updatedAt: link.updatedAt,
-			}))
-		: [];
+					settings: link.settings,
+					createdAt: link.createdAt,
+					updatedAt: link.updatedAt,
+				}))
+			: [];
 
-	// Update course with moduleLinks
-	const courseWithModuleLinks = {
-		...course,
-		moduleLinks,
-	};
+		// Update course with moduleLinks
+		const courseWithModuleLinks = {
+			...course,
+			moduleLinks,
+		};
 
-	// Fetch course structure
-	const courseStructureResult = await tryGetCourseStructure({
-		payload,
-		courseId: course.id,
-		req,
-		overrideAccess: false,
-	});
-
-	if (!courseStructureResult.ok) return courseStructureResult;
-
-	const courseStructure = courseStructureResult.value;
-
-	// Generate tree representations
-	const courseStructureTree = generateCourseStructureTree(
-		courseStructure,
-		course.title,
-	);
-	const courseStructureTreeSimple = generateSimpleCourseStructureTree(
-		courseStructure,
-		course.title,
-	);
-
-	// Fetch gradebook data
-	const gradebookResult = await tryGetGradebookByCourseWithDetails({
-		payload,
-		courseId,
-		req,
-	});
-
-	if (!gradebookResult.ok) return gradebookResult;
-
-	// let gradebookData: GradebookData | null = null;
-	// let gradebookJsonData: GradebookJsonRepresentation | null = null;
-	// let gradebookYamlData: string | null = null;
-	// let gradebookMarkdownData: string | null = null;
-	// let gradebookSetupForUIData: GradebookSetupForUI | null = null;
-	// let flattenedCategoriesData: FlattenedCategory[] = [];
-
-	const gradebook = gradebookResult.value;
-
-	// Fetch all gradebook representations in a single call (more efficient)
-	const allRepresentationsResult = await tryGetGradebookAllRepresentations({
-		payload,
-		courseId,
-		req,
-		overrideAccess: false,
-	});
-
-	if (!allRepresentationsResult.ok) return allRepresentationsResult;
-
-	const allReps = allRepresentationsResult.value;
-	const gradebookJsonData = allReps.json;
-	const gradebookYamlData = allReps.yaml;
-	const gradebookMarkdownData = allReps.markdown;
-	const gradebookSetupForUIData = allReps.ui;
-
-	// Flatten categories from gradebook setup
-	const flattenedCategoriesData = flattenGradebookCategories(
-		gradebookSetupForUIData.gradebook_setup.items,
-	);
-
-	if (!gradebookSetupForUIData) {
-		return Result.error(
-			new UnknownError("Failed to get gradebook setup for UI"),
+		// Fetch course structure
+		const [courseStructure, gradebook, allReps] = await Promise.all([
+			tryGetCourseStructure({
+				payload,
+				courseId: course.id,
+				req,
+				overrideAccess: false,
+			}).then((r) => r.getOrThrow()),
+			tryGetGradebookByCourseWithDetails({
+				payload,
+				courseId,
+				req,
+			}).then((r) => r.getOrThrow()),
+			tryGetGradebookAllRepresentations({
+				payload,
+				courseId,
+				req,
+				overrideAccess: false,
+			}).then((r) => r.getOrThrow()),
+		]);
+		const courseStructureTree = generateCourseStructureTree(
+			courseStructure,
+			course.title,
 		);
-	}
+		const courseStructureTreeSimple = generateSimpleCourseStructureTree(
+			courseStructure,
+			course.title,
+		);
 
-	return Result.ok({
-		course: courseWithModuleLinks,
-		courseId: course.id,
-		courseStructure,
-		courseStructureTree,
-		courseStructureTreeSimple,
-		gradebook,
-		gradebookJson: gradebookJsonData,
-		gradebookYaml: gradebookYamlData,
-		gradebookMarkdown: gradebookMarkdownData,
-		gradebookSetupForUI: gradebookSetupForUIData,
-		flattenedCategories: flattenedCategoriesData,
-	});
-};
+		// Flatten categories from gradebook setup
+		const flattenedCategoriesData = flattenGradebookCategories(
+			allReps.ui.gradebook_setup.items,
+		);
+
+		return {
+			course: courseWithModuleLinks,
+			courseId: course.id,
+			courseStructure,
+			courseStructureTree,
+			courseStructureTreeSimple,
+			gradebook,
+			gradebookJson: allReps.json,
+			gradebookYaml: allReps.yaml,
+			gradebookMarkdown: allReps.markdown,
+			gradebookSetupForUI: allReps.ui,
+			flattenedCategories: flattenedCategoriesData,
+		};
+	},
+	(error) => {
+		return (
+			transformError(error) ??
+			new UnknownError("Failed to get course context", {
+				cause: error,
+			})
+		);
+	},
+);
 
 /**
  * Flattens the gradebook category structure recursively to get all categories

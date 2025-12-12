@@ -130,7 +130,7 @@ export const createMentionSuggestion = (
 			onExit(props) {
 				// console.log("onExit: ", reactRenderer?.ref, props);
 				// console.log("selectedItem: ", reactRenderer?.ref?.selectedItem);
-				if (reactRenderer?.ref && reactRenderer.ref.selectedItem) {
+				if (reactRenderer?.ref?.selectedItem) {
 					reactRenderer.destroy();
 					reactRenderer.element.remove();
 				}

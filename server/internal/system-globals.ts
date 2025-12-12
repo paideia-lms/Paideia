@@ -18,85 +18,61 @@ export const tryGetSystemGlobals = Result.wrap(
 
 		// Fetch all globals in parallel
 		const [
-			maintenanceResult,
-			sitePoliciesResult,
-			appearanceResult,
-			analyticsResult,
+			maintenanceSettings,
+			sitePolicies,
+			appearanceSettings,
+			analyticsSettings,
 		] = await Promise.all([
 			tryGetMaintenanceSettings({
 				payload,
 				req,
 				overrideAccess,
+			}).getOrDefault({
+				maintenanceMode: false,
 			}),
 			tryGetSitePolicies({
 				payload,
 				req,
 				overrideAccess,
+			}).getOrDefault({
+				userMediaStorageTotal: null,
+				siteUploadLimit: null,
 			}),
 			tryGetAppearanceSettings({
 				payload,
 				req,
 				overrideAccess,
-			}),
+			})
+				.getOrDefault({
+					additionalCssStylesheets: undefined,
+					color: "blue",
+					radius: "sm",
+					logoLight: undefined,
+					logoDark: undefined,
+					compactLogoLight: undefined,
+					compactLogoDark: undefined,
+					faviconLight: undefined,
+					faviconDark: undefined,
+				})
+				.then((result) => {
+					// type narrowing
+					return {
+						...result,
+						additionalCssStylesheets: result.additionalCssStylesheets ?? [],
+					};
+				}),
 			tryGetAnalyticsSettings({
 				payload,
 				req,
 				overrideAccess,
-			}),
+			})
+				.getOrNull()
+				.then((result) => {
+					return {
+						additionalJsScripts: result?.additionalJsScripts ?? [],
+					};
+				}),
 		]);
-
-		// If any critical global fails, return defaults
-		const maintenanceSettings = maintenanceResult.ok
-			? maintenanceResult.value
-			: { maintenanceMode: false };
-
-		const sitePolicies = sitePoliciesResult.ok
-			? sitePoliciesResult.value
-			: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				};
-
-		const appearanceSettings = {
-			additionalCssStylesheets: appearanceResult.ok
-				? (appearanceResult.value.additionalCssStylesheets ?? []).map(
-						(stylesheet) => ({
-							id: stylesheet.id ?? 0,
-							url: stylesheet.url,
-						}),
-					)
-				: [],
-			color: appearanceResult.ok
-				? (appearanceResult.value.color ?? "blue")
-				: "blue",
-			radius: appearanceResult.ok
-				? (appearanceResult.value.radius ?? "sm")
-				: "sm",
-			logoLight: appearanceResult.ok
-				? appearanceResult.value.logoLight
-				: undefined,
-			logoDark: appearanceResult.ok
-				? appearanceResult.value.logoDark
-				: undefined,
-			compactLogoLight: appearanceResult.ok
-				? appearanceResult.value.compactLogoLight
-				: undefined,
-			compactLogoDark: appearanceResult.ok
-				? appearanceResult.value.compactLogoDark
-				: undefined,
-			faviconLight: appearanceResult.ok
-				? appearanceResult.value.faviconLight
-				: undefined,
-			faviconDark: appearanceResult.ok
-				? appearanceResult.value.faviconDark
-				: undefined,
-		};
-
-		const analyticsSettings = {
-			additionalJsScripts: analyticsResult.ok
-				? (analyticsResult.value.additionalJsScripts ?? [])
-				: [],
-		};
 
 		return {
 			maintenanceSettings,

@@ -66,6 +66,8 @@ each test files should only have one describe block. each test file related to d
 
 if you really want a completely isolated test, you should always create a new root describe block and its own beforeAll and AfterAll. beforeAll and AfterAll can have overrideAccess: true because they are not part of the test suite and are not affected by the test suite. in test case, we should try to provide the test user so that we can test the authentication unless otherwise specified.
 
+when we need to test result ok and then do type narrowing, we should use `expect(result.ok).toBe(true); if (!result.ok) {` pattern for early return so we don't need to have nested if statements. 
+
 ## error handling
 
 we **should not** use try catch, especially not in internal functions which we use typescript result, it will be confusing and hard to manage. we should use typescript result to handle the error, using `Result.wrap`. When a function return a result, function should be named with `try` prefix like `tryFunction` or `trySomething`.

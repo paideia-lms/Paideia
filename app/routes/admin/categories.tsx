@@ -71,7 +71,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Only admins can manage categories");
 	}
 
-	const treeResult = await tryGetCategoryTree({ payload });
+	const treeResult = await tryGetCategoryTree({
+		payload,
+		overrideAccess: true,
+	});
 	if (!treeResult.ok) {
 		throw new ForbiddenResponse("Failed to get categories");
 	}
@@ -81,6 +84,7 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const uncategorizedCountRes = await payload.count({
 		collection: "courses",
 		where: { category: { exists: false } },
+		overrideAccess: true,
 	});
 	const uncategorizedCount = uncategorizedCountRes.totalDocs;
 	// selected category details
@@ -98,16 +102,33 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	if (categoryIdParam) {
 		const idNum = Number(categoryIdParam);
 		if (!Number.isNaN(idNum)) {
-			const catRes = await tryFindCategoryById({ payload, categoryId: idNum });
+			const catRes = await tryFindCategoryById({
+				payload,
+				categoryId: idNum,
+				overrideAccess: true,
+			});
 			if (catRes.ok) {
 				const directCoursesCountRes = await payload.count({
 					collection: "courses",
 					where: { category: { equals: idNum } },
+					overrideAccess: true,
 				});
 				const [subRes, totalRes, ancestorsRes] = await Promise.all([
-					tryFindSubcategories({ payload, parentId: idNum }),
-					tryGetTotalNestedCoursesCount({ payload, categoryId: idNum }),
-					tryGetCategoryAncestors({ payload, categoryId: idNum }),
+					tryFindSubcategories({
+						payload,
+						parentId: idNum,
+						overrideAccess: true,
+					}),
+					tryGetTotalNestedCoursesCount({
+						payload,
+						categoryId: idNum,
+						overrideAccess: true,
+					}),
+					tryGetCategoryAncestors({
+						payload,
+						categoryId: idNum,
+						overrideAccess: true,
+					}),
 				]);
 				const parentField = catRes.value.parent;
 				selectedCategory = {
@@ -437,7 +458,7 @@ export default function AdminCategoriesPage({
 				{items.map((item) => {
 					const d = item.getItemData();
 					const isFolder = true;
-					const viewCoursesTo =
+					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
 								"?query=" +

@@ -1,5 +1,4 @@
 import type { CollectionConfig } from "payload";
-import { UnauthorizedError } from "~/utils/error";
 
 // Enrollments collection - links users to courses with specific roles
 export const Enrollments = {

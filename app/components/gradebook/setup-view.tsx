@@ -310,23 +310,21 @@ function GradebookItemRow({
 				</Table.Td>
 			</Table.Tr>
 			{/* Recursively render nested items */}
-			{hasNestedItems && isExpanded && (
-				<>
-					{item.grade_items?.map((nestedItem) => (
-						<GradebookItemRow
-							key={nestedItem.id}
-							item={nestedItem}
-							depth={depth + 1}
-							expandedCategoryIds={expandedCategoryIds}
-							onToggleCategory={onToggleCategory}
-							onDeleteItem={onDeleteItem}
-							onDeleteCategory={onDeleteCategory}
-							categoryOptions={categoryOptions}
-							courseId={courseId}
-						/>
-					))}
-				</>
-			)}
+			{hasNestedItems &&
+				isExpanded &&
+				item.grade_items?.map((nestedItem) => (
+					<GradebookItemRow
+						key={nestedItem.id}
+						item={nestedItem}
+						depth={depth + 1}
+						expandedCategoryIds={expandedCategoryIds}
+						onToggleCategory={onToggleCategory}
+						onDeleteItem={onDeleteItem}
+						onDeleteCategory={onDeleteCategory}
+						categoryOptions={categoryOptions}
+						courseId={courseId}
+					/>
+				))}
 		</>
 	);
 }

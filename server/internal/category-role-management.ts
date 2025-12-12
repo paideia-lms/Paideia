@@ -10,11 +10,7 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import type { CategoryRoleAssignment } from "../payload-types";
-import {
-	commitTransactionIfCreated,
-	handleTransactionId,
-	rollbackTransactionIfCreated,
-} from "./utils/handle-transaction-id";
+import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	interceptPayloadError,
 	stripDepth,
@@ -102,7 +98,16 @@ export interface CourseAccessInfo {
  */
 export const tryAssignCategoryRole = Result.wrap(
 	async (args: AssignCategoryRoleArgs) => {
-		const { payload, userId, categoryId, role, assignedBy, notes, req } = args;
+		const {
+			payload,
+			userId,
+			categoryId,
+			role,
+			assignedBy,
+			notes,
+			req,
+			overrideAccess = false,
+		} = args;
 
 		if (!userId) {
 			throw new InvalidArgumentError("User ID is required");
@@ -118,71 +123,83 @@ export const tryAssignCategoryRole = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
-			// Verify user exists
-			await payload.findByID({
-				collection: "users",
-				id: userId,
-				req: transactionInfo.reqWithTransaction,
-			});
-
-			// Verify category exists
-			await payload.findByID({
-				collection: CourseCategories.slug,
-				id: categoryId,
-				req: transactionInfo.reqWithTransaction,
-			});
-
+		return transactionInfo.tx(async (txInfo) => {
 			// Check if assignment already exists
-			const existing = await payload.find({
-				collection: CategoryRoleAssignments.slug,
-				where: {
-					and: [
-						{ user: { equals: userId } },
-						{ category: { equals: categoryId } },
-					],
-				},
-				req: transactionInfo.reqWithTransaction,
-			});
-
-			let assignment: CategoryRoleAssignment;
-
-			if (existing.docs.length > 0) {
-				// Update existing assignment
-				assignment = (await payload.update({
+			const existing = await payload
+				.find({
 					collection: CategoryRoleAssignments.slug,
-					id: existing.docs[0]!.id,
-					data: {
-						role,
-						assignedBy,
-						assignedAt: new Date().toISOString(),
-						notes,
+					where: {
+						and: [
+							{ user: { equals: userId } },
+							{ category: { equals: categoryId } },
+						],
 					},
-					req: transactionInfo.reqWithTransaction,
-				})) as CategoryRoleAssignment;
-			} else {
-				// Create new assignment
-				assignment = (await payload.create({
-					collection: CategoryRoleAssignments.slug,
-					data: {
-						user: userId,
-						category: categoryId,
-						role,
-						assignedBy,
-						assignedAt: new Date().toISOString(),
-						notes,
-					},
-					req: transactionInfo.reqWithTransaction,
-				})) as CategoryRoleAssignment;
-			}
+					req: txInfo.reqWithTransaction,
+					overrideAccess,
+					depth: 1,
+				})
+				.then(stripDepth<1, "find">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryAssignCategoryRole",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
-			await commitTransactionIfCreated(payload, transactionInfo);
+			const assignment =
+				existing.docs.length > 0
+					? await payload
+							.update({
+								collection: CategoryRoleAssignments.slug,
+								id: existing.docs[0]!.id,
+								data: {
+									role,
+									assignedBy,
+									assignedAt: new Date().toISOString(),
+									notes,
+								},
+								overrideAccess,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+							})
+							.then(stripDepth<1, "update">())
+							.catch((error) => {
+								interceptPayloadError({
+									error,
+									functionNamePrefix: "tryAssignCategoryRole",
+									args: { payload, req, overrideAccess },
+								});
+								throw error;
+							})
+					: await payload
+							.create({
+								collection: CategoryRoleAssignments.slug,
+								data: {
+									user: userId,
+									category: categoryId,
+									role,
+									assignedBy,
+									assignedAt: new Date().toISOString(),
+									notes,
+								},
+								overrideAccess,
+								depth: 1,
+								req: txInfo.reqWithTransaction,
+							})
+							.then(stripDepth<1, "create">())
+							.catch((error) => {
+								interceptPayloadError({
+									error,
+									functionNamePrefix: "tryAssignCategoryRole",
+									args: { payload, req, overrideAccess },
+								});
+								throw error;
+							});
 
 			return assignment;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -194,19 +211,11 @@ export const tryAssignCategoryRole = Result.wrap(
  */
 export const tryRevokeCategoryRole = Result.wrap(
 	async (args: RevokeCategoryRoleArgs) => {
-		const { payload, userId, categoryId, req } = args;
-
-		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
-		}
-
-		if (!categoryId) {
-			throw new InvalidArgumentError("Category ID is required");
-		}
+		const { payload, userId, categoryId, req, overrideAccess = false } = args;
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async (txInfo) => {
 			// Find the assignment
 			const assignments = await payload.find({
 				collection: CategoryRoleAssignments.slug,
@@ -216,7 +225,7 @@ export const tryRevokeCategoryRole = Result.wrap(
 						{ category: { equals: categoryId } },
 					],
 				},
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 			});
 
 			if (assignments.docs.length === 0) {
@@ -225,19 +234,26 @@ export const tryRevokeCategoryRole = Result.wrap(
 				);
 			}
 
-			const deleted = await payload.delete({
-				collection: CategoryRoleAssignments.slug,
-				id: assignments.docs[0]!.id,
-				req: transactionInfo.reqWithTransaction,
-			});
-
-			await commitTransactionIfCreated(payload, transactionInfo);
+			const deleted = await payload
+				.delete({
+					collection: CategoryRoleAssignments.slug,
+					id: assignments.docs[0]!.id,
+					req: txInfo.reqWithTransaction,
+					depth: 1,
+					overrideAccess,
+				})
+				.then(stripDepth<1, "delete">())
+				.catch((error) => {
+					interceptPayloadError({
+						error,
+						functionNamePrefix: "tryRevokeCategoryRole",
+						args: { payload, req, overrideAccess },
+					});
+					throw error;
+				});
 
 			return deleted;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??
@@ -261,23 +277,18 @@ export const tryUpdateCategoryRole = Result.wrap(
 
 		const transactionInfo = await handleTransactionId(payload, req);
 
-		try {
+		return transactionInfo.tx(async (txInfo) => {
 			const updated = (await payload.update({
 				collection: CategoryRoleAssignments.slug,
 				id: assignmentId,
 				data: {
 					role: newRole,
 				},
-				req: transactionInfo.reqWithTransaction,
+				req: txInfo.reqWithTransaction,
 			})) as CategoryRoleAssignment;
 
-			await commitTransactionIfCreated(payload, transactionInfo);
-
 			return updated;
-		} catch (error) {
-			await rollbackTransactionIfCreated(payload, transactionInfo);
-			throw error;
-		}
+		});
 	},
 	(error) =>
 		transformError(error) ??

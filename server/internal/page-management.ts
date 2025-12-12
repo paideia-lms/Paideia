@@ -1,6 +1,4 @@
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingPageError,
@@ -34,18 +32,7 @@ export interface GetPageByIdArgs extends BaseInternalFunctionArgs {
 
 export const tryCreatePage = Result.wrap(
 	async (args: CreatePageArgs) => {
-		const {
-			payload,
-			content,
-			userId,
-
-			req,
-			overrideAccess = false,
-		} = args;
-
-		if (!userId) {
-			throw new InvalidArgumentError("User ID is required");
-		}
+		const { payload, content, userId, req, overrideAccess = false } = args;
 
 		// Parse media from HTML content
 		const mediaParseResult = tryParseMediaFromHtml(content || "");
@@ -89,8 +76,8 @@ export const tryCreatePage = Result.wrap(
 				collection: "pages",
 				data: {
 					content: content || "",
+					contentMedia: mediaIds.length > 0 ? mediaIds : undefined,
 					createdBy: userId,
-					media: mediaIds.length > 0 ? mediaIds : undefined,
 				},
 				req,
 				overrideAccess,

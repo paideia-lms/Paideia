@@ -3,13 +3,7 @@ import { $ } from "bun";
 import { getPayload } from "payload";
 import type { TryResultValue } from "server/utils/type-narrowing";
 import sanitizedConfig from "../payload.config";
-import type { CreateActivityModuleArgs } from "./activity-module-management";
-import {
-	type CreateCourseActivityModuleLinkArgs,
-	tryCreateCourseActivityModuleLink,
-} from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
-import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
 import { tryCreateGradebookCategory } from "./gradebook-category-management";
 import {
@@ -332,12 +326,12 @@ describe("Gradebook Item Management", () => {
 		// Update the other item in the category to 40% to make total 100%
 		if (testItem2) {
 			const update2Result = await tryUpdateGradebookItem({
-			payload,
-			itemId: testItem2.id,
-			weight: 40,
-			req: undefined,
-			overrideAccess: true,
-		});
+				payload,
+				itemId: testItem2.id,
+				weight: 40,
+				req: undefined,
+				overrideAccess: true,
+			});
 			expect(update2Result.ok).toBe(true);
 		}
 	});
@@ -443,12 +437,12 @@ describe("Gradebook Item Management", () => {
 				payload,
 				courseId: testCourse.id,
 				categoryId: testCategory.id,
-			name: "Test Item 2",
-			weight: null, // Auto-weighted to avoid validation issues
-			sortOrder: 1,
-			req: undefined,
-			overrideAccess: true,
-		});
+				name: "Test Item 2",
+				weight: null, // Auto-weighted to avoid validation issues
+				sortOrder: 1,
+				req: undefined,
+				overrideAccess: true,
+			});
 
 			expect(item2Result.ok).toBe(true);
 			if (!item2Result.ok) {
@@ -578,11 +572,11 @@ describe("Gradebook Item Management", () => {
 				// Access userGrades - it should be an array after transformation
 				const userGrades = itemWithGrade.userGrades;
 				expect(userGrades).toBeDefined();
-				
+
 				// Check if userGrades is an array (after transformation in tryGetItemsWithUserGrades)
 				// It might be the Payload response type with docs property, or already transformed to array
-				
-				expect(userGrades?.length ?? 0 ).toBeGreaterThan(0);
+
+				expect(userGrades?.length ?? 0).toBeGreaterThan(0);
 			}
 		}
 	});
@@ -686,12 +680,12 @@ describe("Gradebook Item Management", () => {
 	it("should handle extra credit items in final grade calculation", async () => {
 		// This test would require user grades to be created and calculated
 		// For now, we'll just verify the items exist
-		const allItems = await tryGetGradebookItemsInOrder(
-			{payload,
+		const allItems = await tryGetGradebookItemsInOrder({
+			payload,
 			gradebookId: testGradebook.id,
 			req: undefined,
-			overrideAccess: true,}
-		);
+			overrideAccess: true,
+		});
 		expect(allItems.ok).toBe(true);
 
 		if (allItems.ok) {

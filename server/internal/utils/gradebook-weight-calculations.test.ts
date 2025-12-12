@@ -581,7 +581,7 @@ describe("Gradebook Weight Calculations", () => {
 				},
 			];
 
-			const totals = calculateOverallWeights(items);
+			const _totals = calculateOverallWeights(items);
 
 			// Note: The function is processing recursively, so when it processes items
 			// within category 1, it searches for the parent in the root `items` array.

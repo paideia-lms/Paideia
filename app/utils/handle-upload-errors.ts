@@ -4,6 +4,7 @@ import {
 } from "@remix-run/form-data-parser";
 import prettyBytes from "pretty-bytes";
 import { badRequest } from "./responses";
+import { ZodError, z } from "zod";
 
 /**
  * Handles errors related to file uploads and returns appropriate error responses.
@@ -27,6 +28,12 @@ export function handleUploadError(
 	if (error instanceof MaxFilesExceededError) {
 		return badRequest({
 			error: error.message,
+		});
+	}
+
+	if (error instanceof ZodError) {
+		return badRequest({
+			error: z.prettifyError(error),
 		});
 	}
 

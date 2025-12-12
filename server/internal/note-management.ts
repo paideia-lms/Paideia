@@ -1,15 +1,14 @@
 import dayjs from "dayjs";
 import { Notes } from "server/collections";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import { transformError, UnknownError } from "~/utils/error";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
 } from "./utils/internal-function-utils";
 import { handleTransactionId } from "./utils/handle-transaction-id";
-import { tryParseMediaFromHtml } from "./utils/parse-media-from-html";
+import { tryExtractMediaIdsFromRichText } from "server/collections/utils/rich-text-content";
 
 export interface CreateNoteArgs extends BaseInternalFunctionArgs {
 	data: {
@@ -70,43 +69,12 @@ export const tryCreateNote = Result.wrap(
 		const transactionInfo = await handleTransactionId(payload, req);
 
 		return await transactionInfo.tx(async (txInfo) => {
-			// Parse media from HTML content
-			const mediaParseResult = tryParseMediaFromHtml(
-				content.trim(),
-			).getOrThrow();
-
-			const { ids: parsedIds, filenames } = mediaParseResult;
-
-			// Resolve filenames to IDs in a single query
-			let resolvedIds: number[] = [];
-			if (filenames.length > 0) {
-				try {
-					const mediaResult = await payload
-						.find({
-							collection: "media",
-							where: {
-								filename: {
-									in: filenames,
-								},
-							},
-							limit: filenames.length,
-							depth: 0,
-							pagination: false,
-							// ! this is a system request so should be safe
-							overrideAccess: true,
-							req: txInfo.reqWithTransaction,
-						})
-						.then(stripDepth<0, "find">());
-
-					resolvedIds = mediaResult.docs.map((doc) => doc.id);
-				} catch (error) {
-					// If media lookup fails, log warning but continue
-					console.warn(`Failed to resolve media filenames to IDs:`, error);
-				}
-			}
-
-			// Combine parsed IDs and resolved IDs
-			const mediaIds = [...parsedIds, ...resolvedIds];
+			// Extract media IDs from HTML content
+			const mediaIds = await tryExtractMediaIdsFromRichText({
+				payload,
+				htmlContent: [content.trim()],
+				req: txInfo.reqWithTransaction,
+			}).getOrThrow();
 
 			// Create note with access control
 			const newNote = await payload
@@ -116,7 +84,7 @@ export const tryCreateNote = Result.wrap(
 						content: content.trim(),
 						createdBy,
 						isPublic,
-						media: mediaIds.length > 0 ? mediaIds : undefined,
+						contentMedia: mediaIds.length > 0 ? mediaIds : undefined,
 					},
 					req: txInfo.reqWithTransaction,
 					overrideAccess,
@@ -145,63 +113,19 @@ export const tryUpdateNote = Result.wrap(
 		const transactionInfo = await handleTransactionId(payload, req);
 
 		return await transactionInfo.tx(async (txInfo) => {
-			// Validate content if provided
-			if (data.content !== undefined) {
-				if (!data.content || data.content.trim().length === 0) {
-					throw new Error("Note content cannot be empty");
-				}
-			}
-
-			const updateData: Record<
-				string,
-				string | boolean | number[] | undefined
-			> = {};
-			if (data.content !== undefined) {
-				updateData.content = data.content.trim();
-
-				// Parse media from updated HTML content
-				const mediaParseResult = tryParseMediaFromHtml(
-					data.content.trim(),
-				).getOrThrow();
-
-				const { ids: parsedIds, filenames } = mediaParseResult;
-
-				// Resolve filenames to IDs in a single query
-				let resolvedIds: number[] = [];
-				if (filenames.length > 0) {
-					const mediaResult = await payload
-						.find({
-							collection: "media",
-							where: {
-								filename: {
-									in: filenames,
-								},
-							},
-							limit: filenames.length,
-							depth: 0,
-							pagination: false,
-							// ! this is a system request so should be safe
-							overrideAccess: true,
-							req: txInfo.reqWithTransaction,
-						})
-						.then(stripDepth<0, "find">());
-
-					resolvedIds = mediaResult.docs.map((doc) => doc.id);
-				}
-
-				// Combine parsed IDs and resolved IDs
-				const mediaIds = [...parsedIds, ...resolvedIds];
-				updateData.media = mediaIds.length > 0 ? mediaIds : [];
-			}
-			if (data.isPublic !== undefined) {
-				updateData.isPublic = data.isPublic;
-			}
-
 			const updatedNote = await payload
 				.update({
 					collection: "notes",
 					id: noteId,
-					data: updateData,
+					data: {
+						...data,
+						content: data.content?.trim(),
+						contentMedia: await tryExtractMediaIdsFromRichText({
+							payload,
+							htmlContent: [data.content].filter(Boolean),
+							req: txInfo.reqWithTransaction,
+						}).getOrThrow(),
+					},
 					req: txInfo.reqWithTransaction,
 					overrideAccess,
 					depth: 0,

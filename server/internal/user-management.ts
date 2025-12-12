@@ -1,5 +1,4 @@
-import type { PayloadRequest, Where } from "payload";
-import { getAccessResults } from "payload";
+import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";
@@ -640,6 +639,33 @@ export const tryHandleImpersonation = Result.wrap(
 	(error) =>
 		transformError(error) ??
 		new UnknownError("Failed to handle impersonation", {
+			cause: error,
+		}),
+);
+
+export interface GetUserCountArgs extends BaseInternalFunctionArgs {}
+
+/**
+ * Gets the total count of users in the database
+ * When user is provided, access control is enforced based on that user
+ * When overrideAccess is true, bypasses all access control
+ * @returns Promise<number> - number of users in the database
+ */
+export const tryGetUserCount = Result.wrap(
+	async (args: GetUserCountArgs) => {
+		const { payload, req, overrideAccess = false } = args;
+
+		const users = await payload.find({
+			collection: "users",
+			req,
+			overrideAccess,
+		});
+
+		return users.docs.length;
+	},
+	(error) =>
+		transformError(error) ??
+		new UnknownError("Failed to get user count", {
 			cause: error,
 		}),
 );

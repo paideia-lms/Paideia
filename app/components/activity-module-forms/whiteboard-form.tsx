@@ -89,7 +89,7 @@ export function WhiteboardForm({
 	const saveSnapshot = useDebouncedCallback(
 		(
 			elements: readonly OrderedExcalidrawElement[],
-			appState: AppState,
+			_appState: AppState,
 			files: BinaryFiles,
 		) => {
 			const data: ExcalidrawInitialDataState = {

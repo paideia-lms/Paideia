@@ -23,7 +23,7 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { userContextKey } from "server/contexts/user-context";
 import { canSeeCourseBackup } from "server/utils/permissions";
-import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.backup";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {

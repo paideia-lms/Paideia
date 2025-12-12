@@ -1,11 +1,9 @@
-import type { TypedUser } from "payload";
 import { AssignmentSubmissions } from "server/collections/assignment-submissions";
 import { GradebookCategories } from "server/collections/gradebook-categories";
 import { UserGrades } from "server/collections/user-grades";
 import { Users } from "server/collections/users";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	DuplicateUserGradeError,
 	EnrollmentCourseMismatchError,
@@ -1728,16 +1726,9 @@ export const tryGetAdjustedSingleUserGrades = Result.wrap(
 		const { enrollment, course_id, gradebook_id } = jsonData;
 
 		// Convert JSON to YAML using Bun.YAML.stringify
-		let yamlString: string;
-		try {
-			yamlString = Bun.YAML?.stringify(jsonData, null, 2);
-			if (!yamlString) {
-				throw new Error("Bun.YAML is not available");
-			}
-		} catch (error) {
-			throw new Error(
-				`Failed to convert JSON to YAML: ${error instanceof Error ? error.message : String(error)}`,
-			);
+		const yamlString = Bun.YAML?.stringify(jsonData, null, 2);
+		if (!yamlString) {
+			throw new UnknownError("Bun.YAML is not available");
 		}
 
 		// Get course information for markdown

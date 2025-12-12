@@ -289,11 +289,7 @@ describe("Course Category Management Functions", () => {
 
 		expect(updateResult.ok).toBe(true);
 		if (updateResult.ok) {
-			expect(
-				typeof updateResult.value.parent === "number"
-					? updateResult.value.parent
-					: updateResult.value.parent?.id,
-			).toBe(parent2Result.value.id);
+			expect(updateResult.value.parent).toBe(parent2Result.value.id);
 		}
 	});
 

@@ -56,7 +56,6 @@ export function DiscussionThreadListView({
 				return b.upvotes - a.upvotes;
 			case "active":
 				return b.replyCount - a.replyCount;
-			case "recent":
 			default:
 				return (
 					new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()

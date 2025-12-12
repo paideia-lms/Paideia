@@ -142,7 +142,7 @@ docker run -d --name paideia -p 3000:3000 -p 3001:3001 --env-file .env paideia:l
 - [Payload CMS](https://payloadcms.com/) - Headless CMS
 - [Mantine](https://mantine.dev/) - UI components
 
-Development tools: Biome, Lefthook, Playwright
+Development tools: Biome, Lefthook
 
 ## Contributing
 

@@ -53,9 +53,14 @@ import { href, Link } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
-import { ForbiddenResponse } from "~/utils/responses";
+import {
+	ForbiddenResponse,
+	InternalServerErrorResponse,
+} from "~/utils/responses";
 import type { Route } from "./+types/index";
 import classes from "./clock-neon-theme.module.css";
+import { tryFindNotesByUser } from "server/internal/note-management";
+import { getTextContentFromHtmlServerFirstParagraph } from "app/utils/html-utils";
 
 // Utility function to format schedule string
 export function formatSchedule(schedule: string): string {
@@ -90,7 +95,7 @@ export function formatSchedule(schedule: string): string {
 }
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
-	const { payload, hints } = context.get(globalContextKey);
+	const { payload, hints, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const timeZone = hints.timeZone;
 
@@ -226,24 +231,24 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		},
 	];
 
-	// Mock recent notes
-	const recentNotes = [
-		{
-			id: 1,
-			title: "Week 3: SQL Injection Attacks",
-			createdAt: dayjs().subtract(1, "day").toISOString(),
-		},
-		{
-			id: 2,
-			title: "Typography Notes",
-			createdAt: dayjs().subtract(3, "days").toISOString(),
-		},
-		{
-			id: 3,
-			title: "NoSQL vs SQL Comparison",
-			createdAt: dayjs().subtract(5, "days").toISOString(),
-		},
-	];
+	const recentNotes = await tryFindNotesByUser({
+		payload,
+		userId: currentUser.id,
+		limit: 3,
+		req: payloadRequest,
+	})
+		.getOrElse((_error) => {
+			throw new InternalServerErrorResponse("Failed to get recent notes");
+		})
+		.then((notes) => {
+			return notes.map((note) => {
+				return {
+					id: note.id,
+					title: getTextContentFromHtmlServerFirstParagraph(note.content),
+					createdAt: note.createdAt,
+				};
+			});
+		});
 
 	// Mock today's course meetings
 	const todaysCourseMeetings = [
@@ -274,31 +279,31 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		courseTitle: string;
 		courseId: number;
 	}> = [
-		{
-			id: 1,
-			title: "Databases CW1",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(10).minute(0).toISOString(),
-			courseTitle: "Databases",
-			courseId: 2,
-		},
-		{
-			id: 2,
-			title: "Functional Programming CW2",
-			type: "assignment" as const,
-			dueDate: dayjs().hour(16).minute(0).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-		{
-			id: 3,
-			title: "Week 1: Object Oriented vs Functional Programming",
-			type: "discussion" as const,
-			dueDate: dayjs().hour(23).minute(59).toISOString(),
-			courseTitle: "Functional Programming",
-			courseId: 3,
-		},
-	];
+			{
+				id: 1,
+				title: "Databases CW1",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(10).minute(0).toISOString(),
+				courseTitle: "Databases",
+				courseId: 2,
+			},
+			{
+				id: 2,
+				title: "Functional Programming CW2",
+				type: "assignment" as const,
+				dueDate: dayjs().hour(16).minute(0).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+			{
+				id: 3,
+				title: "Week 1: Object Oriented vs Functional Programming",
+				type: "discussion" as const,
+				dueDate: dayjs().hour(23).minute(59).toISOString(),
+				courseTitle: "Functional Programming",
+				courseId: 3,
+			},
+		];
 
 	// Mock program data
 	const mockProgram = {
@@ -1005,7 +1010,7 @@ function CurriculumMap({
 								<Stack gap={6}>
 									<Text size="xs" fw={600} c="dimmed">
 										{course.status === "completed" ||
-										course.status === "in progress"
+											course.status === "in progress"
 											? course.shortcode
 											: course.code}
 									</Text>
@@ -1125,19 +1130,19 @@ function AuthenticatedDashboard({
 	const neonClassNames =
 		colorScheme === "dark"
 			? {
-					glassWrapper: classes.glassWrapper,
-					clockFace: classes.clockFace,
-					hourTick: classes.hourTick,
-					minuteTick: classes.minuteTick,
-					primaryNumber: classes.primaryNumber,
-					secondaryNumber: classes.secondaryNumber,
-					hourHand: classes.hourHand,
-					minuteHand: classes.minuteHand,
-					secondHand: classes.secondHand,
-					secondHandCounterweight: classes.secondHandCounterweight,
-					centerDot: classes.centerDot,
-					centerBlur: classes.centerBlur,
-				}
+				glassWrapper: classes.glassWrapper,
+				clockFace: classes.clockFace,
+				hourTick: classes.hourTick,
+				minuteTick: classes.minuteTick,
+				primaryNumber: classes.primaryNumber,
+				secondaryNumber: classes.secondaryNumber,
+				hourHand: classes.hourHand,
+				minuteHand: classes.minuteHand,
+				secondHand: classes.secondHand,
+				secondHandCounterweight: classes.secondHandCounterweight,
+				centerDot: classes.centerDot,
+				centerBlur: classes.centerBlur,
+			}
 			: undefined;
 
 	// Sort today's schedule by start time, then end time
@@ -1519,7 +1524,16 @@ function AuthenticatedDashboard({
 									{recentNotes.length > 0 ? (
 										<Stack gap="xs">
 											{recentNotes.map((note) => (
-												<Paper key={note.id} withBorder p="sm" radius="md">
+												<Paper
+													key={note.id}
+													withBorder
+													p="sm"
+													radius="md"
+													component={Link}
+													to={href("/user/note/edit/:noteId", {
+														noteId: note.id.toString(),
+													})}
+												>
 													<Stack gap={4}>
 														<Text size="sm" fw={500} lineClamp={1}>
 															{note.title}
