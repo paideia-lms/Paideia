@@ -309,7 +309,7 @@ async function getMacOSInfo(): Promise<{
 
 		let productName: string | undefined;
 		let productVersion: string | undefined;
-		let productVersionExtra: string | undefined;
+		let _productVersionExtra: string | undefined;
 
 		for (const line of lines) {
 			const [key, value] = line.split(":");
@@ -325,7 +325,7 @@ async function getMacOSInfo(): Promise<{
 					productVersion = cleanValue;
 					break;
 				case "ProductVersionExtra":
-					productVersionExtra = cleanValue;
+					_productVersionExtra = cleanValue;
 					break;
 			}
 		}

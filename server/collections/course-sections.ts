@@ -1,6 +1,4 @@
 import type { CollectionConfig } from "payload";
-import type { CustomTFunction } from "server/utils/db/custom-translations";
-import { CustomForbidden } from "./utils/custom-forbidden";
 export const slug = "course-sections" as const;
 
 // Course Sections collection - hierarchical sections within courses

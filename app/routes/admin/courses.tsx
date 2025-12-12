@@ -140,7 +140,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 export default function CoursesPage({ loaderData }: Route.ComponentProps) {
 	const { courses, totalCourses, totalPages, currentPage, categories } =
 		loaderData;
-	const [page, setPage] = useQueryState(
+	const [_page, setPage] = useQueryState(
 		"page",
 		parseAsInteger.withDefault(1).withOptions({ shallow: false }),
 	);

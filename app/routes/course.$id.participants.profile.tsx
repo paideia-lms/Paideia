@@ -133,7 +133,6 @@ export default function CourseParticipantsProfilePage({
 
 	return (
 		<Stack gap="lg">
-			<pre>{JSON.stringify(course.enrollments, null, 2)}</pre>
 			<Paper withBorder shadow="sm" p="lg" radius="md">
 				<Stack gap="md">
 					<Title order={3}>User Profile</Title>

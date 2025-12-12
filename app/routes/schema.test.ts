@@ -1,8 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { inputSchema, descriptionImagePreviewSchema, descriptionImageSchema, InputSchema } from "./schema";
+import {
+	inputSchema,
+	descriptionImagePreviewSchema,
+	descriptionImageSchema,
+	type InputSchema,
+} from "./schema";
 
 describe("course.$id.settings inputSchema", () => {
-	test("descriptionImageSchema" , () => {
+	test("descriptionImageSchema", () => {
 		const schema = descriptionImageSchema;
 		const data = {
 			"description-image-1": new File([], "image.png"),
@@ -35,4 +40,3 @@ describe("course.$id.settings inputSchema", () => {
 		expect(result.success).toBe(true);
 	});
 });
-

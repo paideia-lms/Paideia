@@ -223,10 +223,10 @@ describe("MyFormData", () => {
 		const data = {};
 
 		const formData = new MyFormData(data);
-		
+
 		// Empty FormData should have a dummy field to prevent fetch errors
 		expect(formData.get("__empty__")).toBe("true");
-		
+
 		const result = formData.json();
 
 		// The dummy field should be filtered out in the result
@@ -236,7 +236,10 @@ describe("MyFormData", () => {
 
 	test("should handle complex nested objects", () => {
 		const data = {
-			users: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }],
+			users: [
+				{ id: 1, name: "Alice" },
+				{ id: 2, name: "Bob" },
+			],
 			settings: { theme: "dark", notifications: true },
 		};
 
@@ -547,4 +550,3 @@ describe("convertMyFormDataToObject", () => {
 		expect("__empty__" in result).toBe(false);
 	});
 });
-

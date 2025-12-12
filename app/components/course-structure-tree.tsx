@@ -24,7 +24,7 @@ import {
 	IconLibraryMinus,
 	IconLibraryPlus,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { href, Link } from "react-router";
 import type {
 	ActivityModuleSummary,
@@ -65,11 +65,7 @@ function convertCourseStructureToFlatData(
 			// If it exists, just add it to the parent's children if needed
 			if (parentId && parentId !== "root") {
 				const parentNode = flatData[parentId];
-				if (
-					parentNode &&
-					parentNode.children &&
-					!parentNode.children.includes(sectionId)
-				) {
+				if (parentNode?.children && !parentNode.children.includes(sectionId)) {
 					parentNode.children.push(sectionId);
 				}
 			}
@@ -88,11 +84,7 @@ function convertCourseStructureToFlatData(
 		// Add this section as a child to its parent
 		if (parentId) {
 			const parentNode = flatData[parentId];
-			if (
-				parentNode &&
-				parentNode.children &&
-				!parentNode.children.includes(sectionId)
-			) {
+			if (parentNode?.children && !parentNode.children.includes(sectionId)) {
 				parentNode.children.push(sectionId);
 			}
 		}
@@ -127,7 +119,7 @@ function convertCourseStructureToFlatData(
 		type: "section",
 		children: [],
 	};
-	flatData["root"] = rootNode;
+	flatData.root = rootNode;
 
 	// Process root sections
 	courseStructure.sections.forEach((section) => {
@@ -173,7 +165,7 @@ export function calculateMoveOperation(
 
 	const sourceItem = dragIds[0]!;
 
-	const isInTargetSection = getChildrenFn(targetId ?? "root").some(
+	const _isInTargetSection = getChildrenFn(targetId ?? "root").some(
 		(item) => item === sourceItem,
 	);
 
@@ -330,7 +322,7 @@ export function CourseStructureTree({
 				});
 				return;
 			}
-			const sourceItem = dragIds[0]; // Assuming single item move for now
+			const _sourceItem = dragIds[0]; // Assuming single item move for now
 			const targetId =
 				target.item.getId() === "root" ? null : target.item.getId();
 			const targetInsertionIndex =
@@ -372,7 +364,7 @@ export function CourseStructureTree({
 				targetId: targetIdNum,
 				location,
 			} = moveOperation;
-			const targetName =
+			const _targetName =
 				targetType === "section"
 					? flatData[`s${targetIdNum}`]?.name
 					: flatData[`m${targetIdNum}`]?.module?.title;

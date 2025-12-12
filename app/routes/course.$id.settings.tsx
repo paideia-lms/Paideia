@@ -44,7 +44,6 @@ import { convertMyFormDataToObject, MyFormData } from "~/utils/action-utils";
 import { isUndefined, omitBy } from "es-toolkit";
 import { z } from "zod";
 
-
 export const actionInputSchema = z.looseObject({
 	title: z.string().min(1, "Title is required").optional(),
 	slug: z
@@ -80,8 +79,6 @@ export const actionInputSchema = z.looseObject({
 			},
 		),
 });
-
-
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
@@ -143,8 +140,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-			filenameOrId: thumbnailFileNameOrId,
-		})
+				filenameOrId: thumbnailFileNameOrId,
+			})
 		: null;
 
 	return {
@@ -466,7 +463,10 @@ export default function EditCoursePage({ loaderData }: Route.ComponentProps) {
 		}
 
 		// Build the data object
-		const data: ActionData = omitBy(values, (value, key) => form.getInitialValues()[key] === value);
+		const data: ActionData = omitBy(
+			values,
+			(value, key) => form.getInitialValues()[key] === value,
+		);
 
 		await editCourse(course.id, data);
 	};

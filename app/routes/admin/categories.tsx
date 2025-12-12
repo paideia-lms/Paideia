@@ -458,7 +458,7 @@ export default function AdminCategoriesPage({
 				{items.map((item) => {
 					const d = item.getItemData();
 					const isFolder = true;
-					const viewCoursesTo =
+					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
 								"?query=" +

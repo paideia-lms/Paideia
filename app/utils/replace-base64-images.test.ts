@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../../server/payload.config";
 import { tryCreateUser } from "../../server/internal/user-management";
 import type { TryResultValue } from "../../server/utils/type-narrowing";
@@ -18,7 +18,8 @@ describe("replaceBase64ImagesWithMediaUrls", () => {
 		"data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/2wBDAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQH/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwA/8A8A";
 
 	test("should return content as-is when uploadedMedia is empty", () => {
-		const content = '<p>Some text <img src="data:image/png;base64,test123" /></p>';
+		const content =
+			'<p>Some text <img src="data:image/png;base64,test123" /></p>';
 		const formData = new FormData();
 
 		const result = replaceBase64ImagesWithMediaUrls(content, [], formData);
@@ -371,7 +372,9 @@ describe("replaceBase64MediaWithMediaUrlsV2", () => {
 	test("should process content with multiple base64 images", async () => {
 		// Create multiple base64 images
 		const fileBuffer1 = await Bun.file("fixture/gem.png").arrayBuffer();
-		const fileBuffer2 = await Bun.file("fixture/paideia-logo.png").arrayBuffer();
+		const fileBuffer2 = await Bun.file(
+			"fixture/paideia-logo.png",
+		).arrayBuffer();
 		const base64Image1 = `data:image/png;base64,${Buffer.from(fileBuffer1).toString("base64")}`;
 		const base64Image2 = `data:image/png;base64,${Buffer.from(fileBuffer2).toString("base64")}`;
 
@@ -481,7 +484,8 @@ describe("replaceBase64MediaWithMediaUrlsV2", () => {
 
 	test("should handle different mime types", async () => {
 		// Create a simple base64 image (1x1 pixel PNG)
-		const tinyPngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+		const tinyPngBase64 =
+			"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 		const base64Image = `data:image/png;base64,${tinyPngBase64}`;
 		const content = `<p>Test with PNG image</p><img src="${base64Image}" alt="PNG image" />`;
 
@@ -543,4 +547,3 @@ describe("replaceBase64MediaWithMediaUrlsV2", () => {
 		expect(result.processedContent).toContain("/api/media/file/");
 	});
 });
-

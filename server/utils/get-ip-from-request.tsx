@@ -23,6 +23,6 @@ export const getIpFromRequest = (req: Request) => {
 		headers["x-cluster-client-ip"] ||
 		headers["x-forwarded"] ||
 		headers["forwarded-for"] ||
-		headers["forwarded"];
+		headers.forwarded;
 	return ip as string | undefined;
 };

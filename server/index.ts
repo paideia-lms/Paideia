@@ -147,6 +147,8 @@ async function startServer() {
 									additionalJsScripts: [],
 								},
 							},
+							// ! for now the payload request does not exist because it only exists after the user middleware is passed. we use a temp value here
+							payloadRequest: {},
 							pageInfo: {
 								isInAdminLayout: false,
 								isMyCourses: false,

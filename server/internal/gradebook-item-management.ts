@@ -1,8 +1,6 @@
-import type { Payload, PayloadRequest } from "payload";
 import { GradebookItems } from "server/collections/gradebook-items";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	GradebookItemNotFoundError,
 	InvalidGradeValueError,
@@ -11,12 +9,10 @@ import {
 	UnknownError,
 	WeightExceedsLimitError,
 } from "~/utils/error";
-import type { Enrollment, GradebookItem, UserGrade } from "../payload-types";
 import { tryGetGradebookAllRepresentations } from "./gradebook-management";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
 	type BaseInternalFunctionArgs,
-	Depth,
 	interceptPayloadError,
 	stripDepth,
 } from "./utils/internal-function-utils";

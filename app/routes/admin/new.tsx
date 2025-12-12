@@ -25,7 +25,6 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryCreateUser } from "server/internal/user-management";
 import {
-	commitTransactionIfCreated,
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";

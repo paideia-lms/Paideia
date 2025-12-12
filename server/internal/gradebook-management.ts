@@ -1,14 +1,12 @@
 import { GradebookCategories, Gradebooks } from "server/payload.config";
-import { assertZodInternal, MOCK_INFINITY } from "server/utils/type-narrowing";
+import { MOCK_INFINITY } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import { z } from "zod";
 import {
 	DuplicateGradebookError,
 	GradebookNotFoundError,
 	transformError,
 	UnknownError,
 } from "~/utils/error";
-import type { Gradebook } from "../payload-types";
 import type { CategoryData, ItemData } from "./utils/build-gradebook-structure";
 import { buildCategoryStructure } from "./utils/build-gradebook-structure";
 import {

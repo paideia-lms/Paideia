@@ -7,11 +7,8 @@
 import { createContext } from "react-router";
 import { tryFindLinksByCourse } from "server/internal/course-activity-module-link-management";
 import { tryFindCourseById } from "server/internal/course-management";
-import type { CourseStructure } from "server/internal/course-section-management";
 import { tryGetCourseStructure } from "server/internal/course-section-management";
 import {
-	type GradebookJsonRepresentation,
-	type GradebookSetupForUI,
 	type GradebookSetupItemWithCalculations,
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
@@ -20,15 +17,9 @@ import { canAccessCourse } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
-	CourseStructureNotFoundError,
 	InvalidArgumentError,
 	UnknownError,
 } from "~/utils/error";
-import type {
-	Gradebook,
-	GradebookCategory,
-	GradebookItem,
-} from "../payload-types";
 import {
 	generateCourseStructureTree,
 	generateSimpleCourseStructureTree,

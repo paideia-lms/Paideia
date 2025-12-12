@@ -1,5 +1,4 @@
-import type { PayloadRequest, Where } from "payload";
-import { getAccessResults } from "payload";
+import type { Where } from "payload";
 import searchQueryParser from "search-query-parser";
 import { Result } from "typescript-result";
 import { transformError, UnknownError } from "~/utils/error";

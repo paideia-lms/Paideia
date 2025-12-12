@@ -1,6 +1,5 @@
 import {
 	Button,
-	Checkbox,
 	Input,
 	NumberInput,
 	Stack,
@@ -127,7 +126,7 @@ function InstructionsEditor({
 	);
 }
 
-function MinimumRepliesInput({
+function _MinimumRepliesInput({
 	form,
 }: {
 	form: UseFormReturnType<DiscussionModuleFormValues>;

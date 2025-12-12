@@ -8,7 +8,6 @@ import {
 import type { CourseCategory } from "../payload-types";
 import { handleTransactionId } from "./utils/handle-transaction-id";
 import {
-	Depth,
 	interceptPayloadError,
 	stripDepth,
 	type BaseInternalFunctionArgs,

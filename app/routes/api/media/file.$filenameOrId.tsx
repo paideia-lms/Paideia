@@ -6,7 +6,7 @@ import {
 } from "server/internal/media-management";
 import type { Route } from "./+types/file.$filenameOrId";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { badRequest, notFound, ok, partialContent } from "app/utils/responses";
+import { badRequest, notFound } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,

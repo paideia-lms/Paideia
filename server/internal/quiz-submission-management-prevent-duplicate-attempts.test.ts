@@ -1,15 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
-import {
-	type CreateQuizModuleArgs,
-	tryCreateQuizModule,
-} from "./activity-module-management";
-import {
-	type CreateCourseActivityModuleLinkArgs,
-	tryCreateCourseActivityModuleLink,
-} from "./course-activity-module-link-management";
+import { tryCreateQuizModule } from "./activity-module-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";
@@ -123,7 +117,7 @@ describe("Quiz Attempt Management - Prevent Duplicate Attempts", () => {
 					],
 				},
 			],
-		})
+		});
 
 		if (!activityModuleResult.ok) {
 			throw new Error("Test Error: Failed to create test activity module");

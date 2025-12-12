@@ -1011,7 +1011,6 @@ export const RichTextEditor = forwardRef<
 									reader.onload = () => {
 										const id = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
 										const preview = reader.result as string;
-										console.log(`preview:`, preview);
 										const imageFile = { id, file, preview };
 
 										handleImageAdd(imageFile);

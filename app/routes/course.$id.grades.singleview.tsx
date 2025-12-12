@@ -447,20 +447,18 @@ function GradeItemRow({
 				</Table.Td>
 			</Table.Tr>
 			{/* Recursively render nested items */}
-			{hasNestedItems && isExpanded && (
-				<>
-					{item.grade_items?.map((nestedItem) => (
-						<GradeItemRow
-							key={nestedItem.id}
-							item={nestedItem}
-							depth={depth + 1}
-							expandedCategoryIds={expandedCategoryIds}
-							onToggleCategory={onToggleCategory}
-							timeZone={timeZone}
-						/>
-					))}
-				</>
-			)}
+			{hasNestedItems &&
+				isExpanded &&
+				item.grade_items?.map((nestedItem) => (
+					<GradeItemRow
+						key={nestedItem.id}
+						item={nestedItem}
+						depth={depth + 1}
+						expandedCategoryIds={expandedCategoryIds}
+						onToggleCategory={onToggleCategory}
+						timeZone={timeZone}
+					/>
+				))}
 		</>
 	);
 }

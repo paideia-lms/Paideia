@@ -18,10 +18,8 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	type CreateAssignmentModuleArgs,
 	type CreateDiscussionModuleArgs,
-	type CreateFileModuleArgs,
 	type CreatePageModuleArgs,
 	type CreateQuizModuleArgs,
-	type CreateWhiteboardModuleArgs,
 	tryCreateAssignmentModule,
 	tryCreateDiscussionModule,
 	tryCreateFileModule,
@@ -59,7 +57,6 @@ import {
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { unary } from "node_modules/es-toolkit/dist/index.mjs";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -250,7 +247,8 @@ const createFileAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } =
+		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -273,10 +271,7 @@ const createFileAction = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Parse form data with media upload handler

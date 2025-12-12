@@ -18,7 +18,7 @@ describe("Page Management Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
 	let testUser: TryResultValue<typeof tryCreateUser>;
 	let testMediaId: number;
-	let testMediaFilename: string;
+	let _testMediaFilename: string;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -62,7 +62,7 @@ describe("Page Management Functions", () => {
 		}
 
 		testMediaId = createMediaResult.value.media.id;
-		testMediaFilename = createMediaResult.value.media.filename ?? "";
+		_testMediaFilename = createMediaResult.value.media.filename ?? "";
 	});
 
 	afterAll(async () => {

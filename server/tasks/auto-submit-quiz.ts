@@ -1,5 +1,4 @@
 import type { TaskConfig } from "payload";
-import { NonExistingQuizSubmissionError } from "~/utils/error";
 import { trySubmitQuiz } from "../internal/quiz-submission-management";
 
 /**

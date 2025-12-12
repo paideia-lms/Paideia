@@ -12,4 +12,13 @@ export const getTextContentFromHtmlServer = serverOnly$(
 		const text = $("body").text().trim().replace(/\s+/g, " ");
 		return text;
 	},
-);
+)!;
+
+// get text content of the first paragraph of the html
+export const getTextContentFromHtmlServerFirstParagraph = serverOnly$(
+	(html: string): string => {
+		const $ = cheerio.load(html);
+		const text = $("body p").first().text().trim().replace(/\s+/g, " ");
+		return text;
+	},
+)!;

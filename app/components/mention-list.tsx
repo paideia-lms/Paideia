@@ -1,5 +1,4 @@
 import {
-	Button,
 	Paper,
 	Stack,
 	Text,

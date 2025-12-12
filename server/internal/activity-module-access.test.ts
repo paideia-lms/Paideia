@@ -685,7 +685,6 @@ describe("Activity Module Access Control", () => {
 		}
 	});
 
-
 	test("should grant access to previous owner after ownership transfer", async () => {
 		const user1 = await getAuthUser(user1Token);
 
@@ -743,8 +742,6 @@ describe("Activity Module Access Control", () => {
 			expect(error).toBeDefined();
 		}
 	});
-
-
 
 	test("should allow admin to access any activity module", async () => {
 		const user1 = await getAuthUser(user1Token);

@@ -4,7 +4,7 @@ import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import { tryFindUserById } from "server/internal/user-management";
 import type { Route } from "./+types/user.$id.avatar";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { badRequest, notFound, ok, partialContent } from "app/utils/responses";
+import { badRequest, notFound } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
 	parseRangeHeader,

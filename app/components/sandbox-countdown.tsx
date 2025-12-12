@@ -8,7 +8,7 @@ interface SandboxCountdownProps {
 
 export function SandboxCountdown({ nextResetTime }: SandboxCountdownProps) {
 	const calculateTimeLeft = (): number => {
-		const now = new Date().getTime();
+		const now = Date.now();
 		const resetTime = new Date(nextResetTime).getTime();
 		const difference = resetTime - now;
 		return Math.max(0, Math.floor(difference / 1000)); // Return seconds, ensure non-negative

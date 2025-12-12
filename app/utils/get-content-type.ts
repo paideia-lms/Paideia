@@ -59,7 +59,7 @@ export const getDataAndContentTypeFromRequest = async (request: Request) => {
 
 export function convertFormDataToObject(formData: FormData) {
 	const f = Object.fromEntries(formData);
-	const data = mapValues(f, (value, key) => {
+	const data = mapValues(f, (value, _key) => {
 		// Files should be preserved as-is
 		if (value instanceof File) {
 			return value;
@@ -69,7 +69,7 @@ export function convertFormDataToObject(formData: FormData) {
 		// Falls back to original value if parsing fails (plain strings)
 		try {
 			return JSON.parse(value as string);
-		} catch (e) {
+		} catch (_e) {
 			return value;
 		}
 	});

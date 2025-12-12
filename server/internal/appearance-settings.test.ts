@@ -9,13 +9,16 @@ import {
 import { tryCreateMedia, tryFindMediaUsages } from "./media-management";
 import { tryCreateUser } from "./user-management";
 import { stripDepth, type Depth } from "./utils/internal-function-utils";
-import { User } from "server/payload-types";
+import type { User } from "server/payload-types";
 
 describe("Appearance Settings Functions", () => {
 	let payload: Awaited<ReturnType<typeof getPayload>>;
-	let testUser : Depth<User & { 
-		collection: "users";
-	}, 0>;
+	let testUser: Depth<
+		User & {
+			collection: "users";
+		},
+		0
+	>;
 	let testUserId: number;
 
 	beforeAll(async () => {
@@ -47,7 +50,7 @@ describe("Appearance Settings Functions", () => {
 			throw new Error("Failed to create test user");
 		}
 
-		testUser = { 
+		testUser = {
 			...userResult.value,
 			collection: "users",
 		};
@@ -94,17 +97,19 @@ describe("Appearance Settings Functions", () => {
 		}
 
 		// Fetch the actual user from database
-		const testUser = await payload.findByID({
-			collection: "users",
-			id: testUserId,
-			depth: 0,
-			overrideAccess: true,
-		}).then(stripDepth<0, "findByID">());
+		const testUser = await payload
+			.findByID({
+				collection: "users",
+				id: testUserId,
+				depth: 0,
+				overrideAccess: true,
+			})
+			.then(stripDepth<0, "findByID">());
 
 		// Update appearance settings with logoLight
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
-			req: { user: {...testUser, collection: "users"} },
+			req: { user: { ...testUser, collection: "users" } },
 			data: {
 				logoLight: logoMediaId,
 			},
@@ -203,7 +208,7 @@ describe("Appearance Settings Functions", () => {
 		// Update appearance settings with multiple logos
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
-			req: { user: {...testUser, collection: "users"} },
+			req: { user: { ...testUser, collection: "users" } },
 			data: {
 				logoLight: logoLightId,
 				logoDark: logoDarkId,
@@ -319,7 +324,7 @@ describe("Appearance Settings Functions", () => {
 		// Update appearance settings with favicons
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
-			req: { user: {...testUser, collection: "users"} },
+			req: { user: { ...testUser, collection: "users" } },
 			data: {
 				faviconLight: faviconLightId,
 				faviconDark: faviconDarkId,
@@ -402,7 +407,7 @@ describe("Appearance Settings Functions", () => {
 		// Set the logo
 		const updateResult = await tryUpdateAppearanceSettings({
 			payload,
-			req: { user: {...testUser, collection: "users"} },
+			req: { user: { ...testUser, collection: "users" } },
 			data: {
 				logoLight: logoMediaId,
 			},

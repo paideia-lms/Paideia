@@ -14,7 +14,6 @@ import {
 	canSeeCourseSettings,
 } from "server/utils/permissions";
 import { ForbiddenResponse } from "~/utils/responses";
-import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/course-layout";
 import classes from "./header-tabs.module.css";
 

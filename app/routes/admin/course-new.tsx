@@ -26,7 +26,6 @@ import {
 } from "~/utils/responses";
 import type { Route } from "./+types/course-new";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
-import { parseFormDataWithFallback } from "app/utils/parse-form-data-with-fallback";
 import { getDataAndContentTypeFromRequest } from "app/utils/get-content-type";
 import { Result } from "node_modules/typescript-result/dist";
 

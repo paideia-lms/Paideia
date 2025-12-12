@@ -26,7 +26,7 @@ describe("Category Role Management Functions", () => {
 	let adminUser: TryResultValue<typeof tryCreateUser>;
 	let user1: TryResultValue<typeof tryCreateUser>;
 	let user2: TryResultValue<typeof tryCreateUser>;
-	let user3: TryResultValue<typeof tryCreateUser>;
+	let _user3: TryResultValue<typeof tryCreateUser>;
 
 	beforeAll(async () => {
 		// Refresh environment and database for clean test state
@@ -94,7 +94,7 @@ describe("Category Role Management Functions", () => {
 		adminUser = adminResult.getOrThrow();
 		user1 = user1Result.getOrThrow();
 		user2 = user2Result.getOrThrow();
-		user3 = user3Result.getOrThrow();
+		_user3 = user3Result.getOrThrow();
 	});
 
 	test("should assign category role to user", async () => {
@@ -822,8 +822,8 @@ describe("Category Role Management Functions", () => {
 			payload,
 			userId: user1.id,
 			courseId: course.value.id,
-			req: createLocalReq({ 
-				request: new Request("http://localhost:3000/api/courses"),	
+			req: createLocalReq({
+				request: new Request("http://localhost:3000/api/courses"),
 				user: user1 as TypedUser,
 			}),
 		});

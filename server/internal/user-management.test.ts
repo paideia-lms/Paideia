@@ -1019,7 +1019,7 @@ describe("User Management Functions", () => {
 			const result = await tryHandleImpersonation({
 				payload,
 				impersonateUserId: String(anotherAdminResult.value.id),
-				req: createLocalReq({ request: mockRequest ,  user: adminUser }),
+				req: createLocalReq({ request: mockRequest, user: adminUser }),
 			});
 
 			expect(result.ok).toBe(true);
@@ -1037,7 +1037,7 @@ describe("User Management Functions", () => {
 			const result = await tryHandleImpersonation({
 				payload,
 				impersonateUserId: "invalid",
-				req: createLocalReq({ request: mockRequest ,  user: adminUser }),
+				req: createLocalReq({ request: mockRequest, user: adminUser }),
 			});
 
 			expect(result.ok).toBe(true);
@@ -1048,7 +1048,7 @@ describe("User Management Functions", () => {
 			const result = await tryHandleImpersonation({
 				payload,
 				impersonateUserId: "99999",
-				req: createLocalReq({ request: mockRequest ,  user: adminUser }),
+				req: createLocalReq({ request: mockRequest, user: adminUser }),
 			});
 
 			expect(result.ok).toBe(true);

@@ -17,16 +17,13 @@ import {
 	UnknownError,
 } from "~/utils/error";
 import { envVars } from "../env";
-import type { AssignmentSubmission, Media } from "../payload-types";
+import type { Media } from "../payload-types";
 import {
 	commitTransactionIfCreated,
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "./utils/handle-transaction-id";
-import type {
-	BaseInternalFunctionArgs,
-	Depth,
-} from "./utils/internal-function-utils";
+import type { BaseInternalFunctionArgs } from "./utils/internal-function-utils";
 import {
 	interceptPayloadError,
 	stripDepth,
@@ -1957,7 +1954,7 @@ export const tryFindMediaUsages = Result.wrap(
 		}
 
 		// Verify media exists
-		const media = await tryGetMediaById({
+		const _media = await tryGetMediaById({
 			payload,
 			id: mediaId,
 			req,

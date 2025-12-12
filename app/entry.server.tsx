@@ -10,13 +10,8 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 // https://github.com/facebook/react/issues/33612
 import { renderToPipeableStream } from "react-dom/server.node";
-import type {
-	AppLoadContext,
-	EntryContext,
-	RouterContextProvider,
-} from "react-router";
+import type { EntryContext, RouterContextProvider } from "react-router";
 import { ServerRouter } from "react-router";
-import { globalContext } from "server/contexts/global-context";
 
 const ABORT_DELAY = 5_000;
 
@@ -49,7 +44,7 @@ function handleBotRequest(
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	reactRouterContext: EntryContext,
-	loadContext: RouterContextProvider,
+	_loadContext: RouterContextProvider,
 ) {
 	// loadContext.get(dbContext)
 	return new Promise((resolve, reject) => {
@@ -101,7 +96,7 @@ function handleBrowserRequest(
 	responseStatusCode: number,
 	responseHeaders: Headers,
 	reactRouterContext: EntryContext,
-	loadContext: RouterContextProvider,
+	_loadContext: RouterContextProvider,
 ) {
 	// console.log(loadContext.get(dbContext))
 	return new Promise((resolve, reject) => {

@@ -3,7 +3,7 @@ import type {
 	FileUploadHandler,
 } from "@remix-run/form-data-parser";
 import { Glob } from "bun";
-import type { Payload, PayloadRequest, TypedUser } from "payload";
+import type { Payload, PayloadRequest } from "payload";
 import { tryCreateMedia } from "server/internal/media-management";
 import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import { Result } from "typescript-result";

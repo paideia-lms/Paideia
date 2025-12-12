@@ -409,24 +409,30 @@ export type PickDeep<T, K extends keyof any> = T extends Primitive
 				PickDeep<T[P], K>;
 			};
 
-export function omitType<T, K extends keyof T>(type: T, keys: K[]): Omit<T, K> {
+export function omitType<T, K extends keyof T>(
+	type: T,
+	_keys: K[],
+): Omit<T, K> {
 	return type as any;
 }
 
-export function pickType<T, K extends keyof T>(type: T, keys: K[]): Pick<T, K> {
+export function pickType<T, K extends keyof T>(
+	type: T,
+	_keys: K[],
+): Pick<T, K> {
 	return type as any;
 }
 
 export function deepOmitType<T, K extends keyof T>(
 	type: T,
-	keys: K[],
+	_keys: K[],
 ): OmitDeep<T, K> {
 	return type as any;
 }
 
 export function deepPickType<T, K extends keyof T>(
 	type: T,
-	keys: K[],
+	_keys: K[],
 ): PickDeep<T, K> {
 	return type as any;
 }

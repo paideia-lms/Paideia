@@ -1,12 +1,9 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { $ } from "bun";
-import { getPayload, TypedUser } from "payload";
+import { getPayload, type TypedUser } from "payload";
 import sanitizedConfig from "../payload.config";
 import { tryCreateQuizModule } from "./activity-module-management";
-import {
-	type CreateCourseActivityModuleLinkArgs,
-	tryCreateCourseActivityModuleLink,
-} from "./course-activity-module-link-management";
+import { tryCreateCourseActivityModuleLink } from "./course-activity-module-link-management";
 import { tryCreateCourse } from "./course-management";
 import { tryCreateSection } from "./course-section-management";
 import { tryCreateEnrollment } from "./enrollment-management";

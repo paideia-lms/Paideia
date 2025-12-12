@@ -24,13 +24,11 @@ import { href, Link, Outlet } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
-import { tryFindUserById } from "server/internal/user-management";
 import { canSeeUserModules } from "server/utils/permissions";
 import { getModuleColor, getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { RouteParams } from "~/utils/routes-utils";
 import type { Route } from "./+types/user-modules-layout";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({
 	context,

@@ -844,7 +844,6 @@ export const tryListDiscussionSubmissions = Result.wrap(
 			case "alphabetical":
 				sort = "title";
 				break;
-			case "recent":
 			default:
 				sort = "-createdAt";
 				break;

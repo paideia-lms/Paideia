@@ -5,7 +5,7 @@ import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { BadRequestResponse, ForbiddenResponse } from "~/utils/responses";
+import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course-participants-layout";
 import classes from "./header-tabs.module.css";
 

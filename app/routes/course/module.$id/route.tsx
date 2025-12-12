@@ -100,7 +100,7 @@ export const loader = async ({
 	}
 
 	// Get current user
-	const currentUser =
+	const _currentUser =
 		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Check if user is a student

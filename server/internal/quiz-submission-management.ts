@@ -4,9 +4,7 @@ import type { LatestQuizSettings } from "server/json";
 import type { LatestQuizConfig as QuizConfig } from "server/json/raw-quiz-config/version-resolver";
 import { JobQueue } from "server/payload.config";
 import type { QuizSubmission } from "server/payload-types";
-import { assertZodInternal } from "server/utils/type-narrowing";
 import { Result } from "typescript-result";
-import z from "zod";
 import {
 	InvalidArgumentError,
 	NonExistingQuizSubmissionError,

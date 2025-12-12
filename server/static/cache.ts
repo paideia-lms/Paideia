@@ -1,7 +1,7 @@
 // from https://github.com/elysiajs/elysia-static/blob/main/src/cache.ts
 
 import type { BunFile } from "bun";
-import { stat } from "fs/promises";
+import { stat } from "node:fs/promises";
 
 export async function isCached(
 	headers: Record<string, string | undefined>,

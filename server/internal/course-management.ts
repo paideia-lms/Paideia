@@ -236,16 +236,20 @@ export const tryUpdateCourse = Result.wrap(
 							})
 								.getOrThrow()
 								.then((r) => r.media.id),
-					...(await processRichTextMediaV2({
-						payload,
-						userId,
-						req,
-						overrideAccess,
-						data: {
-							description: data.description ?? "",
-						},
-						fields: [{ key: "description", alt: "Course description image" }],
-					})),
+					...(data.description
+						? await processRichTextMediaV2({
+								payload,
+								userId,
+								req,
+								overrideAccess,
+								data: {
+									description: data.description,
+								},
+								fields: [
+									{ key: "description", alt: "Course description image" },
+								],
+							})
+						: {}),
 				},
 				req,
 				overrideAccess,

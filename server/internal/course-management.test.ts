@@ -288,7 +288,7 @@ describe("Course Management Functions", () => {
 						type: "image/png",
 					},
 				);
-				const descriptionImageFile = new File(
+				const _descriptionImageFile = new File(
 					[fileBuffer],
 					`description-image-0-${timestamp}.png`,
 					{
@@ -380,14 +380,14 @@ describe("Course Management Functions", () => {
 					"fixture/paideia-logo.png",
 				).arrayBuffer();
 				const timestamp = Date.now();
-				const descriptionImageFile1 = new File(
+				const _descriptionImageFile1 = new File(
 					[fileBuffer],
 					`test-image-1-${timestamp}.png`,
 					{
 						type: "image/png",
 					},
 				);
-				const descriptionImageFile2 = new File(
+				const _descriptionImageFile2 = new File(
 					[fileBuffer2],
 					`test-image-2-${timestamp}.png`,
 					{
@@ -1435,7 +1435,7 @@ describe("Course Management Functions", () => {
 
 		test("should work with overrideAccess true even for different user", async () => {
 			// Get test user object for authentication
-			const testUserDoc = await payload.findByID({
+			const _testUserDoc = await payload.findByID({
 				collection: "users",
 				id: testUser.id,
 				overrideAccess: true,

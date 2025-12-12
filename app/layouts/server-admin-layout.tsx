@@ -67,7 +67,7 @@ export default function ServerAdminLayout({
 }: Route.ComponentProps) {
 	const navigate = useNavigate();
 	const { pageInfo, tabParam } = loaderData;
-	const [activeTab, setActiveTab] = useQueryState(
+	const [activeTab, _setActiveTab] = useQueryState(
 		"tab",
 		parseAsString
 			.withDefault(tabParam ?? AdminTab.General)
