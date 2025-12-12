@@ -25,6 +25,7 @@
 		"start": "./dist/paideia",
 		"dev": "kill -9 $(lsof -t -i:3000); kill -9 $(lsof -t -i:3001); docker-compose up -d && NODE_ENV=development bun concurrently \"bun --watch ./server/index.ts\" \"bun react-router --watch typegen\"",
 		"lint": "biome check . --write",
+		"lint:project": "bun scripts/lint-project.ts",
 		"test:all": "bun test $(find . -type f -name \"*.test.ts\" -not -path \"./node_modules/*\") 2>&1 | tee tests/reports/$(date +\"%Y-%m-%d\").log; bun scripts/process-test-log.ts tests/reports/$(date +\"%Y-%m-%d\").log",
 		"test:staged": "lefthook run pre-commit",
 		"migrate:create": "bun scripts/clean-s3.ts && PAYLOAD_CONFIG_PATH=server/payload.config.ts payload migrate:create",

@@ -133,9 +133,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-					id: enrolmentContext.enrolment.id,
-					role: enrolmentContext.enrolment.role,
-				}
+				id: enrolmentContext.enrolment.id,
+				role: enrolmentContext.enrolment.role,
+			}
 			: undefined,
 	);
 
@@ -177,8 +177,8 @@ const createAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+}: Route.ActionArgs & { searchParams: { action: Action.Create } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
@@ -211,9 +211,9 @@ const createAction = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -232,11 +232,7 @@ const createAction = async ({
 
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	// Use provided section ID or create a default section
@@ -287,8 +283,8 @@ const deleteAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+}: Route.ActionArgs & { searchParams: { action: Action.Delete } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
@@ -321,9 +317,9 @@ const deleteAction = async ({
 		},
 		enrollment
 			? {
-					id: enrollment.id,
-					role: enrollment.role,
-				}
+				id: enrollment.id,
+				role: enrollment.role,
+			}
 			: undefined,
 	);
 
@@ -345,11 +341,7 @@ const deleteAction = async ({
 
 	const deleteResult = await tryDeleteCourseActivityModuleLink({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		linkId,
 	});
 
