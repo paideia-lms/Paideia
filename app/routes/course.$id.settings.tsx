@@ -64,7 +64,7 @@ export const actionInputSchema = z.looseObject({
 		.refine(
 			(val) => {
 				// Allow null/undefined
-				if (!val || val === null) return true;
+				if (!val) return true;
 				// Must be a relative path (starts with /) and not an absolute URL
 				return (
 					val.startsWith("/") &&
@@ -140,8 +140,8 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const thumbnailUrl = thumbnailFileNameOrId
 		? href("/api/media/file/:filenameOrId", {
-				filenameOrId: thumbnailFileNameOrId,
-			})
+			filenameOrId: thumbnailFileNameOrId,
+		})
 		: null;
 
 	return {
