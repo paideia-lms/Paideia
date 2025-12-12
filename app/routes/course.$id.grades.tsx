@@ -1,9 +1,12 @@
 import { notifications } from "@mantine/notifications";
 import { useQueryState } from "nuqs";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
 import { courseContextKey } from "server/contexts/course-context";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	tryCreateGradebookCategory,
 	tryDeleteGradebookCategory,
@@ -20,23 +23,95 @@ import {
 } from "server/internal/gradebook-item-management";
 import { tryGetGradebookByCourseWithDetails } from "server/internal/gradebook-management";
 import { tryGetUserGradesJsonRepresentation } from "server/internal/user-grade-management";
+import { z } from "zod";
 import { GraderReportView } from "~/components/gradebook/report-view";
-import { inputSchema } from "~/components/gradebook/schemas";
 import { GradebookSetupView } from "~/components/gradebook/setup-view";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades";
+
 export type { Route };
 
-export const loader = async ({
-	context,
-	params,
-	request,
-}: Route.LoaderArgs) => {
+enum Action {
+	CreateItem = "create-item",
+	CreateCategory = "create-category",
+	UpdateItem = "update-item",
+	UpdateCategory = "update-category",
+	DeleteItem = "delete-item",
+	DeleteCategory = "delete-category",
+	GetItem = "get-item",
+	GetCategory = "get-category",
+}
+
+export const gradesSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(gradesSearchParams);
+
+// ============================================================================
+// Schemas
+// ============================================================================
+
+const createItemSchema = z.object({
+	name: z.string().min(1, "Name is required"),
+	description: z.string().optional(),
+	categoryId: z.coerce.number().optional().nullable(),
+	maxGrade: z.coerce.number().optional(),
+	minGrade: z.coerce.number().optional(),
+	weight: z.coerce.number().nullable(),
+	extraCredit: z.boolean().optional(),
+});
+
+const createCategorySchema = z.object({
+	name: z.string().min(1, "Name is required"),
+	description: z.string().optional(),
+	parentId: z.coerce.number().optional().nullable(),
+	extraCredit: z.boolean().optional(),
+});
+
+const updateItemSchema = z.object({
+	itemId: z.coerce.number(),
+	name: z.string().min(1, "Name is required").optional(),
+	description: z.string().optional(),
+	categoryId: z.coerce.number().optional().nullable(),
+	maxGrade: z.coerce.number().optional(),
+	minGrade: z.coerce.number().optional(),
+	weight: z.coerce.number().nullable(),
+	extraCredit: z.boolean().optional(),
+});
+
+const updateCategorySchema = z.object({
+	categoryId: z.coerce.number(),
+	name: z.string().min(1, "Name is required").optional(),
+	description: z.string().optional(),
+	weight: z.coerce.number().nullable(),
+	extraCredit: z.boolean().optional(),
+});
+
+const getItemSchema = z.object({
+	itemId: z.coerce.number(),
+});
+
+const getCategorySchema = z.object({
+	categoryId: z.coerce.number(),
+});
+
+const deleteItemSchema = z.object({
+	itemId: z.coerce.number(),
+});
+
+const deleteCategorySchema = z.object({
+	categoryId: z.coerce.number(),
+});
+
+// ============================================================================
+// Loader
+// ============================================================================
+
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const courseContext = context.get(courseContextKey);
-	const { courseId } = params;
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	// Get course view data using the course context
 	if (!courseContext) {
@@ -45,27 +120,13 @@ export const loader = async ({
 
 	const gradebookSetupForUI = courseContext.gradebookSetupForUI;
 
-	// Prepare user object for internal functions
-	const currentUser = userSession?.isAuthenticated
-		? userSession.effectiveUser || userSession.authenticatedUser
-		: null;
-
 	// Fetch user grades for the course
-	let userGrades = null;
-	const userGradesResult = await tryGetUserGradesJsonRepresentation({
-		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-		courseId: Number(courseId),
-	});
 
-	if (userGradesResult.ok) {
-		userGrades = userGradesResult.value;
-	}
+	const userGrades = await tryGetUserGradesJsonRepresentation({
+		payload,
+		req: payloadRequest,
+		courseId: courseContext.course.id,
+	}).getOrNull();
 
 	return {
 		course: courseContext.course,
@@ -80,8 +141,8 @@ export const loader = async ({
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-				gradebookSetupForUI.extraCreditItems.length > 0 ||
-				gradebookSetupForUI.extraCreditCategories.length > 0
+			gradebookSetupForUI.extraCreditItems.length > 0 ||
+			gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -91,311 +152,355 @@ export const loader = async ({
 	};
 };
 
-export const action = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const userSession = context.get(userContextKey);
-	const { courseId } = params;
+// ============================================================================
+// Action Handlers
+// ============================================================================
 
-	if (!userSession?.isAuthenticated) {
-		return badRequest({ error: "Unauthorized" });
-	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
+async function createItemAction({ request, context }: Route.ActionArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const courseContext = context.get(courseContextKey);
+	if (!courseContext)
+		throw new ForbiddenResponse("Course not found or access denied");
 
-	// Get gradebook for this course
+	// Get gradebook
 	const gradebookResult = await tryGetGradebookByCourseWithDetails({
 		payload,
-		courseId: Number(courseId),
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
+		courseId: courseContext.course.id,
+		req: payloadRequest,
 	});
-	if (!gradebookResult.ok) {
+	if (!gradebookResult.ok)
 		return badRequest({ error: "Gradebook not found for this course" });
-	}
-
 	const gradebook = gradebookResult.value;
-	const gradebookId = gradebook.id;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	const parsedData = inputSchema.safeParse(data);
+	const parsedData = createItemSchema.safeParse(data);
 
 	if (!parsedData.success) {
 		return badRequest({ error: parsedData.error.message });
 	}
 
-	if (parsedData.data.intent === "create-item") {
-		// Get next sort order
-		const sortOrderResult = await tryGetNextItemSortOrder({
-			payload,
-			gradebookId,
-			categoryId: parsedData.data.categoryId ?? null,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
+	// Get next sort order
+	const sortOrderResult = await tryGetNextItemSortOrder({
+		payload,
+		gradebookId: gradebook.id,
+		categoryId: parsedData.data.categoryId ?? null,
+		req: payloadRequest,
+	});
 
-		if (!sortOrderResult.ok) {
-			return badRequest({ error: "Failed to get sort order" });
-		}
+	if (!sortOrderResult.ok) {
+		return badRequest({ error: "Failed to get sort order" });
+	}
 
-		const sortOrder = sortOrderResult.value;
+	const createResult = await tryCreateGradebookItem({
+		payload,
+		courseId: courseContext.course.id,
+		categoryId: parsedData.data.categoryId ?? null,
+		name: parsedData.data.name,
+		description: parsedData.data.description,
+		maxGrade: parsedData.data.maxGrade,
+		minGrade: parsedData.data.minGrade,
+		weight: parsedData.data.weight,
+		extraCredit: parsedData.data.extraCredit ?? false,
+		sortOrder: sortOrderResult.value,
+		req: payloadRequest,
+	});
 
-		// Create gradebook item
-		const createResult = await tryCreateGradebookItem({
-			payload,
-			courseId: Number(courseId),
-			categoryId: parsedData.data.categoryId ?? null,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			maxGrade: parsedData.data.maxGrade,
-			minGrade: parsedData.data.minGrade,
-			weight: parsedData.data.weight,
-			extraCredit: parsedData.data.extraCredit ?? false,
-			sortOrder,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
+	if (!createResult.ok) {
+		return badRequest({ error: createResult.error.message });
+	}
 
-		if (!createResult.ok) {
-			return badRequest({ error: createResult.error.message });
-		}
+	return ok({
+		success: true,
+		message: "Gradebook item created successfully",
+	});
+}
 
-		return ok({
-			success: true,
-			message: "Gradebook item created successfully",
+async function createCategoryAction({ request, context }: Route.ActionArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const courseContext = context.get(courseContextKey);
+	if (!courseContext)
+		throw new ForbiddenResponse("Course not found or access denied");
+
+	// Get gradebook
+	const gradebookResult = await tryGetGradebookByCourseWithDetails({
+		payload,
+		courseId: courseContext.course.id,
+		req: payloadRequest,
+	});
+	if (!gradebookResult.ok)
+		return badRequest({ error: "Gradebook not found for this course" });
+	const gradebook = gradebookResult.value;
+
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = createCategorySchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	// Get next sort order
+	const sortOrderResult = await tryGetNextSortOrder({
+		payload,
+		gradebookId: gradebook.id,
+		parentId: parsedData.data.parentId ?? null,
+		req: payloadRequest,
+	});
+
+	if (!sortOrderResult.ok) {
+		return badRequest({ error: "Failed to get sort order" });
+	}
+
+	const createResult = await tryCreateGradebookCategory({
+		payload,
+		gradebookId: gradebook.id,
+		parentId: parsedData.data.parentId ?? null,
+		name: parsedData.data.name,
+		description: parsedData.data.description,
+		sortOrder: sortOrderResult.value,
+		req: payloadRequest,
+	});
+
+	if (!createResult.ok) {
+		return badRequest({ error: createResult.error.message });
+	}
+	return ok({
+		success: true,
+		message: "Gradebook category created successfully",
+	});
+}
+
+async function updateItemAction({ request, context }: Route.ActionArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = updateItemSchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	const updateResult = await tryUpdateGradebookItem({
+		payload,
+		itemId: parsedData.data.itemId,
+		name: parsedData.data.name,
+		description: parsedData.data.description,
+		categoryId: parsedData.data.categoryId ?? null,
+		maxGrade: parsedData.data.maxGrade,
+		minGrade: parsedData.data.minGrade,
+		weight: parsedData.data.weight,
+		extraCredit: parsedData.data.extraCredit,
+		req: payloadRequest,
+	});
+
+	if (!updateResult.ok) {
+		return badRequest({ error: updateResult.error.message });
+	}
+
+	return ok({
+		success: true,
+		message: "Gradebook item updated successfully",
+	});
+}
+
+async function updateCategoryAction({ request, context }: Route.ActionArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = updateCategorySchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	const updateResult = await tryUpdateGradebookCategory({
+		payload,
+		categoryId: parsedData.data.categoryId,
+		name: parsedData.data.name,
+		description: parsedData.data.description,
+		weight: parsedData.data.weight,
+		extraCredit: parsedData.data.extraCredit,
+		req: payloadRequest,
+	});
+
+	if (!updateResult.ok) {
+		return badRequest({ error: updateResult.error.message });
+	}
+
+	return ok({
+		success: true,
+		message: "Gradebook category updated successfully",
+	});
+}
+
+async function getItemAction({ request, context }: Route.ActionArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = getItemSchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	const itemResult = await tryFindGradebookItemById({
+		payload,
+		itemId: parsedData.data.itemId,
+		req: payloadRequest,
+	});
+
+	if (!itemResult.ok) {
+		return badRequest({ error: itemResult.error.message });
+	}
+
+	const item = itemResult.value;
+
+	// Handle category as number or object
+	const categoryId =
+		typeof item.category === "number"
+			? item.category
+			: (item.category?.id ?? null);
+
+	return ok({
+		success: true,
+		item: {
+			id: item.id,
+			name: item.name,
+			description: item.description ?? "",
+			categoryId,
+			maxGrade: item.maxGrade,
+			minGrade: item.minGrade,
+			weight: item.weight,
+			extraCredit: item.extraCredit ?? false,
+		},
+	});
+}
+
+async function getCategoryAction({ request, context }: Route.ActionArgs) {
+	const { payload } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = getCategorySchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	const categoryResult = await tryFindGradebookCategoryById(
+		payload,
+		parsedData.data.categoryId,
+	);
+
+	if (!categoryResult.ok) {
+		return badRequest({ error: categoryResult.error.message });
+	}
+
+	const category = categoryResult.value;
+
+	// Handle parent as number or object
+	const parentId =
+		typeof category.parent === "number"
+			? category.parent
+			: (category.parent?.id ?? null);
+
+	return ok({
+		success: true,
+		category: {
+			id: category.id,
+			name: category.name,
+			description: category.description ?? "",
+			parentId,
+			weight: category.weight,
+		},
+	});
+}
+
+async function deleteItemAction({ request, context }: Route.ActionArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = deleteItemSchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	const deleteResult = await tryDeleteGradebookItem({
+		payload,
+		itemId: parsedData.data.itemId,
+		req: payloadRequest,
+	});
+
+	if (!deleteResult.ok) {
+		return badRequest({ error: deleteResult.error.message });
+	}
+
+	return ok({
+		success: true,
+		message: "Gradebook item deleted successfully",
+	});
+}
+
+async function deleteCategoryAction({ request, context }: Route.ActionArgs) {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = deleteCategorySchema.safeParse(data);
+
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
+
+	const deleteResult = await tryDeleteGradebookCategory({
+		payload,
+		categoryId: parsedData.data.categoryId,
+		req: payloadRequest,
+	});
+
+	if (!deleteResult.ok) {
+		return badRequest({ error: deleteResult.error.message });
+	}
+
+	return ok({
+		success: true,
+		message: "Gradebook category deleted successfully",
+	});
+}
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request, context } = args;
+	const userSession = context.get(userContextKey);
+	const courseContext = context.get(courseContextKey);
+
+	if (!courseContext) {
+		throw new ForbiddenResponse("Course not found or access denied");
+	}
+
+	if (!userSession?.isAuthenticated) {
+		return badRequest({ error: "Unauthorized" });
+	}
+
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
 		});
 	}
 
-	if (parsedData.data.intent === "create-category") {
-		// Get next sort order
-		const sortOrderResult = await tryGetNextSortOrder({
-			payload,
-			gradebookId,
-			parentId: parsedData.data.parentId ?? null,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
-
-		if (!sortOrderResult.ok) {
-			return badRequest({ error: "Failed to get sort order" });
-		}
-
-		const sortOrder = sortOrderResult.value;
-
-		// Create gradebook category
-		const createResult = await tryCreateGradebookCategory({
-			payload,
-			gradebookId,
-			parentId: parsedData.data.parentId ?? null,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			sortOrder,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
-
-		if (!createResult.ok) {
-			return badRequest({ error: createResult.error.message });
-		}
-		return ok({
-			success: true,
-			message: "Gradebook category created successfully",
-		});
+	switch (actionType) {
+		case Action.CreateItem:
+			return createItemAction(args);
+		case Action.CreateCategory:
+			return createCategoryAction(args);
+		case Action.UpdateItem:
+			return updateItemAction(args);
+		case Action.UpdateCategory:
+			return updateCategoryAction(args);
+		case Action.DeleteItem:
+			return deleteItemAction(args);
+		case Action.DeleteCategory:
+			return deleteCategoryAction(args);
+		case Action.GetItem:
+			return getItemAction(args);
+		case Action.GetCategory:
+			return getCategoryAction(args);
+		default:
+			return badRequest({ error: "Invalid action" });
 	}
-
-	if (parsedData.data.intent === "update-item") {
-		const updateResult = await tryUpdateGradebookItem({
-			payload,
-			itemId: parsedData.data.itemId,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			categoryId: parsedData.data.categoryId ?? null,
-			maxGrade: parsedData.data.maxGrade,
-			minGrade: parsedData.data.minGrade,
-			weight: parsedData.data.weight,
-			extraCredit: parsedData.data.extraCredit,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
-
-		if (!updateResult.ok) {
-			return badRequest({ error: updateResult.error.message });
-		}
-
-		return ok({
-			success: true,
-			message: "Gradebook item updated successfully",
-		});
-	}
-
-	if (parsedData.data.intent === "update-category") {
-		const updateResult = await tryUpdateGradebookCategory({
-			payload,
-			categoryId: parsedData.data.categoryId,
-			name: parsedData.data.name,
-			description: parsedData.data.description,
-			weight: parsedData.data.weight,
-			extraCredit: parsedData.data.extraCredit,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
-
-		if (!updateResult.ok) {
-			return badRequest({ error: updateResult.error.message });
-		}
-
-		return ok({
-			success: true,
-			message: "Gradebook category updated successfully",
-		});
-	}
-
-	if (parsedData.data.intent === "get-item") {
-		const itemResult = await tryFindGradebookItemById({
-			payload,
-			itemId: parsedData.data.itemId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
-
-		if (!itemResult.ok) {
-			return badRequest({ error: itemResult.error.message });
-		}
-
-		const item = itemResult.value;
-
-		// Handle category as number or object
-		const categoryId =
-			typeof item.category === "number"
-				? item.category
-				: (item.category?.id ?? null);
-
-		return ok({
-			success: true,
-			item: {
-				id: item.id,
-				name: item.name,
-				description: item.description ?? "",
-				categoryId,
-				maxGrade: item.maxGrade,
-				minGrade: item.minGrade,
-				weight: item.weight,
-				extraCredit: item.extraCredit ?? false,
-			},
-		});
-	}
-
-	if (parsedData.data.intent === "get-category") {
-		const categoryResult = await tryFindGradebookCategoryById(
-			payload,
-			parsedData.data.categoryId,
-		);
-
-		if (!categoryResult.ok) {
-			return badRequest({ error: categoryResult.error.message });
-		}
-
-		const category = categoryResult.value;
-
-		// Handle parent as number or object
-		const parentId =
-			typeof category.parent === "number"
-				? category.parent
-				: (category.parent?.id ?? null);
-
-		return ok({
-			success: true,
-			category: {
-				id: category.id,
-				name: category.name,
-				description: category.description ?? "",
-				parentId,
-				weight: category.weight,
-			},
-		});
-	}
-
-	if (parsedData.data.intent === "delete-item") {
-		const deleteResult = await tryDeleteGradebookItem({
-			payload,
-			itemId: parsedData.data.itemId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
-
-		if (!deleteResult.ok) {
-			return badRequest({ error: deleteResult.error.message });
-		}
-
-		return ok({
-			success: true,
-			message: "Gradebook item deleted successfully",
-		});
-	}
-
-	if (parsedData.data.intent === "delete-category") {
-		const deleteResult = await tryDeleteGradebookCategory({
-			payload,
-			categoryId: parsedData.data.categoryId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
-		});
-
-		if (!deleteResult.ok) {
-			return badRequest({ error: deleteResult.error.message });
-		}
-
-		return ok({
-			success: true,
-			message: "Gradebook category deleted successfully",
-		});
-	}
-
-	return badRequest({ error: "Invalid intent" });
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -420,13 +525,6 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 }
 
 export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
-	const {
-		hasExtraCredit,
-		displayTotal,
-		extraCreditItems,
-		extraCreditCategories,
-		totalMaxGrade,
-	} = loaderData;
 	const [activeTab] = useQueryState("tab", {
 		defaultValue: "report",
 	});
@@ -436,11 +534,6 @@ export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
 			{activeTab === "setup" ? (
 				<GradebookSetupView
 					data={loaderData}
-					hasExtraCredit={hasExtraCredit}
-					displayTotal={displayTotal}
-					extraCreditItems={extraCreditItems}
-					extraCreditCategories={extraCreditCategories}
-					totalMaxGrade={totalMaxGrade}
 				/>
 			) : (
 				<GraderReportView data={loaderData} />

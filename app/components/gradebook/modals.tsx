@@ -40,9 +40,8 @@ export const CreateGradeItemModal = forwardRef<
 	CreateGradeItemModalHandle,
 	CreateGradeItemModalProps
 >(({ categoryOptions, courseId }, ref) => {
-	const { createGradeItem, isLoading } = useCreateGradeItem();
-
 	const [opened, setOpened] = useState(false);
+	const { createGradeItem, isLoading } = useCreateGradeItem();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -207,9 +206,8 @@ export function UpdateGradeItemButton({
 	categoryOptions,
 	courseId,
 }: UpdateGradeItemButtonProps) {
-	const { updateGradeItem, isLoading } = useUpdateGradeItem();
-
 	const [opened, setOpened] = useState(false);
+	const { updateGradeItem, isLoading } = useUpdateGradeItem();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -412,15 +410,15 @@ export interface CreateCategoryModalHandle {
 
 export interface CreateCategoryModalProps {
 	parentOptions: Array<{ value: string; label: string }>;
+	courseId: number;
 }
 
 export const CreateCategoryModal = forwardRef<
 	CreateCategoryModalHandle,
 	CreateCategoryModalProps
->(({ parentOptions }, ref) => {
-	const { createCategory, isLoading } = useCreateCategory();
-
+>(({ parentOptions, courseId }, ref) => {
 	const [opened, setOpened] = useState(false);
+	const { createCategory, isLoading } = useCreateCategory();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -445,7 +443,7 @@ export const CreateCategoryModal = forwardRef<
 	const handleSubmit = form.onSubmit((values) => {
 		const parentId = values.parent ? Number.parseInt(values.parent, 10) : null;
 
-		createCategory({
+		createCategory(courseId, {
 			name: values.name,
 			description: values.description || undefined,
 			parentId: parentId && !Number.isNaN(parentId) ? parentId : null,
@@ -517,14 +515,15 @@ type UpdateGradeCategoryButtonProps = {
 		extraCredit: boolean;
 		hasItems: boolean;
 	};
+	courseId: number;
 };
 
 export function UpdateGradeCategoryButton({
 	category,
+	courseId,
 }: UpdateGradeCategoryButtonProps) {
-	const { updateGradeCategory, isLoading } = useUpdateGradeCategory();
-
 	const [opened, setOpened] = useState(false);
+	const { updateGradeCategory, isLoading } = useUpdateGradeCategory();
 
 	const form = useForm({
 		mode: "uncontrolled",
@@ -542,7 +541,7 @@ export function UpdateGradeCategoryButton({
 	});
 
 	const handleSubmit = form.onSubmit(async (values) => {
-		await updateGradeCategory(category.id, {
+		updateGradeCategory(courseId, category.id, {
 			name: values.name,
 			description: values.description || undefined,
 			weight: values.overrideWeight ? Number.parseFloat(values.weight) : null,

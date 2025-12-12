@@ -106,9 +106,9 @@ export const tryClearLogo = Result.wrap(
 				},
 				req,
 				overrideAccess,
-				depth: 1,
+				depth: 0,
 			})
-			.then(stripDepth<1, "updateGlobal">());
+			.then(stripDepth<0, "updateGlobal">());
 
 		return updated;
 	},

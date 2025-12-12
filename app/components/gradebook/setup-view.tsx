@@ -27,7 +27,7 @@ import {
 import { useRef, useState } from "react";
 import { href, Link } from "react-router";
 import { getModuleIcon } from "../../utils/module-helper";
-import { useDeleteCategory, useDeleteManualItem } from "./hooks";
+import { useDeleteGradeCategory, useDeleteGradeItem } from "./hooks";
 import {
 	CreateCategoryModal,
 	type CreateCategoryModalHandle,
@@ -38,6 +38,8 @@ import {
 } from "./modals";
 import { getTypeColor } from "./report-view";
 import { OverallWeightDisplay, WeightDisplay } from "./weight-display";
+import type { Route } from "~/routes/course.$id.grades";
+
 
 // ============================================================================
 // Gradebook Setup Types
@@ -116,8 +118,6 @@ function GradebookItemRow({
 	depth = 0,
 	expandedCategoryIds,
 	onToggleCategory,
-	onDeleteItem,
-	onDeleteCategory,
 	categoryOptions,
 	courseId,
 }: {
@@ -125,8 +125,6 @@ function GradebookItemRow({
 	depth?: number;
 	expandedCategoryIds: number[];
 	onToggleCategory: (categoryId: number) => void;
-	onDeleteItem?: (itemId: number) => void;
-	onDeleteCategory?: (categoryId: number) => void;
 	categoryOptions: Array<{ value: string; label: string }>;
 	courseId: number;
 }) {
@@ -135,6 +133,10 @@ function GradebookItemRow({
 	const hasNestedItems =
 		isCategory && item.grade_items && item.grade_items.length > 0;
 	const isExpanded = expandedCategoryIds.includes(item.id);
+
+	// Instantiate delete hooks
+	const { deleteGradeItem } = useDeleteGradeItem();
+	const { deleteGradeCategory } = useDeleteGradeCategory();
 
 	// Calculate padding based on depth (xl = ~24px per level)
 	const paddingLeft = depth * 24;
@@ -189,10 +191,7 @@ function GradebookItemRow({
 								</Text>
 							</Link>
 						) : (
-							<Text
-								size={depth === 0 ? "sm" : "sm"}
-								fw={isCategory ? 600 : 500}
-							>
+							<Text size={depth === 0 ? "sm" : "sm"} fw={isCategory ? 600 : 500}>
 								{item.name}
 							</Text>
 						)}
@@ -230,15 +229,15 @@ function GradebookItemRow({
 							extraCredit={item.extra_credit}
 						/>
 					) : // For categories, show sum of children's overall weights when collapsed
-					!isExpanded &&
-						categoryOverallWeight !== null &&
-						categoryOverallWeight > 0 ? (
-						<Text size="sm" fw={500} c="dimmed">
-							{categoryOverallWeight.toFixed(2)}%
-						</Text>
-					) : (
-						<Text size="sm">-</Text>
-					)}
+						!isExpanded &&
+							categoryOverallWeight !== null &&
+							categoryOverallWeight > 0 ? (
+							<Text size="sm" fw={500} c="dimmed">
+								{categoryOverallWeight.toFixed(2)}%
+							</Text>
+						) : (
+							<Text size="sm">-</Text>
+						)}
 				</Table.Td>
 				<Table.Td>
 					{isLeafItem ? (
@@ -246,13 +245,13 @@ function GradebookItemRow({
 							{item.max_grade !== null ? item.max_grade : "-"}
 						</Text>
 					) : // calculate the max grade of all leaf items
-					!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
-						<Text size="sm" c="dimmed">
-							{categoryMaxGrade ?? "-"}
-						</Text>
-					) : (
-						<Text size="sm">-</Text>
-					)}
+						!isExpanded && item.grade_items && item.grade_items.length > 0 ? (
+							<Text size="sm" c="dimmed">
+								{categoryMaxGrade ?? "-"}
+							</Text>
+						) : (
+							<Text size="sm">-</Text>
+						)}
 				</Table.Td>
 				<Table.Td>
 					<Group gap="xs" wrap="nowrap">
@@ -266,6 +265,7 @@ function GradebookItemRow({
 									extraCredit: item.extra_credit ?? false,
 									hasItems: hasNestedItems ?? false,
 								}}
+								courseId={courseId}
 							/>
 						) : (
 							<UpdateGradeItemButton
@@ -285,23 +285,37 @@ function GradebookItemRow({
 							/>
 						)}
 						{/* Show delete button for categories */}
-						{isCategory && onDeleteCategory && (
+						{isCategory && (
 							<ActionIcon
 								size="sm"
 								variant="subtle"
 								color="red"
-								onClick={() => onDeleteCategory(item.id)}
+								onClick={() => {
+									if (
+										confirm(
+											"Are you sure you want to delete this category? The category must be empty (no items or subcategories) to be deleted.",
+										)
+									) {
+										deleteGradeCategory(courseId, item.id);
+									}
+								}}
 							>
 								<IconTrash size={16} />
 							</ActionIcon>
 						)}
 						{/* Show delete button only for manual items (items without activityModuleLinkId) */}
-						{isLeafItem && !item.activityModuleLinkId && onDeleteItem && (
+						{isLeafItem && !item.activityModuleLinkId && (
 							<ActionIcon
 								size="sm"
 								variant="subtle"
 								color="red"
-								onClick={() => onDeleteItem(item.id)}
+								onClick={() => {
+									if (
+										confirm("Are you sure you want to delete this gradebook item?")
+									) {
+										deleteGradeItem(courseId, item.id);
+									}
+								}}
 							>
 								<IconTrash size={16} />
 							</ActionIcon>
@@ -319,8 +333,6 @@ function GradebookItemRow({
 						depth={depth + 1}
 						expandedCategoryIds={expandedCategoryIds}
 						onToggleCategory={onToggleCategory}
-						onDeleteItem={onDeleteItem}
-						onDeleteCategory={onDeleteCategory}
 						categoryOptions={categoryOptions}
 						courseId={courseId}
 					/>
@@ -393,27 +405,15 @@ function MDDisplay({ markdown }: { markdown: string | null }) {
 
 export function GradebookSetupView({
 	data,
-	hasExtraCredit,
-	displayTotal,
-	extraCreditItems,
-	extraCreditCategories,
-	totalMaxGrade,
 }: {
-	data: GradebookSetupData;
-	hasExtraCredit: boolean;
-	displayTotal: number;
-	extraCreditItems: GradebookSetupItem[];
-	extraCreditCategories: GradebookSetupItem[];
-	totalMaxGrade: number;
+	data: Route.ComponentProps["loaderData"];
 }) {
-	const { gradebookSetupForUI, flattenedCategories } = data;
+	const { gradebookSetupForUI, flattenedCategories, hasExtraCredit, displayTotal, extraCreditItems, extraCreditCategories, totalMaxGrade } = data;
 
 	const createItemModalRef = useRef<CreateGradeItemModalHandle>(null);
 	const createCategoryModalRef = useRef<CreateCategoryModalHandle>(null);
 
 	const [expandedCategoryIds, setExpandedCategoryIds] = useState<number[]>([]);
-	const { deleteManualItem } = useDeleteManualItem();
-	const { deleteCategory } = useDeleteCategory();
 
 	const toggleCategory = (categoryId: number) => {
 		setExpandedCategoryIds((prev) =>
@@ -421,22 +421,6 @@ export function GradebookSetupView({
 				? prev.filter((id) => id !== categoryId)
 				: [...prev, categoryId],
 		);
-	};
-
-	const handleDeleteItem = (itemId: number) => {
-		if (confirm("Are you sure you want to delete this gradebook item?")) {
-			deleteManualItem(data.course.id, itemId);
-		}
-	};
-
-	const handleDeleteCategory = (categoryId: number) => {
-		if (
-			confirm(
-				"Are you sure you want to delete this category? The category must be empty (no items or subcategories) to be deleted.",
-			)
-		) {
-			deleteCategory(data.course.id, categoryId);
-		}
 	};
 
 	if (!gradebookSetupForUI) {
@@ -506,6 +490,7 @@ export function GradebookSetupView({
 			<CreateCategoryModal
 				ref={createCategoryModalRef}
 				parentOptions={parentOptions}
+				courseId={data.course.id}
 			/>
 
 			<Paper withBorder>
@@ -537,8 +522,6 @@ export function GradebookSetupView({
 									depth={0}
 									expandedCategoryIds={expandedCategoryIds}
 									onToggleCategory={toggleCategory}
-									onDeleteItem={handleDeleteItem}
-									onDeleteCategory={handleDeleteCategory}
 									categoryOptions={categoryOptions}
 									courseId={data.course.id}
 								/>
@@ -569,7 +552,7 @@ export function GradebookSetupView({
 															Extra Credit Contributions:
 														</Text>
 														{extraCreditCategories.length > 0 ||
-														extraCreditItems.length > 0 ? (
+															extraCreditItems.length > 0 ? (
 															<>
 																{extraCreditCategories.map((category) => (
 																	<Text key={category.id} size="xs">

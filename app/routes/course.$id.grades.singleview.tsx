@@ -32,7 +32,6 @@ import { tryGetAdjustedSingleUserGrades } from "server/internal/user-grade-manag
 import { getModuleIcon } from "~/utils/module-helper";
 import { ForbiddenResponse } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.grades.singleview";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -44,14 +43,19 @@ export const singleViewSearchParams = {
 
 export const loadSearchParams = createLoader(singleViewSearchParams);
 
+const defaultSingleUserGradesResult = {
+	json: null,
+	yaml: null,
+	markdown: null,
+};
+
 export const loader = async ({
 	context,
 	params,
 	request,
 }: Route.LoaderArgs) => {
-	const { payload, hints } = context.get(globalContextKey);
+	const { payload, hints, payloadRequest } = context.get(globalContextKey);
 	const courseContext = context.get(courseContextKey);
-	const { courseId } = params;
 	const userSession = context.get(userContextKey);
 	const timeZone = hints.timeZone;
 
@@ -79,41 +83,24 @@ export const loader = async ({
 	// Find enrollment for the selected user (only from students)
 	const enrollment = studentEnrollments.find((e) => e.user.id === userId);
 
-	const defaultSingleUserGradesResult = {
-		singleUserGrades: null,
-		singleUserGradesYaml: null,
-		singleUserGradesMarkdown: null,
-	};
+
 
 	const singleUserGradesResult =
 		userId && enrollment
 			? await tryGetAdjustedSingleUserGrades({
-					payload,
-					req: createLocalReq({
-						request,
-						user: currentUser,
-						context: { routerContext: context },
-					}),
-					overrideAccess: false,
-					courseId: Number(courseId),
-					enrollmentId: enrollment.id,
-				}).then((result) => {
-					return result.ok
-						? {
-								singleUserGrades: result.value.json,
-								singleUserGradesYaml: result.value.yaml,
-								singleUserGradesMarkdown: result.value.markdown,
-							}
-						: defaultSingleUserGradesResult;
-				})
+				payload,
+				req: payloadRequest,
+				courseId: courseContext.course.id,
+				enrollmentId: enrollment.id,
+			}).getOrDefault(defaultSingleUserGradesResult)
 			: defaultSingleUserGradesResult;
 
 	return {
 		course: courseContext.course,
 		enrollments: studentEnrollments,
-		singleUserGrades: singleUserGradesResult.singleUserGrades,
-		singleUserGradesYaml: singleUserGradesResult.singleUserGradesYaml,
-		singleUserGradesMarkdown: singleUserGradesResult.singleUserGradesMarkdown,
+		singleUserGrades: singleUserGradesResult.json,
+		singleUserGradesYaml: singleUserGradesResult.yaml,
+		singleUserGradesMarkdown: singleUserGradesResult.markdown,
 		selectedUserId: userId,
 		timeZone,
 		gradebookSetupForUI: courseContext.gradebookSetupForUI,
@@ -495,15 +482,15 @@ function matchItemsToStructure(
 				weight: gradeData?.weight ?? item.weight,
 				gradeData: gradeData
 					? {
-							base_grade: gradeData.base_grade ?? null,
-							override_grade: gradeData.override_grade ?? null,
-							is_overridden: gradeData.is_overridden,
-							feedback: gradeData.feedback ?? null,
-							graded_at: gradeData.graded_at ?? null,
-							submitted_at: gradeData.submitted_at ?? null,
-							status: gradeData.status,
-							adjustments: gradeData.adjustments ?? [],
-						}
+						base_grade: gradeData.base_grade ?? null,
+						override_grade: gradeData.override_grade ?? null,
+						is_overridden: gradeData.is_overridden,
+						feedback: gradeData.feedback ?? null,
+						graded_at: gradeData.graded_at ?? null,
+						submitted_at: gradeData.submitted_at ?? null,
+						status: gradeData.status,
+						adjustments: gradeData.adjustments ?? [],
+					}
 					: undefined,
 			});
 		}
@@ -617,7 +604,7 @@ function SingleUserGradeTableView({
 							</Text>
 							<Text size="lg" fw={700}>
 								{enrollment.final_grade !== null &&
-								enrollment.final_grade !== undefined
+									enrollment.final_grade !== undefined
 									? enrollment.final_grade.toFixed(2)
 									: "-"}
 							</Text>

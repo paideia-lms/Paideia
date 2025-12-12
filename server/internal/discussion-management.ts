@@ -590,7 +590,7 @@ export const tryGetDiscussionThreadsWithAllReplies = Result.wrap(
  */
 export const tryUpvoteDiscussionSubmission = Result.wrap(
 	async (args: UpvoteDiscussionSubmissionArgs) => {
-		const { payload, submissionId, userId } = args;
+		const { payload, submissionId, userId, req, overrideAccess } = args;
 
 		// Validate required fields
 		if (!submissionId) {
@@ -601,25 +601,27 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 		}
 
 		// Get the current submission
-		const submission = await payload.findByID({
-			collection: "discussion-submissions",
-			id: submissionId,
-		});
-
-		if (!submission) {
-			throw new NonExistingDiscussionSubmissionError(
-				`Discussion submission with id '${submissionId}' not found`,
-			);
-		}
+		const submission = await payload
+			.findByID({
+				collection: "discussion-submissions",
+				id: submissionId,
+				depth: 1,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "findByID">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryUpvoteDiscussionSubmission",
+					args,
+				});
+				throw error;
+			});
 
 		// Check if user has already upvoted
 		const existingUpvotes = submission.upvotes || [];
-		const hasUpvoted = existingUpvotes.some(
-			(upvote: { user: number | { id: number } }) =>
-				typeof upvote.user === "number"
-					? upvote.user === userId
-					: upvote.user.id === userId,
-		);
+		const hasUpvoted = existingUpvotes.some((upvote) => upvote.user === userId);
 
 		if (hasUpvoted) {
 			throw new InvalidArgumentError(
@@ -633,50 +635,36 @@ export const tryUpvoteDiscussionSubmission = Result.wrap(
 			upvotedAt: new Date().toISOString(),
 		};
 
-		const updatedSubmission = await payload.update({
-			collection: "discussion-submissions",
-			id: submissionId,
-			data: {
-				upvotes: [...existingUpvotes, newUpvote],
-			},
-		});
+		const updatedSubmission = await payload
+			.update({
+				collection: "discussion-submissions",
+				id: submissionId,
+				data: {
+					upvotes: [...existingUpvotes, newUpvote],
+				},
+				depth: 1,
+				req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "update">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryUpvoteDiscussionSubmission",
+					args,
+				});
+				throw error;
+			});
 
 		////////////////////////////////////////////////////
 		// type narrowing
 		////////////////////////////////////////////////////
 
 		const courseModuleLinkRef = updatedSubmission.courseModuleLink;
-		assertZodInternal(
-			"tryUpvoteDiscussionSubmission: Course module link is required",
-			courseModuleLinkRef,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const student = updatedSubmission.student;
-		assertZodInternal(
-			"tryUpvoteDiscussionSubmission: Student is required",
-			student,
-			z.object({
-				id: z.number(),
-			}),
-		);
-
-		const enrollment = updatedSubmission.enrollment;
-		assertZodInternal(
-			"tryUpvoteDiscussionSubmission: Enrollment is required",
-			enrollment,
-			z.object({
-				id: z.number(),
-			}),
-		);
 
 		return {
 			...updatedSubmission,
 			courseModuleLink: courseModuleLinkRef.id,
-			student,
-			enrollment,
 		};
 	},
 	(error) =>

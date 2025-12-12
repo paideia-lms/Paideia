@@ -3,7 +3,6 @@ import { notifications } from "@mantine/notifications";
 import { IconChevronLeft, IconChevronRight } from "@tabler/icons-react";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { href, Link, redirect } from "react-router";
-import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -29,7 +28,6 @@ import {
 	handleTransactionId,
 	rollbackTransactionIfCreated,
 } from "server/internal/utils/handle-transaction-id";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import {
 	canParticipateInDiscussion,
 	canSubmitAssignment,
@@ -78,7 +76,6 @@ export const loader = async ({
 	request,
 }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
-	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const { action, threadId } = loadSearchParams(request);
@@ -90,18 +87,9 @@ export const loader = async ({
 	const { moduleLinkId } = params;
 
 	// Get course context to ensure user has access to this course
-	if (!courseContext) {
-		throw new ForbiddenResponse("Course not found or access denied");
-	}
-
-	// Get course module context
 	if (!courseModuleContext) {
-		throw new ForbiddenResponse("Module not found or access denied");
+		throw new ForbiddenResponse("Course or module not found or access denied");
 	}
-
-	// Get current user
-	const _currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	// Check if user is a student
 	const isStudent = enrolmentContext?.enrolment?.role === "student";
@@ -192,7 +180,7 @@ const upvoteThreadAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: string } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -225,11 +213,7 @@ const upvoteThreadAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!upvoteResult.ok) {
@@ -243,7 +227,7 @@ const removeUpvoteThreadAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: string } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -276,11 +260,7 @@ const removeUpvoteThreadAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!removeUpvoteResult.ok) {
@@ -294,7 +274,7 @@ const upvoteReplyAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: string } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -327,11 +307,7 @@ const upvoteReplyAction = async ({
 		payload,
 		submissionId,
 		userId: currentUser.id,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!upvoteResult.ok) {
@@ -345,7 +321,7 @@ const removeUpvoteReplyAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: string } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -376,11 +352,7 @@ const removeUpvoteReplyAction = async ({
 
 	const removeUpvoteResult = await tryRemoveUpvoteDiscussionSubmission({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		submissionId,
 		userId: currentUser.id,
 	});
@@ -399,7 +371,7 @@ const createReplyAction = async ({
 }: Route.ActionArgs & {
 	searchParams: { action: string; replyTo: string | null };
 }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
@@ -478,11 +450,7 @@ const createReplyAction = async ({
 		postType,
 		content: content.trim(),
 		parentThread: actualParentThread,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!createResult.ok) {
@@ -505,7 +473,7 @@ const submitQuizAction = async ({
 	context,
 	params,
 }: Route.ActionArgs & { searchParams: { action: string } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const { moduleLinkId } = params;
@@ -550,20 +518,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-				questionId: string;
-				questionText: string;
-				questionType:
-					| "multiple_choice"
-					| "true_false"
-					| "short_answer"
-					| "essay"
-					| "fill_blank";
-				selectedAnswer?: string;
-				multipleChoiceAnswers?: Array<{
-					option: string;
-					isSelected: boolean;
-				}>;
-		  }>
+			questionId: string;
+			questionText: string;
+			questionType:
+			| "multiple_choice"
+			| "true_false"
+			| "short_answer"
+			| "essay"
+			| "fill_blank";
+			selectedAnswer?: string;
+			multipleChoiceAnswers?: Array<{
+				option: string;
+				isSelected: boolean;
+			}>;
+		}>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -590,11 +558,7 @@ const submitQuizAction = async ({
 		submissionId,
 		answers,
 		timeSpent,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		overrideAccess: false,
 	});
 
@@ -615,7 +579,7 @@ const startQuizAttemptAction = async ({
 	context,
 	params,
 }: Route.ActionArgs & { searchParams: { action: string } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const { moduleLinkId } = params;
@@ -645,11 +609,7 @@ const startQuizAttemptAction = async ({
 		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		overrideAccess: false,
 	});
 
@@ -672,11 +632,7 @@ const startQuizAttemptAction = async ({
 		payload,
 		courseModuleLinkId: Number(moduleLinkId),
 		studentId: currentUser.id,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		overrideAccess: false,
 	});
 
@@ -690,11 +646,7 @@ const startQuizAttemptAction = async ({
 		studentId: currentUser.id,
 		enrollmentId: enrolmentContext.enrolment.id,
 		attemptNumber: nextAttemptResult.value,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		overrideAccess: false,
 	});
 
@@ -1130,8 +1082,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-			"status" in loaderData.userSubmission &&
-			loaderData.userSubmission.status === "in_progress"
+				"status" in loaderData.userSubmission &&
+				loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 

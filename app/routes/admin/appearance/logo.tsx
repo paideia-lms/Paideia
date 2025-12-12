@@ -115,7 +115,7 @@ const clearAction = async ({
 	searchParams,
 }: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
 	const { field } = searchParams;
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -131,11 +131,7 @@ const clearAction = async ({
 
 	const clearResult = await tryClearLogo({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		field,
 	});
 
@@ -155,7 +151,7 @@ const uploadAction = async ({
 	searchParams,
 }: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
 	const { field: _field } = searchParams;
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -174,11 +170,7 @@ const uploadAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	return await transactionInfo.tx(async (txInfo) => {
@@ -233,17 +225,6 @@ const uploadAction = async ({
 			return badRequest({
 				error: "No file uploaded or invalid field name",
 			});
-		}
-
-		// Get current appearance settings
-		const currentSettings = await tryGetAppearanceSettings({
-			payload,
-			overrideAccess: true,
-			req: txInfo.reqWithTransaction,
-		});
-
-		if (!currentSettings.ok) {
-			return badRequest({ error: "Failed to get current settings" });
 		}
 
 		// Update appearance settings with the new logo
@@ -385,8 +366,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: logo.filename,
-			})
+			filenameOrId: logo.filename,
+		})
 		: null;
 
 	return (

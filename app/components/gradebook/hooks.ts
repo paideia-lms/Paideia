@@ -1,6 +1,28 @@
+import { stringify } from "qs";
 import { href, useFetcher } from "react-router";
 import type { clientAction } from "~/routes/course.$id.grades";
 import { ContentType } from "~/utils/get-content-type";
+
+enum Action {
+	CreateItem = "create-item",
+	CreateCategory = "create-category",
+	UpdateItem = "update-item",
+	UpdateCategory = "update-category",
+	DeleteItem = "delete-item",
+	DeleteCategory = "delete-category",
+	GetItem = "get-item",
+	GetCategory = "get-category",
+}
+
+const getActionUrl = (action: Action, courseId: number) => {
+	return (
+		href("/course/:courseId/grades", {
+			courseId: courseId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
 
 export function useCreateGradeItem() {
 	const fetcher = useFetcher<typeof clientAction>();
@@ -17,16 +39,10 @@ export function useCreateGradeItem() {
 			extraCredit?: boolean;
 		},
 	) => {
-		const submissionData = {
-			intent: "create-item" as const,
-			...values,
-		};
-		fetcher.submit(submissionData, {
+		fetcher.submit(values, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: href("/course/:courseId/grades", {
-				courseId: courseId.toString(),
-			}),
+			action: getActionUrl(Action.CreateItem, courseId),
 		});
 	};
 
@@ -40,19 +56,19 @@ export function useCreateGradeItem() {
 export function useCreateCategory() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const createCategory = (values: {
-		name: string;
-		description?: string;
-		parentId?: number | null;
-		weight?: number | null;
-	}) => {
-		const submissionData = {
-			intent: "create-category" as const,
-			...values,
-		};
-		fetcher.submit(submissionData, {
+	const createCategory = (
+		courseId: number,
+		values: {
+			name: string;
+			description?: string;
+			parentId?: number | null;
+			weight?: number | null;
+		},
+	) => {
+		fetcher.submit(values, {
 			method: "POST",
 			encType: ContentType.JSON,
+			action: getActionUrl(Action.CreateCategory, courseId),
 		});
 	};
 
@@ -80,16 +96,13 @@ export function useUpdateGradeItem() {
 		},
 	) => {
 		const submissionData = {
-			intent: "update-item" as const,
 			itemId,
 			...values,
 		};
 		fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
-			action: href("/course/:courseId/grades", {
-				courseId: courseId.toString(),
-			}),
+			action: getActionUrl(Action.UpdateItem, courseId),
 		});
 	};
 
@@ -103,7 +116,8 @@ export function useUpdateGradeItem() {
 export function useUpdateGradeCategory() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const updateGradeCategory = async (
+	const updateGradeCategory = (
+		courseId: number,
 		categoryId: number,
 		values: {
 			name?: string;
@@ -113,13 +127,13 @@ export function useUpdateGradeCategory() {
 		},
 	) => {
 		const submissionData = {
-			intent: "update-category" as const,
 			categoryId,
 			...values,
 		};
-		await fetcher.submit(submissionData, {
+		fetcher.submit(submissionData, {
 			method: "POST",
 			encType: ContentType.JSON,
+			action: getActionUrl(Action.UpdateCategory, courseId),
 		});
 	};
 
@@ -130,49 +144,43 @@ export function useUpdateGradeCategory() {
 	};
 }
 
-export function useDeleteManualItem() {
+export function useDeleteGradeItem() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const deleteManualItem = (courseId: number, itemId: number) => {
-		const submissionData = {
-			intent: "delete-item" as const,
-			itemId,
-		};
-		fetcher.submit(submissionData, {
-			method: "POST",
-			encType: ContentType.JSON,
-			action: href("/course/:courseId/grades", {
-				courseId: courseId.toString(),
-			}),
-		});
+	const deleteGradeItem = (courseId: number, itemId: number) => {
+		fetcher.submit(
+			{ itemId },
+			{
+				method: "POST",
+				encType: ContentType.JSON,
+				action: getActionUrl(Action.DeleteItem, courseId),
+			},
+		);
 	};
 
 	return {
-		deleteManualItem,
+		deleteGradeItem,
 		isLoading: fetcher.state !== "idle",
 		data: fetcher.data,
 	};
 }
 
-export function useDeleteCategory() {
+export function useDeleteGradeCategory() {
 	const fetcher = useFetcher<typeof clientAction>();
 
-	const deleteCategory = (courseId: number, categoryId: number) => {
-		const submissionData = {
-			intent: "delete-category" as const,
-			categoryId,
-		};
-		fetcher.submit(submissionData, {
-			method: "POST",
-			encType: ContentType.JSON,
-			action: href("/course/:courseId/grades", {
-				courseId: courseId.toString(),
-			}),
-		});
+	const deleteGradeCategory = (courseId: number, categoryId: number) => {
+		fetcher.submit(
+			{ categoryId },
+			{
+				method: "POST",
+				encType: ContentType.JSON,
+				action: getActionUrl(Action.DeleteCategory, courseId),
+			},
+		);
 	};
 
 	return {
-		deleteCategory,
+		deleteGradeCategory,
 		isLoading: fetcher.state !== "idle",
 		data: fetcher.data,
 	};

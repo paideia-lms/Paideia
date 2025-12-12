@@ -16,7 +16,7 @@ import { canSeeUserModules } from "server/utils/permissions";
 import { ForbiddenResponse, NotFoundResponse } from "~/utils/responses";
 import type { Route } from "./+types/user-layout";
 import classes from "./header-tabs.module.css";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { userProfileContextKey } from "server/contexts/user-profile-context";
 
 enum UserTab {
 	Profile = "profile",
@@ -30,20 +30,24 @@ enum UserTab {
 export const loader = async ({
 	context,
 	params,
-	request,
 }: Route.LoaderArgs) => {
-	const { payload, pageInfo } = context.get(globalContextKey);
+	const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
+	const userProfileContext = context.get(userProfileContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
+	}
+
+	if (!userProfileContext) {
+		throw new NotFoundResponse("User profile context not found");
 	}
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user ID from route params, or use current user
-	const userId = params.id ? Number(params.id) : currentUser.id;
+	const userId = userProfileContext.profileUser.id
 
 	// Check if user can access this data
 	if (userId !== currentUser.id && currentUser.role !== "admin") {
@@ -51,41 +55,12 @@ export const loader = async ({
 	}
 
 	// Fetch the target user
-	const userResult = await tryFindUserById({
-		payload,
-		userId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	if (!userResult.ok) {
-		throw new NotFoundResponse("User not found");
-	}
-
-	const targetUser = userResult.value;
-
-	// Handle avatar - could be Media object or just ID
-	const avatarUrl = targetUser.avatar
-		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: targetUser.avatar.toString(),
-			})
-		: null;
+	const targetUser = userProfileContext.profileUser;
 
 	const canSeeModules = canSeeUserModules(currentUser);
 
 	return {
-		user: {
-			id: targetUser.id,
-			firstName: targetUser.firstName ?? "",
-			lastName: targetUser.lastName ?? "",
-			email: targetUser.email,
-			role: targetUser.role,
-			avatarUrl,
-		},
+		user: targetUser,
 		pageInfo: pageInfo,
 		isOwnData: userId === currentUser.id,
 		canSeeModules,

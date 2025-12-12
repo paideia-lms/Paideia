@@ -64,17 +64,6 @@ export const loader = async ({
 		);
 	}
 
-	// Fetch the target user
-	// const userResult = await tryFindUserById({
-	// 	payload,
-	// 	userId,
-	// 	req: createLocalReq({ request, user: currentUser, context: { routerContext: context } }),
-	// 	overrideAccess: false,
-	// });
-
-	// if (!userResult.ok) {
-	// 	throw new NotFoundResponse("User not found");
-	// }
 
 	const targetUser = userProfileContext.profileUser;
 
@@ -254,19 +243,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																	| "page"
-																	| "whiteboard"
-																	| "assignment"
-																	| "quiz"
-																	| "discussion",
+																| "page"
+																| "whiteboard"
+																| "assignment"
+																| "quiz"
+																| "discussion",
 																12,
 															)}
 														>
