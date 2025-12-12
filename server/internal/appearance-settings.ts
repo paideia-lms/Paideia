@@ -1,5 +1,5 @@
 import { Result } from "typescript-result";
-import { transformError, UnknownError } from "~/utils/error";
+import { DevelopmentError, transformError, UnknownError } from "~/utils/error";
 import {
 	stripDepth,
 	type BaseInternalFunctionArgs,
@@ -59,7 +59,16 @@ export const tryGetAppearanceSettings = Result.wrap(
 			.then((raw) => {
 				return {
 					...raw,
-					additionalCssStylesheets: raw.additionalCssStylesheets ?? [],
+					additionalCssStylesheets:
+						// type narrowing
+						raw.additionalCssStylesheets?.map((stylesheet) => {
+							if (!stylesheet.id)
+								throw new DevelopmentError("Stylesheet ID is required");
+							return {
+								...stylesheet,
+								id: stylesheet.id,
+							};
+						}) ?? [],
 					color: raw.color ?? "blue",
 					radius: raw.radius ?? "sm",
 					logoLight: raw.logoLight ?? null,

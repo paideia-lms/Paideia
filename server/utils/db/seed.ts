@@ -11,7 +11,6 @@ import {
 	tryCreateQuizModule,
 	tryCreateWhiteboardModule,
 } from "../../internal/activity-module-management";
-import { tryGetUserCount } from "../../internal/check-first-user";
 import { tryCreateCourseActivityModuleLink } from "../../internal/course-activity-module-link-management";
 import { tryCreateCategory } from "../../internal/course-category-management";
 import { tryCreateCourse } from "../../internal/course-management";
@@ -22,6 +21,7 @@ import {
 	tryCreateUser,
 	tryRegisterFirstUser,
 	tryUpdateUser,
+	tryGetUserCount,
 } from "../../internal/user-management";
 import vfs from "../../vfs";
 import { testData } from "./predefined-seed-data";

@@ -65,7 +65,7 @@ import {
 	getUserProfileContext,
 	userProfileContextKey,
 } from "server/contexts/user-profile-context";
-import { tryGetUserCount } from "server/internal/check-first-user";
+import { tryGetUserCount } from "server/internal/user-management";
 import { tryFindCourseActivityModuleLinkById } from "server/internal/course-activity-module-link-management";
 import { tryFindSectionById } from "server/internal/course-section-management";
 import { tryGetSystemGlobals } from "server/internal/system-globals";
@@ -365,36 +365,31 @@ export const middleware = [
 		const userSession = context.get(userContextKey);
 
 		// Fetch all system globals in one call
-		const systemGlobalsResult = await tryGetSystemGlobals({
+		const systemGlobals = await tryGetSystemGlobals({
 			payload,
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
+		}).getOrDefault({
+			maintenanceSettings: { maintenanceMode: false },
+			sitePolicies: {
+				userMediaStorageTotal: null,
+				siteUploadLimit: null,
+			},
+			appearanceSettings: {
+				additionalCssStylesheets: [],
+				color: "blue",
+				radius: "sm" as const,
+				logoLight: null,
+				logoDark: null,
+				compactLogoLight: null,
+				compactLogoDark: null,
+				faviconLight: null,
+				faviconDark: null,
+			},
+			analyticsSettings: {
+				additionalJsScripts: [],
+			},
 		});
-
-		// If we can't get system globals, use defaults (fail open)
-		const systemGlobals = systemGlobalsResult.ok
-			? systemGlobalsResult.value
-			: {
-				maintenanceSettings: { maintenanceMode: false },
-				sitePolicies: {
-					userMediaStorageTotal: null,
-					siteUploadLimit: null,
-				},
-				appearanceSettings: {
-					additionalCssStylesheets: [],
-					color: "blue",
-					radius: "sm" as const,
-					logoLight: null,
-					logoDark: null,
-					compactLogoLight: null,
-					compactLogoDark: null,
-					faviconLight: null,
-					faviconDark: null,
-				},
-				analyticsSettings: {
-					additionalJsScripts: [],
-				},
-			};
 
 		// Store system globals in context for use throughout the app
 		context.set(globalContextKey, {
@@ -794,7 +789,6 @@ export async function loader({ context }: Route.LoaderArgs) {
 	if (userCount === 0) {
 		throw redirect(href("/registration"));
 	}
-
 
 	return {
 		users: userCount,
