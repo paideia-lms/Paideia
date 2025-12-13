@@ -15,15 +15,12 @@ const inputSchema = z.object({
 });
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "User not found" });
 	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 
@@ -39,12 +36,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	const result = await tryDeleteSection({
 		payload,
 		sectionId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {

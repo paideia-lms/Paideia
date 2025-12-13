@@ -32,7 +32,7 @@ export const loader = async ({
 	context,
 	params,
 }: Route.LoaderArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -63,11 +63,7 @@ export const loader = async ({
 	const result = await tryFindMediaUsages({
 		payload,
 		mediaId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {
@@ -135,9 +131,9 @@ export function useMediaUsageData(options: UseMediaUsageDataOptions = {}) {
 	const data =
 		fetcher.data && "usages" in fetcher.data && "totalUsages" in fetcher.data
 			? {
-					usages: fetcher.data.usages,
-					totalUsages: fetcher.data.totalUsages,
-				}
+				usages: fetcher.data.usages,
+				totalUsages: fetcher.data.totalUsages,
+			}
 			: null;
 
 	// Extract error from failed response

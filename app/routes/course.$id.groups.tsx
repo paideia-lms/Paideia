@@ -43,7 +43,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.groups";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export type { Route };
 
@@ -146,17 +145,14 @@ const createGroupAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+}: Route.ActionArgs & { searchParams: { action: Action.CreateGroup } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
-
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const formData = await request.formData();
 	const name = formData.get("name") as string;
@@ -178,11 +174,7 @@ const createGroupAction = async ({
 		color: color || undefined,
 		maxMembers: maxMembers ? Number(maxMembers) : undefined,
 		isActive: true,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!createResult.ok) {
@@ -195,8 +187,8 @@ const createGroupAction = async ({
 const deleteGroupAction = async ({
 	request,
 	context,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+}: Route.ActionArgs & { searchParams: { action: Action.DeleteGroup } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -215,11 +207,7 @@ const deleteGroupAction = async ({
 	const deleteResult = await tryDeleteGroup({
 		payload,
 		groupId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!deleteResult.ok) {

@@ -19,7 +19,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/theme";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 type AppearanceGlobal = {
 	id: number;
@@ -77,7 +76,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
@@ -98,11 +97,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 	const updateResult = await tryUpdateAppearanceSettings({
 		payload,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 		data: {
 			color,
 			radius: radius as "xs" | "sm" | "md" | "lg" | "xl" | undefined,

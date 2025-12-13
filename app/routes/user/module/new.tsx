@@ -56,7 +56,6 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/new";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -94,8 +93,8 @@ export const loadSearchParams = createLoader(moduleSearchParams);
 const createPageAction = async ({
 	request,
 	context,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+}: Route.ActionArgs & { searchParams: { action: Action.CreatePage } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -118,11 +117,7 @@ const createPageAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -146,16 +141,14 @@ const createPageAction = async ({
 			});
 		}
 
-		const createArgs = {
+		const createResult = await tryCreatePageModule({
 			payload,
 			title: parsedData.title,
 			description: parsedData.description,
 			status: parsedData.status || ("draft" as const),
 			req: reqWithTransaction,
 			...pageData,
-		} satisfies CreatePageModuleArgs;
-
-		const createResult = await tryCreatePageModule(createArgs);
+		});
 
 		if (!createResult.ok) {
 			return badRequest({
@@ -172,7 +165,7 @@ const createWhiteboardAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -195,11 +188,7 @@ const createWhiteboardAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -247,7 +236,7 @@ const createFileAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, systemGlobals, payloadRequest } =
+	const { payload, payloadRequest, systemGlobals } =
 		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
@@ -362,7 +351,7 @@ const createAssignmentAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -385,11 +374,7 @@ const createAssignmentAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -439,7 +424,7 @@ const createQuizAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -462,11 +447,7 @@ const createQuizAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -516,7 +497,7 @@ const createDiscussionAction = async ({
 	request,
 	context,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -539,11 +520,7 @@ const createDiscussionAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(
 		payload,
-		createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		payloadRequest,
 	);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {

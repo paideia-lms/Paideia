@@ -25,14 +25,12 @@ const inputSchema = z.object({
 
 export const action = async ({ context, request }: Route.ActionArgs) => {
 	const userSession = context.get(userContextKey);
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const parsed = inputSchema.safeParse(data);
@@ -49,11 +47,7 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			title,
 			description: description || undefined,
 		},
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {
