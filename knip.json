@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+  "ignoreExportsUsedInFile": {
+    "interface": true,
+    "type": true
+  },
+  "ignore" : ["src/payload-generated-schema.ts", "**/*.test.ts", "**/*.json", "scripts/**" , "tests/**"],
+  "tags": [
+    "-lintignore"
+  ],
+  "ignoreIssues": {
+    "**": ["binaries"]
+  }
+}

@@ -1,7 +1,12 @@
 import { Container, Stack } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
-import { createLoader, parseAsInteger, parseAsString } from "nuqs/server";
+import {
+	createLoader,
+	parseAsInteger,
+	parseAsString,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
 import { useState } from "react";
 import { href, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
@@ -25,10 +30,12 @@ import {
 	tryReleaseDiscussionGrade,
 	tryReleaseQuizGrade,
 } from "server/internal/user-grade-management";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
 import {
 	canDeleteSubmissions,
 	canSeeModuleSubmissions,
 } from "server/utils/permissions";
+import { serverOnly$ } from "vite-env-only/macros";
 import { DiscussionGradingView } from "~/components/discussion-grading-view";
 import { AssignmentGradingView } from "~/components/grading-view";
 import { QuizGradingView } from "~/components/quiz-grading-view";
@@ -38,7 +45,7 @@ import {
 	DiscussionSubmissionTable,
 	QuizSubmissionTable,
 } from "~/components/submission-tables";
-import { assertRequestMethod } from "~/utils/assert-request-method";
+import { stringify } from "qs";
 import { AssignmentActions, QuizActions } from "~/utils/module-actions";
 import {
 	badRequest,
@@ -59,8 +66,21 @@ export const submissionsSearchParams = {
 
 export const loadSearchParams = createLoader(submissionsSearchParams);
 
+enum Action {
+	DeleteSubmission = "deleteSubmission",
+	GradeSubmission = "gradeSubmission",
+	ReleaseGrade = "releaseGrade",
+}
+
+// Define search params for submission actions
+export const submissionActionSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadActionSearchParams = createLoader(submissionActionSearchParams);
+
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
-	const { systemGlobals, payloadRequest, payload } = context.get(globalContextKey);
+	const { payloadRequest, payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
 	const courseModuleContext = context.get(courseModuleContextKey);
@@ -467,29 +487,28 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload, payloadRequest } = context.get(globalContextKey);
-	const userSession = context.get(userContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
-	const courseModuleContext = context.get(courseModuleContextKey);
+const deleteSubmissionAction = serverOnly$(
+	async ({
+		request,
+		context,
+	}: Route.ActionArgs & {
+		searchParams: { action: Action.DeleteSubmission };
+	}) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const courseModuleContext = context.get(courseModuleContextKey);
 
-	if (!userSession?.isAuthenticated) {
-		return unauthorized({ error: "Unauthorized" });
-	}
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
+		}
 
-	if (!courseModuleContext) {
-		return badRequest({ error: "Module not found" });
-	}
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
 
-	const currentUser =
-		userSession.effectiveUser || userSession.authenticatedUser;
-
-	const formData = await request.formData();
-	const method = request.method;
-	const moduleType = courseModuleContext.type;
-
-	if (method === "DELETE") {
-		assertRequestMethod(request.method, "DELETE");
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
 		// Check if user can delete submissions
 		const canDelete = canDeleteSubmissions(
@@ -503,34 +522,66 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 		}
 
-		// Get submission ID from request
-		const submissionId = formData.get("submissionId");
-
-		if (!submissionId || typeof submissionId !== "string") {
-			return badRequest({ error: "Submission ID is required" });
-		}
-
-		const id = Number.parseInt(submissionId, 10);
-		if (Number.isNaN(id)) {
-			return badRequest({ error: "Invalid submission ID" });
-		}
-
-		// Delete the submission
-		const deleteResult = await tryDeleteAssignmentSubmission({
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(
 			payload,
-			id,
-			req: payloadRequest,
-		});
+			payloadRequest,
+		);
 
-		if (!deleteResult.ok) {
-			return badRequest({ error: deleteResult.error.message });
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			const formData = await request.formData();
+			const submissionId = formData.get("submissionId");
+
+			if (!submissionId || typeof submissionId !== "string") {
+				return badRequest({ error: "Submission ID is required" });
+			}
+
+			const id = Number.parseInt(submissionId, 10);
+			if (Number.isNaN(id)) {
+				return badRequest({ error: "Invalid submission ID" });
+			}
+
+			// Delete the submission
+			const deleteResult = await tryDeleteAssignmentSubmission({
+				payload,
+				id,
+				req: reqWithTransaction,
+			});
+
+			if (!deleteResult.ok) {
+				return badRequest({ error: deleteResult.error.message });
+			}
+
+			return ok({
+				success: true,
+				message: "Submission deleted successfully",
+			});
+		});
+	},
+)!;
+
+const gradeSubmissionAction = serverOnly$(
+	async ({
+		request,
+		context,
+	}: Route.ActionArgs & {
+		searchParams: { action: Action.GradeSubmission };
+	}) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const courseModuleContext = context.get(courseModuleContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
 		}
 
-		return ok({ success: true, message: "Submission deleted successfully" });
-	}
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
 
-	if (method === "POST") {
-		assertRequestMethod(request.method, "POST");
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
 		// Check if user can grade submissions (same as viewing submissions)
 		const canGrade = canSeeModuleSubmissions(
@@ -544,134 +595,166 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 		}
 
-		// Get form data
-		const submissionId = formData.get("submissionId");
-		const score = formData.get("score");
-		const feedback = formData.get("feedback");
+		const moduleType = courseModuleContext.type;
 
-		// Validate submission ID
-		if (!submissionId || typeof submissionId !== "string") {
-			return badRequest({ error: "Submission ID is required" });
-		}
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(
+			payload,
+			payloadRequest,
+		);
 
-		const id = Number.parseInt(submissionId, 10);
-		if (Number.isNaN(id)) {
-			return badRequest({ error: "Invalid submission ID" });
-		}
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			const formData = await request.formData();
+			const submissionId = formData.get("submissionId");
+			const score = formData.get("score");
+			const feedback = formData.get("feedback");
 
-		// Validate score
-		if (!score || typeof score !== "string") {
-			return badRequest({ error: "Score is required" });
-		}
-
-		const scoreValue = Number.parseFloat(score);
-		if (Number.isNaN(scoreValue) || scoreValue < 0) {
-			return badRequest({ error: "Invalid score value" });
-		}
-
-		// Grade the submission based on module type
-		if (moduleType === "assignment") {
-			const gradeResult = await tryGradeAssignmentSubmission({
-				payload,
-				req: payloadRequest,
-				id,
-				grade: scoreValue,
-				feedback:
-					feedback && typeof feedback === "string" ? feedback : undefined,
-				gradedBy: currentUser.id,
-			});
-
-			if (!gradeResult.ok) {
-				const errorMessage = String(gradeResult.error);
-				return badRequest({ error: errorMessage });
+			// Validate submission ID
+			if (!submissionId || typeof submissionId !== "string") {
+				return badRequest({ error: "Submission ID is required" });
 			}
 
-			return ok({
-				success: true,
-				submission: gradeResult.value,
-				message: "Submission graded successfully",
-			});
-		} else if (moduleType === "quiz") {
-			// For quiz, we need to get the submission first to get enrollment and gradebook item
-			const submissionResult = await tryGetQuizSubmissionById({
-				payload,
-				id,
-				req: payloadRequest,
-			});
-
-			if (!submissionResult.ok) {
-				return badRequest({ error: submissionResult.error.message });
+			const id = Number.parseInt(submissionId, 10);
+			if (Number.isNaN(id)) {
+				return badRequest({ error: "Invalid submission ID" });
 			}
 
-			const submission = submissionResult.value;
-			const enrollmentId =
-				typeof submission.enrollment === "object"
-					? submission.enrollment.id
-					: submission.enrollment;
-
-			// Get gradebook item
-			const gradebookItemResult = await tryFindGradebookItemByCourseModuleLink({
-				payload,
-				req: payloadRequest,
-				courseModuleLinkId: courseModuleContext.id,
-			});
-
-			if (!gradebookItemResult.ok) {
-				return badRequest({ error: "Gradebook item not found" });
+			// Validate score
+			if (!score || typeof score !== "string") {
+				return badRequest({ error: "Score is required" });
 			}
 
-			const gradebookItemId = gradebookItemResult.value.id;
-
-			// Grade the quiz submission
-			const gradeResult = await tryGradeQuizSubmission({
-				payload,
-				req: request,
-				id,
-				enrollmentId,
-				gradebookItemId,
-				gradedBy: currentUser.id,
-			});
-
-			if (!gradeResult.ok) {
-				const errorMessage = String(gradeResult.error);
-				return badRequest({ error: errorMessage });
+			const scoreValue = Number.parseFloat(score);
+			if (Number.isNaN(scoreValue) || scoreValue < 0) {
+				return badRequest({ error: "Invalid score value" });
 			}
 
-			return ok({
-				success: true,
-				submission: gradeResult.value,
-				message: "Quiz submission graded successfully",
-			});
-		} else if (moduleType === "discussion") {
-			// Grade the discussion submission
-			const gradeResult = await tryGradeDiscussionSubmission({
-				payload,
-				req: payloadRequest,
-				id,
-				grade: scoreValue,
-				feedback:
-					feedback && typeof feedback === "string" ? feedback : undefined,
-				gradedBy: currentUser.id,
-				overrideAccess: false,
-			});
+			// Grade the submission based on module type
+			if (moduleType === "assignment") {
+				const gradeResult = await tryGradeAssignmentSubmission({
+					payload,
+					req: reqWithTransaction,
+					id,
+					grade: scoreValue,
+					feedback:
+						feedback && typeof feedback === "string" ? feedback : undefined,
+					gradedBy: currentUser.id,
+				});
 
-			if (!gradeResult.ok) {
-				const errorMessage = String(gradeResult.error);
-				return badRequest({ error: errorMessage });
+				if (!gradeResult.ok) {
+					const errorMessage = String(gradeResult.error);
+					return badRequest({ error: errorMessage });
+				}
+
+				return ok({
+					success: true,
+					submission: gradeResult.value,
+					message: "Submission graded successfully",
+				});
+			} else if (moduleType === "quiz") {
+				// For quiz, we need to get the submission first to get enrollment and gradebook item
+				const submissionResult = await tryGetQuizSubmissionById({
+					payload,
+					id,
+					req: reqWithTransaction,
+				});
+
+				if (!submissionResult.ok) {
+					return badRequest({ error: submissionResult.error.message });
+				}
+
+				const submission = submissionResult.value;
+				const enrollmentId =
+					typeof submission.enrollment === "object"
+						? submission.enrollment.id
+						: submission.enrollment;
+
+				// Get gradebook item
+				const gradebookItemResult =
+					await tryFindGradebookItemByCourseModuleLink({
+						payload,
+						req: reqWithTransaction,
+						courseModuleLinkId: courseModuleContext.id,
+					});
+
+				if (!gradebookItemResult.ok) {
+					return badRequest({ error: "Gradebook item not found" });
+				}
+
+				const gradebookItemId = gradebookItemResult.value.id;
+
+				// Grade the quiz submission
+				const gradeResult = await tryGradeQuizSubmission({
+					payload,
+					req: reqWithTransaction,
+					id,
+					enrollmentId,
+					gradebookItemId,
+					gradedBy: currentUser.id,
+				});
+
+				if (!gradeResult.ok) {
+					const errorMessage = String(gradeResult.error);
+					return badRequest({ error: errorMessage });
+				}
+
+				return ok({
+					success: true,
+					submission: gradeResult.value,
+					message: "Quiz submission graded successfully",
+				});
+			} else if (moduleType === "discussion") {
+				// Grade the discussion submission
+				const gradeResult = await tryGradeDiscussionSubmission({
+					payload,
+					req: reqWithTransaction,
+					id,
+					grade: scoreValue,
+					feedback:
+						feedback && typeof feedback === "string" ? feedback : undefined,
+					gradedBy: currentUser.id,
+					overrideAccess: false,
+				});
+
+				if (!gradeResult.ok) {
+					const errorMessage = String(gradeResult.error);
+					return badRequest({ error: errorMessage });
+				}
+
+				return ok({
+					success: true,
+					submission: gradeResult.value,
+					message: "Discussion submission graded successfully",
+				});
+			} else {
+				return badRequest({ error: "Unsupported module type for grading" });
 			}
+		});
+	},
+)!;
 
-			return ok({
-				success: true,
-				submission: gradeResult.value,
-				message: "Discussion submission graded successfully",
-			});
-		} else {
-			return badRequest({ error: "Unsupported module type for grading" });
+const releaseGradeAction = serverOnly$(
+	async ({
+		request,
+		context,
+	}: Route.ActionArgs & {
+		searchParams: { action: Action.ReleaseGrade };
+	}) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
+		const userSession = context.get(userContextKey);
+		const enrolmentContext = context.get(enrolmentContextKey);
+		const courseModuleContext = context.get(courseModuleContextKey);
+
+		if (!userSession?.isAuthenticated) {
+			return unauthorized({ error: "Unauthorized" });
 		}
-	}
 
-	if (method === "PUT") {
-		assertRequestMethod(request.method, "PUT");
+		if (!courseModuleContext) {
+			return badRequest({ error: "Module not found" });
+		}
+
+		const currentUser =
+			userSession.effectiveUser || userSession.authenticatedUser;
 
 		// Check if user can grade submissions (same as viewing submissions)
 		const canGrade = canSeeModuleSubmissions(
@@ -685,95 +768,149 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 			});
 		}
 
-		// Get form data for release grade
-		const courseModuleLinkId = formData.get("courseModuleLinkId");
-		const enrollmentId = formData.get("enrollmentId");
+		const moduleType = courseModuleContext.type;
 
-		// Validate course module link ID
-		if (!courseModuleLinkId || typeof courseModuleLinkId !== "string") {
-			return badRequest({ error: "Course module link ID is required" });
-		}
+		// Handle transaction ID
+		const transactionInfo = await handleTransactionId(
+			payload,
+			payloadRequest,
+		);
 
-		const courseModuleLinkIdValue = Number.parseInt(courseModuleLinkId, 10);
-		if (Number.isNaN(courseModuleLinkIdValue)) {
-			return badRequest({ error: "Invalid course module link ID" });
-		}
+		return transactionInfo.tx(async ({ reqWithTransaction }) => {
+			const formData = await request.formData();
+			const courseModuleLinkId = formData.get("courseModuleLinkId");
+			const enrollmentId = formData.get("enrollmentId");
 
-		// Validate enrollment ID
-		if (!enrollmentId || typeof enrollmentId !== "string") {
-			return badRequest({ error: "Enrollment ID is required" });
-		}
+			// Validate course module link ID
+			if (!courseModuleLinkId || typeof courseModuleLinkId !== "string") {
+				return badRequest({ error: "Course module link ID is required" });
+			}
 
-		const enrollmentIdValue = Number.parseInt(enrollmentId, 10);
-		if (Number.isNaN(enrollmentIdValue)) {
-			return badRequest({ error: "Invalid enrollment ID" });
-		}
+			const courseModuleLinkIdValue = Number.parseInt(
+				courseModuleLinkId,
+				10,
+			);
+			if (Number.isNaN(courseModuleLinkIdValue)) {
+				return badRequest({ error: "Invalid course module link ID" });
+			}
 
-		// Release the grade based on module type
-		let releaseResult:
-			| Awaited<ReturnType<typeof tryReleaseAssignmentGrade>>
-			| Awaited<ReturnType<typeof tryReleaseDiscussionGrade>>
-			| Awaited<ReturnType<typeof tryReleaseQuizGrade>>;
-		if (moduleType === "assignment") {
-			releaseResult = await tryReleaseAssignmentGrade({
-				payload,
-				req: payloadRequest,
-				courseActivityModuleLinkId: courseModuleLinkIdValue,
-				enrollmentId: enrollmentIdValue,
+			// Validate enrollment ID
+			if (!enrollmentId || typeof enrollmentId !== "string") {
+				return badRequest({ error: "Enrollment ID is required" });
+			}
+
+			const enrollmentIdValue = Number.parseInt(enrollmentId, 10);
+			if (Number.isNaN(enrollmentIdValue)) {
+				return badRequest({ error: "Invalid enrollment ID" });
+			}
+
+			// Release the grade based on module type
+			let releaseResult:
+				| Awaited<ReturnType<typeof tryReleaseAssignmentGrade>>
+				| Awaited<ReturnType<typeof tryReleaseDiscussionGrade>>
+				| Awaited<ReturnType<typeof tryReleaseQuizGrade>>;
+			if (moduleType === "assignment") {
+				releaseResult = await tryReleaseAssignmentGrade({
+					payload,
+					req: reqWithTransaction,
+					courseActivityModuleLinkId: courseModuleLinkIdValue,
+					enrollmentId: enrollmentIdValue,
+				});
+			} else if (moduleType === "discussion") {
+				releaseResult = await tryReleaseDiscussionGrade({
+					payload,
+					req: reqWithTransaction,
+					courseActivityModuleLinkId: courseModuleLinkIdValue,
+					enrollmentId: enrollmentIdValue,
+				});
+			} else if (moduleType === "quiz") {
+				releaseResult = await tryReleaseQuizGrade({
+					payload,
+					req: reqWithTransaction,
+					courseActivityModuleLinkId: courseModuleLinkIdValue,
+					enrollmentId: enrollmentIdValue,
+				});
+			} else {
+				return badRequest({
+					error: "Unsupported module type for releasing grades",
+				});
+			}
+
+			if (!releaseResult.ok) {
+				const errorMessage = String(releaseResult.error);
+				return badRequest({ error: errorMessage });
+			}
+
+			return ok({
+				success: true,
+				released: true,
+				message: "Grade released successfully",
 			});
-		} else if (moduleType === "discussion") {
-			releaseResult = await tryReleaseDiscussionGrade({
-				payload,
-				req: payloadRequest,
-				courseActivityModuleLinkId: courseModuleLinkIdValue,
-				enrollmentId: enrollmentIdValue,
-			});
-		} else if (moduleType === "quiz") {
-			releaseResult = await tryReleaseQuizGrade({
-				payload,
-				req: payloadRequest,
-				courseActivityModuleLinkId: courseModuleLinkIdValue,
-				enrollmentId: enrollmentIdValue,
-			});
-		} else {
-			return badRequest({
-				error: "Unsupported module type for releasing grades",
-			});
-		}
+		});
+	},
+)!;
 
-		if (!releaseResult.ok) {
-			const errorMessage = String(releaseResult.error);
-			return badRequest({ error: errorMessage });
-		}
+const getActionUrl = (action: Action, moduleLinkId: number) => {
+	return (
+		href("/course/module/:moduleLinkId/submissions", {
+			moduleLinkId: moduleLinkId.toString(),
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
 
-		return ok({
-			success: true,
-			released: true,
-			message: "Grade released successfully",
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadActionSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({ error: "Action is required" });
+	}
+
+	if (actionType === Action.DeleteSubmission) {
+		return deleteSubmissionAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
 		});
 	}
 
-	return badRequest({ error: "Unsupported method" });
+	if (actionType === Action.GradeSubmission) {
+		return gradeSubmissionAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	if (actionType === Action.ReleaseGrade) {
+		return releaseGradeAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({ error: "Invalid action" });
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
 	if (
-		"status" in actionData &&
-		(actionData.status === StatusCode.BadRequest ||
-			actionData.status === StatusCode.Unauthorized)
+		actionData.status === StatusCode.BadRequest ||
+		actionData.status === StatusCode.Unauthorized
 	) {
-		const errorMessage =
-			"error" in actionData && typeof actionData.error === "string"
-				? actionData.error
-				: "Failed to process request";
 		notifications.show({
 			title: "Error",
-			message: errorMessage,
+			message: actionData.error,
 			color: "red",
 		});
-	} else if ("success" in actionData && actionData.success) {
+	} else if (actionData.status === StatusCode.Ok) {
 		// Determine which action succeeded based on the request method
 		// This will be handled by the specific hooks
 		notifications.show({
@@ -878,10 +1015,8 @@ const useDeleteSubmission = () => {
 		formData.append("submissionId", submissionId.toString());
 
 		fetcher.submit(formData, {
-			method: "DELETE",
-			action: href("/course/module/:moduleLinkId/submissions", {
-				moduleLinkId: moduleLinkId.toString(),
-			}),
+			method: "POST",
+			action: getActionUrl(Action.DeleteSubmission, moduleLinkId),
 		});
 	};
 
@@ -893,7 +1028,7 @@ const useDeleteSubmission = () => {
 	};
 };
 
-export const useGradeSubmission = () => {
+export const useGradeSubmission = (moduleLinkId: number) => {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const gradeSubmission = (
@@ -910,6 +1045,7 @@ export const useGradeSubmission = () => {
 
 		fetcher.submit(formData, {
 			method: "POST",
+			action: getActionUrl(Action.GradeSubmission, moduleLinkId),
 		});
 	};
 
@@ -921,7 +1057,7 @@ export const useGradeSubmission = () => {
 	};
 };
 
-export const useReleaseGrade = () => {
+export const useReleaseGrade = (moduleLinkId: number) => {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const releaseGrade = (courseModuleLinkId: number, enrollmentId: number) => {
@@ -929,7 +1065,8 @@ export const useReleaseGrade = () => {
 		formData.append("courseModuleLinkId", String(courseModuleLinkId));
 		formData.append("enrollmentId", String(enrollmentId));
 		fetcher.submit(formData, {
-			method: "PUT",
+			method: "POST",
+			action: getActionUrl(Action.ReleaseGrade, moduleLinkId),
 		});
 	};
 
@@ -963,7 +1100,7 @@ export default function ModuleSubmissionsPage({
 	// Call hooks unconditionally at the top
 	const [selectedRows, setSelectedRows] = useState<number[]>([]);
 	const { deleteSubmission } = useDeleteSubmission();
-	const { releaseGrade, isReleasing } = useReleaseGrade();
+	const { releaseGrade, isReleasing } = useReleaseGrade(moduleLinkId);
 
 	// If we're in grading mode, show the appropriate grading view
 	if (

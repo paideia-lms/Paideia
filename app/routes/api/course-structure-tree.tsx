@@ -11,7 +11,6 @@ import z from "zod";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
 import { badRequest, ok, StatusCode, unauthorized } from "~/utils/responses";
 import type { Route } from "./+types/course-structure-tree";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	courseId: z.number(),
@@ -23,7 +22,7 @@ const inputSchema = z.object({
 });
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -54,13 +53,10 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		source: { id: sourceId, type: sourceType },
 		target: { id: targetId, type: targetType },
 		location,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
+	// ! we return error response in action because this route has a default page component
 	if (!result.ok) {
 		return badRequest({ error: result.error.message });
 	}

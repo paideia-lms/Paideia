@@ -26,7 +26,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/profile";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -70,7 +69,7 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 };
 
 export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload, requestInfo } = context.get(globalContextKey);
+	const { payload, requestInfo, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -97,11 +96,7 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 		const targetUserResult = await tryFindUserById({
 			payload,
 			userId: targetUserId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 			overrideAccess: false,
 		});
 

@@ -13,7 +13,7 @@ import { pick } from "es-toolkit";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryUpdateUser } from "server/internal/user-management";
+import { tryFindUserById, tryUpdateUser } from "server/internal/user-management";
 import { z } from "zod";
 import { assertRequestMethodInRemix } from "~/utils/assert-request-method";
 import {
@@ -27,10 +27,9 @@ import {
 	ok,
 } from "~/utils/responses";
 import type { Route } from "./+types/preference";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { id } = params;
 
@@ -56,14 +55,13 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	}
 
 	// Fetch the target user
-	const targetUser = await payload.findByID({
-		collection: "users",
-		id: targetUserId,
-	});
-
-	if (!targetUser) {
+	const targetUser = await tryFindUserById({
+		payload,
+		userId: targetUserId,
+		req: payloadRequest,
+	}).getOrElse(() => {
 		throw new NotFoundResponse("User not found");
-	}
+	});
 
 	return {
 		user: pick(targetUser, [
@@ -84,7 +82,7 @@ const actionSchema = z.object({
 
 export const action = async ({ context, request }: Route.ActionArgs) => {
 	assertRequestMethodInRemix(request.method, "POST");
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -116,11 +114,7 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 			theme,
 			direction,
 		},
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!updateResult.ok) {

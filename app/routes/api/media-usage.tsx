@@ -6,7 +6,6 @@ import { tryFindMediaUsages } from "server/internal/media-management";
 import z from "zod";
 import { badRequest, NotFoundResponse, ok } from "~/utils/responses";
 import type { Route } from "./+types/media-usage";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 const inputSchema = z.object({
 	mediaId: z.union([z.number(), z.string()]).transform((val) => {

@@ -46,6 +46,8 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryDeleteMedia,
 	tryFindMediaByUser,
+	tryGetMediaById,
+	tryGetMediaByIds,
 	tryGetUserMediaStats,
 	tryRenameMedia,
 } from "server/internal/media-management";
@@ -83,7 +85,7 @@ export const loader = async ({
 	params,
 	request,
 }: Route.LoaderArgs) => {
-	const { payload, systemGlobals } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -121,11 +123,7 @@ export const loader = async ({
 		limit: 20,
 		page: 1,
 		depth: 0,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!mediaResult.ok) {
@@ -142,18 +140,11 @@ export const loader = async ({
 	});
 
 	// Get media stats
-	const statsResult = await tryGetUserMediaStats({
+	const stats = await tryGetUserMediaStats({
 		payload,
 		userId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	const stats = statsResult.ok ? statsResult.value : null;
+		req: payloadRequest,
+	}).getOrNull()
 
 	return {
 		user: userProfileContext.profileUser,
@@ -234,23 +225,20 @@ const updateAction = async ({
 
 	return await transactionInfo.tx(async (txInfo) => {
 		// Fetch media record to check permissions
-		const mediaRecord = await payload.findByID({
-			collection: "media",
+		const mediaRecordResult = await tryGetMediaById({
+			payload,
 			id: mediaId,
-			depth: 0,
 			req: txInfo.reqWithTransaction,
-		});
+		})
 
-		if (!mediaRecord) {
-			return badRequest({ error: "Media not found" });
+		if (!mediaRecordResult.ok) {
+			return badRequest({ error: mediaRecordResult.error.message });
 		}
 
+		const mediaRecord = mediaRecordResult.value;
+
 		// Check permissions
-		const createdById =
-			typeof mediaRecord.createdBy === "object" &&
-			mediaRecord.createdBy !== null
-				? mediaRecord.createdBy.id
-				: mediaRecord.createdBy;
+		const createdById = mediaRecord.createdBy.id;
 		const deletePermission = canDeleteMedia(currentUser, createdById);
 
 		if (!deletePermission.allowed) {
@@ -306,7 +294,7 @@ const deleteAction = async ({
 	context,
 	params,
 }: Route.ActionArgs & { searchParams: { action: Action } }) => {
-	const { payload, s3Client } = context.get(globalContextKey);
+	const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -350,28 +338,25 @@ const deleteAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(payload);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return await transactionInfo.tx(async (txInfo) => {
 		// Fetch media records to check permissions
-		const mediaRecords = await payload.find({
-			collection: "media",
-			where: {
-				id: {
-					in: mediaIds,
-				},
-			},
-			limit: mediaIds.length,
-			depth: 0,
+		const mediaRecordsResult = await tryGetMediaByIds({
+			payload,
+			ids: mediaIds,
 			req: txInfo.reqWithTransaction,
 		});
 
+		if (!mediaRecordsResult.ok) {
+			return badRequest({ error: mediaRecordsResult.error.message });
+		}
+
+		const mediaRecords = mediaRecordsResult.value;
+
 		// Check permissions for each media item
 		for (const media of mediaRecords.docs) {
-			const createdById =
-				typeof media.createdBy === "object" && media.createdBy !== null
-					? media.createdBy.id
-					: media.createdBy;
+			const createdById = media.createdBy;
 			const deletePermission = canDeleteMedia(currentUser, createdById);
 
 			if (!deletePermission.allowed) {
@@ -401,7 +386,7 @@ const deleteAction = async ({
 		});
 
 		if (!result.ok) {
-			return badRequest({ error: result.error.message });
+			return badRequest({ error: result.error?.message ?? "Failed to delete media" });
 		}
 
 		return ok({
@@ -409,7 +394,9 @@ const deleteAction = async ({
 				mediaIds.length === 1
 					? "Media deleted successfully"
 					: `${mediaIds.length} media files deleted successfully`,
-		});
+		})
+	}, (response) => {
+		return response.data.status === StatusCode.BadRequest || response.data.status === StatusCode.Unauthorized
 	});
 };
 
@@ -1033,8 +1020,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1125,8 +1112,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	return (
@@ -1205,8 +1192,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: file.filename,
-			})
+			filenameOrId: file.filename,
+		})
 		: undefined;
 
 	return (

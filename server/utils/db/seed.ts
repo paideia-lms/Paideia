@@ -1,5 +1,5 @@
 import { SeedDataLoadError, transformError } from "app/utils/error";
-import type { Simplify } from "node_modules/drizzle-orm/utils";
+import type { Simplify } from "drizzle-orm/utils";
 import type { Payload } from "payload";
 import type { LatestQuizConfig } from "server/json";
 import { Result } from "typescript-result";

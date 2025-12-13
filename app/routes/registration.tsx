@@ -18,6 +18,7 @@ import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
 import {
+	tryGetUserCount,
 	tryRegisterFirstUser,
 	tryRegisterUser,
 } from "server/internal/user-management";
@@ -25,7 +26,7 @@ import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
+import { badRequest, ForbiddenResponse, InternalServerErrorResponse } from "~/utils/responses";
 import type { Route } from "./+types/registration";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
@@ -33,12 +34,15 @@ export async function loader({ context }: Route.LoaderArgs) {
 	const { payload, envVars } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
-	const users = await payload.find({
-		collection: "users",
-		limit: 1,
+	const userCount = await tryGetUserCount({
+		payload,
+		// ! this is a system request, we don't care about access control
+		overrideAccess: true,
+	}).getOrElse(() => {
+		throw new InternalServerErrorResponse("Failed to get user count");
 	});
 
-	const isFirstUser = users.docs.length === 0;
+	const isFirstUser = userCount === 0;
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
 	// Respect registration settings unless creating the first user
@@ -87,8 +91,16 @@ export async function action({ request, context }: Route.ActionArgs) {
 	const userSession = context.get(userContextKey);
 
 	// Determine if first user
-	const existing = await payload.find({ collection: "users", limit: 1 });
-	const isFirstUser = existing.docs.length === 0;
+	const userCountResult = await tryGetUserCount({
+		payload,
+		// ! this is a system request, we don't care about access control
+		overrideAccess: true,
+	});
+	if (!userCountResult.ok) {
+		return badRequest({ success: false, error: userCountResult.error.message });
+	}
+	const userCount = userCountResult.value;
+	const isFirstUser = userCount === 0;
 	const isSandboxMode = envVars.SANDBOX_MODE.enabled;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);

@@ -54,6 +54,7 @@ import {
 	tryDeleteOrphanedMedia,
 	tryFindMediaByUser,
 	tryGetAllMedia,
+	tryGetMediaByIds,
 	tryGetOrphanedMedia,
 	tryGetSystemMediaStats,
 	tryGetUserMediaStats,
@@ -385,17 +386,17 @@ const deleteMediaAction = serverOnly$(
 			}
 
 			// Verify all media records exist
-			const mediaRecords = await payload.find({
-				collection: "media",
-				where: {
-					id: {
-						in: mediaIds,
-					},
-				},
-				limit: mediaIds.length,
-				depth: 0,
+			const mediaRecordsResult = await tryGetMediaByIds({
+				payload,
+				ids: mediaIds,
 				req: reqWithTransaction,
 			});
+
+			if (!mediaRecordsResult.ok) {
+				return badRequest({ error: mediaRecordsResult.error.message });
+			}
+
+			const mediaRecords = mediaRecordsResult.value;
 
 			if (mediaRecords.docs.length !== mediaIds.length) {
 				const foundIds = mediaRecords.docs.map((m) => m.id);
@@ -423,6 +424,8 @@ const deleteMediaAction = serverOnly$(
 						? "Media deleted successfully"
 						: `${mediaIds.length} media files deleted successfully`,
 			});
+		}, (result) => {
+			return result.data.status === StatusCode.BadRequest
 		});
 	},
 )!;
@@ -495,6 +498,8 @@ const deleteOrphanedMediaAction = serverOnly$(
 						? "Orphaned file deleted successfully"
 						: `${result.value.deletedCount} orphaned files deleted successfully`,
 			});
+		}, (result) => {
+			return result.data.status === StatusCode.BadRequest
 		});
 	},
 )!;

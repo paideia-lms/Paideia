@@ -70,7 +70,7 @@ export const loader = async ({
 	params,
 	request,
 }: Route.LoaderArgs) => {
-	const { payload, envVars } = context.get(globalContextKey);
+	const { payload, envVars, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -95,28 +95,19 @@ export const loader = async ({
 	}
 
 	// Fetch the user profile
-	const userResult = await tryFindUserById({
+	const profileUser = await tryFindUserById({
 		payload,
 		userId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
-		overrideAccess: false,
-	});
-
-	if (!userResult.ok) {
+		req: payloadRequest,
+	}).getOrElse(() => {
 		throw new NotFoundResponse("User not found");
-	}
-
-	const profileUser = userResult.value;
+	});
 
 	// Handle avatar - could be Media object or just ID
 	const avatarUrl = profileUser.avatar
 		? href(`/api/media/file/:filenameOrId`, {
-				filenameOrId: profileUser.avatar.toString(),
-			})
+			filenameOrId: profileUser.avatar.toString(),
+		})
 		: null;
 
 	// Check if user can impersonate

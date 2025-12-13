@@ -1,9 +1,7 @@
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
 import { tryGetMediaStreamFromId } from "server/internal/media-management";
 import { tryFindUserById } from "server/internal/user-management";
 import type { Route } from "./+types/user.$id.avatar";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import { badRequest, notFound } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
@@ -29,24 +27,13 @@ export const loader = async ({
 		return badRequest({ error: "Invalid user ID" });
 	}
 
-	const payload = context.get(globalContextKey).payload;
-	const s3Client = context.get(globalContextKey).s3Client;
-
-	// Try to get user from context if available (optional for avatar access)
-	const userSession = context.get(userContextKey);
-	const currentUser = userSession?.isAuthenticated
-		? userSession.effectiveUser || userSession.authenticatedUser
-		: null;
+	const { payload, payloadRequest, s3Client } = context.get(globalContextKey);
 
 	// Fetch user with avatar populated (depth 1 to get avatar object)
 	const userResult = await tryFindUserById({
 		payload,
 		userId: userIdNum,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!userResult.ok) {
@@ -73,11 +60,7 @@ export const loader = async ({
 		payload,
 		s3Client,
 		id: avatarMediaId,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {
@@ -98,11 +81,7 @@ export const loader = async ({
 			s3Client,
 			id: avatarMediaId,
 			range,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 		});
 
 		if (!result.ok) {

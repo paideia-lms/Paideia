@@ -10,8 +10,7 @@
  */
 import { createContext, href } from "react-router";
 import type { UserAccessContext } from "server/contexts/user-access-context";
-import type { User } from "server/contexts/user-context";
-import { getAvatarUrl } from "server/contexts/utils/user-utils";
+import type { UserSession } from "server/contexts/user-context";
 import { tryGetUserActivityModules } from "server/internal/activity-module-management";
 import { tryFindEnrollmentsByUser } from "server/internal/enrollment-management";
 import { tryGenerateNoteHeatmap } from "server/internal/note-management";
@@ -23,6 +22,9 @@ import type {
 	Enrollment as PayloadEnrollment,
 } from "server/payload-types";
 
+type UserContextUser = NonNullable<
+	UserSession["authenticatedUser"] | UserSession["effectiveUser"]
+>;
 type Course = {
 	id: number;
 	title: string;
@@ -100,14 +102,18 @@ export { userProfileContextKey } from "./utils/context-keys";
  */
 export const convertUserAccessContextToUserProfileContext = (
 	userAccessContext: UserAccessContext,
-	user: User,
+	user: UserContextUser,
 ): UserProfileContext => {
 	// UserAccessContext and UserProfileContext have similar structure
 	// We just need to add the profileUserId and profileUser fields
 	// The activityModules and enrollments are already in the correct format
 
 	// Handle avatar URL
-	const avatarUrl = getAvatarUrl(user);
+	const avatarUrl = user.avatar
+		? href(`/api/media/file/:filenameOrId`, {
+				filenameOrId: user.avatar.toString(),
+			})
+		: null;
 
 	return {
 		profileUserId: user.id,

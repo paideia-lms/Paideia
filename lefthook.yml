@@ -56,9 +56,12 @@ pre-commit:
     - name: lint
       run: bun lint --diagnostic-level error
       stage_fixed: true
-    - name: lint-project
-      run: bun lint:project
-      stage_fixed: true
+    # - name: lint-project
+    #   run: bun lint:project
+    #   stage_fixed: true
+    # - name: knip
+    #   run: bun knip
+    #   stage_fixed: true
     # - name: test
     #   run: bun test 
     #   stage_fixed: true

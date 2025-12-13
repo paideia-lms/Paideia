@@ -12,6 +12,7 @@ import {
 	type Depth,
 	stripDepth,
 	type BaseInternalFunctionArgs,
+	interceptPayloadError,
 } from "./utils/internal-function-utils";
 
 export interface CreateEnrollmentArgs extends BaseInternalFunctionArgs {
@@ -481,14 +482,7 @@ export const tryFindEnrollmentsByCourse = Result.wrap(
  */
 export const tryFindUserEnrollmentInCourse = Result.wrap(
 	async (args: FindUserEnrollmentInCourseArgs) => {
-		const {
-			payload,
-			userId,
-			courseId,
-
-			req,
-			overrideAccess = false,
-		} = args;
+		const { payload, userId, courseId, req, overrideAccess = false } = args;
 
 		// Validate required fields
 		if (!userId) {
@@ -499,30 +493,39 @@ export const tryFindUserEnrollmentInCourse = Result.wrap(
 			throw new InvalidArgumentError("Course ID is required");
 		}
 
-		const enrollments = await payload.find({
-			collection: "enrollments",
-			where: {
-				and: [
-					{
-						user: {
-							equals: userId,
+		const enrollments = await payload
+			.find({
+				collection: "enrollments",
+				where: {
+					and: [
+						{
+							user: {
+								equals: userId,
+							},
 						},
-					},
-					{
-						course: {
-							equals: courseId,
+						{
+							course: {
+								equals: courseId,
+							},
 						},
-					},
-				],
-			},
-			limit: 1,
-			req: req || {},
-			overrideAccess,
-		});
+					],
+				},
+				limit: 1,
+				depth: 1,
+				req: req,
+				overrideAccess,
+			})
+			.then(stripDepth<1, "find">())
+			.catch((error) => {
+				interceptPayloadError({
+					error,
+					functionNamePrefix: "tryFindUserEnrollmentInCourse",
+					args,
+				});
+				throw error;
+			});
 
-		return enrollments.docs.length > 0
-			? (enrollments.docs[0] as Enrollment)
-			: null;
+		return enrollments.docs[0] ?? null;
 	},
 	(error) =>
 		transformError(error) ??

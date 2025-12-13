@@ -40,23 +40,23 @@ export interface GradingViewProps {
 		content?: string | null;
 		submittedAt?: string | null;
 		student:
-			| {
-					id: number;
-					firstName?: string | null;
-					lastName?: string | null;
-					email?: string | null;
-			  }
-			| number;
+		| {
+			id: number;
+			firstName?: string | null;
+			lastName?: string | null;
+			email?: string | null;
+		}
+		| number;
 		attachments?: Array<{
 			file:
-				| number
-				| {
-						id: number;
-						filename?: string | null;
-						mimeType?: string | null;
-						filesize?: number | null;
-						url?: string | null;
-				  };
+			| number
+			| {
+				id: number;
+				filename?: string | null;
+				mimeType?: string | null;
+				filesize?: number | null;
+				url?: string | null;
+			};
 			description?: string | null;
 		}> | null;
 	};
@@ -83,17 +83,17 @@ export interface GradingViewProps {
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
 	enrollment?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 	courseModuleLink?:
-		| {
-				id: number;
-		  }
-		| number
-		| null;
+	| {
+		id: number;
+	}
+	| number
+	| null;
 }
 
 // ============================================================================
@@ -138,7 +138,7 @@ export function AssignmentGradingView({
 		},
 	});
 
-	const { gradeSubmission, isGrading, data } = useGradeSubmission();
+	const { gradeSubmission, isGrading, data } = useGradeSubmission(moduleLinkId);
 	const _navigate = useNavigate();
 
 	const handleSubmit = useEffectEvent((values: GradingFormValues) => {
@@ -163,7 +163,7 @@ export function AssignmentGradingView({
 	const studentName =
 		typeof student === "object"
 			? `${student.firstName ?? ""} ${student.lastName ?? ""}`.trim() ||
-				student.email
+			student.email
 			: "Unknown Student";
 	const studentEmail = typeof student === "object" ? student.email : "";
 
@@ -255,12 +255,12 @@ export function AssignmentGradingView({
 														typeof file === "object"
 															? file
 															: {
-																	id: file,
-																	filename: null,
-																	mimeType: null,
-																	filesize: null,
-																	url: null,
-																};
+																id: file,
+																filename: null,
+																mimeType: null,
+																filesize: null,
+																url: null,
+															};
 													const filename =
 														fileData.filename || `File ${fileData.id}`;
 													const isExpanded =

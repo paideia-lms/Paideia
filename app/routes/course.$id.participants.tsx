@@ -10,6 +10,7 @@ import { userContextKey } from "server/contexts/user-context";
 import {
 	tryCreateEnrollment,
 	tryDeleteEnrollment,
+	tryFindUserEnrollmentInCourse,
 	tryUpdateEnrollment,
 } from "server/internal/enrollment-management";
 import type { Enrollment } from "server/payload-types";
@@ -25,7 +26,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export type { Route };
 
@@ -33,7 +33,6 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
-	const { courseId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -59,7 +58,7 @@ export const action = async ({
 	context,
 	params,
 }: Route.ActionArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { courseId } = params;
 	if (!userSession?.isAuthenticated) {
@@ -70,18 +69,17 @@ export const action = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user's enrollment for this course
-	const enrollments = await payload.find({
-		collection: "enrollments",
-		where: {
-			and: [
-				{ user: { equals: currentUser.id } },
-				{ course: { equals: courseId } },
-			],
-		},
-		limit: 1,
-	});
+	const enrollmentResult = await tryFindUserEnrollmentInCourse({
+		payload,
+		userId: currentUser.id,
+		courseId: Number(courseId),
+		req: payloadRequest,
+	})
+	if (!enrollmentResult.ok) {
+		return badRequest({ error: enrollmentResult.error.message });
+	}
+	const enrollment = enrollmentResult.value;
 
-	const enrollment = enrollments.docs[0];
 
 	// Check if user has management access to this course
 	const canManage =
@@ -125,11 +123,7 @@ export const action = async ({
 			userId: userId,
 			course: Number(courseId),
 			role,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			req: payloadRequest,
 			overrideAccess: false,
 		});
 
@@ -173,12 +167,7 @@ export const action = async ({
 			role,
 			status,
 			groups: groupIds,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			req: payloadRequest,
 		});
 
 		if (!updateResult.ok) {
@@ -197,12 +186,7 @@ export const action = async ({
 		const deleteResult = await tryDeleteEnrollment({
 			payload,
 			enrollmentId,
-			req: createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
-			overrideAccess: false,
+			req: payloadRequest,
 		});
 
 		if (!deleteResult.ok) {

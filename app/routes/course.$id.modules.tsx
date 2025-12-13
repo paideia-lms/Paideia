@@ -30,12 +30,13 @@ import {
 } from "~/utils/get-content-type";
 import {
 	badRequest,
+	BadRequestResponse,
 	ForbiddenResponse,
 	ok,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.modules";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
+import { tryFindUserEnrollmentInCourse } from "server/internal/enrollment-management";
 
 enum Action {
 	Create = "create",
@@ -190,18 +191,17 @@ const createAction = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user's enrollment for this course
-	const enrollments = await payload.find({
-		collection: "enrollments",
-		where: {
-			and: [
-				{ user: { equals: currentUser.id } },
-				{ course: { equals: courseId } },
-			],
-		},
-		limit: 1,
-	});
+	const enrollmentResult = await tryFindUserEnrollmentInCourse({
+		payload,
+		userId: currentUser.id,
+		courseId: Number(courseId),
+		req: payloadRequest,
+	})
 
-	const enrollment = enrollments.docs[0];
+	if (!enrollmentResult.ok) {
+		throw new BadRequestResponse(enrollmentResult.error.message);
+	}
+	const enrollment = enrollmentResult.value;
 
 	// Check if user has management access to this course
 	const canManage = canSeeCourseModules(
@@ -296,18 +296,17 @@ const deleteAction = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user's enrollment for this course
-	const enrollments = await payload.find({
-		collection: "enrollments",
-		where: {
-			and: [
-				{ user: { equals: currentUser.id } },
-				{ course: { equals: courseId } },
-			],
-		},
-		limit: 1,
-	});
+	const enrollmentResult = await tryFindUserEnrollmentInCourse({
+		payload,
+		userId: currentUser.id,
+		courseId: Number(courseId),
+		req: payloadRequest,
+	})
 
-	const enrollment = enrollments.docs[0];
+	if (!enrollmentResult.ok) {
+		throw new BadRequestResponse(enrollmentResult.error.message);
+	}
+	const enrollment = enrollmentResult.value;
 
 	// Check if user has management access to this course
 	const canManage = canSeeCourseModules(
