@@ -56,7 +56,6 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/module.$id.edit";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
@@ -84,11 +83,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-					{
-						userId: enrolmentContext.enrolment.user.id,
-						role: enrolmentContext.enrolment.role,
-					},
-				]
+				{
+					userId: enrolmentContext.enrolment.user.id,
+					role: enrolmentContext.enrolment.role,
+				},
+			]
 			: undefined,
 	);
 
@@ -128,10 +127,10 @@ const updatePageSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+}: Route.ActionArgs & { searchParams: { action: Action.UpdatePage } }) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { moduleLinkId } = params;
 
@@ -139,8 +138,6 @@ const updatePageSettingsAction = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -151,11 +148,7 @@ const updatePageSettingsAction = async ({
 		payload,
 		linkId: Number(moduleLinkId),
 		name: requestData.name || undefined,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {
@@ -173,7 +166,7 @@ const updateWhiteboardSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+}: Route.ActionArgs & { searchParams: { action: Action.UpdateWhiteboard } }) => {
 	assertRequestMethod(request.method, "POST");
 
 	const { payload } = context.get(globalContextKey);
@@ -211,19 +204,16 @@ const updateFileSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+}: Route.ActionArgs & { searchParams: { action: Action.UpdateFile } }) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { moduleLinkId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -234,11 +224,7 @@ const updateFileSettingsAction = async ({
 		payload,
 		linkId: Number(moduleLinkId),
 		name: requestData.name || undefined,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {
@@ -256,18 +242,16 @@ const updateAssignmentSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+}: Route.ActionArgs & { searchParams: { action: Action.UpdateAssignment } }) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { moduleLinkId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -286,11 +270,7 @@ const updateAssignmentSettingsAction = async ({
 		dueDate: requestData.dueDate || undefined,
 		cutoffDate: requestData.cutoffDate || undefined,
 		maxAttempts: requestData.maxAttempts || undefined,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {
@@ -308,19 +288,16 @@ const updateQuizSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+}: Route.ActionArgs & { searchParams: { action: Action.UpdateQuiz } }) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { moduleLinkId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -337,11 +314,7 @@ const updateQuizSettingsAction = async ({
 		openingTime: requestData.openingTime || undefined,
 		closingTime: requestData.closingTime || undefined,
 		maxAttempts: requestData.maxAttempts || undefined,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {
@@ -359,19 +332,16 @@ const updateDiscussionSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action } }) => {
+}: Route.ActionArgs & { searchParams: { action: Action.UpdateDiscussion } }) => {
 	assertRequestMethod(request.method, "POST");
 
-	const { payload } = context.get(globalContextKey);
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const { moduleLinkId } = params;
 
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
-
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
@@ -386,11 +356,7 @@ const updateDiscussionSettingsAction = async ({
 		name: requestData.name || undefined,
 		dueDate: requestData.dueDate || undefined,
 		cutoffDate: requestData.cutoffDate || undefined,
-		req: createLocalReq({
-			request,
-			user: currentUser,
-			context: { routerContext: context },
-		}),
+		req: payloadRequest,
 	});
 
 	if (!result.ok) {

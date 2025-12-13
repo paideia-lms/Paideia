@@ -2,7 +2,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { DefaultErrorBoundary } from "app/components/default-error-boundary";
 import { useState } from "react";
-import { useFetcher } from "react-router";
+import { useFetcher, href } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
 import { globalContextKey } from "server/contexts/global-context";
@@ -26,10 +26,41 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/course.$id.participants";
+import { parseAsStringEnum as parseAsStringEnumServer } from "nuqs/server";
+import { createLoader } from "nuqs/server";
+import { stringify } from "qs";
+import { assertRequestMethod } from "~/utils/assert-request-method";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 
 export type { Route };
 
-export const loader = async ({ context, params }: Route.LoaderArgs) => {
+enum Action {
+	Enroll = "enroll",
+	EditEnrollment = "editEnrollment",
+	DeleteEnrollment = "deleteEnrollment",
+}
+
+// Define search params for participant actions
+export const participantActionSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(participantActionSearchParams);
+
+const getActionUrl = (action: Action, courseId: string) => {
+	return (
+		href("/course/:courseId/participants", {
+			courseId,
+		}) +
+		"?" +
+		stringify({ action })
+	);
+};
+
+export const loader = async ({ context }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
 	const enrolmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
@@ -53,14 +84,14 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({
-	request,
-	context,
-	params,
-}: Route.ActionArgs) => {
+export const action = async (args: Route.ActionArgs) => {
+	const { request, context } = args;
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
-	const { courseId } = params;
+	const { courseId } = args.params;
+
+	assertRequestMethod(request.method, "POST");
+
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
@@ -74,12 +105,11 @@ export const action = async ({
 		userId: currentUser.id,
 		courseId: Number(courseId),
 		req: payloadRequest,
-	})
+	});
 	if (!enrollmentResult.ok) {
 		return badRequest({ error: enrollmentResult.error.message });
 	}
 	const enrollment = enrollmentResult.value;
-
 
 	// Check if user has management access to this course
 	const canManage =
@@ -94,109 +124,142 @@ export const action = async ({
 		});
 	}
 
-	const formData = await request.formData();
-	const intent = formData.get("intent");
+	const { action: actionType } = loadSearchParams(request);
 
-	if (intent === "enroll") {
-		const userId = Number(formData.get("userId"));
-		const role = formData.get("role") as
-			| "student"
-			| "teacher"
-			| "ta"
-			| "manager";
-		const status = formData.get("status") as
-			| "active"
-			| "inactive"
-			| "completed"
-			| "dropped";
-
-		if (Number.isNaN(userId)) {
-			return badRequest({ error: "Invalid user ID" });
-		}
-
-		if (!role || !status) {
-			return badRequest({ error: "Role and status are required" });
-		}
-
-		const createResult = await tryCreateEnrollment({
-			payload,
-			userId: userId,
-			course: Number(courseId),
-			role,
-			req: payloadRequest,
-			overrideAccess: false,
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
 		});
-
-		if (!createResult.ok) {
-			return badRequest({ error: createResult.error.message });
-		}
-
-		return ok({ success: true, message: "User enrolled successfully" });
 	}
 
-	if (intent === "edit-enrollment") {
-		const enrollmentId = Number(formData.get("enrollmentId"));
-		const role = formData.get("role") as
-			| "student"
-			| "teacher"
-			| "ta"
-			| "manager";
-		const status = formData.get("status") as
-			| "active"
-			| "inactive"
-			| "completed"
-			| "dropped";
-
-		// Get groups array from formData
-		const groupIds = formData
-			.getAll("groups")
-			.map((id) => Number(id))
-			.filter((id) => !Number.isNaN(id));
-
-		if (Number.isNaN(enrollmentId)) {
-			return badRequest({ error: "Invalid enrollment ID" });
-		}
-
-		if (!role || !status) {
-			return badRequest({ error: "Role and status are required" });
-		}
-
-		const updateResult = await tryUpdateEnrollment({
-			payload,
-			enrollmentId,
-			role,
-			status,
-			groups: groupIds,
-			req: payloadRequest,
-		});
-
-		if (!updateResult.ok) {
-			return badRequest({ error: updateResult.error.message });
-		}
-
-		return ok({ success: true, message: "Enrollment updated successfully" });
+	if (actionType === Action.Enroll) {
+		return enrollUserAction({ ...args, searchParams: { action: actionType } });
 	}
 
-	if (intent === "delete-enrollment") {
-		const enrollmentId = Number(formData.get("enrollmentId"));
-		if (Number.isNaN(enrollmentId)) {
-			return badRequest({ error: "Invalid enrollment ID" });
-		}
-
-		const deleteResult = await tryDeleteEnrollment({
-			payload,
-			enrollmentId,
-			req: payloadRequest,
-		});
-
-		if (!deleteResult.ok) {
-			return badRequest({ error: deleteResult.error.message });
-		}
-
-		return ok({ success: true, message: "Enrollment deleted successfully" });
+	if (actionType === Action.EditEnrollment) {
+		return editEnrollmentAction({ ...args, searchParams: { action: actionType } });
 	}
 
-	return badRequest({ error: "Invalid intent" });
+	if (actionType === Action.DeleteEnrollment) {
+		return deleteEnrollmentAction({ ...args, searchParams: { action: actionType } });
+	}
+
+	return badRequest({ error: "Invalid action" });
+};
+
+const enrollUserAction = async ({
+	request,
+	context,
+	params,
+}: Route.ActionArgs & { searchParams: { action: Action.Enroll } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { courseId } = params;
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		userId: number;
+		role: Enrollment["role"];
+		status: Enrollment["status"];
+		groups?: number[];
+	};
+
+	const userId = requestData.userId;
+	const role = requestData.role;
+	const status = requestData.status;
+	const groupIds = requestData.groups || [];
+
+	if (Number.isNaN(userId)) {
+		return badRequest({ error: "Invalid user ID" });
+	}
+
+	if (!role || !status) {
+		return badRequest({ error: "Role and status are required" });
+	}
+
+	const createResult = await tryCreateEnrollment({
+		payload,
+		userId: userId,
+		course: Number(courseId),
+		role,
+		status,
+		groups: groupIds,
+		req: payloadRequest,
+	});
+
+	if (!createResult.ok) {
+		return badRequest({ error: createResult.error.message });
+	}
+
+	return ok({ success: true, message: "User enrolled successfully" });
+};
+
+const editEnrollmentAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action.EditEnrollment } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		enrollmentId: number;
+		role: Enrollment["role"];
+		status: Enrollment["status"];
+		groups?: number[];
+	};
+
+	const enrollmentId = requestData.enrollmentId;
+	const role = requestData.role;
+	const status = requestData.status;
+	const groupIds = requestData.groups || [];
+
+	if (Number.isNaN(enrollmentId)) {
+		return badRequest({ error: "Invalid enrollment ID" });
+	}
+
+	if (!role || !status) {
+		return badRequest({ error: "Role and status are required" });
+	}
+
+	const updateResult = await tryUpdateEnrollment({
+		payload,
+		enrollmentId,
+		role,
+		status,
+		groups: groupIds,
+		req: payloadRequest,
+	});
+
+	if (!updateResult.ok) {
+		return badRequest({ error: updateResult.error.message });
+	}
+
+	return ok({ success: true, message: "Enrollment updated successfully" });
+};
+
+const deleteEnrollmentAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action.DeleteEnrollment } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		enrollmentId: number;
+	};
+
+	const enrollmentId = requestData.enrollmentId;
+	if (Number.isNaN(enrollmentId)) {
+		return badRequest({ error: "Invalid enrollment ID" });
+	}
+
+	const deleteResult = await tryDeleteEnrollment({
+		payload,
+		enrollmentId,
+		req: payloadRequest,
+	});
+
+	if (!deleteResult.ok) {
+		return badRequest({ error: deleteResult.error.message });
+	}
+
+	return ok({ success: true, message: "Enrollment deleted successfully" });
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -218,6 +281,92 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	return actionData;
 }
 
+// Custom hooks for participant actions
+function useEnrollUser(courseId: string) {
+	const fetcher = useFetcher<typeof action>();
+
+	const enrollUser = (values: {
+		userId: number;
+		role: Enrollment["role"];
+		status: Enrollment["status"];
+		groups?: number[];
+	}) => {
+		fetcher.submit(
+			{
+				userId: values.userId,
+				role: values.role,
+				status: values.status,
+				groups: values.groups || [],
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.Enroll, courseId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
+
+	return {
+		enrollUser,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+function useEditEnrollment(courseId: string) {
+	const fetcher = useFetcher<typeof action>();
+
+	const editEnrollment = (values: {
+		enrollmentId: number;
+		role: "student" | "teacher" | "ta" | "manager";
+		status: "active" | "inactive" | "completed" | "dropped";
+		groups?: number[];
+	}) => {
+		fetcher.submit(
+			{
+				enrollmentId: values.enrollmentId,
+				role: values.role,
+				status: values.status,
+				groups: values.groups || [],
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.EditEnrollment, courseId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
+
+	return {
+		editEnrollment,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
+function useDeleteEnrollment(courseId: string) {
+	const fetcher = useFetcher<typeof action>();
+
+	const deleteEnrollment = (enrollmentId: number) => {
+		fetcher.submit(
+			{
+				enrollmentId,
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.DeleteEnrollment, courseId),
+				encType: ContentType.JSON,
+			},
+		);
+	};
+
+	return {
+		deleteEnrollment,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
+}
+
 export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 	return <DefaultErrorBoundary error={error} />;
 };
@@ -225,7 +374,14 @@ export const ErrorBoundary = ({ error }: Route.ErrorBoundaryProps) => {
 export default function CourseParticipantsPage({
 	loaderData,
 }: Route.ComponentProps) {
-	const fetcher = useFetcher<typeof action>();
+	const { course, currentUser } = loaderData;
+	const courseId = String(course.id);
+
+	// Action hooks
+	const { enrollUser, isLoading: isEnrolling } = useEnrollUser(courseId);
+	const { editEnrollment, isLoading: isEditing } = useEditEnrollment(courseId);
+	const { deleteEnrollment, isLoading: isDeleting } =
+		useDeleteEnrollment(courseId);
 
 	// Modal states
 	const [
@@ -251,8 +407,6 @@ export default function CourseParticipantsPage({
 		number | null
 	>(null);
 
-	const { course, currentUser } = loaderData;
-
 	// Prepare available groups for selection
 	const availableGroups = course.groups.map((group) => ({
 		value: group.id.toString(),
@@ -264,18 +418,12 @@ export default function CourseParticipantsPage({
 		if (selectedUsers.length > 0 && selectedRole && selectedStatus) {
 			// Submit each user enrollment
 			selectedUsers.forEach((user) => {
-				const formData = new FormData();
-				formData.append("intent", "enroll");
-				formData.append("userId", user.id.toString());
-				formData.append("role", selectedRole);
-				formData.append("status", selectedStatus);
-
-				// Add selected groups
-				selectedGroups.forEach((groupId) => {
-					formData.append("groups", groupId);
+				enrollUser({
+					userId: user.id,
+					role: selectedRole as Enrollment["role"],
+					status: selectedStatus as Enrollment["status"],
+					groups: selectedGroups.map(Number),
 				});
-
-				fetcher.submit(formData, { method: "post" });
 			});
 			closeEnrollModal();
 			setSelectedUsers([]);
@@ -309,18 +457,12 @@ export default function CourseParticipantsPage({
 
 	const handleUpdateEnrollment = () => {
 		if (editingEnrollment && selectedRole && selectedStatus) {
-			const formData = new FormData();
-			formData.append("intent", "edit-enrollment");
-			formData.append("enrollmentId", editingEnrollment.id.toString());
-			formData.append("role", selectedRole);
-			formData.append("status", selectedStatus);
-
-			// Add selected groups
-			selectedGroups.forEach((groupId) => {
-				formData.append("groups", groupId);
+			editEnrollment({
+				enrollmentId: editingEnrollment.id,
+				role: selectedRole as Enrollment["role"],
+				status: selectedStatus as Enrollment["status"],
+				groups: selectedGroups.map(Number),
 			});
-
-			fetcher.submit(formData, { method: "post" });
 			closeEditModal();
 			setEditingEnrollment(null);
 			setSelectedRole(null);
@@ -336,17 +478,14 @@ export default function CourseParticipantsPage({
 
 	const handleConfirmDeleteEnrollment = () => {
 		if (deletingEnrollmentId) {
-			fetcher.submit(
-				{
-					intent: "delete-enrollment",
-					enrollmentId: deletingEnrollmentId.toString(),
-				},
-				{ method: "post" },
-			);
+			deleteEnrollment(deletingEnrollmentId);
 			closeDeleteModal();
 			setDeletingEnrollmentId(null);
 		}
 	};
+
+	const fetcherState =
+		isEnrolling || isEditing || isDeleting ? "submitting" : "idle";
 
 	// Get enrolled user IDs for exclusion
 	const enrolledUserIds = course.enrollments.map(
@@ -359,7 +498,7 @@ export default function CourseParticipantsPage({
 				courseId={course.id}
 				enrollments={course.enrollments}
 				currentUserRole={currentUser.role || "student"}
-				fetcherState={fetcher.state}
+				fetcherState={fetcherState}
 				onOpenEnrollModal={openEnrollModal}
 				onEditEnrollment={handleEditEnrollment}
 				onDeleteEnrollment={handleDeleteEnrollment}
@@ -378,7 +517,7 @@ export default function CourseParticipantsPage({
 				onSelectedGroupsChange={setSelectedGroups}
 				availableGroups={availableGroups}
 				enrolledUserIds={enrolledUserIds}
-				fetcherState={fetcher.state}
+				fetcherState={fetcherState}
 				onEnrollUsers={handleEnrollUsers}
 			/>
 
@@ -392,14 +531,14 @@ export default function CourseParticipantsPage({
 				selectedGroups={selectedGroups}
 				onSelectedGroupsChange={setSelectedGroups}
 				availableGroups={availableGroups}
-				fetcherState={fetcher.state}
+				fetcherState={fetcherState}
 				onUpdateEnrollment={handleUpdateEnrollment}
 			/>
 
 			<DeleteEnrollmentModal
 				opened={deleteModalOpened}
 				onClose={closeDeleteModal}
-				fetcherState={fetcher.state}
+				fetcherState={fetcherState}
 				onConfirmDelete={handleConfirmDeleteEnrollment}
 			/>
 		</>

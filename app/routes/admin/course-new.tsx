@@ -30,7 +30,7 @@ import { getDataAndContentTypeFromRequest } from "app/utils/get-content-type";
 import { Result } from "node_modules/typescript-result/dist";
 
 export const loader = async ({ request, context }: Route.LoaderArgs) => {
-	const payload = context.get(globalContextKey).payload;
+	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.authenticatedUser) {
@@ -51,6 +51,7 @@ export const loader = async ({ request, context }: Route.LoaderArgs) => {
 		collection: "course-categories",
 		limit: 100,
 		sort: "name",
+		req: payloadRequest,
 	});
 
 	return {

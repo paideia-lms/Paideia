@@ -1,11 +1,9 @@
 import { globalContextKey } from "server/contexts/global-context";
-import { userContextKey } from "server/contexts/user-context";
 import {
 	tryGetMediaStreamFromFilename,
 	tryGetMediaStreamFromId,
 } from "server/internal/media-management";
 import type { Route } from "./+types/file.$filenameOrId";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 import { badRequest, notFound } from "app/utils/responses";
 import {
 	buildMediaStreamHeaders,
@@ -23,20 +21,8 @@ export const loader = async ({
 		return badRequest({ error: "Filename or ID is required" });
 	}
 
-	const payload = context.get(globalContextKey).payload;
-	const s3Client = context.get(globalContextKey).s3Client;
+	const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 
-	// Try to get user from context if available (optional for public media access)
-	const userSession = context.get(userContextKey);
-	const currentUser = userSession?.isAuthenticated
-		? userSession.effectiveUser || userSession.authenticatedUser
-		: null;
-
-	const payloadRequest = createLocalReq({
-		request,
-		user: currentUser,
-		context: { routerContext: context },
-	});
 
 	// Check if download is requested via query parameter
 	const url = new URL(request.url);
@@ -52,17 +38,17 @@ export const loader = async ({
 	// For efficiency, we'll make one call and handle range parsing after getting media metadata
 	let result = isId
 		? await tryGetMediaStreamFromId({
-				payload,
-				s3Client,
-				id: filenameOrId,
-				req: payloadRequest,
-			})
+			payload,
+			s3Client,
+			id: filenameOrId,
+			req: payloadRequest,
+		})
 		: await tryGetMediaStreamFromFilename({
-				payload,
-				s3Client,
-				filename: filenameOrId,
-				req: payloadRequest,
-			});
+			payload,
+			s3Client,
+			filename: filenameOrId,
+			req: payloadRequest,
+		});
 
 	if (!result.ok) {
 		console.error("Failed to get media stream:", result.error.message);
@@ -79,19 +65,19 @@ export const loader = async ({
 	if (range && (range.start > 0 || range.end < fileSize - 1)) {
 		result = isId
 			? await tryGetMediaStreamFromId({
-					payload,
-					s3Client,
-					id: filenameOrId,
-					range,
-					req: payloadRequest,
-				})
+				payload,
+				s3Client,
+				id: filenameOrId,
+				range,
+				req: payloadRequest,
+			})
 			: await tryGetMediaStreamFromFilename({
-					payload,
-					s3Client,
-					filename: filenameOrId,
-					range,
-					req: payloadRequest,
-				});
+				payload,
+				s3Client,
+				filename: filenameOrId,
+				range,
+				req: payloadRequest,
+			});
 
 		if (!result.ok) {
 			console.error(

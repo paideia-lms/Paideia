@@ -446,7 +446,6 @@ export const tryGetMediaBufferFromId = Result.wrap(
 
 /**
  *
- * @deprecated use tryGetMediaStreamFromId instead because filename is not unique
  * Get a media record by filename and fetch the file stream from S3
  *
  * This function:

@@ -32,8 +32,13 @@ import {
 	IconLibraryPlus,
 } from "@tabler/icons-react";
 import { useQueryState } from "nuqs";
-import { parseAsInteger } from "nuqs/server";
+import {
+	parseAsInteger,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { createLoader } from "nuqs/server";
 import { useEffect } from "react";
+import { stringify } from "qs";
 import { href, Link, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
@@ -49,13 +54,38 @@ import {
 	tryUpdateCategory,
 } from "server/internal/course-category-management";
 import { useReorderCategories } from "~/routes/api/category-reorder";
+import { assertRequestMethod } from "~/utils/assert-request-method";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 import {
 	badRequest,
 	ForbiddenResponse,
 	ok,
+	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/categories";
+import { handleTransactionId } from "server/internal/utils/handle-transaction-id";
+
+export type { Route };
+
+enum Action {
+	Edit = "edit",
+	Delete = "delete",
+}
+
+// Define search params for category actions
+export const categoryActionSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(categoryActionSearchParams);
+
+const getActionUrl = (action: Action) => {
+	return href("/admin/categories") + "?" + stringify({ action });
+};
 
 export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const { payload } = context.get(globalContextKey);
@@ -152,106 +182,128 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	return { flat, selectedCategory, uncategorizedCount };
 };
 
-export const action = async ({ context, request }: Route.ActionArgs) => {
-	const { payload } = context.get(globalContextKey);
+export const action = async (args: Route.ActionArgs) => {
+	const { request, context } = args;
 	const userSession = context.get(userContextKey);
+
+	assertRequestMethod(request.method, "POST");
+
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({ error: "Unauthorized" });
 	}
+
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 	if (currentUser.role !== "admin") {
 		return badRequest({ error: "Only admins can manage categories" });
 	}
 
-	const form = await request.formData();
-	const intent = String(form.get("intent") || "");
-	const categoryId = Number(form.get("categoryId"));
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
+		});
+	}
+
+	if (actionType === Action.Edit) {
+		return editCategoryAction({
+			...args,
+			searchParams: { action: actionType },
+		});
+	}
+
+	if (actionType === Action.Delete) {
+		return deleteCategoryAction({
+			...args,
+			searchParams: { action: actionType },
+		});
+	}
+
+	return badRequest({ error: "Invalid action" });
+};
+
+const editCategoryAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action.Edit } }) => {
+	const { payload } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		categoryId: number;
+		name?: string;
+		parent?: number | null;
+	};
+
+	const categoryId = requestData.categoryId;
+	if (!Number.isFinite(categoryId)) {
+		return badRequest({ error: "Invalid categoryId" });
+	}
+
+	const parentValue =
+		requestData.parent === null ? undefined : requestData.parent;
+
+	const updateRes = await tryUpdateCategory({
+		payload,
+		categoryId,
+		req: request,
+		name: requestData.name,
+		parent: parentValue,
+	});
+
+	if (!updateRes.ok) {
+		return badRequest({ error: updateRes.error.message });
+	}
+
+	return ok({ success: true });
+};
+
+const deleteCategoryAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action.Delete } }) => {
+	const { payload, payloadRequest } = context.get(globalContextKey);
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const requestData = data as {
+		categoryId: number;
+	};
+
+	const categoryId = requestData.categoryId;
 	if (!Number.isFinite(categoryId)) {
 		return badRequest({ error: "Invalid categoryId" });
 	}
 
 	// Wrap multi-mutation ops in a transaction
-	const transactionID = await payload.db.beginTransaction();
-	if (!transactionID) {
-		return badRequest({ error: "Failed to begin transaction" });
-	}
+	const transactionInfo = await handleTransactionId(payload, request);
 
-	try {
-		if (intent === "edit") {
-			const name = form.get("name");
-			const parentRaw = form.get("parent");
-			const parent = parentRaw ? Number(parentRaw) : undefined;
-
-			const updateRes = await tryUpdateCategory({
-				payload,
-				categoryId,
-				req: request,
-				name: name ? String(name) : undefined,
-				parent: parent ? Number(parent) : undefined,
-			});
-
-			if (!updateRes.ok) {
-				await payload.db.rollbackTransaction(transactionID);
-				return badRequest({ error: updateRes.error.message });
-			}
-		} else if (intent === "delete") {
-			// Reassign all courses under this category to uncategorized (null), then delete
-			const courses = await payload.find({
-				collection: "courses",
-				where: { category: { equals: categoryId } },
-				pagination: false,
-				req: { ...request, transactionID },
-			});
-
-			for (const c of courses.docs) {
-				await payload.update({
-					collection: "courses",
-					id: c.id,
-					data: { category: null },
-					req: { ...request, transactionID },
-				});
-			}
-
-			const delRes = await tryDeleteCategory({
-				payload,
-				categoryId,
-				req: request,
-			});
-			if (!delRes.ok) {
-				await payload.db.rollbackTransaction(transactionID);
-				return badRequest({ error: delRes.error.message });
-			}
-		} else {
-			await payload.db.rollbackTransaction(transactionID);
-			return badRequest({ error: "Unknown intent" });
+	return transactionInfo.tx(async (txInfo) => {
+		const delRes = await tryDeleteCategory({
+			payload,
+			categoryId,
+			req: txInfo.reqWithTransaction,
+		});
+		if (!delRes.ok) {
+			return badRequest({ error: delRes.error.message });
 		}
 
-		await payload.db.commitTransaction(transactionID);
 		return ok({ success: true });
-	} catch (e: any) {
-		await payload.db.rollbackTransaction(transactionID);
-		return badRequest({ error: e?.message || "Failed to process request" });
-	}
+	}, (result) => {
+		return result.data.status === StatusCode.BadRequest;
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData?.status === 400) {
+	if (actionData?.status === StatusCode.BadRequest) {
 		notifications.show({
 			title: "Error",
-			message:
-				typeof actionData.error === "string"
-					? actionData.error
-					: Array.isArray(actionData.error?.errors)
-						? actionData.error.errors.join(", ")
-						: "Failed to update category",
+			message: actionData.error,
 			color: "red",
 		});
 	}
 
-	if (actionData?.status === 200) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: "Category updated",
@@ -264,32 +316,54 @@ export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 
 export function useEditCategory() {
 	const fetcher = useFetcher<typeof clientAction>();
+
 	const editCategory = (data: {
 		categoryId: number;
 		name?: string;
 		parent?: number | null;
 	}) => {
-		const form = new FormData();
-		form.append("intent", "edit");
-		form.append("categoryId", String(data.categoryId));
-		if (data.name != null) form.append("name", data.name);
-		if (data.parent === null) form.append("parent", "");
-		if (typeof data.parent === "number")
-			form.append("parent", String(data.parent));
-		fetcher.submit(form, { method: "POST" });
+		fetcher.submit(
+			{
+				categoryId: data.categoryId,
+				name: data.name ?? null,
+				parent: data.parent ?? null,
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.Edit),
+				encType: ContentType.JSON,
+			},
+		);
 	};
-	return { editCategory, isLoading: fetcher.state !== "idle" };
+
+	return {
+		editCategory,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
 }
 
 export function useDeleteCategory() {
-	const fetcher = useFetcher<typeof clientAction>();
+	const fetcher = useFetcher<typeof action>();
+
 	const deleteCategory = (categoryId: number) => {
-		const form = new FormData();
-		form.append("intent", "delete");
-		form.append("categoryId", String(categoryId));
-		fetcher.submit(form, { method: "POST" });
+		fetcher.submit(
+			{
+				categoryId,
+			},
+			{
+				method: "POST",
+				action: getActionUrl(Action.Delete),
+				encType: ContentType.JSON,
+			},
+		);
 	};
-	return { deleteCategory, isLoading: fetcher.state !== "idle" };
+
+	return {
+		deleteCategory,
+		isLoading: fetcher.state !== "idle",
+		data: fetcher.data,
+	};
 }
 
 export default function AdminCategoriesPage({
@@ -461,11 +535,11 @@ export default function AdminCategoriesPage({
 					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent("category:none")
+							"?query=" +
+							encodeURIComponent("category:none")
 							: href("/admin/courses") +
-								"?query=" +
-								encodeURIComponent(`category:"${d.name}"`);
+							"?query=" +
+							encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">
@@ -738,7 +812,7 @@ function EditCategoryModal({
 	onClose,
 	parentOptions,
 	defaultName,
-	categoryId,
+	categoryId: _categoryId,
 	defaultParentId,
 	onSubmit,
 	isSubmitting,
