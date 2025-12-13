@@ -22,12 +22,12 @@ import {
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { tryGetRegistrationSettings } from "server/internal/registration-settings";
-import { tryLogin } from "server/internal/user-management";
+import { tryGetUserCount, tryLogin } from "server/internal/user-management";
 import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, ForbiddenResponse } from "~/utils/responses";
+import { badRequest, InternalServerErrorResponse } from "~/utils/responses";
 import type { Route } from "./+types/login";
 
 export const loader = async ({ context }: LoaderFunctionArgs) => {
@@ -40,26 +40,29 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 
 	const { payload } = context.get(globalContextKey);
 
-	const firstUser = await payload.find({
-		collection: "users",
-		limit: 1,
-	});
+	const [userCount, settingsResult] = await Promise.all([
 
-	if (firstUser.docs.length === 0) {
+		tryGetUserCount({
+			payload,
+			// ! this is a system request, we dont care about access control
+			overrideAccess: true
+		}).getOrElse(() => {
+			throw new InternalServerErrorResponse("Failed to get user count");
+		}),
+		tryGetRegistrationSettings({
+			payload,
+			// ! this is a system request, we don't care about access control
+			overrideAccess: true,
+		}).getOrElse(() => {
+			throw new InternalServerErrorResponse("Failed to get registration settings");
+		}),
+	]);
+
+	if (userCount === 0) {
 		return redirect(href("/registration"));
 	}
 
-	const settingsResult = await tryGetRegistrationSettings({
-		payload,
-		// ! this is a system request, we don't care about access control
-		overrideAccess: true,
-	});
-
-	if (!settingsResult.ok) {
-		throw new ForbiddenResponse("Failed to get registration settings");
-	}
-
-	const registrationDisabled = settingsResult.value.disableRegistration;
+	const registrationDisabled = settingsResult.disableRegistration;
 
 	return {
 		user: null,
@@ -76,8 +79,7 @@ const loginSchema = z.object({
 });
 
 export const action = async ({ request, context }: ActionFunctionArgs) => {
-	const payload = context.get(globalContextKey).payload;
-	const requestInfo = context.get(globalContextKey).requestInfo;
+	const { payload, requestInfo } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	if (userSession?.isAuthenticated) {
 		return redirect(href("/"));

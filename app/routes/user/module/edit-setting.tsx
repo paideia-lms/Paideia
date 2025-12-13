@@ -51,7 +51,6 @@ import {
 } from "~/utils/responses";
 import { tryParseFormDataWithMediaUpload } from "~/utils/upload-handler";
 import type { Route } from "./+types/edit-setting";
-import { createLocalReq } from "server/internal/utils/internal-function-utils";
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { systemGlobals } = context.get(globalContextKey);
@@ -99,8 +98,8 @@ const updatePageAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-		const { payload } = context.get(globalContextKey);
+	}: Route.ActionArgs & { searchParams: { action: Action.UpdatePage } }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -131,11 +130,7 @@ const updatePageAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(
 			payload,
-			createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			payloadRequest,
 		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -190,8 +185,8 @@ const updateWhiteboardAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-		const { payload } = context.get(globalContextKey);
+	}: Route.ActionArgs & { searchParams: { action: Action.UpdateWhiteboard } }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -222,11 +217,7 @@ const updateWhiteboardAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(
 			payload,
-			createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			payloadRequest,
 		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -281,8 +272,8 @@ const updateFileAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-		const { payload, systemGlobals } = context.get(globalContextKey);
+	}: Route.ActionArgs & { searchParams: { action: Action.UpdateFile } }) => {
+		const { payload, payloadRequest, systemGlobals } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -315,11 +306,7 @@ const updateFileAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(
 			payload,
-			createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			payloadRequest,
 		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -409,8 +396,8 @@ const updateAssignmentAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-		const { payload } = context.get(globalContextKey);
+	}: Route.ActionArgs & { searchParams: { action: Action.UpdateAssignment } }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -441,11 +428,7 @@ const updateAssignmentAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(
 			payload,
-			createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			payloadRequest,
 		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -504,8 +487,8 @@ const updateQuizAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-		const { payload } = context.get(globalContextKey);
+	}: Route.ActionArgs & { searchParams: { action: Action.UpdateQuiz } }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -536,11 +519,7 @@ const updateQuizAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(
 			payload,
-			createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			payloadRequest,
 		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
@@ -599,8 +578,8 @@ const updateDiscussionAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action } }) => {
-		const { payload } = context.get(globalContextKey);
+	}: Route.ActionArgs & { searchParams: { action: Action.UpdateDiscussion } }) => {
+		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -631,11 +610,7 @@ const updateDiscussionAction = serverOnly$(
 		// Handle transaction ID
 		const transactionInfo = await handleTransactionId(
 			payload,
-			createLocalReq({
-				request,
-				user: currentUser,
-				context: { routerContext: context },
-			}),
+			payloadRequest,
 		);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
