@@ -8,7 +8,6 @@ import {
 	parseAsStringEnum as parseAsStringEnumServer,
 } from "nuqs/server";
 import { useState } from "react";
-import { href, useFetcher } from "react-router";
 import { courseContextKey } from "server/contexts/course-context";
 import { courseModuleContextKey } from "server/contexts/course-module-context";
 import { enrolmentContextKey } from "server/contexts/enrolment-context";
@@ -36,16 +35,15 @@ import {
 	canSeeModuleSubmissions,
 } from "server/utils/permissions";
 import { serverOnly$ } from "vite-env-only/macros";
-import { DiscussionGradingView } from "~/components/discussion-grading-view";
-import { AssignmentGradingView } from "~/components/grading-view";
-import { QuizGradingView } from "~/components/quiz-grading-view";
+import { DiscussionGradingView } from "app/routes/course/module.$id.submissions/components/discussion-grading-view";
+import { AssignmentGradingView } from "app/routes/course/module.$id.submissions/components/assignment-grading-view";
+import { QuizGradingView } from "app/routes/course/module.$id.submissions/components/quiz-grading-view";
 import {
 	AssignmentBatchActions,
 	AssignmentSubmissionTable,
 	DiscussionSubmissionTable,
 	QuizSubmissionTable,
 } from "~/components/submission-tables";
-import { stringify } from "qs";
 import { AssignmentActions, QuizActions } from "~/utils/module-actions";
 import {
 	badRequest,
@@ -54,7 +52,8 @@ import {
 	StatusCode,
 	unauthorized,
 } from "~/utils/responses";
-import type { Route } from "./+types/module.$id.submissions";
+import type { Route } from "../+types/module.$id.submissions";
+import { useDeleteSubmission, useReleaseGrade } from "./hooks";
 
 export type { Route };
 
@@ -66,7 +65,7 @@ export const submissionsSearchParams = {
 
 export const loadSearchParams = createLoader(submissionsSearchParams);
 
-enum Action {
+export enum Action {
 	DeleteSubmission = "deleteSubmission",
 	GradeSubmission = "gradeSubmission",
 	ReleaseGrade = "releaseGrade",
@@ -850,16 +849,6 @@ const releaseGradeAction = serverOnly$(
 	},
 )!;
 
-const getActionUrl = (action: Action, moduleLinkId: number) => {
-	return (
-		href("/course/module/:moduleLinkId/submissions", {
-			moduleLinkId: moduleLinkId.toString(),
-		}) +
-		"?" +
-		stringify({ action })
-	);
-};
-
 export const action = async (args: Route.ActionArgs) => {
 	const { request } = args;
 	const { action: actionType } = loadActionSearchParams(request);
@@ -1003,80 +992,8 @@ type DiscussionSubmissionType = {
 	} | null;
 };
 
-// ============================================================================
-// Hooks
-// ============================================================================
 
-const useDeleteSubmission = () => {
-	const fetcher = useFetcher<typeof clientAction>();
 
-	const deleteSubmission = (submissionId: number, moduleLinkId: number) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(Action.DeleteSubmission, moduleLinkId),
-		});
-	};
-
-	return {
-		deleteSubmission,
-		isDeleting: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useGradeSubmission = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const gradeSubmission = (
-		submissionId: number,
-		score: number,
-		feedback?: string,
-	) => {
-		const formData = new FormData();
-		formData.append("submissionId", submissionId.toString());
-		formData.append("score", score.toString());
-		if (feedback) {
-			formData.append("feedback", feedback);
-		}
-
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(Action.GradeSubmission, moduleLinkId),
-		});
-	};
-
-	return {
-		gradeSubmission,
-		isGrading: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
-
-export const useReleaseGrade = (moduleLinkId: number) => {
-	const fetcher = useFetcher<typeof clientAction>();
-
-	const releaseGrade = (courseModuleLinkId: number, enrollmentId: number) => {
-		const formData = new FormData();
-		formData.append("courseModuleLinkId", String(courseModuleLinkId));
-		formData.append("enrollmentId", String(enrollmentId));
-		fetcher.submit(formData, {
-			method: "POST",
-			action: getActionUrl(Action.ReleaseGrade, moduleLinkId),
-		});
-	};
-
-	return {
-		releaseGrade,
-		isReleasing: fetcher.state !== "idle",
-		state: fetcher.state,
-		data: fetcher.data,
-	};
-};
 
 // ============================================================================
 // Main Component

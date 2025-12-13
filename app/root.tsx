@@ -564,15 +564,15 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext({
-								payload,
-								profileUserId,
-								req: payloadRequest,
-								overrideAccess: false,
-							});
+							payload,
+							profileUserId,
+							req: payloadRequest,
+							overrideAccess: false,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
@@ -763,17 +763,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 			environment !== "development"
 				? null
 				: {
-						userSession: userSession,
-						courseContext: context.get(courseContextKey),
-						courseModuleContext: context.get(courseModuleContextKey),
-						courseSectionContext: context.get(courseSectionContextKey),
-						enrolmentContext: context.get(enrolmentContextKey),
-						userModuleContext: context.get(userModuleContextKey),
-						userProfileContext: context.get(userProfileContextKey),
-						userAccessContext: context.get(userAccessContextKey),
-						userContext: context.get(userContextKey),
-						systemGlobals: systemGlobals,
-					},
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				},
 		isSandboxMode,
 		nextResetTime,
 	};

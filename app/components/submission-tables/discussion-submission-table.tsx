@@ -23,7 +23,7 @@ import {
 	groupAndSortDiscussionSubmissions,
 	sortSubmissionsByDate,
 } from "./helpers";
-import type { Route } from "app/routes/course/module.$id.submissions";
+import type { Route } from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]

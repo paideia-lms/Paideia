@@ -274,7 +274,7 @@ const deleteCategoryAction = async ({
 	}
 
 	// Wrap multi-mutation ops in a transaction
-	const transactionInfo = await handleTransactionId(payload, request);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async (txInfo) => {
 		const delRes = await tryDeleteCategory({

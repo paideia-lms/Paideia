@@ -10,7 +10,7 @@ import {
 import { useClipboard } from "@mantine/hooks";
 import { notifications } from "@mantine/notifications";
 import { IconDots, IconMail, IconTrash } from "@tabler/icons-react";
-import type { Route } from "app/routes/course/module.$id.submissions";
+import type { Route } from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]

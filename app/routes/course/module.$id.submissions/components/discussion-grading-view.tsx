@@ -19,7 +19,7 @@ import { getRouteUrl } from "app/routes/course.$id.participants.profile";
 import { useEffectEvent } from "react";
 import { href, Link } from "react-router";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
-import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
+import { useGradeSubmission } from "../hooks";
 
 // ============================================================================
 // Types

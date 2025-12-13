@@ -16,7 +16,7 @@ import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
 import { useEffectEvent } from "react";
 import { href, Link, useNavigate } from "react-router";
-import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
+import { useGradeSubmission } from "../hooks";
 
 // ============================================================================
 // Types

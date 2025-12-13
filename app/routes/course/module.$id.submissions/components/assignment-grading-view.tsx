@@ -21,7 +21,7 @@ import { href, Link, useNavigate } from "react-router";
 import { AttachmentViewer } from "~/components/attachment-viewer";
 import { RichTextRenderer } from "~/components/rich-text-renderer";
 import { SimpleRichTextEditor } from "~/components/simple-rich-text-editor";
-import { useGradeSubmission } from "~/routes/course/module.$id.submissions";
+import { useGradeSubmission } from "../hooks";
 
 // ============================================================================
 // Types
