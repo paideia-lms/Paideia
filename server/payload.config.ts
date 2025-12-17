@@ -60,7 +60,6 @@ export * from "./collections";
 // extends the RequestContext type from payload 
 declare module "payload" {
 	interface RequestContext {
-		// intent?: string ; 
 		routerContext?: Readonly<RouterContextProvider>;
 	}
 }

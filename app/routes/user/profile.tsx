@@ -12,13 +12,23 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { IconUserCheck } from "@tabler/icons-react";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import { href, Link, redirect, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { userProfileContextKey } from "server/contexts/user-profile-context";
 import { tryFindUserById } from "server/internal/user-management";
 import { canEditProfile, canImpersonate } from "server/utils/permissions";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 import { setImpersonationCookie } from "~/utils/cookie";
+import { z } from "zod";
 import {
 	badRequest,
 	NotFoundResponse,
@@ -26,6 +36,24 @@ import {
 	unauthorized,
 } from "~/utils/responses";
 import type { Route } from "./+types/profile";
+
+enum Action {
+	Impersonate = "impersonate",
+}
+
+// Define search params for profile actions
+export const profileSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(profileSearchParams);
+
+const getActionUrl = (action: Action, userId?: number) => {
+	const baseUrl = userId
+		? href("/user/profile/:id?", { id: userId.toString() })
+		: href("/user/profile/:id?");
+	return baseUrl + "?" + stringify({ action });
+};
 
 export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const userSession = context.get(userContextKey);
@@ -68,8 +96,17 @@ export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	};
 };
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
-	const { payload, requestInfo, payloadRequest } = context.get(globalContextKey);
+const impersonateSchema = z.object({
+	targetUserId: z.coerce.number(),
+	redirectTo: z.string().optional(),
+});
+
+const impersonateAction = async ({
+	request,
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action.Impersonate } }) => {
+	const { payload, requestInfo, payloadRequest } =
+		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -78,55 +115,74 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 
 	const { authenticatedUser: currentUser } = userSession;
 
-	const formData = await request.formData();
-	const intent = formData.get("intent");
+	if (currentUser.role !== "admin") {
+		return unauthorized({ error: "Only admins can impersonate users" });
+	}
 
-	// Handle impersonation actions
-	if (intent === "impersonate") {
-		if (currentUser.role !== "admin") {
-			return unauthorized({ error: "Only admins can impersonate users" });
-		}
+	const { data } = await getDataAndContentTypeFromRequest(request);
+	const parsedData = impersonateSchema.safeParse(data);
 
-		const targetUserId = Number(formData.get("targetUserId"));
-		if (Number.isNaN(targetUserId)) {
-			return badRequest({ error: "Invalid target user ID" });
-		}
+	if (!parsedData.success) {
+		return badRequest({ error: parsedData.error.message });
+	}
 
-		// Verify the target user exists and is not an admin
-		const targetUserResult = await tryFindUserById({
-			payload,
-			userId: targetUserId,
-			req: payloadRequest,
-			overrideAccess: false,
+	const targetUserId = parsedData.data.targetUserId;
+
+	// Verify the target user exists and is not an admin
+	const targetUserResult = await tryFindUserById({
+		payload,
+		userId: targetUserId,
+		req: payloadRequest,
+		overrideAccess: false,
+	});
+
+	if (!targetUserResult.ok) {
+		return badRequest({ error: "Target user not found" });
+	}
+
+	const targetUser = targetUserResult.value;
+	if (targetUser.role === "admin") {
+		return badRequest({ error: "Cannot impersonate admin users" });
+	}
+
+	// Get redirect URL from data, default to "/"
+	const redirectTo = parsedData.data.redirectTo || "/";
+
+	// Set impersonation cookie and redirect
+	return redirect(redirectTo, {
+		headers: {
+			"Set-Cookie": setImpersonationCookie(
+				targetUserId,
+				requestInfo.domainUrl,
+				request.headers,
+				payload,
+			),
+		},
+	});
+};
+
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
 		});
+	}
 
-		if (!targetUserResult.ok) {
-			return badRequest({ error: "Target user not found" });
-		}
-
-		const targetUser = targetUserResult.value;
-		if (targetUser.role === "admin") {
-			return badRequest({ error: "Cannot impersonate admin users" });
-		}
-
-		// Get redirect URL from form data, default to "/"
-		const redirectTo = (formData.get("redirectTo") as string) || "/";
-
-		// Set impersonation cookie and redirect
-		return redirect(redirectTo, {
-			headers: {
-				"Set-Cookie": setImpersonationCookie(
-					targetUserId,
-					requestInfo.domainUrl,
-					request.headers,
-					payload,
-				),
+	if (actionType === Action.Impersonate) {
+		return impersonateAction({
+			...args,
+			searchParams: {
+				action: actionType,
 			},
 		});
 	}
 
-	// No other actions supported on profile page
-	return badRequest({ error: "Invalid action" });
+	return badRequest({
+		error: "Invalid action",
+	});
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -152,17 +208,14 @@ export const useImpersonate = () => {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const impersonate = (targetUserId: number, redirectTo?: string) => {
-		const formData = new FormData();
-		formData.append("intent", "impersonate");
-		formData.append("targetUserId", String(targetUserId));
-		if (redirectTo) {
-			formData.append("redirectTo", redirectTo);
-		}
-		// Submit to profile route action which handles impersonation
-		fetcher.submit(formData, {
-			method: "POST",
-			action: href("/user/profile/:id?", { id: targetUserId.toString() }),
-		});
+		fetcher.submit(
+			{ targetUserId, ...(redirectTo && { redirectTo }) },
+			{
+				method: "POST",
+				action: getActionUrl(Action.Impersonate, targetUserId),
+				encType: ContentType.JSON,
+			},
+		);
 	};
 
 	return {

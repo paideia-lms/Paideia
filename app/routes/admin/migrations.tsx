@@ -10,18 +10,41 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import type { Migration as MigrationType } from "payload";
+import {
+	createLoader,
+	parseAsStringEnum as parseAsStringEnumServer,
+} from "nuqs/server";
+import { stringify } from "qs";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
 import { dumpDatabase } from "server/utils/db/dump";
 import { getMigrationStatus } from "server/utils/db/migration-status";
 import { migrations } from "src/migrations";
+import { ContentType } from "~/utils/get-content-type";
 import {
-	ContentType,
-	getDataAndContentTypeFromRequest,
-} from "~/utils/get-content-type";
-import { badRequest, ForbiddenResponse, ok } from "~/utils/responses";
+	badRequest,
+	ForbiddenResponse,
+	ok,
+	StatusCode,
+	unauthorized,
+} from "~/utils/responses";
 import type { Route } from "./+types/migrations";
+
+enum Action {
+	Dump = "dump",
+}
+
+// Define search params for migration actions
+export const migrationSearchParams = {
+	action: parseAsStringEnumServer(Object.values(Action)),
+};
+
+export const loadSearchParams = createLoader(migrationSearchParams);
+
+const getActionUrl = (action: Action) => {
+	return href("/admin/migrations") + "?" + stringify({ action });
+};
 
 export const loader = async ({ context }: Route.LoaderArgs) => {
 	const { payload } = context.get(globalContextKey);
@@ -52,14 +75,11 @@ export function useDumpPostgres() {
 	const fetcher = useFetcher<typeof clientAction>();
 
 	const dumpPostgres = () => {
-		fetcher.submit(
-			{ intent: "dump" },
-			{
-				method: "post",
-				action: href("/admin/migrations"),
-				encType: ContentType.JSON,
-			},
-		);
+		fetcher.submit(null, {
+			method: "post",
+			action: getActionUrl(Action.Dump),
+			encType: ContentType.JSON,
+		});
 	};
 
 	return {
@@ -69,32 +89,23 @@ export function useDumpPostgres() {
 	};
 }
 
-export const action = async ({ request, context }: Route.ActionArgs) => {
+const dumpAction = async ({
+	context,
+}: Route.ActionArgs & { searchParams: { action: Action.Dump } }) => {
+	const { payload } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
-		throw new ForbiddenResponse("Unauthorized");
+		return unauthorized({ error: "Unauthorized" });
 	}
 
 	const currentUser =
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	if (currentUser.role !== "admin") {
-		throw new ForbiddenResponse("Only admins can dump database");
+		return unauthorized({ error: "Only admins can dump database" });
 	}
 
-	const { data } = await getDataAndContentTypeFromRequest(request);
-
-	if (
-		!data ||
-		typeof data !== "object" ||
-		!("intent" in data) ||
-		data.intent !== "dump"
-	) {
-		return badRequest({ error: "Invalid intent" });
-	}
-
-	const { payload } = context.get(globalContextKey);
 	const result = await dumpDatabase({ payload });
 
 	if (!result.success) {
@@ -108,16 +119,43 @@ export const action = async ({ request, context }: Route.ActionArgs) => {
 	});
 };
 
+export const action = async (args: Route.ActionArgs) => {
+	const { request } = args;
+	const { action: actionType } = loadSearchParams(request);
+
+	if (!actionType) {
+		return badRequest({
+			error: "Action is required",
+		});
+	}
+
+	if (actionType === Action.Dump) {
+		return dumpAction({
+			...args,
+			searchParams: {
+				action: actionType,
+			},
+		});
+	}
+
+	return badRequest({
+		error: "Invalid action",
+	});
+};
+
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
 	const actionData = await serverAction();
 
-	if (actionData && "success" in actionData && actionData.success) {
+	if (actionData?.status === StatusCode.Ok) {
 		notifications.show({
 			title: "Success",
 			message: actionData.message,
 			color: "green",
 		});
-	} else if (actionData && "error" in actionData) {
+	} else if (
+		actionData?.status === StatusCode.BadRequest ||
+		actionData?.status === StatusCode.Unauthorized
+	) {
 		notifications.show({
 			title: "Error",
 			message: actionData.error,
