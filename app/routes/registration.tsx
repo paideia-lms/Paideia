@@ -26,7 +26,11 @@ import { devConstants } from "server/utils/constants";
 import { z } from "zod";
 import { setCookie } from "~/utils/cookie";
 import { getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
-import { badRequest, ForbiddenResponse, InternalServerErrorResponse } from "~/utils/responses";
+import {
+	badRequest,
+	ForbiddenResponse,
+	InternalServerErrorResponse,
+} from "~/utils/responses";
 import type { Route } from "./+types/registration";
 import { createLocalReq } from "server/internal/utils/internal-function-utils";
 

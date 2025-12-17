@@ -134,9 +134,9 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		},
 		enrolmentContext?.enrolment
 			? {
-				id: enrolmentContext.enrolment.id,
-				role: enrolmentContext.enrolment.role,
-			}
+					id: enrolmentContext.enrolment.id,
+					role: enrolmentContext.enrolment.role,
+				}
 			: undefined,
 	);
 
@@ -196,7 +196,7 @@ const createAction = async ({
 		userId: currentUser.id,
 		courseId: Number(courseId),
 		req: payloadRequest,
-	})
+	});
 
 	if (!enrollmentResult.ok) {
 		throw new BadRequestResponse(enrollmentResult.error.message);
@@ -211,9 +211,9 @@ const createAction = async ({
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 
@@ -230,10 +230,7 @@ const createAction = async ({
 		return badRequest({ error: parsedData.error.message });
 	}
 
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest,
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	// Use provided section ID or create a default section
 	let targetSectionId = parsedData.data.sectionId;
@@ -301,7 +298,7 @@ const deleteAction = async ({
 		userId: currentUser.id,
 		courseId: Number(courseId),
 		req: payloadRequest,
-	})
+	});
 
 	if (!enrollmentResult.ok) {
 		throw new BadRequestResponse(enrollmentResult.error.message);
@@ -316,9 +313,9 @@ const deleteAction = async ({
 		},
 		enrollment
 			? {
-				id: enrollment.id,
-				role: enrollment.role,
-			}
+					id: enrollment.id,
+					role: enrollment.role,
+				}
 			: undefined,
 	);
 

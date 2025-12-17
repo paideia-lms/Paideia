@@ -20,40 +20,16 @@ import {
 	filterPublishedSubmissions,
 	getDiscussionGradingStatusColor,
 	getDiscussionGradingStatusLabel,
-	groupAndSortDiscussionSubmissions,
+	type InterestedSubmissionType,
 	sortSubmissionsByDate,
+	groupAndSortDiscussionSubmissions,
+	type DiscussionSubmissionType,
 } from "./helpers";
 import type { Route } from "app/routes/course/module.$id.submissions/route";
 
 type Enrollment = NonNullable<
 	Route.ComponentProps["loaderData"]["enrollments"]
 >[number];
-
-// ============================================================================
-// Types
-// ============================================================================
-
-type DiscussionSubmissionType = {
-	id: number;
-	status: "draft" | "published" | "hidden" | "deleted";
-	postType: "thread" | "reply" | "comment";
-	title?: string | null;
-	content: string;
-	publishedAt?: string | null;
-	createdAt: string;
-	student: {
-		id: number;
-		firstName?: string | null;
-		lastName?: string | null;
-		email?: string | null;
-	};
-	grade?: {
-		baseGrade: number | null;
-		maxGrade: number | null;
-		gradedAt?: string | null;
-		feedback?: string | null;
-	} | null;
-};
 
 // ============================================================================
 // Components
@@ -69,7 +45,7 @@ function DiscussionStudentSubmissionRow({
 }: {
 	courseId: number;
 	enrollment: Enrollment;
-	studentSubmissions: DiscussionSubmissionType[] | undefined;
+	studentSubmissions: InterestedSubmissionType[] | undefined;
 	moduleLinkId: number;
 	onReleaseGrade?: (courseModuleLinkId: number, enrollmentId: number) => void;
 	isReleasing?: boolean;
@@ -221,17 +197,13 @@ export function DiscussionSubmissionTable({
 	isReleasing?: boolean;
 }) {
 	// Filter and validate submissions, then group and sort by student
-	const validSubmissions = submissions.filter(
-		(submission) =>
-			"postType" in submission &&
-			"content" in submission &&
-			submission.student &&
-			typeof submission.student === "object" &&
-			"id" in submission.student,
-	) satisfies DiscussionSubmissionType[];
+	const interestedSubmissions = submissions.filter(
+		(submission) => "postType" in submission && "content" in submission,
+	);
 
-	const discussionSubmissionsByStudent =
-		groupAndSortDiscussionSubmissions(validSubmissions);
+	const discussionSubmissionsByStudent = groupAndSortDiscussionSubmissions(
+		interestedSubmissions,
+	);
 
 	return (
 		<Paper withBorder shadow="sm" p="md" radius="md">

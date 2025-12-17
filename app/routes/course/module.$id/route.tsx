@@ -518,20 +518,20 @@ const submitQuizAction = async ({
 	// Parse answers if provided
 	let answers:
 		| Array<{
-			questionId: string;
-			questionText: string;
-			questionType:
-			| "multiple_choice"
-			| "true_false"
-			| "short_answer"
-			| "essay"
-			| "fill_blank";
-			selectedAnswer?: string;
-			multipleChoiceAnswers?: Array<{
-				option: string;
-				isSelected: boolean;
-			}>;
-		}>
+				questionId: string;
+				questionText: string;
+				questionType:
+					| "multiple_choice"
+					| "true_false"
+					| "short_answer"
+					| "essay"
+					| "fill_blank";
+				selectedAnswer?: string;
+				multipleChoiceAnswers?: Array<{
+					option: string;
+					isSelected: boolean;
+				}>;
+		  }>
 		| undefined;
 
 	if (answersJson && typeof answersJson === "string") {
@@ -1082,8 +1082,8 @@ function QuizModuleView({ loaderData }: QuizModuleViewProps) {
 		// Use userSubmission which is already the active in_progress submission
 		const activeSubmission =
 			loaderData.userSubmission &&
-				"status" in loaderData.userSubmission &&
-				loaderData.userSubmission.status === "in_progress"
+			"status" in loaderData.userSubmission &&
+			loaderData.userSubmission.status === "in_progress"
 				? loaderData.userSubmission
 				: null;
 

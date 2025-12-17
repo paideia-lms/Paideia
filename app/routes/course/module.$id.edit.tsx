@@ -83,11 +83,11 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		currentUser,
 		enrolmentContext?.enrolment
 			? [
-				{
-					userId: enrolmentContext.enrolment.user.id,
-					role: enrolmentContext.enrolment.role,
-				},
-			]
+					{
+						userId: enrolmentContext.enrolment.user.id,
+						role: enrolmentContext.enrolment.role,
+					},
+				]
 			: undefined,
 	);
 
@@ -138,7 +138,6 @@ const updatePageSettingsAction = async ({
 		return unauthorized({ error: "Unauthorized" });
 	}
 
-
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {
 		name?: string | null;
@@ -166,7 +165,9 @@ const updateWhiteboardSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action.UpdateWhiteboard } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: Action.UpdateWhiteboard };
+}) => {
 	assertRequestMethod(request.method, "POST");
 
 	const { payload } = context.get(globalContextKey);
@@ -242,7 +243,9 @@ const updateAssignmentSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action.UpdateAssignment } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: Action.UpdateAssignment };
+}) => {
 	assertRequestMethod(request.method, "POST");
 
 	const { payload, payloadRequest } = context.get(globalContextKey);
@@ -332,7 +335,9 @@ const updateDiscussionSettingsAction = async ({
 	request,
 	context,
 	params,
-}: Route.ActionArgs & { searchParams: { action: Action.UpdateDiscussion } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: Action.UpdateDiscussion };
+}) => {
 	assertRequestMethod(request.method, "POST");
 
 	const { payload, payloadRequest } = context.get(globalContextKey);

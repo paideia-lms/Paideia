@@ -115,10 +115,7 @@ const createPageAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest,
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -186,10 +183,7 @@ const createWhiteboardAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest,
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -372,10 +366,7 @@ const createAssignmentAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest,
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -445,10 +436,7 @@ const createQuizAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest,
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request
@@ -518,10 +506,7 @@ const createDiscussionAction = async ({
 	}
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest,
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return transactionInfo.tx(async ({ reqWithTransaction }) => {
 		// Handle JSON request

@@ -27,10 +27,7 @@ enum UserTab {
 	Media = "media",
 }
 
-export const loader = async ({
-	context,
-	params,
-}: Route.LoaderArgs) => {
+export const loader = async ({ context, params }: Route.LoaderArgs) => {
 	const { payload, pageInfo, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
@@ -47,7 +44,7 @@ export const loader = async ({
 		userSession.effectiveUser || userSession.authenticatedUser;
 
 	// Get user ID from route params, or use current user
-	const userId = userProfileContext.profileUser.id
+	const userId = userProfileContext.profileUser.id;
 
 	// Check if user can access this data
 	if (userId !== currentUser.id && currentUser.role !== "admin") {

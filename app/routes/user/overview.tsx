@@ -106,8 +106,8 @@ export const loader = async ({
 	// Handle avatar - could be Media object or just ID
 	const avatarUrl = profileUser.avatar
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: profileUser.avatar.toString(),
-		})
+				filenameOrId: profileUser.avatar.toString(),
+			})
 		: null;
 
 	// Check if user can impersonate

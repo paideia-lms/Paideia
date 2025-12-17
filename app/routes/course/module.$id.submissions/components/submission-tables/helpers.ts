@@ -1,3 +1,23 @@
+import type { Route } from "app/routes/course/module.$id.submissions/route";
+
+// ============================================================================
+// Types
+// ============================================================================
+
+export type DiscussionLoaderData = Extract<
+	Route.ComponentProps["loaderData"],
+	{ moduleType: "discussion" }
+>;
+
+export type DiscussionSubmissionType = NonNullable<
+	DiscussionLoaderData["submissions"]
+>[number];
+
+export type InterestedSubmissionType = Extract<
+	DiscussionSubmissionType,
+	{ postType: unknown; content: unknown }
+>;
+
 // ============================================================================
 // Helper Functions for Submission Tables
 // ============================================================================
@@ -16,6 +36,25 @@ export function groupSubmissionsByStudent<
 		}
 		submissionsByStudent.get(studentId)?.push(submission);
 	}
+	return submissionsByStudent;
+}
+
+/**
+ * Groups discussion submissions by student ID and sorts them by date
+ */
+export function groupAndSortDiscussionSubmissions(
+	submissions: InterestedSubmissionType[],
+) {
+	const submissionsByStudent = groupSubmissionsByStudent(submissions);
+
+	// Sort submissions by date (newest first) for each student
+	for (const [studentId, studentSubmissions] of submissionsByStudent) {
+		submissionsByStudent.set(
+			studentId,
+			sortSubmissionsByDate(studentSubmissions),
+		);
+	}
+
 	return submissionsByStudent;
 }
 
@@ -125,25 +164,6 @@ export function calculateDiscussionGradingStats<T extends DiscussionSubmission>(
 		averageScore,
 		maxGrade,
 	};
-}
-
-/**
- * Groups discussion submissions by student ID and sorts them by date
- */
-export function groupAndSortDiscussionSubmissions<
-	T extends DiscussionSubmission & { student: { id: number } },
->(submissions: T[]): Map<number, T[]> {
-	const submissionsByStudent = groupSubmissionsByStudent(submissions);
-
-	// Sort submissions by date (newest first) for each student
-	for (const [studentId, studentSubmissions] of submissionsByStudent) {
-		submissionsByStudent.set(
-			studentId,
-			sortSubmissionsByDate(studentSubmissions),
-		);
-	}
-
-	return submissionsByStudent;
 }
 
 /**

@@ -23,7 +23,6 @@ export const loader = async ({
 
 	const { payload, s3Client, payloadRequest } = context.get(globalContextKey);
 
-
 	// Check if download is requested via query parameter
 	const url = new URL(request.url);
 	const isDownload = url.searchParams.get("download") === "true";
@@ -38,17 +37,17 @@ export const loader = async ({
 	// For efficiency, we'll make one call and handle range parsing after getting media metadata
 	let result = isId
 		? await tryGetMediaStreamFromId({
-			payload,
-			s3Client,
-			id: filenameOrId,
-			req: payloadRequest,
-		})
+				payload,
+				s3Client,
+				id: filenameOrId,
+				req: payloadRequest,
+			})
 		: await tryGetMediaStreamFromFilename({
-			payload,
-			s3Client,
-			filename: filenameOrId,
-			req: payloadRequest,
-		});
+				payload,
+				s3Client,
+				filename: filenameOrId,
+				req: payloadRequest,
+			});
 
 	if (!result.ok) {
 		console.error("Failed to get media stream:", result.error.message);
@@ -65,19 +64,19 @@ export const loader = async ({
 	if (range && (range.start > 0 || range.end < fileSize - 1)) {
 		result = isId
 			? await tryGetMediaStreamFromId({
-				payload,
-				s3Client,
-				id: filenameOrId,
-				range,
-				req: payloadRequest,
-			})
+					payload,
+					s3Client,
+					id: filenameOrId,
+					range,
+					req: payloadRequest,
+				})
 			: await tryGetMediaStreamFromFilename({
-				payload,
-				s3Client,
-				filename: filenameOrId,
-				range,
-				req: payloadRequest,
-			});
+					payload,
+					s3Client,
+					filename: filenameOrId,
+					range,
+					req: payloadRequest,
+				});
 
 		if (!result.ok) {
 			console.error(

@@ -204,10 +204,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 
 	const userOptions = usersResult.ok
 		? usersResult.value.docs.map((user) => ({
-			value: user.id.toString(),
-			label:
-				`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
-		}))
+				value: user.id.toString(),
+				label:
+					`${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email,
+			}))
 		: [];
 
 	// Fetch orphaned media files
@@ -263,10 +263,7 @@ const updateMediaAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			const formData = await request.formData();
@@ -357,76 +354,76 @@ const deleteMediaAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const formData = await request.formData();
-			const mediaIdsParam = formData.get("mediaIds");
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const formData = await request.formData();
+				const mediaIdsParam = formData.get("mediaIds");
 
-			if (!mediaIdsParam) {
-				return badRequest({ error: "Media IDs are required" });
-			}
+				if (!mediaIdsParam) {
+					return badRequest({ error: "Media IDs are required" });
+				}
 
-			// Parse media IDs - can be a single ID or comma-separated IDs
-			let mediaIds: number[];
-			if (typeof mediaIdsParam === "string") {
-				mediaIds = mediaIdsParam
-					.split(",")
-					.map((id) => Number(id.trim()))
-					.filter((id) => !Number.isNaN(id));
-			} else {
-				return badRequest({ error: "Invalid media IDs format" });
-			}
+				// Parse media IDs - can be a single ID or comma-separated IDs
+				let mediaIds: number[];
+				if (typeof mediaIdsParam === "string") {
+					mediaIds = mediaIdsParam
+						.split(",")
+						.map((id) => Number(id.trim()))
+						.filter((id) => !Number.isNaN(id));
+				} else {
+					return badRequest({ error: "Invalid media IDs format" });
+				}
 
-			if (mediaIds.length === 0) {
-				return badRequest({ error: "At least one media ID is required" });
-			}
+				if (mediaIds.length === 0) {
+					return badRequest({ error: "At least one media ID is required" });
+				}
 
-			// Verify all media records exist
-			const mediaRecordsResult = await tryGetMediaByIds({
-				payload,
-				ids: mediaIds,
-				req: reqWithTransaction,
-			});
-
-			if (!mediaRecordsResult.ok) {
-				return badRequest({ error: mediaRecordsResult.error.message });
-			}
-
-			const mediaRecords = mediaRecordsResult.value;
-
-			if (mediaRecords.docs.length !== mediaIds.length) {
-				const foundIds = mediaRecords.docs.map((m) => m.id);
-				const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
-				return badRequest({
-					error: `Media records not found: ${missingIds.join(", ")}`,
+				// Verify all media records exist
+				const mediaRecordsResult = await tryGetMediaByIds({
+					payload,
+					ids: mediaIds,
+					req: reqWithTransaction,
 				});
-			}
 
-			const result = await tryDeleteMedia({
-				payload,
-				s3Client,
-				id: mediaIds,
-				userId: currentUser.id,
-				req: reqWithTransaction,
-			});
+				if (!mediaRecordsResult.ok) {
+					return badRequest({ error: mediaRecordsResult.error.message });
+				}
 
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
+				const mediaRecords = mediaRecordsResult.value;
 
-			return ok({
-				message:
-					mediaIds.length === 1
-						? "Media deleted successfully"
-						: `${mediaIds.length} media files deleted successfully`,
-			});
-		}, (result) => {
-			return result.data.status === StatusCode.BadRequest
-		});
+				if (mediaRecords.docs.length !== mediaIds.length) {
+					const foundIds = mediaRecords.docs.map((m) => m.id);
+					const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
+					return badRequest({
+						error: `Media records not found: ${missingIds.join(", ")}`,
+					});
+				}
+
+				const result = await tryDeleteMedia({
+					payload,
+					s3Client,
+					id: mediaIds,
+					userId: currentUser.id,
+					req: reqWithTransaction,
+				});
+
+				if (!result.ok) {
+					return badRequest({ error: result.error.message });
+				}
+
+				return ok({
+					message:
+						mediaIds.length === 1
+							? "Media deleted successfully"
+							: `${mediaIds.length} media files deleted successfully`,
+				});
+			},
+			(result) => {
+				return result.data.status === StatusCode.BadRequest;
+			},
+		);
 	},
 )!;
 
@@ -452,55 +449,55 @@ const deleteOrphanedMediaAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
+
+		return transactionInfo.tx(
+			async ({ reqWithTransaction }) => {
+				const formData = await request.formData();
+				const filenamesParam = formData.get("filenames");
+
+				if (!filenamesParam) {
+					return badRequest({ error: "Filenames are required" });
+				}
+
+				// Parse filenames - can be a single filename or comma-separated filenames
+				let filenames: string[];
+				if (typeof filenamesParam === "string") {
+					filenames = filenamesParam
+						.split(",")
+						.map((name) => name.trim())
+						.filter((name) => name.length > 0);
+				} else {
+					return badRequest({ error: "Invalid filenames format" });
+				}
+
+				if (filenames.length === 0) {
+					return badRequest({ error: "At least one filename is required" });
+				}
+
+				const result = await tryDeleteOrphanedMedia({
+					payload,
+					s3Client,
+					filenames,
+					req: reqWithTransaction,
+					overrideAccess: true,
+				});
+
+				if (!result.ok) {
+					return badRequest({ error: result.error.message });
+				}
+
+				return ok({
+					message:
+						result.value.deletedCount === 1
+							? "Orphaned file deleted successfully"
+							: `${result.value.deletedCount} orphaned files deleted successfully`,
+				});
+			},
+			(result) => {
+				return result.data.status === StatusCode.BadRequest;
+			},
 		);
-
-		return transactionInfo.tx(async ({ reqWithTransaction }) => {
-			const formData = await request.formData();
-			const filenamesParam = formData.get("filenames");
-
-			if (!filenamesParam) {
-				return badRequest({ error: "Filenames are required" });
-			}
-
-			// Parse filenames - can be a single filename or comma-separated filenames
-			let filenames: string[];
-			if (typeof filenamesParam === "string") {
-				filenames = filenamesParam
-					.split(",")
-					.map((name) => name.trim())
-					.filter((name) => name.length > 0);
-			} else {
-				return badRequest({ error: "Invalid filenames format" });
-			}
-
-			if (filenames.length === 0) {
-				return badRequest({ error: "At least one filename is required" });
-			}
-
-			const result = await tryDeleteOrphanedMedia({
-				payload,
-				s3Client,
-				filenames,
-				req: reqWithTransaction,
-				overrideAccess: true,
-			});
-
-			if (!result.ok) {
-				return badRequest({ error: result.error.message });
-			}
-
-			return ok({
-				message:
-					result.value.deletedCount === 1
-						? "Orphaned file deleted successfully"
-						: `${result.value.deletedCount} orphaned files deleted successfully`,
-			});
-		}, (result) => {
-			return result.data.status === StatusCode.BadRequest
-		});
 	},
 )!;
 
@@ -525,10 +522,7 @@ const pruneAllOrphanedMediaAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			const result = await tryPruneAllOrphanedMedia({
@@ -1025,8 +1019,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1196,8 +1190,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (
@@ -1276,8 +1270,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	// Get creator info
@@ -1288,7 +1282,7 @@ function MediaCard({
 	const creatorName =
 		typeof file.createdBy === "object" && file.createdBy !== null
 			? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-			"Unknown"
+				"Unknown"
 			: "Unknown";
 	const creatorAvatarId =
 		typeof file.createdBy === "object" && file.createdBy !== null
@@ -1299,13 +1293,13 @@ function MediaCard({
 			: null;
 	const creatorAvatarUrl = creatorAvatarId
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: creatorAvatarId.toString(),
-		})
+				filenameOrId: creatorAvatarId.toString(),
+			})
 		: undefined;
 	const profileUrl = creatorId
 		? href("/user/profile/:id?", {
-			id: creatorId.toString(),
-		})
+				id: creatorId.toString(),
+			})
 		: undefined;
 
 	return (
@@ -1562,7 +1556,7 @@ function MediaTableView({
 				const creatorName =
 					typeof file.createdBy === "object" && file.createdBy !== null
 						? `${file.createdBy.firstName || ""} ${file.createdBy.lastName || ""}`.trim() ||
-						"Unknown"
+							"Unknown"
 						: "Unknown";
 				const creatorAvatarId =
 					typeof file.createdBy === "object" && file.createdBy !== null
@@ -1573,13 +1567,13 @@ function MediaTableView({
 						: null;
 				const creatorAvatarUrl = creatorAvatarId
 					? href(`/api/media/file/:filenameOrId`, {
-						filenameOrId: creatorAvatarId.toString(),
-					})
+							filenameOrId: creatorAvatarId.toString(),
+						})
 					: undefined;
 				const profileUrl = creatorId
 					? href("/user/profile/:id?", {
-						id: creatorId.toString(),
-					})
+							id: creatorId.toString(),
+						})
 					: undefined;
 
 				return (

@@ -141,8 +141,8 @@ export const loader = async ({ context }: Route.LoaderArgs) => {
 		),
 		hasExtraCredit: gradebookSetupForUI
 			? gradebookSetupForUI.totals.calculatedTotal > 100 ||
-			gradebookSetupForUI.extraCreditItems.length > 0 ||
-			gradebookSetupForUI.extraCreditCategories.length > 0
+				gradebookSetupForUI.extraCreditItems.length > 0 ||
+				gradebookSetupForUI.extraCreditCategories.length > 0
 			: false,
 		displayTotal: gradebookSetupForUI?.totals.calculatedTotal ?? 0,
 		extraCreditItems: gradebookSetupForUI?.extraCreditItems ?? [],
@@ -532,9 +532,7 @@ export default function CourseGradesPage({ loaderData }: Route.ComponentProps) {
 	return (
 		<>
 			{activeTab === "setup" ? (
-				<GradebookSetupView
-					data={loaderData}
-				/>
+				<GradebookSetupView data={loaderData} />
 			) : (
 				<GraderReportView data={loaderData} />
 			)}

@@ -64,7 +64,6 @@ export const loader = async ({
 		);
 	}
 
-
 	const targetUser = userProfileContext.profileUser;
 
 	const modules = userProfileContext.activityModules;
@@ -243,19 +242,19 @@ export default function UserModulesLayout({
 															variant="light"
 															color={getModuleColor(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 															)}
 															leftSection={getModuleIcon(
 																module.type as
-																| "page"
-																| "whiteboard"
-																| "assignment"
-																| "quiz"
-																| "discussion",
+																	| "page"
+																	| "whiteboard"
+																	| "assignment"
+																	| "quiz"
+																	| "discussion",
 																12,
 															)}
 														>

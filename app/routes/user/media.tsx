@@ -85,7 +85,8 @@ export const loader = async ({
 	params,
 	request,
 }: Route.LoaderArgs) => {
-	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } =
+		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const userProfileContext = context.get(userProfileContextKey);
 
@@ -144,7 +145,7 @@ export const loader = async ({
 		payload,
 		userId,
 		req: payloadRequest,
-	}).getOrNull()
+	}).getOrNull();
 
 	return {
 		user: userProfileContext.profileUser,
@@ -229,7 +230,7 @@ const updateAction = async ({
 			payload,
 			id: mediaId,
 			req: txInfo.reqWithTransaction,
-		})
+		});
 
 		if (!mediaRecordResult.ok) {
 			return badRequest({ error: mediaRecordResult.error.message });
@@ -340,64 +341,72 @@ const deleteAction = async ({
 	// Handle transaction ID
 	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-	return await transactionInfo.tx(async (txInfo) => {
-		// Fetch media records to check permissions
-		const mediaRecordsResult = await tryGetMediaByIds({
-			payload,
-			ids: mediaIds,
-			req: txInfo.reqWithTransaction,
-		});
+	return await transactionInfo.tx(
+		async (txInfo) => {
+			// Fetch media records to check permissions
+			const mediaRecordsResult = await tryGetMediaByIds({
+				payload,
+				ids: mediaIds,
+				req: txInfo.reqWithTransaction,
+			});
 
-		if (!mediaRecordsResult.ok) {
-			return badRequest({ error: mediaRecordsResult.error.message });
-		}
+			if (!mediaRecordsResult.ok) {
+				return badRequest({ error: mediaRecordsResult.error.message });
+			}
 
-		const mediaRecords = mediaRecordsResult.value;
+			const mediaRecords = mediaRecordsResult.value;
 
-		// Check permissions for each media item
-		for (const media of mediaRecords.docs) {
-			const createdById = media.createdBy;
-			const deletePermission = canDeleteMedia(currentUser, createdById);
+			// Check permissions for each media item
+			for (const media of mediaRecords.docs) {
+				const createdById = media.createdBy;
+				const deletePermission = canDeleteMedia(currentUser, createdById);
 
-			if (!deletePermission.allowed) {
-				return unauthorized({
-					error:
-						deletePermission.reason ||
-						"You don't have permission to delete this media",
+				if (!deletePermission.allowed) {
+					return unauthorized({
+						error:
+							deletePermission.reason ||
+							"You don't have permission to delete this media",
+					});
+				}
+			}
+
+			// Verify all media records were found
+			if (mediaRecords.docs.length !== mediaIds.length) {
+				const foundIds = mediaRecords.docs.map((m) => m.id);
+				const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
+				return badRequest({
+					error: `Media records not found: ${missingIds.join(", ")}`,
 				});
 			}
-		}
 
-		// Verify all media records were found
-		if (mediaRecords.docs.length !== mediaIds.length) {
-			const foundIds = mediaRecords.docs.map((m) => m.id);
-			const missingIds = mediaIds.filter((id) => !foundIds.includes(id));
-			return badRequest({
-				error: `Media records not found: ${missingIds.join(", ")}`,
+			const result = await tryDeleteMedia({
+				payload,
+				s3Client,
+				id: mediaIds,
+				userId: currentUser.id,
+				req: txInfo.reqWithTransaction,
 			});
-		}
 
-		const result = await tryDeleteMedia({
-			payload,
-			s3Client,
-			id: mediaIds,
-			userId: currentUser.id,
-			req: txInfo.reqWithTransaction,
-		});
+			if (!result.ok) {
+				return badRequest({
+					error: result.error?.message ?? "Failed to delete media",
+				});
+			}
 
-		if (!result.ok) {
-			return badRequest({ error: result.error?.message ?? "Failed to delete media" });
-		}
-
-		return ok({
-			message:
-				mediaIds.length === 1
-					? "Media deleted successfully"
-					: `${mediaIds.length} media files deleted successfully`,
-		})
-	}, (response) => {
-		return response.data.status === StatusCode.BadRequest || response.data.status === StatusCode.Unauthorized
-	});
+			return ok({
+				message:
+					mediaIds.length === 1
+						? "Media deleted successfully"
+						: `${mediaIds.length} media files deleted successfully`,
+			});
+		},
+		(response) => {
+			return (
+				response.data.status === StatusCode.BadRequest ||
+				response.data.status === StatusCode.Unauthorized
+			);
+		},
+	);
 };
 
 const uploadAction = async ({
@@ -1020,8 +1029,8 @@ function MediaPreviewModal({
 
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	if (!mediaUrl) return null;
@@ -1112,8 +1121,8 @@ function MediaActionMenu({
 	const canPreviewFile = canPreview(file.mimeType ?? null);
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (
@@ -1192,8 +1201,8 @@ function MediaCard({
 }) {
 	const mediaUrl = file.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: file.filename,
-		})
+				filenameOrId: file.filename,
+			})
 		: undefined;
 
 	return (

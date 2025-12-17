@@ -130,9 +130,9 @@ export function useMediaUsageData(options: UseMediaUsageDataOptions = {}) {
 	const data =
 		fetcher.data && "usages" in fetcher.data && "totalUsages" in fetcher.data
 			? {
-				usages: fetcher.data.usages,
-				totalUsages: fetcher.data.totalUsages,
-			}
+					usages: fetcher.data.usages,
+					totalUsages: fetcher.data.totalUsages,
+				}
 			: null;
 
 	// Extract error from failed response

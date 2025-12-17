@@ -128,10 +128,7 @@ const updatePageAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -185,7 +182,9 @@ const updateWhiteboardAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action.UpdateWhiteboard } }) => {
+	}: Route.ActionArgs & {
+		searchParams: { action: Action.UpdateWhiteboard };
+	}) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -215,10 +214,7 @@ const updateWhiteboardAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -273,7 +269,8 @@ const updateFileAction = serverOnly$(
 		context,
 		params,
 	}: Route.ActionArgs & { searchParams: { action: Action.UpdateFile } }) => {
-		const { payload, payloadRequest, systemGlobals } = context.get(globalContextKey);
+		const { payload, payloadRequest, systemGlobals } =
+			context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
 		if (!userSession?.isAuthenticated) {
@@ -304,10 +301,7 @@ const updateFileAction = serverOnly$(
 		const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Parse form data with media upload handler
@@ -396,7 +390,9 @@ const updateAssignmentAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action.UpdateAssignment } }) => {
+	}: Route.ActionArgs & {
+		searchParams: { action: Action.UpdateAssignment };
+	}) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -426,10 +422,7 @@ const updateAssignmentAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -517,10 +510,7 @@ const updateQuizAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request
@@ -578,7 +568,9 @@ const updateDiscussionAction = serverOnly$(
 		request,
 		context,
 		params,
-	}: Route.ActionArgs & { searchParams: { action: Action.UpdateDiscussion } }) => {
+	}: Route.ActionArgs & {
+		searchParams: { action: Action.UpdateDiscussion };
+	}) => {
 		const { payload, payloadRequest } = context.get(globalContextKey);
 		const userSession = context.get(userContextKey);
 
@@ -608,10 +600,7 @@ const updateDiscussionAction = serverOnly$(
 		}
 
 		// Handle transaction ID
-		const transactionInfo = await handleTransactionId(
-			payload,
-			payloadRequest,
-		);
+		const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 		return transactionInfo.tx(async ({ reqWithTransaction }) => {
 			// Handle JSON request

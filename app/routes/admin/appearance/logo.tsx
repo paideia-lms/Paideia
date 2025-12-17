@@ -150,7 +150,8 @@ const uploadAction = async ({
 	searchParams,
 }: Route.ActionArgs & { searchParams: { action: Action; field: Field } }) => {
 	const { field: _field } = searchParams;
-	const { payload, systemGlobals, payloadRequest } = context.get(globalContextKey);
+	const { payload, systemGlobals, payloadRequest } =
+		context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 
 	if (!userSession?.isAuthenticated) {
@@ -167,10 +168,7 @@ const uploadAction = async ({
 	const maxFileSize = systemGlobals.sitePolicies.siteUploadLimit ?? undefined;
 
 	// Handle transaction ID
-	const transactionInfo = await handleTransactionId(
-		payload,
-		payloadRequest,
-	);
+	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
 	return await transactionInfo.tx(async (txInfo) => {
 		let logoField: LogoField | null = null;
@@ -365,8 +363,8 @@ function LogoDropzoneBase({
 }) {
 	const logoUrl = logo?.filename
 		? href(`/api/media/file/:filenameOrId`, {
-			filenameOrId: logo.filename,
-		})
+				filenameOrId: logo.filename,
+			})
 		: null;
 
 	return (

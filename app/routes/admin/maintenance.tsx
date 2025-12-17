@@ -10,7 +10,10 @@ import {
 	tryUpdateMaintenanceSettings,
 } from "server/internal/maintenance-settings";
 import { z } from "zod";
-import { ContentType, getDataAndContentTypeFromRequest } from "~/utils/get-content-type";
+import {
+	ContentType,
+	getDataAndContentTypeFromRequest,
+} from "~/utils/get-content-type";
 import {
 	forbidden,
 	ForbiddenResponse,
@@ -57,7 +60,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 		return forbidden({ error: "Only admins can access this area" });
 	}
 
-	const parsed = await request.formData().then(convertMyFormDataToObject<typeof inputSchema.shape>).then(inputSchema.safeParse)
+	const parsed = await request
+		.formData()
+		.then(convertMyFormDataToObject<typeof inputSchema.shape>)
+		.then(inputSchema.safeParse);
 
 	if (!parsed.success) {
 		return forbidden({ error: "Invalid payload" });

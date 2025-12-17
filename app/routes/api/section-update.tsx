@@ -31,7 +31,6 @@ export const action = async ({ context, request }: Route.ActionArgs) => {
 		throw new ForbiddenResponse("Unauthorized");
 	}
 
-
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const parsed = inputSchema.safeParse(data);
 	if (!parsed.success) {

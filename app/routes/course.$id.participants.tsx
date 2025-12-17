@@ -137,11 +137,17 @@ export const action = async (args: Route.ActionArgs) => {
 	}
 
 	if (actionType === Action.EditEnrollment) {
-		return editEnrollmentAction({ ...args, searchParams: { action: actionType } });
+		return editEnrollmentAction({
+			...args,
+			searchParams: { action: actionType },
+		});
 	}
 
 	if (actionType === Action.DeleteEnrollment) {
-		return deleteEnrollmentAction({ ...args, searchParams: { action: actionType } });
+		return deleteEnrollmentAction({
+			...args,
+			searchParams: { action: actionType },
+		});
 	}
 
 	return badRequest({ error: "Invalid action" });
@@ -237,7 +243,9 @@ const editEnrollmentAction = async ({
 const deleteEnrollmentAction = async ({
 	request,
 	context,
-}: Route.ActionArgs & { searchParams: { action: Action.DeleteEnrollment } }) => {
+}: Route.ActionArgs & {
+	searchParams: { action: Action.DeleteEnrollment };
+}) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const { data } = await getDataAndContentTypeFromRequest(request);
 	const requestData = data as {

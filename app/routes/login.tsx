@@ -41,11 +41,10 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 	const { payload } = context.get(globalContextKey);
 
 	const [userCount, settingsResult] = await Promise.all([
-
 		tryGetUserCount({
 			payload,
 			// ! this is a system request, we dont care about access control
-			overrideAccess: true
+			overrideAccess: true,
 		}).getOrElse(() => {
 			throw new InternalServerErrorResponse("Failed to get user count");
 		}),
@@ -54,7 +53,9 @@ export const loader = async ({ context }: LoaderFunctionArgs) => {
 			// ! this is a system request, we don't care about access control
 			overrideAccess: true,
 		}).getOrElse(() => {
-			throw new InternalServerErrorResponse("Failed to get registration settings");
+			throw new InternalServerErrorResponse(
+				"Failed to get registration settings",
+			);
 		}),
 	]);
 

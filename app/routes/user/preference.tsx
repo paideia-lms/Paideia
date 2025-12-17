@@ -13,7 +13,10 @@ import { pick } from "es-toolkit";
 import { href, useFetcher } from "react-router";
 import { globalContextKey } from "server/contexts/global-context";
 import { userContextKey } from "server/contexts/user-context";
-import { tryFindUserById, tryUpdateUser } from "server/internal/user-management";
+import {
+	tryFindUserById,
+	tryUpdateUser,
+} from "server/internal/user-management";
 import { z } from "zod";
 import { assertRequestMethodInRemix } from "~/utils/assert-request-method";
 import {

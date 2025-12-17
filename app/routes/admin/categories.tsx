@@ -276,20 +276,23 @@ const deleteCategoryAction = async ({
 	// Wrap multi-mutation ops in a transaction
 	const transactionInfo = await handleTransactionId(payload, payloadRequest);
 
-	return transactionInfo.tx(async (txInfo) => {
-		const delRes = await tryDeleteCategory({
-			payload,
-			categoryId,
-			req: txInfo.reqWithTransaction,
-		});
-		if (!delRes.ok) {
-			return badRequest({ error: delRes.error.message });
-		}
+	return transactionInfo.tx(
+		async (txInfo) => {
+			const delRes = await tryDeleteCategory({
+				payload,
+				categoryId,
+				req: txInfo.reqWithTransaction,
+			});
+			if (!delRes.ok) {
+				return badRequest({ error: delRes.error.message });
+			}
 
-		return ok({ success: true });
-	}, (result) => {
-		return result.data.status === StatusCode.BadRequest;
-	});
+			return ok({ success: true });
+		},
+		(result) => {
+			return result.data.status === StatusCode.BadRequest;
+		},
+	);
 };
 
 export async function clientAction({ serverAction }: Route.ClientActionArgs) {
@@ -535,11 +538,11 @@ export default function AdminCategoriesPage({
 					const _viewCoursesTo =
 						d.id === "uncategorized"
 							? href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent("category:none")
+								"?query=" +
+								encodeURIComponent("category:none")
 							: href("/admin/courses") +
-							"?query=" +
-							encodeURIComponent(`category:"${d.name}"`);
+								"?query=" +
+								encodeURIComponent(`category:"${d.name}"`);
 
 					const badges = (
 						<Group gap={4} wrap="nowrap" align="center">
