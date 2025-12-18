@@ -569,7 +569,7 @@ const updateDiscussionAction = serverOnly$(
 				description: parsed.data.description,
 				status: parsed.data.status,
 				instructions: parsed.data.discussionInstructions,
-				dueDate: parsed.data.discussionDueDate ?? undefined,
+				dueDate: parsed.data.discussionDueDate,
 				requireThread: parsed.data.discussionRequireThread,
 				requireReplies: parsed.data.discussionRequireReplies,
 				minReplies: parsed.data.discussionMinReplies,

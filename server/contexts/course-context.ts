@@ -13,7 +13,7 @@ import {
 	tryGetGradebookAllRepresentations,
 	tryGetGradebookByCourseWithDetails,
 } from "server/internal/gradebook-management";
-import { canAccessCourse } from "server/utils/permissions";
+import { canAccessCourse, permissions } from "server/utils/permissions";
 import { Result } from "typescript-result";
 import {
 	CourseAccessDeniedError,
@@ -295,7 +295,12 @@ export const tryGetCourseContext = Result.wrap(
 			allReps.ui.gradebook_setup.items,
 		);
 
+		const enrolment = courseWithModuleLinks.enrollments.find(
+			(enrolment) => enrolment.user.id === user.id,
+		);
+
 		return {
+			enrolment,
 			course: courseWithModuleLinks,
 			courseId: course.id,
 			courseStructure,
@@ -307,6 +312,16 @@ export const tryGetCourseContext = Result.wrap(
 			gradebookMarkdown: allReps.markdown,
 			gradebookSetupForUI: allReps.ui,
 			flattenedCategories: flattenedCategoriesData,
+			permissions: {
+				canSeeSettings: permissions.course.canSeeSettings(user, enrolment),
+				canEdit: permissions.course.canEdit(
+					user,
+					courseWithModuleLinks.enrollments.map((e) => ({
+						userId: e.user.id,
+						role: e.role,
+					})),
+				),
+			},
 		};
 	},
 	(error) => {

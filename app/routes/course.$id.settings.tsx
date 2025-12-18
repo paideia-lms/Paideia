@@ -28,7 +28,7 @@ import { tryUpdateCourse } from "server/internal/course-management";
 
 import type { Course } from "server/payload-types";
 import type { UseFormReturnType } from "@mantine/form";
-import { canSeeCourseSettings } from "server/utils/permissions";
+import { canSeeCourseSettings, permissions } from "server/utils/permissions";
 import type { RichTextEditorRef } from "~/components/rich-text-editor";
 import { RichTextEditor } from "~/components/rich-text-editor";
 import {
@@ -84,7 +84,6 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
 	const courseContext = context.get(courseContextKey);
-	const enrolmentContext = context.get(enrolmentContextKey);
 
 	if (!userSession?.isAuthenticated) {
 		throw new ForbiddenResponse("Unauthorized");
@@ -95,20 +94,10 @@ export const loader = async ({ context, request }: Route.LoaderArgs) => {
 		throw new ForbiddenResponse("Course not found or access denied");
 	}
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
 	const { course } = courseContext;
 
-	// Check if user can edit this course
-	const canEdit = canSeeCourseSettings(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrolmentContext?.enrolment,
-	);
 
-	if (!canEdit) {
+	if (!courseContext.permissions.canEdit.allowed) {
 		throw new ForbiddenResponse(
 			"You don't have permission to edit this course",
 		);
@@ -166,7 +155,6 @@ export const action = async ({
 }: Route.ActionArgs) => {
 	const { payload, payloadRequest } = context.get(globalContextKey);
 	const userSession = context.get(userContextKey);
-	const enrollmentContext = context.get(enrolmentContextKey);
 	const courseContext = context.get(courseContextKey);
 	if (!userSession?.isAuthenticated) {
 		return unauthorized({
@@ -183,19 +171,7 @@ export const action = async ({
 
 	const courseId = courseContext.course.id;
 
-	const currentUser =
-		userSession.effectiveUser ?? userSession.authenticatedUser;
-
-	// Check if user has permission to edit settings
-	const canEdit = canSeeCourseSettings(
-		{
-			id: currentUser.id,
-			role: currentUser.role ?? "student",
-		},
-		enrollmentContext?.enrolment,
-	);
-
-	if (!canEdit) {
+	if (!courseContext.permissions.canEdit.allowed) {
 		return unauthorized({
 			success: false,
 			error: "You don't have permission to edit this course",

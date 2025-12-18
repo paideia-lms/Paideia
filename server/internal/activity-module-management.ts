@@ -182,7 +182,7 @@ export interface UpdateDiscussionModuleArgs
 	extends BaseUpdateActivityModuleArgs {
 	description?: string;
 	instructions?: string;
-	dueDate?: string;
+	dueDate?: string | null;
 	requireThread?: boolean;
 	requireReplies?: boolean;
 	minReplies?: number;
@@ -2442,7 +2442,6 @@ export const tryUpdateDiscussionModule = Result.wrap(
 			title,
 			description,
 			status,
-
 			req,
 			overrideAccess = false,
 			instructions,

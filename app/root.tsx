@@ -564,30 +564,24 @@ export const middleware = [
 				const userProfileContext =
 					profileUserId === currentUser.id
 						? convertUserAccessContextToUserProfileContext(
-								userAccessContext,
-								currentUser,
-							)
+							userAccessContext,
+							currentUser,
+						)
 						: await getUserProfileContext({
-								payload,
-								profileUserId,
-								req: payloadRequest,
-								overrideAccess: false,
-							});
+							payload,
+							profileUserId,
+							req: payloadRequest,
+							overrideAccess: false,
+						});
 				context.set(userProfileContextKey, userProfileContext);
 			}
 		}
 	},
 	// set the enrolment context
 	async ({ context }) => {
-		const userSession = context.get(userContextKey);
 		const courseContext = context.get(courseContextKey);
-		if (userSession?.isAuthenticated && courseContext) {
-			// get the enrollment
-			const currentUser =
-				userSession.effectiveUser || userSession.authenticatedUser;
-			const enrollment = courseContext.course.enrollments.find(
-				(e) => e.user.id === currentUser?.id,
-			);
+		if (courseContext) {
+			const enrollment = courseContext.enrolment;
 
 			// set the enrolment context
 			if (enrollment) {
@@ -763,17 +757,17 @@ export async function loader({ context }: Route.LoaderArgs) {
 			environment !== "development"
 				? null
 				: {
-						userSession: userSession,
-						courseContext: context.get(courseContextKey),
-						courseModuleContext: context.get(courseModuleContextKey),
-						courseSectionContext: context.get(courseSectionContextKey),
-						enrolmentContext: context.get(enrolmentContextKey),
-						userModuleContext: context.get(userModuleContextKey),
-						userProfileContext: context.get(userProfileContextKey),
-						userAccessContext: context.get(userAccessContextKey),
-						userContext: context.get(userContextKey),
-						systemGlobals: systemGlobals,
-					},
+					userSession: userSession,
+					courseContext: context.get(courseContextKey),
+					courseModuleContext: context.get(courseModuleContextKey),
+					courseSectionContext: context.get(courseSectionContextKey),
+					enrolmentContext: context.get(enrolmentContextKey),
+					userModuleContext: context.get(userModuleContextKey),
+					userProfileContext: context.get(userProfileContextKey),
+					userAccessContext: context.get(userAccessContextKey),
+					userContext: context.get(userContextKey),
+					systemGlobals: systemGlobals,
+				},
 		isSandboxMode,
 		nextResetTime,
 	};
